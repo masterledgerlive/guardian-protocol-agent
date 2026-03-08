@@ -1,0 +1,14 @@
+{
+  "name": "guardian-protocol-agent",
+  "version": "1.0.2",
+  "type": "module",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "@coinbase/cdp-sdk": "0.10.0",
+    "@anthropic-ai/sdk": "0.39.0",
+    "dotenv": "16.0.0"
+  }
+}
