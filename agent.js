@@ -1,22 +1,23 @@
 require("dotenv").config();
+const Anthropic = require("@anthropic-ai/sdk");
 
 async function main() {
   console.log("Guardian Protocol Agent Starting...");
   console.log("WALLET: 0x4D9925f10A22b5C8e1F72E3eE9E35B5c3D0A7b9");
   console.log("NETWORK: base-sepolia");
-  console.log("STATUS: Agent framework operational");
   console.log("ANTHROPIC API: Connected -", process.env.ANTHROPIC_API_KEY ? "YES" : "NO");
   console.log("CDP KEY: Connected -", process.env.CDP_API_KEY_NAME ? "YES" : "NO");
+
+  const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
   
-  const { ChatAnthropic } = require("@langchain/anthropic");
-  const llm = new ChatAnthropic({
+  const message = await client.messages.create({
     model: "claude-3-haiku-20240307",
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    max_tokens: 100,
+    messages: [{ role: "user", content: "Say exactly this: GUARDIAN PROTOCOL AGENT IS LIVE" }]
   });
-  
-  const response = await llm.invoke("Say exactly: GUARDIAN PROTOCOL AGENT IS LIVE ON BASE SEPOLIA");
-  console.log("AI RESPONSE:", response.content);
-  console.log("DONE. Guardian Protocol Agent verified.");
+
+  console.log("AI RESPONSE:", message.content[0].text);
+  console.log("DONE. Guardian Protocol is operational.");
 }
 
 main().catch(console.error);
