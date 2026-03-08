@@ -10,7 +10,7 @@ async function main() {
   
   const { ChatAnthropic } = require("@langchain/anthropic");
   const llm = new ChatAnthropic({
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-3-haiku-20240307",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   });
   
