@@ -1,0 +1,29 @@
+{
+  "name": "guardian-protocol-agent",
+  "version": "1.0.0",
+  "description": "Guardian Protocol AI Agent on Base Sepolia",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "@coinbase/agentkit": "^0.1.0",
+    "@coinbase/agentkit-langchain": "^0.1.0",
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "dotenv": "^16.0.0"
+  }
+}
+```
+
+7. Press **Ctrl+S** to save
+
+---
+
+**Record in Pages:**
+```
+SKILLMD NOTE:
+package.json is the shopping list for your project.
+It tells Node.js exactly which tools to download
+before your agent can run. You only create this once.
