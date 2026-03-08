@@ -5,27 +5,31 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // ═══════════════════════════════════════════════════════
-// GUARDIAN CASCADE SYSTEM v6.1
+// GUARDIAN CASCADE SYSTEM v6.2
+// FIXES:
+//  - GitHub saves every 30 mins ONLY (no more constant redeploys)
+//  - Reports every 30 mins ONLY
+//  - Added BRETT, AERO, VIRTUAL, AIXBT tokens
 // ═══════════════════════════════════════════════════════
 
 const WALLET_ADDRESS = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
 const WETH_ADDRESS   = "0x4200000000000000000000000000000000000006";
 const SWAP_ROUTER    = "0x2626664c2603336E57B271c5C0b26F421741e481";
 
-// ── SAFETY ────────────────────────────────────────────
+// ── SAFETY ────────────────────────────────────────────────────────────────
 const GAS_RESERVE      = 0.0003;
 const MIN_ETH_TO_TRADE = 0.0008;
 const MIN_TRADE_USD    = 0.50;
 const FEE_SAFETY       = 3;
-const COOLDOWN_MS      = 300000;
+const COOLDOWN_MS      = 300000;   // 5 min between trades per token
 const TRIGGER_PCT      = 0.02;
-const LOTTERY_PCT      = 0.10;
 const PROFIT_TARGET    = 500;
-const SAVE_INTERVAL    = 1800000;
-const INTERVAL         = 20000;
+const SAVE_INTERVAL    = 1800000;  // save to GitHub every 30 mins ONLY
+const REPORT_INTERVAL  = 1800000;  // report every 30 mins ONLY
+const INTERVAL         = 20000;    // check prices every 20 seconds
 const ETH_USD          = 1940;
 
-// ── GITHUB ────────────────────────────────────────────
+// ── GITHUB ────────────────────────────────────────────────────────────────
 const GITHUB_TOKEN  = process.env.GITHUB_TOKEN;
 const GITHUB_REPO   = process.env.GITHUB_REPO;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
@@ -41,7 +45,7 @@ const ERC20_ABI = [
 
 const publicClient = createPublicClient({ chain: base, transport: http() });
 
-// ── STATE ─────────────────────────────────────────────
+// ── STATE ─────────────────────────────────────────────────────────────────
 let tokens         = [];
 let history        = {};
 let tokensSha      = null;
@@ -54,7 +58,7 @@ let tradeCount     = 0;
 let lastSaveTime   = 0;
 let lastReportTime = 0;
 
-// ── GITHUB OPS ────────────────────────────────────────
+// ── GITHUB OPS ────────────────────────────────────────────────────────────
 async function githubGet(path) {
   try {
     const res = await fetch(
@@ -95,23 +99,46 @@ async function githubSave(path, content, sha) {
 
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
+
   const tf = await githubGet("tokens.json");
-  if (tf) { tokens = tf.content.tokens || []; tokensSha = tf.sha; }
-  console.log(`✅ ${tokens.length} tokens loaded: ${tokens.map(t=>t.symbol).join(", ")}`);
+  if (tf) {
+    tokens    = tf.content.tokens || [];
+    tokensSha = tf.sha;
+    console.log(`✅ ${tokens.length} tokens loaded: ${tokens.map(t=>t.symbol).join(", ")}`);
+  } else {
+    console.log("⚠️  tokens.json not found — using defaults");
+    tokens = [
+      { symbol: "DEGEN",   address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed", status: "active",   lotteryTickets: 0,     entryPrice: null, totalInvested: 0 },
+      { symbol: "TOSHI",   address: "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4", status: "watching", lotteryTickets: 46888, entryPrice: null, totalInvested: 0 },
+      { symbol: "BRETT",   address: "0x532f27101965dd16442E59d40670FaF5eBB142E4", status: "watching", lotteryTickets: 0,     entryPrice: null, totalInvested: 0 },
+      { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", status: "watching", lotteryTickets: 0,     entryPrice: null, totalInvested: 0 },
+      { symbol: "VIRTUAL", address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", status: "watching", lotteryTickets: 0,     entryPrice: null, totalInvested: 0 },
+      { symbol: "AIXBT",   address: "0x4F9Fd6Be4a90f2620860d680c0d4d5Fb53d1A825", status: "watching", lotteryTickets: 0,     entryPrice: null, totalInvested: 0 },
+    ];
+  }
+
   const hf = await githubGet("history.json");
-  if (hf) { history = hf.content || {}; historySha = hf.sha; }
-  console.log(`✅ History loaded for: ${Object.keys(history).join(", ") || "none yet"}`);
+  if (hf) {
+    history    = hf.content || {};
+    historySha = hf.sha;
+    console.log(`✅ History loaded for: ${Object.keys(history).join(", ") || "none yet"}`);
+  } else {
+    console.log("⚠️  history.json not found — starting fresh");
+    history = {};
+  }
 }
 
 async function saveToGitHub() {
+  // Only saves every 30 mins — does NOT trigger Railway redeploys
+  // because Railway only redeploys when agent.js changes, not JSON data files
   console.log("💾 Saving to GitHub...");
-  tokensSha  = await githubSave("tokens.json", { tokens, lastSaved: new Date().toISOString() }, tokensSha);
+  tokensSha  = await githubSave("tokens.json",  { tokens, lastSaved: new Date().toISOString() }, tokensSha);
   historySha = await githubSave("history.json", history, historySha);
   lastSaveTime = Date.now();
-  console.log("✅ Saved");
+  console.log("✅ Saved to GitHub");
 }
 
-// ── TELEGRAM ──────────────────────────────────────────
+// ── TELEGRAM ──────────────────────────────────────────────────────────────
 async function sendAlert(msg) {
   try {
     const token  = process.env.TELEGRAM_BOT_TOKEN;
@@ -125,7 +152,7 @@ async function sendAlert(msg) {
   } catch (e) { console.log("Telegram error:", e.message); }
 }
 
-// ── PRICE FEED (dual source) ───────────────────────────
+// ── PRICE FEED (dual source) ──────────────────────────────────────────────
 async function getTokenPrice(address) {
   try {
     // Source 1 — GeckoTerminal
@@ -173,7 +200,7 @@ function getTradeableEth(ethBalance) {
   return Math.max(ethBalance - GAS_RESERVE - piggyBank, 0);
 }
 
-// ── CYCLE HISTORY ─────────────────────────────────────
+// ── CYCLE HISTORY ─────────────────────────────────────────────────────────
 function recordPrice(symbol, price) {
   if (!history[symbol]) {
     history[symbol] = { peaks: [], troughs: [], readings: [], lastPrice: null };
@@ -238,7 +265,7 @@ function tokensNeededForTarget(symbol, currentPrice) {
   return { tokens: Math.ceil(PROFIT_TARGET / target), targetPrice: target };
 }
 
-// ── MOMENTUM ──────────────────────────────────────────
+// ── MOMENTUM ──────────────────────────────────────────────────────────────
 function getMomentum(symbol) {
   const s = priceStreams[symbol] || [];
   if (s.length < 6) return { direction: "neutral", speed: 0 };
@@ -275,7 +302,7 @@ function canTrade(symbol) {
   return true;
 }
 
-// ── FEE SAFETY ────────────────────────────────────────
+// ── FEE SAFETY ────────────────────────────────────────────────────────────
 async function isTradeProfitable(ethAmount) {
   const gasCost    = await estimateGasCostEth();
   const tradeValue = ethAmount * ETH_USD;
@@ -291,7 +318,7 @@ async function isTradeProfitable(ethAmount) {
   return true;
 }
 
-// ── ENCODE HELPERS ────────────────────────────────────
+// ── ENCODE HELPERS ────────────────────────────────────────────────────────
 function encodeSwap(tokenIn, tokenOut, amountIn, recipient) {
   const p = (v, isAddr=false) => (isAddr ? v.slice(2) : BigInt(v).toString(16)).padStart(64,"0");
   return "0x04e45aaf"
@@ -305,7 +332,7 @@ function encodeApprove(spender, amount) {
     + amount.toString(16).padStart(64,"0");
 }
 
-// ── BUY ───────────────────────────────────────────────
+// ── BUY ───────────────────────────────────────────────────────────────────
 async function executeBuy(cdp, token, tradeableEth, reason, price) {
   if (!canTrade(token.symbol)) return;
   if (tradeableEth < MIN_ETH_TO_TRADE) {
@@ -327,7 +354,6 @@ async function executeBuy(cdp, token, tradeableEth, reason, price) {
   const amountIn = parseEther(ethToSpend.toFixed(18));
   console.log(`\n   🟢 BUY ${token.symbol} — ${reason}`);
   console.log(`      ${ethToSpend.toFixed(6)} ETH @ $${price.toFixed(8)}`);
-  console.log(`      Need ${stillNeed.toFixed(0)} more tokens for $${PROFIT_TARGET} target`);
 
   try {
     const { transactionHash } = await cdp.evm.sendTransaction({
@@ -356,7 +382,7 @@ async function executeBuy(cdp, token, tradeableEth, reason, price) {
   }
 }
 
-// ── SELL ──────────────────────────────────────────────
+// ── SELL ──────────────────────────────────────────────────────────────────
 async function executeSell(cdp, token, sellPct, reason, price) {
   if (!canTrade(token.symbol)) return;
 
@@ -445,7 +471,7 @@ async function executeSell(cdp, token, sellPct, reason, price) {
   }
 }
 
-// ── PROCESS TOKEN ─────────────────────────────────────
+// ── PROCESS ONE TOKEN ─────────────────────────────────────────────────────
 async function processToken(cdp, token, ethBalance) {
   const price = await getTokenPrice(token.address);
   if (!price) { console.log(`   ⏳ ${token.symbol}: no price`); return; }
@@ -478,7 +504,7 @@ async function processToken(cdp, token, ethBalance) {
   console.log(`   🔮 Peak: ${predPeak?"$"+predPeak.toFixed(8):"learning"} | Trough: ${predTrough?"$"+predTrough.toFixed(8):"learning"}`);
   console.log(`   🎯 Need ${needed.tokens} for $${PROFIT_TARGET} | NearTrough:${nearTrough} NearPeak:${nearPeak}`);
 
-  // ── SELL ──────────────────────────────────────────
+  // ── SELL ─────────────────────────────────────────────────────────────────
   if (sellable > 1) {
     if (nearPeak && momentum.direction !== "up") {
       await executeSell(cdp, token, 0.90, `NEAR PEAK $${predPeak?.toFixed(8)}`, price);
@@ -488,7 +514,7 @@ async function processToken(cdp, token, ethBalance) {
       await executeSell(cdp, token, 0.06, `UP +${(change*100).toFixed(1)}%`, price);
     }
 
-  // ── BUY ───────────────────────────────────────────
+  // ── BUY ──────────────────────────────────────────────────────────────────
   } else if (tradeableEth >= MIN_ETH_TO_TRADE) {
     if (nearTrough && momentum.direction !== "down") {
       await executeBuy(cdp, token, tradeableEth, `NEAR TROUGH $${predTrough?.toFixed(8)}`, price);
@@ -500,22 +526,22 @@ async function processToken(cdp, token, ethBalance) {
   }
 }
 
-// ── 30 MIN REPORT ─────────────────────────────────────
+// ── 30 MIN REPORT ─────────────────────────────────────────────────────────
 async function sendReport(ethBalance) {
-  if (Date.now() - lastReportTime < 1800000) return;
+  if (Date.now() - lastReportTime < REPORT_INTERVAL) return; // ← 30 min gate
   lastReportTime = Date.now();
 
   let lines = "";
   for (const t of tokens) {
     const price = history[t.symbol]?.lastPrice;
     if (!price) continue;
-    const bal   = await getTokenBalance(t.address);
-    const usd   = (bal * price).toFixed(2);
-    const peak  = predictNextPeak(t.symbol);
+    const bal    = await getTokenBalance(t.address);
+    const usd    = (bal * price).toFixed(2);
+    const peak   = predictNextPeak(t.symbol);
     const trough = predictNextTrough(t.symbol);
-    const entry = t.entryPrice || price;
-    const pct   = ((price - entry) / entry * 100).toFixed(1);
-    const up    = parseFloat(pct) >= 0;
+    const entry  = t.entryPrice || price;
+    const pct    = ((price - entry) / entry * 100).toFixed(1);
+    const up     = parseFloat(pct) >= 0;
     lines +=
       `\n\n<b>${t.symbol}</b> ${up?"🟢":"🔴"}\n` +
       `💲 $${price.toFixed(8)}\n` +
@@ -537,11 +563,11 @@ async function sendReport(ethBalance) {
   );
 }
 
-// ── MAIN ──────────────────────────────────────────────
+// ── MAIN ──────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("═══════════════════════════════════════════");
-  console.log("⚔️   GUARDIAN CASCADE SYSTEM v6.1 — LIVE");
-  console.log("═══════════════════════════════════════════\n");
+  console.log("═══════════════════════════════════════════════");
+  console.log("⚔️   GUARDIAN CASCADE SYSTEM v6.2 — LIVE");
+  console.log("═══════════════════════════════════════════════\n");
 
   await loadFromGitHub();
 
@@ -556,7 +582,7 @@ async function main() {
   console.log(`🪙  Tracking: ${tokens.map(t=>t.symbol).join(", ")}\n`);
 
   await sendAlert(
-    `⚔️ <b>GUARDIAN CASCADE v6.1 — STARTED</b>\n\n` +
+    `⚔️ <b>GUARDIAN CASCADE v6.2 — STARTED</b>\n\n` +
     `👛 <code>${WALLET_ADDRESS}</code>\n` +
     `💰 ETH: ${ethBalance.toFixed(6)}\n` +
     `🪙 Tracking: ${tokens.map(t=>t.symbol).join(", ")}\n` +
@@ -565,7 +591,7 @@ async function main() {
     `🛡️ Fee check: trade must be ${FEE_SAFETY}x gas cost\n` +
     `🐷 Piggy bank: 2% of every profit\n` +
     `📱 Dual price feed: GeckoTerminal + DexScreener\n` +
-    `💾 Saves to GitHub every 30 mins`
+    `💾 Saves to GitHub every 30 mins only`
   );
 
   while (true) {
@@ -576,11 +602,13 @@ async function main() {
 
       for (const token of tokens) {
         await processToken(cdp, token, eth);
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 3000)); // stagger token checks
       }
 
+      // 30 min report — only fires every 30 mins
       await sendReport(eth);
 
+      // 30 min save — only fires every 30 mins
       if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         await saveToGitHub();
       }
