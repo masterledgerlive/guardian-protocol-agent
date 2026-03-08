@@ -12,6 +12,8 @@ async function main() {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   });
   const agentkit = await CdpAgentkit.configureWithWallet({
+  walletData: process.env.WALLET_DATA || undefined,
+
     cdpApiKeyName: process.env.CDP_API_KEY_NAME,
     cdpApiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY,
     networkId: "base-sepolia",
