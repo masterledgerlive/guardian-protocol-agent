@@ -4,17 +4,31 @@ import dotenv from "dotenv";
 dotenv.config();
 
 async function main() {
-  console.log("GUARDIAN V6 STARTING...");
+  console.log("GUARDIAN V7 STARTING...");
 
   let apiKeySecret = process.env.CDP_API_KEY_SECRET || "";
   
-  console.log("KEY START:", JSON.stringify(apiKeySecret.substring(0, 80)));
-  console.log("KEY END:", JSON.stringify(apiKeySecret.substring(apiKeySecret.length - 40)));
-  console.log("KEY LENGTH:", apiKeySecret.length);
-  console.log("HAS REAL NEWLINES:", apiKeySecret.includes("\n"));
-  console.log("HAS LITERAL \\n:", apiKeySecret.includes("\\n"));
+  apiKeySecret = apiKeySecret.replace(/\\n/g, "\n");
 
-  console.log("DONE - debug only, no CDP call yet.");
+  console.log("HAS REAL NEWLINES NOW:", apiKeySecret.includes("\n"));
+
+  const cdp = new CdpClient({
+    apiKeyId: process.env.CDP_API_KEY_ID,
+    apiKeySecret: apiKeySecret,
+    walletSecret: process.env.CDP_WALLET_SECRET,
+  });
+
+  const account = await cdp.evm.getOrCreateAccount({ name: "GuardianWallet" });
+  console.log("WALLET ADDRESS:", account.address);
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const message = await client.messages.create({
+    model: "claude-3-haiku-20240307",
+    max_tokens: 100,
+    messages: [{ role: "user", content: "Say: GUARDIAN WALLET IS LIVE ONCHAIN" }]
+  });
+  console.log("AI:", message.content[0].text);
+  console.log("DONE.");
 }
 
 main().catch(console.error);
