@@ -1,5 +1,5 @@
-const { CdpAgentkit } = require("@coinbase/agentkit");
-const { CdpToolkit } = require("@coinbase/agentkit-langchain");
+const coinbase = require("@coinbase/agentkit");
+const { getLangChainTools } = require("@coinbase/agentkit-langchain");
 const { HumanMessage } = require("@langchain/core/messages");
 const { createReactAgent } = require("@langchain/langgraph/prebuilt");
 const { ChatAnthropic } = require("@langchain/anthropic");
@@ -22,7 +22,7 @@ async function runGuardianAgent() {
     console.log("Loaded existing Guardian wallet");
   }
 
-  const agentkit = await CdpAgentkit.configureWithWallet({
+  const agentkit = await coinbase.CdpAgentkit.configureWithWallet({
     cdpApiKeyName: process.env.CDP_API_KEY_NAME,
     cdpApiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY,
     cdpWalletData: walletData,
@@ -32,8 +32,7 @@ async function runGuardianAgent() {
   const exportedWallet = await agentkit.exportWallet();
   fs.writeFileSync(WALLET_FILE, exportedWallet);
 
-  const toolkit = new CdpToolkit(agentkit);
-  const tools = toolkit.getTools();
+  const tools = getLangChainTools(new coinbase.CdpToolkit(agentkit));
 
   const agent = createReactAgent({
     llm,
