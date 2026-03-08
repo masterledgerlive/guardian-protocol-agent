@@ -6,12 +6,9 @@ dotenv.config();
 async function main() {
   console.log("GUARDIAN V9 STARTING...");
 
-  let apiKeySecret = process.env.CDP_API_KEY_SECRET || "";
-  apiKeySecret = apiKeySecret.replace(/\\n/g, "\n");
-
   const cdp = new CdpClient({
     apiKeyId: process.env.CDP_API_KEY_ID,
-    apiKeySecret: apiKeySecret,
+    apiKeySecret: process.env.CDP_API_KEY_SECRET,
     walletSecret: process.env.CDP_WALLET_SECRET,
   });
 
