@@ -1,15 +1,17 @@
 {
-  "lastSaved": "2026-03-09T13:34:28.049Z",
+  "lastSaved": "2026-03-09T14:07:06.596Z",
   "piggyBank": 0,
   "totalSkimmed": 0,
-  "tradeCount": 2,
+  "tradeCount": 4,
   "entries": {
     "DEGEN": null,
     "TOSHI": null,
     "BRETT": null,
     "AERO": null,
     "VIRTUAL": null,
-    "AIXBT": null
+    "AIXBT": null,
+    "CLANKER": 27.14,
+    "SEAM": 0.1089
   },
   "invested": {
     "DEGEN": 0,
@@ -17,6 +19,8 @@
     "BRETT": 0.0006959510530771356,
     "AERO": 0.00015084993504380388,
     "VIRTUAL": 0.000259049616684749,
-    "AIXBT": 0.000259049616684749
+    "AIXBT": 0.000259049616684749,
+    "CLANKER": 0.00012786586537243678,
+    "SEAM": 0.00012786586537243678
   }
 }
