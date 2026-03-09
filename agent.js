@@ -3,6 +3,7 @@ import { createPublicClient, http, formatEther, parseEther } from "viem";
 import { base } from "viem/chains";
 import dotenv from "dotenv";
 dotenv.config();
+
 // ═══════════════════════════════════════════════════════════════
 // GUARDIAN CASCADE SYSTEM v8.2 — SMART BUY + LOTTERY SAVINGS
 //
