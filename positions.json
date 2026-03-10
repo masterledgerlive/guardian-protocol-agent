@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-09T17:32:53.287Z",
+  "lastSaved": "2026-03-10T01:50:08.288Z",
   "piggyBank": 0,
   "totalSkimmed": 0,
   "tradeCount": 6,
@@ -22,5 +22,15 @@
     "AIXBT": 0.000259049616684749,
     "CLANKER": 0.00012786586537243678,
     "SEAM": 0.00012786586537243678
+  },
+  "entryTimes": {
+    "DEGEN": null,
+    "TOSHI": null,
+    "BRETT": null,
+    "AERO": null,
+    "VIRTUAL": null,
+    "AIXBT": null,
+    "CLANKER": null,
+    "SEAM": null
   }
 }
