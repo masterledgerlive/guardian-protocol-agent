@@ -1,11 +1,11 @@
 {
-  "lastSaved": "2026-03-11T09:36:11.802Z",
+  "lastSaved": "2026-03-11T09:38:32.818Z",
   "piggyBank": 0.00005598720791310538,
   "totalSkimmed": 0.00005598720791310538,
-  "tradeCount": 21,
+  "tradeCount": 22,
   "entries": {
     "DEGEN": 0.000724937675217012,
-    "TOSHI": null,
+    "TOSHI": 0.000209609261170883,
     "BRETT": 0.0071436392316618,
     "AERO": null,
     "VIRTUAL": null,
@@ -15,7 +15,7 @@
   },
   "entriesUsd": {
     "DEGEN": null,
-    "TOSHI": null,
+    "TOSHI": 0.000209609261170883,
     "BRETT": null,
     "AERO": null,
     "VIRTUAL": null,
@@ -25,7 +25,7 @@
   },
   "invested": {
     "DEGEN": 0.0014157546059124953,
-    "TOSHI": 0,
+    "TOSHI": 0.0006520923663441592,
     "BRETT": 0.0010089322422335582,
     "AERO": 0,
     "VIRTUAL": 0,
@@ -35,7 +35,7 @@
   },
   "entryTimes": {
     "DEGEN": 1773128876403,
-    "TOSHI": null,
+    "TOSHI": 1773221852644,
     "BRETT": 1773192041591,
     "AERO": null,
     "VIRTUAL": null,
@@ -45,22 +45,12 @@
   },
   "tradeLog": [
     {
-      "type": "SELL",
+      "type": "BUY",
       "symbol": "TOSHI",
       "price": 0.000209609261170883,
-      "receivedEth": 0.0011413386863372529,
-      "netUsd": -0.07369070675244016,
-      "timestamp": "2026-03-11T08:35:29.279Z",
-      "tx": "0x3fbb0877eb66ca17d1ef8af65f5bfa6b89ca2ab21d1063a82b4bc113db19456f",
-      "reason": "🎯 HIT PEAK $0.00021000 — selling for profit"
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.025074149158725,
-      "ethSpent": 0.0010624730127998516,
-      "timestamp": "2026-03-11T08:35:30.607Z",
-      "tx": "0xbd7d9262ced3f6dabfd24891ec8b93fe8748f231fa461824e625b744b2c16e30"
+      "ethSpent": 0.0006520923663441592,
+      "timestamp": "2026-03-11T09:37:32.644Z",
+      "tx": "0x96d461977b0fc3a229094d6903ac7ca14905d8f4c0d31e72e4e785b2dc3415fd"
     }
   ]
 }
