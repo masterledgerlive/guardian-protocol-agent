@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-11T09:38:32.818Z",
+  "lastSaved": "2026-03-11T09:44:47.506Z",
   "piggyBank": 0.00005598720791310538,
   "totalSkimmed": 0.00005598720791310538,
   "tradeCount": 22,
@@ -43,14 +43,5 @@
     "CLANKER": null,
     "SEAM": null
   },
-  "tradeLog": [
-    {
-      "type": "BUY",
-      "symbol": "TOSHI",
-      "price": 0.000209609261170883,
-      "ethSpent": 0.0006520923663441592,
-      "timestamp": "2026-03-11T09:37:32.644Z",
-      "tx": "0x96d461977b0fc3a229094d6903ac7ca14905d8f4c0d31e72e4e785b2dc3415fd"
-    }
-  ]
+  "tradeLog": []
 }
