@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-11T16:06:33.387Z",
+  "lastSaved": "2026-03-11T17:08:12.722Z",
   "piggyBank": 0.00005598720791310538,
   "totalSkimmed": 0.00005598720791310538,
   "tradeCount": 24,
@@ -30,26 +30,5 @@
     "TOSHI": null,
     "SEAM": null
   },
-  "tradeLog": [
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.00072134051439515,
-      "receivedEth": 0.00005294331090914799,
-      "netUsd": -2.5889226335970887,
-      "timestamp": "2026-03-11T16:06:08.085Z",
-      "tx": "0x2ee4bcf2be56a320ceb523fb789c4016e6dfd16ab8eb11765fb2d4faa0d3e93d",
-      "reason": "🎯 MAX PEAK $0.00072494"
-    },
-    {
-      "type": "SELL",
-      "symbol": "TOSHI",
-      "price": 0.000209777339203483,
-      "receivedEth": 0.00008785298409859908,
-      "netUsd": -1.069323217742233,
-      "timestamp": "2026-03-11T16:06:26.904Z",
-      "tx": "0x00b8b8d4fa3f7bd835fe219b24bdd63605ee9f3a31bff2f912cd3c5f887f27a4",
-      "reason": "🎯 MAX PEAK $0.00021000"
-    }
-  ]
+  "tradeLog": []
 }
