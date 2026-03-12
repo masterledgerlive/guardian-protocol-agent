@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-12T15:45:57.970Z",
+  "lastSaved": "2026-03-12T15:46:59.505Z",
   "piggyBank": 0.00005598720791310538,
   "totalSkimmed": 0.00005598720791310538,
   "tradeCount": 26,
@@ -30,16 +30,5 @@
     "TOSHI": null,
     "SEAM": null
   },
-  "tradeLog": [
-    {
-      "type": "BUY",
-      "symbol": "AERO",
-      "price": 0.329880806268449,
-      "ethSpent": 0.0014704873194976815,
-      "timestamp": "2026-03-12T14:45:42.844Z",
-      "tx": "0xc58cef7eb72e6f17da8109704f3cdad7ba30ea1877a818dc19c0a2bdb39fc78b",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 3
-    }
-  ]
+  "tradeLog": []
 }
