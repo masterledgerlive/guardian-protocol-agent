@@ -1,10 +1,10 @@
 {
-  "lastSaved": "2026-03-12T16:41:26.117Z",
-  "piggyBank": 0.00005598720791310538,
-  "totalSkimmed": 0.00005598720791310538,
-  "tradeCount": 26,
+  "lastSaved": "2026-03-12T16:47:12.820Z",
+  "piggyBank": 0.00007377588963825257,
+  "totalSkimmed": 0.00007377588963825257,
+  "tradeCount": 27,
   "entries": {
-    "BRETT": 0.0071436392316618,
+    "BRETT": null,
     "DEGEN": null,
     "AERO": 0.329880806268449,
     "VIRTUAL": null,
@@ -13,7 +13,7 @@
     "SEAM": null
   },
   "invested": {
-    "BRETT": 0.0010089322422335582,
+    "BRETT": 0,
     "DEGEN": 0,
     "AERO": 0.0014704873194976815,
     "VIRTUAL": 0,
@@ -22,7 +22,7 @@
     "SEAM": 0
   },
   "entryTimes": {
-    "BRETT": 1773192041591,
+    "BRETT": null,
     "DEGEN": null,
     "AERO": 1773326742844,
     "VIRTUAL": null,
@@ -30,5 +30,17 @@
     "TOSHI": null,
     "SEAM": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00731552354888991,
+      "receivedEth": 0.0017788681725147187,
+      "netUsd": 1.6383578795436713,
+      "timestamp": "2026-03-12T16:42:44.255Z",
+      "tx": "0x8406008f90383eff5be81ef495fb3fa821cf01baf73e012558d37586f0b7011e",
+      "reason": "🎯 MAX PEAK $0.00735201",
+      "indScore": -2
+    }
+  ]
 }
