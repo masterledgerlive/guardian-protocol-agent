@@ -1,0 +1,37 @@
+{
+  "trades": [
+    {
+      "type": "SELL",
+      "tradeNum": 28,
+      "symbol": "VIRTUAL",
+      "price": 0.715180344975834,
+      "receivedEth": 0.0008942342077194673,
+      "recUsd": 1.8456010389701314,
+      "investedUsd": 0,
+      "netUsd": 1.8456010389701314,
+      "pnlPct": 0,
+      "ethUsd": 2063.89,
+      "timestamp": "2026-03-12T21:58:59.550Z",
+      "tx": "0xbaa169e458e281bbb4f7487499519716d8e4941ce5cfa0be38b767c632658725",
+      "basescan": "https://basescan.org/tx/0xbaa169e458e281bbb4f7487499519716d8e4941ce5cfa0be38b767c632658725",
+      "reason": "🎯 MAX PEAK $0.71830117",
+      "indScore": -3,
+      "indDetail": "RSI 76.9 OVERBOUGHT 🔥 | MACD bull+expand | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.000008942342077194674,
+      "piggyTotal": 0.00008271823171544725,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    }
+  ],
+  "created": "2026-03-12T21:58:59.733Z",
+  "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+  "lastUpdated": "2026-03-12T21:58:59.733Z",
+  "totalTrades": 1,
+  "stats": {
+    "totalTrades": 1,
+    "sells": 1,
+    "wins": 1,
+    "winRate": "100.0%",
+    "totalNetUsd": "1.85",
+    "totalSkimEth": "0.000009"
+  }
+}
