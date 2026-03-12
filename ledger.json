@@ -20,18 +20,39 @@
       "skimEth": 0.000008942342077194674,
       "piggyTotal": 0.00008271823171544725,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 29,
+      "symbol": "AERO",
+      "price": 0.3407,
+      "receivedEth": 0.0028946569770830002,
+      "recUsd": 6.032551979950285,
+      "investedUsd": 3.003248894683698,
+      "netUsd": 3.029303085266587,
+      "pnlPct": 100.86753351109228,
+      "ethUsd": 2084.03,
+      "timestamp": "2026-03-12T23:25:41.587Z",
+      "tx": "0x9df3cef6254a8365c1037c971c537fbfc1a6e302d2fb06322f11bfc668f4cda9",
+      "basescan": "https://basescan.org/tx/0x9df3cef6254a8365c1037c971c537fbfc1a6e302d2fb06322f11bfc668f4cda9",
+      "reason": "🎯 MAX PEAK $0.34172544",
+      "indScore": -3,
+      "indDetail": "RSI 71.2 OVERBOUGHT 🔥 | MACD bull+expand | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.000028946569770830004,
+      "piggyTotal": 0.00011166480148627726,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-12T21:58:59.733Z",
-  "totalTrades": 1,
+  "lastUpdated": "2026-03-12T23:25:41.785Z",
+  "totalTrades": 2,
   "stats": {
-    "totalTrades": 1,
-    "sells": 1,
-    "wins": 1,
+    "totalTrades": 2,
+    "sells": 2,
+    "wins": 2,
     "winRate": "100.0%",
-    "totalNetUsd": "1.85",
-    "totalSkimEth": "0.000009"
+    "totalNetUsd": "4.87",
+    "totalSkimEth": "0.000038"
   }
 }
