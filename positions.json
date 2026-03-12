@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-12T11:05:14.228Z",
+  "lastSaved": "2026-03-12T11:10:12.443Z",
   "piggyBank": 0.00005598720791310538,
   "totalSkimmed": 0.00005598720791310538,
-  "tradeCount": 24,
+  "tradeCount": 25,
   "entries": {
     "BRETT": 0.0071436392316618,
     "DEGEN": null,
     "AERO": null,
     "VIRTUAL": null,
-    "AIXBT": 0.025074149158725,
+    "AIXBT": null,
     "TOSHI": null,
     "SEAM": null
   },
@@ -17,7 +17,7 @@
     "DEGEN": 0,
     "AERO": 0,
     "VIRTUAL": 0,
-    "AIXBT": 0.002198182310147268,
+    "AIXBT": 0,
     "TOSHI": 0,
     "SEAM": 0
   },
@@ -26,9 +26,21 @@
     "DEGEN": null,
     "AERO": null,
     "VIRTUAL": null,
-    "AIXBT": 1773218130607,
+    "AIXBT": null,
     "TOSHI": null,
     "SEAM": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0275675320420621,
+      "receivedEth": 0.0016440359196950374,
+      "netUsd": -1.0560425678039227,
+      "timestamp": "2026-03-12T11:09:30.960Z",
+      "tx": "0x5aa94767c8528a68d6561a2c8b3d704516d5622842dae6dd6d52c17a4ac5933f",
+      "reason": "🎯 MAX PEAK $0.02761638",
+      "indScore": 0
+    }
+  ]
 }
