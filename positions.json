@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-12T11:10:12.443Z",
+  "lastSaved": "2026-03-12T11:12:41.081Z",
   "piggyBank": 0.00005598720791310538,
   "totalSkimmed": 0.00005598720791310538,
   "tradeCount": 25,
@@ -30,17 +30,5 @@
     "TOSHI": null,
     "SEAM": null
   },
-  "tradeLog": [
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.0275675320420621,
-      "receivedEth": 0.0016440359196950374,
-      "netUsd": -1.0560425678039227,
-      "timestamp": "2026-03-12T11:09:30.960Z",
-      "tx": "0x5aa94767c8528a68d6561a2c8b3d704516d5622842dae6dd6d52c17a4ac5933f",
-      "reason": "🎯 MAX PEAK $0.02761638",
-      "indScore": 0
-    }
-  ]
+  "tradeLog": []
 }
