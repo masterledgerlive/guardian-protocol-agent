@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-12T16:47:12.820Z",
+  "lastSaved": "2026-03-12T16:50:18.423Z",
   "piggyBank": 0.00007377588963825257,
   "totalSkimmed": 0.00007377588963825257,
   "tradeCount": 27,
@@ -30,17 +30,5 @@
     "TOSHI": null,
     "SEAM": null
   },
-  "tradeLog": [
-    {
-      "type": "SELL",
-      "symbol": "BRETT",
-      "price": 0.00731552354888991,
-      "receivedEth": 0.0017788681725147187,
-      "netUsd": 1.6383578795436713,
-      "timestamp": "2026-03-12T16:42:44.255Z",
-      "tx": "0x8406008f90383eff5be81ef495fb3fa821cf01baf73e012558d37586f0b7011e",
-      "reason": "🎯 MAX PEAK $0.00735201",
-      "indScore": -2
-    }
-  ]
+  "tradeLog": []
 }
