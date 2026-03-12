@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-12T18:33:00.363Z",
+  "lastSaved": "2026-03-12T20:11:03.069Z",
   "piggyBank": 0.00007377588963825257,
   "totalSkimmed": 0.00007377588963825257,
   "tradeCount": 27,
@@ -10,7 +10,12 @@
     "VIRTUAL": null,
     "AIXBT": null,
     "TOSHI": null,
-    "SEAM": null
+    "SEAM": null,
+    "XCN": null,
+    "KEYCAT": null,
+    "DOGINME": null,
+    "WELL": null,
+    "SKI": null
   },
   "invested": {
     "BRETT": 0,
@@ -19,7 +24,12 @@
     "VIRTUAL": 0,
     "AIXBT": 0,
     "TOSHI": 0,
-    "SEAM": 0
+    "SEAM": 0,
+    "XCN": 0,
+    "KEYCAT": 0,
+    "DOGINME": 0,
+    "WELL": 0,
+    "SKI": 0
   },
   "entryTimes": {
     "BRETT": null,
@@ -28,7 +38,12 @@
     "VIRTUAL": null,
     "AIXBT": null,
     "TOSHI": null,
-    "SEAM": null
+    "SEAM": null,
+    "XCN": null,
+    "KEYCAT": null,
+    "DOGINME": null,
+    "WELL": null,
+    "SKI": null
   },
   "tradeLog": []
 }
