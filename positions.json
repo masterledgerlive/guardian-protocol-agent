@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-12T21:48:01.098Z",
-  "piggyBank": 0.00007377588963825257,
-  "totalSkimmed": 0.00007377588963825257,
-  "tradeCount": 27,
+  "lastSaved": "2026-03-12T22:04:08.883Z",
+  "piggyBank": 0.00008271823171544725,
+  "totalSkimmed": 0.00008271823171544725,
+  "tradeCount": 28,
   "entries": {
     "BRETT": null,
     "DEGEN": null,
@@ -45,5 +45,17 @@
     "WELL": null,
     "SKI": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "SELL",
+      "symbol": "VIRTUAL",
+      "price": 0.715180344975834,
+      "receivedEth": 0.0008942342077194673,
+      "netUsd": 1.8456010389701314,
+      "timestamp": "2026-03-12T21:58:59.550Z",
+      "tx": "0xbaa169e458e281bbb4f7487499519716d8e4941ce5cfa0be38b767c632658725",
+      "reason": "🎯 MAX PEAK $0.71830117",
+      "indScore": -3
+    }
+  ]
 }
