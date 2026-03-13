@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-13T13:31:42.774Z",
+  "lastSaved": "2026-03-13T13:47:22.438Z",
   "piggyBank": 0.00011218643631113734,
   "totalSkimmed": 0.00011218643631113734,
-  "tradeCount": 36,
+  "tradeCount": 38,
   "entries": {
     "AERO": null,
     "BRETT": null,
@@ -19,7 +19,7 @@
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
-    "PRIME": null,
+    "PRIME": 0.413740951617944,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null
@@ -40,7 +40,7 @@
     "DOGINME": 0,
     "XCN": 0,
     "SKI": 0,
-    "PRIME": 0,
+    "PRIME": 0.0027526562857224175,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0
@@ -61,7 +61,7 @@
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
-    "PRIME": null,
+    "PRIME": 1773409346538,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null
@@ -150,6 +150,26 @@
       "tx": "0xa8a329f790a74a629e61e9c1da4b3113b90dbdea7831b3dff793b9900ce6fc9a",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
       "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.4139,
+      "ethSpent": 0.0013777267508610792,
+      "timestamp": "2026-03-13T13:39:18.642Z",
+      "tx": "0x0f5006bb5672e35c4ee15bcbcf081ae7315e3248a587ff49bf712584010f1ee2",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.413740951617944,
+      "ethSpent": 0.0013749295348613384,
+      "timestamp": "2026-03-13T13:42:26.538Z",
+      "tx": "0x3f84ccb44d10cf697f22b652d668a4f1e47cd4d23b60af5bb40004590cbcdad8",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
     }
   ]
 }
