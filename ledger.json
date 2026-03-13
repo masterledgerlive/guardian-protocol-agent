@@ -83,18 +83,39 @@
       "skimEth": 4.940542919314519e-7,
       "piggyTotal": 0.00011216036604638471,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 32,
+      "symbol": "TOSHI",
+      "price": 0.000212192030090474,
+      "receivedEth": 0.0000026070264752629108,
+      "recUsd": 0.005517901886217714,
+      "investedUsd": 0,
+      "netUsd": 0.005517901886217714,
+      "pnlPct": 0,
+      "ethUsd": 2116.55,
+      "timestamp": "2026-03-13T03:30:09.821Z",
+      "tx": "0x312d7c23e52b69e84ac1a7eddf97e4ac15ca09b34d62a5aeb7d9c6fd31d1569a",
+      "basescan": "https://basescan.org/tx/0x312d7c23e52b69e84ac1a7eddf97e4ac15ca09b34d62a5aeb7d9c6fd31d1569a",
+      "reason": "🎯 MAX PEAK $0.00021241",
+      "indScore": -2,
+      "indDetail": "RSI 83.2 OVERBOUGHT 🔥 | MACD ✨CROSS UP | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 2.607026475262911e-8,
+      "piggyTotal": 0.00011218643631113734,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-13T02:29:32.566Z",
-  "totalTrades": 4,
+  "lastUpdated": "2026-03-13T03:30:10.031Z",
+  "totalTrades": 5,
   "stats": {
-    "totalTrades": 4,
-    "sells": 4,
-    "wins": 4,
+    "totalTrades": 5,
+    "sells": 5,
+    "wins": 5,
     "winRate": "100.0%",
-    "totalNetUsd": "4.98",
+    "totalNetUsd": "4.99",
     "totalSkimEth": "0.000038"
   }
 }
