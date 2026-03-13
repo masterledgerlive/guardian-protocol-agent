@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-13T08:52:00.935Z",
+  "lastSaved": "2026-03-13T09:07:32.741Z",
   "piggyBank": 0.00011218643631113734,
   "totalSkimmed": 0.00011218643631113734,
-  "tradeCount": 32,
+  "tradeCount": 36,
   "entries": {
     "AERO": null,
     "BRETT": null,
@@ -12,7 +12,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": null,
-    "AIXBT": null,
+    "AIXBT": 0.02671,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": null,
@@ -33,7 +33,7 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0,
-    "AIXBT": 0,
+    "AIXBT": 0.005706984169405388,
     "TOSHI": 0,
     "KITE": 0,
     "KEYCAT": 0,
@@ -54,7 +54,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": null,
-    "AIXBT": null,
+    "AIXBT": 1773392807783,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": null,
@@ -110,6 +110,46 @@
       "tx": "0x312d7c23e52b69e84ac1a7eddf97e4ac15ca09b34d62a5aeb7d9c6fd31d1569a",
       "reason": "🎯 MAX PEAK $0.00021241",
       "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0267,
+      "ethSpent": 0.0014265199570141986,
+      "timestamp": "2026-03-13T08:57:30.754Z",
+      "tx": "0x7006ebe0d04a8e2a3805805059d564f7ff0ce5da4f6b4d38eda289e13e87425a",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0267,
+      "ethSpent": 0.0014281293885226001,
+      "timestamp": "2026-03-13T09:00:36.821Z",
+      "tx": "0x5ed5fae60f893d1796b4f9fc1cfff79654016a712ebc2776312d260432186af7",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02669,
+      "ethSpent": 0.0014265335235378032,
+      "timestamp": "2026-03-13T09:03:42.942Z",
+      "tx": "0xb4b2914a997904a7bf7678a5ab45bafb1d54f007da4963c32754a28d65c5b2d0",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02671,
+      "ethSpent": 0.001425801300330786,
+      "timestamp": "2026-03-13T09:06:47.783Z",
+      "tx": "0xa8a329f790a74a629e61e9c1da4b3113b90dbdea7831b3dff793b9900ce6fc9a",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
     }
   ]
 }
