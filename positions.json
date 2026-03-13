@@ -1,8 +1,14 @@
 {
-  "lastSaved": "2026-03-13T18:19:14.509Z",
+  "lastSaved": "2026-03-13T18:49:01.635Z",
   "piggyBank": 0.00011218643631113734,
   "totalSkimmed": 0.00011218643631113734,
   "tradeCount": 42,
+  "predFund": 0,
+  "predFundPnl": 0,
+  "predFundTrades": 0,
+  "agentCapital": 0,
+  "agentPnl": 0,
+  "predFundPositions": {},
   "entries": {
     "AERO": null,
     "BRETT": 0.00768045511119571,
