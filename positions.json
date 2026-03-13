@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-13T17:50:28.188Z",
+  "lastSaved": "2026-03-13T18:19:14.509Z",
   "piggyBank": 0.00011218643631113734,
   "totalSkimmed": 0.00011218643631113734,
   "tradeCount": 42,
@@ -66,16 +66,5 @@
     "HIGHER": null,
     "MOCHI": null
   },
-  "tradeLog": [
-    {
-      "type": "BUY",
-      "symbol": "BRETT",
-      "price": 0.00768045511119571,
-      "ethSpent": 0.0004181866029714243,
-      "timestamp": "2026-03-13T17:04:40.124Z",
-      "tx": "0x3fadbbd5ba9c11556177118eceebceb76d135d054f5c3cfe8a3f3f91ee0d2af9",
-      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": 0
-    }
-  ]
+  "tradeLog": []
 }
