@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-13T22:42:57.750Z",
+  "lastSaved": "2026-03-13T23:45:04.219Z",
   "piggyBank": 0.00011218643631113734,
   "totalSkimmed": 0.00011218643631113734,
-  "tradeCount": 42,
+  "tradeCount": 46,
   "predFund": 0,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -12,12 +12,12 @@
   "predFundPositions": {},
   "piggyCoPositions": {},
   "entries": {
-    "AERO": null,
-    "BRETT": 0.00768045511119571,
-    "VIRTUAL": 0.7657,
+    "AERO": 0.330698994901178,
+    "BRETT": 0.00743850282150817,
+    "VIRTUAL": 0.720859251884183,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": null,
+    "DEGEN": 0.000735369866709955,
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02671,
@@ -33,12 +33,12 @@
     "MOCHI": null
   },
   "invested": {
-    "AERO": 0,
-    "BRETT": 0.0010429551620567104,
-    "VIRTUAL": 0.0008117639610054748,
+    "AERO": 0.0014337260149585415,
+    "BRETT": 0.0023811364606650676,
+    "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0,
+    "DEGEN": 0.0014337260149585415,
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005706984169405388,
@@ -54,12 +54,12 @@
     "MOCHI": 0
   },
   "entryTimes": {
-    "AERO": null,
-    "BRETT": 1773421480124,
-    "VIRTUAL": 1773413111769,
+    "AERO": 1773445417370,
+    "BRETT": 1773445422987,
+    "VIRTUAL": 1773445428640,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": null,
+    "DEGEN": 1773445442697,
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773392807783,
@@ -74,5 +74,46 @@
     "HIGHER": null,
     "MOCHI": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "BUY",
+      "symbol": "AERO",
+      "price": 0.330698994901178,
+      "ethSpent": 0.0014337260149585415,
+      "timestamp": "2026-03-13T23:43:37.370Z",
+      "tx": "0x17b13c112e657343a5fbb08ed48fec5d6a4f3a6f7b0c9dfaf99762f81e855f5c",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.00743850282150817,
+      "ethSpent": 0.0013381812986083571,
+      "timestamp": "2026-03-13T23:43:42.987Z",
+      "tx": "0x3e1c41d46c1dcd8794680a4e2e3f3f483cae377226e3e0a554651cd3ee5b8283",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.720859251884183,
+      "ethSpent": 0.0014337260149585415,
+      "timestamp": "2026-03-13T23:43:48.640Z",
+      "tx": "0xa580dff3ec6a73b65ff112e8538da0774fe748d62673889ea4e16de1852d9d2b",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.000735369866709955,
+      "ethSpent": 0.0014337260149585415,
+      "timestamp": "2026-03-13T23:44:02.697Z",
+      "tx": "0xd99994072b7ad35b6a02c1c5b9accfe3fa2203c2fa602ca9e0ef826100c81a85",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    }
+  ]
 }
