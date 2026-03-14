@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T12:57:18.650Z",
+  "lastSaved": "2026-03-14T13:12:24.392Z",
   "piggyBank": 0.00012795994502142597,
   "totalSkimmed": 0.00016103642654121514,
-  "tradeCount": 86,
+  "tradeCount": 88,
   "predFund": 0.000016283330076692602,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -41,6 +41,21 @@
         "bronze": 0
       },
       "piggyContrib": 0
+    },
+    "PRIME": {
+      "wins": 0,
+      "losses": 1,
+      "totalPnlEth": 0,
+      "biggestWavePct": 0,
+      "biggestWaveUsd": 0,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 0
+      },
+      "piggyContrib": 0
     }
   },
   "entries": {
@@ -59,7 +74,7 @@
     "DOGINME": null,
     "XCN": 0.004897,
     "SKI": null,
-    "PRIME": 0.405214798359175,
+    "PRIME": 0.405357660864763,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -90,7 +105,7 @@
     "DOGINME": 0,
     "XCN": 0.0019146408769351788,
     "SKI": 0,
-    "PRIME": 0.0026937407085919226,
+    "PRIME": 0.00266202363146678,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -121,7 +136,7 @@
     "DOGINME": null,
     "XCN": 1773459839616,
     "SKI": null,
-    "PRIME": 1773491702034,
+    "PRIME": 1773493887418,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -228,6 +243,27 @@
       "tx": "0xd02b296ba90bdbc707b876d2e72222d96edf9227d28df8ac99f9d55a6cbdb2cc",
       "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
       "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.409,
+      "receivedEth": 0.001054955991043415,
+      "netUsd": -0.04676682406065469,
+      "timestamp": "2026-03-14T13:02:56.444Z",
+      "tx": "0x03542b42d7f7fc7b8d8f40592075abfa5ee39355ce7edb967e0b77a886791538",
+      "reason": "⏰ STALE CASCADE — 26min no movement",
+      "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.405357660864763,
+      "ethSpent": 0.0010457792063116264,
+      "timestamp": "2026-03-14T13:11:27.418Z",
+      "tx": "0xfa4ef7c8db5da47dc84760f9290885219b052644c9c2b802d02d121d9ec63435",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
     }
   ]
 }
