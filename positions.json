@@ -1,23 +1,23 @@
 {
-  "lastSaved": "2026-03-14T00:48:37.455Z",
-  "piggyBank": 0.00011673024069700322,
-  "totalSkimmed": 0.000125817849468735,
-  "tradeCount": 49,
-  "predFund": 0.000004543804385865889,
+  "lastSaved": "2026-03-14T01:05:03.834Z",
+  "piggyBank": 0.00011673437306992673,
+  "totalSkimmed": 0.00012583024658750552,
+  "tradeCount": 52,
+  "predFund": 0.000004547936758789389,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.000004543804385865889,
+  "agentCapital": 0.000004547936758789389,
   "agentPnl": 0,
   "piggyCoPnl": 0,
   "predFundPositions": {},
   "piggyCoPositions": {},
   "entries": {
-    "AERO": 0.330698994901178,
+    "AERO": 0.325779071633487,
     "BRETT": 0.00743850282150817,
     "VIRTUAL": 0.720859251884183,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.000735369866709955,
+    "DEGEN": 0.0007346,
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02671,
@@ -33,12 +33,12 @@
     "MOCHI": null
   },
   "invested": {
-    "AERO": 0.0014337260149585415,
+    "AERO": 0.0026260439403749786,
     "BRETT": 0.0023811364606650676,
     "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.0014337260149585415,
+    "DEGEN": 0.0026260439403749786,
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005706984169405388,
@@ -54,12 +54,12 @@
     "MOCHI": 0
   },
   "entryTimes": {
-    "AERO": 1773445417370,
+    "AERO": 1773449436696,
     "BRETT": 1773445422987,
     "VIRTUAL": 1773445428640,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773445442697,
+    "DEGEN": 1773449458325,
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773392807783,
@@ -147,6 +147,37 @@
       "tx": "0x123cd8fd36c7b1396c1d3a0a43bcf706192ac58c24d2ab120cafbdb334254f26",
       "reason": "🎯 MAX PEAK $0.00022629",
       "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "AERO",
+      "price": 0.325779071633487,
+      "ethSpent": 0.001192317925416437,
+      "timestamp": "2026-03-14T00:50:36.696Z",
+      "tx": "0x7eaf49e940366fa2bf966f9274ec9dc5641e4a7543d3219ec16caf6fee3999ca",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.0007346,
+      "ethSpent": 0.001192317925416437,
+      "timestamp": "2026-03-14T00:50:58.325Z",
+      "tx": "0x6051261ab14c8e798f450139f430dbcb6d56c9948dd60098def9878d12539d63",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "TOSHI",
+      "price": 0.0002281,
+      "receivedEth": 0.000001239711877049936,
+      "netUsd": 0.0025854687080627235,
+      "timestamp": "2026-03-14T00:51:26.183Z",
+      "tx": "0xd3c218889bcc2482a0313f3e4159901ff9d0a9b3d99630d10fd6d01a52e1b337",
+      "reason": "🎯 MAX PEAK $0.00022788",
+      "indScore": -1
     }
   ]
 }
