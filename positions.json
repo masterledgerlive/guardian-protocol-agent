@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-14T21:52:12.092Z",
-  "piggyBank": 0.0001507827093929618,
+  "lastSaved": "2026-03-14T22:07:29.039Z",
+  "piggyBank": 0.00015061363257569998,
   "totalSkimmed": 0.00023035105918483672,
-  "tradeCount": 111,
+  "tradeCount": 115,
   "predFund": 0.000039388207624566455,
   "predFundPnl": 0,
   "predFundTrades": 0,
   "agentCapital": 0.000039388207624566455,
   "agentPnl": 0,
-  "piggyCoPnl": -7.919345427419883e-7,
+  "piggyCoPnl": -9.610113600038052e-7,
   "predFundPositions": {},
   "piggyCoPositions": {},
   "waveStats": {
@@ -120,7 +120,7 @@
   },
   "entries": {
     "AERO": 0.32070148803209375,
-    "BRETT": null,
+    "BRETT": 0.007267043929339085,
     "VIRTUAL": 0.720859251884183,
     "MORPHO": null,
     "CBBTC": null,
@@ -148,7 +148,7 @@
   },
   "invested": {
     "AERO": 0.002537354834868749,
-    "BRETT": 0,
+    "BRETT": 0.003181544596488785,
     "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -176,7 +176,7 @@
   },
   "entryTimes": {
     "AERO": 1773518666339,
-    "BRETT": null,
+    "BRETT": 1773525967941,
     "VIRTUAL": 1773445428640,
     "MORPHO": null,
     "CBBTC": null,
@@ -223,6 +223,46 @@
       "tx": "0x6ea16533d694095d55e30e3db89f2951839511711171e07f897a0afbcb94c71f",
       "reason": "🚀 EARLY SELL RSI100 BB-upper near-peak $0.00060030",
       "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.00727020612830458,
+      "ethSpent": 0.0009089020443893092,
+      "timestamp": "2026-03-14T21:58:29.894Z",
+      "tx": "0xd6f8d7d4797600a579a279dcf9ee014cb6eb14a5f8376bbb2ba9a9abed78f714",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.00727152058049292,
+      "ethSpent": 0.0008179198469791167,
+      "timestamp": "2026-03-14T22:01:01.264Z",
+      "tx": "0x451dd371cafa6018897b31cd13bcce0404b28f6a178cab7557eabbad3bd0ed3c",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.0072647238836218,
+      "ethSpent": 0.000736035889669551,
+      "timestamp": "2026-03-14T22:03:34.084Z",
+      "tx": "0x35202f67d021c93195c37609cb4adcd934c2d03b73578602d6cbb4031b9d6bb0",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.00726035332488006,
+      "ethSpent": 0.0007186868154508083,
+      "timestamp": "2026-03-14T22:06:07.941Z",
+      "tx": "0x1bbcb3d8d292ef2cfd1569e64d8ae95b4c58ae665d30bd623fdaf947a6bdd4ce",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
     }
   ]
 }
