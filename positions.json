@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-14T15:36:39.071Z",
-  "piggyBank": 0.00013783331363199724,
-  "totalSkimmed": 0.000190656532372929,
-  "tradeCount": 96,
-  "predFund": 0.000026156698687263886,
+  "lastSaved": "2026-03-14T15:52:16.439Z",
+  "piggyBank": 0.00013807368924668748,
+  "totalSkimmed": 0.00019137765921699976,
+  "tradeCount": 101,
+  "predFund": 0.000026397074301954138,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.000026156698687263886,
+  "agentCapital": 0.000026397074301954138,
   "agentPnl": 0,
   "piggyCoPnl": -5.09821366403975e-7,
   "predFundPositions": {},
@@ -44,7 +44,7 @@
     },
     "PRIME": {
       "wins": 0,
-      "losses": 3,
+      "losses": 4,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -86,6 +86,21 @@
         "bronze": 1
       },
       "piggyContrib": 0.000004066868568440567
+    },
+    "XCN": {
+      "wins": 1,
+      "losses": 1,
+      "totalPnlEth": 0.00007211268440707576,
+      "biggestWavePct": 0,
+      "biggestWaveUsd": 0,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 1
+      },
+      "piggyContrib": 2.4037561469025256e-7
     }
   },
   "entries": {
@@ -102,9 +117,9 @@
     "KITE": null,
     "KEYCAT": 0.0005594,
     "DOGINME": null,
-    "XCN": 0.004897,
+    "XCN": null,
     "SKI": null,
-    "PRIME": 0.404992879355142,
+    "PRIME": 0.4041,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -133,9 +148,9 @@
     "KITE": 0,
     "KEYCAT": 0.001450712057835054,
     "DOGINME": 0,
-    "XCN": 0.0019146408769351788,
+    "XCN": 0,
     "SKI": 0,
-    "PRIME": 0.00327014878722107,
+    "PRIME": 0.004855824175410998,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -164,9 +179,9 @@
     "KITE": null,
     "KEYCAT": 1773482852420,
     "DOGINME": null,
-    "XCN": 1773459839616,
+    "XCN": null,
     "SKI": null,
-    "PRIME": 1773499323551,
+    "PRIME": 1773503480612,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -380,6 +395,59 @@
       "tx": "0x250cf1d389d172f69809c024e06d5419243787952a903f4d9a549f8c8a35647d",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.4042,
+      "receivedEth": 0.001289450501149987,
+      "netUsd": -0.03858281254445961,
+      "timestamp": "2026-03-14T15:38:03.259Z",
+      "tx": "0xe56f3f35d0c8398109cd9188fd9f16558979ef4c1075ede3d4c6299b8a3e5f8b",
+      "reason": "⏰ STALE CASCADE — 30min no movement",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.402725816351579,
+      "ethSpent": 0.0014471081954560803,
+      "timestamp": "2026-03-14T15:40:13.876Z",
+      "tx": "0xc33f12d905f1245a5885c91d219ceb0029a2b8b54eb73b570e53f07a1698de94",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.005022,
+      "receivedEth": 0.0018741489669940026,
+      "netUsd": -0.004560169951311366,
+      "timestamp": "2026-03-14T15:48:49.499Z",
+      "tx": "0x0a8f4cb10ddd5421661100ddfa1074beb07098953a8c8f70a840a4850ba8aaca",
+      "reason": "🎯 MAX PEAK $0.00497000",
+      "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.0050149179005667,
+      "receivedEth": 0.00007211268440707576,
+      "netUsd": 0.14953718914757672,
+      "timestamp": "2026-03-14T15:51:10.555Z",
+      "tx": "0xbd60f853b7d6d691d922c840f8b2fd907826c0c8f644853967d2061421ff545b",
+      "reason": "🎯 MAX PEAK $0.00497000",
+      "indScore": -3
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.4041,
+      "ethSpent": 0.0014466267076222762,
+      "timestamp": "2026-03-14T15:51:20.612Z",
+      "tx": "0x65a40ca88c4a490280bc9d2ffb93034ce0e08f4b634e67759090e82e92db0511",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
     }
   ]
 }
