@@ -1364,18 +1364,44 @@
       "minTrough": 0.403346000553804,
       "maxPeak": 0.412945331945478,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 89,
+      "symbol": "DEGEN",
+      "price": 0.000744423522496537,
+      "receivedEth": 0.0016748072877987399,
+      "recUsd": 3.473818284060634,
+      "investedUsd": 3.3988778022091353,
+      "netUsd": 0.07494048185149893,
+      "pnlPct": 2.204859551078612,
+      "ethUsd": 2074.16,
+      "timestamp": "2026-03-14T13:13:11.225Z",
+      "tx": "0x95e8d4a90247c4bf9dca5b15853082ce47fffbe100684302de581a1dce89d814",
+      "basescan": "https://basescan.org/tx/0x95e8d4a90247c4bf9dca5b15853082ce47fffbe100684302de581a1dce89d814",
+      "reason": "🎯 MAX PEAK $0.00073511",
+      "indScore": -3,
+      "indDetail": "RSI 69.8 OVERBOUGHT 🔥 | MACD bull+expand | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.0000167480728779874,
+      "skimLottery": 0.000005582690959329133,
+      "skimPred": 0.000005582690959329133,
+      "skimAgent": 0.000005582690959329133,
+      "piggyTotal": 0.0001335426359807551,
+      "predFundTotal": 0.000021866021036021734,
+      "agentTotal": 0.000021866021036021734,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-14T13:11:27.783Z",
-  "totalTrades": 62,
+  "lastUpdated": "2026-03-14T13:13:11.841Z",
+  "totalTrades": 63,
   "stats": {
-    "totalTrades": 62,
-    "sells": 25,
-    "wins": 11,
-    "winRate": "44.0%",
-    "totalNetUsd": "-1.43",
-    "totalSkimEth": "0.000087"
+    "totalTrades": 63,
+    "sells": 26,
+    "wins": 12,
+    "winRate": "46.2%",
+    "totalNetUsd": "-1.36",
+    "totalSkimEth": "0.000104"
   }
 }
