@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-14T04:59:05.297Z",
+  "lastSaved": "2026-03-14T05:19:02.356Z",
   "piggyBank": 0.0001281160692131896,
   "totalSkimmed": 0.00016103642654121514,
   "tradeCount": 77,
@@ -30,7 +30,17 @@
     "PRIME": 0.413740951617944,
     "LUNA": null,
     "HIGHER": null,
-    "MOCHI": null
+    "MOCHI": null,
+    "ZORA": null,
+    "BNKR": null,
+    "TYBG": null,
+    "MIGGLES": null,
+    "BALD": null,
+    "NORMIE": null,
+    "BENJI": null,
+    "ROOST": null,
+    "ENJOY": null,
+    "TALENT": null
   },
   "invested": {
     "AERO": 0.001575626364224987,
@@ -51,7 +61,17 @@
     "PRIME": 0.0016515937714334506,
     "LUNA": 0,
     "HIGHER": 0,
-    "MOCHI": 0
+    "MOCHI": 0,
+    "ZORA": 0,
+    "BNKR": 0,
+    "TYBG": 0,
+    "MIGGLES": 0,
+    "BALD": 0,
+    "NORMIE": 0,
+    "BENJI": 0,
+    "ROOST": 0,
+    "ENJOY": 0,
+    "TALENT": 0
   },
   "entryTimes": {
     "AERO": 1773449436696,
@@ -72,41 +92,17 @@
     "PRIME": 1773409346538,
     "LUNA": null,
     "HIGHER": null,
-    "MOCHI": null
+    "MOCHI": null,
+    "ZORA": null,
+    "BNKR": null,
+    "TYBG": null,
+    "MIGGLES": null,
+    "BALD": null,
+    "NORMIE": null,
+    "BENJI": null,
+    "ROOST": null,
+    "ENJOY": null,
+    "TALENT": null
   },
-  "tradeLog": [
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.0007421,
-      "receivedEth": 0.0011025031134480464,
-      "netUsd": -0.025739287063832883,
-      "timestamp": "2026-03-14T04:20:14.564Z",
-      "tx": "0xe604b3c8a9db47e87a588074fc10ff6fca9c178532e34142a3fb1dee0ad78b0e",
-      "reason": "⏰ STALE CASCADE — 25min no movement",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "XCN",
-      "price": 0.004897,
-      "receivedEth": 0.0012392668450471314,
-      "netUsd": -0.07812343685682066,
-      "timestamp": "2026-03-14T04:20:58.714Z",
-      "tx": "0xfb3584d671f330cdf4837b773d3b756f30d111750853bc0ffa18b2cac9c3a7f5",
-      "reason": "⏰ STALE CASCADE — 26min no movement",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "AERO",
-      "price": 0.329372229408908,
-      "receivedEth": 0.001059054891672758,
-      "netUsd": 0.018160560498703404,
-      "timestamp": "2026-03-14T04:23:30.318Z",
-      "tx": "0x9a7a99b41cd10c5f308d8775f3254ce5ac5a504b0d45a7ec205c85f33e1f4e7c",
-      "reason": "⏰ STALE CASCADE — 26min no movement",
-      "indScore": -3
-    }
-  ]
+  "tradeLog": []
 }
