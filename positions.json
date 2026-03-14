@@ -1,5 +1,5 @@
 {
-  "lastSaved": "2026-03-14T20:13:00.192Z",
+  "lastSaved": "2026-03-14T20:35:10.140Z",
   "piggyBank": 0.0001485142661041865,
   "totalSkimmed": 0.00022269938978949677,
   "tradeCount": 109,
@@ -205,26 +205,5 @@
     "ROOST": null,
     "TALENT": null
   },
-  "tradeLog": [
-    {
-      "type": "BUY",
-      "symbol": "TOSHI",
-      "price": 0.0002161,
-      "ethSpent": 0.0007219799578363705,
-      "timestamp": "2026-03-14T19:58:09.605Z",
-      "tx": "0x0236cd26a0ecce514e67899ff896095f050f2260b7e467ba9699e348ed9d5e2f",
-      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": 0
-    },
-    {
-      "type": "BUY",
-      "symbol": "AERO",
-      "price": 0.321868319374232,
-      "ethSpent": 0.0007220355626582462,
-      "timestamp": "2026-03-14T20:04:26.339Z",
-      "tx": "0xc00ac6c3ea279cf8ab34821c740ce799ff8cd3fca522837d41e789a3ba3ec0b9",
-      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": 0
-    }
-  ]
+  "tradeLog": []
 }
