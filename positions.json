@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T22:44:14.552Z",
+  "lastSaved": "2026-03-14T23:19:08.042Z",
   "piggyBank": 0.00015693298707350505,
   "totalSkimmed": 0.0002493091226782519,
-  "tradeCount": 117,
+  "tradeCount": 119,
   "predFund": 0.00004570756212237152,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -135,7 +135,7 @@
   },
   "entries": {
     "AERO": 0.32070148803209375,
-    "BRETT": 0.007267043929339085,
+    "BRETT": 0.007272448167680233,
     "VIRTUAL": 0.720859251884183,
     "MORPHO": null,
     "CBBTC": null,
@@ -163,7 +163,7 @@
   },
   "invested": {
     "AERO": 0.002537354834868749,
-    "BRETT": 0.0015907722982443926,
+    "BRETT": 0.0030250405359001573,
     "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -191,7 +191,7 @@
   },
   "entryTimes": {
     "AERO": 1773518666339,
-    "BRETT": 1773525967941,
+    "BRETT": 1773529595534,
     "VIRTUAL": 1773445428640,
     "MORPHO": null,
     "CBBTC": null,
@@ -219,23 +219,22 @@
   },
   "tradeLog": [
     {
-      "type": "SELL",
+      "type": "BUY",
       "symbol": "BRETT",
-      "price": 0.00724269992163469,
-      "receivedEth": 0.0018958063493415202,
-      "netUsd": 0.6366518197473701,
-      "timestamp": "2026-03-14T22:35:23.170Z",
-      "tx": "0xee3ffaec2bcd6df8ace9bb49632b23c7b8eb57d2b18c578427a9b34e5784a61e",
-      "reason": "⏰ STALE CASCADE — 6min no movement",
-      "indScore": -2
+      "price": 0.007273,
+      "ethSpent": 0.0007176415428336317,
+      "timestamp": "2026-03-14T23:04:23.210Z",
+      "tx": "0xae35bd1f05cc80ff523e0e1fd947bf174f78ce8f7172c9f58cf7eb4267ae4db2",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
     },
     {
       "type": "BUY",
-      "symbol": "TOSHI",
-      "price": 0.000214988834723066,
-      "ethSpent": 0.0007188004657827018,
-      "timestamp": "2026-03-14T22:43:50.291Z",
-      "tx": "0xbed54949bef1816720c466a16324b48d2621a9c0694ea66a88034246361ad102",
+      "symbol": "BRETT",
+      "price": 0.007285,
+      "ethSpent": 0.0007166266948221333,
+      "timestamp": "2026-03-14T23:06:35.534Z",
+      "tx": "0x5728b8eb5f6df8710f91803c62494a8f8dfe7622fa91285332ae848ed5e12220",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
     }
