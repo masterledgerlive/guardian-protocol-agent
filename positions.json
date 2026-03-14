@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-14T15:52:16.439Z",
-  "piggyBank": 0.00013807368924668748,
-  "totalSkimmed": 0.00019137765921699976,
-  "tradeCount": 101,
-  "predFund": 0.000026397074301954138,
+  "lastSaved": "2026-03-14T19:32:26.111Z",
+  "piggyBank": 0.0001485142661041865,
+  "totalSkimmed": 0.00022269938978949677,
+  "tradeCount": 107,
+  "predFund": 0.00003683765115945314,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.000026397074301954138,
+  "agentCapital": 0.00003683765115945314,
   "agentPnl": 0,
   "piggyCoPnl": -5.09821366403975e-7,
   "predFundPositions": {},
@@ -28,19 +28,19 @@
       "piggyContrib": 0
     },
     "KEYCAT": {
-      "wins": 0,
+      "wins": 1,
       "losses": 1,
-      "totalPnlEth": 0,
-      "biggestWavePct": 0,
-      "biggestWaveUsd": 0,
+      "totalPnlEth": 0.00040285918360553923,
+      "biggestWavePct": 5.539509915804989,
+      "biggestWaveUsd": 0.083470753538746,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 0,
+        "gold": 1,
         "silver": 0,
         "bronze": 0
       },
-      "piggyContrib": 0
+      "piggyContrib": 0.000002551790660214343
     },
     "PRIME": {
       "wins": 0,
@@ -101,6 +101,21 @@
         "bronze": 1
       },
       "piggyContrib": 2.4037561469025256e-7
+    },
+    "TOSHI": {
+      "wins": 1,
+      "losses": 0,
+      "totalPnlEth": 0.0018558417277516443,
+      "biggestWavePct": 131.66239719145335,
+      "biggestWaveUsd": 2.794417084206194,
+      "fastestWaveMs": 311997,
+      "fastestWavePct": 131.66239719145335,
+      "medals": {
+        "gold": 1,
+        "silver": 0,
+        "bronze": 0
+      },
+      "piggyContrib": 0.000007888786197284663
     }
   },
   "entries": {
@@ -113,7 +128,7 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02573,
-    "TOSHI": 0.000217818956484131,
+    "TOSHI": 0.00021682008447200283,
     "KITE": null,
     "KEYCAT": 0.0005594,
     "DOGINME": null,
@@ -127,11 +142,9 @@
     "BNKR": null,
     "TYBG": null,
     "MIGGLES": null,
-    "BALD": null,
     "NORMIE": null,
     "BENJI": null,
     "ROOST": null,
-    "ENJOY": null,
     "TALENT": null
   },
   "invested": {
@@ -144,9 +157,9 @@
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005863335348679616,
-    "TOSHI": 0.0005992721575863987,
+    "TOSHI": 0.002465683718589276,
     "KITE": 0,
-    "KEYCAT": 0.001450712057835054,
+    "KEYCAT": 0.000725356028917527,
     "DOGINME": 0,
     "XCN": 0,
     "SKI": 0,
@@ -158,11 +171,9 @@
     "BNKR": 0,
     "TYBG": 0,
     "MIGGLES": 0,
-    "BALD": 0,
     "NORMIE": 0,
     "BENJI": 0,
     "ROOST": 0,
-    "ENJOY": 0,
     "TALENT": 0
   },
   "entryTimes": {
@@ -175,7 +186,7 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773482579742,
-    "TOSHI": 1773453303580,
+    "TOSHI": 1773516618031,
     "KITE": null,
     "KEYCAT": 1773482852420,
     "DOGINME": null,
@@ -189,265 +200,73 @@
     "BNKR": null,
     "TYBG": null,
     "MIGGLES": null,
-    "BALD": null,
     "NORMIE": null,
     "BENJI": null,
     "ROOST": null,
-    "ENJOY": null,
     "TALENT": null
   },
   "tradeLog": [
     {
       "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.0259253003339689,
-      "ethSpent": 0.0014461385689976815,
-      "timestamp": "2026-03-14T09:01:25.353Z",
-      "tx": "0x10e8b6e6d592dcebf79a1dfa4768fd78ee5ac80fcc1f60559792cdbb9daf7c7d",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 3
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.02592,
-      "ethSpent": 0.0014461385689976815,
-      "timestamp": "2026-03-14T09:03:36.898Z",
-      "tx": "0xb929fd9b23cf899a59b8575e069cd3eb75f600ebee9ff75b41467089f007bd61",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 3
-    },
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.02582,
-      "receivedEth": 0.0015175499217572161,
-      "netUsd": -0.9570729917040235,
-      "timestamp": "2026-03-14T09:29:56.311Z",
-      "tx": "0xa9b6b6ef05ce1d7d4d2a1be6f81644fab0dfb25173c76f7e74d8ea8f2399481c",
-      "reason": "⏰ STALE CASCADE — 26min no movement",
-      "indScore": 4
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.0259049365891654,
-      "ethSpent": 0.0014448570313967434,
-      "timestamp": "2026-03-14T09:32:13.201Z",
-      "tx": "0xb391e218ecfca0a7daa3978e829b650b9f04ace621c7258133bf9d72d117fe8f",
-      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
-      "indScore": -1
-    },
-    {
-      "type": "SELL",
-      "symbol": "KEYCAT",
-      "price": 0.000559544211559482,
-      "receivedEth": 0.002038055721585848,
-      "netUsd": -3.4299734636967925,
-      "timestamp": "2026-03-14T10:00:56.089Z",
-      "tx": "0xa40674f113286e6677cebe7cb2f0fca925842d03c0d004fd5160fb86a39d6bb8",
-      "reason": "STOP LOSS",
-      "indScore": 3
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.02573,
-      "ethSpent": 0.0014504034538940916,
-      "timestamp": "2026-03-14T10:02:59.742Z",
-      "tx": "0x3a558ac8b50b16c99c8483b6b66cc0b3bf4262ee8a65c7654ae2e0bb419bfedb",
-      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
-      "indScore": -2
-    },
-    {
-      "type": "BUY",
-      "symbol": "KEYCAT",
-      "price": 0.0005594,
-      "ethSpent": 0.001450712057835054,
-      "timestamp": "2026-03-14T10:07:32.420Z",
-      "tx": "0xb257d284154d41aa04110ed6f9a3722161c1c59554fb1f036e58413e82658a4c",
-      "reason": "🎯 MIN TROUGH [PRIORITY]",
-      "indScore": 4
-    },
-    {
-      "type": "BUY",
-      "symbol": "AERO",
-      "price": 0.320272722084969,
-      "ethSpent": 0.0014499057561258518,
-      "timestamp": "2026-03-14T11:08:02.122Z",
-      "tx": "0x490537839a52dd4fa03140ecdfbe67b2a6613b3e7520e34f647fe03e0567a276",
+      "symbol": "TOSHI",
+      "price": 0.000216,
+      "ethSpent": 0.000722087699958119,
+      "timestamp": "2026-03-14T19:17:39.988Z",
+      "tx": "0xfd2c8dbbf3f0ae75e2d297e04473e359870f4ad420bc577e320adb86f174c435",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": -1
+      "indScore": 0
     },
     {
       "type": "BUY",
-      "symbol": "PRIME",
-      "price": 0.405214798359175,
-      "ethSpent": 0.001042146937158472,
-      "timestamp": "2026-03-14T12:35:02.034Z",
-      "tx": "0xd02b296ba90bdbc707b876d2e72222d96edf9227d28df8ac99f9d55a6cbdb2cc",
-      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "PRIME",
-      "price": 0.409,
-      "receivedEth": 0.001054955991043415,
-      "netUsd": -0.04676682406065469,
-      "timestamp": "2026-03-14T13:02:56.444Z",
-      "tx": "0x03542b42d7f7fc7b8d8f40592075abfa5ee39355ce7edb967e0b77a886791538",
-      "reason": "⏰ STALE CASCADE — 26min no movement",
-      "indScore": -2
-    },
-    {
-      "type": "BUY",
-      "symbol": "PRIME",
-      "price": 0.405357660864763,
-      "ethSpent": 0.0010457792063116264,
-      "timestamp": "2026-03-14T13:11:27.418Z",
-      "tx": "0xfa4ef7c8db5da47dc84760f9290885219b052644c9c2b802d02d121d9ec63435",
-      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "symbol": "TOSHI",
+      "price": 0.0002161,
+      "ethSpent": 0.0007218166681905018,
+      "timestamp": "2026-03-14T19:20:03.476Z",
+      "tx": "0x73f2f38fd3701bbd0d3b06b5654b664631e2af6e322a7442f45785f9aa1938e3",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
     },
     {
       "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000744423522496537,
-      "receivedEth": 0.0016748072877987399,
-      "netUsd": 0.07494048185149893,
-      "timestamp": "2026-03-14T13:13:11.225Z",
-      "tx": "0x95e8d4a90247c4bf9dca5b15853082ce47fffbe100684302de581a1dce89d814",
-      "reason": "🎯 MAX PEAK $0.00073511",
-      "indScore": -3
+      "symbol": "KEYCAT",
+      "price": 0.000588,
+      "receivedEth": 0.0007655371980643028,
+      "netUsd": 0.083470753538746,
+      "timestamp": "2026-03-14T19:23:30.052Z",
+      "tx": "0x2aa8b1e1681caa63a41c85eb1d39c4d045a2db109d0f68f022ca9b7fbac9674b",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 0
     },
     {
       "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000743189661108802,
-      "receivedEth": 0.00006578513881391615,
-      "netUsd": 0.13657192173185437,
-      "timestamp": "2026-03-14T13:19:45.363Z",
-      "tx": "0x46f520c8f1b4feeced93952be1789f22a7dc7373fd56c1d9a3d631d271cb61d2",
-      "reason": "🎯 MAX PEAK $0.00073511",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000747,
-      "receivedEth": 0.0000013575860265588845,
-      "netUsd": 0.0028225299560980456,
-      "timestamp": "2026-03-14T13:30:37.963Z",
-      "tx": "0x2c18f3cb3cf955608ad04dfacc0b2075c90c5f9295b186535e6cc8ebd402c58c",
-      "reason": "🎯 MAX PEAK $0.00073511",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "PRIME",
-      "price": 0.407284957815203,
-      "receivedEth": 0.0010443215088205768,
-      "netUsd": -0.042571898351652315,
-      "timestamp": "2026-03-14T13:50:36.457Z",
-      "tx": "0xc0e2da4a7336fa30beb5ae9529e39315a1f4c52e8630512295096542901feb4e",
-      "reason": "⏰ STALE CASCADE — 39min no movement",
-      "indScore": 1
+      "symbol": "TOSHI",
+      "price": 0.000216,
+      "receivedEth": 0.0023666358591853992,
+      "netUsd": 2.794417084206194,
+      "timestamp": "2026-03-14T19:25:14.365Z",
+      "tx": "0x9e504bcee1b96b41594e323faf1c42ee454913088b6e6eb3a2af0449ee3d5956",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": 0
     },
     {
       "type": "BUY",
-      "symbol": "PRIME",
-      "price": 0.405177702147667,
-      "ethSpent": 0.0014441962566433026,
-      "timestamp": "2026-03-14T13:54:52.020Z",
-      "tx": "0x7ce11c7145f85aa69f99867238c1952e0b8fd75c3e1599141c333f322e43484e",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 3
-    },
-    {
-      "type": "SELL",
-      "symbol": "AERO",
-      "price": 0.326791064355296,
-      "receivedEth": 0.0012200605705321701,
-      "netUsd": 0.020434122440280422,
-      "timestamp": "2026-03-14T14:21:46.645Z",
-      "tx": "0x292f9fa79e79aee5e1186d58965f17dfed0c589fd8e42dde156b485756a35a22",
-      "reason": "⏰ STALE CASCADE — 26min no movement",
-      "indScore": -4
-    },
-    {
-      "type": "SELL",
-      "symbol": "PRIME",
-      "price": 0.407688962460629,
-      "receivedEth": 0.0012005485116304165,
-      "netUsd": -0.033251238176500664,
-      "timestamp": "2026-03-14T14:37:47.390Z",
-      "tx": "0xeeb84767637c3dfc8a89161aa25bbae8e9e228a921f7db87627852ed60aa9371",
-      "reason": "⏰ STALE CASCADE — 41min no movement",
-      "indScore": -1
+      "symbol": "TOSHI",
+      "price": 0.000216,
+      "ethSpent": 0.0007220286115871151,
+      "timestamp": "2026-03-14T19:27:41.324Z",
+      "tx": "0xcbeb8232d895d08304a76c5f70248f2b069faa57963666ced4d71138915e4541",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
     },
     {
       "type": "BUY",
-      "symbol": "PRIME",
-      "price": 0.404992879355142,
-      "ethSpent": 0.0014453025259070478,
-      "timestamp": "2026-03-14T14:42:03.551Z",
-      "tx": "0x250cf1d389d172f69809c024e06d5419243787952a903f4d9a549f8c8a35647d",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 1
-    },
-    {
-      "type": "SELL",
-      "symbol": "PRIME",
-      "price": 0.4042,
-      "receivedEth": 0.001289450501149987,
-      "netUsd": -0.03858281254445961,
-      "timestamp": "2026-03-14T15:38:03.259Z",
-      "tx": "0xe56f3f35d0c8398109cd9188fd9f16558979ef4c1075ede3d4c6299b8a3e5f8b",
-      "reason": "⏰ STALE CASCADE — 30min no movement",
-      "indScore": 3
-    },
-    {
-      "type": "BUY",
-      "symbol": "PRIME",
-      "price": 0.402725816351579,
-      "ethSpent": 0.0014471081954560803,
-      "timestamp": "2026-03-14T15:40:13.876Z",
-      "tx": "0xc33f12d905f1245a5885c91d219ceb0029a2b8b54eb73b570e53f07a1698de94",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 3
-    },
-    {
-      "type": "SELL",
-      "symbol": "XCN",
-      "price": 0.005022,
-      "receivedEth": 0.0018741489669940026,
-      "netUsd": -0.004560169951311366,
-      "timestamp": "2026-03-14T15:48:49.499Z",
-      "tx": "0x0a8f4cb10ddd5421661100ddfa1074beb07098953a8c8f70a840a4850ba8aaca",
-      "reason": "🎯 MAX PEAK $0.00497000",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "XCN",
-      "price": 0.0050149179005667,
-      "receivedEth": 0.00007211268440707576,
-      "netUsd": 0.14953718914757672,
-      "timestamp": "2026-03-14T15:51:10.555Z",
-      "tx": "0xbd60f853b7d6d691d922c840f8b2fd907826c0c8f644853967d2061421ff545b",
-      "reason": "🎯 MAX PEAK $0.00497000",
-      "indScore": -3
-    },
-    {
-      "type": "BUY",
-      "symbol": "PRIME",
-      "price": 0.4041,
-      "ethSpent": 0.0014466267076222762,
-      "timestamp": "2026-03-14T15:51:20.612Z",
-      "tx": "0x65a40ca88c4a490280bc9d2ffb93034ce0e08f4b634e67759090e82e92db0511",
-      "reason": "🎯 MIN TROUGH [THIN]",
-      "indScore": 3
+      "symbol": "TOSHI",
+      "price": 0.000216,
+      "ethSpent": 0.0007220668441346511,
+      "timestamp": "2026-03-14T19:30:18.031Z",
+      "tx": "0xf29e6345bf3d1897748c0df4e772461f40bfffc0ec4de75b444ad77975d4e742",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
     }
   ]
 }
