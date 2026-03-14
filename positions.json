@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T03:31:14.730Z",
+  "lastSaved": "2026-03-14T03:49:32.658Z",
   "piggyBank": 0.0000924840472790712,
   "totalSkimmed": 0.00015044587762448757,
-  "tradeCount": 72,
+  "tradeCount": 74,
   "predFund": 0.000012753147104450074,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -68,7 +68,7 @@
     "KITE": 0,
     "KEYCAT": 0.003771772967098113,
     "DOGINME": 0,
-    "XCN": 0.003377018944423677,
+    "XCN": 0.003191068128225298,
     "SKI": 0,
     "PRIME": 0.0016515937714334506,
     "LUNA": 0,
@@ -89,7 +89,7 @@
     "KITE": null,
     "KEYCAT": 1773458748400,
     "DOGINME": null,
-    "XCN": 1773457080368,
+    "XCN": 1773459839616,
     "SKI": null,
     "PRIME": 1773409346538,
     "LUNA": null,
@@ -406,6 +406,27 @@
       "ethSpent": 0.0010965953171123903,
       "timestamp": "2026-03-14T03:28:39.705Z",
       "tx": "0x7babe0a622a5ac54649174e9a78937989544682904238a5fee2f6c3fb9217d9e",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.004897,
+      "receivedEth": 0.0013041264923198705,
+      "netUsd": -0.09805642085201294,
+      "timestamp": "2026-03-14T03:40:43.779Z",
+      "tx": "0x458db1756985011acabf395bda5b9cb238b83ebb9c12ef280eda03fb3e77d4c1",
+      "reason": "⏰ STALE CASCADE — 43min no movement",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.004897,
+      "ethSpent": 0.001164856761571092,
+      "timestamp": "2026-03-14T03:43:59.616Z",
+      "tx": "0xbed477d6dbd461993721a19faad9012fcc20823c34f5e39fc5c7716b309c5383",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
       "indScore": 2
     }
