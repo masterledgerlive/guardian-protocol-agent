@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-14T21:36:59.916Z",
-  "piggyBank": 0.0001510648225692998,
+  "lastSaved": "2026-03-14T21:52:12.092Z",
+  "piggyBank": 0.0001507827093929618,
   "totalSkimmed": 0.00023035105918483672,
   "tradeCount": 111,
   "predFund": 0.000039388207624566455,
@@ -8,7 +8,7 @@
   "predFundTrades": 0,
   "agentCapital": 0.000039388207624566455,
   "agentPnl": 0,
-  "piggyCoPnl": -5.09821366403975e-7,
+  "piggyCoPnl": -7.919345427419883e-7,
   "predFundPositions": {},
   "piggyCoPositions": {},
   "waveStats": {
