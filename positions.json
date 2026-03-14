@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T01:05:03.834Z",
+  "lastSaved": "2026-03-14T01:21:30.800Z",
   "piggyBank": 0.00011673437306992673,
   "totalSkimmed": 0.00012583024658750552,
-  "tradeCount": 52,
+  "tradeCount": 53,
   "predFund": 0.000004547936758789389,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -38,7 +38,7 @@
     "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.0026260439403749786,
+    "DEGEN": 0.001575626364224987,
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005706984169405388,
@@ -178,6 +178,17 @@
       "tx": "0xd3c218889bcc2482a0313f3e4159901ff9d0a9b3d99630d10fd6d01a52e1b337",
       "reason": "🎯 MAX PEAK $0.00022788",
       "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "DEGEN",
+      "price": 0.0007353,
+      "receivedEth": 0.0010224149206326581,
+      "netUsd": -0.05848718639316797,
+      "timestamp": "2026-03-14T01:17:16.814Z",
+      "tx": "0xc0bb366d14f77f7b4b3c23e793999af6861fd64b4d08284f7aaa6f916ce08b40",
+      "reason": "⏰ STALE CASCADE — 26min no movement",
+      "indScore": 3
     }
   ]
 }
