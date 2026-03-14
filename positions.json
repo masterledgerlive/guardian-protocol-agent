@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T01:21:30.800Z",
-  "piggyBank": 0.00011673437306992673,
+  "lastSaved": "2026-03-14T01:37:42.960Z",
+  "piggyBank": 0.00010506093576293406,
   "totalSkimmed": 0.00012583024658750552,
-  "tradeCount": 53,
+  "tradeCount": 55,
   "predFund": 0.000004547936758789389,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -10,7 +10,15 @@
   "agentPnl": 0,
   "piggyCoPnl": 0,
   "predFundPositions": {},
-  "piggyCoPositions": {},
+  "piggyCoPositions": {
+    "CBBTC": {
+      "entryPrice": 70784.0727199479,
+      "ethIn": 0.000011673437306992674,
+      "tokens": 3.4310014044949347e-7,
+      "entryTime": 1773452006589,
+      "conf": 61
+    }
+  },
   "entries": {
     "AERO": 0.325779071633487,
     "BRETT": 0.00743850282150817,
@@ -25,7 +33,7 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 0.004883,
     "SKI": null,
     "PRIME": 0.413740951617944,
     "LUNA": null,
@@ -46,7 +54,7 @@
     "KITE": 0,
     "KEYCAT": 0,
     "DOGINME": 0,
-    "XCN": 0,
+    "XCN": 0.0012401554601333925,
     "SKI": 0,
     "PRIME": 0.0016515937714334506,
     "LUNA": 0,
@@ -67,7 +75,7 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 1773451943524,
     "SKI": null,
     "PRIME": 1773409346538,
     "LUNA": null,
@@ -189,6 +197,26 @@
       "tx": "0xc0bb366d14f77f7b4b3c23e793999af6861fd64b4d08284f7aaa6f916ce08b40",
       "reason": "⏰ STALE CASCADE — 26min no movement",
       "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.00488113376094645,
+      "ethSpent": 0.0007427625259156154,
+      "timestamp": "2026-03-14T01:27:37.684Z",
+      "tx": "0xc61e36e547d9894e6934eee45f399e70b9ea80fad6deae4630cf01e83dc49f04",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.004883,
+      "ethSpent": 0.000497392934217777,
+      "timestamp": "2026-03-14T01:32:23.524Z",
+      "tx": "0x5de54f8fed63686db38528da0c30bd269194fafc00923e8e377ff8f2452a1fbf",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
     }
   ]
 }
