@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-14T21:21:22.324Z",
-  "piggyBank": 0.0001485142661041865,
-  "totalSkimmed": 0.00022269938978949677,
-  "tradeCount": 110,
-  "predFund": 0.00003683765115945314,
+  "lastSaved": "2026-03-14T21:36:59.916Z",
+  "piggyBank": 0.0001510648225692998,
+  "totalSkimmed": 0.00023035105918483672,
+  "tradeCount": 111,
+  "predFund": 0.000039388207624566455,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.00003683765115945314,
+  "agentCapital": 0.000039388207624566455,
   "agentPnl": 0,
   "piggyCoPnl": -5.09821366403975e-7,
   "predFundPositions": {},
@@ -28,19 +28,19 @@
       "piggyContrib": 0
     },
     "KEYCAT": {
-      "wins": 1,
+      "wins": 2,
       "losses": 1,
-      "totalPnlEth": 0.00040285918360553923,
-      "biggestWavePct": 5.539509915804989,
-      "biggestWaveUsd": 0.083470753538746,
+      "totalPnlEth": 0.0011680261231395333,
+      "biggestWavePct": 7.641290653695444,
+      "biggestWaveUsd": 0.11318845658407284,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 1,
+        "gold": 2,
         "silver": 0,
         "bronze": 0
       },
-      "piggyContrib": 0.000002551790660214343
+      "piggyContrib": 0.000005102347125327656
     },
     "PRIME": {
       "wins": 0,
@@ -130,7 +130,7 @@
     "AIXBT": 0.02573,
     "TOSHI": 0.00021664957512981632,
     "KITE": null,
-    "KEYCAT": 0.0005594,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
@@ -158,7 +158,7 @@
     "AIXBT": 0.005863335348679616,
     "TOSHI": 0.003907385000329031,
     "KITE": 0,
-    "KEYCAT": 0.000725356028917527,
+    "KEYCAT": 0,
     "DOGINME": 0,
     "XCN": 0,
     "SKI": 0,
@@ -186,7 +186,7 @@
     "AIXBT": 1773482579742,
     "TOSHI": 1773522666173,
     "KITE": null,
-    "KEYCAT": 1773482852420,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
@@ -211,6 +211,17 @@
       "timestamp": "2026-03-14T21:11:06.173Z",
       "tx": "0x4de5d19eec338116b3513b2de2b042f6aa4591ac4186701d778a124761689140",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.0005851,
+      "receivedEth": 0.0007651669395339941,
+      "netUsd": 0.11318845658407284,
+      "timestamp": "2026-03-14T21:36:36.765Z",
+      "tx": "0x6ea16533d694095d55e30e3db89f2951839511711171e07f897a0afbcb94c71f",
+      "reason": "🚀 EARLY SELL RSI100 BB-upper near-peak $0.00060030",
       "indScore": 0
     }
   ]
