@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T09:46:39.393Z",
+  "lastSaved": "2026-03-14T10:02:09.418Z",
   "piggyBank": 0.0001281160692131896,
   "totalSkimmed": 0.00016103642654121514,
-  "tradeCount": 81,
+  "tradeCount": 82,
   "predFund": 0.000016283330076692602,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -13,6 +13,21 @@
   "piggyCoPositions": {},
   "waveStats": {
     "AIXBT": {
+      "wins": 0,
+      "losses": 1,
+      "totalPnlEth": 0,
+      "biggestWavePct": 0,
+      "biggestWaveUsd": 0,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 0
+      },
+      "piggyContrib": 0
+    },
+    "KEYCAT": {
       "wins": 0,
       "losses": 1,
       "totalPnlEth": 0,
@@ -40,7 +55,7 @@
     "AIXBT": 0.0259049365891654,
     "TOSHI": 0.000217818956484131,
     "KITE": null,
-    "KEYCAT": 0.000599,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": 0.004897,
     "SKI": null,
@@ -71,7 +86,7 @@
     "AIXBT": 0.0044129318947855245,
     "TOSHI": 0.0005992721575863987,
     "KITE": 0,
-    "KEYCAT": 0.003771772967098113,
+    "KEYCAT": 0,
     "DOGINME": 0,
     "XCN": 0.0019146408769351788,
     "SKI": 0,
@@ -102,7 +117,7 @@
     "AIXBT": 1773480733201,
     "TOSHI": 1773453303580,
     "KITE": null,
-    "KEYCAT": 1773458748400,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": 1773459839616,
     "SKI": null,
@@ -162,6 +177,17 @@
       "tx": "0xb391e218ecfca0a7daa3978e829b650b9f04ace621c7258133bf9d72d117fe8f",
       "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
       "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.000559544211559482,
+      "receivedEth": 0.002038055721585848,
+      "netUsd": -3.4299734636967925,
+      "timestamp": "2026-03-14T10:00:56.089Z",
+      "tx": "0xa40674f113286e6677cebe7cb2f0fca925842d03c0d004fd5160fb86a39d6bb8",
+      "reason": "STOP LOSS",
+      "indScore": 3
     }
   ]
 }
