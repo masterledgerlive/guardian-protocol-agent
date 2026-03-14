@@ -1844,18 +1844,44 @@
       "minTrough": 0.0002155,
       "maxPeak": 0.000226981587902808,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 104,
+      "symbol": "KEYCAT",
+      "price": 0.000588,
+      "receivedEth": 0.0007655371980643028,
+      "recUsd": 1.59029635377086,
+      "investedUsd": 1.506825600232114,
+      "netUsd": 0.083470753538746,
+      "pnlPct": 5.539509915804989,
+      "ethUsd": 2077.36,
+      "timestamp": "2026-03-14T19:23:30.052Z",
+      "tx": "0x2aa8b1e1681caa63a41c85eb1d39c4d045a2db109d0f68f022ca9b7fbac9674b",
+      "basescan": "https://basescan.org/tx/0x2aa8b1e1681caa63a41c85eb1d39c4d045a2db109d0f68f022ca9b7fbac9674b",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000007655371980643028,
+      "skimLottery": 0.000002551790660214343,
+      "skimPred": 0.000002551790660214343,
+      "skimAgent": 0.000002551790660214343,
+      "piggyTotal": 0.00014062547990690183,
+      "predFundTotal": 0.00002894886496216848,
+      "agentTotal": 0.00002894886496216848,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-14T19:20:03.971Z",
-  "totalTrades": 83,
+  "lastUpdated": "2026-03-14T19:23:30.356Z",
+  "totalTrades": 84,
   "stats": {
-    "totalTrades": 83,
-    "sells": 35,
-    "wins": 17,
-    "winRate": "48.6%",
-    "totalNetUsd": "1.96",
-    "totalSkimEth": "0.000135"
+    "totalTrades": 84,
+    "sells": 36,
+    "wins": 18,
+    "winRate": "50.0%",
+    "totalNetUsd": "2.04",
+    "totalSkimEth": "0.000143"
   }
 }
