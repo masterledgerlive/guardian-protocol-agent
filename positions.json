@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T20:35:10.140Z",
+  "lastSaved": "2026-03-14T21:21:22.324Z",
   "piggyBank": 0.0001485142661041865,
   "totalSkimmed": 0.00022269938978949677,
-  "tradeCount": 109,
+  "tradeCount": 110,
   "predFund": 0.00003683765115945314,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -128,7 +128,7 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02573,
-    "TOSHI": 0.00021670804617380144,
+    "TOSHI": 0.00021664957512981632,
     "KITE": null,
     "KEYCAT": 0.0005594,
     "DOGINME": null,
@@ -142,7 +142,6 @@
     "BNKR": null,
     "TYBG": null,
     "MIGGLES": null,
-    "NORMIE": null,
     "BENJI": null,
     "ROOST": null,
     "TALENT": null
@@ -157,7 +156,7 @@
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005863335348679616,
-    "TOSHI": 0.0031876636764256467,
+    "TOSHI": 0.003907385000329031,
     "KITE": 0,
     "KEYCAT": 0.000725356028917527,
     "DOGINME": 0,
@@ -171,7 +170,6 @@
     "BNKR": 0,
     "TYBG": 0,
     "MIGGLES": 0,
-    "NORMIE": 0,
     "BENJI": 0,
     "ROOST": 0,
     "TALENT": 0
@@ -186,7 +184,7 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773482579742,
-    "TOSHI": 1773518289605,
+    "TOSHI": 1773522666173,
     "KITE": null,
     "KEYCAT": 1773482852420,
     "DOGINME": null,
@@ -200,10 +198,20 @@
     "BNKR": null,
     "TYBG": null,
     "MIGGLES": null,
-    "NORMIE": null,
     "BENJI": null,
     "ROOST": null,
     "TALENT": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "BUY",
+      "symbol": "TOSHI",
+      "price": 0.0002164,
+      "ethSpent": 0.0007197213239033847,
+      "timestamp": "2026-03-14T21:11:06.173Z",
+      "tx": "0x4de5d19eec338116b3513b2de2b042f6aa4591ac4186701d778a124761689140",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
+    }
+  ]
 }
