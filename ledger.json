@@ -1976,18 +1976,44 @@
       "minTrough": 0.320272722084969,
       "maxPeak": 0.3407,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 110,
+      "symbol": "TOSHI",
+      "price": 0.000216,
+      "receivedEth": 0.0022468721737199304,
+      "recUsd": 4.66879815849438,
+      "investedUsd": 3.3118391149408075,
+      "netUsd": 1.3569590435535726,
+      "pnlPct": 40.97297593448544,
+      "ethUsd": 2077.91,
+      "timestamp": "2026-03-14T20:13:37.693Z",
+      "tx": "0xb4e39e3495cba50e46abbb1cee76fa82e51be631bc7455b98aefdbde4a0581bd",
+      "basescan": "https://basescan.org/tx/0xb4e39e3495cba50e46abbb1cee76fa82e51be631bc7455b98aefdbde4a0581bd",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000022468721737199304,
+      "skimLottery": 0.000007489573912399768,
+      "skimPred": 0.000007489573912399768,
+      "skimAgent": 0.000007489573912399768,
+      "piggyTotal": 0.00015600384001658626,
+      "predFundTotal": 0.00004432722507185291,
+      "agentTotal": 0.00004432722507185291,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-14T20:04:26.644Z",
-  "totalTrades": 89,
+  "lastUpdated": "2026-03-14T20:13:37.987Z",
+  "totalTrades": 90,
   "stats": {
-    "totalTrades": 89,
-    "sells": 37,
-    "wins": 19,
-    "winRate": "51.4%",
-    "totalNetUsd": "4.84",
-    "totalSkimEth": "0.000166"
+    "totalTrades": 90,
+    "sells": 38,
+    "wins": 20,
+    "winRate": "52.6%",
+    "totalNetUsd": "6.19",
+    "totalSkimEth": "0.000189"
   }
 }
