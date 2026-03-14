@@ -2372,18 +2372,44 @@
       "predFundTotal": 0.00004580698927440618,
       "agentTotal": 0.00004580698927440618,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 123,
+      "symbol": "AERO",
+      "price": 0.3333,
+      "receivedEth": 0.002532987997811622,
+      "recUsd": 5.310308017892153,
+      "investedUsd": 5.213073658766759,
+      "netUsd": 0.09723435912539369,
+      "pnlPct": 1.8652020955406208,
+      "ethUsd": 2096.46,
+      "timestamp": "2026-03-14T23:53:31.741Z",
+      "tx": "0x8191baef8ff945cf516d2d621c3424840b0632243b4e81a092f08d54dd9bb7a2",
+      "basescan": "https://basescan.org/tx/0x8191baef8ff945cf516d2d621c3424840b0632243b4e81a092f08d54dd9bb7a2",
+      "reason": "🎯 MAX PEAK $0.46593619",
+      "indScore": -2,
+      "indDetail": "RSI 54.4 neutral | MACD ☠️ CROSS DOWN | BB SQUEEZE ⚡",
+      "skimEth": 0.00002532987997811622,
+      "skimLottery": 0.00000844329332603874,
+      "skimPred": 0.00000844329332603874,
+      "skimAgent": 0.00000844329332603874,
+      "piggyTotal": 0.00016529982031988655,
+      "predFundTotal": 0.00005425028260044492,
+      "agentTotal": 0.00005425028260044492,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-14T23:52:05.417Z",
-  "totalTrades": 107,
+  "lastUpdated": "2026-03-14T23:53:32.226Z",
+  "totalTrades": 108,
   "stats": {
-    "totalTrades": 107,
-    "sells": 43,
-    "wins": 25,
-    "winRate": "58.1%",
-    "totalNetUsd": "7.36",
-    "totalSkimEth": "0.000225"
+    "totalTrades": 108,
+    "sells": 44,
+    "wins": 26,
+    "winRate": "59.1%",
+    "totalNetUsd": "7.46",
+    "totalSkimEth": "0.000251"
   }
 }
