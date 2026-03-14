@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T14:32:08.379Z",
+  "lastSaved": "2026-03-14T14:47:16.654Z",
   "piggyBank": 0.00013783331363199724,
   "totalSkimmed": 0.000190656532372929,
-  "tradeCount": 94,
+  "tradeCount": 96,
   "predFund": 0.000026156698687263886,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -44,7 +44,7 @@
     },
     "PRIME": {
       "wins": 0,
-      "losses": 2,
+      "losses": 3,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -104,7 +104,7 @@
     "DOGINME": null,
     "XCN": 0.004897,
     "SKI": null,
-    "PRIME": 0.405177702147667,
+    "PRIME": 0.404992879355142,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -135,7 +135,7 @@
     "DOGINME": 0,
     "XCN": 0.0019146408769351788,
     "SKI": 0,
-    "PRIME": 0.0030414104355233704,
+    "PRIME": 0.00327014878722107,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -166,7 +166,7 @@
     "DOGINME": null,
     "XCN": 1773459839616,
     "SKI": null,
-    "PRIME": 1773496492020,
+    "PRIME": 1773499323551,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -359,6 +359,27 @@
       "tx": "0x292f9fa79e79aee5e1186d58965f17dfed0c589fd8e42dde156b485756a35a22",
       "reason": "⏰ STALE CASCADE — 26min no movement",
       "indScore": -4
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.407688962460629,
+      "receivedEth": 0.0012005485116304165,
+      "netUsd": -0.033251238176500664,
+      "timestamp": "2026-03-14T14:37:47.390Z",
+      "tx": "0xeeb84767637c3dfc8a89161aa25bbae8e9e228a921f7db87627852ed60aa9371",
+      "reason": "⏰ STALE CASCADE — 41min no movement",
+      "indScore": -1
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.404992879355142,
+      "ethSpent": 0.0014453025259070478,
+      "timestamp": "2026-03-14T14:42:03.551Z",
+      "tx": "0x250cf1d389d172f69809c024e06d5419243787952a903f4d9a549f8c8a35647d",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 1
     }
   ]
 }
