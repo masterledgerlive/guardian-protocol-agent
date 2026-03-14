@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T12:23:07.095Z",
+  "lastSaved": "2026-03-14T12:40:12.544Z",
   "piggyBank": 0.00012795994502142597,
   "totalSkimmed": 0.00016103642654121514,
-  "tradeCount": 85,
+  "tradeCount": 86,
   "predFund": 0.000016283330076692602,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -59,7 +59,7 @@
     "DOGINME": null,
     "XCN": 0.004897,
     "SKI": null,
-    "PRIME": 0.413740951617944,
+    "PRIME": 0.405214798359175,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -90,7 +90,7 @@
     "DOGINME": 0,
     "XCN": 0.0019146408769351788,
     "SKI": 0,
-    "PRIME": 0.0016515937714334506,
+    "PRIME": 0.0026937407085919226,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -121,7 +121,7 @@
     "DOGINME": null,
     "XCN": 1773459839616,
     "SKI": null,
-    "PRIME": 1773409346538,
+    "PRIME": 1773491702034,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -218,6 +218,16 @@
       "tx": "0x490537839a52dd4fa03140ecdfbe67b2a6613b3e7520e34f647fe03e0567a276",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": -1
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.405214798359175,
+      "ethSpent": 0.001042146937158472,
+      "timestamp": "2026-03-14T12:35:02.034Z",
+      "tx": "0xd02b296ba90bdbc707b876d2e72222d96edf9227d28df8ac99f9d55a6cbdb2cc",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": -3
     }
   ]
 }
