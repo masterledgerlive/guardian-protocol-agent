@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T02:58:31.586Z",
-  "piggyBank": 0.00010276005253230134,
+  "lastSaved": "2026-03-14T03:14:46.288Z",
+  "piggyBank": 0.0000924840472790712,
   "totalSkimmed": 0.00015044587762448757,
-  "tradeCount": 68,
+  "tradeCount": 69,
   "predFund": 0.000012753147104450074,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -24,6 +24,13 @@
       "tokens": 99.94388780021315,
       "entryTime": 1773453304480,
       "conf": 67
+    },
+    "VIRTUAL": {
+      "entryPrice": 0.727078427749052,
+      "ethIn": 0.000010276005253230135,
+      "tokens": 0.029414714539982945,
+      "entryTime": 1773457524873,
+      "conf": 64
     }
   },
   "entries": {
@@ -56,7 +63,7 @@
     "DEGEN": 0.002817116553676271,
     "WELL": 0,
     "SEAM": 0,
-    "AIXBT": 0.0034241905016432327,
+    "AIXBT": 0.0020545143009859396,
     "TOSHI": 0.0005992721575863987,
     "KITE": 0,
     "KEYCAT": 0.0023412737705618284,
@@ -359,6 +366,17 @@
       "tx": "0x483c8778f32ed0966a62c7684596e8e40f02b9b54484ad2376bdd531ba314136",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.027,
+      "receivedEth": 0.001133265322400349,
+      "netUsd": -0.4959900225830687,
+      "timestamp": "2026-03-14T03:12:20.426Z",
+      "tx": "0x59de3c998c0c770b924a400f3d7a8a91f64b34939046c81384708de41eca581f",
+      "reason": "⏰ STALE CASCADE — 26min no movement",
+      "indScore": 0
     }
   ]
 }
