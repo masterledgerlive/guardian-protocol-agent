@@ -2042,18 +2042,44 @@
       "minTrough": 0.0002155,
       "maxPeak": 0.000226981587902808,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 111,
+      "symbol": "KEYCAT",
+      "price": 0.0005851,
+      "receivedEth": 0.0007651669395339941,
+      "recUsd": 1.5944625202703322,
+      "investedUsd": 1.4812740636862594,
+      "netUsd": 0.11318845658407284,
+      "pnlPct": 7.641290653695444,
+      "ethUsd": 2083.81,
+      "timestamp": "2026-03-14T21:36:36.765Z",
+      "tx": "0x6ea16533d694095d55e30e3db89f2951839511711171e07f897a0afbcb94c71f",
+      "basescan": "https://basescan.org/tx/0x6ea16533d694095d55e30e3db89f2951839511711171e07f897a0afbcb94c71f",
+      "reason": "🚀 EARLY SELL RSI100 BB-upper near-peak $0.00060030",
+      "indScore": 0,
+      "indDetail": "RSI 100.0 OVERBOUGHT 🔥 | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.000007651669395339941,
+      "skimLottery": 0.0000025505564651133137,
+      "skimPred": 0.0000025505564651133137,
+      "skimAgent": 0.0000025505564651133137,
+      "piggyTotal": 0.0001510648225692998,
+      "predFundTotal": 0.000039388207624566455,
+      "agentTotal": 0.000039388207624566455,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-14T21:11:06.617Z",
-  "totalTrades": 92,
+  "lastUpdated": "2026-03-14T21:36:37.208Z",
+  "totalTrades": 93,
   "stats": {
-    "totalTrades": 92,
-    "sells": 38,
-    "wins": 20,
-    "winRate": "52.6%",
-    "totalNetUsd": "6.19",
-    "totalSkimEth": "0.000189"
+    "totalTrades": 93,
+    "sells": 39,
+    "wins": 21,
+    "winRate": "53.8%",
+    "totalNetUsd": "6.31",
+    "totalSkimEth": "0.000196"
   }
 }
