@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-14T13:12:24.392Z",
-  "piggyBank": 0.00012795994502142597,
-  "totalSkimmed": 0.00016103642654121514,
-  "tradeCount": 88,
-  "predFund": 0.000016283330076692602,
+  "lastSaved": "2026-03-14T13:27:44.095Z",
+  "piggyBank": 0.00013376191977680147,
+  "totalSkimmed": 0.0001784423508073417,
+  "tradeCount": 90,
+  "predFund": 0.000022085304832068122,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.000016283330076692602,
+  "agentCapital": 0.000022085304832068122,
   "agentPnl": 0,
   "piggyCoPnl": -5.09821366403975e-7,
   "predFundPositions": {},
@@ -56,6 +56,21 @@
         "bronze": 0
       },
       "piggyContrib": 0
+    },
+    "DEGEN": {
+      "wins": 2,
+      "losses": 0,
+      "totalPnlEth": 0.001740592426612656,
+      "biggestWavePct": 2.204859551078612,
+      "biggestWaveUsd": 0.07494048185149893,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 2
+      },
+      "piggyContrib": 0.000005801974755375521
     }
   },
   "entries": {
@@ -64,7 +79,7 @@
     "VIRTUAL": 0.720859251884183,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.000738376573842039,
+    "DEGEN": null,
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02573,
@@ -95,7 +110,7 @@
     "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.0016721191495908919,
+    "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005863335348679616,
@@ -126,7 +141,7 @@
     "VIRTUAL": 1773445428640,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773458919705,
+    "DEGEN": null,
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773482579742,
@@ -264,6 +279,28 @@
       "tx": "0xfa4ef7c8db5da47dc84760f9290885219b052644c9c2b802d02d121d9ec63435",
       "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "DEGEN",
+      "price": 0.000744423522496537,
+      "receivedEth": 0.0016748072877987399,
+      "netUsd": 0.07494048185149893,
+      "timestamp": "2026-03-14T13:13:11.225Z",
+      "tx": "0x95e8d4a90247c4bf9dca5b15853082ce47fffbe100684302de581a1dce89d814",
+      "reason": "🎯 MAX PEAK $0.00073511",
+      "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "DEGEN",
+      "price": 0.000743189661108802,
+      "receivedEth": 0.00006578513881391615,
+      "netUsd": 0.13657192173185437,
+      "timestamp": "2026-03-14T13:19:45.363Z",
+      "tx": "0x46f520c8f1b4feeced93952be1789f22a7dc7373fd56c1d9a3d631d271cb61d2",
+      "reason": "🎯 MAX PEAK $0.00073511",
+      "indScore": -3
     }
   ]
 }
