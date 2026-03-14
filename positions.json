@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T19:32:26.111Z",
+  "lastSaved": "2026-03-14T20:13:00.192Z",
   "piggyBank": 0.0001485142661041865,
   "totalSkimmed": 0.00022269938978949677,
-  "tradeCount": 107,
+  "tradeCount": 109,
   "predFund": 0.00003683765115945314,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -119,7 +119,7 @@
     }
   },
   "entries": {
-    "AERO": 0.320272722084969,
+    "AERO": 0.32070148803209375,
     "BRETT": null,
     "VIRTUAL": 0.720859251884183,
     "MORPHO": null,
@@ -128,7 +128,7 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02573,
-    "TOSHI": 0.00021682008447200283,
+    "TOSHI": 0.00021670804617380144,
     "KITE": null,
     "KEYCAT": 0.0005594,
     "DOGINME": null,
@@ -148,7 +148,7 @@
     "TALENT": null
   },
   "invested": {
-    "AERO": 0.0018153192722105032,
+    "AERO": 0.002537354834868749,
     "BRETT": 0,
     "VIRTUAL": 0.0022454899759640165,
     "MORPHO": 0,
@@ -157,7 +157,7 @@
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.005863335348679616,
-    "TOSHI": 0.002465683718589276,
+    "TOSHI": 0.0031876636764256467,
     "KITE": 0,
     "KEYCAT": 0.000725356028917527,
     "DOGINME": 0,
@@ -177,7 +177,7 @@
     "TALENT": 0
   },
   "entryTimes": {
-    "AERO": 1773486482122,
+    "AERO": 1773518666339,
     "BRETT": null,
     "VIRTUAL": 1773445428640,
     "MORPHO": null,
@@ -186,7 +186,7 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773482579742,
-    "TOSHI": 1773516618031,
+    "TOSHI": 1773518289605,
     "KITE": null,
     "KEYCAT": 1773482852420,
     "DOGINME": null,
@@ -209,62 +209,20 @@
     {
       "type": "BUY",
       "symbol": "TOSHI",
-      "price": 0.000216,
-      "ethSpent": 0.000722087699958119,
-      "timestamp": "2026-03-14T19:17:39.988Z",
-      "tx": "0xfd2c8dbbf3f0ae75e2d297e04473e359870f4ad420bc577e320adb86f174c435",
-      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": 0
-    },
-    {
-      "type": "BUY",
-      "symbol": "TOSHI",
       "price": 0.0002161,
-      "ethSpent": 0.0007218166681905018,
-      "timestamp": "2026-03-14T19:20:03.476Z",
-      "tx": "0x73f2f38fd3701bbd0d3b06b5654b664631e2af6e322a7442f45785f9aa1938e3",
-      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "KEYCAT",
-      "price": 0.000588,
-      "receivedEth": 0.0007655371980643028,
-      "netUsd": 0.083470753538746,
-      "timestamp": "2026-03-14T19:23:30.052Z",
-      "tx": "0x2aa8b1e1681caa63a41c85eb1d39c4d045a2db109d0f68f022ca9b7fbac9674b",
-      "reason": "⏰ STALE CASCADE — 6min no movement",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "TOSHI",
-      "price": 0.000216,
-      "receivedEth": 0.0023666358591853992,
-      "netUsd": 2.794417084206194,
-      "timestamp": "2026-03-14T19:25:14.365Z",
-      "tx": "0x9e504bcee1b96b41594e323faf1c42ee454913088b6e6eb3a2af0449ee3d5956",
-      "reason": "⏰ STALE CASCADE — 5min no movement",
-      "indScore": 0
-    },
-    {
-      "type": "BUY",
-      "symbol": "TOSHI",
-      "price": 0.000216,
-      "ethSpent": 0.0007220286115871151,
-      "timestamp": "2026-03-14T19:27:41.324Z",
-      "tx": "0xcbeb8232d895d08304a76c5f70248f2b069faa57963666ced4d71138915e4541",
+      "ethSpent": 0.0007219799578363705,
+      "timestamp": "2026-03-14T19:58:09.605Z",
+      "tx": "0x0236cd26a0ecce514e67899ff896095f050f2260b7e467ba9699e348ed9d5e2f",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
     },
     {
       "type": "BUY",
-      "symbol": "TOSHI",
-      "price": 0.000216,
-      "ethSpent": 0.0007220668441346511,
-      "timestamp": "2026-03-14T19:30:18.031Z",
-      "tx": "0xf29e6345bf3d1897748c0df4e772461f40bfffc0ec4de75b444ad77975d4e742",
+      "symbol": "AERO",
+      "price": 0.321868319374232,
+      "ethSpent": 0.0007220355626582462,
+      "timestamp": "2026-03-14T20:04:26.339Z",
+      "tx": "0xc00ac6c3ea279cf8ab34821c740ce799ff8cd3fca522837d41e789a3ba3ec0b9",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
     }
