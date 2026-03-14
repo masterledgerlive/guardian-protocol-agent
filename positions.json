@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T09:15:53.039Z",
+  "lastSaved": "2026-03-14T09:31:20.873Z",
   "piggyBank": 0.0001281160692131896,
   "totalSkimmed": 0.00016103642654121514,
-  "tradeCount": 79,
+  "tradeCount": 80,
   "predFund": 0.000016283330076692602,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -11,7 +11,23 @@
   "piggyCoPnl": -3.5369717464034485e-7,
   "predFundPositions": {},
   "piggyCoPositions": {},
-  "waveStats": {},
+  "waveStats": {
+    "AIXBT": {
+      "wins": 0,
+      "losses": 1,
+      "totalPnlEth": 0,
+      "biggestWavePct": 0,
+      "biggestWaveUsd": 0,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 0
+      },
+      "piggyContrib": 0
+    }
+  },
   "entries": {
     "AERO": 0.325779071633487,
     "BRETT": null,
@@ -52,7 +68,7 @@
     "DEGEN": 0.0016721191495908919,
     "WELL": 0,
     "SEAM": 0,
-    "AIXBT": 0.0049467914389813026,
+    "AIXBT": 0.0029680748633887813,
     "TOSHI": 0.0005992721575863987,
     "KITE": 0,
     "KEYCAT": 0.003771772967098113,
@@ -125,6 +141,17 @@
       "tx": "0xb929fd9b23cf899a59b8575e069cd3eb75f600ebee9ff75b41467089f007bd61",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02582,
+      "receivedEth": 0.0015175499217572161,
+      "netUsd": -0.9570729917040235,
+      "timestamp": "2026-03-14T09:29:56.311Z",
+      "tx": "0xa9b6b6ef05ce1d7d4d2a1be6f81644fab0dfb25173c76f7e74d8ea8f2399481c",
+      "reason": "⏰ STALE CASCADE — 26min no movement",
+      "indScore": 4
     }
   ]
 }
