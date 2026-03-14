@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-14T13:27:44.095Z",
-  "piggyBank": 0.00013376191977680147,
-  "totalSkimmed": 0.0001784423508073417,
-  "tradeCount": 90,
-  "predFund": 0.000022085304832068122,
+  "lastSaved": "2026-03-14T13:44:58.007Z",
+  "piggyBank": 0.00013376644506355668,
+  "totalSkimmed": 0.0001784559266676073,
+  "tradeCount": 91,
+  "predFund": 0.00002208983011882332,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.000022085304832068122,
+  "agentCapital": 0.00002208983011882332,
   "agentPnl": 0,
   "piggyCoPnl": -5.09821366403975e-7,
   "predFundPositions": {},
@@ -58,9 +58,9 @@
       "piggyContrib": 0
     },
     "DEGEN": {
-      "wins": 2,
+      "wins": 3,
       "losses": 0,
-      "totalPnlEth": 0.001740592426612656,
+      "totalPnlEth": 0.001741950012639215,
       "biggestWavePct": 2.204859551078612,
       "biggestWaveUsd": 0.07494048185149893,
       "fastestWaveMs": null,
@@ -68,9 +68,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 2
+        "bronze": 3
       },
-      "piggyContrib": 0.000005801974755375521
+      "piggyContrib": 0.000005806500042130717
     }
   },
   "entries": {
@@ -299,6 +299,17 @@
       "netUsd": 0.13657192173185437,
       "timestamp": "2026-03-14T13:19:45.363Z",
       "tx": "0x46f520c8f1b4feeced93952be1789f22a7dc7373fd56c1d9a3d631d271cb61d2",
+      "reason": "🎯 MAX PEAK $0.00073511",
+      "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "DEGEN",
+      "price": 0.000747,
+      "receivedEth": 0.0000013575860265588845,
+      "netUsd": 0.0028225299560980456,
+      "timestamp": "2026-03-14T13:30:37.963Z",
+      "tx": "0x2c18f3cb3cf955608ad04dfacc0b2075c90c5f9295b186535e6cc8ebd402c58c",
       "reason": "🎯 MAX PEAK $0.00073511",
       "indScore": -3
     }
