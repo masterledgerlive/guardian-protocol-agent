@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-14T01:54:05.030Z",
-  "piggyBank": 0.00010506093576293406,
+  "lastSaved": "2026-03-14T02:10:15.636Z",
+  "piggyBank": 0.00009455484218664066,
   "totalSkimmed": 0.00012583024658750552,
-  "tradeCount": 57,
+  "tradeCount": 59,
   "predFund": 0.000004547936758789389,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -17,6 +17,13 @@
       "tokens": 3.4310014044949347e-7,
       "entryTime": 1773452006589,
       "conf": 61
+    },
+    "TOSHI": {
+      "entryPrice": 0.000217818956484131,
+      "ethIn": 0.000010506093576293406,
+      "tokens": 99.94388780021315,
+      "entryTime": 1773453304480,
+      "conf": 67
     }
   },
   "entries": {
@@ -29,11 +36,11 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 0.02671,
-    "TOSHI": null,
+    "TOSHI": 0.000217818956484131,
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": 0.004874,
+    "XCN": 0.004896,
     "SKI": null,
     "PRIME": 0.413740951617944,
     "LUNA": null,
@@ -50,11 +57,11 @@
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0.0034241905016432327,
-    "TOSHI": 0,
+    "TOSHI": 0.0005992721575863987,
     "KITE": 0,
     "KEYCAT": 0,
     "DOGINME": 0,
-    "XCN": 0.0021349254193402316,
+    "XCN": 0.0035674533536349503,
     "SKI": 0,
     "PRIME": 0.0016515937714334506,
     "LUNA": 0,
@@ -71,11 +78,11 @@
     "WELL": null,
     "SEAM": null,
     "AIXBT": 1773392807783,
-    "TOSHI": null,
+    "TOSHI": 1773453303580,
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": 1773452636319,
+    "XCN": 1773454091406,
     "SKI": null,
     "PRIME": 1773409346538,
     "LUNA": null,
@@ -238,6 +245,26 @@
       "tx": "0x333c57a42f38c2c46f956440871c07769d9d22e6e86eabcfc4bbb4dcb22e549e",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
       "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "TOSHI",
+      "price": 0.000217818956484131,
+      "ethSpent": 0.0005992721575863987,
+      "timestamp": "2026-03-14T01:55:03.580Z",
+      "tx": "0x1c0574753f9b0ed97a5a0ff29c1a787707abeb707d48e56cd1dbf00536e69d88",
+      "reason": "🧠 PREDICTED TROUGH [67% conf φ19°]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.004896,
+      "ethSpent": 0.001432527934294719,
+      "timestamp": "2026-03-14T02:08:11.406Z",
+      "tx": "0x47fd603d91de4c1a2abff3d4cc64747a9862b23b858d794d32d2305491c0d114",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": -3
     }
   ]
 }
