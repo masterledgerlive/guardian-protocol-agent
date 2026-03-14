@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-14T23:34:51.532Z",
-  "piggyBank": 0.00015693298707350505,
-  "totalSkimmed": 0.0002493091226782519,
-  "tradeCount": 120,
-  "predFund": 0.00004570756212237152,
+  "lastSaved": "2026-03-14T23:49:54.411Z",
+  "piggyBank": 0.00015685574230657047,
+  "totalSkimmed": 0.0002496050500725239,
+  "tradeCount": 121,
+  "predFund": 0.000045806204587128836,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.00004570756212237152,
+  "agentCapital": 0.000045806204587128836,
   "agentPnl": 0,
-  "piggyCoPnl": -9.610113600038052e-7,
+  "piggyCoPnl": -0.000001136898591695706,
   "predFundPositions": {},
   "piggyCoPositions": {},
   "waveStats": {
@@ -28,9 +28,9 @@
       "piggyContrib": 0
     },
     "KEYCAT": {
-      "wins": 2,
+      "wins": 3,
       "losses": 1,
-      "totalPnlEth": 0.0011680261231395333,
+      "totalPnlEth": 0.0011976188625667289,
       "biggestWavePct": 7.641290653695444,
       "biggestWaveUsd": 0.11318845658407284,
       "fastestWaveMs": null,
@@ -38,9 +38,9 @@
       "medals": {
         "gold": 2,
         "silver": 0,
-        "bronze": 0
+        "bronze": 1
       },
-      "piggyContrib": 0.000005102347125327656
+      "piggyContrib": 0.000005200989590084975
     },
     "PRIME": {
       "wins": 0,
@@ -247,6 +247,17 @@
       "tx": "0x7e74314d4baa330fa1213c5ebed55d9d3e4b0cda88c8070f8120fe83853abda9",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.000594313309448421,
+      "receivedEth": 0.000029592739427195658,
+      "netUsd": 0.06208260804431377,
+      "timestamp": "2026-03-14T23:49:34.272Z",
+      "tx": "0xcb7ed91c43f84ae5f78e85a48409ab8e7f0362c1b670203dfcf4dea161d6bfde",
+      "reason": "🎯 MAX PEAK $0.00060030",
+      "indScore": -3
     }
   ]
 }
