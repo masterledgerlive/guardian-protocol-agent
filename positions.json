@@ -1,23 +1,16 @@
 {
-  "lastSaved": "2026-03-15T06:19:24.467Z",
-  "piggyBank": 0.00014045124626076882,
-  "totalSkimmed": 0.00030334265418546216,
-  "tradeCount": 150,
-  "predFund": 0.00006371873929144158,
+  "lastSaved": "2026-03-15T06:34:33.760Z",
+  "piggyBank": 0.00017495031542467886,
+  "totalSkimmed": 0.00035527582797428565,
+  "tradeCount": 152,
+  "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.00006371873929144158,
+  "agentCapital": 0.00008102979722104942,
   "agentPnl": 0,
-  "piggyCoPnl": -0.0000024368342083636047,
+  "piggyCoPnl": -0.000002622378116763443,
   "predFundPositions": {},
   "piggyCoPositions": {
-    "BNKR": {
-      "entryPrice": 0.0004655,
-      "ethIn": 0.000017373555142702083,
-      "tokens": 77.43798474628201,
-      "entryTime": 1773540786759,
-      "conf": 66
-    },
     "BRETT": {
       "entryPrice": 0.00736135007199668,
       "ethIn": 0.000015643539990744457,
@@ -58,19 +51,19 @@
       "piggyContrib": 0.0000052017742773623205
     },
     "PRIME": {
-      "wins": 0,
+      "wins": 2,
       "losses": 4,
-      "totalPnlEth": 0,
-      "biggestWavePct": 0,
-      "biggestWaveUsd": 0,
+      "totalPnlEth": 0.0051933173788823485,
+      "biggestWavePct": 2.9353398309358587,
+      "biggestWaveUsd": 0.2943649848917467,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
         "gold": 0,
-        "silver": 0,
-        "bronze": 0
+        "silver": 1,
+        "bronze": 1
       },
-      "piggyContrib": 0
+      "piggyContrib": 0.000017311057929607828
     },
     "DEGEN": {
       "wins": 3,
@@ -194,7 +187,7 @@
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
-    "PRIME": 0.4041,
+    "PRIME": null,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -222,7 +215,7 @@
     "DOGINME": 0,
     "XCN": 0,
     "SKI": 0,
-    "PRIME": 0.004855824175410998,
+    "PRIME": 0,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -250,7 +243,7 @@
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
-    "PRIME": 1773503480612,
+    "PRIME": null,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -407,6 +400,28 @@
       "tx": "0x3af9a7d39eeee1dcbad83ea55b014a5ae5ff889eef3ffec414a36e739961057a",
       "reason": "🧠 PREDICTED TROUGH [82% conf φ328°]",
       "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.427811756451123,
+      "receivedEth": 0.004898391934221009,
+      "netUsd": 0.2943649848917467,
+      "timestamp": "2026-03-15T06:30:34.095Z",
+      "tx": "0x9064d942cd23b6fc6fe6e3040ac5e0a18cea20f239193d9695ebc4af08e5a5c1",
+      "reason": "🎯 MAX PEAK $0.41291968",
+      "indScore": -2
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.4261,
+      "receivedEth": 0.00029492544466133957,
+      "netUsd": 0.6213164850135975,
+      "timestamp": "2026-03-15T06:32:50.063Z",
+      "tx": "0x1f642c65eecbfb1f21697feb873706bbb73398eb02c4ed67bc36aa1253e5e5ed",
+      "reason": "🎯 MAX PEAK $0.42781176",
+      "indScore": -3
     }
   ]
 }
