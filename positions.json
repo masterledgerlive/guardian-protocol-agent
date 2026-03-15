@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-15T05:32:38.190Z",
-  "piggyBank": 0.00014062341653549575,
+  "lastSaved": "2026-03-15T05:48:08.578Z",
+  "piggyBank": 0.00014045124626076882,
   "totalSkimmed": 0.00030334265418546216,
-  "tradeCount": 149,
+  "tradeCount": 150,
   "predFund": 0.00006371873929144158,
   "predFundPnl": 0,
   "predFundTrades": 0,
   "agentCapital": 0.00006371873929144158,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000002264663933636651,
+  "piggyCoPnl": -0.0000024368342083636047,
   "predFundPositions": {},
   "piggyCoPositions": {
     "BNKR": {
@@ -181,7 +181,7 @@
   "entries": {
     "AERO": 0.3378,
     "BRETT": 0.007277418397606461,
-    "VIRTUAL": null,
+    "VIRTUAL": 0.737747131232333,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -209,7 +209,7 @@
   "invested": {
     "AERO": 0.0007129955318946668,
     "BRETT": 0.004764500899556957,
-    "VIRTUAL": 0,
+    "VIRTUAL": 0.000710620940577877,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0,
@@ -237,7 +237,7 @@
   "entryTimes": {
     "AERO": 1773551228853,
     "BRETT": 1773532458398,
-    "VIRTUAL": null,
+    "VIRTUAL": 1773553276283,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -397,6 +397,16 @@
       "tx": "0x3270aaf40433f49c33fff168ce3d83396e083e8b8a061ea14f437a5643722231",
       "reason": "🧠 PREDICTED TROUGH [60% conf φ37°]",
       "indScore": -1
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.737747131232333,
+      "ethSpent": 0.000710620940577877,
+      "timestamp": "2026-03-15T05:41:16.283Z",
+      "tx": "0x3af9a7d39eeee1dcbad83ea55b014a5ae5ff889eef3ffec414a36e739961057a",
+      "reason": "🧠 PREDICTED TROUGH [82% conf φ328°]",
+      "indScore": 3
     }
   ]
 }
