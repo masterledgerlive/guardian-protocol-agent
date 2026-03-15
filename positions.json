@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T07:49:01.136Z",
+  "lastSaved": "2026-03-15T08:04:41.827Z",
   "piggyBank": 0.00017495031542467886,
   "totalSkimmed": 0.00035527582797428565,
-  "tradeCount": 152,
+  "tradeCount": 156,
   "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -174,7 +174,7 @@
   "entries": {
     "AERO": 0.3378,
     "BRETT": 0.007277418397606461,
-    "VIRTUAL": 0.737747131232333,
+    "VIRTUAL": 0.729252416887469,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -202,7 +202,7 @@
   "invested": {
     "AERO": 0.0007129955318946668,
     "BRETT": 0.004764500899556957,
-    "VIRTUAL": 0.000710620940577877,
+    "VIRTUAL": 0.0038078834250364706,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0,
@@ -230,7 +230,7 @@
   "entryTimes": {
     "AERO": 1773551228853,
     "BRETT": 1773532458398,
-    "VIRTUAL": 1773553276283,
+    "VIRTUAL": 1773561473198,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -422,6 +422,46 @@
       "tx": "0x1f642c65eecbfb1f21697feb873706bbb73398eb02c4ed67bc36aa1253e5e5ed",
       "reason": "🎯 MAX PEAK $0.42781176",
       "indScore": -3
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.728525428520367,
+      "ethSpent": 0.0008798494890528523,
+      "timestamp": "2026-03-15T07:51:27.185Z",
+      "tx": "0x0d5a45bb998eb605187fce7a6d104103816f7c916a917e8231fdd524128f6735",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.729741087656666,
+      "ethSpent": 0.0007918014080347595,
+      "timestamp": "2026-03-15T07:53:36.872Z",
+      "tx": "0x9d59f851ed33e0145b01803d93b11f220a8ca91db4b67c2070816ef5afe4999f",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.729,
+      "ethSpent": 0.0007128057936854911,
+      "timestamp": "2026-03-15T07:55:45.062Z",
+      "tx": "0xfca673c41001d312d9acce6fb8d2116353dc0de48930b1a53d559fad6ae23414",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.729252416887469,
+      "ethSpent": 0.0007128057936854911,
+      "timestamp": "2026-03-15T07:57:53.198Z",
+      "tx": "0x1b04a6ff9d1298757e295aef4fe1d75510cf807048bfdd11a0673c6ca342556e",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 5
     }
   ]
 }
