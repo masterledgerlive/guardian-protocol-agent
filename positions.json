@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T11:36:10.012Z",
+  "lastSaved": "2026-03-15T11:51:34.408Z",
   "piggyBank": 0.00019027160350446967,
   "totalSkimmed": 0.00035527582797428565,
-  "tradeCount": 157,
+  "tradeCount": 161,
   "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -14,7 +14,7 @@
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 1,
+      "losses": 2,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -172,7 +172,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 0.113107771010875,
-    "AIXBT": 0.02573,
+    "AIXBT": 0.02492,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
     "KEYCAT": null,
@@ -200,7 +200,7 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0.005863335348679616,
+    "AIXBT": 0.0021262657692382213,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0,
@@ -228,7 +228,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 1773563478676,
-    "AIXBT": 1773482579742,
+    "AIXBT": 1773575296750,
     "TOSHI": 1773540517147,
     "KITE": null,
     "KEYCAT": null,
@@ -247,5 +247,47 @@
     "ROOST": null,
     "TALENT": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02495,
+      "receivedEth": -0.000001775257739844091,
+      "netUsd": -12.16387465220232,
+      "timestamp": "2026-03-15T11:41:40.117Z",
+      "tx": "0xe87956ce98a1864078018ea2ddc894e7b85b4bb5176e7a3a8faa6f1b525994d2",
+      "reason": "STOP LOSS",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02492,
+      "ethSpent": 0.0007088880382232431,
+      "timestamp": "2026-03-15T11:43:55.948Z",
+      "tx": "0x8bd4cafee788b9684bba1bb76dee08704f12c3948d8adc149eaffd5761a9ac99",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02492,
+      "ethSpent": 0.0007089617491504275,
+      "timestamp": "2026-03-15T11:46:06.007Z",
+      "tx": "0x3bc0b10bab816ae27b367985c7d639da2bc2fe09bff683b8c221164fa7665df9",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": -1
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02492,
+      "ethSpent": 0.0007084159818645508,
+      "timestamp": "2026-03-15T11:48:16.750Z",
+      "tx": "0x6b4d9162f196a3bf3a3e500354351937c776e080e8d2bee308d4cf607df12f38",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
+    }
+  ]
 }
