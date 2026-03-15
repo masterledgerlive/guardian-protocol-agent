@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-15T04:30:38.789Z",
-  "piggyBank": 0.000156746520953789,
+  "lastSaved": "2026-03-15T04:46:14.497Z",
+  "piggyBank": 0.0001407918599167001,
   "totalSkimmed": 0.00030334265418546216,
   "tradeCount": 148,
   "predFund": 0.00006371873929144158,
@@ -8,7 +8,7 @@
   "predFundTrades": 0,
   "agentCapital": 0.00006371873929144158,
   "agentPnl": 0,
-  "piggyCoPnl": -0.0000017850995060878354,
+  "piggyCoPnl": -0.00000209622055243231,
   "predFundPositions": {},
   "piggyCoPositions": {
     "BNKR": {
@@ -17,6 +17,13 @@
       "tokens": 77.43798474628201,
       "entryTime": 1773540786759,
       "conf": 66
+    },
+    "BRETT": {
+      "entryPrice": 0.00736135007199668,
+      "ethIn": 0.000015643539990744457,
+      "tokens": 4.437034835589413,
+      "entryTime": 1773549521543,
+      "conf": 74
     }
   },
   "waveStats": {
