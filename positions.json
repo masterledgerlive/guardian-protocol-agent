@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T08:19:50.433Z",
-  "piggyBank": 0.00017495031542467886,
+  "lastSaved": "2026-03-15T08:35:10.657Z",
+  "piggyBank": 0.00015745528388221098,
   "totalSkimmed": 0.00035527582797428565,
-  "tradeCount": 156,
+  "tradeCount": 157,
   "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -17,6 +17,13 @@
       "tokens": 4.437034835589413,
       "entryTime": 1773549521543,
       "conf": 74
+    },
+    "SEAM": {
+      "entryPrice": 0.113107771010875,
+      "ethIn": 0.000017495031542467888,
+      "tokens": 0.32424778124171555,
+      "entryTime": 1773563479929,
+      "conf": 63
     }
   },
   "waveStats": {
@@ -179,7 +186,7 @@
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
-    "SEAM": 0.108808348841048,
+    "SEAM": 0.113107771010875,
     "AIXBT": 0.02573,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
@@ -207,7 +214,7 @@
     "CBBTC": 0,
     "DEGEN": 0,
     "WELL": 0,
-    "SEAM": 0.0007165137307914611,
+    "SEAM": 0.0014277647739596579,
     "AIXBT": 0.005863335348679616,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
@@ -235,7 +242,7 @@
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
-    "SEAM": 1773542605044,
+    "SEAM": 1773563478676,
     "AIXBT": 1773482579742,
     "TOSHI": 1773540517147,
     "KITE": null,
@@ -462,6 +469,16 @@
       "tx": "0x1b04a6ff9d1298757e295aef4fe1d75510cf807048bfdd11a0673c6ca342556e",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "SEAM",
+      "price": 0.113107771010875,
+      "ethSpent": 0.0007112510431681966,
+      "timestamp": "2026-03-15T08:31:18.676Z",
+      "tx": "0x22a8daa2f79d2a1083804be0dbccec7405f7b1f056b6d9454efc6cc8946d0fec",
+      "reason": "🧠 PREDICTED TROUGH [63% conf φ354°]",
+      "indScore": -1
     }
   ]
 }
