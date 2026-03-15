@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-15T08:50:29.189Z",
-  "piggyBank": 0.00014170975549398989,
+  "lastSaved": "2026-03-15T09:27:23.599Z",
+  "piggyBank": 0.0001726426580452333,
   "totalSkimmed": 0.00035527582797428565,
   "tradeCount": 157,
   "predFund": 0.00008102979722104942,
@@ -8,29 +8,15 @@
   "predFundTrades": 0,
   "agentCapital": 0.00008102979722104942,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000002622378116763443,
+  "piggyCoPnl": -0.000003078543944485596,
   "predFundPositions": {},
   "piggyCoPositions": {
-    "BRETT": {
-      "entryPrice": 0.00736135007199668,
-      "ethIn": 0.000015643539990744457,
-      "tokens": 4.437034835589413,
-      "entryTime": 1773549521543,
-      "conf": 74
-    },
     "SEAM": {
       "entryPrice": 0.113107771010875,
       "ethIn": 0.000017495031542467888,
       "tokens": 0.32424778124171555,
       "entryTime": 1773563479929,
       "conf": 63
-    },
-    "CBBTC": {
-      "entryPrice": 71559.87,
-      "ethIn": 0.0000157455283882211,
-      "tokens": 4.6113612744063384e-7,
-      "entryTime": 1773564232268,
-      "conf": 75
     }
   },
   "waveStats": {
