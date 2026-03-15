@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T14:40:04.178Z",
-  "piggyBank": 0.0001385310358596663,
+  "lastSaved": "2026-03-15T14:55:30.870Z",
+  "piggyBank": 0.00011221013904632969,
   "totalSkimmed": 0.00035527582797428565,
-  "tradeCount": 180,
+  "tradeCount": 181,
   "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -31,12 +31,26 @@
       "tokens": 5.242536616606418,
       "entryTime": 1773585025118,
       "conf": 63
+    },
+    "BRETT": {
+      "entryPrice": 0.00731134941172629,
+      "ethIn": 0.00001385310358596663,
+      "tokens": 3.9359068152665566,
+      "entryTime": 1773585664270,
+      "conf": 65
+    },
+    "KEYCAT": {
+      "entryPrice": 0.000593,
+      "ethIn": 0.000012467793227369966,
+      "tokens": 43.57098884472026,
+      "entryTime": 1773586387949,
+      "conf": 68
     }
   },
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 16,
+      "losses": 17,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -222,7 +236,7 @@
     "DEGEN": 0.0007309359273162518,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 7.344634413993108e-7,
+    "AIXBT": 3.672317206996554e-7,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0,
@@ -514,6 +528,17 @@
       "tx": "0x29cca7233171bd1dd53999f202f5c7815119d0ba1809af021e360ed1865558d7",
       "reason": "⏰ STALE CASCADE — 5min no movement",
       "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02559,
+      "receivedEth": -0.000001776654542291669,
+      "netUsd": -0.004482994809090639,
+      "timestamp": "2026-03-15T14:46:07.718Z",
+      "tx": "0x0ab886d10178bff72e12acaeb5b23a3f2e2333ae04ee2b9846c07e6e1e509ea2",
+      "reason": "⏰ STALE CASCADE — 7min no movement",
+      "indScore": -4
     }
   ]
 }
