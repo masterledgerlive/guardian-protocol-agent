@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-15T13:08:24.812Z",
-  "piggyBank": 0.00019002885577457655,
+  "lastSaved": "2026-03-15T13:24:09.621Z",
+  "piggyBank": 0.00017102597019711887,
   "totalSkimmed": 0.00035527582797428565,
   "tradeCount": 173,
   "predFund": 0.00008102979722104942,
@@ -10,7 +10,15 @@
   "agentPnl": 0,
   "piggyCoPnl": -0.000003187377757610227,
   "predFundPositions": {},
-  "piggyCoPositions": {},
+  "piggyCoPositions": {
+    "DEGEN": {
+      "entryPrice": 0.0007736,
+      "ethIn": 0.000019002885577457657,
+      "tokens": 51.22897428216588,
+      "entryTime": 1773580336165,
+      "conf": 75
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 0,
