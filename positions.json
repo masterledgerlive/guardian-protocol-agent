@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T18:28:53.430Z",
+  "lastSaved": "2026-03-15T18:47:33.715Z",
   "piggyBank": 0.00014880565014058165,
   "totalSkimmed": 0.00035527582797428565,
-  "tradeCount": 187,
+  "tradeCount": 189,
   "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -199,7 +199,7 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 0.006086,
     "SKI": null,
     "PRIME": null,
     "LUNA": null,
@@ -227,7 +227,7 @@
     "KITE": 0,
     "KEYCAT": 0,
     "DOGINME": 0,
-    "XCN": 0,
+    "XCN": 0.0014207707533879167,
     "SKI": 0,
     "PRIME": 0,
     "LUNA": 0,
@@ -255,7 +255,7 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 1773600092568,
     "SKI": null,
     "PRIME": null,
     "LUNA": null,
@@ -269,5 +269,26 @@
     "ROOST": null,
     "TALENT": null
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.00608779847042094,
+      "ethSpent": 0.0007102777185879679,
+      "timestamp": "2026-03-15T18:39:24.486Z",
+      "tx": "0xcddc1ae4e212b71b27f589eb02b4013aa02a16f72fd1001254b6750505f85591",
+      "reason": "MANUAL BUY",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.006086,
+      "ethSpent": 0.0007104930347999488,
+      "timestamp": "2026-03-15T18:41:32.568Z",
+      "tx": "0x0f7363e3bc0cda1f81336ca1759642f9496fa57dd3f147f54749fe69b8f987b7",
+      "reason": "MANUAL BUY",
+      "indScore": 0
+    }
+  ]
 }
