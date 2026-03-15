@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T11:51:34.408Z",
+  "lastSaved": "2026-03-15T12:06:42.416Z",
   "piggyBank": 0.00019027160350446967,
   "totalSkimmed": 0.00035527582797428565,
-  "tradeCount": 161,
+  "tradeCount": 163,
   "predFund": 0.00008102979722104942,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -14,7 +14,7 @@
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 2,
+      "losses": 3,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -172,7 +172,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 0.113107771010875,
-    "AIXBT": 0.02492,
+    "AIXBT": 0.02489,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
     "KEYCAT": null,
@@ -200,7 +200,7 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0.0021262657692382213,
+    "AIXBT": 0.001770446507479487,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0,
@@ -228,7 +228,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 1773563478676,
-    "AIXBT": 1773575296750,
+    "AIXBT": 1773575999777,
     "TOSHI": 1773540517147,
     "KITE": null,
     "KEYCAT": null,
@@ -288,6 +288,27 @@
       "tx": "0x6b4d9162f196a3bf3a3e500354351937c776e080e8d2bee308d4cf607df12f38",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02492,
+      "receivedEth": -0.0000017753039767507556,
+      "netUsd": -2.258350795555243,
+      "timestamp": "2026-03-15T11:57:51.228Z",
+      "tx": "0xa1ab391c76f435f739841ee37e0d1f78d275a0f347fe502cca04b7b333501bdf",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02489,
+      "ethSpent": 0.0007073136228603763,
+      "timestamp": "2026-03-15T11:59:59.777Z",
+      "tx": "0x4eddf867aeeddc614cb215e9847be9e32b8cfd771a19cca1580fa901d097b766",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": -1
     }
   ]
 }
