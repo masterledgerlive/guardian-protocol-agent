@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T02:26:45.942Z",
+  "lastSaved": "2026-03-15T02:42:18.852Z",
   "piggyBank": 0.00015636199628431876,
   "totalSkimmed": 0.0003012514375381058,
-  "tradeCount": 140,
+  "tradeCount": 142,
   "predFund": 0.00006302166707565613,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -154,6 +154,21 @@
         "bronze": 2
       },
       "piggyContrib": 0.000008771384475211204
+    },
+    "SEAM": {
+      "wins": 0,
+      "losses": 1,
+      "totalPnlEth": 0,
+      "biggestWavePct": 0,
+      "biggestWaveUsd": 0,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 0
+      },
+      "piggyContrib": 0
     }
   },
   "entries": {
@@ -164,7 +179,7 @@
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
-    "SEAM": 0.11388854142293478,
+    "SEAM": null,
     "AIXBT": 0.02573,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
@@ -177,7 +192,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": 0.0004655,
+    "BNKR": 0.000459692867667692,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -192,7 +207,7 @@
     "CBBTC": 0,
     "DEGEN": 0,
     "WELL": 0,
-    "SEAM": 0.004306781064908509,
+    "SEAM": 0,
     "AIXBT": 0.005863335348679616,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
@@ -205,7 +220,7 @@
     "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0,
-    "BNKR": 0.0008610405740819904,
+    "BNKR": 0.0016359038544699954,
     "TYBG": 0,
     "MIGGLES": 0,
     "BENJI": 0,
@@ -220,7 +235,7 @@
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
-    "SEAM": 1773535874539,
+    "SEAM": null,
     "AIXBT": 1773482579742,
     "TOSHI": 1773540517147,
     "KITE": null,
@@ -233,7 +248,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": 1773540785289,
+    "BNKR": 1773542391387,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -282,6 +297,27 @@
       "tx": "0x3c96e177ebf2a8a146ffbd15966ed336d4cd13c491d5faa55f47f7f4e68b2654",
       "reason": "🧠 PREDICTED TROUGH [66% conf φ38°]",
       "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.000459692867667692,
+      "ethSpent": 0.0007748632803880049,
+      "timestamp": "2026-03-15T02:39:51.387Z",
+      "tx": "0x4db451797db0ac5ea9d0bd1a3e20e503df5bed99e1f042f5c121a98fa4f0527a",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "SEAM",
+      "price": 0.1087,
+      "receivedEth": -8.268515532469656e-7,
+      "netUsd": -8.834739434041303,
+      "timestamp": "2026-03-15T02:41:13.219Z",
+      "tx": "0xf16e65d0f9b8be38bfd0c8f233028a7a2abd76efcd3cd045934b4885f1af21d4",
+      "reason": "STOP LOSS",
+      "indScore": 1
     }
   ]
 }
