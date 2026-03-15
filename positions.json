@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T02:57:28.508Z",
+  "lastSaved": "2026-03-15T03:12:48.764Z",
   "piggyBank": 0.00015636199628431876,
   "totalSkimmed": 0.0003012514375381058,
-  "tradeCount": 143,
+  "tradeCount": 144,
   "predFund": 0.00006302166707565613,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -37,7 +37,7 @@
     },
     "KEYCAT": {
       "wins": 4,
-      "losses": 1,
+      "losses": 2,
       "totalPnlEth": 0.0011978542687499328,
       "biggestWavePct": 7.641290653695444,
       "biggestWaveUsd": 0.11318845658407284,
@@ -328,6 +328,17 @@
       "tx": "0xc5cfa827300b8e736f3be1b5708e1d48ff1562233f9d40a5a9fc72d4f4cf6902",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
       "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.000594955946071305,
+      "receivedEth": -3.52393887907438e-7,
+      "netUsd": -0.0007408130029756534,
+      "timestamp": "2026-03-15T03:01:37.200Z",
+      "tx": "0x131294299de251db5ba76a896a99e0d35b04cb2fb4cba2c49a17004b5b3377f0",
+      "reason": "🎯 MAX PEAK $0.00060030",
+      "indScore": -3
     }
   ]
 }
