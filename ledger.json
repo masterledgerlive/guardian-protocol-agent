@@ -3970,18 +3970,44 @@
       "predFundTotal": 0.0000816431543614378,
       "agentTotal": 0.0000816431543614378,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 191,
+      "symbol": "DEGEN",
+      "price": 0.000829456667018548,
+      "receivedEth": 0.0005456496929262574,
+      "recUsd": 1.1623266063807258,
+      "investedUsd": 1.144408071454076,
+      "netUsd": 0.017918534926649743,
+      "pnlPct": 1.5657469895229408,
+      "ethUsd": 2130.17,
+      "timestamp": "2026-03-15T20:51:58.712Z",
+      "tx": "0xff16dae24b6bd0555d6829b3cbbb9f29089d352ef9c6a269015439999bd698cd",
+      "basescan": "https://basescan.org/tx/0xff16dae24b6bd0555d6829b3cbbb9f29089d352ef9c6a269015439999bd698cd",
+      "reason": "🎯 MAX PEAK $0.00083010",
+      "indScore": -3,
+      "indDetail": "RSI 59.7 high | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.000005456496929262575,
+      "skimLottery": 0.0000018188323097541914,
+      "skimPred": 0.0000018188323097541914,
+      "skimAgent": 0.0000018188323097541914,
+      "piggyTotal": 0.00014682315610365282,
+      "predFundTotal": 0.00008346198667119198,
+      "agentTotal": 0.00008346198667119198,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-15T20:47:32.014Z",
-  "totalTrades": 177,
+  "lastUpdated": "2026-03-15T20:51:59.246Z",
+  "totalTrades": 178,
   "stats": {
-    "totalTrades": 177,
-    "sells": 76,
-    "wins": 33,
-    "winRate": "43.4%",
-    "totalNetUsd": "-20.35",
-    "totalSkimEth": "0.000333"
+    "totalTrades": 178,
+    "sells": 77,
+    "wins": 34,
+    "winRate": "44.2%",
+    "totalNetUsd": "-20.33",
+    "totalSkimEth": "0.000338"
   }
 }
