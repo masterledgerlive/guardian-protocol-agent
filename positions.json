@@ -1,24 +1,16 @@
 {
-  "lastSaved": "2026-03-15T23:42:02.336Z",
-  "piggyBank": 0.0001701792351700189,
+  "lastSaved": "2026-03-15T23:57:37.545Z",
+  "piggyBank": 0.0001889831235926302,
   "totalSkimmed": 0.0003627824113526489,
-  "tradeCount": 197,
+  "tradeCount": 198,
   "predFund": 0.00008353199168050384,
   "predFundPnl": 0,
   "predFundTrades": 0,
   "agentCapital": 0.00008353199168050384,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000006630388913842382,
+  "piggyCoPnl": -0.000006735304399010935,
   "predFundPositions": {},
-  "piggyCoPositions": {
-    "AERO": {
-      "entryPrice": 0.336220048200373,
-      "ethIn": 0.00001890880390777988,
-      "tokens": 0.12129210416360006,
-      "entryTime": 1773617967710,
-      "conf": 81
-    }
-  },
+  "piggyCoPositions": {},
   "waveStats": {
     "AIXBT": {
       "wins": 0,
@@ -180,7 +172,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 0.113107771010875,
-    "AIXBT": null,
+    "AIXBT": 0.02568,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
     "KEYCAT": 0.000606562228765133,
@@ -208,7 +200,7 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0,
+    "AIXBT": 0.0006903502837339666,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
@@ -236,7 +228,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 1773563478676,
-    "AIXBT": null,
+    "AIXBT": 1773618950915,
     "TOSHI": 1773540517147,
     "KITE": null,
     "KEYCAT": 1773612424001,
@@ -275,6 +267,16 @@
       "tx": "0x22a1827b023c7dc828b640b512a45f8237758c92f819c7e87092ddb26389e544",
       "reason": "🧠 PREDICTED TROUGH [81% conf φ29°]",
       "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02568,
+      "ethSpent": 0.0006903502837339666,
+      "timestamp": "2026-03-15T23:55:50.915Z",
+      "tx": "0xa8b24a05082806b72211c6848c194659384cdf8570a7bf6fd4d89585c4c05dbf",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": -1
     }
   ]
 }
