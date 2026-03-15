@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-15T03:12:48.764Z",
-  "piggyBank": 0.00015636199628431876,
-  "totalSkimmed": 0.0003012514375381058,
-  "tradeCount": 144,
-  "predFund": 0.00006302166707565613,
+  "lastSaved": "2026-03-15T03:28:06.880Z",
+  "piggyBank": 0.00015705906850010422,
+  "totalSkimmed": 0.00030334265418546216,
+  "tradeCount": 148,
+  "predFund": 0.00006371873929144158,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.00006302166707565613,
+  "agentCapital": 0.00006371873929144158,
   "agentPnl": 0,
   "piggyCoPnl": -0.0000014725519597726287,
   "predFundPositions": {},
@@ -81,9 +81,9 @@
       "piggyContrib": 0.000005806500042130717
     },
     "AERO": {
-      "wins": 2,
+      "wins": 3,
       "losses": 0,
-      "totalPnlEth": 0.003026920859459591,
+      "totalPnlEth": 0.0032360425241952304,
       "biggestWavePct": 1.8652020955406208,
       "biggestWaveUsd": 0.09723435912539369,
       "fastestWaveMs": 11625636,
@@ -91,9 +91,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 2
+        "bronze": 3
       },
-      "piggyContrib": 0.000012510161894479306
+      "piggyContrib": 0.00001320723411026477
     },
     "XCN": {
       "wins": 1,
@@ -192,7 +192,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": 0.000459692867667692,
+    "BNKR": 0.0004612,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -220,7 +220,7 @@
     "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0,
-    "BNKR": 0.0016359038544699954,
+    "BNKR": 0.003783854110787082,
     "TYBG": 0,
     "MIGGLES": 0,
     "BENJI": 0,
@@ -248,7 +248,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": 1773542391387,
+    "BNKR": 1773545189836,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -339,6 +339,47 @@
       "tx": "0x131294299de251db5ba76a896a99e0d35b04cb2fb4cba2c49a17004b5b3377f0",
       "reason": "🎯 MAX PEAK $0.00060030",
       "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "AERO",
+      "price": 0.338872038941162,
+      "receivedEth": 0.0002091216647356394,
+      "netUsd": 0.43867451611595076,
+      "timestamp": "2026-03-15T03:21:03.840Z",
+      "tx": "0xf15198e7ce5ee133b36ecfa72ef3b7bc5195bffefdf23eb6d6c8b2e008c8caaf",
+      "reason": "🎯 MAX PEAK $0.34016312",
+      "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.0004615,
+      "ethSpent": 0.0007179931288509442,
+      "timestamp": "2026-03-15T03:22:09.157Z",
+      "tx": "0xd61daa703639dce50e179efa804b9f1dd2582817424965f96b8bafce1ce64203",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.0004615,
+      "ethSpent": 0.0007150075314126641,
+      "timestamp": "2026-03-15T03:24:21.974Z",
+      "tx": "0xa1009aff78197a5210cb62748f7db592f3d8471658c05f0063dc19f5e2527315",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.0004612,
+      "ethSpent": 0.0007149495960534782,
+      "timestamp": "2026-03-15T03:26:29.836Z",
+      "tx": "0xe7e800e1984bfbee8d213fc174371221fb8e4d947a7c5c699159c48309095eb7",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 4
     }
   ]
 }
