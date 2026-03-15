@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-15T03:59:19.373Z",
-  "piggyBank": 0.00015705906850010422,
+  "lastSaved": "2026-03-15T04:14:54.545Z",
+  "piggyBank": 0.000156746520953789,
   "totalSkimmed": 0.00030334265418546216,
   "tradeCount": 148,
   "predFund": 0.00006371873929144158,
@@ -8,7 +8,7 @@
   "predFundTrades": 0,
   "agentCapital": 0.00006371873929144158,
   "agentPnl": 0,
-  "piggyCoPnl": -0.0000014725519597726287,
+  "piggyCoPnl": -0.0000017850995060878354,
   "predFundPositions": {},
   "piggyCoPositions": {
     "BNKR": {
