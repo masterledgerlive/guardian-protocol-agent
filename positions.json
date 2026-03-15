@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T22:08:47.927Z",
+  "lastSaved": "2026-03-15T22:24:07.156Z",
   "piggyBank": 0.00014604594970194507,
   "totalSkimmed": 0.0003627824113526489,
-  "tradeCount": 195,
+  "tradeCount": 196,
   "predFund": 0.00008353199168050384,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -199,7 +199,7 @@
     "KITE": null,
     "KEYCAT": 0.000606562228765133,
     "DOGINME": null,
-    "XCN": 0.006086,
+    "XCN": 0.006083,
     "SKI": 0.007578,
     "PRIME": null,
     "LUNA": null,
@@ -227,7 +227,7 @@
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
     "DOGINME": 0,
-    "XCN": 0.0014207707533879167,
+    "XCN": 0.002122492310274144,
     "SKI": 0.000700790491674609,
     "PRIME": 0,
     "LUNA": 0,
@@ -255,7 +255,7 @@
     "KITE": null,
     "KEYCAT": 1773612424001,
     "DOGINME": null,
-    "XCN": 1773600092568,
+    "XCN": 1773612715016,
     "SKI": 1773612215052,
     "PRIME": null,
     "LUNA": null,
@@ -273,86 +273,12 @@
     {
       "type": "BUY",
       "symbol": "XCN",
-      "price": 0.00608779847042094,
-      "ethSpent": 0.0007102777185879679,
-      "timestamp": "2026-03-15T18:39:24.486Z",
-      "tx": "0xcddc1ae4e212b71b27f589eb02b4013aa02a16f72fd1001254b6750505f85591",
+      "price": 0.006083,
+      "ethSpent": 0.0007017215568862275,
+      "timestamp": "2026-03-15T22:11:55.016Z",
+      "tx": "0x5fc4fb2744585a4b3ace8440e3ba059d97ed5b749adebf6cc39565008665f372",
       "reason": "MANUAL BUY",
       "indScore": 0
-    },
-    {
-      "type": "BUY",
-      "symbol": "XCN",
-      "price": 0.006086,
-      "ethSpent": 0.0007104930347999488,
-      "timestamp": "2026-03-15T18:41:32.568Z",
-      "tx": "0x0f7363e3bc0cda1f81336ca1759642f9496fa57dd3f147f54749fe69b8f987b7",
-      "reason": "MANUAL BUY",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000830989073985424,
-      "receivedEth": 0.00018400714211651281,
-      "netUsd": 0.0027148997285609267,
-      "timestamp": "2026-03-15T20:47:31.638Z",
-      "tx": "0x0f5fb3e848ccabf5f83f08f4acc5e2463a11fa75d056cf25d76792e7b533342a",
-      "reason": "📐 FIB 100% (prior high)",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000829456667018548,
-      "receivedEth": 0.0005456496929262574,
-      "netUsd": 0.017918534926649743,
-      "timestamp": "2026-03-15T20:51:58.712Z",
-      "tx": "0xff16dae24b6bd0555d6829b3cbbb9f29089d352ef9c6a269015439999bd698cd",
-      "reason": "🎯 MAX PEAK $0.00083010",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000824627393661529,
-      "receivedEth": 0.000020867106599809968,
-      "netUsd": 0.04444380699160526,
-      "timestamp": "2026-03-15T20:54:16.420Z",
-      "tx": "0xc5e2e97b76f578d9e94f76c21552f257b336db922f3c100e7fc285f85a08adb8",
-      "reason": "🎯 MAX PEAK $0.00083010",
-      "indScore": 2
-    },
-    {
-      "type": "SELL",
-      "symbol": "DEGEN",
-      "price": 0.000824166284513568,
-      "receivedEth": 1.3439619374485366e-7,
-      "netUsd": 0.00028625314098103873,
-      "timestamp": "2026-03-15T20:56:33.278Z",
-      "tx": "0xabc6a113eeb5a7b58911157420189cc1b04eac0db3e8063b5fc37ce9364a5d44",
-      "reason": "🎯 MAX PEAK $0.00083010",
-      "indScore": 2
-    },
-    {
-      "type": "BUY",
-      "symbol": "SKI",
-      "price": 0.007578,
-      "ethSpent": 0.000700790491674609,
-      "timestamp": "2026-03-15T22:03:35.052Z",
-      "tx": "0xf0c839cc05d966ba93c5bf40b1ee1715fb210f71d2cd2c714b099b44a0637ace",
-      "reason": "🧠 PREDICTED TROUGH [71% conf φ21°]",
-      "indScore": 2
-    },
-    {
-      "type": "BUY",
-      "symbol": "KEYCAT",
-      "price": 0.000606562228765133,
-      "ethSpent": 0.000698984608358924,
-      "timestamp": "2026-03-15T22:07:04.001Z",
-      "tx": "0xf2ac3fc0e356001d543945535da840d2a1f77372594b1ad3811cc330fe92fb35",
-      "reason": "🎯 MIN TROUGH [PRIORITY]",
-      "indScore": 2
     }
   ]
 }
