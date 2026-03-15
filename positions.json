@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T02:11:06.937Z",
-  "piggyBank": 0.00017373555142702083,
+  "lastSaved": "2026-03-15T02:26:45.942Z",
+  "piggyBank": 0.00015636199628431876,
   "totalSkimmed": 0.0003012514375381058,
-  "tradeCount": 139,
+  "tradeCount": 140,
   "predFund": 0.00006302166707565613,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -10,7 +10,15 @@
   "agentPnl": 0,
   "piggyCoPnl": -0.0000014725519597726287,
   "predFundPositions": {},
-  "piggyCoPositions": {},
+  "piggyCoPositions": {
+    "BNKR": {
+      "entryPrice": 0.0004655,
+      "ethIn": 0.000017373555142702083,
+      "tokens": 77.43798474628201,
+      "entryTime": 1773540786759,
+      "conf": 66
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 0,
@@ -169,7 +177,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": null,
+    "BNKR": 0.0004655,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -197,7 +205,7 @@
     "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0,
-    "BNKR": 0,
+    "BNKR": 0.0008610405740819904,
     "TYBG": 0,
     "MIGGLES": 0,
     "BENJI": 0,
@@ -225,7 +233,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": null,
+    "BNKR": 1773540785289,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -263,6 +271,16 @@
       "timestamp": "2026-03-15T02:08:37.147Z",
       "tx": "0x6dea1b3389cbb092b8adfd5d63b31d86835b1a1ccd56cafaa2199ff9d04566bc",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.0004655,
+      "ethSpent": 0.0008610405740819904,
+      "timestamp": "2026-03-15T02:13:05.289Z",
+      "tx": "0x3c96e177ebf2a8a146ffbd15966ed336d4cd13c491d5faa55f47f7f4e68b2654",
+      "reason": "🧠 PREDICTED TROUGH [66% conf φ38°]",
       "indScore": 0
     }
   ]
