@@ -1,16 +1,33 @@
 {
-  "lastSaved": "2026-03-16T17:52:10.864Z",
-  "piggyBank": 0.00025748603951288946,
+  "lastSaved": "2026-03-16T18:07:36.846Z",
+  "piggyBank": 0.0002317374355616005,
   "totalSkimmed": 0.0005837986928958997,
-  "tradeCount": 293,
-  "predFund": 0.00015224841150263712,
+  "tradeCount": 294,
+  "predFund": 0.00007612420575131856,
   "predFundPnl": -0.000004955674025616986,
   "predFundTrades": 6,
   "agentCapital": 0.0001572040855282541,
   "agentPnl": 0,
   "piggyCoPnl": -0.000011904482326501914,
-  "predFundPositions": {},
-  "piggyCoPositions": {},
+  "predFundPositions": {
+    "AIXBT": {
+      "entryPrice": 0.0270980254142346,
+      "ethIn": 0.00007612420575131856,
+      "tokens": 6.4312653777890265,
+      "entryTime": 1773683831889,
+      "conf": 62,
+      "phase": 30.200030852618738
+    }
+  },
+  "piggyCoPositions": {
+    "AIXBT": {
+      "entryPrice": 0.0270980254142346,
+      "ethIn": 0.000025748603951288948,
+      "tokens": 2.1753409902139835,
+      "entryTime": 1773683831889,
+      "conf": 62
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 14,
@@ -187,7 +204,7 @@
     "DEGEN": 0.000847923302083028,
     "WELL": null,
     "SEAM": 0.110134530840557,
-    "AIXBT": null,
+    "AIXBT": 0.0270980254142346,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": 0.000606562228765133,
@@ -225,7 +242,7 @@
     "DEGEN": 0.006990704229797403,
     "WELL": 0,
     "SEAM": 0.0005537880015180614,
-    "AIXBT": 0,
+    "AIXBT": 0.0016994371885079938,
     "TOSHI": 0,
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
@@ -263,7 +280,7 @@
     "DEGEN": 1773655465497,
     "WELL": null,
     "SEAM": 1773676089377,
-    "AIXBT": null,
+    "AIXBT": 1773683830102,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": 1773612424001,
@@ -428,6 +445,16 @@
       "tx": "0x672fecfc0d73bbd32eba0b97e951cfe0656e9aa8a932f0408ddfbfa09f140f10",
       "reason": "🎯 MAX PEAK $0.00814900",
       "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0270980254142346,
+      "ethSpent": 0.0016994371885079938,
+      "timestamp": "2026-03-16T17:57:10.102Z",
+      "tx": "0x1d50c56afc44ede606f923965f8b0b5990cbd4f4c91cbcf38c3f52552ad9f0ce",
+      "reason": "🧠 PREDICTED TROUGH [62% conf φ30°]",
+      "indScore": -2
     }
   ]
 }
