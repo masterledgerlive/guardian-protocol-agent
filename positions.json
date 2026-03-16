@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-16T10:27:08.216Z",
-  "piggyBank": 0.00017364917496465927,
+  "lastSaved": "2026-03-16T10:42:12.951Z",
+  "piggyBank": 0.00019483674820760914,
   "totalSkimmed": 0.0005175193467406966,
-  "tradeCount": 277,
+  "tradeCount": 278,
   "predFund": 0.00006655492104309009,
   "predFundPnl": -0.000002001128057006239,
   "predFundTrades": 3,
   "agentCapital": 0.00013511097014318643,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000009095520357397344,
+  "piggyCoPnl": -0.00000934611686317086,
   "predFundPositions": {
     "VIRTUAL": {
       "entryPrice": 0.7567,
@@ -26,13 +26,6 @@
       "tokens": 0.07056620478632603,
       "entryTime": 1773654454148,
       "conf": 68
-    },
-    "CBBTC": {
-      "entryPrice": 73311.776456071,
-      "ethIn": 0.00002143816974872337,
-      "tokens": 6.571324081164091e-7,
-      "entryTime": 1773655126332,
-      "conf": 64
     },
     "BRETT": {
       "entryPrice": 0.00833307208138074,
@@ -212,7 +205,7 @@
   "entries": {
     "AERO": 0.3466,
     "BRETT": 0.00833307208138074,
-    "VIRTUAL": 0.7567,
+    "VIRTUAL": 0.761467104481804,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 0.000847923302083028,
@@ -240,7 +233,7 @@
   "invested": {
     "AERO": 0.004258066098515527,
     "BRETT": 0.007871471833048097,
-    "VIRTUAL": 0.00512188260825654,
+    "VIRTUAL": 0.006284395707848705,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0.006990704229797403,
@@ -268,7 +261,7 @@
   "entryTimes": {
     "AERO": 1773647688848,
     "BRETT": 1773656673088,
-    "VIRTUAL": 1773654452515,
+    "VIRTUAL": 1773656848120,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 1773655465497,
@@ -499,6 +492,16 @@
       "tx": "0x411ae0036e8fd3d0443987593a00c03a8afd838c2b6bc02560f3723e8bb740fc",
       "reason": "🧠 PREDICTED TROUGH [64% conf φ38°]",
       "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.761467104481804,
+      "ethSpent": 0.0011625130995921648,
+      "timestamp": "2026-03-16T10:27:28.120Z",
+      "tx": "0x86f29b6ae6a7fdb37341ea5a471e4f093ab05fbd1445c658326cbb10dcf346f7",
+      "reason": "🧠 PREDICTED TROUGH [68% conf φ42°]",
+      "indScore": 1
     }
   ]
 }
