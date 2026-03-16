@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T10:11:46.787Z",
-  "piggyBank": 0.0001929435277385103,
+  "lastSaved": "2026-03-16T10:27:08.216Z",
+  "piggyBank": 0.00017364917496465927,
   "totalSkimmed": 0.0005175193467406966,
-  "tradeCount": 276,
+  "tradeCount": 277,
   "predFund": 0.00006655492104309009,
   "predFundPnl": -0.000002001128057006239,
   "predFundTrades": 3,
@@ -32,6 +32,13 @@
       "ethIn": 0.00002143816974872337,
       "tokens": 6.571324081164091e-7,
       "entryTime": 1773655126332,
+      "conf": 64
+    },
+    "BRETT": {
+      "entryPrice": 0.00833307208138074,
+      "ethIn": 0.000019294352773851033,
+      "tokens": 5.218772110674707,
+      "entryTime": 1773656674863,
       "conf": 64
     }
   },
@@ -204,7 +211,7 @@
   },
   "entries": {
     "AERO": 0.3466,
-    "BRETT": 0.0082856771566145,
+    "BRETT": 0.00833307208138074,
     "VIRTUAL": 0.7567,
     "MORPHO": null,
     "CBBTC": null,
@@ -232,7 +239,7 @@
   },
   "invested": {
     "AERO": 0.004258066098515527,
-    "BRETT": 0.006579688209037064,
+    "BRETT": 0.007871471833048097,
     "VIRTUAL": 0.00512188260825654,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -260,7 +267,7 @@
   },
   "entryTimes": {
     "AERO": 1773647688848,
-    "BRETT": 1773649117597,
+    "BRETT": 1773656673088,
     "VIRTUAL": 1773654452515,
     "MORPHO": null,
     "CBBTC": null,
@@ -482,6 +489,16 @@
       "tx": "0xc20eb4d497c8cb7262c4031f56c58660a8caccd9ef62721d4c68a09c5375ff07",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
       "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.00833307208138074,
+      "ethSpent": 0.0012917836240110337,
+      "timestamp": "2026-03-16T10:24:33.088Z",
+      "tx": "0x411ae0036e8fd3d0443987593a00c03a8afd838c2b6bc02560f3723e8bb740fc",
+      "reason": "🧠 PREDICTED TROUGH [64% conf φ38°]",
+      "indScore": 2
     }
   ]
 }
