@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-16T00:28:28.975Z",
-  "piggyBank": 0.0001889831235926302,
-  "totalSkimmed": 0.0003627824113526489,
-  "tradeCount": 202,
-  "predFund": 0.00008353199168050384,
+  "lastSaved": "2026-03-16T00:43:46.778Z",
+  "piggyBank": 0.00019099035390088818,
+  "totalSkimmed": 0.00036880410227742283,
+  "tradeCount": 207,
+  "predFund": 0.00008553922198876181,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.00008353199168050384,
+  "agentCapital": 0.00008553922198876181,
   "agentPnl": 0,
   "piggyCoPnl": -0.000006735304399010935,
   "predFundPositions": {},
@@ -14,7 +14,7 @@
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 25,
+      "losses": 27,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -133,19 +133,19 @@
       "piggyContrib": 0.000006319354497805068
     },
     "VIRTUAL": {
-      "wins": 2,
-      "losses": 0,
-      "totalPnlEth": 0.002631415342563361,
-      "biggestWavePct": 1.7866670021827489,
-      "biggestWaveUsd": 0.08217300649684489,
+      "wins": 3,
+      "losses": 2,
+      "totalPnlEth": 0.0029955917209759726,
+      "biggestWavePct": 26.50998473707181,
+      "biggestWaveUsd": 0.27386145408067364,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 0,
+        "gold": 1,
         "silver": 0,
         "bronze": 2
       },
-      "piggyContrib": 0.000008771384475211204
+      "piggyContrib": 0.000010778614783469173
     },
     "SEAM": {
       "wins": 0,
@@ -194,13 +194,13 @@
   "invested": {
     "AERO": 0.0014612940151390876,
     "BRETT": 0.004764500899556957,
-    "VIRTUAL": 0.0038078834250364706,
+    "VIRTUAL": 0.00047598542812955883,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0.0005173081862464769,
+    "AIXBT": 0.00012932704656161922,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
@@ -318,6 +318,61 @@
       "timestamp": "2026-03-16T00:19:26.570Z",
       "tx": "0xb9bc57bbc568dbbc640a9312001e9c750b10e3b56665fc1d538c781924e68bea",
       "reason": "⏰ STALE CASCADE — 10min no movement",
+      "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02589,
+      "receivedEth": -0.0000017755410611384678,
+      "netUsd": -0.5650359472154497,
+      "timestamp": "2026-03-16T00:29:45.680Z",
+      "tx": "0xe3c3e4f9d4ab7943a7b6ad062cb309b1e21e77b5de3297bf5d7273a211efa4c4",
+      "reason": "⏰ STALE CASCADE — 10min no movement",
+      "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "VIRTUAL",
+      "price": 0.75,
+      "receivedEth": 0.0017198670552217767,
+      "netUsd": -0.399276339141748,
+      "timestamp": "2026-03-16T00:31:58.610Z",
+      "tx": "0x363b87c72e386425b3f9c28f9f3bf1aadd426fc13cc4a6f0222e218c7f7166ab",
+      "reason": "MANUAL SELL HALF",
+      "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "VIRTUAL",
+      "price": 0.7508,
+      "receivedEth": 0.000859625673523895,
+      "netUsd": -0.2002569929241218,
+      "timestamp": "2026-03-16T00:34:16.671Z",
+      "tx": "0x8baf5c033e8a824b2083c48eb41a7c188c758bd7bc1fec51342f781165ff21fb",
+      "reason": "MANUAL SELL HALF",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.026,
+      "receivedEth": -0.000001776032653498169,
+      "netUsd": -0.28485290433385413,
+      "timestamp": "2026-03-16T00:40:19.596Z",
+      "tx": "0x4f563fba44049ef8e87c49be2a9613a6448fa65d00a3ea84802ef1810a33ebb3",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "VIRTUAL",
+      "price": 0.751844951130092,
+      "receivedEth": 0.0006021690924773908,
+      "netUsd": 0.27386145408067364,
+      "timestamp": "2026-03-16T00:41:49.987Z",
+      "tx": "0x554d1292a1c203761082a18ed1383e5de98dcc681c8b476cd0eda4140f6ce161",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
       "indScore": 1
     }
   ]
