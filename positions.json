@@ -1,16 +1,40 @@
 {
-  "lastSaved": "2026-03-16T21:13:29.111Z",
-  "piggyBank": 0.0002549630962903739,
+  "lastSaved": "2026-03-16T21:28:52.617Z",
+  "piggyBank": 0.00020652010799520286,
   "totalSkimmed": 0.0005837986928958997,
-  "tradeCount": 301,
-  "predFund": 0.00014667136995451238,
+  "tradeCount": 302,
+  "predFund": 0.00007333568497725619,
   "predFundPnl": -0.000010532715573741754,
   "predFundTrades": 10,
   "agentCapital": 0.0001572040855282541,
   "agentPnl": 0,
   "piggyCoPnl": -0.000014427425549017476,
-  "predFundPositions": {},
-  "piggyCoPositions": {},
+  "predFundPositions": {
+    "BNKR": {
+      "entryPrice": 0.0004721,
+      "ethIn": 0.00007333568497725619,
+      "tokens": 361.5306823237819,
+      "entryTime": 1773695702572,
+      "conf": 66,
+      "phase": 4.91583178784208
+    }
+  },
+  "piggyCoPositions": {
+    "BNKR": {
+      "entryPrice": 0.0004721,
+      "ethIn": 0.000025496309629037393,
+      "tokens": 125.69185410599233,
+      "entryTime": 1773695702572,
+      "conf": 66
+    },
+    "AERO": {
+      "entryPrice": 0.352337742259598,
+      "ethIn": 0.000022946678666133654,
+      "tokens": 0.15195134508370522,
+      "entryTime": 1773696384497,
+      "conf": 63
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 14,
@@ -199,7 +223,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": 0.000461247330004294,
+    "BNKR": 0.0004721,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -237,7 +261,7 @@
     "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0,
-    "BNKR": 0.0022418191262878057,
+    "BNKR": 0.002972927841168402,
     "TYBG": 0,
     "MIGGLES": 0,
     "BENJI": 0,
@@ -275,7 +299,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": 1773691668933,
+    "BNKR": 1773695700884,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -508,6 +532,16 @@
       "tx": "0x8cfd07cb0b0a54b3d1ff9e4cf3ef8ce1fd79b50c39039bfe00891dccaa9be691",
       "reason": "🧠 PREDICTED TROUGH [64% conf φ32°]",
       "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.0004721,
+      "ethSpent": 0.0007311087148805964,
+      "timestamp": "2026-03-16T21:15:00.884Z",
+      "tx": "0x1030c19b0602e0a76b481c809bb841e63e8a5559394cff2d56def190b8003137",
+      "reason": "🧠 PREDICTED TROUGH [66% conf φ5°]",
+      "indScore": 1
     }
   ]
 }
