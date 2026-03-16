@@ -5892,18 +5892,44 @@
       "minTrough": 0.518052711448777,
       "maxPeak": 1.14443834398755,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 247,
+      "symbol": "AERO",
+      "price": 0.351672367960649,
+      "receivedEth": 0.0012450842150123036,
+      "recUsd": 2.820439468898771,
+      "investedUsd": 0,
+      "netUsd": 2.820439468898771,
+      "pnlPct": 0,
+      "ethUsd": 2265.26,
+      "timestamp": "2026-03-16T05:41:50.108Z",
+      "tx": "0x92955ada00e553284cc168b8862752ac72eb8a3244e8be4f02ec6fe493299917",
+      "basescan": "https://basescan.org/tx/0x92955ada00e553284cc168b8862752ac72eb8a3244e8be4f02ec6fe493299917",
+      "reason": "🎯 MAX PEAK $0.34070000",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000012450842150123037,
+      "skimLottery": 0.000004150280716707679,
+      "skimPred": 0.000004150280716707679,
+      "skimAgent": 0.000004150280716707679,
+      "piggyTotal": 0.00017779636651086628,
+      "predFundTotal": 0.00009293425733688437,
+      "agentTotal": 0.00009293425733688437,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-16T05:29:43.209Z",
-  "totalTrades": 256,
+  "lastUpdated": "2026-03-16T05:41:50.675Z",
+  "totalTrades": 257,
   "stats": {
-    "totalTrades": 256,
-    "sells": 133,
-    "wins": 42,
-    "winRate": "31.6%",
-    "totalNetUsd": "-11.73",
-    "totalSkimEth": "0.000428"
+    "totalTrades": 257,
+    "sells": 134,
+    "wins": 43,
+    "winRate": "32.1%",
+    "totalNetUsd": "-8.91",
+    "totalSkimEth": "0.000440"
   }
 }
