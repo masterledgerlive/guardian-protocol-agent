@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-16T15:48:15.795Z",
-  "piggyBank": 0.00023559345325875521,
-  "totalSkimmed": 0.0005721503856765286,
-  "tradeCount": 288,
-  "predFund": 0.00014937352463568405,
+  "lastSaved": "2026-03-16T16:03:53.394Z",
+  "piggyBank": 0.0002375049001464113,
+  "totalSkimmed": 0.0005778847263394969,
+  "tradeCount": 289,
+  "predFund": 0.00015128497152334014,
   "predFundPnl": -0.000003947791819446336,
   "predFundTrades": 5,
-  "agentCapital": 0.0001533213164551304,
+  "agentCapital": 0.0001552327633427865,
   "agentPnl": 0,
   "piggyCoPnl": -0.00001061994673366138,
   "predFundPositions": {},
@@ -126,19 +126,19 @@
       "piggyContrib": 0.00000823431506903172
     },
     "BRETT": {
-      "wins": 4,
+      "wins": 5,
       "losses": 0,
-      "totalPnlEth": 0.0048889763431824405,
-      "biggestWavePct": 74.22199236767273,
-      "biggestWaveUsd": 0.5448022623053348,
+      "totalPnlEth": 0.005299440943307133,
+      "biggestWavePct": 75.9329768225235,
+      "biggestWaveUsd": 0.5644101780274648,
       "fastestWaveMs": 1756333,
       "fastestWavePct": 19.175217687268585,
       "medals": {
-        "gold": 4,
+        "gold": 5,
         "silver": 0,
         "bronze": 0
       },
-      "piggyContrib": 0.000024529700809749044
+      "piggyContrib": 0.000026441147697405135
     },
     "VIRTUAL": {
       "wins": 5,
@@ -226,7 +226,7 @@
   },
   "invested": {
     "AERO": 0.005304264572257864,
-    "BRETT": 0.0006518778646885429,
+    "BRETT": 0.00032593893234427146,
     "VIRTUAL": 0.006284395707848705,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -302,7 +302,7 @@
   },
   "piggyContrib": {
     "AERO": 0.000017940866202879444,
-    "BRETT": 0.000024529700809749044,
+    "BRETT": 0.000026441147697405135,
     "VIRTUAL": 0.000014023369414884048,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -381,6 +381,17 @@
       "tx": "0x885f0e5c097f7ee530e51362766a7b67ae26888b5cd2a7c5ccd6db16d3e9e1b4",
       "reason": "🌊 RIPPLE from [BRETT]",
       "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00810771528485833,
+      "receivedEth": 0.0005734340662968277,
+      "netUsd": 0.5644101780274648,
+      "timestamp": "2026-03-16T15:53:12.162Z",
+      "tx": "0x451ea67b1a231674f6269e3e7cbc934f7d563a9e0dfdce1c876cd2642e15ff14",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": -2
     }
   ]
 }
