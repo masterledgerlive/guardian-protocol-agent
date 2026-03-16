@@ -6434,18 +6434,44 @@
       "minTrough": 0.00685880329598462,
       "maxPeak": 0.008264,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 269,
+      "symbol": "AIXBT",
+      "price": 0.0269716745402996,
+      "receivedEth": 0.005333976491444589,
+      "recUsd": 11.952214502734291,
+      "investedUsd": 0,
+      "netUsd": 11.952214502734291,
+      "pnlPct": 0,
+      "ethUsd": 2240.77,
+      "timestamp": "2026-03-16T08:54:15.848Z",
+      "tx": "0x1480dea9e52c6a0c3f9e7ea38e3ed05c54023f45105734c200b8e22b87d14461",
+      "basescan": "https://basescan.org/tx/0x1480dea9e52c6a0c3f9e7ea38e3ed05c54023f45105734c200b8e22b87d14461",
+      "reason": "🎯 MAX PEAK $0.02708000",
+      "indScore": -3,
+      "indDetail": "RSI 80.0 OVERBOUGHT 🔥 | MACD bull+expand | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.00005333976491444589,
+      "skimLottery": 0.00001777992163814863,
+      "skimPred": 0.00001777992163814863,
+      "skimAgent": 0.00001777992163814863,
+      "piggyTotal": 0.00023775882124757783,
+      "predFundTotal": 0.00013313889627360675,
+      "agentTotal": 0.00013440654218712102,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-16T08:18:38.099Z",
-  "totalTrades": 278,
+  "lastUpdated": "2026-03-16T08:54:16.344Z",
+  "totalTrades": 279,
   "stats": {
-    "totalTrades": 278,
-    "sells": 150,
-    "wins": 56,
-    "winRate": "37.3%",
-    "totalNetUsd": "0.62",
-    "totalSkimEth": "0.000512"
+    "totalTrades": 279,
+    "sells": 151,
+    "wins": 57,
+    "winRate": "37.7%",
+    "totalNetUsd": "12.57",
+    "totalSkimEth": "0.000565"
   }
 }
