@@ -1,32 +1,16 @@
 {
-  "lastSaved": "2026-03-16T21:59:33.151Z",
-  "piggyBank": 0.00020652010799520286,
+  "lastSaved": "2026-03-16T22:14:54.834Z",
+  "piggyBank": 0.00023169455125664556,
   "totalSkimmed": 0.0005837986928958997,
   "tradeCount": 302,
-  "predFund": 0.00007333568497725619,
-  "predFundPnl": -0.000010532715573741754,
-  "predFundTrades": 10,
+  "predFund": 0.00014574557752093545,
+  "predFundPnl": -0.000011458508007318704,
+  "predFundTrades": 11,
   "agentCapital": 0.0001572040855282541,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000014427425549017476,
-  "predFundPositions": {
-    "BNKR": {
-      "entryPrice": 0.0004721,
-      "ethIn": 0.00007333568497725619,
-      "tokens": 361.5306823237819,
-      "entryTime": 1773695702572,
-      "conf": 66,
-      "phase": 4.91583178784208
-    }
-  },
+  "piggyCoPnl": -0.000014749291916612165,
+  "predFundPositions": {},
   "piggyCoPositions": {
-    "BNKR": {
-      "entryPrice": 0.0004721,
-      "ethIn": 0.000025496309629037393,
-      "tokens": 125.69185410599233,
-      "entryTime": 1773695702572,
-      "conf": 66
-    },
     "AERO": {
       "entryPrice": 0.352337742259598,
       "ethIn": 0.000022946678666133654,
