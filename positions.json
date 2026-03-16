@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-15T23:57:37.545Z",
+  "lastSaved": "2026-03-16T00:12:59.643Z",
   "piggyBank": 0.0001889831235926302,
   "totalSkimmed": 0.0003627824113526489,
-  "tradeCount": 198,
+  "tradeCount": 201,
   "predFund": 0.00008353199168050384,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -14,7 +14,7 @@
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 23,
+      "losses": 24,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -200,7 +200,7 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0.0006903502837339666,
+    "AIXBT": 0.0010346163724929537,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
@@ -228,7 +228,7 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": 1773563478676,
-    "AIXBT": 1773618950915,
+    "AIXBT": 1773619214626,
     "TOSHI": 1773540517147,
     "KITE": null,
     "KEYCAT": 1773612424001,
@@ -277,6 +277,37 @@
       "tx": "0xa8b24a05082806b72211c6848c194659384cdf8570a7bf6fd4d89585c4c05dbf",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": -1
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02568,
+      "ethSpent": 0.0006895664006472729,
+      "timestamp": "2026-03-15T23:58:03.277Z",
+      "tx": "0xe3025ebe0c3f74c77087bfaad042d0e79de802bcac00c534992f94f35d328329",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02568,
+      "ethSpent": 0.000689316060604668,
+      "timestamp": "2026-03-16T00:00:14.626Z",
+      "tx": "0x700b38d0d32febd717a6fef7bec86b6b8763e839556b45e7d3cbaef33a916185",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02588,
+      "receivedEth": -0.0000017876607892198387,
+      "netUsd": -2.2637240535352565,
+      "timestamp": "2026-03-16T00:09:00.811Z",
+      "tx": "0x92eccbba6f6913bfa05fe245a9970bc001ba36dc422b5d882e9c3a99ea70d185",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": -4
     }
   ]
 }
