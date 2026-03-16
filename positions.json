@@ -1,16 +1,33 @@
 {
-  "lastSaved": "2026-03-16T18:23:10.383Z",
-  "piggyBank": 0.00025754409513934824,
+  "lastSaved": "2026-03-16T18:38:47.206Z",
+  "piggyBank": 0.00023178968562541342,
   "totalSkimmed": 0.0005837986928958997,
-  "tradeCount": 294,
-  "predFund": 0.00015242004948588198,
+  "tradeCount": 295,
+  "predFund": 0.00007621002474294099,
   "predFundPnl": -0.000004784036042372144,
   "predFundTrades": 7,
   "agentCapital": 0.0001572040855282541,
   "agentPnl": 0,
   "piggyCoPnl": -0.00001184642670004314,
-  "predFundPositions": {},
-  "piggyCoPositions": {},
+  "predFundPositions": {
+    "DEGEN": {
+      "entryPrice": 0.000842301307748857,
+      "ethIn": 0.00007621002474294099,
+      "tokens": 210.58120661013015,
+      "entryTime": 1773686289478,
+      "conf": 60,
+      "phase": 26.516076221439562
+    }
+  },
+  "piggyCoPositions": {
+    "DEGEN": {
+      "entryPrice": 0.000842301307748857,
+      "ethIn": 0.000025754409513934825,
+      "tokens": 71.16379569838885,
+      "entryTime": 1773686289478,
+      "conf": 60
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 14,
@@ -184,7 +201,7 @@
     "VIRTUAL": 0.761467104481804,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.000847923302083028,
+    "DEGEN": 0.000842301307748857,
     "WELL": null,
     "SEAM": 0.110134530840557,
     "AIXBT": 0.0270980254142346,
@@ -222,7 +239,7 @@
     "VIRTUAL": 0.006284395707848705,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.006990704229797403,
+    "DEGEN": 0.008520102309552437,
     "WELL": 0,
     "SEAM": 0.0005537880015180614,
     "AIXBT": 0.0016994371885079938,
@@ -260,7 +277,7 @@
     "VIRTUAL": 1773656848120,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773655465497,
+    "DEGEN": 1773686287419,
     "WELL": null,
     "SEAM": 1773676089377,
     "AIXBT": 1773683830102,
@@ -438,6 +455,16 @@
       "tx": "0x1d50c56afc44ede606f923965f8b0b5990cbd4f4c91cbcf38c3f52552ad9f0ce",
       "reason": "🧠 PREDICTED TROUGH [62% conf φ30°]",
       "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.000842301307748857,
+      "ethSpent": 0.0015293980797550354,
+      "timestamp": "2026-03-16T18:38:07.419Z",
+      "tx": "0x9026d1ebc9a605c0b3056d2bd2ee2bc7fc3c5e4495eb2b233a7bcb7c5080269b",
+      "reason": "🧠 PREDICTED TROUGH [60% conf φ27°]",
+      "indScore": -3
     }
   ]
 }
