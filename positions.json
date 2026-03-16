@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-16T10:42:12.951Z",
-  "piggyBank": 0.00019483674820760914,
+  "lastSaved": "2026-03-16T10:57:48.435Z",
+  "piggyBank": 0.00019462198682862155,
   "totalSkimmed": 0.0005175193467406966,
   "tradeCount": 278,
   "predFund": 0.00006655492104309009,
@@ -8,7 +8,7 @@
   "predFundTrades": 3,
   "agentCapital": 0.00013511097014318643,
   "agentPnl": 0,
-  "piggyCoPnl": -0.00000934611686317086,
+  "piggyCoPnl": -0.000009560878242158439,
   "predFundPositions": {
     "VIRTUAL": {
       "entryPrice": 0.7567,
