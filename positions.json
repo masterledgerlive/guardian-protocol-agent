@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T09:56:20.579Z",
-  "piggyBank": 0.00021438169748723367,
+  "lastSaved": "2026-03-16T10:11:46.787Z",
+  "piggyBank": 0.0001929435277385103,
   "totalSkimmed": 0.0005175193467406966,
-  "tradeCount": 273,
+  "tradeCount": 276,
   "predFund": 0.00006655492104309009,
   "predFundPnl": -0.000002001128057006239,
   "predFundTrades": 3,
@@ -26,6 +26,13 @@
       "tokens": 0.07056620478632603,
       "entryTime": 1773654454148,
       "conf": 68
+    },
+    "CBBTC": {
+      "entryPrice": 73311.776456071,
+      "ethIn": 0.00002143816974872337,
+      "tokens": 6.571324081164091e-7,
+      "entryTime": 1773655126332,
+      "conf": 64
     }
   },
   "waveStats": {
@@ -201,7 +208,7 @@
     "VIRTUAL": 0.7567,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.000854708728485108,
+    "DEGEN": 0.000847923302083028,
     "WELL": null,
     "SEAM": null,
     "AIXBT": null,
@@ -229,7 +236,7 @@
     "VIRTUAL": 0.00512188260825654,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.0021881122826015002,
+    "DEGEN": 0.006990704229797403,
     "WELL": 0,
     "SEAM": 0,
     "AIXBT": 0,
@@ -257,7 +264,7 @@
     "VIRTUAL": 1773654452515,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773651767716,
+    "DEGEN": 1773655465497,
     "WELL": null,
     "SEAM": null,
     "AIXBT": null,
@@ -445,6 +452,36 @@
       "tx": "0xd1225fab42bc77f604d139114560a4115f393c92c7862e9fd225946b5502b329",
       "reason": "🧠 PREDICTED TROUGH [68% conf φ2°]",
       "indScore": -4
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.000850251858056007,
+      "ethSpent": 0.0017722469572303765,
+      "timestamp": "2026-03-16T10:00:10.055Z",
+      "tx": "0x9cf8ab5368db4b92695f6b57ae1f03be7df97b9af4abb3cd3e9a19909c750fa6",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.000848290390031561,
+      "ethSpent": 0.0015949542153224393,
+      "timestamp": "2026-03-16T10:02:17.684Z",
+      "tx": "0xf85337e54dc2427a30b84a2c88e3ed385ccd50798dc0a3fb0889b62048bf7851",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.000847923302083028,
+      "ethSpent": 0.0014353907746430868,
+      "timestamp": "2026-03-16T10:04:25.497Z",
+      "tx": "0xc20eb4d497c8cb7262c4031f56c58660a8caccd9ef62721d4c68a09c5375ff07",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
     }
   ]
 }
