@@ -1,22 +1,22 @@
 {
-  "lastSaved": "2026-03-16T02:34:14.507Z",
-  "piggyBank": 0.00017345129751793745,
+  "lastSaved": "2026-03-16T02:49:20.271Z",
+  "piggyBank": 0.00017314458156257058,
   "totalSkimmed": 0.00037470518187259465,
-  "tradeCount": 216,
+  "tradeCount": 217,
   "predFund": 0.00008750624852048575,
   "predFundPnl": 0,
   "predFundTrades": 0,
   "agentCapital": 0.00008750624852048575,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000006969020922803656,
+  "piggyCoPnl": -0.000007309816428766866,
   "predFundPositions": {},
   "piggyCoPositions": {
     "VIRTUAL": {
-      "entryPrice": 0.753386621471741,
-      "ethIn": 0.00001927236639088194,
-      "tokens": 0.055565680884118104,
-      "entryTime": 1773627057162,
-      "conf": 61
+      "entryPrice": 0.7457,
+      "ethIn": 0.000019238286840285622,
+      "tokens": 0.055815047575669505,
+      "entryTime": 1773629119525,
+      "conf": 78
     }
   },
   "waveStats": {
@@ -174,7 +174,7 @@
   "entries": {
     "AERO": 0.336220048200373,
     "BRETT": 0.007277418397606461,
-    "VIRTUAL": 0.753386621471741,
+    "VIRTUAL": 0.746091766603044,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -202,7 +202,7 @@
   "invested": {
     "AERO": 0.0014612940151390876,
     "BRETT": 0.004764500899556957,
-    "VIRTUAL": 0.0008412216723459918,
+    "VIRTUAL": 0.0015982578734231514,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0,
@@ -230,7 +230,7 @@
   "entryTimes": {
     "AERO": 1773617966165,
     "BRETT": 1773532458398,
-    "VIRTUAL": 1773627055740,
+    "VIRTUAL": 1773629075249,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -320,6 +320,16 @@
       "tx": "0x072e299ac04714f0dcb20b049af5520043c01f8eb4aef8f8ca90a6781c078728",
       "reason": "🧠 PREDICTED TROUGH [61% conf φ42°]",
       "indScore": -3
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.746091766603044,
+      "ethSpent": 0.0007570362010771596,
+      "timestamp": "2026-03-16T02:44:35.249Z",
+      "tx": "0xe556b0ca0194f3d7dcc2cf411775635240fd8c19a8270b83b65b2f902c1709a3",
+      "reason": "🧠 PREDICTED TROUGH [78% conf φ357°]",
+      "indScore": 3
     }
   ]
 }
