@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T02:03:26.212Z",
-  "piggyBank": 0.0001927236639088194,
+  "lastSaved": "2026-03-16T02:18:31.881Z",
+  "piggyBank": 0.00017345129751793745,
   "totalSkimmed": 0.00037470518187259465,
-  "tradeCount": 214,
+  "tradeCount": 216,
   "predFund": 0.00008750624852048575,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -10,11 +10,19 @@
   "agentPnl": 0,
   "piggyCoPnl": -0.000006969020922803656,
   "predFundPositions": {},
-  "piggyCoPositions": {},
+  "piggyCoPositions": {
+    "VIRTUAL": {
+      "entryPrice": 0.753386621471741,
+      "ethIn": 0.00001927236639088194,
+      "tokens": 0.055565680884118104,
+      "entryTime": 1773627057162,
+      "conf": 61
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 33,
+      "losses": 34,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -166,13 +174,13 @@
   "entries": {
     "AERO": 0.336220048200373,
     "BRETT": 0.007277418397606461,
-    "VIRTUAL": null,
+    "VIRTUAL": 0.753386621471741,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
     "SEAM": 0.113107771010875,
-    "AIXBT": 0.02568,
+    "AIXBT": null,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
     "KEYCAT": 0.000606562228765133,
@@ -194,13 +202,13 @@
   "invested": {
     "AERO": 0.0014612940151390876,
     "BRETT": 0.004764500899556957,
-    "VIRTUAL": 0,
+    "VIRTUAL": 0.0008412216723459918,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0.0000020207351025253002,
+    "AIXBT": 0,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
@@ -222,13 +230,13 @@
   "entryTimes": {
     "AERO": 1773617966165,
     "BRETT": 1773532458398,
-    "VIRTUAL": null,
+    "VIRTUAL": 1773627055740,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
     "SEAM": 1773563478676,
-    "AIXBT": 1773619214626,
+    "AIXBT": null,
     "TOSHI": 1773540517147,
     "KITE": null,
     "KEYCAT": 1773612424001,
@@ -291,6 +299,27 @@
       "tx": "0x543a8234267e1d8a0c49173b3df3eadc72cb164fa0ee6478e89ea32a098add0e",
       "reason": "⏰ STALE CASCADE — 6min no movement",
       "indScore": -5
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02638,
+      "receivedEth": -0.000001775310904853812,
+      "netUsd": -0.008212551644301224,
+      "timestamp": "2026-03-16T02:08:52.672Z",
+      "tx": "0xfd5cd158dd19d0666bcbaf935d7e1ee0cd8a3d77e48193eae1feb5be741ffa24",
+      "reason": "🎯 MAX PEAK $0.02785277",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.753386621471741,
+      "ethSpent": 0.0008412216723459918,
+      "timestamp": "2026-03-16T02:10:55.740Z",
+      "tx": "0x072e299ac04714f0dcb20b049af5520043c01f8eb4aef8f8ca90a6781c078728",
+      "reason": "🧠 PREDICTED TROUGH [61% conf φ42°]",
+      "indScore": -3
     }
   ]
 }
