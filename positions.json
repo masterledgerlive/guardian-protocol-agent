@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-16T16:50:17.239Z",
-  "piggyBank": 0.00023865789211950173,
-  "totalSkimmed": 0.0005822897643925542,
-  "tradeCount": 291,
-  "predFund": 0.0001517454353348553,
+  "lastSaved": "2026-03-16T17:05:50.591Z",
+  "piggyBank": 0.00023914312318872925,
+  "totalSkimmed": 0.0005837454576002368,
+  "tradeCount": 292,
+  "predFund": 0.00015223066640408282,
   "predFundPnl": -0.000004955674025616986,
   "predFundTrades": 6,
-  "agentCapital": 0.0001567011093604723,
+  "agentCapital": 0.0001571863404296998,
   "agentPnl": 0,
   "piggyCoPnl": -0.000010935300778256767,
   "predFundPositions": {},
@@ -126,19 +126,19 @@
       "piggyContrib": 0.00000823431506903172
     },
     "BRETT": {
-      "wins": 7,
+      "wins": 8,
       "losses": 0,
-      "totalPnlEth": 0.0056177176489837655,
+      "totalPnlEth": 0.005763286969752025,
       "biggestWavePct": 82.9396859263693,
       "biggestWaveUsd": 0.15394502626608006,
       "fastestWaveMs": 1756333,
       "fastestWavePct": 19.175217687268585,
       "medals": {
-        "gold": 7,
+        "gold": 8,
         "silver": 0,
         "bronze": 0
       },
-      "piggyContrib": 0.000027909493715090915
+      "piggyContrib": 0.000028394724784318445
     },
     "VIRTUAL": {
       "wins": 5,
@@ -188,7 +188,7 @@
   },
   "entries": {
     "AERO": 0.3448759492924,
-    "BRETT": 0.00810993008200206,
+    "BRETT": null,
     "VIRTUAL": 0.761467104481804,
     "MORPHO": null,
     "CBBTC": null,
@@ -226,7 +226,7 @@
   },
   "invested": {
     "AERO": 0.005304264572257864,
-    "BRETT": 0.00008148473308606786,
+    "BRETT": 0,
     "VIRTUAL": 0.006284395707848705,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -264,7 +264,7 @@
   },
   "entryTimes": {
     "AERO": 1773659281280,
-    "BRETT": 1773664179371,
+    "BRETT": null,
     "VIRTUAL": 1773656848120,
     "MORPHO": null,
     "CBBTC": null,
@@ -302,7 +302,7 @@
   },
   "piggyContrib": {
     "AERO": 0.000017940866202879444,
-    "BRETT": 0.000027909493715090915,
+    "BRETT": 0.000028394724784318445,
     "VIRTUAL": 0.000014023369414884048,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -414,6 +414,17 @@
       "tx": "0x6fde83c72506be0d1025eb7b4d787488290f97a9957fca99c943584f00148188",
       "reason": "⏰ STALE CASCADE — 5min no movement",
       "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00811514877803087,
+      "receivedEth": 0.00014556932076825908,
+      "netUsd": 0.15119082081710997,
+      "timestamp": "2026-03-16T17:05:10.003Z",
+      "tx": "0x7b878ba5cd830ad161119ac7f479db7af2b6e344ec756c8ff48fcbdc6ed43c98",
+      "reason": "🎯 MAX PEAK $0.00814900",
+      "indScore": 2
     }
   ]
 }
