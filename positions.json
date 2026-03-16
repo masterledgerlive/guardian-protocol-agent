@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T19:25:15.581Z",
+  "lastSaved": "2026-03-16T19:40:43.564Z",
   "piggyBank": 0.0002314269433321047,
   "totalSkimmed": 0.0005837986928958997,
-  "tradeCount": 296,
+  "tradeCount": 297,
   "predFund": 0.00007621002474294099,
   "predFundPnl": -0.000004784036042372144,
   "predFundTrades": 7,
@@ -216,7 +216,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": null,
+    "BNKR": 0.000462644674759497,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -254,7 +254,7 @@
     "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0,
-    "BNKR": 0,
+    "BNKR": 0.0012386437278780389,
     "TYBG": 0,
     "MIGGLES": 0,
     "BENJI": 0,
@@ -292,7 +292,7 @@
     "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
-    "BNKR": null,
+    "BNKR": 1773689209021,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -474,6 +474,16 @@
       "timestamp": "2026-03-16T18:52:49.931Z",
       "tx": "0xf6551ba35822f4e4be8af667686222805ab30ae3bd98067e0cbd8b704096ae5d",
       "reason": "🧠 PREDICTED TROUGH [62% conf φ26°]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.000462644674759497,
+      "ethSpent": 0.0012386437278780389,
+      "timestamp": "2026-03-16T19:26:49.021Z",
+      "tx": "0x03e96f2313b311d76e3e733ef2a5999880f582657fac7310bd16b2525684cd87",
+      "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 1
     }
   ]
