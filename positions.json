@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-16T15:32:31.226Z",
-  "piggyBank": 0.00022821302909401057,
-  "totalSkimmed": 0.0005500091131822947,
-  "tradeCount": 285,
-  "predFund": 0.0001419931004709394,
+  "lastSaved": "2026-03-16T15:48:15.795Z",
+  "piggyBank": 0.00023559345325875521,
+  "totalSkimmed": 0.0005721503856765286,
+  "tradeCount": 288,
+  "predFund": 0.00014937352463568405,
   "predFundPnl": -0.000003947791819446336,
   "predFundTrades": 5,
-  "agentCapital": 0.00014594089229038576,
+  "agentCapital": 0.0001533213164551304,
   "agentPnl": 0,
   "piggyCoPnl": -0.00001061994673366138,
   "predFundPositions": {},
@@ -126,19 +126,19 @@
       "piggyContrib": 0.00000823431506903172
     },
     "BRETT": {
-      "wins": 2,
+      "wins": 4,
       "losses": 0,
-      "totalPnlEth": 0.0033764448075305513,
-      "biggestWavePct": 66.96489246702009,
-      "biggestWaveUsd": 2.9832152506400895,
+      "totalPnlEth": 0.0048889763431824405,
+      "biggestWavePct": 74.22199236767273,
+      "biggestWaveUsd": 0.5448022623053348,
       "fastestWaveMs": 1756333,
       "fastestWavePct": 19.175217687268585,
       "medals": {
-        "gold": 2,
+        "gold": 4,
         "silver": 0,
         "bronze": 0
       },
-      "piggyContrib": 0.000017149276645004398
+      "piggyContrib": 0.000024529700809749044
     },
     "VIRTUAL": {
       "wins": 5,
@@ -194,7 +194,7 @@
     "CBBTC": null,
     "DEGEN": 0.000847923302083028,
     "WELL": null,
-    "SEAM": null,
+    "SEAM": 0.110134530840557,
     "AIXBT": null,
     "TOSHI": null,
     "KITE": null,
@@ -226,13 +226,13 @@
   },
   "invested": {
     "AERO": 0.005304264572257864,
-    "BRETT": 0.0019459040736971433,
+    "BRETT": 0.0006518778646885429,
     "VIRTUAL": 0.006284395707848705,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0.006990704229797403,
     "WELL": 0,
-    "SEAM": 0,
+    "SEAM": 0.0005537880015180614,
     "AIXBT": 0,
     "TOSHI": 0,
     "KITE": 0,
@@ -270,7 +270,7 @@
     "CBBTC": null,
     "DEGEN": 1773655465497,
     "WELL": null,
-    "SEAM": null,
+    "SEAM": 1773676089377,
     "AIXBT": null,
     "TOSHI": null,
     "KITE": null,
@@ -302,7 +302,7 @@
   },
   "piggyContrib": {
     "AERO": 0.000017940866202879444,
-    "BRETT": 0.000017149276645004398,
+    "BRETT": 0.000024529700809749044,
     "VIRTUAL": 0.000014023369414884048,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -349,6 +349,38 @@
       "tx": "0x699300e187f0e39b1626ded016a5ba8bf9f187c7882f977d19884e53a9f7af36",
       "reason": "⏰ STALE CASCADE — 5min no movement",
       "indScore": -2
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00807780180108855,
+      "receivedEth": 0.0016547454297081805,
+      "netUsd": 1.560563714850287,
+      "timestamp": "2026-03-16T15:39:17.392Z",
+      "tx": "0x046463ed3828d724444648caa95931ada2c46ffd6b637c9742660f4cd816ed6f",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": -4
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00810565121777187,
+      "receivedEth": 0.0005593818197152135,
+      "netUsd": 0.5448022623053348,
+      "timestamp": "2026-03-16T15:48:06.467Z",
+      "tx": "0x1f032d18c7d683e481a6bf7ebcdc8c51a6de270bfb27fe7ea9ce28d163ab4f64",
+      "reason": "🌊 RIPPLE — pooling for SEAM",
+      "indScore": -4
+    },
+    {
+      "type": "BUY",
+      "symbol": "SEAM",
+      "price": 0.110134530840557,
+      "ethSpent": 0.0005537880015180614,
+      "timestamp": "2026-03-16T15:48:09.377Z",
+      "tx": "0x885f0e5c097f7ee530e51362766a7b67ae26888b5cd2a7c5ccd6db16d3e9e1b4",
+      "reason": "🌊 RIPPLE from [BRETT]",
+      "indScore": 4
     }
   ]
 }
