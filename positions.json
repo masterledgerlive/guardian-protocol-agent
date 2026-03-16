@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-16T11:44:57.892Z",
-  "piggyBank": 0.0002176432414506782,
+  "lastSaved": "2026-03-16T12:00:41.251Z",
+  "piggyBank": 0.00021738310694681125,
   "totalSkimmed": 0.0005175193467406966,
   "tradeCount": 279,
-  "predFund": 0.00013195174408052573,
-  "predFundPnl": -0.000003159226062660685,
-  "predFundTrades": 4,
+  "predFund": 0.00013116317832374008,
+  "predFundPnl": -0.000003947791819446336,
+  "predFundTrades": 5,
   "agentCapital": 0.00013511097014318643,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000010359812229794421,
+  "piggyCoPnl": -0.00001061994673366138,
   "predFundPositions": {},
   "piggyCoPositions": {
     "BRETT": {
