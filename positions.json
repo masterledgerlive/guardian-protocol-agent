@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T23:01:19.975Z",
+  "lastSaved": "2026-03-16T23:16:43.672Z",
   "piggyBank": 0.00023148595991881164,
   "totalSkimmed": 0.0005837986928958997,
-  "tradeCount": 302,
+  "tradeCount": 303,
   "predFund": 0.0001450895140780625,
   "predFundPnl": -0.000012114571450191664,
   "predFundTrades": 12,
@@ -37,7 +37,7 @@
     },
     "KEYCAT": {
       "wins": 4,
-      "losses": 2,
+      "losses": 3,
       "totalPnlEth": 0.0011978542687499328,
       "biggestWavePct": 7.641290653695444,
       "biggestWaveUsd": 0.11318845658407284,
@@ -236,7 +236,7 @@
     "AIXBT": 0.00307581651753198,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0.0016017792623784768,
+    "KEYCAT": 0.0008008896311892384,
     "DOGINME": 0,
     "XCN": 0.0011147149603173204,
     "SKI": 0,
@@ -338,5 +338,17 @@
     "OGGY": 0,
     "FREN": 0
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.000646063800010714,
+      "receivedEth": 0.00043361142248475853,
+      "netUsd": -0.8628099678885639,
+      "timestamp": "2026-03-16T23:05:29.715Z",
+      "tx": "0x8d23f1c2eeebb5be2c989fa54e944daf1625071aa26471a238d604cf2a59f5d7",
+      "reason": "MANUAL SELL HALF",
+      "indScore": 0
+    }
+  ]
 }
