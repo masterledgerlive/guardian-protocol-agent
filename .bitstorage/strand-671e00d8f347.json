@@ -1,0 +1,16 @@
+{
+  "name": "railway-config",
+  "strandID": "671e00d8f3479711",
+  "strandIDBuf": "671e00d8f3479711",
+  "kMaster": "[REDACTED — held off-chain by owner only]",
+  "walletAddress": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+  "registeredAt": "2026-03-16T22:46:18.071Z",
+  "fileSize": 610,
+  "realFragments": 1,
+  "noiseFragments": 2,
+  "totalFragments": 3,
+  "fragmentSize": 10240,
+  "status": "PENDING",
+  "confirmedCount": 0,
+  "confirmedTxs": []
+}
