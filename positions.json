@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T04:22:14.081Z",
+  "lastSaved": "2026-03-16T04:37:42.452Z",
   "piggyBank": 0.0001929400953268429,
   "totalSkimmed": 0.00037853836617166746,
-  "tradeCount": 228,
+  "tradeCount": 233,
   "predFund": 0.00008878397662017669,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -14,7 +14,7 @@
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 35,
+      "losses": 39,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -169,7 +169,7 @@
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.0008848,
+    "DEGEN": 0.0008835,
     "WELL": null,
     "SEAM": 0.1108,
     "AIXBT": null,
@@ -197,7 +197,7 @@
     "VIRTUAL": 0,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.00066939482245418,
+    "DEGEN": 0.0014386307861368383,
     "WELL": 0,
     "SEAM": 0.00484232404405247,
     "AIXBT": 0,
@@ -225,7 +225,7 @@
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773634167870,
+    "DEGEN": 1773635463858,
     "WELL": null,
     "SEAM": 1773634624948,
     "AIXBT": null,
@@ -435,6 +435,60 @@
       "tx": "0x3d0c277109ff5124382f8297379ccba4345ed353b510c456b6394832ddc4452c",
       "reason": "🎯 MAX PEAK $0.02785277",
       "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0272551864695449,
+      "receivedEth": -0.000002168007766392005,
+      "netUsd": -0.004869388803471771,
+      "timestamp": "2026-03-16T04:24:18.704Z",
+      "tx": "0xcf7b6a1e89a23462c8cbd5102765f067578c89c460cec4f36cb7e7ae5a823154",
+      "reason": "MANUAL SELL",
+      "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0272551864695449,
+      "receivedEth": -0.0000019304378437636632,
+      "netUsd": -0.004347596981075459,
+      "timestamp": "2026-03-16T04:27:28.326Z",
+      "tx": "0x2a5de1f09598438ccbe105d79a627c5795604b8a2e49948c3761b1215025b738",
+      "reason": "MANUAL SELL",
+      "indScore": -1
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.0008835,
+      "ethSpent": 0.0007692359636826584,
+      "timestamp": "2026-03-16T04:31:03.858Z",
+      "tx": "0x6a6dd22b8625177667a630d5b1336c959afe34a78c20183211f7be2aad8398b6",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.02763,
+      "receivedEth": -0.0000018771219906406345,
+      "netUsd": -0.004222848715024797,
+      "timestamp": "2026-03-16T04:31:17.829Z",
+      "tx": "0x6ca659b0b249f0d9e9f63570597b8f8959282d9f20f2d0cfa916c17be7cce4e5",
+      "reason": "🎯 MAX PEAK $0.02764000",
+      "indScore": -1
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0274131147502614,
+      "receivedEth": -0.0000018031381336181332,
+      "netUsd": -0.004059981884417261,
+      "timestamp": "2026-03-16T04:35:08.839Z",
+      "tx": "0xe8cd43cfff8a1e6f03ce582ce6f2b54021804d2e0047c29983c91d0a6563eaa0",
+      "reason": "🎯 MAX PEAK $0.02764000",
+      "indScore": 0
     }
   ]
 }
