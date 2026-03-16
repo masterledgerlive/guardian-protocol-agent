@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T03:51:18.734Z",
+  "lastSaved": "2026-03-16T04:06:42.260Z",
   "piggyBank": 0.00019188221771608744,
   "totalSkimmed": 0.00037470518187259465,
-  "tradeCount": 218,
+  "tradeCount": 222,
   "predFund": 0.00008750624852048575,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -171,7 +171,7 @@
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
-    "SEAM": 0.113107771010875,
+    "SEAM": 0.1111,
     "AIXBT": null,
     "TOSHI": 0.000211873036716628,
     "KITE": null,
@@ -199,7 +199,7 @@
     "CBBTC": 0,
     "DEGEN": 0,
     "WELL": 0,
-    "SEAM": 0.0014277647739596579,
+    "SEAM": 0.004110721674492857,
     "AIXBT": 0,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
@@ -227,7 +227,7 @@
     "CBBTC": null,
     "DEGEN": null,
     "WELL": null,
-    "SEAM": 1773563478676,
+    "SEAM": 1773633712516,
     "AIXBT": null,
     "TOSHI": 1773540517147,
     "KITE": null,
@@ -332,6 +332,46 @@
       "tx": "0x3ea9be7626eb20820e4984c2f7dda610c5dc1b5dc60d712220b7cd24a97a7c56",
       "reason": "🧠 PREDICTED TROUGH [64% conf φ37°]",
       "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "SEAM",
+      "price": 0.1111,
+      "ethSpent": 0.0006716578306347614,
+      "timestamp": "2026-03-16T03:53:52.348Z",
+      "tx": "0x8170564b2ea8dbd0aa958db95c9d8ddbc7dbb982691ff600931850804d0c1a68",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "SEAM",
+      "price": 0.1111,
+      "ethSpent": 0.0006705648838581621,
+      "timestamp": "2026-03-16T03:57:27.006Z",
+      "tx": "0x595981297a81868e853c0131ce3e725644238327fa0a29e9a49fd6a36a7a1746",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "SEAM",
+      "price": 0.111107482872127,
+      "ethSpent": 0.0006703670930201379,
+      "timestamp": "2026-03-16T03:59:38.289Z",
+      "tx": "0x5ee504777bd210c21daface6a343059fd4d95dfab6a64fa93d91a9fe8b639398",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "SEAM",
+      "price": 0.1111,
+      "ethSpent": 0.0006703670930201379,
+      "timestamp": "2026-03-16T04:01:52.516Z",
+      "tx": "0x388302f3b7bc5660cea803905cfa3a04c532ae5267fcb10b0491fb7a13f3f1ae",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
     }
   ]
 }
