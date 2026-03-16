@@ -6270,18 +6270,44 @@
       "predFundTotal": 0.00011624146043678408,
       "agentTotal": 0.00011624146043678408,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 262,
+      "symbol": "TOSHI",
+      "price": 0.000225029569598145,
+      "receivedEth": 0.00010047571665155238,
+      "recUsd": 0.22769103577558242,
+      "investedUsd": 0,
+      "netUsd": 0.22769103577558242,
+      "pnlPct": 0,
+      "ethUsd": 2266.13,
+      "timestamp": "2026-03-16T06:32:32.843Z",
+      "tx": "0x55ed009c798c37539d270e97c2eb69512ec7de7c2278bf01edccfdf516e6009d",
+      "basescan": "https://basescan.org/tx/0x55ed009c798c37539d270e97c2eb69512ec7de7c2278bf01edccfdf516e6009d",
+      "reason": "🎯 MAX PEAK $0.00022698",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.0000010047571665155239,
+      "skimLottery": 3.3491905550517463e-7,
+      "skimPred": 3.3491905550517463e-7,
+      "skimAgent": 3.3491905550517463e-7,
+      "piggyTotal": 0.00020143848866627107,
+      "predFundTotal": 0.00011657637949228925,
+      "agentTotal": 0.00011657637949228925,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-16T06:31:41.715Z",
-  "totalTrades": 271,
+  "lastUpdated": "2026-03-16T06:32:33.473Z",
+  "totalTrades": 272,
   "stats": {
-    "totalTrades": 271,
-    "sells": 146,
-    "wins": 53,
-    "winRate": "36.3%",
-    "totalNetUsd": "0.36",
-    "totalSkimEth": "0.000510"
+    "totalTrades": 272,
+    "sells": 147,
+    "wins": 54,
+    "winRate": "36.7%",
+    "totalNetUsd": "0.58",
+    "totalSkimEth": "0.000511"
   }
 }
