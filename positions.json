@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T01:14:48.011Z",
+  "lastSaved": "2026-03-16T01:32:49.759Z",
   "piggyBank": 0.0001927236639088194,
   "totalSkimmed": 0.00037470518187259465,
-  "tradeCount": 210,
+  "tradeCount": 211,
   "predFund": 0.00008750624852048575,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -14,7 +14,7 @@
   "waveStats": {
     "AIXBT": {
       "wins": 0,
-      "losses": 29,
+      "losses": 30,
       "totalPnlEth": 0,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -200,7 +200,7 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0.0014277647739596579,
-    "AIXBT": 0.000032331761640404804,
+    "AIXBT": 0.000016165880820202402,
     "TOSHI": 0.005582986486127196,
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
@@ -249,164 +249,15 @@
   },
   "tradeLog": [
     {
-      "type": "BUY",
-      "symbol": "XCN",
-      "price": 0.006083,
-      "ethSpent": 0.0007017215568862275,
-      "timestamp": "2026-03-15T22:11:55.016Z",
-      "tx": "0x5fc4fb2744585a4b3ace8440e3ba059d97ed5b749adebf6cc39565008665f372",
-      "reason": "MANUAL BUY",
-      "indScore": 0
-    },
-    {
-      "type": "BUY",
-      "symbol": "AERO",
-      "price": 0.336220048200373,
-      "ethSpent": 0.0007482984832444207,
-      "timestamp": "2026-03-15T23:39:26.165Z",
-      "tx": "0x22a1827b023c7dc828b640b512a45f8237758c92f819c7e87092ddb26389e544",
-      "reason": "🧠 PREDICTED TROUGH [81% conf φ29°]",
-      "indScore": 3
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.02568,
-      "ethSpent": 0.0006903502837339666,
-      "timestamp": "2026-03-15T23:55:50.915Z",
-      "tx": "0xa8b24a05082806b72211c6848c194659384cdf8570a7bf6fd4d89585c4c05dbf",
-      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
-      "indScore": -1
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.02568,
-      "ethSpent": 0.0006895664006472729,
-      "timestamp": "2026-03-15T23:58:03.277Z",
-      "tx": "0xe3025ebe0c3f74c77087bfaad042d0e79de802bcac00c534992f94f35d328329",
-      "reason": "🎯 MIN TROUGH [PRIORITY]",
-      "indScore": 1
-    },
-    {
-      "type": "BUY",
-      "symbol": "AIXBT",
-      "price": 0.02568,
-      "ethSpent": 0.000689316060604668,
-      "timestamp": "2026-03-16T00:00:14.626Z",
-      "tx": "0x700b38d0d32febd717a6fef7bec86b6b8763e839556b45e7d3cbaef33a916185",
-      "reason": "🎯 MIN TROUGH [PRIORITY]",
-      "indScore": 2
-    },
-    {
       "type": "SELL",
       "symbol": "AIXBT",
-      "price": 0.02588,
-      "receivedEth": -0.0000017876607892198387,
-      "netUsd": -2.2637240535352565,
-      "timestamp": "2026-03-16T00:09:00.811Z",
-      "tx": "0x92eccbba6f6913bfa05fe245a9970bc001ba36dc422b5d882e9c3a99ea70d185",
+      "price": 0.02636,
+      "receivedEth": -0.0000017757527439009324,
+      "netUsd": -0.039091410625803985,
+      "timestamp": "2026-03-16T01:28:53.341Z",
+      "tx": "0xb4a8cf3893268dd2cce136c81705a64a6e88d962e152c6a40ca21077f5b271ee",
       "reason": "⏰ STALE CASCADE — 6min no movement",
-      "indScore": -4
-    },
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.02592,
-      "receivedEth": -0.0000017916015727760873,
-      "netUsd": -1.1302671140061287,
-      "timestamp": "2026-03-16T00:19:26.570Z",
-      "tx": "0xb9bc57bbc568dbbc640a9312001e9c750b10e3b56665fc1d538c781924e68bea",
-      "reason": "⏰ STALE CASCADE — 10min no movement",
-      "indScore": 1
-    },
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.02589,
-      "receivedEth": -0.0000017755410611384678,
-      "netUsd": -0.5650359472154497,
-      "timestamp": "2026-03-16T00:29:45.680Z",
-      "tx": "0xe3c3e4f9d4ab7943a7b6ad062cb309b1e21e77b5de3297bf5d7273a211efa4c4",
-      "reason": "⏰ STALE CASCADE — 10min no movement",
-      "indScore": 4
-    },
-    {
-      "type": "SELL",
-      "symbol": "VIRTUAL",
-      "price": 0.75,
-      "receivedEth": 0.0017198670552217767,
-      "netUsd": -0.399276339141748,
-      "timestamp": "2026-03-16T00:31:58.610Z",
-      "tx": "0x363b87c72e386425b3f9c28f9f3bf1aadd426fc13cc4a6f0222e218c7f7166ab",
-      "reason": "MANUAL SELL HALF",
-      "indScore": 4
-    },
-    {
-      "type": "SELL",
-      "symbol": "VIRTUAL",
-      "price": 0.7508,
-      "receivedEth": 0.000859625673523895,
-      "netUsd": -0.2002569929241218,
-      "timestamp": "2026-03-16T00:34:16.671Z",
-      "tx": "0x8baf5c033e8a824b2083c48eb41a7c188c758bd7bc1fec51342f781165ff21fb",
-      "reason": "MANUAL SELL HALF",
-      "indScore": 3
-    },
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.026,
-      "receivedEth": -0.000001776032653498169,
-      "netUsd": -0.28485290433385413,
-      "timestamp": "2026-03-16T00:40:19.596Z",
-      "tx": "0x4f563fba44049ef8e87c49be2a9613a6448fa65d00a3ea84802ef1810a33ebb3",
-      "reason": "⏰ STALE CASCADE — 5min no movement",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "VIRTUAL",
-      "price": 0.751844951130092,
-      "receivedEth": 0.0006021690924773908,
-      "netUsd": 0.27386145408067364,
-      "timestamp": "2026-03-16T00:41:49.987Z",
-      "tx": "0x554d1292a1c203761082a18ed1383e5de98dcc681c8b476cd0eda4140f6ce161",
-      "reason": "⏰ STALE CASCADE — 5min no movement",
-      "indScore": 1
-    },
-    {
-      "type": "SELL",
-      "symbol": "VIRTUAL",
-      "price": 0.751414381166491,
-      "receivedEth": 0.0005901079595171822,
-      "netUsd": 0.2683667182343401,
-      "timestamp": "2026-03-16T00:47:46.540Z",
-      "tx": "0xd98bb9511a31649d5e0f01a4574b905a6ddbc1931523027cb232c1a55336d02c",
-      "reason": "🎯 MAX PEAK $0.76270000",
-      "indScore": 2
-    },
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.02615,
-      "receivedEth": -0.0000017752585504326665,
-      "netUsd": -0.14435752077510489,
-      "timestamp": "2026-03-16T00:55:58.424Z",
-      "tx": "0x21fe6688a83bf709a42ec6067c541c24c98525adb36df5635df51c40099b4270",
-      "reason": "⏰ STALE CASCADE — 5min no movement",
-      "indScore": -3
-    },
-    {
-      "type": "SELL",
-      "symbol": "AIXBT",
-      "price": 0.02615,
-      "receivedEth": -0.0000017760967481218748,
-      "netUsd": -0.0740072311314252,
-      "timestamp": "2026-03-16T01:06:29.453Z",
-      "tx": "0x3880378c59b6de0d94b1e82ef01fab667c98c02f0a65cbca56d31900d98d7f17",
-      "reason": "⏰ STALE CASCADE — 10min no movement",
-      "indScore": 1
+      "indScore": 0
     }
   ]
 }
