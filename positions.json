@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T05:56:01.364Z",
+  "lastSaved": "2026-03-16T06:11:30.474Z",
   "piggyBank": 0.0002011035696107659,
   "totalSkimmed": 0.00046091081762148953,
-  "tradeCount": 259,
+  "tradeCount": 260,
   "predFund": 0.00011624146043678408,
   "predFundPnl": 0,
   "predFundTrades": 0,
@@ -439,6 +439,16 @@
       "timestamp": "2026-03-16T05:52:20.577Z",
       "tx": "0xe3d4de15644ead914fee6baf34c4e31381dffd2f6d153b13e9b38fb48ff0353e",
       "reason": "🎯 MAX PEAK $0.00048270",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "WELL",
+      "price": 0.00534881734494199,
+      "ethSpent": 0.001973836092183398,
+      "timestamp": "2026-03-16T06:04:50.349Z",
+      "tx": "0xcd8315a2de813ccee047ea5c6486aafd0e54f808f2716cb7a0243ab588b35550",
+      "reason": "MANUAL BUY",
       "indScore": 0
     }
   ]
