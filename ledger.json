@@ -7020,18 +7020,44 @@
       "predFundTotal": 0.00015128497152334014,
       "agentTotal": 0.0001552327633427865,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 290,
+      "symbol": "BRETT",
+      "price": 0.00803538777290048,
+      "receivedEth": 0.0002914358905201416,
+      "recUsd": 0.6623667488974623,
+      "investedUsd": 0.37039211363204494,
+      "netUsd": 0.29197463526541734,
+      "pnlPct": 78.82852375077049,
+      "ethUsd": 2272.77,
+      "timestamp": "2026-03-16T16:04:18.452Z",
+      "tx": "0x4ee42c5e68223554d198b205e77c83b1d4b3e7f4cc5b380319a022b5620a0f92",
+      "basescan": "https://basescan.org/tx/0x4ee42c5e68223554d198b205e77c83b1d4b3e7f4cc5b380319a022b5620a0f92",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": 4,
+      "indDetail": "RSI 2.1 OVERSOLD 🩸 | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.0000029143589052014163,
+      "skimLottery": 9.71452968400472e-7,
+      "skimPred": 9.71452968400472e-7,
+      "skimAgent": 9.71452968400472e-7,
+      "piggyTotal": 0.00023847635311481178,
+      "predFundTotal": 0.00015225642449174061,
+      "agentTotal": 0.00015620421631118696,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-16T15:53:12.670Z",
-  "totalTrades": 304,
+  "lastUpdated": "2026-03-16T16:04:19.049Z",
+  "totalTrades": 305,
   "stats": {
-    "totalTrades": 304,
-    "sells": 161,
-    "wins": 67,
-    "winRate": "41.6%",
-    "totalNetUsd": "27.99",
-    "totalSkimEth": "0.000687"
+    "totalTrades": 305,
+    "sells": 162,
+    "wins": 68,
+    "winRate": "42.0%",
+    "totalNetUsd": "28.28",
+    "totalSkimEth": "0.000690"
   }
 }
