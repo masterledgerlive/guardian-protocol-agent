@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-16T19:40:43.564Z",
-  "piggyBank": 0.0002314269433321047,
+  "lastSaved": "2026-03-16T19:56:15.979Z",
+  "piggyBank": 0.00020828424899889422,
   "totalSkimmed": 0.0005837986928958997,
-  "tradeCount": 297,
+  "tradeCount": 298,
   "predFund": 0.00007621002474294099,
   "predFundPnl": -0.000004784036042372144,
   "predFundTrades": 7,
@@ -26,6 +26,13 @@
       "tokens": 71.16379569838885,
       "entryTime": 1773686289478,
       "conf": 60
+    },
+    "XCN": {
+      "entryPrice": 0.00595,
+      "ethIn": 0.00002314269433321047,
+      "tokens": 8.995310134251973,
+      "entryTime": 1773690353261,
+      "conf": 68
     }
   },
   "waveStats": {
@@ -209,7 +216,7 @@
     "KITE": null,
     "KEYCAT": 0.000606562228765133,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 0.00595,
     "SKI": null,
     "PRIME": null,
     "LUNA": null,
@@ -247,7 +254,7 @@
     "KITE": 0,
     "KEYCAT": 0.000698984608358924,
     "DOGINME": 0,
-    "XCN": 0,
+    "XCN": 0.0011147149603173204,
     "SKI": 0,
     "PRIME": 0,
     "LUNA": 0,
@@ -285,7 +292,7 @@
     "KITE": null,
     "KEYCAT": 1773612424001,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 1773690351646,
     "SKI": null,
     "PRIME": null,
     "LUNA": null,
@@ -484,6 +491,16 @@
       "timestamp": "2026-03-16T19:26:49.021Z",
       "tx": "0x03e96f2313b311d76e3e733ef2a5999880f582657fac7310bd16b2525684cd87",
       "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.00595,
+      "ethSpent": 0.0011147149603173204,
+      "timestamp": "2026-03-16T19:45:51.646Z",
+      "tx": "0x5928f5987355ddb52c6dc969e26645881d92df6885e2b8e0d8f513e4f1b18b45",
+      "reason": "🧠 PREDICTED TROUGH [68% conf φ8°]",
       "indScore": 1
     }
   ]
