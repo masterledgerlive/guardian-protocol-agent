@@ -6948,18 +6948,44 @@
       "predFundTotal": 0.00014750891856996667,
       "agentTotal": 0.00015145671038941302,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 287,
+      "symbol": "BRETT",
+      "price": 0.00810565121777187,
+      "receivedEth": 0.0005593818197152135,
+      "recUsd": 1.2788195595055412,
+      "investedUsd": 0.7340172972002064,
+      "netUsd": 0.5448022623053348,
+      "pnlPct": 74.22199236767273,
+      "ethUsd": 2286.13,
+      "timestamp": "2026-03-16T15:48:06.467Z",
+      "tx": "0x1f032d18c7d683e481a6bf7ebcdc8c51a6de270bfb27fe7ea9ce28d163ab4f64",
+      "basescan": "https://basescan.org/tx/0x1f032d18c7d683e481a6bf7ebcdc8c51a6de270bfb27fe7ea9ce28d163ab4f64",
+      "reason": "🌊 RIPPLE — pooling for SEAM",
+      "indScore": -4,
+      "indDetail": "RSI 68.1 OVERBOUGHT 🔥 | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.000005593818197152135,
+      "skimLottery": 0.0000018646060657173782,
+      "skimPred": 0.0000018646060657173782,
+      "skimAgent": 0.0000018646060657173782,
+      "piggyTotal": 0.00023559345325875521,
+      "predFundTotal": 0.00014937352463568405,
+      "agentTotal": 0.0001533213164551304,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-16T15:39:17.893Z",
-  "totalTrades": 301,
+  "lastUpdated": "2026-03-16T15:48:07.116Z",
+  "totalTrades": 302,
   "stats": {
-    "totalTrades": 301,
-    "sells": 159,
-    "wins": 65,
-    "winRate": "40.9%",
-    "totalNetUsd": "26.88",
-    "totalSkimEth": "0.000676"
+    "totalTrades": 302,
+    "sells": 160,
+    "wins": 66,
+    "winRate": "41.3%",
+    "totalNetUsd": "27.43",
+    "totalSkimEth": "0.000682"
   }
 }
