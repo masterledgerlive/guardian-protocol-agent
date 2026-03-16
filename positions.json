@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-16T07:07:44.215Z",
-  "piggyBank": 0.00022041956180659627,
-  "totalSkimmed": 0.00046194740423673066,
-  "tradeCount": 264,
-  "predFund": 0.00011658698930853113,
+  "lastSaved": "2026-03-16T07:23:02.253Z",
+  "piggyBank": 0.00022045919304703753,
+  "totalSkimmed": 0.00046206629795805446,
+  "tradeCount": 265,
+  "predFund": 0.00011662662054897239,
   "predFundPnl": 0,
   "predFundTrades": 0,
-  "agentCapital": 0.00011658698930853113,
+  "agentCapital": 0.00011662662054897239,
   "agentPnl": 0,
   "piggyCoPnl": -0.000008353863813072085,
   "predFundPositions": {},
@@ -148,9 +148,9 @@
       "piggyContrib": 0.000014023369414884048
     },
     "SEAM": {
-      "wins": 0,
+      "wins": 1,
       "losses": 1,
-      "totalPnlEth": 0,
+      "totalPnlEth": 0.000011889372132378034,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
       "fastestWaveMs": null,
@@ -158,9 +158,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 0
+        "bronze": 1
       },
-      "piggyContrib": 0
+      "piggyContrib": 3.963124044126011e-8
     },
     "BNKR": {
       "wins": 4,
@@ -270,7 +270,7 @@
     "CBBTC": 0,
     "DEGEN": 0.000012939451537779317,
     "WELL": 0,
-    "SEAM": 0,
+    "SEAM": 3.963124044126011e-8,
     "AIXBT": 0,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
@@ -334,6 +334,17 @@
       "tx": "0x437d5766e3b73498beb555264d3e3ad39e88596b302ccf20e7f5b99702be19e8",
       "reason": "🎯 MAX PEAK $0.00022698",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "SEAM",
+      "price": 0.111303185576594,
+      "receivedEth": 0.000011889372132378034,
+      "netUsd": 0.026958913522724545,
+      "timestamp": "2026-03-16T07:22:38.530Z",
+      "tx": "0xdac689f9847734a97b44372f8a6063dad9d0d476bc8b67dc55ddc48c9d928ddf",
+      "reason": "🎯 MAX PEAK $0.11140000",
+      "indScore": 1
     }
   ]
 }
