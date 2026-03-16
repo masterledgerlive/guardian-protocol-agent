@@ -1,16 +1,33 @@
 {
-  "lastSaved": "2026-03-16T09:40:56.305Z",
-  "piggyBank": 0.0002382018860969263,
+  "lastSaved": "2026-03-16T09:56:20.579Z",
+  "piggyBank": 0.00021438169748723367,
   "totalSkimmed": 0.0005175193467406966,
-  "tradeCount": 272,
-  "predFund": 0.00013310984208618018,
+  "tradeCount": 273,
+  "predFund": 0.00006655492104309009,
   "predFundPnl": -0.000002001128057006239,
   "predFundTrades": 3,
   "agentCapital": 0.00013511097014318643,
   "agentPnl": 0,
   "piggyCoPnl": -0.000009095520357397344,
-  "predFundPositions": {},
-  "piggyCoPositions": {},
+  "predFundPositions": {
+    "VIRTUAL": {
+      "entryPrice": 0.7567,
+      "ethIn": 0.00006655492104309009,
+      "tokens": 0.19716586903738448,
+      "entryTime": 1773654454148,
+      "conf": 68,
+      "phase": 1.936137291454088
+    }
+  },
+  "piggyCoPositions": {
+    "VIRTUAL": {
+      "entryPrice": 0.7567,
+      "ethIn": 0.00002382018860969263,
+      "tokens": 0.07056620478632603,
+      "entryTime": 1773654454148,
+      "conf": 68
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 14,
@@ -181,7 +198,7 @@
   "entries": {
     "AERO": 0.3466,
     "BRETT": 0.0082856771566145,
-    "VIRTUAL": 0.764648111379223,
+    "VIRTUAL": 0.7567,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 0.000854708728485108,
@@ -209,7 +226,7 @@
   "invested": {
     "AERO": 0.004258066098515527,
     "BRETT": 0.006579688209037064,
-    "VIRTUAL": 0.003152649487928547,
+    "VIRTUAL": 0.00512188260825654,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0.0021881122826015002,
@@ -237,7 +254,7 @@
   "entryTimes": {
     "AERO": 1773647688848,
     "BRETT": 1773649117597,
-    "VIRTUAL": 1773639943714,
+    "VIRTUAL": 1773654452515,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 1773651767716,
@@ -418,6 +435,16 @@
       "tx": "0xc6a70763799cef4bf9b86c328d9b0e63650622ad980495cd491f541f7565d5c0",
       "reason": "🧠 PREDICTED TROUGH [84% conf φ30°]",
       "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.7567,
+      "ethSpent": 0.0019692331203279936,
+      "timestamp": "2026-03-16T09:47:32.515Z",
+      "tx": "0xd1225fab42bc77f604d139114560a4115f393c92c7862e9fd225946b5502b329",
+      "reason": "🧠 PREDICTED TROUGH [68% conf φ2°]",
+      "indScore": -4
     }
   ]
 }
