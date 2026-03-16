@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-16T22:14:54.834Z",
-  "piggyBank": 0.00023169455125664556,
+  "lastSaved": "2026-03-16T22:30:25.912Z",
+  "piggyBank": 0.00023148595991881164,
   "totalSkimmed": 0.0005837986928958997,
   "tradeCount": 302,
-  "predFund": 0.00014574557752093545,
-  "predFundPnl": -0.000011458508007318704,
-  "predFundTrades": 11,
+  "predFund": 0.0001450895140780625,
+  "predFundPnl": -0.000012114571450191664,
+  "predFundTrades": 12,
   "agentCapital": 0.0001572040855282541,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000014749291916612165,
+  "piggyCoPnl": -0.000014957883254446078,
   "predFundPositions": {},
   "piggyCoPositions": {
     "AERO": {
