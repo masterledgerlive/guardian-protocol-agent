@@ -1,24 +1,16 @@
 {
-  "lastSaved": "2026-03-16T17:05:50.591Z",
-  "piggyBank": 0.00023914312318872925,
-  "totalSkimmed": 0.0005837454576002368,
-  "tradeCount": 292,
-  "predFund": 0.00015223066640408282,
+  "lastSaved": "2026-03-16T17:21:20.958Z",
+  "piggyBank": 0.00025748603951288946,
+  "totalSkimmed": 0.0005837986928958997,
+  "tradeCount": 293,
+  "predFund": 0.00015224841150263712,
   "predFundPnl": -0.000004955674025616986,
   "predFundTrades": 6,
-  "agentCapital": 0.0001571863404296998,
+  "agentCapital": 0.0001572040855282541,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000010935300778256767,
+  "piggyCoPnl": -0.000011904482326501914,
   "predFundPositions": {},
-  "piggyCoPositions": {
-    "BRETT": {
-      "entryPrice": 0.00833307208138074,
-      "ethIn": 0.000019294352773851033,
-      "tokens": 5.218772110674707,
-      "entryTime": 1773656674863,
-      "conf": 64
-    }
-  },
+  "piggyCoPositions": {},
   "waveStats": {
     "AIXBT": {
       "wins": 14,
@@ -126,9 +118,9 @@
       "piggyContrib": 0.00000823431506903172
     },
     "BRETT": {
-      "wins": 8,
+      "wins": 9,
       "losses": 0,
-      "totalPnlEth": 0.005763286969752025,
+      "totalPnlEth": 0.005768610499318312,
       "biggestWavePct": 82.9396859263693,
       "biggestWaveUsd": 0.15394502626608006,
       "fastestWaveMs": 1756333,
@@ -136,9 +128,9 @@
       "medals": {
         "gold": 8,
         "silver": 0,
-        "bronze": 0
+        "bronze": 1
       },
-      "piggyContrib": 0.000028394724784318445
+      "piggyContrib": 0.000028412469882872735
     },
     "VIRTUAL": {
       "wins": 5,
@@ -302,7 +294,7 @@
   },
   "piggyContrib": {
     "AERO": 0.000017940866202879444,
-    "BRETT": 0.000028394724784318445,
+    "BRETT": 0.000028412469882872735,
     "VIRTUAL": 0.000014023369414884048,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -425,6 +417,17 @@
       "tx": "0x7b878ba5cd830ad161119ac7f479db7af2b6e344ec756c8ff48fcbdc6ed43c98",
       "reason": "🎯 MAX PEAK $0.00814900",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00811514877803087,
+      "receivedEth": 0.000005323529566287309,
+      "netUsd": 0.01224784447315721,
+      "timestamp": "2026-03-16T17:06:15.548Z",
+      "tx": "0x672fecfc0d73bbd32eba0b97e951cfe0656e9aa8a932f0408ddfbfa09f140f10",
+      "reason": "🎯 MAX PEAK $0.00814900",
+      "indScore": 0
     }
   ]
 }
