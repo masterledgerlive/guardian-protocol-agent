@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-17T10:58:24.778Z",
-  "piggyBank": 0.00020807710991163368,
-  "totalSkimmed": 0.0007077591228685692,
-  "tradeCount": 317,
-  "predFund": 0.00011323797980779595,
+  "lastSaved": "2026-03-17T11:14:00.263Z",
+  "piggyBank": 0.00020889605969295295,
+  "totalSkimmed": 0.0007102159722125271,
+  "tradeCount": 318,
+  "predFund": 0.00011405692958911523,
   "predFundPnl": -0.000012741492005650094,
   "predFundTrades": 13,
-  "agentCapital": 0.00019852422885247725,
+  "agentCapital": 0.00019934317863379652,
   "agentPnl": 0,
   "piggyCoPnl": -0.000016753694730911858,
   "predFundPositions": {
@@ -111,9 +111,9 @@
       "piggyContrib": 0.000012939451537779317
     },
     "AERO": {
-      "wins": 6,
+      "wins": 7,
       "losses": 0,
-      "totalPnlEth": 0.009599052148311082,
+      "totalPnlEth": 0.009844737082706867,
       "biggestWavePct": 1.8652020955406208,
       "biggestWaveUsd": 0.09723435912539369,
       "fastestWaveMs": 11625636,
@@ -121,9 +121,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 6
+        "bronze": 7
       },
-      "piggyContrib": 0.00003441726619065094
+      "piggyContrib": 0.00003523621597197022
     },
     "XCN": {
       "wins": 7,
@@ -331,7 +331,7 @@
     "FREN": null
   },
   "piggyContrib": {
-    "AERO": 0.00003441726619065094,
+    "AERO": 0.00003523621597197022,
     "BRETT": 0.000028412469882872735,
     "VIRTUAL": 0.000014023369414884048,
     "MORPHO": 0,
@@ -379,6 +379,17 @@
       "tx": "0x976a20889f9d326e4ecdef334e8d51f5823b931f35a3db25d4dd84be02dd9735",
       "reason": "🧠 PREDICTED PEAK [79% conf φ184°]",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "AERO",
+      "price": 0.35180234787263,
+      "receivedEth": 0.0002456849343957842,
+      "netUsd": 0.5681685224343466,
+      "timestamp": "2026-03-17T11:01:34.337Z",
+      "tx": "0xe8cc57d30f8fad93397b1ac58cca387b87ac4e55235dd71434a72e3ff30ee1ef",
+      "reason": "🎯 MAX PEAK $0.35501159",
+      "indScore": -3
     }
   ]
 }
