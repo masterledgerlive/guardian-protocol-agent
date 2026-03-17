@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-17T09:11:48.237Z",
-  "piggyBank": 0.00016855985282010776,
-  "totalSkimmed": 0.0006583299229052547,
-  "tradeCount": 316,
-  "predFund": 0.00009738850037548288,
+  "lastSaved": "2026-03-17T09:27:06.285Z",
+  "piggyBank": 0.00018503625280787925,
+  "totalSkimmed": 0.0007077591228685692,
+  "tradeCount": 317,
+  "predFund": 0.00011386490036325438,
   "predFundPnl": -0.000012114571450191664,
   "predFundTrades": 12,
-  "agentCapital": 0.00018204782886470575,
+  "agentCapital": 0.00019852422885247725,
   "agentPnl": 0,
   "piggyCoPnl": -0.000016620378505225674,
   "predFundPositions": {
@@ -118,9 +118,9 @@
       "piggyContrib": 0.000012939451537779317
     },
     "AERO": {
-      "wins": 5,
+      "wins": 6,
       "losses": 0,
-      "totalPnlEth": 0.004656132151979632,
+      "totalPnlEth": 0.009599052148311082,
       "biggestWavePct": 1.8652020955406208,
       "biggestWaveUsd": 0.09723435912539369,
       "fastestWaveMs": 11625636,
@@ -128,9 +128,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 5
+        "bronze": 6
       },
-      "piggyContrib": 0.000017940866202879444
+      "piggyContrib": 0.00003441726619065094
     },
     "XCN": {
       "wins": 7,
@@ -338,7 +338,7 @@
     "FREN": null
   },
   "piggyContrib": {
-    "AERO": 0.000017940866202879444,
+    "AERO": 0.00003441726619065094,
     "BRETT": 0.000028412469882872735,
     "VIRTUAL": 0.000014023369414884048,
     "MORPHO": 0,
@@ -375,5 +375,17 @@
     "OGGY": 0,
     "FREN": 0
   },
-  "tradeLog": []
+  "tradeLog": [
+    {
+      "type": "SELL",
+      "symbol": "AERO",
+      "price": 0.350194902998259,
+      "receivedEth": 0.004942919996331449,
+      "netUsd": 11.451065038701215,
+      "timestamp": "2026-03-17T09:24:40.361Z",
+      "tx": "0x976a20889f9d326e4ecdef334e8d51f5823b931f35a3db25d4dd84be02dd9735",
+      "reason": "🧠 PREDICTED PEAK [79% conf φ184°]",
+      "indScore": 2
+    }
+  ]
 }
