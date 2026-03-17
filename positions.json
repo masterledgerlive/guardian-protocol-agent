@@ -1,9 +1,9 @@
 {
-  "lastSaved": "2026-03-17T21:38:53.581Z",
-  "piggyBank": 0.00028249158597249725,
+  "lastSaved": "2026-03-17T21:54:20.611Z",
+  "piggyBank": 0.0002542424273752475,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 323,
-  "predFund": 0.00010147574404545032,
+  "tradeCount": 327,
+  "predFund": 0.00005073787202272516,
   "predFundPnl": -0.00001841470121613077,
   "predFundTrades": 16,
   "agentCapital": 0.00022136618930703136,
@@ -17,6 +17,14 @@
       "entryTime": 1773779011387,
       "conf": 64,
       "phase": 31.507924070118236
+    },
+    "XCN": {
+      "entryPrice": 0.005766,
+      "ethIn": 0.00005073787202272516,
+      "tokens": 20.374449832792596,
+      "entryTime": 1773783788235,
+      "conf": 66,
+      "phase": 318.7117007755562
     }
   },
   "piggyCoPositions": {
@@ -26,6 +34,13 @@
       "tokens": 34.69031987190513,
       "entryTime": 1773779011387,
       "conf": 64
+    },
+    "XCN": {
+      "entryPrice": 0.005766,
+      "ethIn": 0.000028249158597249727,
+      "tokens": 11.343815609777174,
+      "entryTime": 1773783788235,
+      "conf": 66
     }
   },
   "waveStats": {
@@ -209,9 +224,9 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 0.005766,
     "SKI": null,
-    "PRIME": 0.4027,
+    "PRIME": 0.3997,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -247,9 +262,9 @@
     "KITE": 0,
     "KEYCAT": 0,
     "DOGINME": 0,
-    "XCN": 0,
+    "XCN": 0.0024689756816232674,
     "SKI": 0,
-    "PRIME": 0.0033870660372726253,
+    "PRIME": 0.011400743700334103,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -285,9 +300,9 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 1773783786004,
     "SKI": null,
-    "PRIME": 1773780558370,
+    "PRIME": 1773783898064,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -357,6 +372,46 @@
       "tx": "0xa20452e94135916c5421490777158d823a401140029b1c8b94cc5f2081e9edc0",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.4023,
+      "ethSpent": 0.0030482825232695954,
+      "timestamp": "2026-03-17T21:39:26.907Z",
+      "tx": "0xd4ba4c1720049cbff4d71c06a3b6ff868592604f5d99898bc9a4050c745465d4",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.3995,
+      "ethSpent": 0.002743384199766116,
+      "timestamp": "2026-03-17T21:42:10.400Z",
+      "tx": "0xfef569157f6647ed35c3caab4a41627b4efa022777b9493f230789f2db393e89",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.005766,
+      "ethSpent": 0.0024689756816232674,
+      "timestamp": "2026-03-17T21:43:06.004Z",
+      "tx": "0x7cfd65581e634d010ba39acddec4ee9b1b874c236ff278b5fe0bfe0062f93a9c",
+      "reason": "🧠 PREDICTED TROUGH [66% conf φ319°]",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.3997,
+      "ethSpent": 0.002222010940025765,
+      "timestamp": "2026-03-17T21:44:58.064Z",
+      "tx": "0x175387b79f8c1f5a7b30fa26e8c4728ecf1dfb34ae741f0739e8593ab3fb7ad3",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
     }
   ]
 }
