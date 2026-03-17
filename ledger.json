@@ -7538,18 +7538,44 @@
       "predFundTotal": 0.00009593718258192043,
       "agentTotal": 0.0001805965110711433,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 312,
+      "symbol": "BNKR",
+      "price": 0.0004798,
+      "receivedEth": 0.000003583147375923676,
+      "recUsd": 0.008462175831823907,
+      "investedUsd": 0,
+      "netUsd": 0.008462175831823907,
+      "pnlPct": 0,
+      "ethUsd": 2361.66,
+      "timestamp": "2026-03-17T00:23:38.696Z",
+      "tx": "0xe3ce570d6e7df40af492e9e1bd9d3884d8374bb4871cc0a52b8103527b0946e6",
+      "basescan": "https://basescan.org/tx/0xe3ce570d6e7df40af492e9e1bd9d3884d8374bb4871cc0a52b8103527b0946e6",
+      "reason": "🎯 MAX PEAK $0.00048150",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 3.583147375923676e-8,
+      "skimLottery": 1.1943824586412253e-8,
+      "skimPred": 1.1943824586412253e-8,
+      "skimAgent": 1.1943824586412253e-8,
+      "piggyTotal": 0.0002317417332944061,
+      "predFundTotal": 0.00009594912640650684,
+      "agentTotal": 0.00018060845489572972,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-17T00:23:25.736Z",
-  "totalTrades": 326,
+  "lastUpdated": "2026-03-17T00:23:38.993Z",
+  "totalTrades": 327,
   "stats": {
-    "totalTrades": 326,
-    "sells": 174,
-    "wins": 79,
-    "winRate": "45.4%",
-    "totalNetUsd": "44.34",
-    "totalSkimEth": "0.000763"
+    "totalTrades": 327,
+    "sells": 175,
+    "wins": 80,
+    "winRate": "45.7%",
+    "totalNetUsd": "44.35",
+    "totalSkimEth": "0.000764"
   }
 }
