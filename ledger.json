@@ -7720,18 +7720,44 @@
       "predFundTotal": 0.00011405692958911523,
       "agentTotal": 0.00019934317863379652,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 319,
+      "symbol": "VIRTUAL",
+      "price": 0.777576927040245,
+      "receivedEth": 0.005863229152441105,
+      "recUsd": 13.638574596076303,
+      "investedUsd": 0,
+      "netUsd": 13.638574596076303,
+      "pnlPct": 0,
+      "ethUsd": 2326.12,
+      "timestamp": "2026-03-17T15:26:18.879Z",
+      "tx": "0x7407b77ffe7ef2d5ba0bf822007fa47541f78b73deea1c6b791278e48e203149",
+      "basescan": "https://basescan.org/tx/0x7407b77ffe7ef2d5ba0bf822007fa47541f78b73deea1c6b791278e48e203149",
+      "reason": "🎯 MAX PEAK $0.77000000",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000058632291524411054,
+      "skimLottery": 0.000019544097174803683,
+      "skimPred": 0.000019544097174803683,
+      "skimAgent": 0.000019544097174803683,
+      "piggyTotal": 0.00028873283204325313,
+      "predFundTotal": 0.00012943458853279273,
+      "agentTotal": 0.0002188872758086002,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-17T11:01:34.936Z",
-  "totalTrades": 333,
+  "lastUpdated": "2026-03-17T15:26:19.203Z",
+  "totalTrades": 334,
   "stats": {
-    "totalTrades": 333,
-    "sells": 181,
-    "wins": 84,
-    "winRate": "46.4%",
-    "totalNetUsd": "57.38",
-    "totalSkimEth": "0.000820"
+    "totalTrades": 334,
+    "sells": 182,
+    "wins": 85,
+    "winRate": "46.7%",
+    "totalNetUsd": "71.02",
+    "totalSkimEth": "0.000878"
   }
 }
