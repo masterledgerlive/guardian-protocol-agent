@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-17T02:20:31.874Z",
-  "piggyBank": 0.00020856755996496548,
-  "totalSkimmed": 0.0006540118009983266,
-  "tradeCount": 313,
-  "predFund": 0.00009594912640650684,
+  "lastSaved": "2026-03-17T02:35:44.824Z",
+  "piggyBank": 0.00020995395472629772,
+  "totalSkimmed": 0.0006581709852823233,
+  "tradeCount": 314,
+  "predFund": 0.00009733552116783908,
   "predFundPnl": -0.000012114571450191664,
   "predFundTrades": 12,
-  "agentCapital": 0.00018060845489572972,
+  "agentCapital": 0.00018199484965706196,
   "agentPnl": 0,
   "piggyCoPnl": -0.000014957883254446078,
   "predFundPositions": {
@@ -59,9 +59,9 @@
       "piggyContrib": 0.000028517248582536843
     },
     "KEYCAT": {
-      "wins": 4,
+      "wins": 5,
       "losses": 3,
-      "totalPnlEth": 0.0011978542687499328,
+      "totalPnlEth": 0.0016137726971496048,
       "biggestWavePct": 7.641290653695444,
       "biggestWaveUsd": 0.11318845658407284,
       "fastestWaveMs": null,
@@ -69,9 +69,9 @@
       "medals": {
         "gold": 2,
         "silver": 0,
-        "bronze": 2
+        "bronze": 3
       },
-      "piggyContrib": 0.0000052017742773623205
+      "piggyContrib": 0.000006588169038694561
     },
     "PRIME": {
       "wins": 2,
@@ -335,7 +335,7 @@
     "AIXBT": 0.000028517248582536843,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
-    "KEYCAT": 0.0000052017742773623205,
+    "KEYCAT": 0.000006588169038694561,
     "DOGINME": 0,
     "XCN": 0.000010010574408431866,
     "SKI": 0,
@@ -471,6 +471,17 @@
       "tx": "0x1244ff56d545e6e481e2e01020435148fab9c35cd123d1f685db7dc037538d62",
       "reason": "🎯 MAX PEAK $0.00048150",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.000626281108733971,
+      "receivedEth": 0.000415918428399672,
+      "netUsd": 0.9757612697627664,
+      "timestamp": "2026-03-17T02:28:09.342Z",
+      "tx": "0x8e34303940077a4cea6c3262edeb96b124b1e3fca1b45f3cad5359e9cee13cf8",
+      "reason": "🧠 PREDICTED PEAK [82% conf φ218°]",
+      "indScore": 4
     }
   ]
 }
