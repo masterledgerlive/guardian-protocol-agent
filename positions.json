@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-17T15:53:06.834Z",
-  "piggyBank": 0.00029020791475420707,
-  "totalSkimmed": 0.0007732735118697999,
-  "tradeCount": 321,
-  "predFund": 0.00013090967124374664,
+  "lastSaved": "2026-03-17T16:08:32.176Z",
+  "piggyBank": 0.0002912117455416843,
+  "totalSkimmed": 0.0007762850042322317,
+  "tradeCount": 322,
+  "predFund": 0.00013191350203122388,
   "predFundPnl": -0.000016907930236776266,
   "predFundTrades": 15,
-  "agentCapital": 0.00022036235851955412,
+  "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
   "piggyCoPnl": -0.000019192284084603093,
   "predFundPositions": {
@@ -75,9 +75,9 @@
       "piggyContrib": 0.000017311057929607828
     },
     "DEGEN": {
-      "wins": 10,
+      "wins": 11,
       "losses": 1,
-      "totalPnlEth": 0.0037447849749619984,
+      "totalPnlEth": 0.0040459342112051724,
       "biggestWavePct": 2.204859551078612,
       "biggestWaveUsd": 0.07494048185149893,
       "fastestWaveMs": null,
@@ -85,9 +85,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 10
+        "bronze": 11
       },
-      "piggyContrib": 0.000012939451537779317
+      "piggyContrib": 0.000013943282325256564
     },
     "AERO": {
       "wins": 7,
@@ -315,7 +315,7 @@
     "VIRTUAL": 0.00003504254930064165,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.000012939451537779317,
+    "DEGEN": 0.000013943282325256564,
     "WELL": 0,
     "SEAM": 3.963124044126011e-8,
     "AIXBT": 0.000028517248582536843,
@@ -380,6 +380,17 @@
       "tx": "0xbe8ec2588d51a59f9e354725794ca403c009c92e97ccf6b2a04589587b7772fb",
       "reason": "MANUAL SELL",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "DEGEN",
+      "price": 0.000810095714876443,
+      "receivedEth": 0.000301149236243174,
+      "netUsd": 0.6977296539594474,
+      "timestamp": "2026-03-17T16:04:21.113Z",
+      "tx": "0x558f8543de88c8fa6d81d5aee05af7cb60fb21c2b1295e049e2a220ee3081286",
+      "reason": "🧠 PREDICTED PEAK [92% conf φ216°]",
+      "indScore": 4
     }
   ]
 }
