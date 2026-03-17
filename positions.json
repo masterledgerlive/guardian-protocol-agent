@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-17T05:23:56.706Z",
-  "piggyBank": 0.00016972887824244723,
+  "lastSaved": "2026-03-17T05:39:04.156Z",
+  "piggyBank": 0.00016953252517844605,
   "totalSkimmed": 0.0006583299229052547,
   "tradeCount": 316,
   "predFund": 0.00009738850037548288,
@@ -8,7 +8,7 @@
   "predFundTrades": 12,
   "agentCapital": 0.00018204782886470575,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000015381779224149812,
+  "piggyCoPnl": -0.00001557813228815098,
   "predFundPositions": {
     "BRETT": {
       "entryPrice": 0.008258,
