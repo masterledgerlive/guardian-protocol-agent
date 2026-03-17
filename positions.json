@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-17T23:26:02.223Z",
-  "piggyBank": 0.0002536694221766225,
+  "lastSaved": "2026-03-17T23:41:29.290Z",
+  "piggyBank": 0.00025320164104992906,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 331,
-  "predFund": 0.00005016611331320649,
-  "predFundPnl": -0.000019558218635168114,
-  "predFundTrades": 17,
+  "tradeCount": 337,
+  "predFund": 0.00009940713440181123,
+  "predFundPnl": -0.000020483310859769858,
+  "predFundTrades": 18,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000020309758091643884,
+  "piggyCoPnl": -0.000020829514899081004,
   "predFundPositions": {
     "BENJI": {
       "entryPrice": 0.00208,
@@ -17,14 +17,6 @@
       "entryTime": 1773779011387,
       "conf": 64,
       "phase": 31.507924070118236
-    },
-    "VIRTUAL": {
-      "entryPrice": 0.79173124043009,
-      "ethIn": 0.00005016611331320649,
-      "tokens": 0.14668155069612834,
-      "entryTime": 1773786770728,
-      "conf": 61,
-      "phase": 32.21914031538074
     }
   },
   "piggyCoPositions": {
@@ -35,12 +27,12 @@
       "entryTime": 1773779011387,
       "conf": 64
     },
-    "VIRTUAL": {
-      "entryPrice": 0.79173124043009,
-      "ethIn": 0.000028185491352958055,
-      "tokens": 0.0824120368459127,
-      "entryTime": 1773786770728,
-      "conf": 61
+    "KEYCAT": {
+      "entryPrice": 0.000618668156217805,
+      "ethIn": 0.000028133515672214344,
+      "tokens": 104.63045593552667,
+      "entryTime": 1773790805358,
+      "conf": 76
     }
   },
   "waveStats": {
@@ -219,10 +211,10 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": null,
-    "AIXBT": null,
+    "AIXBT": 0.02625,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": null,
+    "KEYCAT": 0.000618668156217805,
     "DOGINME": null,
     "XCN": 0.005736,
     "SKI": null,
@@ -257,10 +249,10 @@
     "DEGEN": 0,
     "WELL": 0,
     "SEAM": 0,
-    "AIXBT": 0,
+    "AIXBT": 0.005371237915444991,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0,
+    "KEYCAT": 0.000774280580270528,
     "DOGINME": 0,
     "XCN": 0.007888073819990878,
     "SKI": 0,
@@ -295,10 +287,10 @@
     "DEGEN": null,
     "WELL": null,
     "SEAM": null,
-    "AIXBT": null,
+    "AIXBT": 1773790689794,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": null,
+    "KEYCAT": 1773790803474,
     "DOGINME": null,
     "XCN": 1773786615765,
     "SKI": null,
@@ -452,6 +444,66 @@
       "tx": "0x66353ec80d0a453c802cff9a66276ce8dd402c4a2ca079c36971e0075848bc8b",
       "reason": "🧠 PREDICTED TROUGH [61% conf φ32°]",
       "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0264822281277998,
+      "ethSpent": 0.0013118007888570427,
+      "timestamp": "2026-03-17T23:27:21.354Z",
+      "tx": "0xf9d8a5f1fd1412d97fab8fe58c8d7cbb32974791e66f19ed3b6f004ef0f75a80",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02643,
+      "ethSpent": 0.001180541416647208,
+      "timestamp": "2026-03-17T23:30:04.110Z",
+      "tx": "0xa03b9a547fac2e046be575e6b30c169bd41bd37973c3bd610d92fd4c78460d76",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02641,
+      "ethSpent": 0.001062407969908916,
+      "timestamp": "2026-03-17T23:32:45.933Z",
+      "tx": "0x287d509255880f7398c1002f5c663e24c6e3fdb879e3526d81df1ad2f1a838b2",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02625,
+      "ethSpent": 0.0009560879047637608,
+      "timestamp": "2026-03-17T23:35:28.473Z",
+      "tx": "0x5a7673364aa1b6194c84e67ae6a8dbf7fc89587e013eb13cf780d4749d30b592",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02625,
+      "ethSpent": 0.0008603998352680633,
+      "timestamp": "2026-03-17T23:38:09.794Z",
+      "tx": "0x4f0b3f4bba3debc03b6264e828eb6d4af366ba3e2d0a76840845b2feb28a4138",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "KEYCAT",
+      "price": 0.000618668156217805,
+      "ethSpent": 0.000774280580270528,
+      "timestamp": "2026-03-17T23:40:03.474Z",
+      "tx": "0x50217c96b3ea7346144bb7d2695193464200a5a4cc00c7ba477bc87f6ebd928c",
+      "reason": "🧠 PREDICTED TROUGH [76% conf φ357°]",
+      "indScore": 3
     }
   ]
 }
