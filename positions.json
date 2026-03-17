@@ -1,16 +1,33 @@
 {
-  "lastSaved": "2026-03-17T20:12:06.568Z",
-  "piggyBank": 0.0003138795399694414,
+  "lastSaved": "2026-03-17T20:27:21.364Z",
+  "piggyBank": 0.00028249158597249725,
   "totalSkimmed": 0.0007762850042322317,
   "tradeCount": 322,
-  "predFund": 0.00020295148809090064,
+  "predFund": 0.00010147574404545032,
   "predFundPnl": -0.00001841470121613077,
   "predFundTrades": 16,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
   "piggyCoPnl": -0.00001967308564872718,
-  "predFundPositions": {},
-  "piggyCoPositions": {},
+  "predFundPositions": {
+    "BENJI": {
+      "entryPrice": 0.00208,
+      "ethIn": 0.00010147574404545032,
+      "tokens": 112.15213392115221,
+      "entryTime": 1773779011387,
+      "conf": 64,
+      "phase": 31.507924070118236
+    }
+  },
+  "piggyCoPositions": {
+    "BENJI": {
+      "entryPrice": 0.00208,
+      "ethIn": 0.00003138795399694414,
+      "tokens": 34.69031987190513,
+      "entryTime": 1773779011387,
+      "conf": 64
+    }
+  },
   "waveStats": {
     "AIXBT": {
       "wins": 17,
