@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-17T11:14:00.263Z",
-  "piggyBank": 0.00020889605969295295,
+  "lastSaved": "2026-03-17T11:29:28.883Z",
+  "piggyBank": 0.0002318876044715372,
   "totalSkimmed": 0.0007102159722125271,
   "tradeCount": 318,
   "predFund": 0.00011405692958911523,
@@ -8,7 +8,7 @@
   "predFundTrades": 13,
   "agentCapital": 0.00019934317863379652,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000016753694730911858,
+  "piggyCoPnl": -0.000016708828618461254,
   "predFundPositions": {
     "BRETT": {
       "entryPrice": 0.008258,
@@ -20,13 +20,6 @@
     }
   },
   "piggyCoPositions": {
-    "AERO": {
-      "entryPrice": 0.352337742259598,
-      "ethIn": 0.000022946678666133654,
-      "tokens": 0.15195134508370522,
-      "entryTime": 1773696384497,
-      "conf": 63
-    },
     "BRETT": {
       "entryPrice": 0.008258,
       "ethIn": 0.000023148595991881165,
