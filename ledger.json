@@ -10212,18 +10212,44 @@
       "predFundTotal": 0.00014509354056320916,
       "agentTotal": 0.0002925314516343655,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 434,
+      "symbol": "BRETT",
+      "price": 0.008148,
+      "receivedEth": 0.001117823909563216,
+      "recUsd": 2.6046414916732497,
+      "investedUsd": 0,
+      "netUsd": 2.6046414916732497,
+      "pnlPct": 0,
+      "ethUsd": 2330.1,
+      "timestamp": "2026-03-18T10:13:55.231Z",
+      "tx": "0xa351b089ba0f1c2b9915a64aa46d85ae9c3fa9ee1e0ca648256ea7b3238453aa",
+      "basescan": "https://basescan.org/tx/0xa351b089ba0f1c2b9915a64aa46d85ae9c3fa9ee1e0ca648256ea7b3238453aa",
+      "reason": "🧠 PREDICTED PEAK [76% conf φ216°]",
+      "indScore": 1,
+      "indDetail": "RSI 36.7 low | BB SQUEEZE ⚡",
+      "skimEth": 0.00001117823909563216,
+      "skimLottery": 0.000003726079698544053,
+      "skimPred": 0.000003726079698544053,
+      "skimAgent": 0.000003726079698544053,
+      "piggyTotal": 0.00033521837440469147,
+      "predFundTotal": 0.0001488196202617532,
+      "agentTotal": 0.00029625753133290955,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T10:03:27.169Z",
-  "totalTrades": 451,
+  "lastUpdated": "2026-03-18T10:13:55.631Z",
+  "totalTrades": 452,
   "stats": {
-    "totalTrades": 451,
-    "sells": 203,
-    "wins": 101,
-    "winRate": "49.8%",
-    "totalNetUsd": "121.29",
-    "totalSkimEth": "0.001104"
+    "totalTrades": 452,
+    "sells": 204,
+    "wins": 102,
+    "winRate": "50.0%",
+    "totalNetUsd": "123.90",
+    "totalSkimEth": "0.001115"
   }
 }
