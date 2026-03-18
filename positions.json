@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T09:43:57.707Z",
-  "piggyBank": 0.00031275663603272196,
-  "totalSkimmed": 0.0009335738151939578,
-  "tradeCount": 427,
-  "predFund": 0.00012635788188978373,
+  "lastSaved": "2026-03-18T09:59:19.443Z",
+  "piggyBank": 0.00031865248270224005,
+  "totalSkimmed": 0.0009512613552025121,
+  "tradeCount": 428,
+  "predFund": 0.00013225372855930182,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
-  "agentCapital": 0.00027379579296094004,
+  "agentCapital": 0.0002796916396304581,
   "agentPnl": 0,
   "piggyCoPnl": -0.000024025733382076135,
   "predFundPositions": {
@@ -223,6 +223,21 @@
         "bronze": 3
       },
       "piggyContrib": 0.0000043033140618795125
+    },
+    "TYBG": {
+      "wins": 1,
+      "losses": 0,
+      "totalPnlEth": 0.0017687540008554247,
+      "biggestWavePct": 0,
+      "biggestWaveUsd": 0,
+      "fastestWaveMs": null,
+      "fastestWavePct": 0,
+      "medals": {
+        "gold": 0,
+        "silver": 0,
+        "bronze": 1
+      },
+      "piggyContrib": 0.000005895846669518082
     }
   },
   "entries": {
@@ -361,7 +376,7 @@
     "MOCHI": 0,
     "ZORA": 0.0000043033140618795125,
     "BNKR": 0.000021694366273209702,
-    "TYBG": 0,
+    "TYBG": 0.000005895846669518082,
     "MIGGLES": 0,
     "BENJI": 0,
     "ROOST": 0,
@@ -399,6 +414,17 @@
       "tx": "0xe45e7b304d353e689ebd9e4e160c64bb5f279287c5ee1e4b05b9600b8f080073",
       "reason": "MANUAL SELL HALF",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "TYBG",
+      "price": 0.00001378,
+      "receivedEth": 0.0017687540008554247,
+      "netUsd": 4.118738253931951,
+      "timestamp": "2026-03-18T09:58:58.996Z",
+      "tx": "0x0e458aa2f4599253604bee0b7fd27a8ba3a79713cc6e242affa3d0f6b8d8d466",
+      "reason": "🎯 MAX PEAK $0.00001383",
+      "indScore": 2
     }
   ]
 }
