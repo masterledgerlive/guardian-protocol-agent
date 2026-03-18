@@ -9926,18 +9926,44 @@
       "minTrough": 0.108808348841048,
       "maxPeak": 0.111303185576594,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 423,
+      "symbol": "ZORA",
+      "price": 0.01795,
+      "receivedEth": 0.0012440181982974405,
+      "recUsd": 2.8978781920239727,
+      "investedUsd": 0,
+      "netUsd": 2.8978781920239727,
+      "pnlPct": 0,
+      "ethUsd": 2329.45,
+      "timestamp": "2026-03-18T09:21:45.492Z",
+      "tx": "0xbcf39cfc77dab6a77d53daeb04e6d7ba7d31f4602414a45775f38755b593bebf",
+      "basescan": "https://basescan.org/tx/0xbcf39cfc77dab6a77d53daeb04e6d7ba7d31f4602414a45775f38755b593bebf",
+      "reason": "🎯 MAX PEAK $0.01802214",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000012440181982974405,
+      "skimLottery": 0.000004146727327658135,
+      "skimPred": 0.000004146727327658135,
+      "skimAgent": 0.000004146727327658135,
+      "piggyTotal": 0.0002946736014075125,
+      "predFundTotal": 0.00010827484726457421,
+      "agentTotal": 0.0002557127583357306,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T09:16:08.605Z",
-  "totalTrades": 440,
+  "lastUpdated": "2026-03-18T09:21:46.021Z",
+  "totalTrades": 441,
   "stats": {
-    "totalTrades": 440,
-    "sells": 192,
-    "wins": 92,
-    "winRate": "47.9%",
-    "totalNetUsd": "92.67",
-    "totalSkimEth": "0.000981"
+    "totalTrades": 441,
+    "sells": 193,
+    "wins": 93,
+    "winRate": "48.2%",
+    "totalNetUsd": "95.56",
+    "totalSkimEth": "0.000994"
   }
 }
