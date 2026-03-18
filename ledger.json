@@ -14491,18 +14491,45 @@
       "maxPeak": 0.000872025609469569,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
       "signature": "Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 615,
+      "symbol": "DEGEN",
+      "price": 0.000771193741680179,
+      "receivedEth": 0.0030163306576740036,
+      "recUsd": 6.606397569744179,
+      "investedUsd": 5.2253631900722395,
+      "netUsd": 1.3810343796719398,
+      "pnlPct": 26.429442881516668,
+      "ethUsd": 2190.21,
+      "timestamp": "2026-03-18T22:37:42.261Z",
+      "tx": "0x1d8f0f5dc6060f3d68c0824b7dd157f3f26b1f6d6ce5418b548aed1273b7d0f6",
+      "basescan": "https://basescan.org/tx/0x1d8f0f5dc6060f3d68c0824b7dd157f3f26b1f6d6ce5418b548aed1273b7d0f6",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": -4,
+      "indDetail": "RSI 78.2 OVERBOUGHT 🔥 | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.000030163306576740037,
+      "skimLottery": 0.000010054435525580012,
+      "skimPred": 0.000010054435525580012,
+      "skimAgent": 0.000010054435525580012,
+      "piggyTotal": 0.0004477721146760549,
+      "predFundTotal": 0.00037398192887720287,
+      "agentTotal": 0.0004645034812226169,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "signature": "Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T22:27:35.622Z",
-  "totalTrades": 646,
+  "lastUpdated": "2026-03-18T22:37:42.582Z",
+  "totalTrades": 647,
   "stats": {
-    "totalTrades": 646,
-    "sells": 262,
-    "wins": 149,
-    "winRate": "56.9%",
-    "totalNetUsd": "151.89",
-    "totalSkimEth": "0.001719"
+    "totalTrades": 647,
+    "sells": 263,
+    "wins": 150,
+    "winRate": "57.0%",
+    "totalNetUsd": "153.27",
+    "totalSkimEth": "0.001749"
   }
 }
