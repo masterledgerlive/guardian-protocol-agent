@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T18:29:57.451Z",
-  "piggyBank": 0.00024862690342822616,
-  "totalSkimmed": 0.0012867514825936177,
-  "tradeCount": 569,
-  "predFund": 0.00005011863815705282,
+  "lastSaved": "2026-03-18T18:45:33.026Z",
+  "piggyBank": 0.00022378007099470466,
+  "totalSkimmed": 0.001286804342291288,
+  "tradeCount": 570,
+  "predFund": 0.00005013625805627631,
   "predFundPnl": -0.00003207824499325938,
   "predFundTrades": 33,
-  "agentCapital": 0.00039152168209416,
+  "agentCapital": 0.00039153930199338347,
   "agentPnl": 0,
   "piggyCoPnl": -0.000028104286102929614,
   "predFundPositions": {
@@ -92,6 +92,13 @@
       "tokens": 3.5543673307493213,
       "entryTime": 1773857925260,
       "conf": 61
+    },
+    "XCN": {
+      "entryPrice": 0.005614,
+      "ethIn": 0.000024864452332744965,
+      "tokens": 9.666242748502885,
+      "entryTime": 1773859179348,
+      "conf": 63
     }
   },
   "waveStats": {
@@ -111,9 +118,9 @@
       "piggyContrib": 0.00006784745399869593
     },
     "KEYCAT": {
-      "wins": 12,
+      "wins": 13,
       "losses": 3,
-      "totalPnlEth": 0.00789396129975957,
+      "totalPnlEth": 0.007899247269526614,
       "biggestWavePct": 42.127418999457056,
       "biggestWaveUsd": 1.373813132189298,
       "fastestWaveMs": null,
@@ -121,9 +128,9 @@
       "medals": {
         "gold": 6,
         "silver": 1,
-        "bronze": 5
+        "bronze": 6
       },
-      "piggyContrib": 0.00003012195780738951
+      "piggyContrib": 0.000030139577706612997
     },
     "PRIME": {
       "wins": 11,
@@ -432,7 +439,7 @@
     "AIXBT": 0.00006784745399869593,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
-    "KEYCAT": 0.00003012195780738951,
+    "KEYCAT": 0.000030139577706612997,
     "DOGINME": 0,
     "XCN": 0.000023105970251438014,
     "SKI": 0,
@@ -1939,6 +1946,17 @@
       "tx": "0x5d8069cf22b87d1d14dd20e53da6381fc420f16cd833428d9be627be0a86314d",
       "reason": "🌊 CASCADE from KEYCAT [PRIORITY]",
       "indScore": 5
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.000593305223270459,
+      "receivedEth": 0.0000052859697670460185,
+      "netUsd": 0.011605293763851861,
+      "timestamp": "2026-03-18T18:32:22.387Z",
+      "tx": "0x82a918924f0d11f328ff4bc265f4a5403d28fbd2b9a7605ab9889afe59f86a73",
+      "reason": "🧠 PREDICTED PEAK [65% conf φ189°]",
+      "indScore": 1
     }
   ]
 }
