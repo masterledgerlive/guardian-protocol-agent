@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T14:37:39.764Z",
-  "piggyBank": 0.00035727877389713896,
-  "totalSkimmed": 0.0012554601378254242,
-  "tradeCount": 553,
-  "predFund": 0.00020275860608658344,
+  "lastSaved": "2026-03-18T14:52:59.851Z",
+  "piggyBank": 0.00032761583731441535,
+  "totalSkimmed": 0.0012756766071820584,
+  "tradeCount": 562,
+  "predFund": 0.00010474871460273076,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.00038109123383809555,
+  "agentCapital": 0.0003878300569569736,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -17,6 +17,14 @@
       "entryTime": 1773838011485,
       "conf": 64,
       "phase": 358.3106046880973
+    },
+    "VIRTUAL": {
+      "entryPrice": 0.733944859841283,
+      "ethIn": 0.00010474871460273076,
+      "tokens": 0.31432766847565097,
+      "entryTime": 1773845098732,
+      "conf": 61,
+      "phase": 348.5667602232129
     }
   },
   "piggyCoPositions": {
@@ -40,6 +48,13 @@
       "tokens": 116.45862741160401,
       "entryTime": 1773840231912,
       "conf": 61
+    },
+    "VIRTUAL": {
+      "entryPrice": 0.733944859841283,
+      "ethIn": 0.0000364017597016017,
+      "tokens": 0.10923361015751384,
+      "entryTime": 1773845098732,
+      "conf": 61
     }
   },
   "waveStats": {
@@ -59,19 +74,19 @@
       "piggyContrib": 0.00006784745399869593
     },
     "KEYCAT": {
-      "wins": 9,
+      "wins": 10,
       "losses": 3,
-      "totalPnlEth": 0.005626399993765431,
+      "totalPnlEth": 0.007648046929428854,
       "biggestWavePct": 42.127418999457056,
       "biggestWaveUsd": 1.373813132189298,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
         "gold": 4,
-        "silver": 0,
+        "silver": 1,
         "bronze": 5
       },
-      "piggyContrib": 0.000022363642081089702
+      "piggyContrib": 0.000029102465199967778
     },
     "PRIME": {
       "wins": 11,
@@ -257,7 +272,7 @@
   "entries": {
     "AERO": null,
     "BRETT": null,
-    "VIRTUAL": 0.739533902696358,
+    "VIRTUAL": 0.733042677629935,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 0.000776967308927713,
@@ -266,17 +281,17 @@
     "AIXBT": 0.0247564869736748,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": 0.0005934,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": 0.005688,
     "SKI": null,
     "PRIME": 0.4014,
     "LUNA": null,
-    "HIGHER": 0.0003513,
+    "HIGHER": 0.0003489,
     "MOCHI": null,
     "ZORA": 0.01764,
     "BNKR": 0.0004637,
-    "TYBG": null,
+    "TYBG": 0.00001318,
     "MIGGLES": null,
     "BENJI": null,
     "ROOST": null,
@@ -295,26 +310,26 @@
   "invested": {
     "AERO": 0,
     "BRETT": 0,
-    "VIRTUAL": 0.0002944737008376551,
+    "VIRTUAL": 0.0009694045204286471,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0.00330962379626671,
     "WELL": 0.0020859709429983508,
     "SEAM": 0.0016731114979124512,
-    "AIXBT": 0.00009807936125629678,
+    "AIXBT": 0.0007730101808472887,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0.0019909953581248334,
+    "KEYCAT": 0,
     "DOGINME": 0,
     "XCN": 0.0033102097992387617,
     "SKI": 0,
     "PRIME": 0.00034066512282771776,
     "LUNA": 0,
-    "HIGHER": 0.00004484031353664293,
+    "HIGHER": 0.0007199807427459184,
     "MOCHI": 0,
     "ZORA": 0.0034167724861821043,
     "BNKR": 0.0002944737008376551,
-    "TYBG": 0,
+    "TYBG": 0.0006751404292092755,
     "MIGGLES": 0,
     "BENJI": 0,
     "ROOST": 0,
@@ -333,26 +348,26 @@
   "entryTimes": {
     "AERO": null,
     "BRETT": null,
-    "VIRTUAL": 1773843309417,
+    "VIRTUAL": 1773844805455,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 1773836347498,
     "WELL": 1773834296297,
     "SEAM": 1773825367962,
-    "AIXBT": 1773844577608,
+    "AIXBT": 1773844816259,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": 1773836714276,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": 1773836361554,
     "SKI": null,
     "PRIME": 1773838867497,
     "LUNA": null,
-    "HIGHER": 1773843326915,
+    "HIGHER": 1773844828812,
     "MOCHI": null,
     "ZORA": 1773834768240,
     "BNKR": 1773843332951,
-    "TYBG": null,
+    "TYBG": 1773844835779,
     "MIGGLES": null,
     "BENJI": null,
     "ROOST": null,
@@ -380,7 +395,7 @@
     "AIXBT": 0.00006784745399869593,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
-    "KEYCAT": 0.000022363642081089702,
+    "KEYCAT": 0.000029102465199967778,
     "DOGINME": 0,
     "XCN": 0.000023105970251438014,
     "SKI": 0,
@@ -1721,6 +1736,97 @@
       "tx": "0x9ceaace2954cbdd1190bfbef0ab5559580db087cacae0db51ba9ad34e9b3929d",
       "reason": "🌊 CASCADE from HIGHER [PRIORITY]",
       "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.0005939,
+      "receivedEth": 0.002021646935663423,
+      "netUsd": 0.15656579284555683,
+      "timestamp": "2026-03-18T14:39:11.469Z",
+      "tx": "0x761451cf97b941fda138529de774356d47a6cdff5182dd96af94aba187c31e03",
+      "reason": "🧠 PREDICTED PEAK [71% conf φ222°]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01078,
+      "ethSpent": 0.0008736847346706348,
+      "timestamp": "2026-03-18T14:39:14.608Z",
+      "tx": "0x191a51475920c1b87228b1e89482ab469b93e94b60120a84f97dffcd836af355",
+      "reason": "🌊 CASCADE from KEYCAT [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.733042677629935,
+      "ethSpent": 0.000674930819590992,
+      "timestamp": "2026-03-18T14:40:05.455Z",
+      "tx": "0xb125598fa1bf87065340f027329bbe35ee273184a4f91e17ca3c7ace48cb3a08",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "CBBTC",
+      "price": 71728.5961485747,
+      "ethSpent": 0.000674930819590992,
+      "timestamp": "2026-03-18T14:40:09.863Z",
+      "tx": "0x493133dcef0242bd7d3b59c403d7a693ca58968265d19419506284c6168ef4ec",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0247564869736748,
+      "ethSpent": 0.000674930819590992,
+      "timestamp": "2026-03-18T14:40:16.259Z",
+      "tx": "0xcc5b8b496d4497f850bd8ebecc1e045452f1e9e189fe5bb64957586a01ce28d8",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "HIGHER",
+      "price": 0.0003489,
+      "ethSpent": 0.0006751404292092755,
+      "timestamp": "2026-03-18T14:40:28.812Z",
+      "tx": "0x3e4cae02662e2e27ea1bbd88f793b467937f4541260cd1e2665038f48b15e01f",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "TYBG",
+      "price": 0.00001318,
+      "ethSpent": 0.0006751404292092755,
+      "timestamp": "2026-03-18T14:40:35.779Z",
+      "tx": "0x51d3a4945476a46ea8405fb203064a6dd5f729c463955a0080bd3b3127fd867f",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "MIGGLES",
+      "price": 0.003669,
+      "ethSpent": 0.0006751404292092755,
+      "timestamp": "2026-03-18T14:40:39.821Z",
+      "tx": "0x6426d07492f664adfde5742543f2bbf20660b34e729068430bccc2c2bfcfead0",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BENJI",
+      "price": 0.002045,
+      "ethSpent": 0.0006751404292092755,
+      "timestamp": "2026-03-18T14:40:43.467Z",
+      "tx": "0xe5698dfdacc8a1ed6d383eac1f7517f7f5ea26dad005883d23833cfb63517f93",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 4
     }
   ]
 }
