@@ -1,15 +1,32 @@
 {
-  "lastSaved": "2026-03-18T00:58:41.347Z",
-  "piggyBank": 0.00025981042452585584,
+  "lastSaved": "2026-03-18T01:14:07.293Z",
+  "piggyBank": 0.00021044644386594322,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 357,
-  "predFund": 0.00020263188465719414,
+  "tradeCount": 363,
+  "predFund": 0.000050657971164298536,
   "predFundPnl": -0.000018734304649837266,
   "predFundTrades": 19,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
   "piggyCoPnl": -0.000020288521315105453,
-  "predFundPositions": {},
+  "predFundPositions": {
+    "VIRTUAL": {
+      "entryPrice": 0.7845,
+      "ethIn": 0.00010131594232859707,
+      "tokens": 0.29894435886883447,
+      "entryTime": 1773795923697,
+      "conf": 62,
+      "phase": 0.444013517793735
+    },
+    "CBBTC": {
+      "entryPrice": 73995.3762508938,
+      "ethIn": 0.000050657971164298536,
+      "tokens": 0.0000015843114174495278,
+      "entryTime": 1773796360110,
+      "conf": 62,
+      "phase": 36.57505350275699
+    }
+  },
   "piggyCoPositions": {
     "KEYCAT": {
       "entryPrice": 0.000618668156217805,
@@ -24,6 +41,20 @@
       "tokens": 10.226399659287587,
       "entryTime": 1773794684553,
       "conf": 69
+    },
+    "VIRTUAL": {
+      "entryPrice": 0.7845,
+      "ethIn": 0.000025981042452585586,
+      "tokens": 0.07666005862672527,
+      "entryTime": 1773795923697,
+      "conf": 62
+    },
+    "CBBTC": {
+      "entryPrice": 73995.3762508938,
+      "ethIn": 0.000023382938207327028,
+      "tokens": 7.312937159531028e-7,
+      "entryTime": 1773796360110,
+      "conf": 62
     }
   },
   "waveStats": {
@@ -195,7 +226,7 @@
   },
   "entries": {
     "AERO": null,
-    "BRETT": null,
+    "BRETT": 0.008066,
     "VIRTUAL": 0.776178618948233,
     "MORPHO": null,
     "CBBTC": null,
@@ -233,7 +264,7 @@
   },
   "invested": {
     "AERO": 0,
-    "BRETT": 0,
+    "BRETT": 0.001154509963316201,
     "VIRTUAL": 0.0034494450600868146,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -271,7 +302,7 @@
   },
   "entryTimes": {
     "AERO": null,
-    "BRETT": null,
+    "BRETT": 1773796194657,
     "VIRTUAL": 1773793683034,
     "MORPHO": null,
     "CBBTC": null,
@@ -695,6 +726,66 @@
       "tx": "0x52f9bd28a7302db6f6179458cc7e203511fab653bf208d177abe5fa8167f78af",
       "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
       "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006453167214468861,
+      "timestamp": "2026-03-18T01:00:21.269Z",
+      "tx": "0x32f7f4ac63968f9acc6bdeffdb255ec500d2900185aef21b0d2a681261d0d76d",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006451418666964865,
+      "timestamp": "2026-03-18T01:03:03.932Z",
+      "tx": "0xb1bebd1f4a38c0a4be74be2ff21fc9f834e968b248e0fecc74734acc3eb6ce5d",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.008065,
+      "ethSpent": 0.0006441279152155896,
+      "timestamp": "2026-03-18T01:05:21.287Z",
+      "tx": "0xc42e0a3afb6c625c1721d69bc91991904f1defb5e932a943206636c2be41f6ef",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": -3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006442247399479467,
+      "timestamp": "2026-03-18T01:05:49.538Z",
+      "tx": "0xf1e580d82b4ac12847d767b9b95822ceb8064623cec66198e7c01fd9dd28e2b4",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0005109148046062179,
+      "timestamp": "2026-03-18T01:08:30.848Z",
+      "tx": "0x91ab27753845977186791ec863218b1af27fc95f6a971522c9c1957e0a8681f2",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "BRETT",
+      "price": 0.008066,
+      "ethSpent": 0.0005103820481006115,
+      "timestamp": "2026-03-18T01:09:54.657Z",
+      "tx": "0x1a9bd461f870804ca0acab10ee63b976db5c74761199e6ffcc411784c376ab8f",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": -3
     }
   ]
 }
