@@ -12590,18 +12590,44 @@
       "predFundTotal": 0.00020031001310820746,
       "agentTotal": 0.00037864264085971956,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 546,
+      "symbol": "AIXBT",
+      "price": 0.0249805140582906,
+      "receivedEth": 0.00004306329292114131,
+      "recUsd": 0.09596439511011735,
+      "investedUsd": 0,
+      "netUsd": 0.09596439511011735,
+      "pnlPct": 0,
+      "ethUsd": 2228.45,
+      "timestamp": "2026-03-18T14:14:17.122Z",
+      "tx": "0xb82d74bcd1b8a0fc6c131ac50676b63503b182e70775a03f3a04426677096bb4",
+      "basescan": "https://basescan.org/tx/0xb82d74bcd1b8a0fc6c131ac50676b63503b182e70775a03f3a04426677096bb4",
+      "reason": "🧠 PREDICTED PEAK [77% conf φ215°]",
+      "indScore": 2,
+      "indDetail": "RSI 33.6 OVERSOLD 🩸 | BB SQUEEZE ⚡",
+      "skimEth": 4.3063292921141315e-7,
+      "skimLottery": 1.4354430973713772e-7,
+      "skimPred": 1.4354430973713772e-7,
+      "skimAgent": 1.4354430973713772e-7,
+      "piggyTotal": 0.0003549737252285001,
+      "predFundTotal": 0.0002004535574179446,
+      "agentTotal": 0.0003787861851694567,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T13:52:10.429Z",
-  "totalTrades": 563,
+  "lastUpdated": "2026-03-18T14:14:17.719Z",
+  "totalTrades": 564,
   "stats": {
-    "totalTrades": 563,
-    "sells": 226,
-    "wins": 123,
-    "winRate": "54.4%",
-    "totalNetUsd": "143.95",
-    "totalSkimEth": "0.001362"
+    "totalTrades": 564,
+    "sells": 227,
+    "wins": 124,
+    "winRate": "54.6%",
+    "totalNetUsd": "144.05",
+    "totalSkimEth": "0.001363"
   }
 }
