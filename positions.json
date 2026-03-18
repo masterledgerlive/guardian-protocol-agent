@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T23:21:52.060Z",
-  "piggyBank": 0.0005537257205818872,
-  "totalSkimmed": 0.0018235576976964845,
-  "tradeCount": 651,
-  "predFund": 0.00047993553478303504,
+  "lastSaved": "2026-03-18T23:37:23.081Z",
+  "piggyBank": 0.0006062740433293993,
+  "totalSkimmed": 0.0019812026659390206,
+  "tradeCount": 661,
+  "predFund": 0.000532483857530547,
   "predFundPnl": -0.00003630138247545545,
   "predFundTrades": 37,
-  "agentCapital": 0.0005704570871284491,
+  "agentCapital": 0.0006230054098759612,
   "agentPnl": 0,
   "piggyCoPnl": -0.000030767723985638576,
   "predFundPositions": {
@@ -89,9 +89,9 @@
       "piggyContrib": 0.00009836698202137242
     },
     "DEGEN": {
-      "wins": 20,
+      "wins": 21,
       "losses": 1,
-      "totalPnlEth": 0.019632495056269135,
+      "totalPnlEth": 0.025543474121939087,
       "biggestWavePct": 76.0032444654249,
       "biggestWaveUsd": 2.737533656157503,
       "fastestWaveMs": null,
@@ -99,9 +99,9 @@
       "medals": {
         "gold": 7,
         "silver": 0,
-        "bronze": 13
+        "bronze": 14
       },
-      "piggyContrib": 0.00008326062622829345
+      "piggyContrib": 0.00010296388978052663
     },
     "AERO": {
       "wins": 7,
@@ -119,19 +119,19 @@
       "piggyContrib": 0.00003523621597197022
     },
     "XCN": {
-      "wins": 9,
+      "wins": 10,
       "losses": 3,
-      "totalPnlEth": 0.006931791075431405,
-      "biggestWavePct": 0,
-      "biggestWaveUsd": 0,
+      "totalPnlEth": 0.008915513330925271,
+      "biggestWavePct": 8.71866976141574,
+      "biggestWaveUsd": 0.381417730411739,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 0,
+        "gold": 1,
         "silver": 0,
         "bronze": 9
       },
-      "piggyContrib": 0.000023105970251438014
+      "piggyContrib": 0.000030339007697958694
     },
     "TOSHI": {
       "wins": 4,
@@ -239,19 +239,19 @@
       "piggyContrib": 0.0000061332120068318725
     },
     "HIGHER": {
-      "wins": 13,
+      "wins": 16,
       "losses": 0,
-      "totalPnlEth": 0.018303464862585356,
+      "totalPnlEth": 0.02541312272459675,
       "biggestWavePct": 215.62816728710135,
       "biggestWaveUsd": 0.21452340078566656,
-      "fastestWaveMs": 49340,
-      "fastestWavePct": 9.362440256854564,
+      "fastestWaveMs": 48953,
+      "fastestWavePct": 8.019836967216106,
       "medals": {
-        "gold": 8,
-        "silver": 2,
+        "gold": 10,
+        "silver": 3,
         "bronze": 3
       },
-      "piggyContrib": 0.00006484047413120075
+      "piggyContrib": 0.00009045249587995896
     }
   },
   "entries": {
@@ -260,7 +260,7 @@
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.000767803951030441,
+    "DEGEN": null,
     "WELL": 0.00495199514442541,
     "SEAM": null,
     "AIXBT": null,
@@ -268,11 +268,11 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 0.005493,
     "SKI": null,
     "PRIME": null,
     "LUNA": null,
-    "HIGHER": 0.0002862,
+    "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
     "BNKR": null,
@@ -298,7 +298,7 @@
     "VIRTUAL": 0,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.006060706740719557,
+    "DEGEN": 0,
     "WELL": 0.0020859709429983508,
     "SEAM": 0,
     "AIXBT": 0,
@@ -306,11 +306,11 @@
     "KITE": 0,
     "KEYCAT": 0,
     "DOGINME": 0,
-    "XCN": 0,
+    "XCN": 0.004434786044347359,
     "SKI": 0,
     "PRIME": 0,
     "LUNA": 0,
-    "HIGHER": 0.0022312201601091893,
+    "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0,
     "BNKR": 0,
@@ -336,7 +336,7 @@
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773875669933,
+    "DEGEN": null,
     "WELL": 1773834296297,
     "SEAM": null,
     "AIXBT": null,
@@ -344,11 +344,11 @@
     "KITE": null,
     "KEYCAT": null,
     "DOGINME": null,
-    "XCN": null,
+    "XCN": 1773876948507,
     "SKI": null,
     "PRIME": null,
     "LUNA": null,
-    "HIGHER": 1773876088005,
+    "HIGHER": null,
     "MOCHI": null,
     "ZORA": null,
     "BNKR": null,
@@ -374,7 +374,7 @@
     "VIRTUAL": 0.00005071492309094121,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.00008326062622829345,
+    "DEGEN": 0.00010296388978052663,
     "WELL": 0,
     "SEAM": 3.963124044126011e-8,
     "AIXBT": 0.00009282417727797858,
@@ -382,11 +382,11 @@
     "KITE": 0,
     "KEYCAT": 0.000030139577706612997,
     "DOGINME": 0,
-    "XCN": 0.000023105970251438014,
+    "XCN": 0.000030339007697958694,
     "SKI": 0,
     "PRIME": 0.00009836698202137242,
     "LUNA": 0,
-    "HIGHER": 0.00006484047413120075,
+    "HIGHER": 0.00009045249587995896,
     "MOCHI": 0,
     "ZORA": 0.0000043033140618795125,
     "BNKR": 0.000021694366273209702,
@@ -841,6 +841,111 @@
       "tx": "0x95bb930a97923b731d943429c2eb7f28af75383daad7f5dbe03d6e043886dce3",
       "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
       "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0002862,
+      "receivedEth": 0.0021862099609560276,
+      "netUsd": 0.3527995169223672,
+      "timestamp": "2026-03-18T23:22:17.852Z",
+      "tx": "0xb34a10fe697e8cb77e522475e153cfaa2d474aec47def1624b94f5bdc0bff1c1",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "HIGHER",
+      "price": 0.000287007155890986,
+      "ethSpent": 0.0022160777498976803,
+      "timestamp": "2026-03-18T23:24:25.427Z",
+      "tx": "0xb981e407243d8b91885889ae567ec352566866f83dc251630e42a3da19c51180",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.000287007155890986,
+      "receivedEth": 0.0021719928306723995,
+      "netUsd": 0.3532446253795367,
+      "timestamp": "2026-03-18T23:25:12.633Z",
+      "tx": "0x683fcd0e4641ecc483c1e72b9af07b1f528cc5a257159fc80df5e646fcbf5331",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.005485,
+      "ethSpent": 0.002201240434945906,
+      "timestamp": "2026-03-18T23:29:02.945Z",
+      "tx": "0xd6b90cfe41f89a8ee29c09855c5bc33938f51f65aa315357d747a7e341afb689",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.005485,
+      "receivedEth": 0.0021699112339562047,
+      "netUsd": 0.381417730411739,
+      "timestamp": "2026-03-18T23:29:54.371Z",
+      "tx": "0xb0f8c5859106da1d58a0598091a8d854792c4fc6b4714d21b299666063c63e88",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.005493,
+      "ethSpent": 0.0021906139496907363,
+      "timestamp": "2026-03-18T23:32:53.735Z",
+      "tx": "0xe604f4d57e6040183ad63397aec0a19cb6a15f11d01eee235501c25695f0ff43",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "DEGEN",
+      "price": 0.000766170465026606,
+      "receivedEth": 0.005910979065669954,
+      "netUsd": 0.15576972665281197,
+      "timestamp": "2026-03-18T23:34:38.312Z",
+      "tx": "0x33444ca512ef4847b19c4e9298f5f33420342a54e7de5d993937e3700ecb73ec",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "XCN",
+      "price": 0.005493,
+      "ethSpent": 0.0022441720946566224,
+      "timestamp": "2026-03-18T23:35:48.507Z",
+      "tx": "0x54b2f648ca24defc75ce8443d479d46fff0e200410bcb8c73c5c2538af614c0e",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "HIGHER",
+      "price": 0.0002867,
+      "ethSpent": 0.003418046728784702,
+      "timestamp": "2026-03-18T23:35:55.114Z",
+      "tx": "0x4d377bd685498f2b9cc4d424aefa682fd54aaab44c60949517b237eccccefc05",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0002867,
+      "receivedEth": 0.003325403732999034,
+      "netUsd": 0.26720762846589174,
+      "timestamp": "2026-03-18T23:36:42.404Z",
+      "tx": "0xce00ff22e5672d274882bc82b8107ad29e7240e5030b702b41c08078cb846242",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 1
     }
   ]
 }
