@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-18T13:19:47.235Z",
-  "piggyBank": 0.000342207013825792,
+  "lastSaved": "2026-03-18T13:35:07.988Z",
+  "piggyBank": 0.0003510967005308258,
   "totalSkimmed": 0.0012369139177264845,
   "tradeCount": 541,
-  "predFund": 0.00006418924932177699,
-  "predFundPnl": -0.000024889132385052483,
-  "predFundTrades": 30,
+  "predFund": 0.0001965765327202703,
+  "predFundPnl": -0.000030571608122728114,
+  "predFundTrades": 32,
   "agentCapital": 0.0003749091604717824,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000024563364230936927,
+  "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
     "ZORA": {
       "entryPrice": 0.0175,
@@ -17,22 +17,6 @@
       "entryTime": 1773838011485,
       "conf": 64,
       "phase": 358.3106046880973
-    },
-    "SKI": {
-      "entryPrice": 0.00985586388863001,
-      "ethIn": 0.00007388050981439197,
-      "tokens": 16.62312164256437,
-      "entryTime": 1773838119079,
-      "conf": 71,
-      "phase": 24.29947516499641
-    },
-    "TOBY": {
-      "entryPrice": 1.181e-8,
-      "ethIn": 0.00006418924932177699,
-      "tokens": 12020297.321461052,
-      "entryTime": 1773839974060,
-      "conf": 65,
-      "phase": 32.098122196575105
     }
   },
   "piggyCoPositions": {
@@ -43,19 +27,19 @@
       "entryTime": 1773838011485,
       "conf": 64
     },
-    "SKI": {
-      "entryPrice": 0.00985586388863001,
-      "ethIn": 0.0000389852607742065,
-      "tokens": 8.771687333301077,
-      "entryTime": 1773838119079,
-      "conf": 71
+    "AERO": {
+      "entryPrice": 0.33556553294443,
+      "ethIn": 0.0000342207013825792,
+      "tokens": 0.22636335174647393,
+      "entryTime": 1773840113845,
+      "conf": 67
     },
-    "TOBY": {
-      "entryPrice": 1.181e-8,
-      "ethIn": 0.00003802300153619911,
-      "tokens": 7120316.693973621,
-      "entryTime": 1773839974060,
-      "conf": 65
+    "KEYCAT": {
+      "entryPrice": 0.000585,
+      "ethIn": 0.00003079863124432128,
+      "tokens": 116.45862741160401,
+      "entryTime": 1773840231912,
+      "conf": 61
     }
   },
   "waveStats": {
