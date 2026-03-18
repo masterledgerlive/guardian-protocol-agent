@@ -12774,18 +12774,44 @@
       "minTrough": 0.025144066263101,
       "maxPeak": 0.0506050659666131,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 554,
+      "symbol": "KEYCAT",
+      "price": 0.0005939,
+      "receivedEth": 0.002021646935663423,
+      "recUsd": 4.49147278049407,
+      "investedUsd": 4.334906987648513,
+      "netUsd": 0.15656579284555683,
+      "pnlPct": 3.611745149126868,
+      "ethUsd": 2221.69,
+      "timestamp": "2026-03-18T14:39:11.469Z",
+      "tx": "0x761451cf97b941fda138529de774356d47a6cdff5182dd96af94aba187c31e03",
+      "basescan": "https://basescan.org/tx/0x761451cf97b941fda138529de774356d47a6cdff5182dd96af94aba187c31e03",
+      "reason": "🧠 PREDICTED PEAK [71% conf φ222°]",
+      "indScore": 4,
+      "indDetail": "RSI 39.9 low | MACD bull+expand | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.000020216469356634227,
+      "skimLottery": 0.000006738823118878076,
+      "skimPred": 0.000006738823118878076,
+      "skimAgent": 0.000006738823118878076,
+      "piggyTotal": 0.00036401759701601703,
+      "predFundTotal": 0.0002094974292054615,
+      "agentTotal": 0.0003878300569569736,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T14:36:18.289Z",
-  "totalTrades": 571,
+  "lastUpdated": "2026-03-18T14:39:12.122Z",
+  "totalTrades": 572,
   "stats": {
-    "totalTrades": 571,
-    "sells": 230,
-    "wins": 127,
-    "winRate": "55.2%",
-    "totalNetUsd": "145.09",
-    "totalSkimEth": "0.001370"
+    "totalTrades": 572,
+    "sells": 231,
+    "wins": 128,
+    "winRate": "55.4%",
+    "totalNetUsd": "145.25",
+    "totalSkimEth": "0.001390"
   }
 }
