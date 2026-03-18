@@ -13282,18 +13282,44 @@
       "minTrough": 1.14113681681976e-8,
       "maxPeak": 1.22834155419988e-8,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 577,
+      "symbol": "HIGHER",
+      "price": 0.0002919,
+      "receivedEth": 0.00025620119644148597,
+      "recUsd": 0.5595562230880274,
+      "investedUsd": 0.48176350468494167,
+      "netUsd": 0.07779271840308577,
+      "pnlPct": 16.147490967369933,
+      "ethUsd": 2184.05,
+      "timestamp": "2026-03-18T19:04:47.637Z",
+      "tx": "0x2d22cec08cd6b80095931c57e953a97a5d8ca025b4112222c368af91f0b12e18",
+      "basescan": "https://basescan.org/tx/0x2d22cec08cd6b80095931c57e953a97a5d8ca025b4112222c368af91f0b12e18",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 2,
+      "indDetail": "RSI 0.0 OVERSOLD 🩸 | BB SQUEEZE ⚡",
+      "skimEth": 0.0000025620119644148598,
+      "skimLottery": 8.540039881382866e-7,
+      "skimPred": 8.540039881382866e-7,
+      "skimAgent": 8.540039881382866e-7,
+      "piggyTotal": 0.00028530762858515013,
+      "predFundTotal": 0.00015568450327507584,
+      "agentTotal": 0.00039239330598152174,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T18:59:16.496Z",
-  "totalTrades": 594,
+  "lastUpdated": "2026-03-18T19:04:48.140Z",
+  "totalTrades": 595,
   "stats": {
-    "totalTrades": 594,
-    "sells": 238,
-    "wins": 134,
-    "winRate": "56.3%",
-    "totalNetUsd": "145.54",
-    "totalSkimEth": "0.001401"
+    "totalTrades": 595,
+    "sells": 239,
+    "wins": 135,
+    "winRate": "56.5%",
+    "totalNetUsd": "145.61",
+    "totalSkimEth": "0.001404"
   }
 }
