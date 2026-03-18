@@ -12702,18 +12702,44 @@
       "predFundTotal": 0.0002018263806465063,
       "agentTotal": 0.00038015900839801837,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 551,
+      "symbol": "HIGHER",
+      "price": 0.0003497,
+      "receivedEth": 0.000138138972201655,
+      "recUsd": 0.30686881979736647,
+      "investedUsd": 0.09812379040887134,
+      "netUsd": 0.20874502938849512,
+      "pnlPct": 212.73641032279423,
+      "ethUsd": 2221.45,
+      "timestamp": "2026-03-18T14:30:53.612Z",
+      "tx": "0x9c88a6de72fa17dddfa4f7ee5b88eead4adc8e8bdc8f747d5ee5201e76679191",
+      "basescan": "https://basescan.org/tx/0x9c88a6de72fa17dddfa4f7ee5b88eead4adc8e8bdc8f747d5ee5201e76679191",
+      "reason": "🌊 RIPPLE — pooling for AIXBT, GAME",
+      "indScore": 3,
+      "indDetail": "RSI 50.0 neutral | MACD bull+expand | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.0000013813897220165502,
+      "skimLottery": 4.6046324067218336e-7,
+      "skimPred": 4.6046324067218336e-7,
+      "skimAgent": 4.6046324067218336e-7,
+      "piggyTotal": 0.000356807011697734,
+      "predFundTotal": 0.00020228684388717846,
+      "agentTotal": 0.00038061947163869057,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T14:23:05.894Z",
-  "totalTrades": 568,
+  "lastUpdated": "2026-03-18T14:30:54.123Z",
+  "totalTrades": 569,
   "stats": {
-    "totalTrades": 568,
-    "sells": 228,
-    "wins": 125,
-    "winRate": "54.8%",
-    "totalNetUsd": "144.67",
-    "totalSkimEth": "0.001367"
+    "totalTrades": 569,
+    "sells": 229,
+    "wins": 126,
+    "winRate": "55.0%",
+    "totalNetUsd": "144.88",
+    "totalSkimEth": "0.001368"
   }
 }
