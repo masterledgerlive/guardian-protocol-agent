@@ -13584,18 +13584,44 @@
       "predFundTotal": 0.00014010599167041252,
       "agentTotal": 0.00040574988836955143,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 590,
+      "symbol": "HIGHER",
+      "price": 0.0002954,
+      "receivedEth": 0.0007032514129879097,
+      "recUsd": 1.528734954067248,
+      "investedUsd": 1.5013562397175868,
+      "netUsd": 0.027378714349661104,
+      "pnlPct": 1.8235987985643693,
+      "ethUsd": 2173.81,
+      "timestamp": "2026-03-18T20:22:26.806Z",
+      "tx": "0x5bab35e78695742408e927bb351b126b713bd053c57d8a58ec92773d89417778",
+      "basescan": "https://basescan.org/tx/0x5bab35e78695742408e927bb351b126b713bd053c57d8a58ec92773d89417778",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000007032514129879097,
+      "skimLottery": 0.0000023441713766263655,
+      "skimPred": 0.0000023441713766263655,
+      "skimAgent": 0.0000023441713766263655,
+      "piggyTotal": 0.00032707574608438266,
+      "predFundTotal": 0.0001424501630470389,
+      "agentTotal": 0.0004080940597461778,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T20:22:17.551Z",
-  "totalTrades": 607,
+  "lastUpdated": "2026-03-18T20:22:27.510Z",
+  "totalTrades": 608,
   "stats": {
-    "totalTrades": 607,
-    "sells": 245,
-    "wins": 137,
-    "winRate": "55.9%",
-    "totalNetUsd": "144.80",
-    "totalSkimEth": "0.001444"
+    "totalTrades": 608,
+    "sells": 246,
+    "wins": 138,
+    "winRate": "56.1%",
+    "totalNetUsd": "144.83",
+    "totalSkimEth": "0.001451"
   }
 }
