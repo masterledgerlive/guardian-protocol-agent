@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-18T00:11:53.288Z",
+  "lastSaved": "2026-03-18T00:27:40.846Z",
   "piggyBank": 0.00025320164104992906,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 337,
+  "tradeCount": 341,
   "predFund": 0.00009940713440181123,
   "predFundPnl": -0.000020483310859769858,
   "predFundTrades": 18,
@@ -205,7 +205,7 @@
   "entries": {
     "AERO": null,
     "BRETT": null,
-    "VIRTUAL": 0.79173124043009,
+    "VIRTUAL": 0.778173201392462,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -231,7 +231,7 @@
     "TALENT": null,
     "MOG": null,
     "TOBY": null,
-    "GAME": null,
+    "GAME": 0.01157,
     "SIMBA": null,
     "CRASH": null,
     "BASE": null,
@@ -243,7 +243,7 @@
   "invested": {
     "AERO": 0,
     "BRETT": 0,
-    "VIRTUAL": 0.0014576265611811676,
+    "VIRTUAL": 0.0028015304811449026,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0,
@@ -269,7 +269,7 @@
     "TALENT": 0,
     "MOG": 0,
     "TOBY": 0,
-    "GAME": 0,
+    "GAME": 0.0006479145789419123,
     "SIMBA": 0,
     "CRASH": 0,
     "BASE": 0,
@@ -281,7 +281,7 @@
   "entryTimes": {
     "AERO": null,
     "BRETT": null,
-    "VIRTUAL": 1773786769134,
+    "VIRTUAL": 1773793328247,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": null,
@@ -307,7 +307,7 @@
     "TALENT": null,
     "MOG": null,
     "TOBY": null,
-    "GAME": null,
+    "GAME": 1773793647345,
     "SIMBA": null,
     "CRASH": null,
     "BASE": null,
@@ -504,6 +504,46 @@
       "tx": "0x50217c96b3ea7346144bb7d2695193464200a5a4cc00c7ba477bc87f6ebd928c",
       "reason": "🧠 PREDICTED TROUGH [76% conf φ357°]",
       "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.78052728817936,
+      "ethSpent": 0.000696783175861162,
+      "timestamp": "2026-03-18T00:19:23.835Z",
+      "tx": "0x31873348ae8d8e3a2fd1b1016d6689c35340c135d34343fdfbf7b2ac7dcfc588",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01157,
+      "ethSpent": 0.0006470118834515928,
+      "timestamp": "2026-03-18T00:20:43.443Z",
+      "tx": "0xe854888354902358879e0a9ee5fe1f7e2888ac7d41c4ac7335d3955a9172578b",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.778173201392462,
+      "ethSpent": 0.0006471207441025729,
+      "timestamp": "2026-03-18T00:22:08.247Z",
+      "tx": "0x155b18912a07ba3ad21fbb486c9d55dcad81db8d469ac774da1b6a5c44b5d4bf",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01157,
+      "ethSpent": 0.0006479145789419123,
+      "timestamp": "2026-03-18T00:27:27.345Z",
+      "tx": "0xd86047594c5f66a7910fca9005eaebb0d13cbd592952401bffec3f596b8145ce",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": -1
     }
   ]
 }
