@@ -13834,18 +13834,44 @@
       "minTrough": 0.000776967308927713,
       "maxPeak": 0.000872025609469569,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 601,
+      "symbol": "DEGEN",
+      "price": 0.000764111639770663,
+      "receivedEth": 0.002154934384425984,
+      "recUsd": 4.7173453116030775,
+      "investedUsd": 4.2028524891777135,
+      "netUsd": 0.514492822425364,
+      "pnlPct": 12.241515107898167,
+      "ethUsd": 2189.09,
+      "timestamp": "2026-03-18T20:55:19.536Z",
+      "tx": "0x616f32e8dba716eabd0ba76e51dd7f91a22d04948f7d7237d50832db63dc9d45",
+      "basescan": "https://basescan.org/tx/0x616f32e8dba716eabd0ba76e51dd7f91a22d04948f7d7237d50832db63dc9d45",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": -2,
+      "indDetail": "RSI 100.0 OVERBOUGHT 🔥 | MACD ✨CROSS UP | BB upper touch 📈 | BB SQUEEZE ⚡",
+      "skimEth": 0.00002154934384425984,
+      "skimLottery": 0.00000718311461475328,
+      "skimPred": 0.00000718311461475328,
+      "skimAgent": 0.00000718311461475328,
+      "piggyTotal": 0.00037051146191344057,
+      "predFundTotal": 0.0002316681782396063,
+      "agentTotal": 0.0004207915838517411,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T20:54:22.400Z",
-  "totalTrades": 618,
+  "lastUpdated": "2026-03-18T20:55:19.968Z",
+  "totalTrades": 619,
   "stats": {
-    "totalTrades": 618,
-    "sells": 250,
-    "wins": 139,
-    "winRate": "55.6%",
-    "totalNetUsd": "144.52",
-    "totalSkimEth": "0.001467"
+    "totalTrades": 619,
+    "sells": 251,
+    "wins": 140,
+    "winRate": "55.8%",
+    "totalNetUsd": "145.04",
+    "totalSkimEth": "0.001489"
   }
 }
