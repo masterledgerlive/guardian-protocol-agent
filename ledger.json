@@ -10842,18 +10842,44 @@
       "minTrough": 0.01151,
       "maxPeak": 0.0118763808315235,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 464,
+      "symbol": "AIXBT",
+      "price": 0.02575,
+      "receivedEth": 0.000905866866519979,
+      "recUsd": 2.0571058911742246,
+      "investedUsd": 1.0822652422103975,
+      "netUsd": 0.974840648963827,
+      "pnlPct": 90.07409745256453,
+      "ethUsd": 2270.87,
+      "timestamp": "2026-03-18T11:55:59.550Z",
+      "tx": "0x59bb96f8d58a5670345bb47471a4211a071d21c327c873beffda0693e5604b11",
+      "basescan": "https://basescan.org/tx/0x59bb96f8d58a5670345bb47471a4211a071d21c327c873beffda0693e5604b11",
+      "reason": "🌊 RIPPLE — pooling for KEYCAT",
+      "indScore": -2,
+      "indDetail": "RSI 89.8 OVERBOUGHT 🔥 | BB SQUEEZE ⚡",
+      "skimEth": 0.000009058668665199791,
+      "skimLottery": 0.0000030195562217332635,
+      "skimPred": 0.0000030195562217332635,
+      "skimAgent": 0.0000030195562217332635,
+      "piggyTotal": 0.0003278304273565964,
+      "predFundTotal": 0.00009027066311407697,
+      "agentTotal": 0.00032495968107757703,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T11:55:43.158Z",
-  "totalTrades": 481,
+  "lastUpdated": "2026-03-18T11:56:00.217Z",
+  "totalTrades": 482,
   "stats": {
-    "totalTrades": 481,
-    "sells": 208,
-    "wins": 106,
-    "winRate": "51.0%",
-    "totalNetUsd": "134.50",
-    "totalSkimEth": "0.001192"
+    "totalTrades": 482,
+    "sells": 209,
+    "wins": 107,
+    "winRate": "51.2%",
+    "totalNetUsd": "135.47",
+    "totalSkimEth": "0.001201"
   }
 }
