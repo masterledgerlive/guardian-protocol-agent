@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T14:06:23.586Z",
-  "piggyBank": 0.000354830180918763,
-  "totalSkimmed": 0.001248114358890296,
-  "tradeCount": 545,
-  "predFund": 0.00020031001310820746,
+  "lastSaved": "2026-03-18T14:22:18.333Z",
+  "piggyBank": 0.0003549737252285001,
+  "totalSkimmed": 0.0012485449918195075,
+  "tradeCount": 549,
+  "predFund": 0.0002004535574179446,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.00037864264085971956,
+  "agentCapital": 0.0003787861851694567,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -44,9 +44,9 @@
   },
   "waveStats": {
     "AIXBT": {
-      "wins": 26,
+      "wins": 27,
       "losses": 40,
-      "totalPnlEth": 0.01834845812120859,
+      "totalPnlEth": 0.01839152141412973,
       "biggestWavePct": 95.23704605515366,
       "biggestWaveUsd": 0.5206168622184875,
       "fastestWaveMs": null,
@@ -54,9 +54,9 @@
       "medals": {
         "gold": 5,
         "silver": 1,
-        "bronze": 20
+        "bronze": 21
       },
-      "piggyContrib": 0.00006770390968895879
+      "piggyContrib": 0.00006784745399869593
     },
     "KEYCAT": {
       "wins": 9,
@@ -242,7 +242,7 @@
   "entries": {
     "AERO": null,
     "BRETT": null,
-    "VIRTUAL": null,
+    "VIRTUAL": 0.739533902696358,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 0.000776967308927713,
@@ -257,10 +257,10 @@
     "SKI": null,
     "PRIME": 0.4014,
     "LUNA": null,
-    "HIGHER": null,
+    "HIGHER": 0.0003513,
     "MOCHI": null,
     "ZORA": 0.01764,
-    "BNKR": null,
+    "BNKR": 0.0004637,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -280,7 +280,7 @@
   "invested": {
     "AERO": 0,
     "BRETT": 0,
-    "VIRTUAL": 0,
+    "VIRTUAL": 0.0002944737008376551,
     "MORPHO": 0,
     "CBBTC": 0,
     "DEGEN": 0.00330962379626671,
@@ -295,10 +295,10 @@
     "SKI": 0,
     "PRIME": 0.00034066512282771776,
     "LUNA": 0,
-    "HIGHER": 0,
+    "HIGHER": 0.00026770336439786827,
     "MOCHI": 0,
     "ZORA": 0.0034167724861821043,
-    "BNKR": 0,
+    "BNKR": 0.0002944737008376551,
     "TYBG": 0,
     "MIGGLES": 0,
     "BENJI": 0,
@@ -318,7 +318,7 @@
   "entryTimes": {
     "AERO": null,
     "BRETT": null,
-    "VIRTUAL": null,
+    "VIRTUAL": 1773843309417,
     "MORPHO": null,
     "CBBTC": null,
     "DEGEN": 1773836347498,
@@ -333,10 +333,10 @@
     "SKI": null,
     "PRIME": 1773838867497,
     "LUNA": null,
-    "HIGHER": null,
+    "HIGHER": 1773843326915,
     "MOCHI": null,
     "ZORA": 1773834768240,
-    "BNKR": null,
+    "BNKR": 1773843332951,
     "TYBG": null,
     "MIGGLES": null,
     "BENJI": null,
@@ -362,7 +362,7 @@
     "DEGEN": 0.000020104279573414867,
     "WELL": 0,
     "SEAM": 3.963124044126011e-8,
-    "AIXBT": 0.00006770390968895879,
+    "AIXBT": 0.00006784745399869593,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
     "KEYCAT": 0.000022363642081089702,
@@ -1622,6 +1622,47 @@
       "tx": "0xf6ba9706a2c98dc298c21ad92b0f79c9b656393b3e006885fd3f6541d5f1e0eb",
       "reason": "🧠 PREDICTED PEAK [77% conf φ218°]",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0249805140582906,
+      "receivedEth": 0.00004306329292114131,
+      "netUsd": 0.09596439511011735,
+      "timestamp": "2026-03-18T14:14:17.122Z",
+      "tx": "0xb82d74bcd1b8a0fc6c131ac50676b63503b182e70775a03f3a04426677096bb4",
+      "reason": "🧠 PREDICTED PEAK [77% conf φ215°]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "VIRTUAL",
+      "price": 0.739533902696358,
+      "ethSpent": 0.0002944737008376551,
+      "timestamp": "2026-03-18T14:15:09.417Z",
+      "tx": "0xf5b9342cc0c6dcad07cdda741620248f9df6c9f8d16286f0c8ddb26529abd764",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "HIGHER",
+      "price": 0.0003513,
+      "ethSpent": 0.00026770336439786827,
+      "timestamp": "2026-03-18T14:15:26.915Z",
+      "tx": "0x2658b78427419a6d1a3c0f340bafec005356100357b075db67ea4c91462de1a2",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "BNKR",
+      "price": 0.0004637,
+      "ethSpent": 0.0002944737008376551,
+      "timestamp": "2026-03-18T14:15:32.951Z",
+      "tx": "0x94da3c0917803ba4ea9461a47a5b91e9f4a9c1d7810f105c94518b3c947747ff",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
     }
   ]
 }
