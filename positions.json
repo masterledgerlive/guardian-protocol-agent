@@ -1,23 +1,15 @@
 {
-  "lastSaved": "2026-03-18T15:55:55.938Z",
-  "piggyBank": 0.0002981767162064416,
+  "lastSaved": "2026-03-18T16:11:22.779Z",
+  "piggyBank": 0.0003410519937287053,
   "totalSkimmed": 0.0012867514825936177,
   "tradeCount": 569,
-  "predFund": 0.000054220169869958594,
-  "predFundPnl": -0.000030571608122728114,
-  "predFundTrades": 32,
+  "predFund": 0.00020047455262821128,
+  "predFundPnl": -0.00003207824499325938,
+  "predFundTrades": 33,
   "agentCapital": 0.00039152168209416,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000027662607209408335,
+  "piggyCoPnl": -0.000028104286102929614,
   "predFundPositions": {
-    "ZORA": {
-      "entryPrice": 0.0175,
-      "ethIn": 0.00014776101962878395,
-      "tokens": 18.809497870952438,
-      "entryTime": 1773838011485,
-      "conf": 64,
-      "phase": 358.3106046880973
-    },
     "VIRTUAL": {
       "entryPrice": 0.733944859841283,
       "ethIn": 0.00010474871460273076,
@@ -36,13 +28,6 @@
     }
   },
   "piggyCoPositions": {
-    "ZORA": {
-      "entryPrice": 0.0175,
-      "ethIn": 0.000043316956415785006,
-      "tokens": 5.514107858254992,
-      "entryTime": 1773838011485,
-      "conf": 64
-    },
     "AERO": {
       "entryPrice": 0.33556553294443,
       "ethIn": 0.0000342207013825792,
