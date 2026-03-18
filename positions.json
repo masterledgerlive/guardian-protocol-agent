@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-18T07:08:20.091Z",
+  "lastSaved": "2026-03-18T07:23:38.608Z",
   "piggyBank": 0.00019134981804447195,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 407,
+  "tradeCount": 408,
   "predFund": 0.000073928278235875,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
@@ -251,7 +251,7 @@
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
-    "ZORA": 0.0177097010409748,
+    "ZORA": 0.01777,
     "BNKR": null,
     "TYBG": 0.00001371,
     "MIGGLES": null,
@@ -289,7 +289,7 @@
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
-    "ZORA": 0.0006460421305608077,
+    "ZORA": 0.0012925659872911211,
     "BNKR": 0,
     "TYBG": 0.0018799332031600897,
     "MIGGLES": 0,
@@ -327,7 +327,7 @@
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
-    "ZORA": 1773817621421,
+    "ZORA": 1773817791010,
     "BNKR": null,
     "TYBG": 1773817625631,
     "MIGGLES": null,
@@ -1234,6 +1234,16 @@
       "tx": "0x2202d96dabedab87d097d0f0a8f09ba9b5da5c4668190f86a2cea61375f8c31d",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "ZORA",
+      "price": 0.01777,
+      "ethSpent": 0.0006465238567303134,
+      "timestamp": "2026-03-18T07:09:51.010Z",
+      "tx": "0xe72b30adc3f425616471708c9d3226adb3fb9b36332b86b8bd0cc0b8c89c8c9f",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
     }
   ]
 }
