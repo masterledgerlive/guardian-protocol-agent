@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-18T08:09:31.310Z",
-  "piggyBank": 0.00021216602349649708,
+  "lastSaved": "2026-03-18T08:24:51.400Z",
+  "piggyBank": 0.0002400764075576087,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 413,
+  "tradeCount": 416,
   "predFund": 0.000073928278235875,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000023177780548989486,
+  "piggyCoPnl": -0.00002340091216009221,
   "predFundPositions": {
     "PRIME": {
       "entryPrice": 0.4045,
@@ -28,13 +28,6 @@
     }
   },
   "piggyCoPositions": {
-    "KEYCAT": {
-      "entryPrice": 0.000618668156217805,
-      "ethIn": 0.000028133515672214344,
-      "tokens": 104.63045593552667,
-      "entryTime": 1773790805358,
-      "conf": 76
-    },
     "PRIME": {
       "entryPrice": 0.4045,
       "ethIn": 0.00002557642553080104,
@@ -253,7 +246,7 @@
     "TALENT": null,
     "MOG": null,
     "TOBY": null,
-    "GAME": null,
+    "GAME": 0.0114855285384867,
     "SIMBA": null,
     "CRASH": null,
     "BASE": null,
@@ -291,7 +284,7 @@
     "TALENT": 0,
     "MOG": 0,
     "TOBY": 0,
-    "GAME": 0,
+    "GAME": 0.0004996840157651691,
     "SIMBA": 0,
     "CRASH": 0,
     "BASE": 0,
@@ -329,7 +322,7 @@
     "TALENT": null,
     "MOG": null,
     "TOBY": null,
-    "GAME": null,
+    "GAME": 1773822277148,
     "SIMBA": null,
     "CRASH": null,
     "BASE": null,
@@ -1285,6 +1278,36 @@
       "ethSpent": 0.0005012820530809382,
       "timestamp": "2026-03-18T08:06:37.516Z",
       "tx": "0x6f70e8cbfeb88d6ab76232bc6363f269674751edf22ec45067fb5b4cd3f8bb32",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.0114855285384867,
+      "ethSpent": 0.0005007493618189289,
+      "timestamp": "2026-03-18T08:16:31.948Z",
+      "tx": "0x483f9149605b063490c14ad9a16d29af0cf90043a4d104c06df2c8b5b18cc852",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.0114855285384867,
+      "ethSpent": 0.0005002166789382467,
+      "timestamp": "2026-03-18T08:21:01.375Z",
+      "tx": "0x2a3303a9ac491afd54ef2c17eedc9ad36a19bfc99788c0100ca33730a4149a99",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.0114855285384867,
+      "ethSpent": 0.0004996840157651691,
+      "timestamp": "2026-03-18T08:24:37.148Z",
+      "tx": "0xe671806ed82e2d97bc9957f798064cfb8964dfb5fe8df13c4043f471ab05c32f",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 2
     }
