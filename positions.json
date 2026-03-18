@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T11:15:36.851Z",
-  "piggyBank": 0.00033521837440469147,
-  "totalSkimmed": 0.0010009590303098662,
-  "tradeCount": 434,
-  "predFund": 0.0001488196202617532,
+  "lastSaved": "2026-03-18T11:31:05.554Z",
+  "piggyBank": 0.00033571132358110406,
+  "totalSkimmed": 0.001002437877839104,
+  "tradeCount": 436,
+  "predFund": 0.0001493125694381658,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
-  "agentCapital": 0.00029625753133290955,
+  "agentCapital": 0.00029675048050932214,
   "agentPnl": 0,
   "piggyCoPnl": -0.000024025733382076135,
   "predFundPositions": {
@@ -120,9 +120,9 @@
       "piggyContrib": 0.00003523621597197022
     },
     "XCN": {
-      "wins": 8,
+      "wins": 9,
       "losses": 2,
-      "totalPnlEth": 0.006783906322507626,
+      "totalPnlEth": 0.006931791075431405,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
       "fastestWaveMs": null,
@@ -130,9 +130,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 8
+        "bronze": 9
       },
-      "piggyContrib": 0.000022613021075025417
+      "piggyContrib": 0.000023105970251438014
     },
     "TOSHI": {
       "wins": 4,
@@ -256,7 +256,7 @@
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
-    "PRIME": null,
+    "PRIME": 0.401150721145805,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -294,7 +294,7 @@
     "DOGINME": 0,
     "XCN": 0,
     "SKI": 0,
-    "PRIME": 0,
+    "PRIME": 0.0009669553643997863,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -332,7 +332,7 @@
     "DOGINME": null,
     "XCN": null,
     "SKI": null,
-    "PRIME": null,
+    "PRIME": 1773833437433,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -368,7 +368,7 @@
     "KITE": 0,
     "KEYCAT": 0.000006641148246338356,
     "DOGINME": 0,
-    "XCN": 0.000022613021075025417,
+    "XCN": 0.000023105970251438014,
     "SKI": 0,
     "PRIME": 0.00004546048839794739,
     "LUNA": 0,
@@ -491,6 +491,27 @@
       "tx": "0xa351b089ba0f1c2b9915a64aa46d85ae9c3fa9ee1e0ca648256ea7b3238453aa",
       "reason": "🧠 PREDICTED PEAK [76% conf φ216°]",
       "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.00582082107576844,
+      "receivedEth": 0.00014788475292377892,
+      "netUsd": 0.342402004987013,
+      "timestamp": "2026-03-18T11:21:36.501Z",
+      "tx": "0x383b8181c5c1e3865960985036171f2968e16faad6daa8d21b2c99c4f70329fb",
+      "reason": "🧠 PREDICTED PEAK [75% conf φ221°]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.401150721145805,
+      "ethSpent": 0.0009669553643997863,
+      "timestamp": "2026-03-18T11:30:37.433Z",
+      "tx": "0x0bc15dc10c4a9950f9f07deeaaa150ec3fb09a0d6009dd8ef878d8a5bac7a2b1",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
     }
   ]
 }
