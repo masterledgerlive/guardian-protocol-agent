@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T15:08:55.032Z",
-  "piggyBank": 0.00033024014471757,
-  "totalSkimmed": 0.0012835495293915225,
-  "tradeCount": 565,
-  "predFund": 0.00010737302200588543,
+  "lastSaved": "2026-03-18T15:24:31.795Z",
+  "piggyBank": 0.0003307551245907403,
+  "totalSkimmed": 0.0012850944690110334,
+  "tradeCount": 566,
+  "predFund": 0.00010788800187905576,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.00039045436436012826,
+  "agentCapital": 0.00039096934423329857,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -74,19 +74,19 @@
       "piggyContrib": 0.00006784745399869593
     },
     "KEYCAT": {
-      "wins": 10,
+      "wins": 11,
       "losses": 3,
-      "totalPnlEth": 0.007648046929428854,
+      "totalPnlEth": 0.007742607479484146,
       "biggestWavePct": 42.127418999457056,
       "biggestWaveUsd": 1.373813132189298,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 4,
+        "gold": 5,
         "silver": 1,
         "bronze": 5
       },
-      "piggyContrib": 0.000029102465199967778
+      "piggyContrib": 0.000029617445073138105
     },
     "PRIME": {
       "wins": 11,
@@ -319,7 +319,7 @@
     "AIXBT": 0.0007730101808472887,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0.00023973364758322246,
+    "KEYCAT": 0.00011986682379161123,
     "DOGINME": 0,
     "XCN": 0.0033102097992387617,
     "SKI": 0,
@@ -395,7 +395,7 @@
     "AIXBT": 0.00006784745399869593,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
-    "KEYCAT": 0.000029102465199967778,
+    "KEYCAT": 0.000029617445073138105,
     "DOGINME": 0,
     "XCN": 0.000023105970251438014,
     "SKI": 0,
@@ -1859,6 +1859,17 @@
       "tx": "0xb7b821d756e93683dbc3752c857368563e71b9903b68a151433fdfd121cfd154",
       "reason": "🌊 CASCADE from HIGHER [PRIORITY]",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.0005839,
+      "receivedEth": 0.000154493961951098,
+      "netUsd": 0.07597713519263788,
+      "timestamp": "2026-03-18T15:10:25.829Z",
+      "tx": "0x99d538c1827c5097e4c7e9f945ded58f22695dfbf23c23d31cfbf50c231ed832",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 1
     }
   ]
 }
