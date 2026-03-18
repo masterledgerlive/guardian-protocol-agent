@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T09:59:19.443Z",
-  "piggyBank": 0.00031865248270224005,
-  "totalSkimmed": 0.0009512613552025121,
-  "tradeCount": 428,
-  "predFund": 0.00013225372855930182,
+  "lastSaved": "2026-03-18T10:14:34.655Z",
+  "piggyBank": 0.00033521837440469147,
+  "totalSkimmed": 0.0010009590303098662,
+  "tradeCount": 434,
+  "predFund": 0.0001488196202617532,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
-  "agentCapital": 0.0002796916396304581,
+  "agentCapital": 0.00029625753133290955,
   "agentPnl": 0,
   "piggyCoPnl": -0.000024025733382076135,
   "predFundPositions": {
@@ -120,9 +120,9 @@
       "piggyContrib": 0.00003523621597197022
     },
     "XCN": {
-      "wins": 7,
+      "wins": 8,
       "losses": 2,
-      "totalPnlEth": 0.00300317232252956,
+      "totalPnlEth": 0.006783906322507626,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
       "fastestWaveMs": null,
@@ -130,9 +130,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 7
+        "bronze": 8
       },
-      "piggyContrib": 0.000010010574408431866
+      "piggyContrib": 0.000022613021075025417
     },
     "TOSHI": {
       "wins": 4,
@@ -150,9 +150,9 @@
       "piggyContrib": 0.00000823431506903172
     },
     "BRETT": {
-      "wins": 9,
+      "wins": 10,
       "losses": 0,
-      "totalPnlEth": 0.005768610499318312,
+      "totalPnlEth": 0.006886434408881528,
       "biggestWavePct": 82.9396859263693,
       "biggestWaveUsd": 0.15394502626608006,
       "fastestWaveMs": 1756333,
@@ -160,9 +160,9 @@
       "medals": {
         "gold": 8,
         "silver": 0,
-        "bronze": 1
+        "bronze": 2
       },
-      "piggyContrib": 0.000028412469882872735
+      "piggyContrib": 0.00003213854958141679
     },
     "VIRTUAL": {
       "wins": 9,
@@ -225,9 +225,9 @@
       "piggyContrib": 0.0000043033140618795125
     },
     "TYBG": {
-      "wins": 1,
+      "wins": 5,
       "losses": 0,
-      "totalPnlEth": 0.0017687540008554247,
+      "totalPnlEth": 0.0018399636020495617,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
       "fastestWaveMs": null,
@@ -235,9 +235,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 1
+        "bronze": 5
       },
-      "piggyContrib": 0.000005895846669518082
+      "piggyContrib": 0.0000061332120068318725
     }
   },
   "entries": {
@@ -356,7 +356,7 @@
   },
   "piggyContrib": {
     "AERO": 0.00003523621597197022,
-    "BRETT": 0.000028412469882872735,
+    "BRETT": 0.00003213854958141679,
     "VIRTUAL": 0.00004646448417887182,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -368,7 +368,7 @@
     "KITE": 0,
     "KEYCAT": 0.000006641148246338356,
     "DOGINME": 0,
-    "XCN": 0.000010010574408431866,
+    "XCN": 0.000022613021075025417,
     "SKI": 0,
     "PRIME": 0.00004546048839794739,
     "LUNA": 0,
@@ -376,7 +376,7 @@
     "MOCHI": 0,
     "ZORA": 0.0000043033140618795125,
     "BNKR": 0.000021694366273209702,
-    "TYBG": 0.000005895846669518082,
+    "TYBG": 0.0000061332120068318725,
     "MIGGLES": 0,
     "BENJI": 0,
     "ROOST": 0,
@@ -425,6 +425,72 @@
       "tx": "0x0e458aa2f4599253604bee0b7fd27a8ba3a79713cc6e242affa3d0f6b8d8d466",
       "reason": "🎯 MAX PEAK $0.00001383",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.00581874688230456,
+      "receivedEth": 0.0037807339999780653,
+      "netUsd": 8.803779385008923,
+      "timestamp": "2026-03-18T09:59:57.413Z",
+      "tx": "0xf294efc957439b859fd419555127a4a210ce3272cbde631d45416242b4dd5d05",
+      "reason": "🧠 PREDICTED PEAK [66% conf φ201°]",
+      "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "TYBG",
+      "price": 0.00001378,
+      "receivedEth": 0.0000692375828750284,
+      "netUsd": 0.16124186775102364,
+      "timestamp": "2026-03-18T10:00:14.522Z",
+      "tx": "0xb25ea98c5f7757aeef1d0e695f70c2a7e41be1e85899c68dbfa296659d249839",
+      "reason": "🎯 MAX PEAK $0.00001383",
+      "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "TYBG",
+      "price": 0.00001378,
+      "receivedEth": 0.0000019720183191086413,
+      "netUsd": 0.004593225068867847,
+      "timestamp": "2026-03-18T10:01:17.416Z",
+      "tx": "0xaccfbece408af652f45b72e65c1a09cddfb4303f3d3860eaefdac9f14338faf6",
+      "reason": "🎯 MAX PEAK $0.00001383",
+      "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "TYBG",
+      "price": 0.00001378,
+      "receivedEth": 0,
+      "netUsd": 0,
+      "timestamp": "2026-03-18T10:02:22.335Z",
+      "tx": "0xa0c2c45591795da0cf98eca48e59235e2da18534a8c3cc5f3acfac96e28462f2",
+      "reason": "🎯 MAX PEAK $0.00001383",
+      "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "TYBG",
+      "price": 0.00001376,
+      "receivedEth": 0,
+      "netUsd": 0,
+      "timestamp": "2026-03-18T10:03:26.652Z",
+      "tx": "0x6eaab8aad1b03487ee7a55c3ea8c46f65b0b2de2dabf0f5762f127e7b0d862dc",
+      "reason": "🎯 MAX PEAK $0.00001383",
+      "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.008148,
+      "receivedEth": 0.001117823909563216,
+      "netUsd": 2.6046414916732497,
+      "timestamp": "2026-03-18T10:13:55.231Z",
+      "tx": "0xa351b089ba0f1c2b9915a64aa46d85ae9c3fa9ee1e0ca648256ea7b3238453aa",
+      "reason": "🧠 PREDICTED PEAK [76% conf φ216°]",
+      "indScore": 1
     }
   ]
 }
