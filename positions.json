@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T13:50:46.263Z",
-  "piggyBank": 0.00035481933629886395,
-  "totalSkimmed": 0.001248081825030599,
-  "tradeCount": 544,
-  "predFund": 0.00020029916848830846,
+  "lastSaved": "2026-03-18T14:06:23.586Z",
+  "piggyBank": 0.000354830180918763,
+  "totalSkimmed": 0.001248114358890296,
+  "tradeCount": 545,
+  "predFund": 0.00020031001310820746,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.00037863179623982054,
+  "agentCapital": 0.00037864264085971956,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -149,9 +149,9 @@
       "piggyContrib": 0.00000823431506903172
     },
     "BRETT": {
-      "wins": 11,
+      "wins": 12,
       "losses": 0,
-      "totalPnlEth": 0.006924150111649845,
+      "totalPnlEth": 0.006927403497619547,
       "biggestWavePct": 82.9396859263693,
       "biggestWaveUsd": 0.15394502626608006,
       "fastestWaveMs": 1756333,
@@ -159,9 +159,9 @@
       "medals": {
         "gold": 8,
         "silver": 0,
-        "bronze": 3
+        "bronze": 4
       },
-      "piggyContrib": 0.00003226426859064451
+      "piggyContrib": 0.00003227511321054352
     },
     "VIRTUAL": {
       "wins": 9,
@@ -355,7 +355,7 @@
   },
   "piggyContrib": {
     "AERO": 0.00003523621597197022,
-    "BRETT": 0.00003226426859064451,
+    "BRETT": 0.00003227511321054352,
     "VIRTUAL": 0.00004646448417887182,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -1611,6 +1611,17 @@
       "tx": "0x1d24c9e4330c65521d98bf86e51f3239f549bfb125b9181590116dc37e6adedb",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "BRETT",
+      "price": 0.00768706645499535,
+      "receivedEth": 0.0000032533859697017468,
+      "netUsd": 0.007278312422118263,
+      "timestamp": "2026-03-18T13:52:09.681Z",
+      "tx": "0xf6ba9706a2c98dc298c21ad92b0f79c9b656393b3e006885fd3f6541d5f1e0eb",
+      "reason": "🧠 PREDICTED PEAK [77% conf φ218°]",
+      "indScore": 2
     }
   ]
 }
