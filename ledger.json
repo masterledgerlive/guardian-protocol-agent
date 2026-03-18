@@ -11770,18 +11770,44 @@
       "minTrough": 0.0111977691254124,
       "maxPeak": 0.0118763808315235,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 508,
+      "symbol": "PRIME",
+      "price": 0.4039,
+      "receivedEth": 0.0004267264359932809,
+      "recUsd": 0.9649778260334058,
+      "investedUsd": 0.6837549762851008,
+      "netUsd": 0.2812228497483049,
+      "pnlPct": 41.129185088525816,
+      "ethUsd": 2261.35,
+      "timestamp": "2026-03-18T12:32:21.198Z",
+      "tx": "0xbd3b333886ad8f70f5c5cd8c1df680f8b246cb3632c7e0c1be14160fccec6242",
+      "basescan": "https://basescan.org/tx/0xbd3b333886ad8f70f5c5cd8c1df680f8b246cb3632c7e0c1be14160fccec6242",
+      "reason": "🌊 RIPPLE — pooling for GAME",
+      "indScore": 0,
+      "indDetail": "RSI 100.0 OVERBOUGHT 🔥 | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.000004267264359932809,
+      "skimLottery": 0.0000014224214533109364,
+      "skimPred": 0.0000014224214533109364,
+      "skimAgent": 0.0000014224214533109364,
+      "piggyTotal": 0.000389537646988346,
+      "predFundTotal": 0.00020112931453564404,
+      "agentTotal": 0.0003635851151256084,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T12:31:06.673Z",
-  "totalTrades": 525,
+  "lastUpdated": "2026-03-18T12:32:21.601Z",
+  "totalTrades": 526,
   "stats": {
-    "totalTrades": 525,
-    "sells": 216,
-    "wins": 114,
-    "winRate": "52.8%",
-    "totalNetUsd": "142.42",
-    "totalSkimEth": "0.001313"
+    "totalTrades": 526,
+    "sells": 217,
+    "wins": 115,
+    "winRate": "53.0%",
+    "totalNetUsd": "142.70",
+    "totalSkimEth": "0.001317"
   }
 }
