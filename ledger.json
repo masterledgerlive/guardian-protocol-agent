@@ -10056,18 +10056,44 @@
       "predFundTotal": 0.00012635788188978373,
       "agentTotal": 0.00027379579296094004,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 428,
+      "symbol": "TYBG",
+      "price": 0.00001378,
+      "receivedEth": 0.0017687540008554247,
+      "recUsd": 4.118738253931951,
+      "investedUsd": 0,
+      "netUsd": 4.118738253931951,
+      "pnlPct": 0,
+      "ethUsd": 2328.61,
+      "timestamp": "2026-03-18T09:58:58.996Z",
+      "tx": "0x0e458aa2f4599253604bee0b7fd27a8ba3a79713cc6e242affa3d0f6b8d8d466",
+      "basescan": "https://basescan.org/tx/0x0e458aa2f4599253604bee0b7fd27a8ba3a79713cc6e242affa3d0f6b8d8d466",
+      "reason": "🎯 MAX PEAK $0.00001383",
+      "indScore": 2,
+      "indDetail": "RSI 50.0 neutral | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.000017687540008554246,
+      "skimLottery": 0.000005895846669518082,
+      "skimPred": 0.000005895846669518082,
+      "skimAgent": 0.000005895846669518082,
+      "piggyTotal": 0.00031865248270224005,
+      "predFundTotal": 0.00013225372855930182,
+      "agentTotal": 0.0002796916396304581,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T09:37:01.757Z",
-  "totalTrades": 445,
+  "lastUpdated": "2026-03-18T09:58:59.520Z",
+  "totalTrades": 446,
   "stats": {
-    "totalTrades": 445,
-    "sells": 197,
-    "wins": 97,
-    "winRate": "49.2%",
-    "totalNetUsd": "108.20",
-    "totalSkimEth": "0.001048"
+    "totalTrades": 446,
+    "sells": 198,
+    "wins": 98,
+    "winRate": "49.5%",
+    "totalNetUsd": "112.32",
+    "totalSkimEth": "0.001066"
   }
 }
