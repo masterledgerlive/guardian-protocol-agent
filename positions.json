@@ -1,23 +1,15 @@
 {
-  "lastSaved": "2026-03-18T12:49:04.587Z",
-  "piggyBank": 0.0003508673469678585,
-  "totalSkimmed": 0.0012264141777380984,
-  "tradeCount": 527,
-  "predFund": 0.00007388050981439197,
-  "predFundPnl": -0.00002556350392720732,
-  "predFundTrades": 28,
-  "agentCapital": 0.0003714092471423203,
+  "lastSaved": "2026-03-18T13:04:16.493Z",
+  "piggyBank": 0.00038063787756042154,
+  "totalSkimmed": 0.0012369139177264845,
+  "tradeCount": 540,
+  "predFund": 0.0001290700059723135,
+  "predFundPnl": -0.00002419762505629297,
+  "predFundTrades": 29,
+  "agentCapital": 0.0003749091604717824,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000024849693764806368,
+  "piggyCoPnl": -0.000024155502032506473,
   "predFundPositions": {
-    "PRIME": {
-      "entryPrice": 0.4045,
-      "ethIn": 0.0000503237039575451,
-      "tokens": 0.2895091387209298,
-      "entryTime": 1773804968836,
-      "conf": 68,
-      "phase": 31.93461108780133
-    },
     "ZORA": {
       "entryPrice": 0.0175,
       "ethIn": 0.00014776101962878395,
@@ -36,13 +28,6 @@
     }
   },
   "piggyCoPositions": {
-    "PRIME": {
-      "entryPrice": 0.4045,
-      "ethIn": 0.00002557642553080104,
-      "tokens": 0.14713958521870737,
-      "entryTime": 1773804968836,
-      "conf": 68
-    },
     "ZORA": {
       "entryPrice": 0.0175,
       "ethIn": 0.000043316956415785006,
@@ -90,19 +75,19 @@
       "piggyContrib": 0.000022363642081089702
     },
     "PRIME": {
-      "wins": 9,
+      "wins": 11,
       "losses": 4,
-      "totalPnlEth": 0.01883148215516561,
+      "totalPnlEth": 0.019691620130934378,
       "biggestWavePct": 88.51699652106673,
       "biggestWaveUsd": 3.214067596465681,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 5,
+        "gold": 7,
         "silver": 1,
         "bronze": 3
       },
-      "piggyContrib": 0.00007120094384588378
+      "piggyContrib": 0.00007470085717534585
     },
     "DEGEN": {
       "wins": 12,
@@ -264,14 +249,14 @@
     "DEGEN": 0.000776967308927713,
     "WELL": 0.00495199514442541,
     "SEAM": 0.1098,
-    "AIXBT": 0.02523,
+    "AIXBT": 0.02511,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": 0.0005934,
     "DOGINME": null,
     "XCN": 0.005688,
-    "SKI": 0.00985586388863001,
-    "PRIME": 0.4012,
+    "SKI": null,
+    "PRIME": 0.4014,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -302,14 +287,14 @@
     "DEGEN": 0.00330962379626671,
     "WELL": 0.0020859709429983508,
     "SEAM": 0.0016731114979124512,
-    "AIXBT": 0.0006684015399971482,
+    "AIXBT": 0.0011806023325752922,
     "TOSHI": 0,
     "KITE": 0,
     "KEYCAT": 0.0019909953581248334,
     "DOGINME": 0,
     "XCN": 0.0033102097992387617,
-    "SKI": 0.0003017121052278342,
-    "PRIME": 0.0007593440922794043,
+    "SKI": 0,
+    "PRIME": 0.00034066512282771776,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -340,14 +325,14 @@
     "DEGEN": 1773836347498,
     "WELL": 1773834296297,
     "SEAM": 1773825367962,
-    "AIXBT": 1773837775659,
+    "AIXBT": 1773838418754,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": 1773836714276,
     "DOGINME": null,
     "XCN": 1773836361554,
-    "SKI": 1773838117208,
-    "PRIME": 1773837895932,
+    "SKI": null,
+    "PRIME": 1773838867497,
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
@@ -385,7 +370,7 @@
     "DOGINME": 0,
     "XCN": 0.000023105970251438014,
     "SKI": 0,
-    "PRIME": 0.00007120094384588378,
+    "PRIME": 0.00007470085717534585,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -1453,6 +1438,138 @@
       "tx": "0x3157dfb8641fd945f04eab0421f2f7779326d4dff1daf9ac7c23a16e7bf55697",
       "reason": "🧠 PREDICTED TROUGH [71% conf φ24°]",
       "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.4011,
+      "receivedEth": 0.00044184698761809285,
+      "netUsd": 0.13923953794202648,
+      "timestamp": "2026-03-18T12:50:38.239Z",
+      "tx": "0x47b886c44ec5e6b683132820c0c6a991ead838a8d69cb783e4ed2e517fbc4b26",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01104,
+      "ethSpent": 0.00030619996241933834,
+      "timestamp": "2026-03-18T12:50:40.835Z",
+      "tx": "0xd2599db1626d7e567a583b5a3488872bc9e8637a22777c49f23db0f9b7d77838",
+      "reason": "🌊 CASCADE from PRIME [PRIORITY]",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "CBBTC",
+      "price": 72307.207972567,
+      "ethSpent": 0.00040599185699352445,
+      "timestamp": "2026-03-18T12:51:27.517Z",
+      "tx": "0x99a35094d05175dcaf1bc63ca8400f559c22e3024dece612a7b1779381563b0a",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "MIGGLES",
+      "price": 0.003687,
+      "ethSpent": 0.00040599185699352445,
+      "timestamp": "2026-03-18T12:51:46.897Z",
+      "tx": "0xd58ecf2d26b0efd50b04369e1978860de80ecc88f37b0c70b44df5a6da457259",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.4015,
+      "receivedEth": 0.0006081270112205282,
+      "netUsd": 0.5283377052216627,
+      "timestamp": "2026-03-18T12:52:42.775Z",
+      "tx": "0xa5ea723241ef78998cc9bee9fbb1e54c08bcd8a5c33bff13c26250767aaa26b2",
+      "reason": "🧠 PREDICTED PEAK [75% conf φ214°]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01104,
+      "ethSpent": 0.000421432018775826,
+      "timestamp": "2026-03-18T12:52:45.326Z",
+      "tx": "0x1d25af08b6e60db30da165be64af1db1aab197389ea05f979980461991e6a847",
+      "reason": "🌊 CASCADE from PRIME [PRIORITY]",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "CBBTC",
+      "price": 72364.7410540198,
+      "ethSpent": 0.0004656370841619489,
+      "timestamp": "2026-03-18T12:53:32.297Z",
+      "tx": "0x51cfb4c33cac62135eb6777aad3ccf2e43b5a53daa1336266a17ab4c4ca61908",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.02511,
+      "ethSpent": 0.0005122007925781438,
+      "timestamp": "2026-03-18T12:53:38.754Z",
+      "tx": "0x36656b9853371a70c13ba1229336750d90031b4a626011099119fa5ffd9fc370",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "MIGGLES",
+      "price": 0.003687,
+      "ethSpent": 0.0004656370841619489,
+      "timestamp": "2026-03-18T12:53:54.643Z",
+      "tx": "0x37604c19f96e1de6e129b6c3d89aae456a6fbc9abb8869b4a98ed59e3a7a0b5a",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01104,
+      "ethSpent": 0.00034243590581953075,
+      "timestamp": "2026-03-18T12:54:55.983Z",
+      "tx": "0x9fbd1faa0cc24600fa46d3f908db17f3360bfd4a118f69978ac11949c9855462",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01104,
+      "ethSpent": 0.0003418482444229666,
+      "timestamp": "2026-03-18T12:57:40.009Z",
+      "tx": "0x225524b80d0d592f88fe7bf1e128101783700049d152979c7aad9f7439b96348",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01104,
+      "ethSpent": 0.00034125839802986313,
+      "timestamp": "2026-03-18T13:00:24.889Z",
+      "tx": "0xc29f9e4b1a376e492ad2256fdefc5411e8ac9e524240a52013b696cf63dc06ca",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.4014,
+      "ethSpent": 0.00034066512282771776,
+      "timestamp": "2026-03-18T13:01:07.497Z",
+      "tx": "0x48ab9ed3a0b2b8c7582195b454e3ce3c143966456ef89c7b5b57745a7c5af8c9",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 2
     }
   ]
 }
