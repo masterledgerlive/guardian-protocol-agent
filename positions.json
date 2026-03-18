@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-18T07:38:50.280Z",
-  "piggyBank": 0.00019134981804447195,
+  "lastSaved": "2026-03-18T07:54:12.486Z",
+  "piggyBank": 0.00021216602349649708,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 408,
+  "tradeCount": 411,
   "predFund": 0.000073928278235875,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.0000227328951071844,
+  "piggyCoPnl": -0.000023177780548989486,
   "predFundPositions": {
     "PRIME": {
       "entryPrice": 0.4045,
@@ -54,13 +54,6 @@
       "ethIn": 0.000023623434326478022,
       "tokens": 67.53630613904348,
       "entryTime": 1773817105682,
-      "conf": 61
-    },
-    "AERO": {
-      "entryPrice": 0.3481,
-      "ethIn": 0.00002126109089383022,
-      "tokens": 0.141128352097683,
-      "entryTime": 1773817263212,
       "conf": 61
     }
   },
@@ -1244,6 +1237,36 @@
       "tx": "0xe72b30adc3f425616471708c9d3226adb3fb9b36332b86b8bd0cc0b8c89c8c9f",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01156,
+      "ethSpent": 0.0005039210015126305,
+      "timestamp": "2026-03-18T07:47:40.326Z",
+      "tx": "0xbdef6bfe3f7fa450342f9bcd5fe615cd10c73324324d6144be4e16196caef9d8",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01156,
+      "ethSpent": 0.0005032014749219727,
+      "timestamp": "2026-03-18T07:50:22.307Z",
+      "tx": "0x5bbc6595045e30b4aa87affced6f09fffa044ca1346db5ca042137a628ae9e58",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01156,
+      "ethSpent": 0.000502492907753121,
+      "timestamp": "2026-03-18T07:53:04.964Z",
+      "tx": "0xe7589677cb5e501cd9d164c6adf26ac3add1be50b9c255e084880eb9cd41d8e6",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 4
     }
   ]
 }
