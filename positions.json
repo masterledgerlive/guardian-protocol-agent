@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T14:22:18.333Z",
-  "piggyBank": 0.0003549737252285001,
-  "totalSkimmed": 0.0012485449918195075,
-  "tradeCount": 549,
-  "predFund": 0.0002004535574179446,
+  "lastSaved": "2026-03-18T14:37:39.764Z",
+  "piggyBank": 0.00035727877389713896,
+  "totalSkimmed": 0.0012554601378254242,
+  "tradeCount": 553,
+  "predFund": 0.00020275860608658344,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.0003787861851694567,
+  "agentCapital": 0.00038109123383809555,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -237,6 +237,21 @@
         "bronze": 5
       },
       "piggyContrib": 0.0000061332120068318725
+    },
+    "HIGHER": {
+      "wins": 3,
+      "losses": 0,
+      "totalPnlEth": 0.0005725739957896851,
+      "biggestWavePct": 215.62816728710135,
+      "biggestWaveUsd": 0.21452340078566656,
+      "fastestWaveMs": 460340,
+      "fastestWavePct": 207.6890494035094,
+      "medals": {
+        "gold": 3,
+        "silver": 0,
+        "bronze": 0
+      },
+      "piggyContrib": 0.0000023050486686388597
     }
   },
   "entries": {
@@ -248,7 +263,7 @@
     "DEGEN": 0.000776967308927713,
     "WELL": 0.00495199514442541,
     "SEAM": 0.1098,
-    "AIXBT": null,
+    "AIXBT": 0.0247564869736748,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": 0.0005934,
@@ -286,7 +301,7 @@
     "DEGEN": 0.00330962379626671,
     "WELL": 0.0020859709429983508,
     "SEAM": 0.0016731114979124512,
-    "AIXBT": 0,
+    "AIXBT": 0.00009807936125629678,
     "TOSHI": 0,
     "KITE": 0,
     "KEYCAT": 0.0019909953581248334,
@@ -295,7 +310,7 @@
     "SKI": 0,
     "PRIME": 0.00034066512282771776,
     "LUNA": 0,
-    "HIGHER": 0.00026770336439786827,
+    "HIGHER": 0.00004484031353664293,
     "MOCHI": 0,
     "ZORA": 0.0034167724861821043,
     "BNKR": 0.0002944737008376551,
@@ -324,7 +339,7 @@
     "DEGEN": 1773836347498,
     "WELL": 1773834296297,
     "SEAM": 1773825367962,
-    "AIXBT": null,
+    "AIXBT": 1773844577608,
     "TOSHI": null,
     "KITE": null,
     "KEYCAT": 1773836714276,
@@ -371,7 +386,7 @@
     "SKI": 0,
     "PRIME": 0.00007470085717534585,
     "LUNA": 0,
-    "HIGHER": 0,
+    "HIGHER": 0.0000023050486686388597,
     "MOCHI": 0,
     "ZORA": 0.0000043033140618795125,
     "BNKR": 0.000021694366273209702,
@@ -1662,6 +1677,49 @@
       "timestamp": "2026-03-18T14:15:32.951Z",
       "tx": "0x94da3c0917803ba4ea9461a47a5b91e9f4a9c1d7810f105c94518b3c947747ff",
       "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0003497,
+      "receivedEth": 0.00041184696856850687,
+      "netUsd": 0.6182281574515655,
+      "timestamp": "2026-03-18T14:23:05.276Z",
+      "tx": "0xb6777407a60c727c549dd80d6df9853b79bb5804c8ba8860b1597e20af1a6dc9",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0003497,
+      "receivedEth": 0.000138138972201655,
+      "netUsd": 0.20874502938849512,
+      "timestamp": "2026-03-18T14:30:53.612Z",
+      "tx": "0x9c88a6de72fa17dddfa4f7ee5b88eead4adc8e8bdc8f747d5ee5201e76679191",
+      "reason": "🌊 RIPPLE — pooling for AIXBT, GAME",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0003489,
+      "receivedEth": 0.00014152865982149608,
+      "netUsd": 0.21452340078566656,
+      "timestamp": "2026-03-18T14:36:14.621Z",
+      "tx": "0x67eceb3030f67f5ac3f3461833397e041acacbbe12fd726e7e988db40223856d",
+      "reason": "⏰ STALE CASCADE — 5min no movement",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0247564869736748,
+      "ethSpent": 0.00009807936125629678,
+      "timestamp": "2026-03-18T14:36:17.608Z",
+      "tx": "0x9ceaace2954cbdd1190bfbef0ab5559580db087cacae0db51ba9ad34e9b3929d",
+      "reason": "🌊 CASCADE from HIGHER [PRIORITY]",
       "indScore": 3
     }
   ]
