@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-18T20:03:22.023Z",
-  "piggyBank": 0.0002814222725089867,
+  "lastSaved": "2026-03-18T20:18:48.425Z",
+  "piggyBank": 0.0003113749923197266,
   "totalSkimmed": 0.001289366354255703,
   "tradeCount": 583,
-  "predFund": 0.00007784225163753792,
-  "predFundPnl": -0.00003213271836532892,
-  "predFundTrades": 34,
+  "predFund": 0.00012674940928238286,
+  "predFundPnl": -0.0000333441988775368,
+  "predFundTrades": 35,
   "agentCapital": 0.00039239330598152174,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000028938370713270204,
+  "piggyCoPnl": -0.00002968033033811377,
   "predFundPositions": {
     "AIXBT": {
       "entryPrice": 0.02456,
@@ -25,14 +25,6 @@
       "entryTime": 1773855466811,
       "conf": 62,
       "phase": 31.947135622284804
-    },
-    "BNKR": {
-      "entryPrice": 0.0004647,
-      "ethIn": 0.00005011863815705282,
-      "tokens": 236.6144910846945,
-      "entryTime": 1773857431822,
-      "conf": 60,
-      "phase": 34.73446696740825
     },
     "SKI": {
       "entryPrice": 0.008535,
@@ -71,13 +63,6 @@
       "tokens": 0.0000010419127331531421,
       "entryTime": 1773855466811,
       "conf": 62
-    },
-    "BNKR": {
-      "entryPrice": 0.0004647,
-      "ethIn": 0.00003069467943558348,
-      "tokens": 144.9122765646493,
-      "entryTime": 1773857431822,
-      "conf": 60
     },
     "SKI": {
       "entryPrice": 0.008535,
