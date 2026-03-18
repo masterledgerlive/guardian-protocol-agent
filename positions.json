@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T15:24:31.795Z",
-  "piggyBank": 0.0003307551245907403,
-  "totalSkimmed": 0.0012850944690110334,
-  "tradeCount": 566,
-  "predFund": 0.00010788800187905576,
+  "lastSaved": "2026-03-18T15:40:25.499Z",
+  "piggyBank": 0.00033130746245160173,
+  "totalSkimmed": 0.0012867514825936177,
+  "tradeCount": 569,
+  "predFund": 0.00010844033973991719,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.00039096934423329857,
+  "agentCapital": 0.00039152168209416,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -74,19 +74,19 @@
       "piggyContrib": 0.00006784745399869593
     },
     "KEYCAT": {
-      "wins": 11,
+      "wins": 12,
       "losses": 3,
-      "totalPnlEth": 0.007742607479484146,
+      "totalPnlEth": 0.00789396129975957,
       "biggestWavePct": 42.127418999457056,
       "biggestWaveUsd": 1.373813132189298,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 5,
+        "gold": 6,
         "silver": 1,
         "bronze": 5
       },
-      "piggyContrib": 0.000029617445073138105
+      "piggyContrib": 0.00003012195780738951
     },
     "PRIME": {
       "wins": 11,
@@ -254,9 +254,9 @@
       "piggyContrib": 0.0000061332120068318725
     },
     "HIGHER": {
-      "wins": 5,
+      "wins": 6,
       "losses": 0,
-      "totalPnlEth": 0.0011798710310496057,
+      "totalPnlEth": 0.0011942185690326118,
       "biggestWavePct": 215.62816728710135,
       "biggestWaveUsd": 0.21452340078566656,
       "fastestWaveMs": 460340,
@@ -264,9 +264,9 @@
       "medals": {
         "gold": 5,
         "silver": 0,
-        "bronze": 0
+        "bronze": 1
       },
-      "piggyContrib": 0.000004929356071793527
+      "piggyContrib": 0.000004977181198403547
     }
   },
   "entries": {
@@ -281,7 +281,7 @@
     "AIXBT": 0.0247564869736748,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": 0.000589056890509776,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": 0.005688,
     "SKI": null,
@@ -319,7 +319,7 @@
     "AIXBT": 0.0007730101808472887,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0.00011986682379161123,
+    "KEYCAT": 0,
     "DOGINME": 0,
     "XCN": 0.0033102097992387617,
     "SKI": 0,
@@ -357,7 +357,7 @@
     "AIXBT": 1773844816259,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": 1773846126405,
+    "KEYCAT": null,
     "DOGINME": null,
     "XCN": 1773836361554,
     "SKI": null,
@@ -395,13 +395,13 @@
     "AIXBT": 0.00006784745399869593,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
-    "KEYCAT": 0.000029617445073138105,
+    "KEYCAT": 0.00003012195780738951,
     "DOGINME": 0,
     "XCN": 0.000023105970251438014,
     "SKI": 0,
     "PRIME": 0.00007470085717534585,
     "LUNA": 0,
-    "HIGHER": 0.000004929356071793527,
+    "HIGHER": 0.000004977181198403547,
     "MOCHI": 0,
     "ZORA": 0.0000043033140618795125,
     "BNKR": 0.000021694366273209702,
@@ -1870,6 +1870,38 @@
       "tx": "0x99d538c1827c5097e4c7e9f945ded58f22695dfbf23c23d31cfbf50c231ed832",
       "reason": "⏰ STALE CASCADE — 6min no movement",
       "indScore": 1
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0003238,
+      "receivedEth": 0.000014347537983005966,
+      "netUsd": 0.03140905625087734,
+      "timestamp": "2026-03-18T15:37:57.295Z",
+      "tx": "0x962dd3fd19e44a9866c46fa299426e008d87327c04c6897000d93780e95a961f",
+      "reason": "🧠 PREDICTED PEAK [70% conf φ221°]",
+      "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "KEYCAT",
+      "price": 0.0005658,
+      "receivedEth": 0.00015135382027542225,
+      "netUsd": 0.07409995353279586,
+      "timestamp": "2026-03-18T15:39:50.881Z",
+      "tx": "0x3fad16e2731e10d67e7a5eefe0f83f1cc79dab902b49115039fb1f0a2c37302d",
+      "reason": "🧠 PREDICTED PEAK [69% conf φ212°]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "HIGHER",
+      "price": 0.0003238,
+      "ethSpent": 0.00010488819745086762,
+      "timestamp": "2026-03-18T15:39:53.604Z",
+      "tx": "0x5d8069cf22b87d1d14dd20e53da6381fc420f16cd833428d9be627be0a86314d",
+      "reason": "🌊 CASCADE from KEYCAT [PRIORITY]",
+      "indScore": 5
     }
   ]
 }
