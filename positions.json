@@ -1,6 +1,6 @@
 {
-  "lastSaved": "2026-03-18T06:37:14.286Z",
-  "piggyBank": 0.00018787901438869738,
+  "lastSaved": "2026-03-18T06:52:41.249Z",
+  "piggyBank": 0.0002108451760997886,
   "totalSkimmed": 0.0007762850042322317,
   "tradeCount": 401,
   "predFund": 0.00007452432380918283,
@@ -8,7 +8,7 @@
   "predFundTrades": 25,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000022064624836411087,
+  "piggyCoPnl": -0.00002232016798435699,
   "predFundPositions": {
     "PRIME": {
       "entryPrice": 0.4045,
@@ -48,13 +48,6 @@
       "tokens": 73.49160624203061,
       "entryTime": 1773806841618,
       "conf": 72
-    },
-    "AIXBT": {
-      "entryPrice": 0.02655,
-      "ethIn": 0.000023221704859037104,
-      "tokens": 2.0178968807239652,
-      "entryTime": 1773809270183,
-      "conf": 74
     },
     "VIRTUAL": {
       "entryPrice": 0.789667871849697,
