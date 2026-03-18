@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-18T06:52:41.249Z",
-  "piggyBank": 0.0002108451760997886,
+  "lastSaved": "2026-03-18T07:08:20.091Z",
+  "piggyBank": 0.00019134981804447195,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 401,
-  "predFund": 0.00007452432380918283,
-  "predFundPnl": -0.000021993837731120643,
-  "predFundTrades": 25,
+  "tradeCount": 407,
+  "predFund": 0.000073928278235875,
+  "predFundPnl": -0.0000231859288777363,
+  "predFundTrades": 26,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.00002232016798435699,
+  "piggyCoPnl": -0.0000227328951071844,
   "predFundPositions": {
     "PRIME": {
       "entryPrice": 0.4045,
@@ -19,12 +19,12 @@
       "phase": 31.93461108780133
     },
     "DEGEN": {
-      "entryPrice": 0.000817,
-      "ethIn": 0.00007452432380918283,
-      "tokens": 212.2678358318709,
-      "entryTime": 1773806841618,
-      "conf": 72,
-      "phase": 40.472584530194354
+      "entryPrice": 0.000808789367104863,
+      "ethIn": 0.000073928278235875,
+      "tokens": 211.3512693484315,
+      "entryTime": 1773817105682,
+      "conf": 61,
+      "phase": 18.304033491935115
     }
   },
   "piggyCoPositions": {
@@ -42,19 +42,26 @@
       "entryTime": 1773804968836,
       "conf": 68
     },
-    "DEGEN": {
-      "entryPrice": 0.000817,
-      "ethIn": 0.000025801894287819,
-      "tokens": 73.49160624203061,
-      "entryTime": 1773806841618,
-      "conf": 72
-    },
     "VIRTUAL": {
       "entryPrice": 0.789667871849697,
       "ethIn": 0.000020875446043188596,
       "tokens": 0.061218845565331075,
       "entryTime": 1773815529766,
       "conf": 66
+    },
+    "DEGEN": {
+      "entryPrice": 0.000808789367104863,
+      "ethIn": 0.000023623434326478022,
+      "tokens": 67.53630613904348,
+      "entryTime": 1773817105682,
+      "conf": 61
+    },
+    "AERO": {
+      "entryPrice": 0.3481,
+      "ethIn": 0.00002126109089383022,
+      "tokens": 0.141128352097683,
+      "entryTime": 1773817263212,
+      "conf": 61
     }
   },
   "waveStats": {
@@ -135,7 +142,7 @@
     },
     "XCN": {
       "wins": 7,
-      "losses": 1,
+      "losses": 2,
       "totalPnlEth": 0.00300317232252956,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
@@ -244,7 +251,7 @@
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
-    "ZORA": null,
+    "ZORA": 0.0177097010409748,
     "BNKR": null,
     "TYBG": 0.00001371,
     "MIGGLES": null,
@@ -276,15 +283,15 @@
     "KITE": 0,
     "KEYCAT": 0.001423777436705743,
     "DOGINME": 0,
-    "XCN": 0.007888073819990878,
+    "XCN": 0.003944036909995439,
     "SKI": 0,
     "PRIME": 0.011400743700334103,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
-    "ZORA": 0,
+    "ZORA": 0.0006460421305608077,
     "BNKR": 0,
-    "TYBG": 0.000588096486941088,
+    "TYBG": 0.0018799332031600897,
     "MIGGLES": 0,
     "BENJI": 0,
     "ROOST": 0,
@@ -320,9 +327,9 @@
     "LUNA": null,
     "HIGHER": null,
     "MOCHI": null,
-    "ZORA": null,
+    "ZORA": 1773817621421,
     "BNKR": null,
-    "TYBG": 1773814149844,
+    "TYBG": 1773817625631,
     "MIGGLES": null,
     "BENJI": null,
     "ROOST": null,
@@ -1166,6 +1173,67 @@
       "tx": "0xabd1b6d8219b65fb930a9416c0ca523a50756cb987eea03aaee7008fcf03dc5e",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "XCN",
+      "price": 0.005771,
+      "receivedEth": 0.003709207886804457,
+      "netUsd": -0.5454256307145346,
+      "timestamp": "2026-03-18T07:03:10.798Z",
+      "tx": "0x369ee87be0bf04b8d9fc035ec4608679dd16c7239d6491bfbd37cb1d0fe8af84",
+      "reason": "MANUAL SELL HALF",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01162,
+      "ethSpent": 0.001112762366041337,
+      "timestamp": "2026-03-18T07:03:13.499Z",
+      "tx": "0x70fa505754f670e32d9b3b551a076dddc1c0242a910fb6e1962037724b4ea3cf",
+      "reason": "🌊 CASCADE from XCN [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "TYBG",
+      "price": 0.00001371,
+      "ethSpent": 0.0006457945856581939,
+      "timestamp": "2026-03-18T07:04:17.804Z",
+      "tx": "0x1ec2632b820368e175dfe5a3286b1f82b641ff1bbfc9df1a594fb8f2075bee79",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.0115788543463625,
+      "ethSpent": 0.0006458390741251033,
+      "timestamp": "2026-03-18T07:06:13.579Z",
+      "tx": "0xdef56841651a4428dc455e0afea7f30913717918c85cf530847044d5301e6c45",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "ZORA",
+      "price": 0.0177097010409748,
+      "ethSpent": 0.0006460421305608077,
+      "timestamp": "2026-03-18T07:07:01.421Z",
+      "tx": "0x1f0b1fe9223dfd6eafd8eda12259c65e4a5f220c39f6d62ba0ec04ca51c5c56a",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "TYBG",
+      "price": 0.00001371,
+      "ethSpent": 0.0006460421305608077,
+      "timestamp": "2026-03-18T07:07:05.631Z",
+      "tx": "0x2202d96dabedab87d097d0f0a8f09ba9b5da5c4668190f86a2cea61375f8c31d",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 1
     }
   ]
 }
