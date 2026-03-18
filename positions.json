@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T09:26:53.743Z",
-  "piggyBank": 0.00029483018814173385,
-  "totalSkimmed": 0.0008797944715209935,
-  "tradeCount": 425,
-  "predFund": 0.0001084314339987956,
+  "lastSaved": "2026-03-18T09:43:57.707Z",
+  "piggyBank": 0.00031275663603272196,
+  "totalSkimmed": 0.0009335738151939578,
+  "tradeCount": 427,
+  "predFund": 0.00012635788188978373,
   "predFundPnl": -0.0000231859288777363,
   "predFundTrades": 26,
-  "agentCapital": 0.00025586934506995193,
+  "agentCapital": 0.00027379579296094004,
   "agentPnl": 0,
   "piggyCoPnl": -0.000024025733382076135,
   "predFundPositions": {
@@ -45,9 +45,9 @@
   },
   "waveStats": {
     "AIXBT": {
-      "wins": 17,
+      "wins": 18,
       "losses": 39,
-      "totalPnlEth": 0.00855517457476105,
+      "totalPnlEth": 0.011121651848398886,
       "biggestWavePct": 0,
       "biggestWaveUsd": 0,
       "fastestWaveMs": null,
@@ -55,9 +55,9 @@
       "medals": {
         "gold": 0,
         "silver": 0,
-        "bronze": 17
+        "bronze": 18
       },
-      "piggyContrib": 0.000028517248582536843
+      "piggyContrib": 0.0000370721728279963
     },
     "KEYCAT": {
       "wins": 7,
@@ -75,9 +75,9 @@
       "piggyContrib": 0.000006641148246338356
     },
     "PRIME": {
-      "wins": 3,
+      "wins": 4,
       "losses": 4,
-      "totalPnlEth": 0.010826689425725618,
+      "totalPnlEth": 0.013638146519384218,
       "biggestWavePct": 2.9353398309358587,
       "biggestWaveUsd": 0.2943649848917467,
       "fastestWaveMs": null,
@@ -85,9 +85,9 @@
       "medals": {
         "gold": 0,
         "silver": 1,
-        "bronze": 2
+        "bronze": 3
       },
-      "piggyContrib": 0.000036088964752418724
+      "piggyContrib": 0.00004546048839794739
     },
     "DEGEN": {
       "wins": 11,
@@ -227,7 +227,7 @@
   },
   "entries": {
     "AERO": null,
-    "BRETT": 0.008066,
+    "BRETT": null,
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
@@ -265,7 +265,7 @@
   },
   "invested": {
     "AERO": 0,
-    "BRETT": 0.001154509963316201,
+    "BRETT": 0,
     "VIRTUAL": 0,
     "MORPHO": 0,
     "CBBTC": 0,
@@ -303,7 +303,7 @@
   },
   "entryTimes": {
     "AERO": null,
-    "BRETT": 1773796194657,
+    "BRETT": null,
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
@@ -348,14 +348,14 @@
     "DEGEN": 0.000013943282325256564,
     "WELL": 0,
     "SEAM": 3.963124044126011e-8,
-    "AIXBT": 0.000028517248582536843,
+    "AIXBT": 0.0000370721728279963,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
     "KEYCAT": 0.000006641148246338356,
     "DOGINME": 0,
     "XCN": 0.000010010574408431866,
     "SKI": 0,
-    "PRIME": 0.000036088964752418724,
+    "PRIME": 0.00004546048839794739,
     "LUNA": 0,
     "HIGHER": 0,
     "MOCHI": 0,
@@ -380,78 +380,24 @@
   "tradeLog": [
     {
       "type": "SELL",
-      "symbol": "VIRTUAL",
-      "price": 0.784643732909653,
-      "receivedEth": 0.003036529547885029,
-      "netUsd": 7.0690407874763475,
-      "timestamp": "2026-03-18T09:13:42.734Z",
-      "tx": "0xb1b353d98b64489beef99df295ab313721ef5be1985b6549c6e25b8370edc725",
-      "reason": "🎯 MAX PEAK $0.77757693",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "VIRTUAL",
-      "price": 0.78490028048549,
-      "receivedEth": 0.0003900509155840223,
-      "netUsd": 0.9058147753398077,
-      "timestamp": "2026-03-18T09:14:47.060Z",
-      "tx": "0x167dcbf87b6a43646bdbdd488cc20e414a4fed993647567277ce0fa51741c346",
-      "reason": "🎯 MAX PEAK $0.77757693",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
       "symbol": "PRIME",
-      "price": 0.4042,
-      "receivedEth": 0.00563337204684327,
-      "netUsd": 13.082373175246856,
-      "timestamp": "2026-03-18T09:16:05.603Z",
-      "tx": "0x1ee80846be698a896066b930f63cfdb61a9693146a4c6fc78f83c8581dbdbc0b",
+      "price": 0.405,
+      "receivedEth": 0.0028114570936586003,
+      "netUsd": 6.550807486508285,
+      "timestamp": "2026-03-18T09:36:04.296Z",
+      "tx": "0x7ff0f2bc914ed5ab1c67b2366b6989ee0ed6bd5bf41f68b2063155761600de3e",
       "reason": "MANUAL SELL HALF",
       "indScore": 0
     },
     {
-      "type": "BUY",
-      "symbol": "SEAM",
-      "price": 0.1098,
-      "ethSpent": 0.0016731114979124512,
-      "timestamp": "2026-03-18T09:16:07.962Z",
-      "tx": "0x28fae71f39f2918cfc5656457bdac92be2c29d6f5cfad520d6904d0d360e0a76",
-      "reason": "🌊 CASCADE from PRIME [THIN]",
-      "indScore": 0
-    },
-    {
       "type": "SELL",
-      "symbol": "ZORA",
-      "price": 0.01795,
-      "receivedEth": 0.0012440181982974405,
-      "netUsd": 2.8978781920239727,
-      "timestamp": "2026-03-18T09:21:45.491Z",
-      "tx": "0xbcf39cfc77dab6a77d53daeb04e6d7ba7d31f4602414a45775f38755b593bebf",
-      "reason": "🎯 MAX PEAK $0.01802214",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "ZORA",
-      "price": 0.01795,
-      "receivedEth": 0.00003930743894298844,
-      "netUsd": 0.09159144270422565,
-      "timestamp": "2026-03-18T09:22:48.462Z",
-      "tx": "0xe8779f2ff62db63793c5893af960202bf931d18500a7204cf029b8aa404e7b24",
-      "reason": "🎯 MAX PEAK $0.01802214",
-      "indScore": 0
-    },
-    {
-      "type": "SELL",
-      "symbol": "ZORA",
-      "price": 0.01796,
-      "receivedEth": 0.000007668581323424899,
-      "netUsd": 0.017870555172856448,
-      "timestamp": "2026-03-18T09:23:51.481Z",
-      "tx": "0x3e1dc0f54d66a6d019a15ace954928cc6297af6adc1af078115e31a67e958644",
-      "reason": "🎯 MAX PEAK $0.01802214",
+      "symbol": "AIXBT",
+      "price": 0.0266888993288605,
+      "receivedEth": 0.0025664772736378356,
+      "netUsd": 5.979686729394266,
+      "timestamp": "2026-03-18T09:37:01.057Z",
+      "tx": "0xe45e7b304d353e689ebd9e4e160c64bb5f279287c5ee1e4b05b9600b8f080073",
+      "reason": "MANUAL SELL HALF",
       "indScore": 0
     }
   ]
