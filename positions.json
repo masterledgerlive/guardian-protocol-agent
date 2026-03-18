@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T14:52:59.851Z",
-  "piggyBank": 0.00032761583731441535,
-  "totalSkimmed": 0.0012756766071820584,
-  "tradeCount": 562,
-  "predFund": 0.00010474871460273076,
+  "lastSaved": "2026-03-18T15:08:55.032Z",
+  "piggyBank": 0.00033024014471757,
+  "totalSkimmed": 0.0012835495293915225,
+  "tradeCount": 565,
+  "predFund": 0.00010737302200588543,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.0003878300569569736,
+  "agentCapital": 0.00039045436436012826,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -254,19 +254,19 @@
       "piggyContrib": 0.0000061332120068318725
     },
     "HIGHER": {
-      "wins": 3,
+      "wins": 5,
       "losses": 0,
-      "totalPnlEth": 0.0005725739957896851,
+      "totalPnlEth": 0.0011798710310496057,
       "biggestWavePct": 215.62816728710135,
       "biggestWaveUsd": 0.21452340078566656,
       "fastestWaveMs": 460340,
       "fastestWavePct": 207.6890494035094,
       "medals": {
-        "gold": 3,
+        "gold": 5,
         "silver": 0,
         "bronze": 0
       },
-      "piggyContrib": 0.0000023050486686388597
+      "piggyContrib": 0.000004929356071793527
     }
   },
   "entries": {
@@ -281,13 +281,13 @@
     "AIXBT": 0.0247564869736748,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": null,
+    "KEYCAT": 0.000589056890509776,
     "DOGINME": null,
     "XCN": 0.005688,
     "SKI": null,
     "PRIME": 0.4014,
     "LUNA": null,
-    "HIGHER": 0.0003489,
+    "HIGHER": null,
     "MOCHI": null,
     "ZORA": 0.01764,
     "BNKR": 0.0004637,
@@ -319,13 +319,13 @@
     "AIXBT": 0.0007730101808472887,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0,
+    "KEYCAT": 0.00023973364758322246,
     "DOGINME": 0,
     "XCN": 0.0033102097992387617,
     "SKI": 0,
     "PRIME": 0.00034066512282771776,
     "LUNA": 0,
-    "HIGHER": 0.0007199807427459184,
+    "HIGHER": 0,
     "MOCHI": 0,
     "ZORA": 0.0034167724861821043,
     "BNKR": 0.0002944737008376551,
@@ -357,13 +357,13 @@
     "AIXBT": 1773844816259,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": null,
+    "KEYCAT": 1773846126405,
     "DOGINME": null,
     "XCN": 1773836361554,
     "SKI": null,
     "PRIME": 1773838867497,
     "LUNA": null,
-    "HIGHER": 1773844828812,
+    "HIGHER": null,
     "MOCHI": null,
     "ZORA": 1773834768240,
     "BNKR": 1773843332951,
@@ -401,7 +401,7 @@
     "SKI": 0,
     "PRIME": 0.00007470085717534585,
     "LUNA": 0,
-    "HIGHER": 0.0000023050486686388597,
+    "HIGHER": 0.000004929356071793527,
     "MOCHI": 0,
     "ZORA": 0.0000043033140618795125,
     "BNKR": 0.000021694366273209702,
@@ -1827,6 +1827,38 @@
       "tx": "0xe5698dfdacc8a1ed6d383eac1f7517f7f5ea26dad005883d23833cfb63517f93",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0003385,
+      "receivedEth": 0.000393885860809101,
+      "netUsd": 0.07492394566922522,
+      "timestamp": "2026-03-18T14:53:43.281Z",
+      "tx": "0x72a4a988dc7f7cc3c1e2d25338a3223243a94ba76cecba49b8e57002378abc7e",
+      "reason": "⏰ STALE CASCADE — 6min no movement",
+      "indScore": 2
+    },
+    {
+      "type": "SELL",
+      "symbol": "HIGHER",
+      "price": 0.0003362,
+      "receivedEth": 0.0003934063601372991,
+      "netUsd": 0.08899042793011769,
+      "timestamp": "2026-03-18T15:02:03.821Z",
+      "tx": "0x4ecfb88173644c551579d05a283e8eaf6266f746cdb3d5631d1f733927196b46",
+      "reason": "STOP LOSS",
+      "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "KEYCAT",
+      "price": 0.000589056890509776,
+      "ethSpent": 0.00023973364758322246,
+      "timestamp": "2026-03-18T15:02:06.405Z",
+      "tx": "0xb7b821d756e93683dbc3752c857368563e71b9903b68a151433fdfd121cfd154",
+      "reason": "🌊 CASCADE from HIGHER [PRIORITY]",
+      "indScore": 2
     }
   ]
 }
