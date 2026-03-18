@@ -1,38 +1,29 @@
 {
-  "lastSaved": "2026-03-18T00:43:15.690Z",
-  "piggyBank": 0.00025320164104992906,
+  "lastSaved": "2026-03-18T00:58:41.347Z",
+  "piggyBank": 0.00025981042452585584,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 350,
-  "predFund": 0.00009940713440181123,
-  "predFundPnl": -0.000020483310859769858,
-  "predFundTrades": 18,
+  "tradeCount": 357,
+  "predFund": 0.00020263188465719414,
+  "predFundPnl": -0.000018734304649837266,
+  "predFundTrades": 19,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000020829514899081004,
-  "predFundPositions": {
-    "BENJI": {
-      "entryPrice": 0.00208,
-      "ethIn": 0.00010147574404545032,
-      "tokens": 112.15213392115221,
-      "entryTime": 1773779011387,
-      "conf": 64,
-      "phase": 31.507924070118236
-    }
-  },
+  "piggyCoPnl": -0.000020288521315105453,
+  "predFundPositions": {},
   "piggyCoPositions": {
-    "BENJI": {
-      "entryPrice": 0.00208,
-      "ethIn": 0.00003138795399694414,
-      "tokens": 34.69031987190513,
-      "entryTime": 1773779011387,
-      "conf": 64
-    },
     "KEYCAT": {
       "entryPrice": 0.000618668156217805,
       "ethIn": 0.000028133515672214344,
       "tokens": 104.63045593552667,
       "entryTime": 1773790805358,
       "conf": 76
+    },
+    "XCN": {
+      "entryPrice": 0.005661,
+      "ethIn": 0.00002532016410499291,
+      "tokens": 10.226399659287587,
+      "entryTime": 1773794684553,
+      "conf": 69
     }
   },
   "waveStats": {
@@ -214,7 +205,7 @@
     "AIXBT": 0.02625,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": 0.000618668156217805,
+    "KEYCAT": 0.0006198,
     "DOGINME": null,
     "XCN": 0.005736,
     "SKI": null,
@@ -252,7 +243,7 @@
     "AIXBT": 0.005371237915444991,
     "TOSHI": 0,
     "KITE": 0,
-    "KEYCAT": 0.000774280580270528,
+    "KEYCAT": 0.001423777436705743,
     "DOGINME": 0,
     "XCN": 0.007888073819990878,
     "SKI": 0,
@@ -290,7 +281,7 @@
     "AIXBT": 1773790689794,
     "TOSHI": null,
     "KITE": null,
-    "KEYCAT": 1773790803474,
+    "KEYCAT": 1773794624958,
     "DOGINME": null,
     "XCN": 1773786615765,
     "SKI": null,
@@ -634,6 +625,76 @@
       "tx": "0xdb5833d915cd87d2c7433622642705526ea17422707a9ddb66a3d10e6ee80637",
       "reason": "🎯 MIN TROUGH [THIN]",
       "indScore": 2
+    },
+    {
+      "type": "BUY",
+      "symbol": "KEYCAT",
+      "price": 0.0006198,
+      "ethSpent": 0.0006494968564352148,
+      "timestamp": "2026-03-18T00:43:44.958Z",
+      "tx": "0x0f88ba6e854a0347b6324582193fe2aef22c541cc5fd7ef685e871b07d5fb880",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006494968564352148,
+      "timestamp": "2026-03-18T00:44:03.742Z",
+      "tx": "0x264adcb51ada040fced48eeded47f6cd56d78c2d1514fe43bb3e11f1d43a8d68",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006480265431672082,
+      "timestamp": "2026-03-18T00:46:45.896Z",
+      "tx": "0xb026a3bde97db10c2741ca24499e112c957a403b0d90df0fcf4f6bd0185e93e3",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006469616524263218,
+      "timestamp": "2026-03-18T00:49:30.500Z",
+      "tx": "0x9003a5d034fb4307d17ab69de6e0980d2613506a5021e9237540704c3561fa93",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006462369621692882,
+      "timestamp": "2026-03-18T00:52:12.409Z",
+      "tx": "0xe697c34fdfeea415c8a14e7bd1dbb166a1d302913754dd39aa58e4738903db71",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 1
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006459753581933361,
+      "timestamp": "2026-03-18T00:54:54.422Z",
+      "tx": "0x5cc54cc34cfae136624eef93415115f44ab80d1eaa16d9e1f6a204d694811da0",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.01151,
+      "ethSpent": 0.0006457667834787026,
+      "timestamp": "2026-03-18T00:57:35.229Z",
+      "tx": "0x52f9bd28a7302db6f6179458cc7e203511fab653bf208d177abe5fa8167f78af",
+      "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
+      "indScore": 0
     }
   ]
 }
