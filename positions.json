@@ -1,14 +1,14 @@
 {
-  "lastSaved": "2026-03-18T01:29:17.896Z",
-  "piggyBank": 0.00021044644386594322,
+  "lastSaved": "2026-03-18T01:44:29.732Z",
+  "piggyBank": 0.0002333187061720467,
   "totalSkimmed": 0.0007762850042322317,
   "tradeCount": 363,
-  "predFund": 0.000050657971164298536,
-  "predFundPnl": -0.000018734304649837266,
-  "predFundTrades": 19,
+  "predFund": 0.00010021200531405238,
+  "predFundPnl": -0.00001983824166438197,
+  "predFundTrades": 21,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000020288521315105453,
+  "piggyCoPnl": -0.000020799197216328997,
   "predFundPositions": {
     "VIRTUAL": {
       "entryPrice": 0.7845,
@@ -17,14 +17,6 @@
       "entryTime": 1773795923697,
       "conf": 62,
       "phase": 0.444013517793735
-    },
-    "CBBTC": {
-      "entryPrice": 73995.3762508938,
-      "ethIn": 0.000050657971164298536,
-      "tokens": 0.0000015843114174495278,
-      "entryTime": 1773796360110,
-      "conf": 62,
-      "phase": 36.57505350275699
     }
   },
   "piggyCoPositions": {
@@ -47,13 +39,6 @@
       "ethIn": 0.000025981042452585586,
       "tokens": 0.07666005862672527,
       "entryTime": 1773795923697,
-      "conf": 62
-    },
-    "CBBTC": {
-      "entryPrice": 73995.3762508938,
-      "ethIn": 0.000023382938207327028,
-      "tokens": 7.312937159531028e-7,
-      "entryTime": 1773796360110,
       "conf": 62
     }
   },
