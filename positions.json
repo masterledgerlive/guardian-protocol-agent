@@ -1,8 +1,8 @@
 {
-  "lastSaved": "2026-03-18T04:33:43.645Z",
-  "piggyBank": 0.00023221704859037101,
+  "lastSaved": "2026-03-18T04:49:14.556Z",
+  "piggyBank": 0.0002089953437313339,
   "totalSkimmed": 0.0007762850042322317,
-  "tradeCount": 363,
+  "tradeCount": 368,
   "predFund": 0.00007452432380918283,
   "predFundPnl": -0.000021993837731120643,
   "predFundTrades": 25,
@@ -48,6 +48,13 @@
       "tokens": 73.49160624203061,
       "entryTime": 1773806841618,
       "conf": 72
+    },
+    "AIXBT": {
+      "entryPrice": 0.02655,
+      "ethIn": 0.000023221704859037104,
+      "tokens": 2.0178968807239652,
+      "entryTime": 1773809270183,
+      "conf": 74
     }
   },
   "waveStats": {
@@ -779,6 +786,56 @@
       "tx": "0x1a9bd461f870804ca0acab10ee63b976db5c74761199e6ffcc411784c376ab8f",
       "reason": "🎯 MIN TROUGH [THIN] unconfirmed",
       "indScore": -3
+    },
+    {
+      "type": "BUY",
+      "symbol": "SKI",
+      "price": 0.01177,
+      "ethSpent": 0.00039270766073031416,
+      "timestamp": "2026-03-18T04:38:46.420Z",
+      "tx": "0x394a8065708a7fa29926a9f5f080ad92a5ee93a5f920460f51c5454fdb5731b6",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "GAME",
+      "price": 0.0115366970810332,
+      "ethSpent": 0.000356698718594133,
+      "timestamp": "2026-03-18T04:40:49.928Z",
+      "tx": "0xb4fc32512cdb7ee3a6fc16621ac98edff9117137c12073e04a1d6cabde7f1d34",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "SKI",
+      "price": 0.01177,
+      "ethSpent": 0.000391782648047446,
+      "timestamp": "2026-03-18T04:41:33.954Z",
+      "tx": "0x4ccdc86e3e7c051de265d2c7030fa5f52f3aaebefac799038dd4bfb15fecb486",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "SKI",
+      "price": 0.01177,
+      "ethSpent": 0.0003914435529261435,
+      "timestamp": "2026-03-18T04:44:17.725Z",
+      "tx": "0x02c4332c6231057026d38e9e4f325c5b6a8e4e44584d1e4ce91857a9cd16c729",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "SKI",
+      "price": 0.01177,
+      "ethSpent": 0.00039110449644025325,
+      "timestamp": "2026-03-18T04:47:00.308Z",
+      "tx": "0x5b6ef9b0983da665848a39788b37f9ac845850cc02661825e04194bb8378e532",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
     }
   ]
 }
