@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-18T13:35:07.988Z",
-  "piggyBank": 0.0003510967005308258,
-  "totalSkimmed": 0.0012369139177264845,
-  "tradeCount": 541,
-  "predFund": 0.0001965765327202703,
+  "lastSaved": "2026-03-18T13:50:46.263Z",
+  "piggyBank": 0.00035481933629886395,
+  "totalSkimmed": 0.001248081825030599,
+  "tradeCount": 544,
+  "predFund": 0.00020029916848830846,
   "predFundPnl": -0.000030571608122728114,
   "predFundTrades": 32,
-  "agentCapital": 0.0003749091604717824,
+  "agentCapital": 0.00037863179623982054,
   "agentPnl": 0,
   "piggyCoPnl": -0.000027662607209408335,
   "predFundPositions": {
@@ -44,9 +44,9 @@
   },
   "waveStats": {
     "AIXBT": {
-      "wins": 25,
+      "wins": 26,
       "losses": 40,
-      "totalPnlEth": 0.017231667390797147,
+      "totalPnlEth": 0.01834845812120859,
       "biggestWavePct": 95.23704605515366,
       "biggestWaveUsd": 0.5206168622184875,
       "fastestWaveMs": null,
@@ -54,9 +54,9 @@
       "medals": {
         "gold": 5,
         "silver": 1,
-        "bronze": 19
+        "bronze": 20
       },
-      "piggyContrib": 0.00006398127392092065
+      "piggyContrib": 0.00006770390968895879
     },
     "KEYCAT": {
       "wins": 9,
@@ -362,7 +362,7 @@
     "DEGEN": 0.000020104279573414867,
     "WELL": 0,
     "SEAM": 3.963124044126011e-8,
-    "AIXBT": 0.00006398127392092065,
+    "AIXBT": 0.00006770390968895879,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
     "KEYCAT": 0.000022363642081089702,
@@ -1580,6 +1580,37 @@
       "tx": "0x6c12445d3481544c0624be38ca79007ca2f13d167f0df903dec3c4f4f0b53289",
       "reason": "🎯 MAX PEAK $0.02785277",
       "indScore": -3
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0250038415005172,
+      "receivedEth": 0.001116790730411443,
+      "netUsd": 2.5043585413184446,
+      "timestamp": "2026-03-18T13:44:41.423Z",
+      "tx": "0x5e65d4656ca26cbfbd213d216704ae640c6349cf0b65d286de319d72bbefaffd",
+      "reason": "🧠 PREDICTED PEAK [84% conf φ214°]",
+      "indScore": 5
+    },
+    {
+      "type": "BUY",
+      "symbol": "HIGHER",
+      "price": 0.0003517,
+      "ethSpent": 0.0005961702485392348,
+      "timestamp": "2026-03-18T13:44:44.005Z",
+      "tx": "0x12b2bbb8eafde7b8f66361105c1ed6c92e8efc2110b5db270f1bc43f59330ba3",
+      "reason": "🌊 CASCADE from AIXBT [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "BUY",
+      "symbol": "MIGGLES",
+      "price": 0.003684,
+      "ethSpent": 0.0003628858525850435,
+      "timestamp": "2026-03-18T13:45:54.797Z",
+      "tx": "0x1d24c9e4330c65521d98bf86e51f3239f549bfb125b9181590116dc37e6adedb",
+      "reason": "🎯 MIN TROUGH [THIN]",
+      "indScore": 1
     }
   ]
 }
