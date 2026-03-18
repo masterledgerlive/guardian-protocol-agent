@@ -10030,18 +10030,44 @@
       "predFundTotal": 0.00011780295764432427,
       "agentTotal": 0.0002652408687154806,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 427,
+      "symbol": "AIXBT",
+      "price": 0.0266888993288605,
+      "receivedEth": 0.0025664772736378356,
+      "recUsd": 5.979686729394266,
+      "investedUsd": 0,
+      "netUsd": 5.979686729394266,
+      "pnlPct": 0,
+      "ethUsd": 2329.92,
+      "timestamp": "2026-03-18T09:37:01.057Z",
+      "tx": "0xe45e7b304d353e689ebd9e4e160c64bb5f279287c5ee1e4b05b9600b8f080073",
+      "basescan": "https://basescan.org/tx/0xe45e7b304d353e689ebd9e4e160c64bb5f279287c5ee1e4b05b9600b8f080073",
+      "reason": "MANUAL SELL HALF",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.000025664772736378357,
+      "skimLottery": 0.000008554924245459452,
+      "skimPred": 0.000008554924245459452,
+      "skimAgent": 0.000008554924245459452,
+      "piggyTotal": 0.00031275663603272196,
+      "predFundTotal": 0.00012635788188978373,
+      "agentTotal": 0.00027379579296094004,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T09:36:04.711Z",
-  "totalTrades": 444,
+  "lastUpdated": "2026-03-18T09:37:01.757Z",
+  "totalTrades": 445,
   "stats": {
-    "totalTrades": 444,
-    "sells": 196,
-    "wins": 96,
-    "winRate": "49.0%",
-    "totalNetUsd": "102.23",
-    "totalSkimEth": "0.001022"
+    "totalTrades": 445,
+    "sells": 197,
+    "wins": 97,
+    "winRate": "49.2%",
+    "totalNetUsd": "108.20",
+    "totalSkimEth": "0.001048"
   }
 }
