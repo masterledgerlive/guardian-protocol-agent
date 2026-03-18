@@ -13900,18 +13900,45 @@
       "minTrough": 0.000776967308927713,
       "maxPeak": 0.000872025609469569,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 599,
+      "symbol": "BRETT",
+      "price": 0.007493,
+      "receivedEth": 0.0009014575530033302,
+      "recUsd": 1.9740027349911624,
+      "investedUsd": 1.0145504460361825,
+      "netUsd": 0.9594522889549799,
+      "pnlPct": 94.56920478459506,
+      "ethUsd": 2189.79,
+      "timestamp": "2026-03-18T21:17:14.656Z",
+      "tx": "0x929cbfac2560fa1475c06814fad84cf1fccb59a472d676953d08a188f2e3f525",
+      "basescan": "https://basescan.org/tx/0x929cbfac2560fa1475c06814fad84cf1fccb59a472d676953d08a188f2e3f525",
+      "reason": "MANUAL SELL HALF",
+      "indScore": 0,
+      "indDetail": "RSI 50.6 neutral",
+      "skimEth": 0.000009014575530033303,
+      "skimLottery": 0.0000030048585100111007,
+      "skimPred": 0.0000030048585100111007,
+      "skimAgent": 0.0000030048585100111007,
+      "piggyTotal": 0.00036633320580869836,
+      "predFundTotal": 0.00022748992213486412,
+      "agentTotal": 0.0004166133277469989,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "signature": "Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T21:00:50.657Z",
-  "totalTrades": 621,
+  "lastUpdated": "2026-03-18T21:17:15.150Z",
+  "totalTrades": 622,
   "stats": {
-    "totalTrades": 621,
-    "sells": 251,
-    "wins": 140,
-    "winRate": "55.8%",
-    "totalNetUsd": "145.04",
-    "totalSkimEth": "0.001489"
+    "totalTrades": 622,
+    "sells": 252,
+    "wins": 141,
+    "winRate": "56.0%",
+    "totalNetUsd": "146.00",
+    "totalSkimEth": "0.001498"
   }
 }
