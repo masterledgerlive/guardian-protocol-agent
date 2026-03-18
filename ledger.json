@@ -13428,18 +13428,44 @@
       "minTrough": 0.000296164515214754,
       "maxPeak": 0.000367595271855615,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 584,
+      "symbol": "DEGEN",
+      "price": 0.0007513,
+      "receivedEth": 0.0032537537575435226,
+      "recUsd": 7.073042455685685,
+      "investedUsd": 7.050603438471286,
+      "netUsd": 0.022439017214399115,
+      "pnlPct": 0.31825669122109,
+      "ethUsd": 2173.81,
+      "timestamp": "2026-03-18T20:20:36.617Z",
+      "tx": "0xa71e4c603a130f6a16451d117f4b7b90d580ba8834329bcc887b55ff04a4c848",
+      "basescan": "https://basescan.org/tx/0xa71e4c603a130f6a16451d117f4b7b90d580ba8834329bcc887b55ff04a4c848",
+      "reason": "STOP LOSS",
+      "indScore": 0,
+      "indDetail": "building",
+      "skimEth": 0.00003253753757543523,
+      "skimLottery": 0.000010845845858478409,
+      "skimPred": 0.000010845845858478409,
+      "skimAgent": 0.000010845845858478409,
+      "piggyTotal": 0.000322220838178205,
+      "predFundTotal": 0.00013759525514086128,
+      "agentTotal": 0.00040323915184000016,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-18T19:51:59.622Z",
-  "totalTrades": 601,
+  "lastUpdated": "2026-03-18T20:20:37.283Z",
+  "totalTrades": 602,
   "stats": {
-    "totalTrades": 601,
-    "sells": 239,
-    "wins": 135,
-    "winRate": "56.5%",
-    "totalNetUsd": "145.61",
-    "totalSkimEth": "0.001404"
+    "totalTrades": 602,
+    "sells": 240,
+    "wins": 136,
+    "winRate": "56.7%",
+    "totalNetUsd": "145.64",
+    "totalSkimEth": "0.001436"
   }
 }
