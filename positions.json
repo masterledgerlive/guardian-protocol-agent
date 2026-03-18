@@ -1,15 +1,24 @@
 {
-  "lastSaved": "2026-03-18T03:31:11.076Z",
-  "piggyBank": 0.0002841825058977893,
+  "lastSaved": "2026-03-18T03:46:26.422Z",
+  "piggyBank": 0.00025801894287819,
   "totalSkimmed": 0.0007762850042322317,
   "tradeCount": 363,
-  "predFund": 0.0002012948158301804,
-  "predFundPnl": -0.000020071373476851013,
-  "predFundTrades": 23,
+  "predFund": 0.00014904864761836566,
+  "predFundPnl": -0.000021993837731120643,
+  "predFundTrades": 25,
   "agentCapital": 0.00022136618930703136,
   "agentPnl": 0,
-  "piggyCoPnl": -0.000021236604048164896,
-  "predFundPositions": {},
+  "piggyCoPnl": -0.000021823741536963148,
+  "predFundPositions": {
+    "PRIME": {
+      "entryPrice": 0.4045,
+      "ethIn": 0.0000503237039575451,
+      "tokens": 0.2895091387209298,
+      "entryTime": 1773804968836,
+      "conf": 68,
+      "phase": 31.93461108780133
+    }
+  },
   "piggyCoPositions": {
     "KEYCAT": {
       "entryPrice": 0.000618668156217805,
@@ -17,6 +26,13 @@
       "tokens": 104.63045593552667,
       "entryTime": 1773790805358,
       "conf": 76
+    },
+    "PRIME": {
+      "entryPrice": 0.4045,
+      "ethIn": 0.00002557642553080104,
+      "tokens": 0.14713958521870737,
+      "entryTime": 1773804968836,
+      "conf": 68
     }
   },
   "waveStats": {
