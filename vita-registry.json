@@ -56,5 +56,21 @@
     ],
     "tokenPacket": "§SUBJ§[Albert Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=constant-299792458m/s|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²-mass-energy-equivalence|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle:gravity=acceleration|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century|gravitational-redshift]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|rejected-QM-completeness|God-not-play-dice|EPR-paradox-1935:spooky-action-at-distance]\n§QUOTES§[Imagination>knowled",
     "filedAt": "2026-03-19T19:57:47.543Z"
+  },
+  "2026-03-19-einstein-physics-knowledge-v2": {
+    "strandId": "VITA-KNOW-EINSTEIN-PHY",
+    "date": "2026-03-19",
+    "label": "einstein-physics-knowledge-v2",
+    "type": "knowledge-base",
+    "subject": "Albert Einstein — Physics, Philosophy, Life (complete)",
+    "txHashes": [
+      "0x07874b6e331151c2d8748b468382962f8256e1d0c11f181521c3b2c76d753bd1",
+      "0x14454ae19619894a1da60e40b8f6ca6bc7f32cdbb1d843027c99346eff76156e",
+      "0xab794a709f6aaf4163924766293b5f518bc451914ebd915d1ef458df59509a30",
+      "0x22575b85dc5df80dfe70953167a070ccf63b62b31a02865386e1828ed8697008",
+      "0x081dbcfea9e4213714e6795f0beea5dc8e394920b2f9c6bd8de68f5dc3526641"
+    ],
+    "tokenPacket": "§SUBJ§[Albert-Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Arthur-Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=299792458m/s-constant|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|God-not-play-dice|EPR-paradox-1935]\n§QUOTES§[Imagination-more-important-than-knowledge|God-not-play-dice|universe-comprehensible|simple-as-possible-not-simpler|passionate-curio",
+    "filedAt": "2026-03-19T20:19:11.366Z"
   }
 }
