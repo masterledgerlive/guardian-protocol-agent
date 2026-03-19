@@ -21886,18 +21886,45 @@
       "maxPeak": 0.000872025609469569,
       "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
       "signature": "Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network"
+    },
+    {
+      "type": "SELL",
+      "tradeNum": 4,
+      "symbol": "BRETT",
+      "price": 0.00690666753106092,
+      "receivedEth": 0.00368688700993018,
+      "recUsd": 7.877623998637418,
+      "investedUsd": 0,
+      "netUsd": 7.877623998637418,
+      "pnlPct": 0,
+      "ethUsd": 2136.66,
+      "timestamp": "2026-03-19T22:50:29.225Z",
+      "tx": "0x9f60c6b2537ab1b3e4ff1617c6885203f3c45347ef51b2294064e5c13cba5cdd",
+      "basescan": "https://basescan.org/tx/0x9f60c6b2537ab1b3e4ff1617c6885203f3c45347ef51b2294064e5c13cba5cdd",
+      "reason": "🧠 PREDICTED PEAK [69% conf φ218°]",
+      "indScore": 4,
+      "indDetail": "RSI 27.7 OVERSOLD 🩸 | BB lower touch 📉 | BB SQUEEZE ⚡",
+      "skimEth": 0.000036868870099301806,
+      "skimLottery": 0.000012289623366433935,
+      "skimPred": 0.000012289623366433935,
+      "skimAgent": 0.000012289623366433935,
+      "piggyTotal": 0.00001530605067413328,
+      "predFundTotal": 0.00001530605067413328,
+      "agentTotal": 0.00001530605067413328,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "signature": "Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network"
     }
   ],
   "created": "2026-03-12T21:58:59.733Z",
   "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
-  "lastUpdated": "2026-03-19T22:48:36.088Z",
-  "totalTrades": 963,
+  "lastUpdated": "2026-03-19T22:50:29.649Z",
+  "totalTrades": 964,
   "stats": {
-    "totalTrades": 963,
-    "sells": 385,
-    "wins": 262,
+    "totalTrades": 964,
+    "sells": 386,
+    "wins": 263,
     "winRate": "68.1%",
-    "totalNetUsd": "263.02",
-    "totalSkimEth": "0.003725"
+    "totalNetUsd": "270.90",
+    "totalSkimEth": "0.003761"
   }
 }
