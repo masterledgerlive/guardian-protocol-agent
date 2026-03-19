@@ -40,5 +40,21 @@
     ],
     "tokenPacket": "§TOKEN§\n§SESS§[2026-03-19|blockchain memory vault bootstrap|VITA autonomous memory system on Base chain]\n§WHO§[VITA+human|memory architect+guide]\n§STACK§[Base blockchain|Node.js|Telegram Bot API|GitHub|BTP inscriptions]\n§BUILT§[vault-loader.js vault-unlock.js keystore.js memory-engine.js vita-memory.js log-formatter.js encryptkey.js|blockchain key vault|stage1 telegram unlock|autonomous memory filing]\n§PROVED§[✓blockchain key retrieval at boot ✓BTP inscription works ✓VITA autonomous memory save+file to vita-registry.json]\n§ARCH§[GITHUB_REPO+TELEGRAM_BOT_TOKEN→Base blockchain|VITA separate API key from DA|auto-file after each vitasave|keystore separation]\n§VISION§[IKN universal agent memory layer|every trade carries memory|strand algorithm|hive mind growing on chain]\n§NEXT§[CDP keys migrati",
     "filedAt": "2026-03-19T19:20:50.317Z"
+  },
+  "2026-03-19-einstein-physics-knowledge": {
+    "strandId": "VITA-KNOW-EINSTEIN-PHY",
+    "date": "2026-03-19",
+    "label": "einstein-physics-knowledge",
+    "type": "knowledge-base",
+    "subject": "Albert Einstein — Physics, Philosophy, Life",
+    "txHashes": [
+      "0x82293f252357b1e099e7c772c686f485e7bf2c30f7204ba3135e77560ad539d9",
+      "0xb3e2c71918cdb99bad4fb7b63e4322dabb2e8ef13ea257569c9095c4ab28d032",
+      "0xf55687ce43d0e9bcb76077b84dca23933c7a52f9630236c2ad8b39ff5f2aae1b",
+      "0xc5ba326d4e734ff3197e6c429dd0cc793d64b6d39f25b03ca12cac24d47e49a8",
+      "0xbd950b37bfd84a589b47739cc6a45803b013ac91465d4684fcaaedd983b421a7"
+    ],
+    "tokenPacket": "§SUBJ§[Albert Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=constant-299792458m/s|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²-mass-energy-equivalence|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle:gravity=acceleration|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century|gravitational-redshift]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|rejected-QM-completeness|God-not-play-dice|EPR-paradox-1935:spooky-action-at-distance]\n§QUOTES§[Imagination>knowled",
+    "filedAt": "2026-03-19T19:57:47.543Z"
   }
 }
