@@ -64,13 +64,13 @@
     "type": "knowledge-base",
     "subject": "Albert Einstein — Physics, Philosophy, Life (complete)",
     "txHashes": [
-      "0x07874b6e331151c2d8748b468382962f8256e1d0c11f181521c3b2c76d753bd1",
-      "0x14454ae19619894a1da60e40b8f6ca6bc7f32cdbb1d843027c99346eff76156e",
-      "0xab794a709f6aaf4163924766293b5f518bc451914ebd915d1ef458df59509a30",
-      "0x22575b85dc5df80dfe70953167a070ccf63b62b31a02865386e1828ed8697008",
-      "0x081dbcfea9e4213714e6795f0beea5dc8e394920b2f9c6bd8de68f5dc3526641"
+      "0xc18ebcf23a2fa9ab6eba29869d0d3ad41ff67a17555bc1dc422d6fdbdc1adfb9",
+      "0x111e45742b8adad40098fe18b0b37da3f30c6695b239c42b3d472cf55994ffa6",
+      "0xd7508b08eb536db5c8be5054cfc81a349d8fd2f5ad949b6d033b812c27f2b228",
+      "0xeb91c2139b8fed14759021f564b30a83cf086d1149505f4fa9136a60012b8124",
+      "0xba167bdd27f7fad16e92d7216e5b0fbcd00696453a04d40af4b35401d477549d"
     ],
-    "tokenPacket": "§SUBJ§[Albert-Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Arthur-Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=299792458m/s-constant|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|God-not-play-dice|EPR-paradox-1935]\n§QUOTES§[Imagination-more-important-than-knowledge|God-not-play-dice|universe-comprehensible|simple-as-possible-not-simpler|passionate-curio",
-    "filedAt": "2026-03-19T20:19:11.366Z"
+    "tokenPacket": "§SUBJ§[Albert-Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Arthur-Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=299792458m/s-constant|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|God-not-play-dice|EPR-paradox-1935]\n§QUOTES§[Imagination-more-important-than-knowledge|God-not-play-dice|universe-comprehensible|simple-as-possible-not-simpler|passionate-curiosity-not-talent]\n§PERSONAL§[never-wore-socks=TRUE|played-violin-passionately|loved-sailing|absentminded|no-socks-ever|two-marriages|pacifist|socialist|fled-Nazi-Germany-1933|declined-Israel-presidency-1952|worked-on-unified-field-theory-until-death]\n§DATES§[born:1879-03-14=Pi-Day|annus-mirabilis:1905|GR-complete:1915|Nobel:1921-awarded-1922|fled-Germany:1933|died:1955-04-18-Princeton]\n§FACTS§[c=299792458-exact|Nobel=1921|born=1879-03-14|died=1955-04-18|LIGO=2015-09-14|Eddington=1919|EPR=1935|never-wore-socks=TRUE|declined-Israel-presidency=1952|Pi-Day-birthday=TRUE|two-failed-marriages=TRUE|violin-player=TRUE]\n§TEST§[Nobel=1921|born=1879-03-14|died=1955-04-18|socks=never-wore-them=TRUE|Pi-Day=TRUE|LIGO=2015-09-14|EPR=1935|Israel-presidency=declined-1952|c=299792458|E=mc²-published=1905-09-27]\n§LEARN§[socks-fact-must-be-in-§PERSONAL§-AND-§FACTS§-AND-§TEST§-for-reliable-recall|personal-traits-need-explicit-token-not-buried-in-prose|verification-tokens-critical]",
+    "filedAt": "2026-03-19T20:43:23.372Z"
   }
 }
