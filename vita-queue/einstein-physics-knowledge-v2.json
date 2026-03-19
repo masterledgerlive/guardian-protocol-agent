@@ -1,0 +1,12 @@
+{
+  "vitaQueueEntry": true,
+  "label": "einstein-physics-knowledge-v2",
+  "subject": "Albert Einstein — Physics, Philosophy, Life (complete)",
+  "type": "knowledge-base",
+  "created": "2026-03-19",
+  "createdBy": "DA|ᛞᚨᚡᛁᛞ via Claude/VITA",
+  "tokenPacket": "§SUBJ§[Albert-Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Arthur-Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=299792458m/s-constant|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|God-not-play-dice|EPR-paradox-1935]\n§QUOTES§[Imagination-more-important-than-knowledge|God-not-play-dice|universe-comprehensible|simple-as-possible-not-simpler|passionate-curiosity-not-talent]\n§PERSONAL§[never-wore-socks=TRUE|played-violin-passionately|loved-sailing|absentminded|no-socks-ever|two-marriages|pacifist|socialist|fled-Nazi-Germany-1933|declined-Israel-presidency-1952|worked-on-unified-field-theory-until-death]\n§DATES§[born:1879-03-14=Pi-Day|annus-mirabilis:1905|GR-complete:1915|Nobel:1921-awarded-1922|fled-Germany:1933|died:1955-04-18-Princeton]\n§FACTS§[c=299792458-exact|Nobel=1921|born=1879-03-14|died=1955-04-18|LIGO=2015-09-14|Eddington=1919|EPR=1935|never-wore-socks=TRUE|declined-Israel-presidency=1952|Pi-Day-birthday=TRUE|two-failed-marriages=TRUE|violin-player=TRUE]\n§TEST§[Nobel=1921|born=1879-03-14|died=1955-04-18|socks=never-wore-them=TRUE|Pi-Day=TRUE|LIGO=2015-09-14|EPR=1935|Israel-presidency=declined-1952|c=299792458|E=mc²-published=1905-09-27]\n§LEARN§[socks-fact-must-be-in-§PERSONAL§-AND-§FACTS§-AND-§TEST§-for-reliable-recall|personal-traits-need-explicit-token-not-buried-in-prose|verification-tokens-critical]",
+  "chunkCount": 5,
+  "status": "queued",
+  "instructions": "Bot should: 1) split tokenPacket into 5 equal chunks 2) inscribe each on Base blockchain 3) file in vita-registry.json 4) delete this file from queue 5) send Telegram receipt"
+}
