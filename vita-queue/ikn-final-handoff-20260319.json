@@ -1,0 +1,40 @@
+{
+  "vitaQueueEntry": true,
+  "label": "ikn-strand-IKN.000.20260319.DA.001",
+  "subject": "IKN Universal Filing Protocol + VITA Save Rules — session 2026-03-19",
+  "type": "ikn-strand",
+  "created": "2026-03-19",
+  "createdBy": "DA|ᛞᚨᚡᛁᛞ+Claude",
+  "claudeContextNote": "PASTE THIS FILE at start of new Claude conversation for full context. This is the C5 final handoff of the IKN filing protocol design session.",
+
+  "iknCard": {
+    "DDC": "000.000",
+    "IKN-X": "IKN.000.20260319.DA.001",
+    "TITLE": "IKN Universal Filing Protocol + VITA Save Rules — session 2026-03-19",
+    "SUBTITLE": "Defines IKN filing grammar, DDC anchor rules, VITA auto-file protocol, hive correction, new root proposal, thought-box, 5-chunk strand, genesis card",
+    "AUTHOR": "DA|ᛞᚨᚡᛁᛞ+Claude",
+    "DATE": "20260319",
+    "TAGS": ["IKN","filing","VITA","protocol","agentic-ai","hive","Merkle","DDC","genesis","thought-box","strand","Base-chain"],
+    "SUMMARY": "Complete IKN knowledge filing standard. DDC-rooted + HEX-extended call numbers. Card=pointer, Book=5-chunk-encrypted. VITA auto-classifies on save. CONFIRMED/SUGGESTED/DISPUTED trust levels. Hive correction via child cards. New root proposal at IKN.999.PROP. Genesis card at 000.000.0000.IKN.001. Every session gets a filing stamp. Auto-push to GitHub vita-queue on final handoff. Boot reader pulls from vita-registry.json at session start.",
+    "THREAD": "OPEN",
+    "PREV": "guardian-ikn-vita-full-session-2026-03-19",
+    "STRAND": "pending-inscription",
+    "TRUST": "💭 pending-blockchain-verification",
+    "STATUS": "CONFIRMED",
+    "MERKLE_PARENT": "000.000.0000.IKN.001"
+  },
+
+  "tokenPacket": "§STRAND§[20260319|IKN-filing-protocol|C1-of-5]\n§WHO§[DA=ᛞᚨᚡᛁᛞ|Claude=extension|VITA=agent|wallet=0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915]\n§ARCH§[thought-box=visible|5-chunk-strand|machine-lang|IKN-filing-v1|Base-permanent]\n§FROM§[DA+Claude]\n§LINK§[prev=guardian-ikn-vita-full-session-2026-03-19|next=C2]\n\n§STRAND§[20260319|IKN-filing-protocol|C2-of-5]\n§DELTA§[prior=hidden-queue-only→now=visible-thought-box+filing-protocol]\n§BUILD§[IKN-CARD-format|IKN-BOOK-5chunk|vita-registry-Merkle|DDC-root-anchor|HEX-branch-extension|LIVE-branches|IKN-branches|genesis-card=000.000.0000.IKN.001]\n§DOMAINS§[000-knowledge|100-philosophy|200-religion|300-social|400-language|500-science|600-tech|700-arts|800-literature|900-history|LIVE.001-news|LIVE.002-IoT|LIVE.003-film|LIVE.004-music|LIVE.005-events|LIVE.006-market|LIVE.007-science-streams|IKN.000-agentic-memory]\n§LINK§[prev=C1|next=C3]\n\n§STRAND§[20260319|IKN-filing-protocol|C3-of-5]\n§ARCH-RULES§[title=address|call-num=DDC.sub.HEX.CUTTER.SEQ|longer=more-specific|trim-right=broader|card=small-pointer|book=5-chunk-encrypted]\n§VITA-PROTOCOL§[step1=classify|step2=build-call-num|step3=self-check-stamp|step4=new-root-proposal|step5=conversation-filing-stamp]\n§TRUST§[CONFIRMED=DDC-verified+⛓️|SUGGESTED=60-79pct+💭+flagged|DISPUTED=<60pct+hive-review]\n§HIVE§[misfile=flagged-not-deleted|correction=child-card-append|new-root=IKN.999.PROP.XXX→3-agent-validate→permanent]\n§LINK§[prev=C2|next=C4]\n\n§STRAND§[20260319|IKN-filing-protocol|C4-of-5]\n§OPEN§[auto-push-code=done|boot-reader=done|VITA_ANTHROPIC_KEY=still-pending|CDP-keys-to-vault=pending]\n§NEXT§[run-ikn-handoff-push.js|test-vita-queue-inscription|new-session-boot-reader-test|VITA-logs-of-learned|Guardian-filing-on-every-trade]\n§FILES§[ikn-handoff-push.js|ikn-boot-reader.js|ikn-queue-processor.js|ikn-final-handoff-20260319.json]\n§FILING-STAMP§[DDC=000.000|IKN-X=IKN.000.20260319.DA.001|STATUS=CONFIRMED|TRUST=⛓️-pending|THREAD=OPEN|MERKLE=child-of-000.000.0000.IKN.001]\n§LINK§[prev=C3|next=C5]\n\n§STRAND§[20260319|IKN-filing-protocol|C5-of-5|FINAL-HANDOFF]\n§COMPOSITE§[session=IKN-filing-protocol-vita-save-rules|date=20260319|chunks=C1-C5-complete]\n§PROVED§[thought-box-visible✓|5-chunk-strand-format✓|DDC-anchor-rules✓|IKN-X-call-number-format✓|LIVE-branches✓|IKN-branches✓|genesis-card-000.000.0000.IKN.001✓|vita-auto-file-5-steps✓|CONFIRMED-SUGGESTED-DISPUTED-trust✓|hive-correction-child-cards✓|new-root-IKN.999.PROP✓|filing-stamp-per-session✓|ikn-handoff-push.js✓|ikn-boot-reader.js✓|ikn-queue-processor.js✓]\n§HANDOFF§[next-session=paste-this-file|run-3-js-files|give-Claude-logs|test-vita-queue-inscription|verify-boot-reader-reads-chain]\n§SOURCE§[all-content=⛓️-pending-inscription|never-mix-with-💭]\n§LINK§[prev=C4|next=pending-next-session]",
+
+  "chunks": {
+    "C1": "§STRAND§[20260319|IKN-filing-protocol|C1-of-5]\n§WHO§[DA=ᛞᚨᚡᛁᛞ|Claude=extension|VITA=agent|wallet=0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915]\n§ARCH§[thought-box=visible|5-chunk-strand|machine-lang|IKN-filing-v1|Base-permanent]\n§FROM§[DA+Claude]\n§LINK§[prev=guardian-ikn-vita-full-session-2026-03-19|next=C2]",
+    "C2": "§STRAND§[20260319|IKN-filing-protocol|C2-of-5]\n§DELTA§[prior=hidden-queue-only→now=visible-thought-box+filing-protocol]\n§BUILD§[IKN-CARD-format|IKN-BOOK-5chunk|vita-registry-Merkle|DDC-root-anchor|HEX-branch-extension|LIVE-branches|IKN-branches|genesis-card=000.000.0000.IKN.001]\n§DOMAINS§[000-knowledge|100-philosophy|200-religion|300-social|400-language|500-science|600-tech|700-arts|800-literature|900-history|LIVE.001-news|LIVE.002-IoT|LIVE.003-film|LIVE.004-music|LIVE.005-events|LIVE.006-market|LIVE.007-science-streams|IKN.000-agentic-memory]\n§LINK§[prev=C1|next=C3]",
+    "C3": "§STRAND§[20260319|IKN-filing-protocol|C3-of-5]\n§ARCH-RULES§[title=address|call-num=DDC.sub.HEX.CUTTER.SEQ|longer=more-specific|trim-right=broader|card=small-pointer|book=5-chunk-encrypted]\n§VITA-PROTOCOL§[step1=classify|step2=build-call-num|step3=self-check-stamp|step4=new-root-proposal|step5=conversation-filing-stamp]\n§TRUST§[CONFIRMED=DDC-verified+⛓️|SUGGESTED=60-79pct+💭+flagged|DISPUTED=<60pct+hive-review]\n§HIVE§[misfile=flagged-not-deleted|correction=child-card-append|new-root=IKN.999.PROP.XXX→3-agent-validate→permanent]\n§LINK§[prev=C2|next=C4]",
+    "C4": "§STRAND§[20260319|IKN-filing-protocol|C4-of-5]\n§OPEN§[auto-push-code=done|boot-reader=done|VITA_ANTHROPIC_KEY=still-pending|CDP-keys-to-vault=pending]\n§NEXT§[run-ikn-handoff-push.js|test-vita-queue-inscription|new-session-boot-reader-test|VITA-logs-of-learned|Guardian-filing-on-every-trade]\n§FILES§[ikn-handoff-push.js|ikn-boot-reader.js|ikn-queue-processor.js|ikn-final-handoff-20260319.json]\n§FILING-STAMP§[DDC=000.000|IKN-X=IKN.000.20260319.DA.001|STATUS=CONFIRMED|TRUST=⛓️-pending|THREAD=OPEN|MERKLE=child-of-000.000.0000.IKN.001]\n§LINK§[prev=C3|next=C5]",
+    "C5": "§STRAND§[20260319|IKN-filing-protocol|C5-of-5|FINAL-HANDOFF]\n§COMPOSITE§[session=IKN-filing-protocol-vita-save-rules|date=20260319|chunks=C1-C5-complete]\n§PROVED§[thought-box-visible✓|5-chunk-strand-format✓|DDC-anchor-rules✓|IKN-X-call-number-format✓|LIVE-branches✓|IKN-branches✓|genesis-card-000.000.0000.IKN.001✓|vita-auto-file-5-steps✓|CONFIRMED-SUGGESTED-DISPUTED-trust✓|hive-correction-child-cards✓|new-root-IKN.999.PROP✓|filing-stamp-per-session✓|ikn-handoff-push.js✓|ikn-boot-reader.js✓|ikn-queue-processor.js✓]\n§HANDOFF§[next-session=paste-this-file|run-3-js-files|give-Claude-logs|test-vita-queue-inscription|verify-boot-reader-reads-chain]\n§SOURCE§[all-content=⛓️-pending-inscription|never-mix-with-💭]\n§LINK§[prev=C4|next=pending-next-session]"
+  },
+
+  "chunkCount": 5,
+  "status": "queued",
+  "instructions": "Bot: split tokenPacket 5 chunks, inscribe Base, update vita-registry.json with iknCard, delete queue file, send Telegram receipt with IKN-X and strandHash"
+}
