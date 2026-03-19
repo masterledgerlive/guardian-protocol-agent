@@ -1,12 +1,12 @@
 {
-  "lastSaved": "2026-03-19T00:54:45.110Z",
-  "piggyBank": 0.000621085840747483,
-  "totalSkimmed": 0.002431426680117824,
-  "tradeCount": 719,
-  "predFund": 0.0002020655536410189,
+  "lastSaved": "2026-03-19T01:10:02.731Z",
+  "piggyBank": 0.0006354255531527918,
+  "totalSkimmed": 0.0024744458173337506,
+  "tradeCount": 727,
+  "predFund": 0.00021640526604632776,
   "predFundPnl": -0.0000391968812962486,
   "predFundTrades": 38,
-  "agentCapital": 0.0007730800812688954,
+  "agentCapital": 0.0007874197936742042,
   "agentPnl": 0,
   "piggyCoPnl": -0.00003142601478709145,
   "predFundPositions": {
@@ -74,19 +74,19 @@
   },
   "waveStats": {
     "AIXBT": {
-      "wins": 30,
+      "wins": 31,
       "losses": 41,
-      "totalPnlEth": 0.027909730322663452,
-      "biggestWavePct": 731.7049782248192,
-      "biggestWaveUsd": 3.5132710745379185,
+      "totalPnlEth": 0.029864127652991228,
+      "biggestWavePct": 742.973030572464,
+      "biggestWaveUsd": 3.824134530430913,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 8,
+        "gold": 9,
         "silver": 1,
         "bronze": 21
       },
-      "piggyContrib": 0.00009988047684425597
+      "piggyContrib": 0.00010647350911980946
     },
     "KEYCAT": {
       "wins": 13,
@@ -104,19 +104,19 @@
       "piggyContrib": 0.000030139577706612997
     },
     "PRIME": {
-      "wins": 19,
-      "losses": 5,
-      "totalPnlEth": 0.03192723535357928,
+      "wins": 21,
+      "losses": 6,
+      "totalPnlEth": 0.03407828711931288,
       "biggestWavePct": 88.51699652106673,
       "biggestWaveUsd": 3.214067596465681,
       "fastestWaveMs": null,
       "fastestWavePct": 0,
       "medals": {
-        "gold": 14,
+        "gold": 15,
         "silver": 1,
-        "bronze": 4
+        "bronze": 5
       },
-      "piggyContrib": 0.00011904464363244473
+      "piggyContrib": 0.0001267913237622001
     },
     "DEGEN": {
       "wins": 25,
@@ -290,7 +290,7 @@
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 0.000762778638590449,
+    "DEGEN": 0.0007648,
     "WELL": 0.00495199514442541,
     "SEAM": null,
     "AIXBT": null,
@@ -328,7 +328,7 @@
     "VIRTUAL": 0,
     "MORPHO": 0,
     "CBBTC": 0,
-    "DEGEN": 0.003719644707224146,
+    "DEGEN": 0.005459833377838125,
     "WELL": 0.0020859709429983508,
     "SEAM": 0,
     "AIXBT": 0,
@@ -366,7 +366,7 @@
     "VIRTUAL": null,
     "MORPHO": null,
     "CBBTC": null,
-    "DEGEN": 1773881405966,
+    "DEGEN": 1773882015666,
     "WELL": 1773834296297,
     "SEAM": null,
     "AIXBT": null,
@@ -407,14 +407,14 @@
     "DEGEN": 0.0001406945110052781,
     "WELL": 0,
     "SEAM": 3.963124044126011e-8,
-    "AIXBT": 0.00009988047684425597,
+    "AIXBT": 0.00010647350911980946,
     "TOSHI": 0.00000823431506903172,
     "KITE": 0,
     "KEYCAT": 0.000030139577706612997,
     "DOGINME": 0,
     "XCN": 0.00005816232137984258,
     "SKI": 0,
-    "PRIME": 0.00011904464363244473,
+    "PRIME": 0.0001267913237622001,
     "LUNA": 0,
     "HIGHER": 0.00014723927118890813,
     "MOCHI": 0,
@@ -1579,6 +1579,90 @@
       "tx": "0x316f355863a37673237d5f8acd1f0ad45717c5abbc8130447cea5f689bf1bdd3",
       "reason": "🌙 MOONSHOT TRIM — not in active tiers",
       "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.3836,
+      "ethSpent": 0.0019663946351947685,
+      "timestamp": "2026-03-19T00:55:19.031Z",
+      "tx": "0x4527932c7d92aea3760e6a481b9e11d08c989a07d1f6995a41ecaf14e80fbada",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.3836,
+      "receivedEth": 0.00194771851111278,
+      "netUsd": 0.3792816491385098,
+      "timestamp": "2026-03-19T00:56:07.498Z",
+      "tx": "0xd6372fdbd3c4cc8a153f92096d93895f2abfc08120a6c91449a52a5557af5da8",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 3
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.3838,
+      "receivedEth": 0.000376285527813827,
+      "netUsd": 0.8254387480888017,
+      "timestamp": "2026-03-19T00:58:18.940Z",
+      "tx": "0x5ccfc0c96d7fa007b5fcaa7dafee4c9a8aa238a46c214c83317168ac1143695e",
+      "reason": "🧠 PREDICTED PEAK [73% conf φ216°]",
+      "indScore": 4
+    },
+    {
+      "type": "BUY",
+      "symbol": "AIXBT",
+      "price": 0.0246260444093983,
+      "ethSpent": 0.0002607658707749821,
+      "timestamp": "2026-03-19T00:58:21.963Z",
+      "tx": "0x02b0e171dd7ca9ca8911b686659af8a02232fac56209e87992c017f23265bc97",
+      "reason": "🌊 CASCADE from PRIME [PRIORITY]",
+      "indScore": 0
+    },
+    {
+      "type": "SELL",
+      "symbol": "AIXBT",
+      "price": 0.0246260444093983,
+      "receivedEth": 0.0019779096826660425,
+      "netUsd": 3.824134530430913,
+      "timestamp": "2026-03-19T00:59:11.404Z",
+      "tx": "0xe02bedcd4c1565eb06fc8e9b9b98193c1daf8c497f6eecc4865538717c7d3130",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 0
+    },
+    {
+      "type": "BUY",
+      "symbol": "DEGEN",
+      "price": 0.0007648,
+      "ethSpent": 0.0017401886706139796,
+      "timestamp": "2026-03-19T01:00:15.666Z",
+      "tx": "0x6631f61740de5c711678095e0be5ec5a38729122c3dc44a91acbe3aa99fd89a9",
+      "reason": "🎯 MIN TROUGH [PRIORITY] unconfirmed",
+      "indScore": -2
+    },
+    {
+      "type": "BUY",
+      "symbol": "PRIME",
+      "price": 0.3836,
+      "ethSpent": 0.0026504412060120615,
+      "timestamp": "2026-03-19T01:00:27.635Z",
+      "tx": "0x71010dc89f17f0f23d509a56bf555235f0e270549014940168b2a0ef5c232d8e",
+      "reason": "🎯 MIN TROUGH [PRIORITY]",
+      "indScore": 4
+    },
+    {
+      "type": "SELL",
+      "symbol": "PRIME",
+      "price": 0.3836,
+      "receivedEth": 0.0022528105306251138,
+      "netUsd": -0.37179373955244976,
+      "timestamp": "2026-03-19T01:01:16.591Z",
+      "tx": "0xf172323f2ad218437874f9d981c1724902809a5c0a7fe3b83fb405ccb03871bf",
+      "reason": "🌙 MOONSHOT TRIM — not in active tiers",
+      "indScore": 4
     }
   ]
 }
