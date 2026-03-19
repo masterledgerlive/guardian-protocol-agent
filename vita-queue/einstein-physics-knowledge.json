@@ -1,0 +1,12 @@
+{
+  "vitaQueueEntry": true,
+  "label": "einstein-physics-knowledge",
+  "subject": "Albert Einstein — Physics, Philosophy, Life",
+  "type": "knowledge-base",
+  "created": "2026-03-19",
+  "createdBy": "DA|ᛞᚨᚡᛁᛞ via Claude/VITA",
+  "tokenPacket": "§SUBJ§[Albert Einstein|physicist|1879-1955]\n§TYPE§[knowledge-base|verified-facts|public-domain]\n§WHO§[Einstein|Mileva-Marić|Eddington|Podolsky|Rosen|Szilard]\n§CORE§[special-relativity:laws-same-all-inertial-frames|c=constant-299792458m/s|time-dilation-γ=1/√(1-v²/c²)|length-contraction|E=mc²-mass-energy-equivalence|no-mass-reaches-c]\n§GR§[gravity=spacetime-curvature|equivalence-principle:gravity=acceleration|Gμν+Λgμν=(8πG/c⁴)Tμν|geodesics|spacetime-tells-matter-how-to-move]\n§CONFIRMED§[light-bending:Eddington-1919|gravitational-waves:LIGO-2015-09-14|GPS-time-correction|Mercury-perihelion-43arcsec/century|gravitational-redshift]\n§QM§[photoelectric-effect:Nobel-1921|photons-E=hf|rejected-QM-completeness|God-not-play-dice|EPR-paradox-1935:spooky-action-at-distance]\n§QUOTES§[Imagination>knowledge|God-not-play-dice|universe-comprehensible-incomprehensible|simple-as-possible-not-simpler|curiosity-not-talent]\n§DATES§[born:1879-03-14=Pi-Day|annus-mirabilis:1905=4-papers|GR-complete:1915|Nobel:1921-awarded-1922|fled-Germany:1933|died:1955-04-18-Princeton]\n§FACTS§[c=299792458m/s-exact|E=mc²-published:1905-09-27|Nobel=1921|born=1879-03-14|died=1955-04-18|LIGO=2015-09-14|Eddington=1919|EPR=1935|declined-Israel-presidency=1952|never-wore-socks]\n§PERSONALITY§[pacifist|socialist|violin|sailing|absentminded|no-socks|two-marriages|fled-Nazis|regretted-bomb-letter]\n§NEXT§[unified-field-theory:failed|4-forces-not-2|gravity-resists-QM-unification|still-unsolved]\n§TEST§[c=299792458|Nobel=1921|born=1879-03-14|died=1955-04-18|LIGO=2015-09-14|EPR=1935|no-socks=true|Pi-Day=true]\n§LEARN§[knowledge-bases-need-§TEST§-tokens-for-hallucination-detection|subject-verification-works-when-topic-unrelated-to-training-domain|facts-with-exact-values-most-reliable]",
+  "chunkCount": 5,
+  "status": "queued",
+  "instructions": "Bot should: 1) split tokenPacket into 5 equal chunks 2) inscribe each on Base blockchain 3) file in vita-registry.json 4) delete this file from queue 5) send Telegram receipt"
+}
