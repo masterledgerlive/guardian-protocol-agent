@@ -41,7 +41,7 @@
     "tokenPacket": "§TOKEN§\n§SESS§[2026-03-19|blockchain memory vault bootstrap|VITA autonomous memory system on Base chain]\n§WHO§[VITA+human|memory architect+guide]\n§STACK§[Base blockchain|Node.js|Telegram Bot API|GitHub|BTP inscriptions]\n§BUILT§[vault-loader.js vault-unlock.js keystore.js memory-engine.js vita-memory.js log-formatter.js encryptkey.js|blockchain key vault|stage1 telegram unlock|autonomous memory filing]\n§PROVED§[✓blockchain key retrieval at boot ✓BTP inscription works ✓VITA autonomous memory save+file to vita-registry.json]\n§ARCH§[GITHUB_REPO+TELEGRAM_BOT_TOKEN→Base blockchain|VITA separate API key from DA|auto-file after each vitasave|keystore separation]\n§VISION§[IKN universal agent memory layer|every trade carries memory|strand algorithm|hive mind growing on chain]\n§NEXT§[CDP keys migrati",
     "filedAt": "2026-03-19T19:20:50.317Z",
     "integrityStatus": "CORRUPTED",
-    "integrityChecked": "2026-03-20T23:49:41.145Z",
+    "integrityChecked": "2026-03-21T05:49:45.719Z",
     "integrityReason": "content-mismatch"
   },
   "2026-03-19-einstein-physics-knowledge": {
@@ -610,7 +610,7 @@
     "tokenPacket": "§TOKEN§\n§SESS§2026-03-20|vault-unlock+memory|built blockchain key vault system + autonomous AI memory on Base\n§WHO§VITA|user — autonomous agent development\n§STACK§Base|ETH|telegram|github|BTP|CDP\n§BUILT§vault-loader.js,vault-unlock.js,keystore.js,memory-engine.js,vita-memory.js,log-formatter.js — blockchain key vault + stage1 telegram unlock + personal keystore + autonomous AI memory\n§PROVED§blockchain key retrieval at boot ✓, BTP inscription ✓, VITA autonomous memory save+file ✓\n§ARCH§GITHUB_REPO+TELEGRAM_BOT_TOKEN → Base blockchain, VITA separate API key from DA, memory auto-files vita-registry.json after vitasave\n§VISION§IKN universal agent memory layer, every trade carries memory, strand algorithm, hive mind growing on chain\n§NEXT§CDP keys migration, VITA own key vault, L1 spec, strand retrieval protocol, child key system\n§KEY§WALLET:0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915|REPO:masterledgerlive/guardian-protocol-agent|ETH=0.002307|WETH=0.000471|USD=5.97|SELLKEYCAT trade|TOP5:AERO/DEGEN/AIXBT/TOSHI=34,KEYCAT=26\n§LEARN§memory auto-filing works, BTP inscriptions for persistence, separate agent keystores enable autonomy, blockchain memory = permanent recall",
     "filedAt": "2026-03-20T01:27:19.736Z",
     "integrityStatus": "CORRUPTED",
-    "integrityChecked": "2026-03-20T23:49:41.145Z",
+    "integrityChecked": "2026-03-21T05:49:45.720Z",
     "integrityReason": "content-mismatch"
   },
   "2026-03-19-vita-self-authored-inner-life-architecture-20260319": {
