@@ -112,6 +112,16 @@ import {
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
 } from "./lose-zero-gate.js";
+import {
+  applyPiggyToSell,
+  ratchetPiggyReserve,
+  computeSellable,
+  loadPiggyReserve,
+  parsePiggyUnlockCommand,
+  piggyUnlockReason,
+  piggyBankPct,
+  piggyBankMinUsd,
+} from "./piggy-bank.js";
 import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
 import {
   encodeExactInputSingle,
@@ -434,6 +444,13 @@ const MIN_TOKENS_FOR_LOTTERY = 5;    // below this, sell everything (no forever 
 function calcLotteryKeep(balance) {
   if (balance <= MIN_TOKENS_FOR_LOTTERY) return 0; // sell everything on tiny positions
   return Math.max(Math.floor(balance * LOTTERY_PCT), MIN_LOTTERY_TOKENS);
+}
+
+// Persistent per-token dust (piggy-bank.js). Floors up on buys; never auto-shrinks.
+// Sells go through applyPiggyToSell — lottery keep is display-only now.
+function syncTokenPiggy(token, balance, priceUsd) {
+  token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, balance, priceUsd);
+  return token.piggyReserve;
 }
 // 1% skim split equally three ways per profitable sell:
 //   0.33% → lottery piggy  (locked forever — your savings)
@@ -3856,13 +3873,15 @@ function buildRaceDisplay(token, price, balance, ethUsd) {
     token.entryPrice        = null;
     token.totalInvestedEth  = 0;
     token.entryTime         = null;
+    token.piggyReserve      = 0;
     return null;
   }
 
   const sellTarget = getMaxPeak(token.symbol);
   const validST    = sellTarget && sellTarget > entry;
   const lottery    = calcLotteryKeep(balance);
-  const sellable   = Math.max(balance - lottery, 0);
+  const piggyKeep  = syncTokenPiggy(token, balance, price);
+  const sellable   = computeSellable(balance, piggyKeep);
   const nowUsd     = sellable * price;
   const tgtUsd     = validST ? sellable * sellTarget : null;
   const pnlUsd     = nowUsd - invUsd;
@@ -3883,7 +3902,7 @@ function buildRaceDisplay(token, price, balance, ethUsd) {
     nowUsd: nowUsd.toFixed(2), tgtUsd: tgtUsd?.toFixed(2) || "?",
     invUsd: invUsd.toFixed(2), pnlUsd: pnlUsd.toFixed(2),
     pnlPct: pnlPct.toFixed(1), pnlSign: pnlUsd >= 0 ? "+" : "",
-    sellTarget, entry, balance, sellable, lottery,
+    sellTarget, entry, balance, sellable, lottery, piggy: piggyKeep,
     lines: [
       `🏇 [${raceBar}] ${racePct.toFixed(1)}% — ${distanceToTgt}% left to target`,
       `📥 Entry: $${entry.toFixed(8)} | Invested: $${invUsd.toFixed(2)}`,
@@ -3892,7 +3911,7 @@ function buildRaceDisplay(token, price, balance, ethUsd) {
       `${pnlUsd>=0?"📈":"📉"} NOW P&L: ${pnlUsd>=0?"+":""}$${pnlUsd.toFixed(2)} (${pnlPct>=0?"+":""}${pnlPct.toFixed(1)}%)`,
       projNetUsd !== null ? `🎯 AT TARGET: +$${projNetUsd.toFixed(2)} profit | 🐷 $${projPiggy} skim` : `🎯 TARGET P&L: calculating...`,
       `💓 ${ind.detail || "building..."}`,
-      `🪙 ${sellable>=1?Math.floor(sellable):sellable.toFixed(4)} tokens | 🎰 ${lottery} forever`,
+      `🪙 ${sellable>=1?Math.floor(sellable):sellable.toFixed(4)} sellable | 🐷 ${piggyKeep>=1?piggyKeep.toFixed(2):piggyKeep.toFixed(4)} piggy dust`,
     ].join("\n"),
   };
 }
@@ -4516,6 +4535,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       token.entryPrice = price;
     }
     token.entryTime = Date.now();
+    {
+      const newTokensEstimate = (ethToSpend * ethUsd) / price;
+      const estBal = Math.max(0, prevTokenBal) + Math.max(0, newTokensEstimate);
+      token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, estBal, price);
+      console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct() * 100).toFixed(0)}% / $${piggyBankMinUsd().toFixed(2)} floor)`);
+    }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature:"Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network" });
 
@@ -4577,19 +4602,25 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (totalBal < 0.01) {
       console.log(`   ⚠️  ${token.symbol}: dust — clearing`);
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+      token.piggyReserve = 0;
       return null;
     }
 
-    const lottery  = calcLotteryKeep(totalBal);
-    const sellable = Math.max(totalBal - lottery, 0);
-    if (sellable < 1) {
-      console.log(`   ⏳ ${token.symbol}: only lottery remains — clearing`);
-      token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+    const piggy = applyPiggyToSell({
+      balance: totalBal,
+      sellPct,
+      piggyReserve: token.piggyReserve,
+      priceUsd: price,
+      reason,
+    });
+    token.piggyReserve = piggy.reserve;
+    if (piggy.blocked) {
+      console.log(`   🐷 ${token.symbol}: piggy reserve ${piggy.reserve >= 1 ? piggy.reserve.toFixed(2) : piggy.reserve.toFixed(4)} locked — PIGGY UNLOCK required`);
       return null;
     }
 
     // Gas profitability check using live ETH price
-    const procEth        = (sellable * sellPct * price) / ethUsd;
+    const procEth        = (piggy.tokensToSell * price) / ethUsd;
     const posValueUsd    = procEth * ethUsd;
     const expectedProfit = procEth - (token.totalInvestedEth * sellPct || 0);
     // Skip gas check entirely for dust positions (<$0.50) — just clear them out at peak
@@ -4621,7 +4652,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (!sellGate.allow) return null;
 
     const tokenDecimals = await getTokenDecimals(token.address);
-    const amtHuman = sellable * sellPct;
+    const amtHuman = piggy.tokensToSell;
     const amtToSell = toWei(amtHuman, tokenDecimals);
     if (amtToSell === 0n) return null;
 
@@ -4666,10 +4697,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     minWeth = sellMinOut.amountOutMinimum;
 
-    const sellAmt   = sellable * sellPct;
+    const sellAmt   = piggy.tokensToSell;
     const ind       = getIndicatorScore(token.symbol);
     console.log(`\n   🔴 SELL ${token.symbol} ${(sellPct*100).toFixed(0)}% — ${reason}`);
-    console.log(`      ${sellAmt>=1?Math.floor(sellAmt):sellAmt.toFixed(4)} tokens @ $${price.toFixed(8)} | ETH=$${ethUsd.toFixed(0)} | 🎰 keeping ${lottery}`);
+    console.log(`      ${sellAmt>=1?Math.floor(sellAmt):sellAmt.toFixed(4)} tokens @ $${price.toFixed(8)} | ETH=$${ethUsd.toFixed(0)} | 🐷 keeping ${piggy.reserve >= 1 ? piggy.reserve.toFixed(2) : piggy.reserve.toFixed(4)}${piggy.unlock ? " (UNLOCK)" : ""}`);
     console.log(`      💓 Indicators: ${ind.detail}`);
 
     await ensureApproved(cdp, token.address, amtToSell);
@@ -4781,11 +4812,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       totalSkimmed += skim;
     }
 
-    if (sellPct >= 0.95) {
+    token.piggyReserve = piggy.remainingReserve;
+    if (piggy.soldAll) {
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+      token.piggyReserve = 0;
       clearFibLevels(token.symbol); // FIX: reset fib memory so next position starts fresh
     } else {
-      token.totalInvestedEth = (token.totalInvestedEth || 0) * (1 - sellPct);
+      const soldFrac = totalBal > 0 ? piggy.tokensToSell / totalBal : sellPct;
+      token.totalInvestedEth = (token.totalInvestedEth || 0) * (1 - soldFrac);
     }
 
     // Score the wave prediction that just completed
@@ -4847,7 +4881,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       `💰 Got:      ${received.toFixed(6)} ETH (~$${recUsd.toFixed(2)})\n` +
       `📥 In:       ~$${invUsd.toFixed(2)} | ⏱️ Held: ${holdStr}\n` +
       `${winner?"📈":"📉"} P&L:      ${netUsd>=0?"+":""}$${netUsd.toFixed(2)} (${netUsd>=0?"+":""}${pnlPct}%) ${medal.emoji}\n` +
-      `🎰 Bag kept: ${lottery} ${token.symbol}\n` +
+      `🐷 Piggy dust: ${piggy.remainingReserve >= 1 ? piggy.remainingReserve.toFixed(2) : piggy.remainingReserve.toFixed(4)} ${token.symbol}${piggy.unlock ? " (unlocked)" : " locked"}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🐷 Piggy:  +${skimLottery.toFixed(6)} ETH → $${(piggyBank*ethUsd).toFixed(3)} locked\n` +
       `🧠 Pred:   +${skimPred.toFixed(6)} ETH → $${(predFund*ethUsd).toFixed(3)} pool\n` +
@@ -4946,8 +4980,8 @@ async function runRippleEngine(cdp, allTokens, bal, ethUsd) {
       const elapsed = now - ref.timestamp;
       const moved   = Math.abs(price - ref.price) / ref.price;
       const coolOk  = !rippleCooldown[token.symbol] || (now - rippleCooldown[token.symbol]) > RIPPLE_COOLDOWN_MS;
-      const lottery = calcLotteryKeep(balance);
-      const sellable = Math.max(balance - lottery, 0);
+      syncTokenPiggy(token, balance, price);
+      const sellable = computeSellable(balance, token.piggyReserve);
       const sellUsd  = sellable * RIPPLE_SELL_PCT * price;
       if (elapsed >= RIPPLE_STALE_MS && moved < STALE_MOVE_PCT && coolOk && sellUsd >= STALE_MIN_USD) {
         const kahuna = getKahunaSignal(token.symbol);
@@ -5141,6 +5175,7 @@ async function processToken(cdp, token, bal) {
         token.entryPrice       = null;
         token.totalInvestedEth = 0;
         token.entryTime        = null;
+        token.piggyReserve     = 0;
         tokenBalanceCache[token.symbol] = 0;
         balance = 0;
       } else {
@@ -5165,8 +5200,8 @@ async function processToken(cdp, token, bal) {
     const ind      = getIndicatorScore(token.symbol);
     const pred     = getPrediction(token.symbol);
     const rd       = entry ? buildRaceDisplay(token, price, balance, ethUsd) : null;
-    const lottery  = calcLotteryKeep(balance);
-    const sellable = Math.max(balance - lottery, 0);
+    syncTokenPiggy(token, balance, price);
+    const sellable = computeSellable(balance, token.piggyReserve);
 
     // ── 4-WAVE PROJECTION — update every 10 cycles per token (rate-limited) ─────
     // Non-blocking: builds projection model from wave history
@@ -5226,7 +5261,7 @@ async function processToken(cdp, token, bal) {
     const feesOnSell   = (balance * price * (token.poolFeePct || 0.006));
     const piggyOnSell  = (balance * price * PIGGY_SKIM_PCT);
     const netIfSellNow = entry
-      ? (balance - calcLotteryKeep(balance)) * price - (token.totalInvestedEth || 0) * ethUsd - feesOnSell - piggyOnSell
+      ? sellable * price - (token.totalInvestedEth || 0) * ethUsd - feesOnSell - piggyOnSell
       : 1;
     const breakEvenBuffer = entry ? (token.totalInvestedEth || 0) * ethUsd * PROFIT_ERROR_BUFFER : 0;
 
@@ -5608,6 +5643,14 @@ async function processToken(cdp, token, bal) {
           if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
           const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
         }
+      } else if (cmd.action === "piggyunlock") {
+        lastTradeTime[token.symbol] = 0;
+        const reason = piggyUnlockReason(token.symbol);
+        await tg(`🐷 <b>PIGGY UNLOCK ${token.symbol}</b>\nSelling the dust pile — explicit operator unlock`);
+        const p = await executeSell(cdp, token, 1, reason, price, true);
+        if (p > 0) {
+          const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+        }
       } else if (cmd.action === "exitonly") {
         // ── CLEAN EXIT — sells to WETH/ETH, NO cascade fires ─────────────────
         // Use this when you want to hold cash or withdraw, not redeploy.
@@ -5699,7 +5742,7 @@ async function processToken(cdp, token, bal) {
         (rd ? `📥 Entry was:   $${rd.entry.toFixed(8)}\n💵 Invested:    $${rd.invUsd}\n` : "") +
         `📈 P&L:         ${pnlUsd} (${pnlPct})\n` +
         `🐷 Piggy skim:  1%\n` +
-        `🎰 Forever bag: ${calcLotteryKeep(balance)} tokens kept\n` +
+        `🐷 Piggy dust: ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : (token.piggyReserve || 0).toFixed(4)} tokens locked (not sold)\n` +
         `━━━━━━━━━━━━━━━━━━━━\n` +
         `💓 ${ind.detail}\n` +
         `⚡ Executing now...`
@@ -5975,6 +6018,7 @@ async function loadFromGitHub() {
       address: def.address, feeTier: def.feeTier, poolFeePct: def.poolFeePct, minNetMargin: def.minNetMargin,
       // Sanity clamp: totalInvestedEth must never be negative
       totalInvestedEth: Math.max(0, (saved.find(s => s.symbol === def.symbol) || {}).totalInvestedEth || 0),
+      piggyReserve: loadPiggyReserve(saved.find(s => s.symbol === def.symbol) || {}, null),
       // Always re-apply frozen/disabled from code — never let saved state override
       frozen: def.frozen || false,
       frozenReason: def.frozenReason || undefined,
@@ -6095,6 +6139,7 @@ async function loadFromGitHub() {
           t.entryTime        = null;
         }
       }
+      t.piggyReserve = loadPiggyReserve(t, pos.piggyReserves);
     }
   }
 
@@ -6173,6 +6218,7 @@ async function saveToGitHub() {
       predFundPositions: predFundPos,
       piggyCoPositions:  piggyCoPos,
       waveStats,
+      piggyReserves: Object.fromEntries(tokens.map(t => [t.symbol, t.piggyReserve || 0])),
       entries:    Object.fromEntries(tokens.map(t => [t.symbol, t.entryPrice       || null])),
       invested:   Object.fromEntries(tokens.map(t => [t.symbol, t.totalInvestedEth || 0])),
       entryTimes: Object.fromEntries(tokens.map(t => [t.symbol, t.entryTime        || null])),
@@ -6440,6 +6486,13 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.some(c => isMatchingManualSell(c, { symbol: sym, pct: 0.5 }))) { await tg(`⚠️ SELL HALF ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "sellhalf" });
         await tg(`📱 <b>SELL HALF ${sym} queued</b>`);
+      } else if (text.startsWith("/piggyunlock ")) {
+        const parsed = parsePiggyUnlockCommand(raw);
+        const sym = parsed?.symbol;
+        if (!sym || !tokens.find(t => t.symbol === sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /piggyunlock SYMBOL`); continue; }
+        if (manualCommands.find(c => c.symbol === sym && c.action === "piggyunlock")) { await tg(`⚠️ PIGGY UNLOCK ${sym} already queued`); continue; }
+        manualCommands.push({ symbol: sym, action: "piggyunlock" });
+        await tg(`🐷 <b>PIGGY UNLOCK ${sym} queued</b>\nWill sell the dust pile (reason: PIGGY UNLOCK)`);
 
       // ── CLEAN EXIT COMMANDS — sell to ETH, cascade suppressed ────────────────
       // Use these instead of /sell when you want to hold cash or withdraw.
@@ -6666,7 +6719,15 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           `   Accumulating — Phase 3 not yet active\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `Total skimmed: ${totalSkimmed.toFixed(6)} ETH\n` +
-          `0.33% per pool per profitable sell`
+          `0.33% per pool per profitable sell\n\n` +
+          `🐷 <b>Per-token dust</b> (never auto-sold)\n` +
+          `   ${(piggyBankPct()*100).toFixed(0)}% of bag + $${piggyBankMinUsd().toFixed(2)} floor\n` +
+          tokens.filter(t => (t.piggyReserve || 0) > 0).map(t => {
+            const px = history[t.symbol]?.lastPrice || 0;
+            const u = px > 0 ? ` ~$${(t.piggyReserve * px).toFixed(3)}` : "";
+            return `   ${t.symbol}: ${t.piggyReserve >= 1 ? t.piggyReserve.toFixed(2) : t.piggyReserve.toFixed(4)}${u}`;
+          }).join("\n") +
+          (tokens.some(t => (t.piggyReserve || 0) > 0) ? "\n   /piggyunlock SYMBOL to release" : "   none yet")
         );
       } else if (text === "/trades") {
         const recent = tradeLog.slice(-5).map(t=>`${t.type} ${t.symbol} $${parseFloat(t.price).toFixed(8)} score:${t.indScore||"?"} ${t.timestamp?.slice(11,19)||""}`).join("\n");
@@ -6873,8 +6934,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           "   /unfreeze SYMBOL \u2014 reactivate a frozen token\n" +
           "   /frozenlist \u2014 see frozen tokens + wave readiness\n" +
           "   /profit \u2014 projected earnings\n" +
-          "   /sell SYMBOL [pct|all] \u2014 manual exit\n" +
+          "   /sell SYMBOL [pct|all] \u2014 manual exit (leaves piggy dust)\n" +
           "   /sellhalf SYMBOL \u2014 sell 50%\n" +
+          "   /piggyunlock SYMBOL \u2014 sell the locked dust pile\n" +
           "   /waves \u2014 detailed levels"
         );
 
@@ -8722,9 +8784,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/wake (or /gm) — morning briefing\n\n` +
           `<b>📱 Manual Trade Commands:</b>\n` +
           `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
-          `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50)\n` +
+          `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
-          `/exit SYMBOL — sell 100% to ETH, NO cascade\n` +
+          `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +
+          `/exit SYMBOL — sell 100% to ETH, NO cascade (still leaves piggy dust)\n` +
           `/exithalf SYMBOL — sell 50% to ETH, NO cascade\n` +
           `/exitpct SYMBOL 75 — sell any % to ETH, NO cascade\n\n` +
           `<b>💸 Withdraw:</b>\n` +
@@ -9625,6 +9688,7 @@ async function main() {
               token.entryPrice       = null;
               token.totalInvestedEth = 0;
               token.entryTime        = null;
+              token.piggyReserve     = 0;
             }
           } catch { /* non-critical */ }
         }
@@ -9642,8 +9706,9 @@ async function main() {
         const balance = getCachedBalance(token.symbol);
         const posUsd  = balance * price;
         if (posUsd <= MOONSHOT_HOLD_USD * 1.5) continue; // already at moonshot size
-        // Sell enough to bring position down to MOONSHOT_HOLD_USD
-        const keepTokens  = MOONSHOT_HOLD_USD / price;
+        // Sell enough to bring position down to MOONSHOT_HOLD_USD — never into piggy dust
+        syncTokenPiggy(token, balance, price);
+        const keepTokens  = Math.max(MOONSHOT_HOLD_USD / price, token.piggyReserve || 0);
         const sellTokens  = Math.max(balance - keepTokens, 0);
         const sellPct     = balance > 0 ? sellTokens / balance : 0;
         if (sellPct < 0.10) continue; // not worth a tx for < 10% sell
