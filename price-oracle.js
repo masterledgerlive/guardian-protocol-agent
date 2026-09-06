@@ -223,6 +223,11 @@ export function allowBinanceOhlcSeed(symbol) {
   return BINANCE_OHLC_ALLOWLIST.has(s);
 }
 
+/** No-pool / wrong-token catalog rows must not burn the 8s OHLC seed budget. */
+export function shouldSkipOhlcSeed(token) {
+  return Boolean(token?.noBasePool || token?.brokenQuote);
+}
+
 /**
  * Prefer Base DEX candles whenever they exist, even if Binance has a longer
  * history. Binance is last-resort and only for allowlisted CEX-equivalent assets.

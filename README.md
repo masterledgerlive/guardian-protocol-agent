@@ -90,16 +90,22 @@ Scores are computed live every cycle from real trade history. The best-performin
 
 ## Active Token Universe
 
-**Tier 1 candidates (ALPHA — score 40-50):**
-AERO · BRETT · VIRTUAL · MORPHO · CBBTC
+Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (residual bag).
 
-**Tier 2 candidates (SOLID — score 30-39):**
-DEGEN · SEAM · AIXBT · TOSHI · KITE · XCN · PRIME
-ZORA · BNKR · TYBG · MIGGLES · MOG · HIGHER · GAME
-VIRTUAL · KEYCAT · DOGINME · SKI · LUNA · BENJI
+**Active (tradeable):**
+AERO · BRETT · VIRTUAL · MORPHO · CBBTC · DEGEN · AIXBT · TOSHI
+KEYCAT · DOGINME · XCN · SKI · LUNA · GAME
+
+**Frozen (no new capital):**
+SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · ZORA · BNKR · TYBG
+MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN
+NORMIE · OGGY · FREN
+
+**Disabled:**
+WELL (Aerodrome-primary — Uniswap V3 reverts) · KITE (no Base pool)
 
 **Watchlist (learning, not trading):**
-RSR · ODOS · IMAGINE · CBETH
+CLANKER (tokenbot) · RSR · ODOS · IMAGINE · CBETH
 
 ---
 

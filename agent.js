@@ -84,6 +84,7 @@ import {
   pickHistoricalSeedSource,
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
+  shouldSkipOhlcSeed,
 } from "./price-oracle.js";
 import {
   isLoseZeroMode,
@@ -1118,8 +1119,9 @@ const DEFAULT_TOKENS = [
     notes: "Moonwell — largest Base-native DeFi lending protocol. Real yield, governance value, solid TVL. Moonbeam ecosystem bridge." },
 
   { symbol: "SEAM",    address: "0x1C7a460413dD4e964f96D8dFC56E7223cE88CD85", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    frozen: true, frozenReason: "DEAD book — Uniswap v3 SEAM/USDC ~$66k liq / ~$22 24h vol. Too thin for $3–11 RISK + 2× hitch.",
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:7, community:6, total:33 },
-    notes: "Seamless Protocol — Base DeFi lending. Competes with Moonwell. Clean wave structure, consistent volume." },
+    notes: "Seamless Protocol. FROZEN — chronic dead volume on Base." },
 
   { symbol: "AIXBT",   address: "0x4F9Fd6Be4a90f2620860d680c0d4d5Fb53d1A825", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.015,
     score: { liquidity:7, waveQuality:8, fundamentals:7, coinbaseFit:8, community:8, total:38 },
@@ -1127,10 +1129,11 @@ const DEFAULT_TOKENS = [
 
   { symbol: "TOSHI",   address: "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:6, waveQuality:7, fundamentals:5, coinbaseFit:8, community:8, total:34 },
-    notes: "Coinbase CEO Brian Armstrong's cat. Base meme with maximum Coinbase cultural alignment. 900k+ holders." },
+    notes: "Coinbase CEO Brian Armstrong's cat. MUST stay tradeable — residual ~4.5k bag. Uniswap v3 TOSHI/WETH is liquid." },
 
   { symbol: "KITE",    address: "0x45a8B3bE0D9e3CAFf4325B0bddD786B9B56B3Ca8", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
-    disabled: true, disabledReason: "No verified liquid Base market at this address — DexScreener/GT return no USD quote. Official KITE is not a Base ERC-20. Skip until a real Base pool is confirmed.",
+    disabled: true, noBasePool: true,
+    disabledReason: "No verified liquid Base market at this address — DexScreener/GT return no USD quote. Official KITE is not a Base ERC-20. Skip until a real Base pool is confirmed.",
     score: { liquidity:5, waveQuality:5, fundamentals:8, coinbaseFit:8, community:6, total:32 },
     notes: "DISABLED — configured Base address has no live pool. Do not invent a quote." },
 
@@ -1157,12 +1160,14 @@ const DEFAULT_TOKENS = [
   // ✅ ACTIVE ADDITIONS — 4 high-probability tokens (v18.0)
   // ══════════════════════════════════════════════════════════════════════════
   { symbol: "MOG",     address: "0x2Da56AcB9Ea78330f947bD57C54119Debda7AF71", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Thin + exotic quote — deepest Base pool is Uniswap v3 Mog/SPX ~$50k / ~$2.7k vol; WETH pools thinner. Not safe for $3–11 RISK.",
     score: { liquidity:8, waveQuality:8, fundamentals:6, coinbaseFit:7, community:9, total:38 },
-    notes: "Mog Coin — top Base meme by volume. 0.3% pool, high liquidity, clean waves. ACTIVE." },
+    notes: "Mog Coin. FROZEN — Base WETH/USDC book too thin." },
 
   { symbol: "BASE",    address: "0xd07379a755A8f11B57610154861D694b2A0f615a", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.012,
+    frozen: true, frozenReason: "Thin book — deepest pool Swapbased V2 ~$41k / ~$1.6k vol; Uniswap v3 ~$22k. Too thin for $3–11 RISK.",
     score: { liquidity:7, waveQuality:7, fundamentals:6, coinbaseFit:9, community:7, total:36 },
-    notes: "BASE token — ecosystem identity. Coinbase aligned. ACTIVE." },
+    notes: "BASE token. FROZEN — liquidity too thin for RISK bag." },
 
   { symbol: "LUNA",    address: "0x55cD6469F597452B5A7536e2CD98fDE4c1247ee4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:8, community:8, total:36 },
@@ -1177,14 +1182,14 @@ const DEFAULT_TOKENS = [
   //     /unfreeze SYMBOL  |  /freeze SYMBOL  |  /frozenlist
   // ══════════════════════════════════════════════════════════════════════════
   { symbol: "PRIME",   address: "0xfA980cEd6895AC314E7dE34Ef1bFAE90a5AdD21b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
-    frozen: true, frozenReason: "Capital concentration — reactivate when wallet > $100 tradeable",
+    frozen: true, frozenReason: "DEAD/thin — Uniswap v3 PRIME/WETH ~$17k liq / ~$211 24h vol. Stay frozen.",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:7, community:8, total:37 },
-    notes: "Echelon Prime. FROZEN." },
+    notes: "Echelon Prime. FROZEN — book too thin for RISK bag." },
 
   { symbol: "HIGHER",  address: "0x0578d8A44db98B23BF096A382e016e29a5Ce0ffe", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, frozenReason: "Thin — deepest Rocketswap ~$42k / ~$409 vol; Uniswap v3 ~$36k / ~$512. Stay frozen.",
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:7, community:9, total:33 },
-    notes: "HIGHER. FROZEN." },
+    notes: "HIGHER. FROZEN — thin Base book." },
 
   { symbol: "MOCHI",   address: "0xF6e932Ca12afa26665dC4dDE7e27be02A7c02e50", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -1217,14 +1222,14 @@ const DEFAULT_TOKENS = [
     notes: "Basenji. FROZEN." },
 
   { symbol: "ROOST",   address: "0xeD899bfDB28c8ad65307Fa40f4acAB113AE2E14c", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, frozenReason: "DEAD book — Uniswap v3 ROOST/WETH ~$68k liq / ~$29 24h vol. Stay frozen.",
     score: { liquidity:5, waveQuality:6, fundamentals:5, coinbaseFit:6, community:7, total:29 },
-    notes: "Roost Coin. FROZEN." },
+    notes: "Roost Coin. FROZEN — chronic dead volume." },
 
   { symbol: "TALENT",  address: "0x9a33406165f562E16C3abD82fd1185482E01b49a", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, frozenReason: "DEAD book — Aerodrome TALENT/WETH ~$27k liq / ~$59 24h vol. Stay frozen.",
     score: { liquidity:6, waveQuality:6, fundamentals:7, coinbaseFit:7, community:7, total:33 },
-    notes: "Talent Protocol. FROZEN." },
+    notes: "Talent Protocol. FROZEN — chronic dead volume." },
 
   { symbol: "TOBY",    address: "0xb8d98a102b0079B69FFbc760C8d857A31653e56e", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.012,
     frozen: true, frozenReason: "Capital concentration",
@@ -1232,34 +1237,40 @@ const DEFAULT_TOKENS = [
     notes: "Toby the cat. FROZEN." },
 
   { symbol: "SIMBA",   address: "0x2416092f143378750bb29b79eD961ab195CcEea5", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.012,
-    frozen: true, frozenReason: "Price oracle conflict — was returning ETH price. Verify pool before activating.",
+    frozen: true, brokenQuote: true,
+    frozenReason: "BROKEN QUOTE — catalog address is ezETH (Renzo Restaked ETH ~$2715), not SIMBA. Do not seed or trade.",
     score: { liquidity:6, waveQuality:7, fundamentals:6, coinbaseFit:6, community:7, total:32 },
-    notes: "SIMBA by Virtuals. FROZEN — price oracle check needed." },
+    notes: "SIMBA by Virtuals. FROZEN — address resolves to ezETH. Skip OHLC seed." },
 
   { symbol: "CRASH",   address: "0x4D4ab5C580aa3bCBF45B6C3B9B8d0765b74b1C3b", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.015,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, noBasePool: true,
+    frozenReason: "DEAD — DexScreener returns no Base pool at this address. Chronic OHLC seed miss.",
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:5, community:7, total:29 },
-    notes: "Crash. FROZEN." },
+    notes: "Crash. FROZEN — no Base pool." },
 
   { symbol: "BRIUN",   address: "0x6b4712AE9797C199edd44F897cA09BC57628a1CF", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.012,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, brokenQuote: true,
+    frozenReason: "BROKEN QUOTE — catalog address is Unidex (UNIDX/WETH ~$17 liq). Not BRIUN.",
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:7, community:8, total:32 },
-    notes: "BRIUN. FROZEN." },
+    notes: "BRIUN. FROZEN — address resolves to UNIDX. Skip OHLC seed." },
 
   { symbol: "NORMIE",  address: "0x7F12d13B34F5F4f0a9449c89bC4c1f764c5D927D", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.015,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, noBasePool: true,
+    frozenReason: "DEAD — DexScreener returns no Base pool at this address. Chronic OHLC seed miss.",
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:6, community:7, total:30 },
-    notes: "NORMIE. FROZEN." },
+    notes: "NORMIE. FROZEN — no Base pool." },
 
   { symbol: "OGGY",    address: "0x28561B8A2360F463011c16b6Cc0B176e0E4aA254", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.015,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, noBasePool: true,
+    frozenReason: "DEAD — DexScreener returns no Base pool at this address. Chronic OHLC seed miss.",
     score: { liquidity:6, waveQuality:7, fundamentals:5, coinbaseFit:6, community:7, total:31 },
-    notes: "Oggy. FROZEN." },
+    notes: "Oggy. FROZEN — no Base pool." },
 
   { symbol: "FREN",    address: "0x12E2E7A15Ac53ca87bC0693F625c1FE49B4c8dE6", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.012,
-    frozen: true, frozenReason: "Capital concentration",
+    frozen: true, noBasePool: true,
+    frozenReason: "DEAD — DexScreener returns no Base pool at this address. Chronic OHLC seed miss.",
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:6, community:8, total:31 },
-    notes: "FREN. FROZEN." },
+    notes: "FREN. FROZEN — no Base pool." },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1269,13 +1280,13 @@ const DEFAULT_TOKENS = [
 const WATCHLIST = [
   // ── READY TO PROMOTE (5 stars = next deploy adds to active) ───────────────
   {
-    symbol: "CLANKER", address: "0x1d008f50fb828ef9debbbeae1b71fffe929bf317",
-    stars: 2, status: "fee_model_wrong",
-    score: { liquidity:4, waveQuality:6, fundamentals:7, coinbaseFit:8, community:6, total:31 },
-    reason: "High fee tier eats all margin at current capital. Viable ONLY with validator/verifier income from fiber node. Revisit when running infrastructure node.",
-    entryPlan: "Promote when running fiber node validator. Fee income offsets pool cost.",
-    redFlags: ["1% fee tier kills margin sub-$500", "Needs verifier role income"],
-    greenFlags: ["Strong Base ecosystem", "Real utility", "Coinbase aligned", "Growing volume"],
+    symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb",
+    stars: 4, status: "add_candidate",
+    score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
+    reason: "tokenbot CLANKER — Uniswap v3 CLANKER/WETH is liquid. Old watchlist address 0x1d00…9317 was CLANKFUN (wrong token, ~$70k / ~$39 vol).",
+    entryPlan: "Promote to SCOUT after one more live quote pass. Prefer Uniswap v3 WETH pool.",
+    redFlags: ["Previous catalog address was a different token"],
+    greenFlags: ["Real Uniswap v3 WETH book", "Aerodrome backup pool", "Base-native tokenbot"],
     addedDate: "2026-03-12",
   },
 
@@ -1302,12 +1313,13 @@ const WATCHLIST = [
   },
   {
     symbol: "IMAGINE", address: "0x078D888E40faAe0f32594342c85940AF3949E666",
-    stars: 3, status: "watching",
+    stars: 1, status: "dead_no_pool",
+    noBasePool: true,
     score: { liquidity:4, waveQuality:5, fundamentals:7, coinbaseFit:8, community:7, total:31 },
-    reason: "AI image generation on Base. Early stage but strong Coinbase ecosystem fit. Watching for liquidity growth.",
-    entryPlan: "Promote when pool depth >$500k and 3P/3T wave confirmed.",
-    redFlags: ["Early stage", "Thinner liquidity", "High risk"],
-    greenFlags: ["AI narrative", "Base native", "Coinbase ecosystem"],
+    reason: "DEAD — DexScreener returns no Base pool at this address. Skip OHLC seed.",
+    entryPlan: "Do not promote until a verified Uniswap/Aerodrome Base pool exists.",
+    redFlags: ["No Base pool", "Chronic OHLC seed miss"],
+    greenFlags: [],
     addedDate: "2026-03-12",
   },
 
@@ -2351,8 +2363,21 @@ async function loadHistoricalData(days = 90) {
 
   const allTokens = [
     ...DEFAULT_TOKENS,
-    ...WATCHLIST.map(w => ({ symbol: w.symbol, address: w.address, _watchlist: true }))
+    ...WATCHLIST.map(w => ({
+      symbol: w.symbol, address: w.address, _watchlist: true,
+      noBasePool: w.noBasePool, brokenQuote: w.brokenQuote,
+    }))
   ].filter(t => t.address && t.address !== "PENDING" && t.address.startsWith("0x"));
+
+  const seedSkip = allTokens.filter(shouldSkipOhlcSeed);
+  if (seedSkip.length) {
+    for (const t of seedSkip) {
+      const why = t.noBasePool ? "no Base pool" : "broken quote";
+      console.log(`   ⏭️  ${t.symbol}: skip OHLC seed (${why})`);
+    }
+    skipped += seedSkip.length;
+  }
+  const seedTokens = allTokens.filter(t => !shouldSkipOhlcSeed(t));
 
   // Process in sequential batches of 3 tokens.
   // Each token fires GT+DS in parallel (2 requests). With 3 tokens per batch
@@ -2362,8 +2387,8 @@ async function loadHistoricalData(days = 90) {
   const BATCH_SIZE = 2;      // keep GT under free-tier 429s
   const BATCH_SLEEP = 1500;
 
-  for (let batchStart = 0; batchStart < allTokens.length; batchStart += BATCH_SIZE) {
-    const batch = allTokens.slice(batchStart, batchStart + BATCH_SIZE);
+  for (let batchStart = 0; batchStart < seedTokens.length; batchStart += BATCH_SIZE) {
+    const batch = seedTokens.slice(batchStart, batchStart + BATCH_SIZE);
 
     // Process all tokens in this batch in parallel — they share the rate-limit window
     await Promise.allSettled(batch.map(async (token) => {
@@ -2513,7 +2538,7 @@ async function loadHistoricalData(days = 90) {
     })); // end batch Promise.allSettled
 
     // Wait between batches so GT rate-limit window has time to recover
-    if (batchStart + BATCH_SIZE < allTokens.length) await sleep(BATCH_SLEEP);
+    if (batchStart + BATCH_SIZE < seedTokens.length) await sleep(BATCH_SLEEP);
   }
   console.log(`📅 Historical load complete: ${loaded} loaded, ${skipped} skipped\n`);
 }
@@ -5833,6 +5858,8 @@ async function loadFromGitHub() {
       frozenReason: def.frozenReason || undefined,
       disabled: def.disabled || false,
       disabledReason: def.disabledReason || undefined,
+      noBasePool: def.noBasePool || false,
+      brokenQuote: def.brokenQuote || false,
     }));
     tokensSha = tf.sha;
   } else {
