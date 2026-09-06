@@ -97,7 +97,7 @@ describe("cost basis", () => {
 
 describe("Binance must not overwrite Base", () => {
   it("blocks LUNA/KITE/GAME/HIGHER/MIGGLES CEX tickers", () => {
-    for (const s of ["LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "BASECAT", "DRB", "VVV", "TIBBIR", "STONKEX", "BLUECHIP", "VELVET"]) {
+    for (const s of ["LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "BASECAT", "DRB", "VVV", "TIBBIR", "STONKEX", "BLUECHIP", "VELVET", "KTA"]) {
       assert.equal(allowBinanceOhlcSeed(s), false, s);
     }
     assert.equal(allowBinanceOhlcSeed("AERO"), true);

@@ -1216,6 +1216,11 @@ const DEFAULT_TOKENS = [
     score: { liquidity:7, waveQuality:6, fundamentals:5, coinbaseFit:6, community:6, total:30 },
     notes: "Velvet — Aerodrome VELVET/USDC ~$1.18M / ~$2.09M; Uni v3 VELVET/USDC ~$0.82. FROZEN data-only until Uni V3 proven." },
 
+  { symbol: "KTA",     address: "0xc0634090F2Fe6C6D75e61Be2b949464aBb498973", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Desk greenlight — data-only until Uni V3 proven / harden buy-gate live.",
+    score: { liquidity:8, waveQuality:6, fundamentals:6, coinbaseFit:6, community:6, total:32 },
+    notes: "Keeta — Aerodrome KTA/WETH ~$4.27M liq (not Uni V3). FROZEN data-only." },
+
   { symbol: "PRIME",   address: "0xfA980cEd6895AC314E7dE34Ef1bFAE90a5AdD21b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     frozen: true, frozenReason: "DEAD/thin — Uniswap v3 PRIME/WETH ~$17k liq / ~$211 24h vol. Stay frozen.",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:7, community:8, total:37 },

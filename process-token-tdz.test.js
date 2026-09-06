@@ -86,10 +86,16 @@ describe("processToken hasPosition TDZ", () => {
     assert.match(src, /symbol: "STONKEX"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "BLUECHIP"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "VELVET"[\s\S]*?frozen: true/);
-    const base = src.indexOf('symbol: "BASECAT"');
-    const next = src.indexOf("{ symbol:", base + 1);
-    const row = src.slice(base, next > 0 ? next : base + 400);
-    assert.ok(!row.includes("frozen: true"), "BASECAT must stay tradeable");
+    assert.match(src, /symbol: "KTA"[\s\S]{0,400}?frozen: true/);
+    assert.ok(src.includes('address: "0xc0634090F2Fe6C6D75e61Be2b949464aBb498973"'), "KTA Base address");
+    assert.ok(!/\bsymbol: "(BSTONK|FLOCK|HYDX)"/.test(src), "do not add BSTONK/FLOCK/HYDX");
+    for (const sym of ["BASECAT", "DRB", "VVV", "TIBBIR"]) {
+      const base = src.indexOf(`symbol: "${sym}"`);
+      assert.ok(base >= 0, `${sym} must remain in catalog`);
+      const next = src.indexOf("{ symbol:", base + 1);
+      const row = src.slice(base, next > 0 ? next : base + 400);
+      assert.ok(!row.includes("frozen: true"), `${sym} must stay tradeable`);
+    }
   });
 
   it("documents the TDZ error the live logs showed", () => {

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Catalog — frozen data-only add (KTA)
+
+Desk greenlight. Catalog-only — no capital, no unfreeze, no `tokens.json` runtime add. Buy-gate logic unchanged (PR #13).
+
+- **ADD frozen:** KTA (Keeta) `0xc0634090F2Fe6C6D75e61Be2b949464aBb498973` (Base, 18 decimals). Top book Aerodrome KTA/WETH ~$4.27M liq (not Uni V3) — keep frozen.
+- STONKEX / BLUECHIP / VELVET stay frozen. DRB / VVV / TIBBIR untouched. BASECAT stays tradeable. Skip BSTONK / FLOCK / HYDX.
+
 ### Fixed — frozen catalog names can never open NEW buys
 
 Overnight RISK capital bought STONKEX / BLUECHIP despite `frozen: true`. Freeze was only an allocation / UI / `processToken` early-return when `entryPrice` was missing. Cascade, ripple, and frozen names that already had a bag still reached `executeBuy`.
