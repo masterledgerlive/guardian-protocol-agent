@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed — never sell at a loss to insert storage (2× hitch floor)
+
+Moonshot trim sold TOSHI at a ledger net ~-$0.06 (`0x1ac8e214…`) because hitch / BTP character cost was not in the sell gate. Sells and cascade were ungated.
+
+- Central `minSellProceedsEth` / `coversHitchAndEntry` / `evaluateSellGate` used by `executeSell` and moonshot trim.
+- Sell floor: `sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost)`. Default `HITCH_COST_MULT=2` (env-overridable). Buys stay 1× leftover cover.
+- If leftover after fees cannot cover 2× hitch: **hold**. Once the floor is met: **sell immediately**.
+- Hitch / BTP bytes sized so inject cost × 2 ≤ leftover. Extra hitch is skipped rather than selling underwater to "make room".
+- Only lossy exception: reason starts with `MANUAL SELL (operator)` AND `ALLOW_LOSSY_OPERATOR_SELL=yes` (default no). Stop-loss still exits with hitch skipped.
+
 ### Fixed — `hasPosition` TDZ aborted every `processToken` (blocked OPERATOR_SELL)
 
 Live Railway after OPERATOR_SELL #7 logged `processToken error (AERO/BRETT/...): Cannot access 'hasPosition' before initialization` on every token. Armed-idle logging read `hasPosition` before `const hasPosition = balance > 1`, so the function threw in the temporal dead zone and never reached buys, wave sells, or the MANUAL SELL / `sellhalf` operator path.

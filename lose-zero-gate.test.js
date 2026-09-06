@@ -39,6 +39,22 @@ import {
   raceTimeout,
   evaluateBuyGate,
   buildBuyGateDecision,
+  isAllowLossyOperatorSell,
+  canBypassSellLossGate,
+  estimateCalldataHitchEth,
+  estimateBtpInscribeEth,
+  estimateInjectHitchCostEth,
+  minSellProceedsEth,
+  leftoverAfterFeesEth,
+  coversHitchAndEntry,
+  maxHitchBytesForLeftover,
+  sizeHitchForSell,
+  evaluateSellGate,
+  buildSellGateDecision,
+  BTP_INSCRIBE_GAS_UNITS,
+  DEFAULT_HITCH_COST_MULT,
+  hitchCostMult,
+  isMoonshotTrimReason,
 } from "./lose-zero-gate.js";
 
 describe("env flags", () => {
@@ -59,6 +75,15 @@ describe("env flags", () => {
     assert.equal(isInjectCoverRequired({ REQUIRE_INJECT_COVER: "yes" }), true);
     assert.equal(isInjectCoverRequired({ LOSE_ZERO: "yes" }), true);
     assert.equal(isInjectCoverRequired({}), false);
+  });
+
+  it("HITCH_COST_MULT defaults to 2 and is env-overridable", () => {
+    assert.equal(DEFAULT_HITCH_COST_MULT, 2);
+    assert.equal(hitchCostMult({}), 2);
+    assert.equal(hitchCostMult({ HITCH_COST_MULT: "2" }), 2);
+    assert.equal(hitchCostMult({ HITCH_COST_MULT: "3" }), 3);
+    assert.equal(hitchCostMult({ HITCH_COST_MULT: "1" }), 1);
+    assert.equal(hitchCostMult({ HITCH_COST_MULT: "nope" }), 2);
   });
 });
 
@@ -463,5 +488,163 @@ describe("OHLC seed timeout", () => {
   it("raceTimeout resolves the winner", async () => {
     const v = await raceTimeout(Promise.resolve(42), 50, "fast");
     assert.equal(v, 42);
+  });
+});
+
+describe("LOSE-ZERO sell + 2× hitch cover", () => {
+  const toshiMoonshot = {
+    symbol: "TOSHI",
+    reason: "🌙 MOONSHOT TRIM — not in active tiers",
+    sellPct: 0.78,
+    entryEth: 0.001,
+    projectedProceedsEth: 0.00070, // below 78% of 0.001 ETH entry — live trim was a net loss
+    feePct: 0.006,
+    gasCostEth: 0.00002,
+    impactPct: 0.002,
+    gwei: 0.05,
+    wantedHitchBytes: STORE_HITCH_BYTES,
+    wantBtpInscribe: true,
+  };
+
+  it("minSellProceedsEth = entry + fees + (2 × hitch)", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: 10, gwei: 1, btpInscribe: false });
+    const min = minSellProceedsEth({
+      entryEth: 0.01,
+      sellPct: 1,
+      projectedProceedsEth: 0.02,
+      feePct: 0,
+      gasCostEth: 0,
+      hitchBytes: 10,
+      gwei: 1,
+      hitchCostMult: 2,
+    });
+    assert.equal(min, 0.01 + 2 * hitch);
+    assert.equal(DEFAULT_HITCH_COST_MULT, 2);
+  });
+
+  it("coversHitchAndEntry is false when hitch would wipe edge", () => {
+    const r = coversHitchAndEntry({
+      projectedProceedsEth: 0.01001,
+      entryEth: 0.01,
+      sellPct: 1,
+      hitchBytes: 10,
+      gwei: 1e6, // 160 * 1e6 * 1e-9 = 0.16 ETH hitch; 2× = 0.32
+    });
+    assert.equal(r.covers, false);
+    assert.ok(r.hitchCoverEth > r.leftover);
+  });
+
+  it("coversHitchAndEntry is true when leftover covers 2× hitch + edge", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: 10, gwei: 0.05 });
+    const r = coversHitchAndEntry({
+      projectedProceedsEth: 0.02,
+      entryEth: 0.01,
+      sellPct: 1,
+      hitchBytes: 10,
+      gwei: 0.05,
+    });
+    assert.equal(r.covers, true);
+    assert.ok(r.leftover > 2 * hitch);
+    assert.ok(r.edge > 0);
+  });
+
+  it("sell blocked when hitch would wipe edge (TOSHI moonshot trim)", () => {
+    assert.equal(isMoonshotTrimReason(toshiMoonshot.reason), true);
+    const d = evaluateSellGate(toshiMoonshot);
+    assert.equal(d.allow, false);
+    assert.equal(d.sellNow, false);
+    assert.match(d.log, /hold sell TOSHI hitch would wipe edge/);
+    assert.ok(d.leftover <= 0 || d.leftover <= d.hitchCoverEth);
+  });
+
+  it("sell blocked when leftover covers 1× hitch but not 2×", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    // leftover after fees = 1.5× hitch — enough for 1× buy cover, not 2× sell cover
+    const leftover = hitch * 1.5;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+      symbol: "TOSHI",
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /hitch would wipe edge/);
+  });
+
+  it("sell allowed when leftover covers hitch + edge (2×)", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 0.05 });
+    const leftover = hitch * 2 + 0.001;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+      symbol: "TOSHI",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.sellNow, true);
+    assert.ok(d.hitchBytes > 0);
+    assert.match(d.log, /leftover covers hitch \+ edge/);
+    assert.match(d.log, /sell now/);
+  });
+
+  it("sizes extra hitch down so inject_cost × 2 ≤ leftover (skip extra rather than sell at a loss)", () => {
+    const store = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = store * 2 + 1e-12; // covers 2× STORE, not a 10KB chunk
+    const sized = sizeHitchForSell({
+      leftoverEth: leftover,
+      wantedBytes: 10_000,
+      gwei: 1,
+      hitchCostMult: 2,
+    });
+    assert.ok(sized.hitchBytes < 10_000);
+    assert.ok(2 * sized.injectCostEth <= leftover + 1e-18);
+  });
+
+  it("MANUAL SELL (operator) still gated unless ALLOW_LOSSY_OPERATOR_SELL=yes", () => {
+    const blocked = evaluateSellGate({
+      ...toshiMoonshot,
+      reason: "MANUAL SELL (operator) 50%",
+      env: {},
+    });
+    assert.equal(blocked.allow, false);
+    const allowed = evaluateSellGate({
+      ...toshiMoonshot,
+      reason: "MANUAL SELL (operator) 50%",
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+    });
+    assert.equal(allowed.allow, true);
+    assert.equal(allowed.reason, "lossy-operator");
+  });
+
+  it("HITCH_COST_MULT=1 lets a 1× leftover sell through (env override)", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.5;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+      symbol: "TOSHI",
+      env: { HITCH_COST_MULT: "1" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.hitchCostMult, 1);
+  });
+
+  it("buildSellGateDecision matches evaluateSellGate for moonshot hold", () => {
+    const d = buildSellGateDecision(toshiMoonshot);
+    assert.equal(d.allow, false);
+    assert.match(d.log, /hold sell TOSHI/);
   });
 });

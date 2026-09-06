@@ -89,6 +89,9 @@ import {
   isLoseZeroMode,
   isInjectCoverRequired,
   buildBuyGateDecision,
+  buildSellGateDecision,
+  STORE_HITCH_BYTES,
+  hitchCostMult,
   isManualOperatorBuy,
   parseManualBuyCommand,
   usdToForcedEth,
@@ -4477,6 +4480,26 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     if (isDust) console.log(`   💨 Dust position ($${posValueUsd.toFixed(3)}) — clearing at peak regardless of gas`);
 
+    // LOSE-ZERO sell floor: leftover must cover HITCH_COST_MULT × hitch (default 2×).
+    // Never sell at a loss to insert storage. Once the floor is met, sell now.
+    const gwei = await getCurrentGasGwei();
+    const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
+    const sellGate = buildSellGateDecision({
+      symbol: token.symbol,
+      reason,
+      sellPct,
+      entryEth: token.totalInvestedEth || 0,
+      projectedProceedsEth: procEth,
+      feePct: token.poolFeePct || 0.006,
+      impactPct: PRICE_IMPACT_EST,
+      gasCostEth: gasCost,
+      gwei,
+      wantedHitchBytes: STORE_HITCH_BYTES + orchBytes,
+      wantBtpInscribe: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+    });
+    if (sellGate.log) console.log(`   ${sellGate.log}`);
+    if (!sellGate.allow) return null;
+
     const amtToSell = BigInt(Math.floor(sellable * sellPct * 1e18));
     if (amtToSell === BigInt(0)) return null;
 
@@ -4512,11 +4535,19 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
+    const _sellTx = {
+      address: WALLET_ADDRESS, network: "base",
+      transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth) },
+    };
     const { transactionHash } = await Promise.race([
-      cdp.evm.sendTransaction({
-        address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth) },
-      }),
+      orchReady
+        ? orch.injectAndSend(_sellTx, {
+            isOwnerTrade: true,
+            currentGwei: gwei,
+            maxHitchBytes: sellGate.hitchBytes,
+            skipHitch: sellGate.skipHitch,
+          })
+        : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
     ]);
 
@@ -4560,7 +4591,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         }
 
         btpEnqueue(`STRAND-${strandNum}-${chunkPos}of${STRAND_SIZE}`, receipt);
-        btpInscribe(cdp, `SELL #${tradeCount} ${token.symbol}`).catch(() => {});
+        if (sellGate.btpInscribe) {
+          btpInscribe(cdp, `SELL #${tradeCount} ${token.symbol}`).catch(() => {});
+        } else {
+          console.log(`   📡 BTP: inscription skipped — leftover too thin for hitch on this sell`);
+        }
 
         if (isFinal) {
           strandNum++;
@@ -8739,6 +8774,7 @@ async function main() {
   } else if (isInjectCoverRequired()) {
     console.log("🧷 REQUIRE_INJECT_COVER — non-cascade buys must cover §$STORE§ hitch cost");
   }
+  console.log(`🧷 SELL FLOOR — leftover must cover ${hitchCostMult()}× hitch (HITCH_COST_MULT) after fees; never lose to storage insert`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
   // Check if we're in password-on-Railway mode (old way) or unlock-via-Telegram mode (new way)
@@ -9448,9 +9484,31 @@ async function main() {
         const sellTokens  = Math.max(balance - keepTokens, 0);
         const sellPct     = balance > 0 ? sellTokens / balance : 0;
         if (sellPct < 0.10) continue; // not worth a tx for < 10% sell
-        console.log(`🌙 MOONSHOT TRIM ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell)`);
+        const moonReason = `🌙 MOONSHOT TRIM — not in active tiers`;
+        const moonGwei = await getCurrentGasGwei();
+        const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
+        const moonGate = buildSellGateDecision({
+          symbol: token.symbol,
+          reason: moonReason,
+          sellPct,
+          entryEth: token.totalInvestedEth || 0,
+          projectedProceedsEth: (balance * sellPct * price) / ethUsd,
+          feePct: token.poolFeePct || 0.006,
+          impactPct: PRICE_IMPACT_EST,
+          gasCostEth: gasCostForTier,
+          gwei: moonGwei,
+          wantedHitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
+          wantBtpInscribe: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+        });
+        if (moonGate.log) console.log(`   ${moonGate.log}`);
+        if (!moonGate.allow) {
+          console.log(`🌙 MOONSHOT TRIM ${token.symbol}: HOLD — leftover does not cover ${hitchCostMult()}× hitch after fees`);
+          continue;
+        }
+        // 2× hitch floor met — sell immediately, do not wait past it
+        console.log(`🌙 MOONSHOT TRIM ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell) — ${hitchCostMult()}× hitch covered, selling now`);
         try {
-          const p = await executeSell(cdpClient, token, sellPct, `🌙 MOONSHOT TRIM — not in active tiers`, price, false);
+          const p = await executeSell(cdpClient, token, sellPct, moonReason, price, false);
           if (p > 0) {
             await tg(`🌙 <b>MOONSHOT TRIM — ${token.symbol}</b>\nNot in top tiers — trimming to $${MOONSHOT_HOLD_USD} lottery bag\n💰 Freed ${p.toFixed(6)} ETH for tier redeployment\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
             // No cascade — freed capital goes back to normal tier flow
