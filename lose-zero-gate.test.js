@@ -20,6 +20,10 @@ import {
   parseManualBuyCommand,
   usdToForcedEth,
   manualBuyReason,
+  parseOperatorBuyEnv,
+  queueOperatorBuyOnce,
+  SEED_TOKEN_TIMEOUT_MS,
+  raceTimeout,
   evaluateBuyGate,
   buildBuyGateDecision,
 } from "./lose-zero-gate.js";
@@ -253,5 +257,56 @@ describe("manual /buy parse", () => {
     assert.equal(manualBuyReason(3), "MANUAL BUY (operator) $3");
     assert.equal(isManualOperatorBuy("MANUAL BUY"), false);
     assert.equal(isManualOperatorBuy("🎯 MIN TROUGH [PRIORITY]"), false);
+  });
+});
+
+describe("OPERATOR_BUY env", () => {
+  it("parses TOSHI:3 and TOSHI:$3", () => {
+    assert.deepEqual(parseOperatorBuyEnv("TOSHI:3"), { symbol: "TOSHI", usd: 3 });
+    assert.deepEqual(parseOperatorBuyEnv("TOSHI:$3"), { symbol: "TOSHI", usd: 3 });
+    assert.deepEqual(parseOperatorBuyEnv("toshi:3.50"), { symbol: "TOSHI", usd: 3.5 });
+    assert.equal(parseOperatorBuyEnv(""), null);
+    assert.equal(parseOperatorBuyEnv("TOSHI"), null);
+    assert.equal(parseOperatorBuyEnv("TOSHI:0"), null);
+  });
+
+  it("queues {symbol, action:buy, usd} once (idempotent)", () => {
+    const commands = [];
+    const known = new Set(["TOSHI", "AERO"]);
+    const state = { done: false };
+    const first = queueOperatorBuyOnce(commands, "TOSHI:3", known, state);
+    assert.equal(first.queued, true);
+    assert.deepEqual(commands, [{ symbol: "TOSHI", action: "buy", usd: 3 }]);
+    const second = queueOperatorBuyOnce(commands, "TOSHI:3", known, state);
+    assert.equal(second.queued, false);
+    assert.equal(second.reason, "already-applied");
+    assert.equal(commands.length, 1);
+  });
+
+  it("does not double-queue if a buy is already in the list", () => {
+    const commands = [{ symbol: "TOSHI", action: "buy", usd: 3 }];
+    const r = queueOperatorBuyOnce(commands, "TOSHI:3", new Set(["TOSHI"]), { done: false });
+    assert.equal(r.queued, false);
+    assert.equal(r.reason, "already-queued");
+    assert.equal(commands.length, 1);
+  });
+});
+
+describe("OHLC seed timeout", () => {
+  it("SEED_TOKEN_TIMEOUT_MS is 8s", () => {
+    assert.equal(SEED_TOKEN_TIMEOUT_MS, 8000);
+  });
+
+  it("raceTimeout rejects a hung promise so one DexScreener call cannot stall forever", async () => {
+    const hung = new Promise(() => {});
+    await assert.rejects(
+      () => raceTimeout(hung, 20, "TOSHI OHLC seed"),
+      /TOSHI OHLC seed timeout 20ms/,
+    );
+  });
+
+  it("raceTimeout resolves the winner", async () => {
+    const v = await raceTimeout(Promise.resolve(42), 50, "fast");
+    assert.equal(v, 42);
   });
 });

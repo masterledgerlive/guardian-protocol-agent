@@ -113,6 +113,62 @@ export function usdToForcedEth(usd, ethUsd) {
   return u / e;
 }
 
+/**
+ * Native Railway env: `OPERATOR_BUY=TOSHI:3`
+ * Also accepts `TOSHI:$3` and `TOSHI:3.50`. Invalid / empty → null.
+ */
+export function parseOperatorBuyEnv(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const colon = s.indexOf(":");
+  if (colon <= 0) return null;
+  const symbol = s.slice(0, colon).trim().toUpperCase();
+  const usd = parseBuyUsdArg(s.slice(colon + 1));
+  if (!symbol || !usd) return null;
+  return { symbol, usd };
+}
+
+/**
+ * Queue OPERATOR_BUY once onto `commands`. Idempotent via `state.done`
+ * and an existing matching buy already in the queue.
+ * @returns {{ queued: boolean, reason: string, symbol?: string, usd?: number }}
+ */
+export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { done: false }) {
+  if (state.done) return { queued: false, reason: "already-applied" };
+  const parsed = parseOperatorBuyEnv(rawEnv);
+  if (!parsed) {
+    return { queued: false, reason: String(rawEnv ?? "").trim() ? "invalid" : "unset" };
+  }
+  if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
+    state.done = true;
+    return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, usd: parsed.usd };
+  }
+  if (commands.some((c) => c.symbol === parsed.symbol && c.action === "buy")) {
+    state.done = true;
+    return { queued: false, reason: "already-queued", symbol: parsed.symbol, usd: parsed.usd };
+  }
+  commands.push({ symbol: parsed.symbol, action: "buy", usd: parsed.usd });
+  state.done = true;
+  return { queued: true, reason: "queued", symbol: parsed.symbol, usd: parsed.usd };
+}
+
+/** Per-token OHLC seed budget — one hung DexScreener/GT call must not stall boot. */
+export const SEED_TOKEN_TIMEOUT_MS = 8000;
+
+export async function raceTimeout(promise, ms, label = "timeout") {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timeout ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function manualBuyReason(usd = 0) {
   const n = Number(usd);
   return Number.isFinite(n) && n > 0
