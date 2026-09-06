@@ -48,8 +48,6 @@ USD liq / 24h vol from DexScreener. Uni/Aero preferred when present.
 | XCN | Uni v3 XCN/USDC | $176k | $38k | Keep |
 | BASECAT | Uni v3 BASECAT/WETH | $464k | $5.23M | **ADDED** — high-vol book `0xB200…1D01` (not the $11.5M / $17k twin) |
 | DRB | Uni v3 DRB/WETH | $1.42M | $465k | **ADDED** — DebtReliefBot |
-| VVV | Aero VVV/WETH + Uni v3 VVV/USDC | $13.1M / $277k | $435k / $108k | **ADDED** — Venice Token |
-| TIBBIR | Uni v2 TIBBIR/VIRTUAL + Aero WETH | $3.28M / $385k | $183k / $929k | **ADDED** — Virtuals Ribbita (not Clanker twin) |
 
 ### Newly frozen (were active)
 
@@ -58,6 +56,8 @@ USD liq / 24h vol from DexScreener. Uni/Aero preferred when present.
 | SEAM | Uni v3 SEAM/USDC | $66k | **$22** | Chronic dead book |
 | BASE | Swapbased V2 BASE/WETH | $41k | $1.6k | Thin; Uni v3 only ~$22k / $417 |
 | MOG | Uni v3 Mog/SPX | $50k | $2.7k | Exotic quote; WETH Aero ~$16k |
+| VVV | Aero VVV/WETH + Uni v3 VVV/USDC | $13.1M / $277k | $435k / $108k | Data-only until Uni V3 proven |
+| TIBBIR | Uni v2 TIBBIR/VIRTUAL + Aero WETH | $3.28M / $385k | $183k / $929k | Data-only until Uni V3 proven |
 
 ### Disabled (unchanged)
 
@@ -126,7 +126,7 @@ Skipped as ADD: **BSTONK** (desk: volatile). KEYCAT already in catalog — not d
 
 ## Overnight frozen catalog adds (2026-09-06)
 
-Desk greenlight — **data-only**, `frozen: true`. No capital, no unfreeze, no `tokens.json` runtime adds. Skip **FLOCK** / **BSTONK**. **KEYCAT** already in catalog. **BASECAT / DRB / VVV / TIBBIR** unchanged (**BASECAT stays tradeable**).
+Desk greenlight — **data-only**, `frozen: true`. No capital, no unfreeze, no `tokens.json` runtime adds. Skip **FLOCK** / **BSTONK**. **KEYCAT** already in catalog. **BASECAT stays tradeable.** **DRB** unchanged. **KTA** stays frozen. **VVV** / **TIBBIR** frozen here until Uni V3 proven.
 
 | Sym | Address | Best useful pool | Liq | 24h vol | Fee | State |
 |---|---|---|---:|---:|---|---|
@@ -134,5 +134,7 @@ Desk greenlight — **data-only**, `frozen: true`. No capital, no unfreeze, no `
 | BLUECHIP | `0xB200000000000000000000cFbdF64a8706a94a01` | Uni v4 BLUECHIP/NVDAc (no Uni v3) | $553k | $901k | 10000 placeholder | **FROZEN** — Uni V3 not proven |
 | VELVET | `0xbF927b841994731C573BDF09ceB0c6B0Aa887cDd` | Aero VELVET/USDC; Uni v3 ~$0.82 | $1.18M / $0.82 | $2.09M / ~$0 | 10000 placeholder | **FROZEN** — Uni V3 not proven |
 | KTA | `0xc0634090F2Fe6C6D75e61Be2b949464aBb498973` | Aero KTA/WETH (not Uni V3) | $4.27M | — | 10000 placeholder | **FROZEN** data-only — keep frozen |
+| VVV | `0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf` | Aero VVV/WETH; Uni v3 VVV/USDC | $13.1M / $277k | $435k / $108k | 3000 | **FROZEN** data-only until Uni V3 proven |
+| TIBBIR | `0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00` | Uni v2 TIBBIR/VIRTUAL; Aero WETH | $3.28M / $385k | $183k / $929k | 10000 | **FROZEN** data-only until Uni V3 proven |
 
-STONKEX / BLUECHIP / VELVET stay frozen. **BASECAT** stays tradeable. DRB / VVV / TIBBIR untouched. Skip **FLOCK** / **BSTONK** / **HYDX**. Buy-gate logic unchanged.
+STONKEX / BLUECHIP / VELVET / KTA stay frozen. **VVV** / **TIBBIR** frozen data-only until Uni V3 proven. **BASECAT** stays tradeable. **DRB** unchanged. Skip **FLOCK** / **BSTONK** / **HYDX**. Buy-gate logic unchanged.
