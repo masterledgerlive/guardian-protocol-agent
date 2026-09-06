@@ -8,6 +8,10 @@ import {
   parseGeckoTerminalPrices,
   hasUsableCostBasis,
   GECKO_TERMINAL_CHUNK,
+  allowBinanceOhlcSeed,
+  pickHistoricalSeedSource,
+  preferBaseQuoteForLastPrice,
+  pickGeckoTerminalPool,
 } from "./price-oracle.js";
 
 describe("address + price guards", () => {
@@ -87,5 +91,49 @@ describe("cost basis", () => {
     assert.equal(hasUsableCostBasis({ entryPrice: 0, unknownEntry: false }), false);
     assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false }), true);
     assert.equal(hasUsableCostBasis({ entryPrice: 2.54 }), true);
+  });
+});
+
+describe("Binance must not overwrite Base", () => {
+  it("blocks LUNA/KITE/GAME/HIGHER/MIGGLES CEX tickers", () => {
+    for (const s of ["LUNA", "KITE", "GAME", "HIGHER", "MIGGLES"]) {
+      assert.equal(allowBinanceOhlcSeed(s), false, s);
+    }
+    assert.equal(allowBinanceOhlcSeed("AERO"), true);
+    assert.equal(allowBinanceOhlcSeed("BRETT"), true);
+    assert.equal(allowBinanceOhlcSeed("CBBTC"), false);
+  });
+
+  it("prefers shorter Base history over a longer CEX LUNA series", () => {
+    const gt = Array.from({ length: 20 }, (_, i) => ({ c: 0.005 + i * 0.00001 }));
+    const binance = Array.from({ length: 90 }, (_, i) => ({ c: 0.046 + i * 0.0001 }));
+    const picked = pickHistoricalSeedSource({
+      gt, ds: null, binance, allowBinance: false,
+    });
+    assert.equal(picked.src, "GeckoTerminal");
+    assert.equal(picked.data[0].c, 0.005);
+  });
+
+  it("never falls through to Binance for denied symbols even if Base is empty", () => {
+    const binance = Array.from({ length: 90 }, () => ({ c: 0.129 }));
+    assert.equal(pickHistoricalSeedSource({
+      gt: null, ds: null, binance, allowBinance: false,
+    }), null);
+  });
+
+  it("pins lastPrice to Base when CEX seed close is a different asset", () => {
+    assert.equal(preferBaseQuoteForLastPrice(0.0468, 0.005356), 0.005356);
+    assert.equal(preferBaseQuoteForLastPrice(0.129, 0.005), 0.005);
+    assert.equal(preferBaseQuoteForLastPrice(0.0053, 0.0054), 0.0053);
+    assert.equal(preferBaseQuoteForLastPrice(null, 0.00644), 0.00644);
+  });
+
+  it("picks the deepest GT pool, not the first row", () => {
+    const pools = [
+      { attributes: { address: "0x" + "1".repeat(40), reserve_in_usd: "1000", volume_usd: { h24: "99999" } } },
+      { attributes: { address: "0x" + "2".repeat(40), reserve_in_usd: "1684697", volume_usd: { h24: "4989" } } },
+    ];
+    const pool = pickGeckoTerminalPool(pools);
+    assert.equal(pool.attributes.address, "0x" + "2".repeat(40));
   });
 });
