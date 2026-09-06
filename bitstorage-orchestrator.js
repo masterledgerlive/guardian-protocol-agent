@@ -463,26 +463,40 @@ export class MempoolOrchestrator extends EventEmitter {
    * @param {object} context     { isOwnerTrade: boolean, currentGwei: number }
    * @returns {{ transactionHash: string, receipt?: object }}
    */
+  _nextQueuedChunk(context = {}, { consume = true } = {}) {
+    const take = (q) => (consume ? q.shift() : q[0]);
+    if (this.fastPassQueue.length > 0) return take(this.fastPassQueue) || null;
+    if (context.isOwnerTrade && this.siloQueue.length > 0) return take(this.siloQueue) || null;
+    if (this.standbyQueue.length > 0) return take(this.standbyQueue) || null;
+    return null;
+  }
+
+  peekNextHitchBytes(context = {}) {
+    const chunk = this._nextQueuedChunk(context, { consume: false });
+    if (!chunk) return 0;
+    return (chunk.header?.length || 0) + (chunk.enc?.length || 0);
+  }
+
   async injectAndSend(txParams, context = {}) {
     this.tradeCount++;
     this.currentGwei = context.currentGwei || 1;
 
-    // Pick next chunk from the appropriate queue
-    let chunk = null;
+    const maxBytes = context.maxHitchBytes;
+    const skipHitch = context.skipHitch === true || (Number.isFinite(maxBytes) && maxBytes <= 0);
 
-    if (this.fastPassQueue.length > 0) {
-      // Fast Pass always goes first — they paid for priority
-      chunk = this.fastPassQueue.shift();
-    } else if (context.isOwnerTrade && this.siloQueue.length > 0) {
-      // Silo: only inject into owner's own trades
-      chunk = this.siloQueue.shift();
-    } else if (this.standbyQueue.length > 0) {
-      // Standby: hitch a ride on any available trade
-      chunk = this.standbyQueue.shift();
+    let chunk = null;
+    if (!skipHitch) {
+      const peeked = this._nextQueuedChunk(context, { consume: false });
+      if (peeked) {
+        const size = (peeked.header?.length || 0) + (peeked.enc?.length || 0);
+        if (!Number.isFinite(maxBytes) || size <= maxBytes) {
+          chunk = this._nextQueuedChunk(context, { consume: true });
+        }
+      }
     }
 
     if (!chunk) {
-      // No chunks queued — send the plain trade
+      // No chunks queued, or leftover too thin — send the plain trade
       return this.cdp.evm.sendTransaction(txParams);
     }
 
