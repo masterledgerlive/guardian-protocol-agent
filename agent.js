@@ -89,6 +89,8 @@ import {
 import {
   isLoseZeroMode,
   isInjectCoverRequired,
+  isCatalogFrozen,
+  frozenBuySkipLog,
   buildBuyGateDecision,
   buildSellGateDecision,
   STORE_HITCH_BYTES,
@@ -4275,6 +4277,12 @@ async function btpInscribe(cdp, tradeLabel) {
 
 async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCascade = false) {
   try {
+    // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
+    // cascade / ripple) dies here. Sells never call this function.
+    if (isCatalogFrozen(token)) {
+      console.log(`   ${frozenBuySkipLog(token)}`);
+      return false;
+    }
     if (!canTrade(token.symbol, isCascade)) { console.log(`   ⏳ ${token.symbol} cooldown`); return false; }
     if (drawdownHaltActive)                 { console.log(`   🛑 ${token.symbol} drawdown halt active`); return false; }
     if (isSafeMode())                       { console.log(`   🛡️  ${token.symbol} safe mode — no trades until vault unlocked`); return false; }
@@ -4795,6 +4803,7 @@ async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
   let best = null, bestNet = -1;
   for (const t of tokens) {
     if (t.symbol === excludeSymbol) continue;
+    if (isCatalogFrozen(t)) continue; // frozen names: exits only, never a cascade target
     if (!canTrade(t.symbol, true)) continue; // uses cascade grace timer
     if (t.entryPrice) continue;
     const arm   = getArmStatus(t.symbol, gasCost, tradeEth);
@@ -4877,6 +4886,7 @@ async function runRippleEngine(cdp, allTokens, bal, ethUsd) {
     // not currently held (we're redeploying stale capital, not averaging up)
     const rippleTargets = [];
     for (const t of allTokens) {
+      if (isCatalogFrozen(t)) continue; // frozen names: never a ripple buy target
       if (t.entryPrice) continue; // skip positions we already hold
       const arm   = getArmStatus(t.symbol, gasCost, bal.tradeableWithWeth);
       if (!arm.armed) continue;
@@ -4999,15 +5009,19 @@ async function processToken(cdp, token, bal) {
       if (price) { recordPrice(token.symbol, price); updateWaves(token.symbol, price); }
       return;
     }
-    // ── ❄️ FROZEN TOKENS — collect wave data, NEVER deploy capital ────────────
-    // Frozen tokens build wave history silently so they're ready when /unfreeze'd.
-    // Never show in logs unless a position already exists (exit path always open).
-    if (token.frozen && !token.entryPrice) {
+    // ── ❄️ FROZEN TOKENS — collect wave data, NEVER open a NEW buy ────────────
+    // executeBuy is the hard gate for every buy entry. This early return only
+    // skips idle data-only names. If a bag or pending command exists, fall
+    // through so OPERATOR_SELL / sellhalf / dust exits (and buy-command
+    // consumption via the shared freeze gate) still run.
+    if (isCatalogFrozen(token) && !token.entryPrice) {
       try {
         const price = await getTokenPrice(token.address, false);
         if (price > 0) { recordPrice(token.symbol, price); updateWaves(token.symbol, price); }
       } catch { /* silent — frozen tokens never crash main loop */ }
-      return; // no buys, no logs, no capital
+      const pending = manualCommands.some(c => c.symbol === token.symbol);
+      const held = (getCachedBalance(token.symbol) || 0) > 0.001;
+      if (!pending && !held) return; // no buys, no logs, no capital
     }
     // FIX: Skip dead-wave tokens that will never clear fees — stops them burning
     // 0.8s + RPC calls per loop on tokens mathematically impossible to trade.
@@ -5249,7 +5263,7 @@ async function processToken(cdp, token, bal) {
     // ── COMPOSITE BUY CONDITION ──────────────────────────────────────────────
     // Any ONE of these entry signals + armed + not maxed = buy
     const entrySignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent;
-    const shouldBuy = entrySignal && arm.armed && !atMaxPosition && !shouldSell
+    const shouldBuy = !isCatalogFrozen(token) && entrySignal && arm.armed && !atMaxPosition && !shouldSell
                    && !smartMoneyBlocking
                    && bal.tradeableWithWeth >= MIN_ETH_TRADE
                    && canTrade(token.symbol);
@@ -6319,7 +6333,12 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (text.startsWith("/buy ")) {
         const parsed = parseManualBuyCommand(raw);
         const sym = parsed?.symbol;
-        if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /buy SYMBOL [usd]`); continue; }
+        const tok = tokens.find(t=>t.symbol===sym);
+        if (!sym || !tok) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /buy SYMBOL [usd]`); continue; }
+        if (isCatalogFrozen(tok)) {
+          await tg(`❄️ <b>${sym} is frozen</b> — new buys blocked.\n${tok.frozenReason || "Catalog freeze."}\nSells/exits remain allowed.`);
+          continue;
+        }
         if (manualCommands.find(c => c.symbol===sym && c.action==="buy")) { await tg(`⚠️ BUY ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "buy", usd: parsed.usd || 0 });
         await tg(parsed.usd > 0
@@ -8716,10 +8735,19 @@ function applyOperatorBuyEnv() {
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
   ]);
-  const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState);
+  // Live token.frozen wins (runtime /unfreeze). Catalog defaults fill gaps.
+  const frozen = new Set(DEFAULT_TOKENS.filter(t => isCatalogFrozen(t)).map(t => t.symbol));
+  for (const t of tokens) {
+    if (isCatalogFrozen(t)) frozen.add(t.symbol);
+    else frozen.delete(t.symbol);
+  }
+  const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState, frozen);
   if (result.queued) {
     console.log(`📱 OPERATOR_BUY queued: ${result.symbol} $${result.usd} (MANUAL BUY operator — LOSE_ZERO allows)`);
     tg(`📱 <b>OPERATOR_BUY queued</b>\n${result.symbol} $${result.usd}\nFires on next cycle — LOSE_ZERO allows this operator path.`).catch(() => {});
+  } else if (result.reason === "frozen") {
+    const tok = tokens.find(t => t.symbol === result.symbol) || DEFAULT_TOKENS.find(t => t.symbol === result.symbol);
+    console.log(`   ${frozenBuySkipLog(tok || { symbol: result.symbol, frozen: true })}`);
   } else if (result.reason === "unknown-symbol") {
     console.log(`⚠️  OPERATOR_BUY: unknown symbol ${result.symbol}`);
   } else if (result.reason === "invalid") {
