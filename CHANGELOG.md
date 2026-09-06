@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed — Telegram poller starts before 90-day OHLC seed
+
+Boot used to `await loadHistoricalData(90)` (DexScreener/GT, no per-call cap) and only then start the independent Telegram poller. A hung DexScreener call froze Telegram for minutes.
+
+- Start the 3s Telegram poller immediately after vault unlock / CDP client ready. Guarded so it cannot start twice.
+- Each token seed is wrapped in an 8s `Promise.race` timeout; DexScreener fetches use `AbortSignal.timeout(8000)`.
+- Native `OPERATOR_BUY=TOSHI:3` queues `{ symbol, action: "buy", usd }` once after CDP ready (idempotent). Reason remains `MANUAL BUY (operator)` so LOSE_ZERO still allows the operator path; auto stays gated.
+
 ### Added — `/buy SYMBOL [usd]` operator size + LOSE_ZERO bypass
 
 - Telegram `/buy TOSHI`, `/buy TOSHI 3`, and `/buy TOSHI $3` queue a manual buy.

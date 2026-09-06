@@ -93,6 +93,9 @@ import {
   parseManualBuyCommand,
   usdToForcedEth,
   manualBuyReason,
+  queueOperatorBuyOnce,
+  SEED_TOKEN_TIMEOUT_MS,
+  raceTimeout,
 } from "./lose-zero-gate.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
@@ -2075,6 +2078,9 @@ let approvedTokens = new Set();
 let cdpClient      = null;
 let manualCommands = [];
 let cachedBal      = null;   // updated each loop cycle — used in Telegram commands
+let telegramPollerStarted = false; // startTelegramPoller() is idempotent
+let telegramPolling       = false; // lock: if one poll takes >3s the next waits
+const operatorBuyState    = { done: false }; // OPERATOR_BUY env queued once per process
 const waveState    = {};
 const tradeLog     = [];
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
@@ -2169,7 +2175,7 @@ async function fetchCandlesDexScreener(tokenAddress, days = 90) {
   try {
     // DexScreener pairs endpoint — gives us the top pool for this token on Base
     const pairsUrl = `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`;
-    const pRes = await fetch(pairsUrl, { headers: { Accept: "application/json" } });
+    const pRes = await fetch(pairsUrl, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(SEED_TOKEN_TIMEOUT_MS) });
     if (!pRes.ok) return null;
     const pJson = await pRes.json();
 
@@ -2184,7 +2190,7 @@ async function fetchCandlesDexScreener(tokenAddress, days = 90) {
     if (gtFromPair) return gtFromPair;
 
     // Fetch candles from DexScreener chart endpoint
-    const res1d = await fetch(`https://io.dexscreener.com/dex/chart/amm/v3/base/${pairAddr}?res=1D&cb=0`, { headers: { Accept: "application/json" } });
+    const res1d = await fetch(`https://io.dexscreener.com/dex/chart/amm/v3/base/${pairAddr}?res=1D&cb=0`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(SEED_TOKEN_TIMEOUT_MS) });
     if (res1d.ok) {
       const j = await res1d.json();
       const bars = j?.bars || j?.ohlcv || j?.data;
@@ -2362,6 +2368,7 @@ async function loadHistoricalData(days = 90) {
     // Process all tokens in this batch in parallel — they share the rate-limit window
     await Promise.allSettled(batch.map(async (token) => {
     try {
+      await raceTimeout((async () => {
       let candles = null;
       let gtError = null, dsError = null;
 
@@ -2498,6 +2505,7 @@ async function loadHistoricalData(days = 90) {
       const r = ohlc.range90;
       const w = ohlc.weekly.current;
       console.log(`   ✅ ${token.symbol}: ${candles.length}d | 90d H:$${r.high.toFixed(6)} L:$${r.low.toFixed(6)} | 7d: ${w.change>=0?"+":""}${w.change.toFixed(1)}% | now:$${candles[candles.length-1].c.toFixed(6)}`);
+      })(), SEED_TOKEN_TIMEOUT_MS, `${token.symbol} OHLC seed`);
     } catch (e) {
       console.log(`   ⚠️  ${token.symbol}: candle load failed — ${e.message}`);
       skipped++;
@@ -8548,6 +8556,45 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
   } catch (e) { console.log(`⚠️  Telegram poll error: ${e.message}`); }
 }
 
+// Independent 3s Telegram poller. Safe to call more than once — starts only once.
+function startTelegramPoller() {
+  if (telegramPollerStarted) return false;
+  telegramPollerStarted = true;
+  if (!cachedBal) cachedBal = { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 };
+  (async () => {
+    while (true) {
+      if (!telegramPolling) {
+        telegramPolling = true;
+        try { await checkTelegramCommands(cdpClient, cachedBal, cachedEthUsd); }
+        catch (e) { console.log(`⚠️  Telegram poller error: ${e.message}`); }
+        finally { telegramPolling = false; }
+      }
+      await sleep(3000);
+    }
+  })();
+  console.log("📱 Telegram poller started (independent 3s loop — before OHLC seed)");
+  return true;
+}
+
+function applyOperatorBuyEnv() {
+  const known = new Set([
+    ...DEFAULT_TOKENS.map(t => t.symbol),
+    ...tokens.map(t => t.symbol),
+  ]);
+  const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState);
+  if (result.queued) {
+    console.log(`📱 OPERATOR_BUY queued: ${result.symbol} $${result.usd} (MANUAL BUY operator — LOSE_ZERO allows)`);
+    tg(`📱 <b>OPERATOR_BUY queued</b>\n${result.symbol} $${result.usd}\nFires on next cycle — LOSE_ZERO allows this operator path.`).catch(() => {});
+  } else if (result.reason === "unknown-symbol") {
+    console.log(`⚠️  OPERATOR_BUY: unknown symbol ${result.symbol}`);
+  } else if (result.reason === "invalid") {
+    console.log(`⚠️  OPERATOR_BUY: invalid value "${process.env.OPERATOR_BUY}" — expected SYMBOL:usd (e.g. TOSHI:3)`);
+  } else if (result.reason === "already-queued" || result.reason === "already-applied") {
+    // idempotent no-op
+  }
+  return result;
+}
+
 // ── CDP CLIENT ────────────────────────────────────────────────────────────────
 function createCdpClient() {
   return new CdpClient({
@@ -8711,7 +8758,14 @@ async function main() {
     }
   }
 
+  // CDP + independent Telegram poller BEFORE the 90-day OHLC seed.
+  // Seed used to block main() for minutes, so the poller never started and Telegram froze.
+  cdpClient = createCdpClient();
+  orch.cdp = cdpClient;
+  startTelegramPoller();
+
   await loadFromGitHub();
+  applyOperatorBuyEnv();
 
   // ── 📚 IKN BOOT READER — arm Claude context from vita-registry.json ─────────
   // Reads the last N strands from chain index at startup.
@@ -8735,8 +8789,6 @@ async function main() {
   bootstrapWavesFromHistory();
   await bootstrapWavesFromLedger();
   bootstrapWavesFromCandles();
-  cdpClient = createCdpClient();
-  orch.cdp = cdpClient;
 
   // ── ON-CHAIN POSITION RECOVERY — PURE BLOCKCHAIN TRUTH ──────────────────
   // Every restart: scan wallet on Base directly for all token balances
@@ -9161,20 +9213,8 @@ async function main() {
   cachedBal    = balInit;
   cachedEthUsd = ethUsdInit;
 
-  // Telegram poller — independent 3s loop, never dies
-  // Lock prevents concurrent runs — if one poll takes >3s the next waits
-  let telegramPolling = false;
-  (async () => {
-    while (true) {
-      if (!telegramPolling) {
-        telegramPolling = true;
-        try { await checkTelegramCommands(cdpClient, cachedBal, cachedEthUsd); }
-        catch (e) { console.log(`⚠️  Telegram poller error: ${e.message}`); }
-        finally { telegramPolling = false; }
-      }
-      await sleep(3000);
-    }
-  })();
+  // Poller already started after vault/CDP — this is a no-op guard
+  startTelegramPoller();
 
   // Main trading loop
   while (true) {
