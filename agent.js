@@ -74,6 +74,13 @@ import {
   checkBootTimeout,
   unlockState,
 } from "./vault-unlock.js";
+import {
+  isValidEvmAddress,
+  isValidUsdPrice,
+  prefetchMarketPrices,
+  fetchTokenUsdQuote,
+  hasUsableCostBasis,
+} from "./price-oracle.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -271,6 +278,7 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
   // ── No-price streak penalty ───────────────────────────────────────────────
   const noPrice = noPriceStreak[symbol] || 0;
   if (noPrice >= 5) score -= 20; // can't get a price = can't trade
+  if (token?.unknownEntry || !isValidUsdPrice(history[symbol]?.lastPrice)) score -= 20;
 
   return Math.max(0, Math.min(100, score));
 }
@@ -1061,7 +1069,7 @@ const DEFAULT_TOKENS = [
     score: { liquidity:8, waveQuality:8, fundamentals:9, coinbaseFit:9, community:8, total:42 },
     notes: "AI agent tokenization protocol on Base. Real infrastructure play. AIXBT born from this. Every new AI agent = more demand for VIRTUAL." },
 
-  { symbol: "MORPHO",  address: "0xBAa5CC21fd487B8Fcc2F632f8F4e4b1E7a67bA9f", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+  { symbol: "MORPHO",  address: "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:7, waveQuality:7, fundamentals:10, coinbaseFit:10, community:7, total:41 },
     notes: "PROMOTED FROM WATCHLIST. Coinbase chose Morpho for their $1B+ lending product on Base. Real yield, real revenue, Coinbase-native. This is infrastructure." },
 
@@ -1093,8 +1101,9 @@ const DEFAULT_TOKENS = [
     notes: "Coinbase CEO Brian Armstrong's cat. Base meme with maximum Coinbase cultural alignment. 900k+ holders." },
 
   { symbol: "KITE",    address: "0x45a8B3bE0D9e3CAFf4325B0bddD786B9B56B3Ca8", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    disabled: true, disabledReason: "No verified liquid Base market at this address — DexScreener/GT return no USD quote. Official KITE is not a Base ERC-20. Skip until a real Base pool is confirmed.",
     score: { liquidity:5, waveQuality:5, fundamentals:8, coinbaseFit:8, community:6, total:32 },
-    notes: "gokite.ai — AI infrastructure on Base. Coinbase listed. User holds at ~$0.30. Learning waves now. AI sector tailwind." },
+    notes: "DISABLED — configured Base address has no live pool. Do not invent a quote." },
 
   // ── TIER 3: SCOUT (20-29) ─────────────────────────────────────────────────
   // Smaller bets. Learning the wave. Building conviction with real data.
@@ -1126,11 +1135,11 @@ const DEFAULT_TOKENS = [
     score: { liquidity:7, waveQuality:7, fundamentals:6, coinbaseFit:9, community:7, total:36 },
     notes: "BASE token — ecosystem identity. Coinbase aligned. ACTIVE." },
 
-  { symbol: "LUNA",    address: "0x55cD6469F597452B5A7536e2CD98fB4297d4a3F7", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+  { symbol: "LUNA",    address: "0x55cD6469F597452B5A7536e2CD98fDE4c1247ee4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:8, community:8, total:36 },
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
-  { symbol: "GAME",    address: "0x1C4CcA7C5CB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
+  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — AI gaming agent infra. ACTIVE." },
 
@@ -1148,7 +1157,7 @@ const DEFAULT_TOKENS = [
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:7, community:9, total:33 },
     notes: "HIGHER. FROZEN." },
 
-  { symbol: "MOCHI",   address: "0xF6e932Ca12afa26665dC4dDE7e27be02A6C8e14", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+  { symbol: "MOCHI",   address: "0xF6e932Ca12afa26665dC4dDE7e27be02A7c02e50", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
     score: { liquidity:5, waveQuality:6, fundamentals:5, coinbaseFit:7, community:7, total:30 },
     notes: "Mochi. FROZEN." },
@@ -1990,6 +1999,7 @@ function getCachedPrice(address) {
 }
 
 function setCachedPrice(address, price) {
+  if (!isValidEvmAddress(address) || !isValidUsdPrice(price)) return;
   const key = address.toLowerCase();
   priceCache[key] = { price, timestamp: Date.now(), failCount: 0 };
 }
@@ -2567,6 +2577,7 @@ async function bootstrapWavesFromLedger() {
 }
 
 function recordPrice(symbol, price) {
+  if (!isValidUsdPrice(price)) return; // never seed waves / prediction with $0
   if (!history[symbol]) history[symbol] = { readings: [], lastPrice: null };
   history[symbol].readings.push({ price, time: Date.now() });
   if (history[symbol].readings.length > 2000) history[symbol].readings.shift(); // keep under GitHub 1MB API limit
@@ -3639,39 +3650,26 @@ function getCachedBalance(symbol) {
 // 💱 PRICES
 // ═══════════════════════════════════════════════════════════════════════════════
 async function getTokenPrice(address, hasPosition = false) {
+  if (!isValidEvmAddress(address)) return null;
   const key = address.toLowerCase();
 
   // Return cached price if fresh enough — avoids rate-limiting
   if (!isPriceCacheStale(address, hasPosition)) {
-    return getCachedPrice(address);
+    const cached = getCachedPrice(address);
+    return isValidUsdPrice(cached) ? cached : null;
   }
 
-  // ── Fetch fresh price ────────────────────────────────────────────────────
-  // GeckoTerminal: supports batch requests — try this first
-  try {
-    const r = await fetch(`https://api.geckoterminal.com/api/v2/simple/networks/base/token_price/${key}`, { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      const d = await r.json();
-      const p = parseFloat(d?.data?.attributes?.token_prices?.[key]);
-      if (!isNaN(p) && p > 0) { setCachedPrice(address, p); return p; }
-    }
-  } catch {}
+  // DexScreener (best Base pool) is authoritative when the Uniswap quoter is dry.
+  // GeckoTerminal fills gaps. Never cache or return $0.
+  const quote = await fetchTokenUsdQuote(address);
+  if (quote && isValidUsdPrice(quote.priceUsd)) {
+    setCachedPrice(address, quote.priceUsd);
+    return quote.priceUsd;
+  }
 
-  // Fallback: DexScreener
-  try {
-    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`, { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      const d = await r.json();
-      const p = parseFloat(d?.pairs?.find(x => x.chainId === "base")?.priceUsd);
-      if (!isNaN(p) && p > 0) { setCachedPrice(address, p); return p; }
-    }
-  } catch {}
-
-  // Both failed — increment fail count, return last known price if we have it
   const existing = priceCache[key];
-  if (existing) {
+  if (existing && isValidUsdPrice(existing.price)) {
     existing.failCount = (existing.failCount || 0) + 1;
-    // Keep returning stale price for up to 3 failures (45s) before giving up
     if (existing.failCount <= 3) return existing.price;
   }
   return null;
@@ -4348,6 +4346,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   🛑 SELL BLOCKED [${token.symbol}]: native ETH ${liveNativeEth.toFixed(6)} < gas reserve ${GAS_RESERVE} — no gas`);
       return null;
     }
+    if (!isValidUsdPrice(price)) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: no live USD quote — refusing to size from $0`);
+      return null;
+    }
 
     const totalBal = await getTokenBalance(token.address);
     if (totalBal < 0.01) {
@@ -4823,7 +4825,22 @@ async function processToken(cdp, token, bal) {
     }
     const heldPosition = !!(token.entryPrice); // true if we have an open position — used for price cache TTL
     const price = await getTokenPrice(token.address, heldPosition);
-    if (!price) { console.log(`   ⏳ ${token.symbol}: no price`); return; }
+    if (!isValidUsdPrice(price)) {
+      noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
+      console.log(`   ⏳ ${token.symbol}: NO QUOTE — skip trade (pool dry or unindexed) ${token.address}`);
+      return false;
+    }
+
+    // Holding with missing cost basis: resolve from live market, never $0
+    if (token.unknownEntry && isValidUsdPrice(price) && getCachedBalance(token.symbol) > 0.001) {
+      const ethNow = await getLiveEthPrice();
+      const balNow = getCachedBalance(token.symbol);
+      token.entryPrice       = price;
+      token.totalInvestedEth = (balNow * price) / ethNow;
+      token.entryTime        = token.entryTime || Date.now();
+      token.unknownEntry     = false;
+      console.log(`   ✅ ${token.symbol}: UNKNOWN ENTRY resolved from live market @ $${price} val≈$${(balNow * price).toFixed(2)}`);
+    }
 
     recordPrice(token.symbol, price);
     updateWaves(token.symbol, price);
@@ -5650,7 +5667,8 @@ async function loadFromGitHub() {
     tokens = DEFAULT_TOKENS.map(def => ({
       ...def, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null,
       ...(saved.find(s => s.symbol === def.symbol) || {}),
-      feeTier: def.feeTier, poolFeePct: def.poolFeePct, minNetMargin: def.minNetMargin,
+      // Catalog address / fee are authoritative — saved typos must not stick
+      address: def.address, feeTier: def.feeTier, poolFeePct: def.poolFeePct, minNetMargin: def.minNetMargin,
       // Sanity clamp: totalInvestedEth must never be negative
       totalInvestedEth: Math.max(0, (saved.find(s => s.symbol === def.symbol) || {}).totalInvestedEth || 0),
       // Always re-apply frozen/disabled from code — never let saved state override
@@ -6113,10 +6131,15 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         // Allow exit even without entry price — just needs a balance
         if (!token.entryPrice && bal < 0.001) { await tg(`❓ <b>${sym}</b> — no position and no balance found`); continue; }
         if (!token.entryPrice) {
-          // Force-set a dummy entry so the sell logic doesn't skip it
-          token.entryPrice       = history[sym]?.lastPrice || 0.000001;
-          token.totalInvestedEth = 0; // unknown — set to 0 so P&L shows as pure proceeds
-          await tg(`⚠️ <b>${sym}</b> — no entry price recorded\nSetting current price as entry and force selling`);
+          const live = await getTokenPrice(token.address, true);
+          if (!isValidUsdPrice(live)) {
+            await tg(`❓ <b>${sym}</b> — no live USD quote. Exit skipped (will not invent $0).`);
+            continue;
+          }
+          token.entryPrice       = live;
+          token.totalInvestedEth = 0;
+          token.unknownEntry     = false;
+          await tg(`⚠️ <b>${sym}</b> — no entry recorded\nUsing live market $${live} as cost basis for exit`);
         }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: 0.98 });
@@ -6129,9 +6152,15 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const bal = getCachedBalance(sym);
         if (!token.entryPrice && bal < 0.001) { await tg(`❓ <b>${sym}</b> — no position and no balance found`); continue; }
         if (!token.entryPrice) {
-          token.entryPrice       = history[sym]?.lastPrice || 0.000001;
+          const live = await getTokenPrice(token.address, true);
+          if (!isValidUsdPrice(live)) {
+            await tg(`❓ <b>${sym}</b> — no live USD quote. Exit skipped (will not invent $0).`);
+            continue;
+          }
+          token.entryPrice       = live;
           token.totalInvestedEth = 0;
-          await tg(`⚠️ <b>${sym}</b> — no entry price recorded\nSetting current price as entry and force selling half`);
+          token.unknownEntry     = false;
+          await tg(`⚠️ <b>${sym}</b> — no entry recorded\nUsing live market $${live} as cost basis for half exit`);
         }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: 0.50 });
@@ -8682,24 +8711,24 @@ async function main() {
       })
     );
 
-    // Also fetch live prices for all tokens in one batch call
+    // DexScreener + GT chunked prefetch — never one giant GT URL (400 / silent drop)
     try {
-      const addrs  = tokens.map(t => t.address.toLowerCase()).join(",");
-      const pRes   = await fetch(`https://api.geckoterminal.com/api/v2/simple/networks/base/token_price/${addrs}`, { signal: AbortSignal.timeout(8000) });
-      if (pRes.ok) {
-        const pData  = await pRes.json();
-        const prices = pData?.data?.attributes?.token_prices || {};
-        for (const [addr, priceStr] of Object.entries(prices)) {
-          const p = parseFloat(priceStr);
-          if (!isNaN(p) && p > 0) {
-            const t = tokens.find(tk => tk.address.toLowerCase() === addr.toLowerCase());
-            if (t && !history[t.symbol]) history[t.symbol] = { lastPrice: p };
-            else if (t) history[t.symbol].lastPrice = p;
-          }
-        }
-        console.log("   💱 Live prices fetched for boot scan");
+      const bootQuotes = await prefetchMarketPrices(tokens.map(t => t.address));
+      for (const [addr, p] of Object.entries(bootQuotes.prices)) {
+        const t = tokens.find(tk => tk.address.toLowerCase() === addr);
+        if (!t || !isValidUsdPrice(p)) continue;
+        setCachedPrice(addr, p);
+        if (!history[t.symbol]) history[t.symbol] = { lastPrice: p };
+        else history[t.symbol].lastPrice = p;
       }
-    } catch { console.log("   ⚠️  Boot price fetch failed — using cached prices"); }
+      console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
+      if (bootQuotes.misses.length) {
+        console.log(`   ⏳ Unquoted (skip until a real market appears): ${bootQuotes.misses.map(a => {
+          const t = tokens.find(tk => tk.address.toLowerCase() === a);
+          return t ? t.symbol : a.slice(0, 10);
+        }).join(", ")}`);
+      }
+    } catch { console.log("   ⚠️  Boot price fetch failed — per-token fallback below"); }
 
     for (const result of balanceResults) {
       if (result.status !== "fulfilled") continue;
@@ -8709,34 +8738,51 @@ async function main() {
       const token    = tokens.find(t => t.symbol === symbol);
       if (!token) continue;
 
-      const price    = history[symbol]?.lastPrice || netPositions[symbol]?.lastBuyPrice || 0;
-      const valueUsd = bal * price;
+      let price = history[symbol]?.lastPrice || netPositions[symbol]?.lastBuyPrice || getCachedPrice(token.address);
+      if (!isValidUsdPrice(price) && bal > 0.001) {
+        const live = await getTokenPrice(token.address, true);
+        if (isValidUsdPrice(live)) {
+          price = live;
+          if (!history[symbol]) history[symbol] = { lastPrice: live };
+          else history[symbol].lastPrice = live;
+        }
+      }
+      const hasQuote = isValidUsdPrice(price);
+      const valueUsd = hasQuote ? bal * price : null;
       const net      = netPositions[symbol];
 
       // Catch ANY holding — use raw balance OR USD value
       // bal > 1 catches micro-priced meme tokens with millions of units
-      const hasRealHolding = bal > 1 || valueUsd > 0.05;
+      const hasRealHolding = bal > 1 || (valueUsd !== null && valueUsd > 0.05);
 
       if (hasRealHolding) {
         // Real holding on-chain
         found++;
-        if (!token.entryPrice) {
+        if (!hasUsableCostBasis(token)) {
           // Recover from ledger
           if (net?.lastBuyPrice > 0) {
             const ethNet = Math.max(0, net.ethIn - net.ethOut);
             token.entryPrice       = net.lastBuyPrice;
             token.totalInvestedEth = ethNet > 0 ? ethNet : net.lastBuyEth;
             token.entryTime        = net.lastBuyTime;
+            token.unknownEntry     = false;
             recovered++;
+            const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
             console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
-                       `ethIn=${token.totalInvestedEth.toFixed(4)} val≈$${valueUsd.toFixed(2)}`);
-          } else {
-            // No ledger — set current price, mark as unknown entry
-            token.entryPrice       = price || 0.000001;
+                       `ethIn=${token.totalInvestedEth.toFixed(4)}${shown}`);
+          } else if (hasQuote) {
+            token.entryPrice       = price;
             token.totalInvestedEth = valueUsd / ethPriceNow;
             token.entryTime        = Date.now();
+            token.unknownEntry     = false;
             recovered++;
-            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: bal=${bal.toFixed(2)} val≈$${valueUsd.toFixed(2)} — using current price`);
+            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: bal=${bal.toFixed(2)} val≈$${valueUsd.toFixed(2)} — using live market $${price}`);
+          } else {
+            token.entryPrice       = null;
+            token.totalInvestedEth = 0;
+            token.unknownEntry     = true;
+            recovered++;
+            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: bal=${bal.toFixed(2)} — NO MARKET QUOTE — excluded from margin math`);
           }
         } else {
           confirmed++;
@@ -8747,15 +8793,18 @@ async function main() {
         token.entryPrice       = null;
         token.totalInvestedEth = 0;
         token.entryTime        = null;
+        token.unknownEntry     = false;
         ghosts++;
       }
     }
 
     // ── Step 3: Summary + Telegram ──────────────────────────────────────────
-    const openNow = tokens.filter(t => t.entryPrice);
+    const openNow = tokens.filter(t => hasUsableCostBasis(t));
+    const unknownNow = tokens.filter(t => t.unknownEntry);
     const totalHeld = openNow.reduce((s, t) => {
-      const p = history[t.symbol]?.lastPrice || t.entryPrice || 0;
-      return s + (tokenBalanceCache[t.symbol] || 0) * p;
+      const p = history[t.symbol]?.lastPrice;
+      if (!isValidUsdPrice(p) && !isValidUsdPrice(t.entryPrice)) return s;
+      return s + (tokenBalanceCache[t.symbol] || 0) * (isValidUsdPrice(p) ? p : t.entryPrice);
     }, 0);
 
     console.log(`🔍 On-chain scan: ${found} holdings | ${recovered} recovered | ${confirmed} confirmed | ${ghosts} ghosts cleared`);
@@ -8778,6 +8827,9 @@ async function main() {
       }
     } else {
       bootMsg += "No open positions found on-chain\n";
+    }
+    if (unknownNow.length) {
+      bootMsg += `\n⚠️ UNKNOWN (no quote, excluded from margin): ${unknownNow.map(t => t.symbol).join(", ")}\n`;
     }
     if (recovered > 0) bootMsg += `\n✅ ${recovered} position(s) recovered from ledger\n`;
     if (ghosts > 0)    bootMsg += `👻 ${ghosts} ghost(s) cleared\n`;
@@ -8831,14 +8883,15 @@ async function main() {
       }
       try {
         const liveBal   = await getTokenBalance(token.address);
-        const livePrice = liveBal > 0.001 ? await getTokenPrice(token.address, true) : 0;
-        if (liveBal > 0.001 && livePrice > 0) {
+        const livePrice = liveBal > 0.001 ? await getTokenPrice(token.address, true) : null;
+        if (liveBal > 0.001 && isValidUsdPrice(livePrice)) {
           const valueUsd = liveBal * livePrice;
           // Only record as position if worth more than dust ($0.05)
           if (valueUsd >= 0.05) {
             token.entryPrice       = livePrice; // use live price as cost basis (unknown true entry)
             token.totalInvestedEth = valueUsd / ethPriceBoot;
             token.entryTime        = Date.now();
+            token.unknownEntry     = false;
             tokenBalanceCache[token.symbol] = liveBal;
             console.log(`   🔗 ${token.symbol}: ${liveBal.toFixed(4)} tokens @ $${livePrice.toFixed(8)} = $${valueUsd.toFixed(3)} — RECONCILED`);
             reconciled++;
@@ -8846,6 +8899,10 @@ async function main() {
             tokenBalanceCache[token.symbol] = liveBal; // cache the dust too
             console.log(`   💨 ${token.symbol}: $${valueUsd.toFixed(4)} dust — not recording as position`);
           }
+        } else if (liveBal > 0.001 && !isValidUsdPrice(livePrice)) {
+          token.unknownEntry = true;
+          tokenBalanceCache[token.symbol] = liveBal;
+          console.log(`   ⚠️  ${token.symbol}: bal=${liveBal.toFixed(4)} — NO MARKET QUOTE — UNKNOWN, excluded from margin`);
         }
         await sleep(200); // gentle rate limiting
       } catch (tokenErr) {
@@ -8966,27 +9023,28 @@ async function main() {
   const batch2Problems = [];
   for (const t of batch2Tokens) {
     try {
-      const price = await getTokenPrice(t.address);
+      const quote = await fetchTokenUsdQuote(t.address);
       const ws    = initWaveState(t.symbol);
-      if (price > 0) {
-        console.log(`   ✅ ${t.symbol}: $${price.toFixed(8)} | ${ws.peaks.length}P ${ws.troughs.length}T | ${t.address}`);
+      if (quote && isValidUsdPrice(quote.priceUsd)) {
+        setCachedPrice(t.address, quote.priceUsd);
+        const pool = quote.pairAddress ? ` pool=${quote.pairAddress} (${quote.dexId || "?"})` : "";
+        console.log(`   ✅ ${t.symbol}: $${quote.priceUsd.toFixed(8)} via ${quote.source}${pool} | ${ws.peaks.length}P ${ws.troughs.length}T | ${t.address}`);
       } else {
-        console.log(`   ❌ ${t.symbol}: NO PRICE — pool wrong or dry — verify on basescan.org: ${t.address}`);
+        console.log(`   ❌ ${t.symbol}: NO QUOTE — skip trade — token ${t.address}`);
         batch2Problems.push(t.symbol);
       }
     } catch (e) {
       console.log(`   ❌ ${t.symbol}: price error — ${e.message} — address: ${t.address}`);
       batch2Problems.push(t.symbol);
     }
-    await sleep(400);
+    await sleep(200);
   }
   if (batch2Problems.length) {
-    console.log(`\n   ⚠️  ${batch2Problems.length} Batch 2 token(s) have no price: ${batch2Problems.join(", ")}`);
-    console.log(`   ⚠️  Check each on https://basescan.org — wrong address = silent skip`);
-    // Also ping Telegram so you see it in the startup message
-    await tg(`⚠️ <b>BATCH 2 POOL ISSUE</b>\nNo price for: ${batch2Problems.join(", ")}\nVerify addresses on basescan.org\n${batch2Problems.map(s => { const tk = batch2Tokens.find(t => t.symbol===s); return tk ? `${s}: <code>${tk.address}</code>` : s; }).join("\n")}`);
+    console.log(`\n   ⚠️  ${batch2Problems.length} token(s) have no quote: ${batch2Problems.join(", ")}`);
+    console.log(`   ⚠️  Honest skip — will not invent $0. Re-check DexScreener/GeckoTerminal.`);
+    await tg(`⚠️ <b>NO MARKET QUOTE</b>\nSkip trade (not $0): ${batch2Problems.join(", ")}\n${batch2Problems.map(s => { const tk = batch2Tokens.find(t => t.symbol===s); return tk ? `${s}: <code>${tk.address}</code>` : s; }).join("\n")}`);
   } else {
-    console.log(`   ✅ All Batch 2 tokens returning live prices`);
+    console.log(`   ✅ All active tokens returning live USD quotes`);
   }
   console.log();
 
@@ -9046,7 +9104,7 @@ async function main() {
         if (t.entryPrice) {
           const p = history[t.symbol]?.lastPrice;
           const b = getCachedBalance(t.symbol); // was refreshed this cycle from chain
-          totalPortfolioUsd += b * (p || 0);
+          if (isValidUsdPrice(p) && !t.unknownEntry) totalPortfolioUsd += b * p;
         }
       }
       updatePortfolioPeak(totalPortfolioUsd);
@@ -9200,30 +9258,18 @@ async function main() {
         } catch (e) { console.log(`⚠️ Moonshot trim ${token.symbol}: ${e.message}`); }
       }
 
-      // ── BATCH PRICE PREFETCH — warm price cache for all tokens in parallel ──
-      // GeckoTerminal supports multi-address queries. Fetch all 29 prices in 1-2
-      // HTTP calls instead of 58 sequential calls. Each processToken then hits
-      // the cache instead of the API, eliminating rate-limit "no price" errors.
+      // ── BATCH PRICE PREFETCH — DexScreener first, GT in chunks of 10 ────────
+      // A single GT URL of 28+ addresses 400s or silently keeps ~10 prices.
       try {
-        const allAddrs = tokens.map(t => t.address.toLowerCase());
-        // GT supports up to 30 addresses per call, comma-separated
-        const chunks = [];
-        for (let i = 0; i < allAddrs.length; i += 28) chunks.push(allAddrs.slice(i, i + 28));
-        for (const chunk of chunks) {
-          const url = `https://api.geckoterminal.com/api/v2/simple/networks/base/token_price/${chunk.join(",")}`;
-          const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-          if (r.ok) {
-            const d = await r.json();
-            const prices = d?.data?.attributes?.token_prices || {};
-            for (const [addr, priceStr] of Object.entries(prices)) {
-              const p = parseFloat(priceStr);
-              if (!isNaN(p) && p > 0) setCachedPrice(addr, p);
-            }
-          }
-          if (chunks.length > 1) await sleep(300); // small gap between batch calls
+        const pre = await prefetchMarketPrices(tokens.map(t => t.address));
+        for (const [addr, p] of Object.entries(pre.prices)) setCachedPrice(addr, p);
+        if (pre.misses.length) {
+          console.log(`⏳ No quote (skip): ${pre.misses.map(a => {
+            const t = tokens.find(tk => tk.address.toLowerCase() === a);
+            return t ? t.symbol : a.slice(0, 10);
+          }).join(", ")}`);
         }
       } catch (e) {
-        // Batch fetch failed — processToken will fall back to individual fetches
         console.log(`⚠️  Batch price prefetch failed: ${e.message} — using individual fetches`);
       }
 
@@ -9240,11 +9286,11 @@ async function main() {
             continue;
           }
 
-          await Promise.race([
+          const processed = await Promise.race([
             processToken(cdpClient, token, bal),
             new Promise((_, r) => setTimeout(() => r(new Error(`${token.symbol} processToken timeout`)), PROCESS_TOKEN_TIMEOUT))
           ]);
-          noPriceStreak[token.symbol] = 0; // success — reset streak
+          if (processed !== false) noPriceStreak[token.symbol] = 0;
         } catch (e) {
           if ((e.message||"").includes("processToken timeout") && !token.entryPrice) {
             noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;

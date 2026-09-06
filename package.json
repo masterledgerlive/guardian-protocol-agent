@@ -4,7 +4,9 @@
   "type": "module",
   "main": "agent.js",
   "scripts": {
-    "start": "node agent.js"
+    "start": "node agent.js",
+    "test": "node --test price-oracle.test.js",
+    "test:quotes": "node verify-quotes.js"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "1.44.1",
