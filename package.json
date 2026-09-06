@@ -5,7 +5,7 @@
   "main": "agent.js",
   "scripts": {
     "start": "node agent.js",
-    "test": "node --test price-oracle.test.js",
+    "test": "node --test price-oracle.test.js lose-zero-gate.test.js",
     "test:quotes": "node verify-quotes.js"
   },
   "dependencies": {

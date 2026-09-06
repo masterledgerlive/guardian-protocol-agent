@@ -85,6 +85,7 @@ import {
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
 } from "./price-oracle.js";
+import { isLoseZeroMode, isInjectCoverRequired, buildBuyGateDecision } from "./lose-zero-gate.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -4196,6 +4197,28 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const gasCost  = await estimateGasCostEth();
     // FIX: gwei must be fetched locally — the main-loop `gwei` is not in scope here
     const gwei     = await getCurrentGasGwei();
+
+    // LOSE-ZERO / inject-cover: speculative NEW buys only. Cascade + sell-only paths are never gated here.
+    if (!isCascade && (isLoseZeroMode() || isInjectCoverRequired())) {
+      const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
+      const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
+      const decision    = buildBuyGateDecision({
+        symbol: token.symbol,
+        reason,
+        price,
+        existingSellTarget: getMaxPeak(token.symbol),
+        feePct: token.poolFeePct || 0.006,
+        impactPct: PRICE_IMPACT_EST,
+        gasCostEth: gasCost,
+        tradeEth: tradeEthEst,
+        gwei,
+        armed: !!armEarly.armed,
+        net: armEarly.net || 0,
+        isCascade,
+      });
+      if (decision.log) console.log(`   ${decision.log}`);
+      if (!decision.allow) return false;
+    }
 
     // Gas spike check before every trade
     if (!(await isGasSafe())) return false;
@@ -8590,6 +8613,11 @@ async function main() {
   console.log("      v15.7: RPC fix (7 endpoints + quota rotation), 10 new tokens, ETH/WETH manager");
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
+  if (isLoseZeroMode()) {
+    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — speculative non-cascade buys gated on edge + inject cover");
+  } else if (isInjectCoverRequired()) {
+    console.log("🧷 REQUIRE_INJECT_COVER — non-cascade buys must cover §$STORE§ hitch cost");
+  }
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
   // Check if we're in password-on-Railway mode (old way) or unlock-via-Telegram mode (new way)
