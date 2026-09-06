@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added — native `OPERATOR_SELL=TOSHI:50` + `/sell SYMBOL [pct|all]`
+
+Game has a live TOSHI bag from the first RISK-wallet buy and needs an operator sell proof without waiting on wave gates.
+
+- Native `OPERATOR_SELL=TOSHI:50` queues one `{ symbol, action: "sellhalf" }` after CDP ready (same MANUAL SELL HALF path as `/sellhalf TOSHI`). Also accepts `TOSHI:50%`, `TOSHI:half`, `TOSHI:all`.
+- Telegram `/sell TOSHI`, `/sell TOSHI 50`, `/sell TOSHI all` still queue a manual sell. `/sellhalf TOSHI` is unchanged.
+- Reason for env / sized sells is `MANUAL SELL (operator)` so the command bypasses wave gates. Latch is set only after `executeSell` succeeds (same restart re-queue as `OPERATOR_BUY`).
+- Does **not** queue a re-buy. Auto stays gated by LOSE_ZERO unless `OPERATOR_BUY` is also set.
+
 ### Fixed — boot no longer dies on llamarpc 521 / eth_getBalance
 
 `eth_getBalance` was hitting `https://base.llamarpc.com` (Cloudflare 521) and throwing, which killed `main()` with `Fatal main() error — restarting` before `OPERATOR_BUY` could fire.

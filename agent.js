@@ -96,6 +96,13 @@ import {
   queueOperatorBuyOnce,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
+  parseManualSellCommand,
+  queueOperatorSellOnce,
+  markOperatorSellExecuted,
+  clearOperatorSellIfNotExecuted,
+  isMatchingManualSell,
+  resolveManualSellPct,
+  manualSellReason,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
 } from "./lose-zero-gate.js";
@@ -2070,6 +2077,7 @@ let cachedBal      = null;   // updated each loop cycle — used in Telegram com
 let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
 const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
+const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
 const waveState    = {};
 const tradeLog     = [];
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
@@ -5389,15 +5397,28 @@ async function processToken(cdp, token, bal) {
         const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
         if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
       } else if (cmd.action === "sell") {
-        // Manual sells bypass cooldown — operator explicitly chose to exit
+        // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
-        const p = await executeSell(cdp, token, 0.98, "MANUAL SELL", price, true);
-        if (p > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb); }
+        const sellPct = resolveManualSellPct(cmd);
+        const reason = cmd.source === "OPERATOR_SELL"
+          ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
+          : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL");
+        const p = await executeSell(cdp, token, sellPct, reason, price, true);
+        if (p > 0) {
+          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
+          const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+        }
       } else if (cmd.action === "sellhalf") {
-        // Manual sells bypass cooldown — operator explicitly chose to exit
+        // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
-        const p = await executeSell(cdp, token, 0.50, "MANUAL SELL HALF", price, true);
-        if (p > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb); }
+        const reason = cmd.source === "OPERATOR_SELL"
+          ? manualSellReason(0.5)
+          : "MANUAL SELL HALF";
+        const p = await executeSell(cdp, token, 0.50, reason, price, true);
+        if (p > 0) {
+          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
+          const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+        }
       } else if (cmd.action === "exitonly") {
         // ── CLEAN EXIT — sells to WETH/ETH, NO cascade fires ─────────────────
         // Use this when you want to hold cash or withdraw, not redeploy.
@@ -6203,15 +6224,24 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           ? `📱 <b>BUY ${sym} queued</b>\n💵 Size: $${parsed.usd}`
           : `📱 <b>BUY ${sym} queued</b>`);
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
-        const sym = raw.split(" ")[1]?.toUpperCase();
-        if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
-        if (manualCommands.find(c => c.symbol===sym && c.action==="sell")) { await tg(`⚠️ SELL ${sym} already queued`); continue; }
-        manualCommands.push({ symbol: sym, action: "sell" });
-        await tg(`📱 <b>SELL ${sym} queued</b>`);
+        const parsed = parseManualSellCommand(raw);
+        const sym = parsed?.symbol;
+        if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /sell SYMBOL [pct|all]`); continue; }
+        if (manualCommands.some(c => isMatchingManualSell(c, parsed))) { await tg(`⚠️ SELL ${sym} already queued`); continue; }
+        if (Math.abs(parsed.pct - 0.5) < 1e-9) {
+          manualCommands.push({ symbol: sym, action: "sellhalf" });
+          await tg(`📱 <b>SELL HALF ${sym} queued</b>`);
+        } else if (Math.abs(parsed.pct - 1) < 1e-9) {
+          manualCommands.push({ symbol: sym, action: "sell" });
+          await tg(`📱 <b>SELL ${sym} queued</b>`);
+        } else {
+          manualCommands.push({ symbol: sym, action: "sell", pct: parsed.pct });
+          await tg(`📱 <b>SELL ${sym} ${(parsed.pct * 100).toFixed(0)}% queued</b>`);
+        }
       } else if (text.startsWith("/sellhalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
-        if (manualCommands.find(c => c.symbol===sym && c.action==="sellhalf")) { await tg(`⚠️ SELL HALF ${sym} already queued`); continue; }
+        if (manualCommands.some(c => isMatchingManualSell(c, { symbol: sym, pct: 0.5 }))) { await tg(`⚠️ SELL HALF ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "sellhalf" });
         await tg(`📱 <b>SELL HALF ${sym} queued</b>`);
 
@@ -6647,7 +6677,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           "   /unfreeze SYMBOL \u2014 reactivate a frozen token\n" +
           "   /frozenlist \u2014 see frozen tokens + wave readiness\n" +
           "   /profit \u2014 projected earnings\n" +
-          "   /sell SYMBOL \u2014 manual exit\n" +
+          "   /sell SYMBOL [pct|all] \u2014 manual exit\n" +
+          "   /sellhalf SYMBOL \u2014 sell 50%\n" +
           "   /waves \u2014 detailed levels"
         );
 
@@ -8495,7 +8526,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/wake (or /gm) — morning briefing\n\n` +
           `<b>📱 Manual Trade Commands:</b>\n` +
           `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
-          `/sell SYMBOL — sell + cascade fires\n` +
+          `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50)\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/exit SYMBOL — sell 100% to ETH, NO cascade\n` +
           `/exithalf SYMBOL — sell 50% to ETH, NO cascade\n` +
@@ -8591,6 +8622,27 @@ function applyOperatorBuyEnv() {
     console.log(`⚠️  OPERATOR_BUY: unknown symbol ${result.symbol}`);
   } else if (result.reason === "invalid") {
     console.log(`⚠️  OPERATOR_BUY: invalid value "${process.env.OPERATOR_BUY}" — expected SYMBOL:usd (e.g. TOSHI:3)`);
+  } else if (result.reason === "already-queued" || result.reason === "already-applied") {
+    // idempotent no-op
+  }
+  return result;
+}
+
+function applyOperatorSellEnv() {
+  const known = new Set([
+    ...DEFAULT_TOKENS.map(t => t.symbol),
+    ...tokens.map(t => t.symbol),
+  ]);
+  const result = queueOperatorSellOnce(manualCommands, process.env.OPERATOR_SELL, known, operatorSellState);
+  if (result.queued) {
+    const pctLabel = result.pct === 1 ? "all" : `${(result.pct * 100).toFixed(0)}%`;
+    const halfNote = Math.abs(result.pct - 0.5) < 1e-9 ? " (MANUAL SELL HALF)" : "";
+    console.log(`📱 OPERATOR_SELL queued: ${result.symbol} ${pctLabel}${halfNote} — MANUAL SELL operator, bypasses wave gates`);
+    tg(`📱 <b>OPERATOR_SELL queued</b>\n${result.symbol} ${pctLabel}${halfNote}\nFires on next cycle — MANUAL SELL (operator), bypasses wave gates.`).catch(() => {});
+  } else if (result.reason === "unknown-symbol") {
+    console.log(`⚠️  OPERATOR_SELL: unknown symbol ${result.symbol}`);
+  } else if (result.reason === "invalid") {
+    console.log(`⚠️  OPERATOR_SELL: invalid value "${process.env.OPERATOR_SELL}" — expected SYMBOL:pct (e.g. TOSHI:50)`);
   } else if (result.reason === "already-queued" || result.reason === "already-applied") {
     // idempotent no-op
   }
@@ -8768,6 +8820,7 @@ async function main() {
 
   await loadFromGitHub();
   applyOperatorBuyEnv();
+  applyOperatorSellEnv();
 
   // ── 📚 IKN BOOT READER — arm Claude context from vita-registry.json ─────────
   // Reads the last N strands from chain index at startup.
@@ -9709,6 +9762,10 @@ function restartMainAfterFatal(e) {
   clearOperatorBuyIfNotExecuted(operatorBuyState);
   if (!operatorBuyState.done) {
     console.log("📱 OPERATOR_BUY latch clear — will re-queue on restart (buy not executed)");
+  }
+  clearOperatorSellIfNotExecuted(operatorSellState);
+  if (!operatorSellState.done) {
+    console.log("📱 OPERATOR_SELL latch clear — will re-queue on restart (sell not executed)");
   }
   setTimeout(() => main().catch(restartMainAfterFatal), 30_000);
 }
