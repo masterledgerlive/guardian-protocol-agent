@@ -95,6 +95,7 @@ import {
   buildSellGateDecision,
   STORE_HITCH_BYTES,
   hitchCostMult,
+  estimateCalldataHitchEth,
   isManualOperatorBuy,
   parseManualBuyCommand,
   usdToForcedEth,
@@ -122,6 +123,11 @@ import {
   piggyBankPct,
   piggyBankMinUsd,
 } from "./piggy-bank.js";
+import {
+  estimateHitchL1FeeEth,
+  formatHitchFeeSplit,
+  GAS_PRICE_ORACLE,
+} from "./l1-fee-oracle.js";
 import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
 import {
   encodeExactInputSingle,
@@ -1691,6 +1697,65 @@ async function isGasSafe() {
 let cachedGasCostEth   = 0.0001;
 let gasCostLastFetch   = 0;
 const GAS_COST_TTL     = 30_000; // refresh gas estimate every 30s — not per-token
+
+let cachedHitchL1 = null;
+let hitchL1FetchedAt = 0;
+const HITCH_L1_TTL = 30_000;
+
+/**
+ * Live Base GasPriceOracle L1 fee for hitch leftover math.
+ * Soft-fails to `{ ok: false }` so gates keep the L2 calldata fallback.
+ */
+async function quoteHitchL1ForGates({ hitchBytes = STORE_HITCH_BYTES, btpInscribe = false } = {}) {
+  const key = `${Math.max(0, Math.floor(Number(hitchBytes) || 0))}:${btpInscribe ? 1 : 0}`;
+  if (cachedHitchL1 && cachedHitchL1.key === key && Date.now() - hitchL1FetchedAt < HITCH_L1_TTL) {
+    return cachedHitchL1.quote;
+  }
+  try {
+    const quote = await rpcCall((c) => estimateHitchL1FeeEth({
+      hitchBytes,
+      storeBytes: STORE_HITCH_BYTES,
+      btpInscribe,
+      readContract: (args) => c.readContract(args),
+    }));
+    cachedHitchL1 = { key, quote };
+    hitchL1FetchedAt = Date.now();
+    return quote;
+  } catch (e) {
+    return {
+      ok: false,
+      source: "fallback",
+      oracle: GAS_PRICE_ORACLE,
+      l1FeeEth: 0,
+      reservedL1FeeEth: 0,
+      l1FeePerByteEth: 0,
+      btpL1FeeEth: 0,
+      error: e?.message || String(e),
+    };
+  }
+}
+
+function hitchL1GateArgs(quote) {
+  if (!quote?.ok) return {};
+  return {
+    l1FeeEth: quote.l1FeeEth,
+    reservedL1FeeEth: quote.reservedL1FeeEth,
+    l1FeePerByteEth: quote.l1FeePerByteEth,
+    btpL1FeeEth: quote.btpL1FeeEth,
+    hitchFeeSource: quote.source,
+  };
+}
+
+function logHitchFeeSplit(quote, hitchBytes, gwei, extra = {}) {
+  const l2 = estimateCalldataHitchEth(hitchBytes, gwei);
+  const line = extra.feeSplitLog || formatHitchFeeSplit({
+    l1FeeEth: quote?.ok ? quote.l1FeeEth : (extra.l1FeeEth || 0),
+    l2FeeEth: extra.l2FeeEth ?? l2,
+    btpL1FeeEth: extra.btpL1FeeEth ?? (quote?.ok ? quote.btpL1FeeEth : 0),
+    source: extra.hitchFeeSource || quote?.source || "fallback",
+  });
+  console.log(`   ${line}`);
+}
 
 async function estimateGasCostEth() {
   if (Date.now() - gasCostLastFetch < GAS_COST_TTL) return cachedGasCostEth;
@@ -4467,6 +4532,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isLoseZeroMode() || isInjectCoverRequired()) {
       const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
       const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
+      const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: STORE_HITCH_BYTES });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
         reason,
@@ -4477,10 +4543,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         gasCostEth: gasCost,
         tradeEth: tradeEthEst,
         gwei,
+        l1FeeEth: hitchL1.ok ? hitchL1.l1FeeEth : undefined,
         armed: !!armEarly.armed,
         net: armEarly.net || 0,
         isCascade,
       });
+      logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
       if (!decision.allow) return false;
     }
@@ -4772,6 +4840,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // Never sell at a loss to insert storage. Once the floor is met, sell now.
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
+    const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
+    const hitchL1 = await quoteHitchL1ForGates({
+      hitchBytes: STORE_HITCH_BYTES + orchBytes,
+      btpInscribe: wantBtp,
+    });
     const sellGate = buildSellGateDecision({
       symbol: token.symbol,
       reason,
@@ -4783,8 +4856,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       gasCostEth: gasCost,
       gwei,
       wantedHitchBytes: STORE_HITCH_BYTES + orchBytes,
-      wantBtpInscribe: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+      wantBtpInscribe: wantBtp,
+      ...hitchL1GateArgs(hitchL1),
     });
+    logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
     if (sellGate.log) console.log(`   ${sellGate.log}`);
     if (!sellGate.allow) return null;
 
@@ -9152,6 +9227,7 @@ async function main() {
     console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
   }
   console.log(`🧷 SELL FLOOR — leftover must cover ${hitchCostMult()}× hitch (HITCH_COST_MULT) after fees; never lose to storage insert`);
+  console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
   // Check if we're in password-on-Railway mode (old way) or unlock-via-Telegram mode (new way)
@@ -9874,6 +9950,11 @@ async function main() {
         const moonReason = `🌙 MOONSHOT TRIM — not in active tiers`;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
+        const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
+        const moonL1 = await quoteHitchL1ForGates({
+          hitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
+          btpInscribe: moonWantBtp,
+        });
         const moonGate = buildSellGateDecision({
           symbol: token.symbol,
           reason: moonReason,
@@ -9885,8 +9966,10 @@ async function main() {
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
           wantedHitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
-          wantBtpInscribe: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+          wantBtpInscribe: moonWantBtp,
+          ...hitchL1GateArgs(moonL1),
         });
+        logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
         if (!moonGate.allow) {
           console.log(`🌙 MOONSHOT TRIM ${token.symbol}: HOLD — leftover does not cover ${hitchCostMult()}× hitch after fees`);

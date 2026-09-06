@@ -113,6 +113,10 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("buildSellGateDecision"), "must not drop the 2× hitch sell floor");
     assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
     assert.ok(src.includes("evaluatePriceInsane"), "PRICE_INSANE must run before hitch/minOut");
+    assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
+    assert.ok(src.includes("GAS_PRICE_ORACLE"), "GasPriceOracle predeploy helper");
+    assert.ok(src.includes("formatHitchFeeSplit") || src.includes("HITCH FEE"), "must log L1 vs L2 hitch split");
+    assert.ok(!src.includes("HALT_NEW_ENTRIES=\"\"") && !src.includes("HALT_NEW_ENTRIES = \"\""), "must not clear HALT_NEW_ENTRIES");
     const sellInsane = src.indexOf("gatePriceInsane", sellFn);
     assert.ok(sellInsane > sellFn && sellInsane < sellSanity, "PRICE_INSANE before minOut on sell");
   });

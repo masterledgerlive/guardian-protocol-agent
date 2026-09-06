@@ -235,6 +235,7 @@ describe("agent.js wires piggy into every sell path", () => {
 
   it("does not skip hitch / minOut / freeze gates", () => {
     assert.ok(src.includes("buildSellGateDecision"), "2× hitch floor stays");
+    assert.ok(src.includes("estimateHitchL1FeeEth") || src.includes("quoteHitchL1ForGates"), "live L1 hitch fee stays");
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut sanity stays");
     assert.ok(src.includes("SLIPPAGE_GUARD"), "slippage band stays");
     assert.ok(src.includes("isCatalogFrozen(token)"), "frozen buy gate stays");
