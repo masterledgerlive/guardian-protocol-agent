@@ -5161,6 +5161,12 @@ async function processToken(cdp, token, bal) {
                    && bal.tradeableWithWeth >= MIN_ETH_TRADE
                    && canTrade(token.symbol);
 
+    // Declare BEFORE the armed-idle log — `const hasPosition` after first use is a TDZ
+    // that throws on every armed token and aborts processToken (buys, sells, OPERATOR_SELL).
+    const hasPosition = balance > 1;
+    // Calendar note is pushed after `lines` is created (same TDZ class as hasPosition).
+    let calendarBiasNote = null;
+
     // Log entry context for debugging
     if (arm.armed && !shouldBuy && !shouldSell && !hasPosition) {
       const entryPct = minTrgh ? ((price - minTrgh) / minTrgh * 100).toFixed(1) : "?";
@@ -5168,12 +5174,12 @@ async function processToken(cdp, token, bal) {
         const calStr = calendarBuyBias ? "📅MON/TUE-BIAS" : calendarSellBias ? "📅FRI-BIAS" : "";
         console.log(`  📊 [${token.symbol}] Armed +${entryPct}% above trough | RSI:${ind.rsi?.toFixed(0)||"?"} | mom:${momentumEntry} | projLow:${nearProjectedLow} | imminent:${troughImminent} ${calStr}`);
       }
-      // Calendar bias note in display
-      if (calendarBuyBias) lines.push(`  │ 📅 CALENDAR BIAS: ${isMondayOpen?"Monday open — aggressive entry":isTuesdayDip?"Tuesday dip pattern":"Month-end pressure"}`);
+      if (calendarBuyBias) {
+        calendarBiasNote = `  │ 📅 CALENDAR BIAS: ${isMondayOpen?"Monday open — aggressive entry":isTuesdayDip?"Tuesday dip pattern":"Month-end pressure"}`;
+      }
     }
 
     // ── ZONE ───────────────────────────────────────────────────────────────
-    const hasPosition = balance > 1;
     const zone = shouldSell     ? "🔴 AT MAX PEAK — SELLING" :
                  stopLossHit    ? "🛑 STOP LOSS" :
                  shouldBuy      ? `🟢 AT MIN TROUGH — BUYING` :
@@ -5201,6 +5207,7 @@ async function processToken(cdp, token, bal) {
     lines.push(`\n  ┌─ [${token.symbol}] ${zone}${pnlStr}`);
     lines.push(`  │ $${price.toFixed(8)} | 🪙 ${balance>=1?Math.floor(balance):balance.toFixed(4)} ($${(balance*price).toFixed(2)}) | ETH=$${ethUsd.toFixed(0)}`);
     lines.push(`  │ MAX:$${maxPeak?.toFixed(8)||"?"}(${pctToSell}%) MIN:$${minTrgh?.toFixed(8)||"?"}(+${pctToBuy}%) P:${peakCnt} T:${trghCnt}`);
+    if (calendarBiasNote) lines.push(calendarBiasNote);
 
     if (rd) {
       // Full race display — has entry price, knows exact P&L
