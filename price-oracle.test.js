@@ -13,6 +13,15 @@ import {
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
   shouldSkipOhlcSeed,
+  isGhostDexPair,
+  isTrustedQuoteToken,
+  TOSHI_BASE,
+  TOSHI_UNI_WETH_PAIR,
+  TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+  TOSHI_JUNK_DEX_USD,
+  TOSHI_SANE_SPOT_USD,
+  BASE_WETH,
+  BASE_USDC,
 } from "./price-oracle.js";
 
 describe("address + price guards", () => {
@@ -54,6 +63,79 @@ describe("DexScreener pair selection", () => {
       { chainId: "base", priceUsd: "0", liquidity: { usd: 100 } },
       { chainId: "base", priceUsd: null, liquidity: { usd: 100 } },
     ]), null);
+  });
+
+  it("rejects the live TOSHI Pancake VIRTUAL ghost ($69729) and keeps Uni/Aero WETH ~1.2e-4", () => {
+    const pairs = [
+      {
+        chainId: "base",
+        dexId: "pancakeswap",
+        priceUsd: String(TOSHI_JUNK_DEX_USD),
+        priceNative: "100009.8899",
+        liquidity: { usd: 69_729_870.52 },
+        volume: { h24: 0 },
+        pairAddress: TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+        baseToken: { address: TOSHI_BASE, symbol: "TOSHI" },
+        quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+      },
+      {
+        chainId: "base",
+        dexId: "uniswap",
+        priceUsd: String(TOSHI_SANE_SPOT_USD),
+        priceNative: "0.00000004901",
+        liquidity: { usd: 1_144_685.42 },
+        volume: { h24: 47_634.97 },
+        pairAddress: TOSHI_UNI_WETH_PAIR,
+        baseToken: { address: TOSHI_BASE, symbol: "TOSHI" },
+        quoteToken: { address: BASE_WETH, symbol: "WETH" },
+      },
+      {
+        chainId: "base",
+        dexId: "aerodrome",
+        priceUsd: "0.0001225",
+        priceNative: "0.00000004936",
+        liquidity: { usd: 41_793.56 },
+        volume: { h24: 134_812.33 },
+        pairAddress: "0x74E4c08Bb50619b70550733D32b7e60424E9628e",
+        baseToken: { address: TOSHI_BASE, symbol: "TOSHI" },
+        quoteToken: { address: BASE_WETH, symbol: "WETH" },
+      },
+      {
+        chainId: "base",
+        dexId: "uniswap",
+        priceUsd: "0.0001219",
+        priceNative: "0.0001219",
+        liquidity: { usd: 36_455.6 },
+        volume: { h24: 3_528.02 },
+        pairAddress: "0xFc131B9981fB053C2cAb7373DAf70DeF1436c4BB",
+        baseToken: { address: TOSHI_BASE, symbol: "TOSHI" },
+        quoteToken: { address: BASE_USDC, symbol: "USDC" },
+      },
+    ];
+    const best = selectBestDexScreenerPair(pairs, { tokenAddress: TOSHI_BASE });
+    assert.ok(best);
+    assert.equal(best.pairAddress.toLowerCase(), TOSHI_UNI_WETH_PAIR.toLowerCase());
+    assert.ok(best.priceUsd > 1e-4 && best.priceUsd < 1.5e-4, `sane spot, got ${best.priceUsd}`);
+    assert.notEqual(best.priceUsd, TOSHI_JUNK_DEX_USD);
+    assert.equal(best.trustedQuote, true);
+    assert.equal(best.verifiedPool, true);
+    assert.ok(isGhostDexPair({ liqUsd: 69_729_870.52, volUsd: 0 }));
+    assert.equal(isTrustedQuoteToken("0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b"), false);
+    assert.equal(isTrustedQuoteToken(BASE_WETH), true);
+  });
+
+  it("never returns a $69729 independent when only the junk pair is present", () => {
+    const onlyJunk = [{
+      chainId: "base",
+      dexId: "pancakeswap",
+      priceUsd: String(TOSHI_JUNK_DEX_USD),
+      liquidity: { usd: 69_729_870.52 },
+      volume: { h24: 0 },
+      pairAddress: TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+      baseToken: { address: TOSHI_BASE, symbol: "TOSHI" },
+      quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+    }];
+    assert.equal(selectBestDexScreenerPair(onlyJunk, { tokenAddress: TOSHI_BASE }), null);
   });
 });
 
@@ -127,6 +209,10 @@ describe("Binance must not overwrite Base", () => {
     assert.equal(preferBaseQuoteForLastPrice(0.129, 0.005), 0.005);
     assert.equal(preferBaseQuoteForLastPrice(0.0053, 0.0054), 0.0053);
     assert.equal(preferBaseQuoteForLastPrice(null, 0.00644), 0.00644);
+    assert.equal(
+      preferBaseQuoteForLastPrice(TOSHI_SANE_SPOT_USD, TOSHI_JUNK_DEX_USD, { trusted: false }),
+      TOSHI_SANE_SPOT_USD
+    );
   });
 
   it("picks the deepest GT pool, not the first row", () => {

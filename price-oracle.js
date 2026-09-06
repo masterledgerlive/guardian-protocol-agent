@@ -2,17 +2,53 @@
  * Live USD quotes for Base tokens.
  *
  * Order of authority:
- *   1. DexScreener batch (highest-liquidity Base pair)
+ *   1. DexScreener batch (verified Base WETH/USDC pool — never a ghost pair)
  *   2. GeckoTerminal simple price (chunks of 10 — GT silently drops extras)
  *   3. DexScreener / GeckoTerminal per-token fallback
  *
  * Never treats a missing quote as $0. Callers must skip the token when
  * fetchTokenUsdQuote / prefetchMarketPrices returns no price.
+ *
+ * Live bug (PR #19 follow-up): DexScreener `/latest/dex/tokens/TOSHI` ranks a
+ * PancakeSwap TOSHI/VIRTUAL ghost first ($69729.86, ~$70M liq, $0 vol). The
+ * real Uniswap v3 TOSHI/WETH book is ~$0.00012. Pair selection must prefer
+ * Uniswap/Aerodrome WETH or USDC and drop zero-volume mega-liq junk.
  */
 
 export const GECKO_TERMINAL_CHUNK = 10;
 export const DEXSCREENER_CHUNK = 15;
 export const MIN_USD_PRICE = 1e-12;
+
+/** Base quote assets we will take a USD mark from. */
+export const BASE_WETH = "0x4200000000000000000000000000000000000006";
+export const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+export const BASE_USDBC = "0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA";
+export const NATIVE_ETH = "0x0000000000000000000000000000000000000000";
+
+export const TRUSTED_QUOTE_TOKENS = new Set([
+  BASE_WETH.toLowerCase(),
+  BASE_USDC.toLowerCase(),
+  BASE_USDBC.toLowerCase(),
+  NATIVE_ETH.toLowerCase(),
+]);
+
+export const PREFERRED_DEX_IDS = new Set(["uniswap", "aerodrome"]);
+
+/** Live RISK TOSHI — used by tests and as a verified-pool pin. */
+export const TOSHI_BASE = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
+export const TOSHI_UNI_WETH_PAIR = "0x4b0Aaf3EBb163dd45F663b38b6d93f6093EBC2d3";
+export const TOSHI_CAKE_VIRTUAL_JUNK_PAIR = "0xCDBA300Fffb66499339182339d2CBc19313580DB";
+export const TOSHI_JUNK_DEX_USD = 69729.86;
+export const TOSHI_SANE_SPOT_USD = 0.0001216;
+
+/**
+ * Known-good Base pools. If DexScreener returns this pair, prefer it over
+ * a deeper-looking ghost. Not the only source — Uni/Aero WETH/USDC still win
+ * when the pin is missing from the payload.
+ */
+export const VERIFIED_BASE_POOLS = {
+  [TOSHI_BASE.toLowerCase()]: new Set([TOSHI_UNI_WETH_PAIR.toLowerCase()]),
+};
 
 const GT_SIMPLE =
   "https://api.geckoterminal.com/api/v2/simple/networks/base/token_price/";
@@ -23,6 +59,40 @@ const FETCH_HEADERS = {
   Accept: "application/json",
   "User-Agent": "guardian-protocol-agent/price-oracle",
 };
+
+export function isTrustedQuoteToken(address) {
+  return TRUSTED_QUOTE_TOKENS.has(String(address || "").toLowerCase());
+}
+
+export function isPreferredDex(dexId) {
+  return PREFERRED_DEX_IDS.has(String(dexId || "").toLowerCase());
+}
+
+export function isVerifiedBasePool(tokenAddress, pairAddress) {
+  const pins = VERIFIED_BASE_POOLS[String(tokenAddress || "").toLowerCase()];
+  if (!pins) return false;
+  return pins.has(String(pairAddress || "").toLowerCase());
+}
+
+/**
+ * Pancake TOSHI/VIRTUAL reported ~$70M liq and $0 volume at $69729.
+ * A book that deep with no prints is a ghost / inverted / wrong-token pair.
+ */
+export function isGhostDexPair({ liqUsd = 0, volUsd = 0 } = {}) {
+  const liq = Number(liqUsd) || 0;
+  const vol = Number(volUsd) || 0;
+  if (liq >= 1_000_000 && vol < 100) return true;
+  if (liq >= 100_000 && vol <= 0) return true;
+  return false;
+}
+
+export function isTrustedWethOrUsdcQuote(quoteAddress) {
+  const q = String(quoteAddress || "").toLowerCase();
+  return q === BASE_WETH.toLowerCase()
+    || q === BASE_USDC.toLowerCase()
+    || q === BASE_USDBC.toLowerCase()
+    || q === NATIVE_ETH.toLowerCase();
+}
 
 export function isValidEvmAddress(address) {
   return typeof address === "string" && /^0x[a-fA-F0-9]{40}$/.test(address);
@@ -43,31 +113,100 @@ export function chunkAddresses(addresses, size) {
   return chunks;
 }
 
-/** Pick the deepest Base USD quote. Dry / zero-liq pairs lose to liquid ones. */
-export function selectBestDexScreenerPair(pairs) {
+function pairQuoteAddress(pair) {
+  return pair?.quoteToken?.address || pair?.quoteToken?.id || null;
+}
+
+function pairBaseAddress(pair) {
+  return pair?.baseToken?.address || pair?.baseToken?.id || null;
+}
+
+function dropPriceOutliers(rows) {
+  if (!Array.isArray(rows) || rows.length < 2) return rows;
+  const prices = rows.map((r) => r.priceUsd).sort((a, b) => a - b);
+  const median = prices[Math.floor(prices.length / 2)];
+  if (!isValidUsdPrice(median)) return rows;
+  const kept = rows.filter((r) => {
+    const ratio = r.priceUsd / median;
+    return ratio >= 0.01 && ratio <= 100;
+  });
+  return kept.length ? kept : rows;
+}
+
+function rankDexPairs(rows) {
+  return [...rows].sort((a, b) => {
+    if (b.verified !== a.verified) return (b.verified ? 1 : 0) - (a.verified ? 1 : 0);
+    if (b.preferred !== a.preferred) return (b.preferred ? 1 : 0) - (a.preferred ? 1 : 0);
+    if (b.trustedQuote !== a.trustedQuote) return (b.trustedQuote ? 1 : 0) - (a.trustedQuote ? 1 : 0);
+    if (b.liqUsd !== a.liqUsd) return b.liqUsd - a.liqUsd;
+    return b.volUsd - a.volUsd;
+  });
+}
+
+function toQuoteResult(best) {
+  if (!best) return null;
+  const quoteAddr = pairQuoteAddress(best.pair);
+  return {
+    priceUsd: best.priceUsd,
+    pairAddress: best.pair.pairAddress || null,
+    dexId: best.pair.dexId || null,
+    liquidityUsd: best.liqUsd,
+    volumeUsd: best.volUsd,
+    priceNative: Number.isFinite(best.priceNative) ? best.priceNative : null,
+    quoteToken: quoteAddr,
+    trustedQuote: best.trustedQuote,
+    preferredDex: best.preferred,
+    verifiedPool: best.verified,
+    source: "dexscreener",
+  };
+}
+
+/**
+ * Pick a verified Base USD quote.
+ *
+ * Prefer Uniswap/Aerodrome WETH or USDC (or native ETH / USDbC). Never take
+ * a zero-volume mega-liq ghost (live TOSHI/VIRTUAL Pancake @ $69729.86).
+ * When `tokenAddress` is set, only pairs whose baseToken is that address —
+ * priceUsd is the base token. A pair that has TOSHI as quote would report
+ * the other token's USD.
+ */
+export function selectBestDexScreenerPair(pairs, opts = {}) {
   if (!Array.isArray(pairs) || !pairs.length) return null;
+  const wanted = typeof opts.tokenAddress === "string"
+    ? opts.tokenAddress.toLowerCase()
+    : null;
+
   const ranked = pairs
     .filter((p) => p && (p.chainId === "base" || !p.chainId))
     .map((p) => {
       const priceUsd = parseFloat(p.priceUsd);
       const liqUsd = parseFloat(p.liquidity?.usd ?? 0);
       const volUsd = parseFloat(p.volume?.h24 ?? 0);
-      return { pair: p, priceUsd, liqUsd, volUsd };
+      const priceNative = parseFloat(p.priceNative);
+      const baseAddr = pairBaseAddress(p);
+      const quoteAddr = pairQuoteAddress(p);
+      const trustedQuote = isTrustedQuoteToken(quoteAddr);
+      const preferred = isPreferredDex(p.dexId);
+      const verified = isVerifiedBasePool(wanted || baseAddr, p.pairAddress);
+      return {
+        pair: p, priceUsd, liqUsd, volUsd, priceNative,
+        baseAddr, quoteAddr, trustedQuote, preferred, verified,
+      };
     })
-    .filter((x) => isValidUsdPrice(x.priceUsd));
+    .filter((x) => isValidUsdPrice(x.priceUsd))
+    .filter((x) => !wanted || (x.baseAddr && x.baseAddr.toLowerCase() === wanted))
+    .filter((x) => !isGhostDexPair(x));
+
   if (!ranked.length) return null;
-  ranked.sort((a, b) => {
-    if (b.liqUsd !== a.liqUsd) return b.liqUsd - a.liqUsd;
-    return b.volUsd - a.volUsd;
-  });
-  const best = ranked[0];
-  return {
-    priceUsd: best.priceUsd,
-    pairAddress: best.pair.pairAddress || null,
-    dexId: best.pair.dexId || null,
-    liquidityUsd: best.liqUsd,
-    source: "dexscreener",
-  };
+
+  const trusted = dropPriceOutliers(ranked.filter((x) => x.trustedQuote));
+  const preferredTrusted = trusted.filter((x) => x.preferred || x.verified);
+  const pool = preferredTrusted.length
+    ? preferredTrusted
+    : (trusted.length ? trusted : dropPriceOutliers(ranked));
+
+  const best = rankDexPairs(pool)[0];
+  return toQuoteResult(best);
 }
 
 export function parseGeckoTerminalPrices(payload) {
@@ -108,7 +247,7 @@ export async function fetchDexScreenerBatch(addresses) {
         byToken.get(addr).push(pair);
       }
       for (const [addr, list] of byToken) {
-        const best = selectBestDexScreenerPair(list);
+        const best = selectBestDexScreenerPair(list, { tokenAddress: addr });
         if (best) {
           prices[addr] = best.priceUsd;
           meta[addr] = best;
@@ -138,7 +277,7 @@ export async function fetchDexScreenerToken(address) {
   if (!isValidEvmAddress(address)) return null;
   try {
     const data = await fetchJson(DS_TOKEN + address, 6000);
-    return selectBestDexScreenerPair(data?.pairs || []);
+    return selectBestDexScreenerPair(data?.pairs || [], { tokenAddress: address });
   } catch {
     return null;
   }
@@ -151,7 +290,19 @@ export async function fetchGeckoTerminalToken(address) {
     const prices = parseGeckoTerminalPrices(data);
     const p = prices[address.toLowerCase()];
     if (!isValidUsdPrice(p)) return null;
-    return { priceUsd: p, pairAddress: null, dexId: null, liquidityUsd: null, source: "geckoterminal" };
+    return {
+      priceUsd: p,
+      pairAddress: null,
+      dexId: null,
+      liquidityUsd: null,
+      volumeUsd: null,
+      priceNative: null,
+      quoteToken: null,
+      trustedQuote: false,
+      preferredDex: false,
+      verifiedPool: false,
+      source: "geckoterminal",
+    };
   } catch {
     return null;
   }
@@ -176,7 +327,12 @@ export async function prefetchMarketPrices(addresses) {
     for (const [addr, p] of Object.entries(gt)) {
       if (!isValidUsdPrice(prices[addr]) && isValidUsdPrice(p)) {
         prices[addr] = p;
-        meta[addr] = { priceUsd: p, source: "geckoterminal", pairAddress: null };
+        meta[addr] = {
+          priceUsd: p,
+          source: "geckoterminal",
+          pairAddress: null,
+          trustedQuote: false,
+        };
       }
     }
   }
@@ -250,12 +406,19 @@ export function pickHistoricalSeedSource({ gt, ds, binance, allowBinance } = {})
   return null;
 }
 
-/** Live Base quote wins lastPrice when the seed close is missing or a different asset. */
-export function preferBaseQuoteForLastPrice(seedClose, baseQuoteUsd) {
+/**
+ * Live Base quote wins lastPrice when the seed close is missing or a different asset.
+ * An untrusted 100×+ jump (Pancake TOSHI/VIRTUAL $69729 vs seed ~$0.00012) is junk —
+ * keep the seed rather than pinning the fantasy into lastPrice.
+ */
+export function preferBaseQuoteForLastPrice(seedClose, baseQuoteUsd, { trusted = true } = {}) {
   if (!isValidUsdPrice(baseQuoteUsd)) return null;
-  if (!isValidUsdPrice(seedClose)) return baseQuoteUsd;
+  if (!isValidUsdPrice(seedClose)) return trusted ? baseQuoteUsd : null;
   const ratio = baseQuoteUsd / seedClose;
-  if (ratio < 0.75 || ratio > 1.25) return baseQuoteUsd;
+  if (ratio < 0.75 || ratio > 1.25) {
+    if (!trusted && (ratio < 0.01 || ratio > 100)) return seedClose;
+    return baseQuoteUsd;
+  }
   return seedClose;
 }
 
