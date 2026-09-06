@@ -121,3 +121,15 @@ Skipped as ADD: **BSTONK** (desk: volatile). KEYCAT already in catalog — not d
 3. Correct watchlist **CLANKER** to tokenbot.
 4. **ADD** liquid actives: **BASECAT** `0xB200…1D01`, **DRB** `0x3ec2…8Ea2`, **VVV** `0xacfE…21bf`, **TIBBIR** `0xA4A2…6e00`.
 5. Holdings we still hold are not deleted. Frozen tokens can still exit if a position exists.
+
+---
+
+## Overnight frozen catalog adds (2026-09-06)
+
+Desk greenlight — **data-only**, `frozen: true`. No capital, no unfreeze, no `tokens.json` runtime adds. Skip **FLOCK** / **BSTONK**. **KEYCAT** already in catalog. **BASECAT / DRB / VVV / TIBBIR** unchanged (**BASECAT stays tradeable**).
+
+| Sym | Address | Best useful pool | Liq | 24h vol | Fee | State |
+|---|---|---|---:|---:|---|---|
+| STONKEX | `0x5ab000ff9B9FfE0349CE5ffA5fD86f217C3680F5` | Uni v3 STONKEX/WETH 1% | $795k | $6.94M | 10000 | **FROZEN** data-only |
+| BLUECHIP | `0xB200000000000000000000cFbdF64a8706a94a01` | Uni v4 BLUECHIP/NVDAc (no Uni v3) | $553k | $901k | 10000 placeholder | **FROZEN** — Uni V3 not proven |
+| VELVET | `0xbF927b841994731C573BDF09ceB0c6B0Aa887cDd` | Aero VELVET/USDC; Uni v3 ~$0.82 | $1.18M / $0.82 | $2.09M / ~$0 | 10000 placeholder | **FROZEN** — Uni V3 not proven |

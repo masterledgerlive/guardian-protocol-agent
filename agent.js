@@ -1198,6 +1198,22 @@ const DEFAULT_TOKENS = [
   // ❄️  FROZEN — price/wave data collected, NO capital deployed
   //     /unfreeze SYMBOL  |  /freeze SYMBOL  |  /frozenlist
   // ══════════════════════════════════════════════════════════════════════════
+  // ── GREENLIGHT FROZEN ADDS — data-only overnight (DexScreener 2026-09-06) ──
+  { symbol: "STONKEX", address: "0x5ab000ff9B9FfE0349CE5ffA5fD86f217C3680F5", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    score: { liquidity:8, waveQuality:6, fundamentals:4, coinbaseFit:6, community:7, total:31 },
+    notes: "The Stonks Exchange — Uniswap v3 STONKEX/WETH 1% ~$795k / ~$6.9M 24h. FROZEN data-only." },
+
+  { symbol: "BLUECHIP", address: "0xB200000000000000000000cFbdF64a8706a94a01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    score: { liquidity:6, waveQuality:5, fundamentals:4, coinbaseFit:6, community:6, total:27 },
+    notes: "BLUE CHIP — Uni v4 BLUECHIP/NVDAc ~$553k / ~$901k; no Uni v3 book. FROZEN data-only. Not the BASECAT 0xB200…1D01 twin." },
+
+  { symbol: "VELVET",  address: "0xbF927b841994731C573BDF09ceB0c6B0Aa887cDd", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    score: { liquidity:7, waveQuality:6, fundamentals:5, coinbaseFit:6, community:6, total:30 },
+    notes: "Velvet — Aerodrome VELVET/USDC ~$1.18M / ~$2.09M; Uni v3 VELVET/USDC ~$0.82. FROZEN data-only until Uni V3 proven." },
+
   { symbol: "PRIME",   address: "0xfA980cEd6895AC314E7dE34Ef1bFAE90a5AdD21b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     frozen: true, frozenReason: "DEAD/thin — Uniswap v3 PRIME/WETH ~$17k liq / ~$211 24h vol. Stay frozen.",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:7, community:8, total:37 },
