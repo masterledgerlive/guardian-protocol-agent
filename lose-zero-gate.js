@@ -173,6 +173,158 @@ export function clearOperatorBuyIfNotExecuted(state) {
   return state;
 }
 
+/** Operator Telegram /sell — reason must start with this exact prefix. */
+export const MANUAL_SELL_OPERATOR_PREFIX = "MANUAL SELL (operator)";
+
+export function isManualOperatorSell(reason = "") {
+  return String(reason || "").startsWith(MANUAL_SELL_OPERATOR_PREFIX);
+}
+
+export function isHalfSellPct(pct) {
+  return Math.abs(Number(pct) - 0.5) < 1e-9;
+}
+
+export function isFullSellPct(pct) {
+  return Math.abs(Number(pct) - 1) < 1e-9;
+}
+
+/**
+ * Parse sell size: `50`, `50%`, `all`, `half`.
+ * Missing / empty → 1 (full sell) unless `required`. Invalid → 0.
+ * Returns a fraction in (0, 1].
+ */
+export function parseSellPctArg(arg, { required = false } = {}) {
+  if (arg == null || String(arg).trim() === "") return required ? 0 : 1;
+  const s = String(arg).trim().toLowerCase().replace(/,/g, "");
+  if (s === "all" || s === "full") return 1;
+  if (s === "half") return 0.5;
+  const n = parseFloat(s.replace(/%$/, ""));
+  if (!Number.isFinite(n) || n <= 0 || n > 100) return 0;
+  return n / 100;
+}
+
+/**
+ * Parse `/sell SYMBOL` and `/sell SYMBOL 50` / `/sell SYMBOL 50%` / `/sell SYMBOL all`.
+ * Does not match `/sellhalf`.
+ * @returns {{ symbol: string, pct: number } | null}
+ */
+export function parseManualSellCommand(raw) {
+  const parts = String(raw || "").trim().split(/\s+/);
+  const verb = (parts[0] || "").toLowerCase();
+  if (verb !== "/sell") return null;
+  const symbol = (parts[1] || "").toUpperCase();
+  if (!symbol) return null;
+  const pct = parseSellPctArg(parts[2]);
+  if (!pct) return null;
+  return { symbol, pct };
+}
+
+/**
+ * Native Railway env: `OPERATOR_SELL=TOSHI:50`
+ * Also accepts `TOSHI:50%`, `TOSHI:all`, `TOSHI:half`. Invalid / empty → null.
+ */
+export function parseOperatorSellEnv(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const colon = s.indexOf(":");
+  if (colon <= 0) return null;
+  const symbol = s.slice(0, colon).trim().toUpperCase();
+  const pct = parseSellPctArg(s.slice(colon + 1), { required: true });
+  if (!symbol || !pct) return null;
+  return { symbol, pct };
+}
+
+/** Live-queue size for a sell command. Missing pct on `sell` = full. */
+export function commandSellPct(cmd) {
+  if (!cmd) return 0;
+  if (cmd.action === "sellhalf") return 0.5;
+  if (cmd.action !== "sell") return 0;
+  const pct = Number(cmd.pct);
+  return Number.isFinite(pct) && pct > 0 ? pct : 1;
+}
+
+export function isMatchingManualSell(cmd, parsed) {
+  if (!cmd || !parsed || cmd.symbol !== parsed.symbol) return false;
+  const have = commandSellPct(cmd);
+  return have > 0 && Math.abs(have - Number(parsed.pct)) < 1e-9;
+}
+
+/**
+ * TOSHI:50 / 50% / half → existing `sellhalf` action (MANUAL SELL HALF).
+ * TOSHI:all / 100 → existing full `sell` action.
+ * Other percents → `sell` with explicit `pct` fraction.
+ */
+export function operatorSellCommand(parsed) {
+  if (!parsed) return null;
+  if (isHalfSellPct(parsed.pct)) {
+    return { symbol: parsed.symbol, action: "sellhalf", source: "OPERATOR_SELL" };
+  }
+  if (isFullSellPct(parsed.pct)) {
+    return { symbol: parsed.symbol, action: "sell", source: "OPERATOR_SELL" };
+  }
+  return { symbol: parsed.symbol, action: "sell", pct: parsed.pct, source: "OPERATOR_SELL" };
+}
+
+/** executeSell fraction: full manual sells keep the 0.98 lottery reserve. */
+export function resolveManualSellPct(cmd) {
+  const pct = commandSellPct(cmd);
+  if (isHalfSellPct(pct)) return 0.5;
+  if (pct > 0 && pct < 1) return pct;
+  return 0.98;
+}
+
+/**
+ * Queue OPERATOR_SELL onto `commands`.
+ *
+ * Same latch rules as OPERATOR_BUY: `state.done` means the sell *executed*.
+ * Do NOT set it on queue — a fatal main() restart must re-queue if the swap
+ * never happened. `already-queued` is a live-list check only.
+ * @returns {{ queued: boolean, reason: string, symbol?: string, pct?: number }}
+ */
+export function queueOperatorSellOnce(commands, rawEnv, knownSymbols, state = { done: false }) {
+  if (state.done) return { queued: false, reason: "already-applied" };
+  const parsed = parseOperatorSellEnv(rawEnv);
+  if (!parsed) {
+    return { queued: false, reason: String(rawEnv ?? "").trim() ? "invalid" : "unset" };
+  }
+  if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
+    return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, pct: parsed.pct };
+  }
+  if (commands.some((c) => isMatchingManualSell(c, parsed))) {
+    return { queued: false, reason: "already-queued", symbol: parsed.symbol, pct: parsed.pct };
+  }
+  commands.push(operatorSellCommand(parsed));
+  return { queued: true, reason: "queued", symbol: parsed.symbol, pct: parsed.pct };
+}
+
+/** Latch only after executeSell actually sends the swap. */
+export function markOperatorSellExecuted(state) {
+  if (state) {
+    state.done = true;
+    state.executed = true;
+  }
+  return state;
+}
+
+/**
+ * On in-process fatal main() restart: drop a queue-time latch so env sell
+ * re-queues. If the swap already executed, keep the latch to avoid a double sell.
+ */
+export function clearOperatorSellIfNotExecuted(state) {
+  if (!state) return state;
+  if (state.executed === true) return state;
+  state.done = false;
+  return state;
+}
+
+export function manualSellReason(pct = 1) {
+  const n = Number(pct);
+  if (Number.isFinite(n) && n > 0 && n < 1) {
+    return `${MANUAL_SELL_OPERATOR_PREFIX} ${(n * 100).toFixed(0)}%`;
+  }
+  return MANUAL_SELL_OPERATOR_PREFIX;
+}
+
 /** Per-token OHLC seed budget — one hung DexScreener/GT call must not stall boot. */
 export const SEED_TOKEN_TIMEOUT_MS = 8000;
 

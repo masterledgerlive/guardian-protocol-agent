@@ -24,6 +24,17 @@ import {
   queueOperatorBuyOnce,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
+  isManualOperatorSell,
+  parseSellPctArg,
+  parseManualSellCommand,
+  parseOperatorSellEnv,
+  queueOperatorSellOnce,
+  markOperatorSellExecuted,
+  clearOperatorSellIfNotExecuted,
+  operatorSellCommand,
+  resolveManualSellPct,
+  isMatchingManualSell,
+  manualSellReason,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
   evaluateBuyGate,
@@ -304,6 +315,135 @@ describe("OPERATOR_BUY env", () => {
     assert.equal(state.executed, true);
     clearOperatorBuyIfNotExecuted(state);
     assert.equal(state.done, true);
+  });
+});
+
+describe("manual /sell parse", () => {
+  it("parses /sell SYMBOL and /sell SYMBOL 50 / 50% / all", () => {
+    assert.deepEqual(parseManualSellCommand("/sell TOSHI"), { symbol: "TOSHI", pct: 1 });
+    assert.deepEqual(parseManualSellCommand("/sell TOSHI 50"), { symbol: "TOSHI", pct: 0.5 });
+    assert.deepEqual(parseManualSellCommand("/sell TOSHI 50%"), { symbol: "TOSHI", pct: 0.5 });
+    assert.deepEqual(parseManualSellCommand("/sell toshi half"), { symbol: "TOSHI", pct: 0.5 });
+    assert.deepEqual(parseManualSellCommand("/sell TOSHI all"), { symbol: "TOSHI", pct: 1 });
+    assert.deepEqual(parseManualSellCommand("/sell TOSHI 25"), { symbol: "TOSHI", pct: 0.25 });
+    assert.equal(parseManualSellCommand("/sell"), null);
+    assert.equal(parseManualSellCommand("/buy TOSHI"), null);
+    assert.equal(parseManualSellCommand("/sellhalf TOSHI"), null);
+    assert.equal(parseManualSellCommand("/sell TOSHI 0"), null);
+    assert.equal(parseManualSellCommand("/sell TOSHI 101"), null);
+  });
+
+  it("parseSellPctArg accepts percent, all, and half", () => {
+    assert.equal(parseSellPctArg(), 1);
+    assert.equal(parseSellPctArg(""), 1);
+    assert.equal(parseSellPctArg("all"), 1);
+    assert.equal(parseSellPctArg("half"), 0.5);
+    assert.equal(parseSellPctArg("50"), 0.5);
+    assert.equal(parseSellPctArg("50%"), 0.5);
+    assert.equal(parseSellPctArg("100"), 1);
+    assert.equal(parseSellPctArg("nope"), 0);
+    assert.equal(parseSellPctArg("", { required: true }), 0);
+  });
+
+  it("manualSellReason starts with MANUAL SELL (operator)", () => {
+    assert.equal(isManualOperatorSell(manualSellReason()), true);
+    assert.equal(isManualOperatorSell(manualSellReason(0.5)), true);
+    assert.equal(manualSellReason(0.5), "MANUAL SELL (operator) 50%");
+    assert.equal(manualSellReason(1), "MANUAL SELL (operator)");
+    assert.equal(isManualOperatorSell("MANUAL SELL"), false);
+    assert.equal(isManualOperatorSell("MANUAL SELL HALF"), false);
+  });
+
+  it("isMatchingManualSell treats /sellhalf as 50%", () => {
+    assert.equal(isMatchingManualSell({ symbol: "TOSHI", action: "sellhalf" }, { symbol: "TOSHI", pct: 0.5 }), true);
+    assert.equal(isMatchingManualSell({ symbol: "TOSHI", action: "sell" }, { symbol: "TOSHI", pct: 1 }), true);
+    assert.equal(isMatchingManualSell({ symbol: "TOSHI", action: "sell", pct: 0.25 }, { symbol: "TOSHI", pct: 0.25 }), true);
+    assert.equal(isMatchingManualSell({ symbol: "TOSHI", action: "sellhalf" }, { symbol: "TOSHI", pct: 1 }), false);
+    assert.equal(isMatchingManualSell({ symbol: "TOSHI", action: "buy" }, { symbol: "TOSHI", pct: 0.5 }), false);
+  });
+});
+
+describe("OPERATOR_SELL env", () => {
+  it("parses TOSHI:50 and TOSHI:50% as half", () => {
+    assert.deepEqual(parseOperatorSellEnv("TOSHI:50"), { symbol: "TOSHI", pct: 0.5 });
+    assert.deepEqual(parseOperatorSellEnv("TOSHI:50%"), { symbol: "TOSHI", pct: 0.5 });
+    assert.deepEqual(parseOperatorSellEnv("toshi:half"), { symbol: "TOSHI", pct: 0.5 });
+    assert.deepEqual(parseOperatorSellEnv("TOSHI:all"), { symbol: "TOSHI", pct: 1 });
+    assert.deepEqual(parseOperatorSellEnv("TOSHI:25"), { symbol: "TOSHI", pct: 0.25 });
+    assert.equal(parseOperatorSellEnv(""), null);
+    assert.equal(parseOperatorSellEnv("TOSHI"), null);
+    assert.equal(parseOperatorSellEnv("TOSHI:0"), null);
+  });
+
+  it("TOSHI:50 queues existing sellhalf action (MANUAL SELL HALF-style)", () => {
+    assert.deepEqual(operatorSellCommand({ symbol: "TOSHI", pct: 0.5 }), {
+      symbol: "TOSHI",
+      action: "sellhalf",
+      source: "OPERATOR_SELL",
+    });
+    assert.deepEqual(operatorSellCommand({ symbol: "TOSHI", pct: 1 }), {
+      symbol: "TOSHI",
+      action: "sell",
+      source: "OPERATOR_SELL",
+    });
+    assert.deepEqual(operatorSellCommand({ symbol: "TOSHI", pct: 0.25 }), {
+      symbol: "TOSHI",
+      action: "sell",
+      pct: 0.25,
+      source: "OPERATOR_SELL",
+    });
+    assert.equal(resolveManualSellPct({ action: "sellhalf" }), 0.5);
+    assert.equal(resolveManualSellPct({ action: "sell" }), 0.98);
+    assert.equal(resolveManualSellPct({ action: "sell", pct: 0.25 }), 0.25);
+  });
+
+  it("queues TOSHI:50 as sellhalf once without latching until execute", () => {
+    const commands = [];
+    const known = new Set(["TOSHI", "AERO"]);
+    const state = { done: false };
+    const first = queueOperatorSellOnce(commands, "TOSHI:50", known, state);
+    assert.equal(first.queued, true);
+    assert.equal(state.done, false);
+    assert.deepEqual(commands, [{ symbol: "TOSHI", action: "sellhalf", source: "OPERATOR_SELL" }]);
+    const second = queueOperatorSellOnce(commands, "TOSHI:50", known, state);
+    assert.equal(second.queued, false);
+    assert.equal(second.reason, "already-queued");
+    assert.equal(commands.length, 1);
+  });
+
+  it("does not double-queue if /sellhalf TOSHI is already in the list", () => {
+    const commands = [{ symbol: "TOSHI", action: "sellhalf" }];
+    const r = queueOperatorSellOnce(commands, "TOSHI:50", new Set(["TOSHI"]), { done: false });
+    assert.equal(r.queued, false);
+    assert.equal(r.reason, "already-queued");
+    assert.equal(commands.length, 1);
+  });
+
+  it("does not double-queue if /sell TOSHI (full) is already in the list", () => {
+    const commands = [{ symbol: "TOSHI", action: "sell" }];
+    const r = queueOperatorSellOnce(commands, "TOSHI:all", new Set(["TOSHI"]), { done: false });
+    assert.equal(r.queued, false);
+    assert.equal(r.reason, "already-queued");
+    assert.equal(commands.length, 1);
+  });
+
+  it("latches done only after markOperatorSellExecuted", () => {
+    const state = { done: false, executed: false };
+    const commands = [];
+    queueOperatorSellOnce(commands, "TOSHI:50", new Set(["TOSHI"]), state);
+    assert.equal(state.done, false);
+    markOperatorSellExecuted(state);
+    assert.equal(state.done, true);
+    assert.equal(state.executed, true);
+    clearOperatorSellIfNotExecuted(state);
+    assert.equal(state.done, true);
+  });
+
+  it("does not queue a buy — re-buy only if OPERATOR_BUY env is set separately", () => {
+    const commands = [];
+    queueOperatorSellOnce(commands, "TOSHI:50", new Set(["TOSHI"]), { done: false });
+    assert.equal(commands.some((c) => c.action === "buy"), false);
+    assert.equal(commands[0].action, "sellhalf");
   });
 });
 
