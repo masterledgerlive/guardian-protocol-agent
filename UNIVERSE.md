@@ -133,3 +133,6 @@ Desk greenlight — **data-only**, `frozen: true`. No capital, no unfreeze, no `
 | STONKEX | `0x5ab000ff9B9FfE0349CE5ffA5fD86f217C3680F5` | Uni v3 STONKEX/WETH 1% | $795k | $6.94M | 10000 | **FROZEN** data-only |
 | BLUECHIP | `0xB200000000000000000000cFbdF64a8706a94a01` | Uni v4 BLUECHIP/NVDAc (no Uni v3) | $553k | $901k | 10000 placeholder | **FROZEN** — Uni V3 not proven |
 | VELVET | `0xbF927b841994731C573BDF09ceB0c6B0Aa887cDd` | Aero VELVET/USDC; Uni v3 ~$0.82 | $1.18M / $0.82 | $2.09M / ~$0 | 10000 placeholder | **FROZEN** — Uni V3 not proven |
+| KTA | `0xc0634090F2Fe6C6D75e61Be2b949464aBb498973` | Aero KTA/WETH (not Uni V3) | $4.27M | — | 10000 placeholder | **FROZEN** data-only — keep frozen |
+
+STONKEX / BLUECHIP / VELVET stay frozen. **BASECAT** stays tradeable. DRB / VVV / TIBBIR untouched. Skip **FLOCK** / **BSTONK** / **HYDX**. Buy-gate logic unchanged.
