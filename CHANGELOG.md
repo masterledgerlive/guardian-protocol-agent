@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Catalog — frozen data-only adds (STONKEX / BLUECHIP / VELVET)
+
+Desk greenlight overnight. Catalog-only — no capital, no unfreeze, no `tokens.json` runtime adds.
+
+- **ADD frozen:** STONKEX `0x5ab000ff9B9FfE0349CE5ffA5fD86f217C3680F5`, BLUECHIP `0xB200000000000000000000cFbdF64a8706a94a01`, VELVET `0xbF927b841994731C573BDF09ceB0c6B0Aa887cDd`.
+- Skip FLOCK / BSTONK. KEYCAT already in catalog. BASECAT / DRB / VVV / TIBBIR unchanged (BASECAT stays tradeable).
+
 ### Scout — prune Base token universe (DexScreener live)
 
 Sleeping-game scout of `DEFAULT_TOKENS` against live DexScreener Base pools. See `UNIVERSE.md`.
