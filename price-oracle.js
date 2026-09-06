@@ -213,7 +213,7 @@ export const BINANCE_OHLC_DENYLIST = new Set([
   "LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "MOCHI", "KEYCAT", "DOGINME",
   "SKI", "MOG", "BASE", "TYBG", "BNKR", "BENJI", "ROOST", "TALENT", "TOBY",
   "SIMBA", "CRASH", "BRIUN", "NORMIE", "OGGY", "FREN", "PRIME", "XCN", "SEAM",
-  "CBBTC",
+  "CBBTC", "BASECAT", "DRB", "VVV", "TIBBIR", "CLANKER", "REI", "FAI",
 ]);
 
 export function allowBinanceOhlcSeed(symbol) {
@@ -221,6 +221,11 @@ export function allowBinanceOhlcSeed(symbol) {
   if (!s) return false;
   if (BINANCE_OHLC_DENYLIST.has(s)) return false;
   return BINANCE_OHLC_ALLOWLIST.has(s);
+}
+
+/** No-pool / wrong-token catalog rows must not burn the 8s OHLC seed budget. */
+export function shouldSkipOhlcSeed(token) {
+  return Boolean(token?.noBasePool || token?.brokenQuote);
 }
 
 /**

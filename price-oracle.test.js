@@ -12,6 +12,7 @@ import {
   pickHistoricalSeedSource,
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
+  shouldSkipOhlcSeed,
 } from "./price-oracle.js";
 
 describe("address + price guards", () => {
@@ -96,7 +97,7 @@ describe("cost basis", () => {
 
 describe("Binance must not overwrite Base", () => {
   it("blocks LUNA/KITE/GAME/HIGHER/MIGGLES CEX tickers", () => {
-    for (const s of ["LUNA", "KITE", "GAME", "HIGHER", "MIGGLES"]) {
+    for (const s of ["LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "BASECAT", "DRB", "VVV", "TIBBIR"]) {
       assert.equal(allowBinanceOhlcSeed(s), false, s);
     }
     assert.equal(allowBinanceOhlcSeed("AERO"), true);
@@ -135,5 +136,12 @@ describe("Binance must not overwrite Base", () => {
     ];
     const pool = pickGeckoTerminalPool(pools);
     assert.equal(pool.attributes.address, "0x" + "2".repeat(40));
+  });
+
+  it("skips OHLC seed for no-pool and broken-quote catalog rows", () => {
+    assert.equal(shouldSkipOhlcSeed({ symbol: "KITE", noBasePool: true }), true);
+    assert.equal(shouldSkipOhlcSeed({ symbol: "SIMBA", brokenQuote: true }), true);
+    assert.equal(shouldSkipOhlcSeed({ symbol: "TOSHI" }), false);
+    assert.equal(shouldSkipOhlcSeed({ symbol: "SEAM", frozen: true }), false);
   });
 });
