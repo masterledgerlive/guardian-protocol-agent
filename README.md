@@ -71,6 +71,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Stop loss**: 3% below MIN trough floor — emergency exit
 - **Drawdown breaker**: portfolio down 60% from peak = buys halted
 - **Gas spike guard**: Base gas > 50 gwei = all trades paused
+- **Lose-zero gate** (opt-in Railway flags): block speculative new buys unless leftover covers a short `§$STORE§` hitch — see below
 
 ### Two-Tier Capital System
 
@@ -155,6 +156,10 @@ VAULT_GITHUB_TOKEN        ← tx hash on Base
 VAULT_GITHUB_REPO         ← tx hash on Base
 VAULT_GITHUB_BRANCH       ← tx hash on Base
 VAULT_STATE_BRANCH        ← tx hash on Base
+
+LOSE_ZERO                 ← yes = block speculative (non-cascade) buys unless there is a clear edge AND leftover / sell-target margin covers a short §$STORE§ calldata hitch (~10 bytes on Base)
+HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO
+REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory even when LOSE_ZERO is unset (sells and cascade exits are never blocked)
 ```
 
 No actual secrets in Railway. Just addresses of where to find them.
@@ -187,6 +192,8 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /exit SYMBOL     sell to ETH, no cascade
 /exitpct SYM 75  sell any % to ETH
 ```
+
+Trading gates (Railway, optional): `LOSE_ZERO=yes` and `HALT_NEW_ENTRIES=yes` refuse new non-cascade buys unless reason/signals show a clear edge **and** leftover covers inject hitch cost (`sell_target = fair_exit + inject_cost_spread`). `REQUIRE_INJECT_COVER=yes` applies that inject-cover check even when lose-zero is off. Protective sells and cascade exits keep working.
 
 ### Vault & Security
 ```
