@@ -99,7 +99,7 @@ export const log = {
   },
 
   sell(symbol, tradeNum, received, ethUsd, price, netUsd, pnlPct, txHash) {
-    const win = netUsd >= 0;
+    const win = Number(received) > 0 && netUsd >= 0;
     console.log(`\n${"▲".repeat(W)}`);
     console.log(`🔴 SELL #${tradeNum}  ${symbol}  ${win ? "✅ PROFIT" : "🦈 LOSS"}`);
     console.log(`   Price:   $${price.toFixed(8)}`);

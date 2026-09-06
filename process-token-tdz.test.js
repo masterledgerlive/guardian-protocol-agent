@@ -112,6 +112,9 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(buySanity < buySend, "executeBuy must sanitize before encodeSwap");
     assert.ok(src.includes("buildSellGateDecision"), "must not drop the 2× hitch sell floor");
     assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
+    assert.ok(src.includes("evaluatePriceInsane"), "PRICE_INSANE must run before hitch/minOut");
+    const sellInsane = src.indexOf("gatePriceInsane", sellFn);
+    assert.ok(sellInsane > sellFn && sellInsane < sellSanity, "PRICE_INSANE before minOut on sell");
   });
 
   it("does not unfreeze catalog names or flip BASECAT", () => {
