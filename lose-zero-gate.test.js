@@ -41,6 +41,8 @@ import {
   raceTimeout,
   evaluateBuyGate,
   buildBuyGateDecision,
+  isAllowLossyOperatorBuy,
+  canBypassBuyLossGate,
   isAllowLossyOperatorSell,
   canBypassSellLossGate,
   estimateCalldataHitchEth,
@@ -77,6 +79,15 @@ describe("env flags", () => {
     assert.equal(isInjectCoverRequired({ REQUIRE_INJECT_COVER: "yes" }), true);
     assert.equal(isInjectCoverRequired({ LOSE_ZERO: "yes" }), true);
     assert.equal(isInjectCoverRequired({}), false);
+  });
+
+  it("ALLOW_LOSSY_OPERATOR_BUY defaults off and mirrors sell (yes only)", () => {
+    assert.equal(isAllowLossyOperatorBuy({}), false);
+    assert.equal(isAllowLossyOperatorBuy({ ALLOW_LOSSY_OPERATOR_BUY: "yes" }), true);
+    assert.equal(isAllowLossyOperatorBuy({ ALLOW_LOSSY_OPERATOR_BUY: "true" }), false);
+    assert.equal(canBypassBuyLossGate("MANUAL BUY (operator) $3", {}), false);
+    assert.equal(canBypassBuyLossGate("MANUAL BUY (operator) $3", { ALLOW_LOSSY_OPERATOR_BUY: "yes" }), true);
+    assert.equal(canBypassBuyLossGate("🎯 MIN TROUGH", { ALLOW_LOSSY_OPERATOR_BUY: "yes" }), false);
   });
 
   it("HITCH_COST_MULT defaults to 2 and is env-overridable", () => {
@@ -147,7 +158,7 @@ describe("evaluateBuyGate", () => {
     assert.match(d.log, /^LOSE_ZERO: block buy/);
   });
 
-  it("cascade buys are never blocked by the gate", () => {
+  it("isCascade=true does NOT auto-allow under LOSE_ZERO", () => {
     const d = evaluateBuyGate({
       isCascade: true,
       leftover: 0,
@@ -155,8 +166,32 @@ describe("evaluateBuyGate", () => {
       symbol: "AERO",
       env: { LOSE_ZERO: "yes" },
     });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /^LOSE_ZERO: block buy AERO no clear edge$/);
+  });
+
+  it("cascade still allows when leftover covers hitch and edge is clear", () => {
+    const d = evaluateBuyGate({
+      isCascade: true,
+      leftover: 0.05,
+      hasEdge: true,
+      symbol: "AERO",
+      env: { LOSE_ZERO: "yes" },
+    });
     assert.equal(d.allow, true);
-    assert.equal(d.log, null);
+    assert.equal(d.log, "LOSE_ZERO: allow buy AERO leftover covers inject");
+  });
+
+  it("REQUIRE_INJECT_COVER blocks cascade leftover 0 (no silent allow)", () => {
+    const d = evaluateBuyGate({
+      isCascade: true,
+      leftover: 0,
+      hasEdge: true,
+      symbol: "AERO",
+      env: { REQUIRE_INJECT_COVER: "yes" },
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /^REQUIRE_INJECT_COVER: block buy AERO leftover is 0$/);
   });
 
   it("REQUIRE_INJECT_COVER blocks leftover 0 even when LOSE_ZERO is unset", () => {
@@ -171,16 +206,27 @@ describe("evaluateBuyGate", () => {
     assert.equal(d.log, null);
   });
 
-  it("LOSE_ZERO allows when reason starts with MANUAL BUY (operator)", () => {
-    const d = evaluateBuyGate({
+  it("operator buy is gated under LOSE_ZERO unless ALLOW_LOSSY_OPERATOR_BUY=yes", () => {
+    const blocked = evaluateBuyGate({
       leftover: 0,
       hasEdge: false,
       symbol: "TOSHI",
       reason: "MANUAL BUY (operator) $3",
       env: { LOSE_ZERO: "yes" },
     });
-    assert.equal(d.allow, true);
-    assert.equal(d.log, "LOSE_ZERO: allow buy TOSHI MANUAL BUY (operator)");
+    assert.equal(blocked.allow, false);
+    assert.match(blocked.log, /^LOSE_ZERO: block buy TOSHI no clear edge$/);
+
+    const allowed = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "TOSHI",
+      reason: "MANUAL BUY (operator) $3",
+      env: { LOSE_ZERO: "yes", ALLOW_LOSSY_OPERATOR_BUY: "yes" },
+    });
+    assert.equal(allowed.allow, true);
+    assert.equal(allowed.reason, "lossy-operator");
+    assert.equal(allowed.log, "LOSE_ZERO: allow buy TOSHI MANUAL BUY (operator) ALLOW_LOSSY_OPERATOR_BUY");
   });
 
   it("LOSE_ZERO still gates auto buys (MANUAL BUY without operator prefix)", () => {
@@ -251,7 +297,7 @@ describe("buildBuyGateDecision", () => {
     assert.equal(hasClearEdge({ armed: false, net: 0.03, reason: "🎯 MIN TROUGH" }), true);
   });
 
-  it("operator /buy bypasses leftover-0 even without edge", () => {
+  it("operator /buy without ALLOW_LOSSY_OPERATOR_BUY is gated (leftover 0)", () => {
     const d = buildBuyGateDecision({
       symbol: "TOSHI",
       reason: manualBuyReason(3),
@@ -261,9 +307,60 @@ describe("buildBuyGateDecision", () => {
       net: 0,
       env: { LOSE_ZERO: "yes" },
     });
+    assert.equal(d.allow, false);
+    assert.equal(d.leftover, 0);
+    assert.match(d.log, /LOSE_ZERO: block buy TOSHI/);
+  });
+
+  it("operator /buy with ALLOW_LOSSY_OPERATOR_BUY=yes still bypasses leftover-0", () => {
+    const d = buildBuyGateDecision({
+      symbol: "TOSHI",
+      reason: manualBuyReason(3),
+      price: 0.0002,
+      existingSellTarget: null,
+      armed: false,
+      net: 0,
+      env: { LOSE_ZERO: "yes", ALLOW_LOSSY_OPERATOR_BUY: "yes" },
+    });
     assert.equal(d.allow, true);
-    assert.equal(d.reason, "manual-operator");
-    assert.match(d.log, /MANUAL BUY \(operator\)/);
+    assert.equal(d.reason, "lossy-operator");
+    assert.match(d.log, /MANUAL BUY \(operator\) ALLOW_LOSSY_OPERATOR_BUY/);
+  });
+
+  it("buildBuyGateDecision computes leftover for isCascade=true (no skip)", () => {
+    const blocked = buildBuyGateDecision({
+      symbol: "AERO",
+      reason: "🌊 CASCADE from TOSHI [PRIORITY]",
+      price: 1,
+      existingSellTarget: null,
+      feePct: 0.006,
+      armed: true,
+      net: 0.05,
+      isCascade: true,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(blocked.allow, false);
+    assert.equal(blocked.leftover, 0);
+    assert.match(blocked.log, /LOSE_ZERO: block buy AERO leftover is 0/);
+
+    const allowed = buildBuyGateDecision({
+      symbol: "AERO",
+      reason: "🌊 CASCADE from TOSHI [PRIORITY]",
+      price: 1,
+      existingSellTarget: 1.05,
+      feePct: 0.006,
+      impactPct: 0.002,
+      gasCostEth: 0,
+      tradeEth: 0.01,
+      gwei: 0.05,
+      armed: true,
+      net: 0.04,
+      isCascade: true,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(allowed.allow, true);
+    assert.ok(allowed.leftover > 0);
+    assert.equal(allowed.log, "LOSE_ZERO: allow buy AERO leftover covers inject");
   });
 });
 

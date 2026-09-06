@@ -71,7 +71,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Stop loss**: 3% below MIN trough floor — emergency exit
 - **Drawdown breaker**: portfolio down 60% from peak = buys halted
 - **Gas spike guard**: Base gas > 50 gwei = all trades paused
-- **Lose-zero gate** (opt-in Railway flags): block speculative new buys unless leftover covers a short `§$STORE§` hitch (1×) — see below
+- **Lose-zero gate** (opt-in Railway flags): block new buys (auto, cascade, ripple, operator) unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge — see below. Operator /buy is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`
 - **Sell floor (always on)**: never sell unless leftover after fair exit + fees covers `HITCH_COST_MULT` × hitch (default **2×**). Never lose money inserting storage / BTP / `§$STORE§` characters. Once the 2× floor is met, sell immediately. Only exception: `MANUAL SELL (operator)` + `ALLOW_LOSSY_OPERATOR_SELL=yes`
 
 ### Two-Tier Capital System
@@ -164,13 +164,14 @@ VAULT_GITHUB_REPO         ← tx hash on Base
 VAULT_GITHUB_BRANCH       ← tx hash on Base
 VAULT_STATE_BRANCH        ← tx hash on Base
 
-LOSE_ZERO                 ← yes = block speculative (non-cascade) buys unless there is a clear edge AND leftover covers a short §$STORE§ hitch (1×)
+LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple, operator) unless there is a clear edge AND leftover covers a short §$STORE§ hitch (1×)
 HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO
 REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys even when LOSE_ZERO is unset
 HITCH_COST_MULT           ← sell-side hitch cover multiplier (default 2). sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost). Buys stay 1×.
+ALLOW_LOSSY_OPERATOR_BUY  ← yes = allow MANUAL BUY (operator) even when leftover would not cover 1× hitch (default no)
 ALLOW_LOSSY_OPERATOR_SELL ← yes = allow MANUAL SELL (operator) even when leftover would not cover 2× hitch (default no)
 BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
-OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. LOSE_ZERO still allows this operator path; auto stays gated. Frozen catalog names are never queued.
+OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Hitch cover applies unless ALLOW_LOSSY_OPERATOR_BUY=yes. Frozen catalog names are never queued.
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
 ```
 
@@ -199,7 +200,7 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /surf            current riding positions
 /tiers           live tier leaderboard + scores
 /waves           arm status all tokens
-/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator; bypasses LOSE_ZERO
+/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator; hitch cover required unless ALLOW_LOSSY_OPERATOR_BUY=yes
                    Frozen catalog names are blocked (exits/sells still allowed)
                    Railway: OPERATOR_BUY=TOSHI:3 queues the same command once at boot
 /sell SYMBOL [pct|all]  manual sell (e.g. /sell TOSHI, /sell TOSHI 50, /sell TOSHI all)
@@ -210,7 +211,7 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /exitpct SYM 75  sell any % to ETH
 ```
 
-Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse new non-cascade buys unless leftover covers **1×** hitch. **Sells always use the 2× hitch floor** (`sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost)`, default `HITCH_COST_MULT=2`) — moonshot trim, stale cascade, fib, and peak exits hold unless leftover covers twice the hitch as profit cushion. When that floor is hit, sell immediately. Hitch/BTP bytes are sized so inject cost fits leftover; leftover too thin for extra hitch → skip hitch, never sell at a loss to insert storage. `MANUAL SELL (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_SELL=yes`.
+Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse new buys (auto, cascade, ripple, operator) unless leftover covers **1×** hitch and there is a clear edge. **Sells always use the 2× hitch floor** (`sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost)`, default `HITCH_COST_MULT=2`) — moonshot trim, stale cascade, fib, and peak exits hold unless leftover covers twice the hitch as profit cushion. When that floor is hit, sell immediately. Hitch/BTP bytes are sized so inject cost fits leftover; leftover too thin for extra hitch → skip hitch, never sell at a loss to insert storage. `MANUAL BUY (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`. `MANUAL SELL (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_SELL=yes`.
 
 ### Vault & Security
 ```
