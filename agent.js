@@ -1189,12 +1189,14 @@ const DEFAULT_TOKENS = [
     notes: "DebtReliefBot — Uniswap v3 DRB/WETH ~$1.42M / ~$465k 24h." },
 
   { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
     score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:39 },
-    notes: "Venice Token — Aerodrome VVV/WETH ~$13.1M / ~$435k; Uniswap v3 VVV/USDC ~$277k / ~$108k." },
+    notes: "Venice Token — Aerodrome VVV/WETH ~$13.1M / ~$435k; Uniswap v3 VVV/USDC ~$277k / ~$108k. FROZEN data-only until Uni V3 proven." },
 
   { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
     score: { liquidity:8, waveQuality:6, fundamentals:6, coinbaseFit:7, community:7, total:34 },
-    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin." },
+    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. FROZEN data-only until Uni V3 proven." },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ❄️  FROZEN — price/wave data collected, NO capital deployed

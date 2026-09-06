@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Catalog — freeze VVV / TIBBIR (data-only)
+
+Desk: keep VVV and TIBBIR in the catalog but `frozen: true` until Uni V3 is proven. No capital, no unfreeze, no `tokens.json` runtime adds.
+
+- **Freeze:** VVV `0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf`, TIBBIR `0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00`.
+- Reason: `Desk greenlight overnight — data-only until Uni V3 proven.`
+- STONKEX / BLUECHIP / VELVET / KTA stay frozen. BASECAT stays tradeable. DRB untouched. Buy-gate / hitch-cover logic unchanged.
+
 ### Fixed — cascade / ripple / operator buys must cover hitch under LOSE_ZERO
 
 Overnight capital rotated via cascade/ripple without leftover covering 1× `§$STORE§` hitch + edge. `executeBuy` skipped `buildBuyGateDecision` when `isCascade`, and `evaluateBuyGate` / `buildBuyGateDecision` auto-allowed cascade plus every `MANUAL BUY (operator)`.
