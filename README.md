@@ -170,7 +170,7 @@ REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys eve
 HITCH_COST_MULT           ← sell-side hitch cover multiplier (default 2). sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost). Buys stay 1×.
 ALLOW_LOSSY_OPERATOR_SELL ← yes = allow MANUAL SELL (operator) even when leftover would not cover 2× hitch (default no)
 BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
-OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. LOSE_ZERO still allows this operator path; auto stays gated.
+OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. LOSE_ZERO still allows this operator path; auto stays gated. Frozen catalog names are never queued.
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
 ```
 
@@ -200,6 +200,7 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /tiers           live tier leaderboard + scores
 /waves           arm status all tokens
 /buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator; bypasses LOSE_ZERO
+                   Frozen catalog names are blocked (exits/sells still allowed)
                    Railway: OPERATOR_BUY=TOSHI:3 queues the same command once at boot
 /sell SYMBOL [pct|all]  manual sell (e.g. /sell TOSHI, /sell TOSHI 50, /sell TOSHI all)
                    50 / half = same as /sellhalf. Bypasses wave gates as MANUAL SELL (operator)

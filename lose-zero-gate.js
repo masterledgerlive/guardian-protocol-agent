@@ -98,6 +98,34 @@ export function leftoverCoversInject(leftover) {
   return Number(leftover) > 0;
 }
 
+/**
+ * Catalog freeze — buy-side only.
+ *
+ * `token.frozen === true` (or string/number equivalents: "true" / "1" / "yes").
+ * ALL new buys must refuse: auto wave, OPERATOR_BUY, Telegram /buy, cascade,
+ * ripple. Sells / exits stay allowed so accidental bags can be closed.
+ *
+ * This is the shared predicate for executeBuy — do not rely on UI, Telegram
+ * /frozenlist, or processToken early-return (those miss cascade/ripple and
+ * frozen names that already have entryPrice).
+ */
+export function isCatalogFrozen(token) {
+  const flag = token?.frozen;
+  if (flag === true || flag === 1) return true;
+  if (typeof flag === "string") {
+    const s = flag.trim().toLowerCase();
+    return s === "true" || s === "1" || s === "yes";
+  }
+  return false;
+}
+
+/** Console line when a buy is skipped because the catalog name is frozen. */
+export function frozenBuySkipLog(token) {
+  const sym = token?.symbol || "?";
+  const why = token?.frozenReason ? ` — ${token.frozenReason}` : "";
+  return `❄️ ${sym} FROZEN — skip NEW buy${why}. Exits/sells remain allowed.`;
+}
+
 /** Operator Telegram /buy — reason must start with this exact prefix. */
 export const MANUAL_BUY_OPERATOR_PREFIX = "MANUAL BUY (operator)";
 
@@ -154,7 +182,7 @@ export function parseOperatorBuyEnv(raw) {
  * if the swap never happened. `already-queued` is a live-list check only.
  * @returns {{ queued: boolean, reason: string, symbol?: string, usd?: number }}
  */
-export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { done: false }) {
+export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { done: false }, frozenSymbols) {
   if (state.done) return { queued: false, reason: "already-applied" };
   const parsed = parseOperatorBuyEnv(rawEnv);
   if (!parsed) {
@@ -162,6 +190,9 @@ export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { d
   }
   if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
     return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, usd: parsed.usd };
+  }
+  if (frozenSymbols?.has(parsed.symbol)) {
+    return { queued: false, reason: "frozen", symbol: parsed.symbol, usd: parsed.usd };
   }
   if (commands.some((c) => c.symbol === parsed.symbol && c.action === "buy")) {
     return { queued: false, reason: "already-queued", symbol: parsed.symbol, usd: parsed.usd };

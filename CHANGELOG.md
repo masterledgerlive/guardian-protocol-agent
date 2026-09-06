@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed — frozen catalog names can never open NEW buys
+
+Overnight RISK capital bought STONKEX / BLUECHIP despite `frozen: true`. Freeze was only an allocation / UI / `processToken` early-return when `entryPrice` was missing. Cascade, ripple, and frozen names that already had a bag still reached `executeBuy`.
+
+- Shared `isCatalogFrozen` / `frozenBuySkipLog` in `lose-zero-gate.js`.
+- Hard gate at the top of `executeBuy` — blocks auto wave, OPERATOR_BUY, Telegram `/buy`, cascade, and ripple. Logs a clear skip reason.
+- `shouldBuy`, `findCascadeTarget`, and ripple targets also skip frozen names (no "BUY TRIGGERED" / cascade Telegram then fail).
+- Frozen tokens with a bag or pending command still fall through `processToken` so OPERATOR_SELL / sellhalf / dust exits stay open.
+- Catalog flags unchanged: STONKEX / BLUECHIP / VELVET stay frozen. BASECAT stays tradeable. DRB / VVV / TIBBIR untouched. No capital spends.
+
 ### Catalog — frozen data-only adds (STONKEX / BLUECHIP / VELVET)
 
 Desk greenlight overnight. Catalog-only — no capital, no unfreeze, no `tokens.json` runtime adds.

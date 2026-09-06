@@ -14,6 +14,8 @@ import {
   computePennyPinchSellTarget,
   computeLeftover,
   leftoverCoversInject,
+  isCatalogFrozen,
+  frozenBuySkipLog,
   hasClearEdge,
   isManualOperatorBuy,
   parseBuyUsdArg,
@@ -262,6 +264,60 @@ describe("buildBuyGateDecision", () => {
     assert.equal(d.allow, true);
     assert.equal(d.reason, "manual-operator");
     assert.match(d.log, /MANUAL BUY \(operator\)/);
+  });
+});
+
+describe("catalog freeze — buy-side gate", () => {
+  it("treats frozen:true and string/number equivalents as frozen", () => {
+    assert.equal(isCatalogFrozen({ frozen: true }), true);
+    assert.equal(isCatalogFrozen({ frozen: 1 }), true);
+    assert.equal(isCatalogFrozen({ frozen: "true" }), true);
+    assert.equal(isCatalogFrozen({ frozen: "YES" }), true);
+    assert.equal(isCatalogFrozen({ frozen: "1" }), true);
+  });
+
+  it("does not freeze BASECAT-style tradeable rows or missing flags", () => {
+    assert.equal(isCatalogFrozen({ symbol: "BASECAT" }), false);
+    assert.equal(isCatalogFrozen({ frozen: false }), false);
+    assert.equal(isCatalogFrozen({ frozen: "false" }), false);
+    assert.equal(isCatalogFrozen({}), false);
+    assert.equal(isCatalogFrozen(null), false);
+  });
+
+  it("still frozen when a position already exists (no averaging-in)", () => {
+    assert.equal(isCatalogFrozen({ symbol: "STONKEX", frozen: true, entryPrice: 0.01 }), true);
+  });
+
+  it("logs a clear skip reason for frozen buys", () => {
+    const line = frozenBuySkipLog({
+      symbol: "BLUECHIP",
+      frozen: true,
+      frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    });
+    assert.match(line, /BLUECHIP/);
+    assert.match(line, /FROZEN/);
+    assert.match(line, /skip NEW buy/i);
+    assert.match(line, /Exits\/sells remain allowed/);
+    assert.match(line, /data-only/);
+  });
+
+  it("OPERATOR_BUY refuses to queue a frozen catalog name", () => {
+    const commands = [];
+    const known = new Set(["STONKEX", "TOSHI"]);
+    const frozen = new Set(["STONKEX"]);
+    const result = queueOperatorBuyOnce(commands, "STONKEX:3", known, { done: false }, frozen);
+    assert.equal(result.queued, false);
+    assert.equal(result.reason, "frozen");
+    assert.equal(commands.length, 0);
+  });
+
+  it("OPERATOR_BUY still queues a tradeable name (BASECAT)", () => {
+    const commands = [];
+    const known = new Set(["BASECAT", "STONKEX"]);
+    const frozen = new Set(["STONKEX"]);
+    const result = queueOperatorBuyOnce(commands, "BASECAT:3", known, { done: false }, frozen);
+    assert.equal(result.queued, true);
+    assert.deepEqual(commands, [{ symbol: "BASECAT", action: "buy", usd: 3, source: "OPERATOR_BUY" }]);
   });
 });
 

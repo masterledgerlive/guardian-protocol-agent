@@ -62,6 +62,36 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(fn.includes("MANUAL SELL HALF"), "Telegram /sellhalf path must remain");
   });
 
+  it("executeBuy is the shared freeze gate for every buy entry", () => {
+    const buyFn = src.indexOf("async function executeBuy(");
+    assert.ok(buyFn >= 0, "executeBuy must exist");
+    const cascade = src.indexOf("async function findCascadeTarget(");
+    const ripple = src.indexOf("const rippleTargets = []");
+    const shouldBuy = fn.indexOf("const shouldBuy");
+    const buyGate = src.indexOf("isCatalogFrozen(token)", buyFn);
+    const nextFn = src.indexOf("\nasync function ", buyFn + 1);
+    assert.ok(buyGate > buyFn && (nextFn < 0 || buyGate < nextFn), "executeBuy must call isCatalogFrozen");
+    assert.ok(src.includes("frozenBuySkipLog"), "skipped buys must log frozenBuySkipLog");
+    assert.ok(src.includes("isCatalogFrozen(t)"), "cascade/ripple targets must skip frozen names");
+    assert.ok(cascade >= 0 && src.indexOf("isCatalogFrozen(t)", cascade) > cascade, "findCascadeTarget must skip frozen");
+    assert.ok(ripple >= 0 && src.indexOf("isCatalogFrozen(t)", ripple) > ripple, "ripple targets must skip frozen");
+    assert.ok(shouldBuy >= 0 && fn.includes("!isCatalogFrozen(token)"), "shouldBuy must refuse frozen names");
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellGate = src.indexOf("isCatalogFrozen", sellFn);
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    assert.ok(sellFn >= 0 && (sellGate < 0 || sellGate > sellEnd), "executeSell must stay open on frozen names");
+  });
+
+  it("does not unfreeze catalog names or flip BASECAT", () => {
+    assert.match(src, /symbol: "STONKEX"[\s\S]*?frozen: true/);
+    assert.match(src, /symbol: "BLUECHIP"[\s\S]*?frozen: true/);
+    assert.match(src, /symbol: "VELVET"[\s\S]*?frozen: true/);
+    const base = src.indexOf('symbol: "BASECAT"');
+    const next = src.indexOf("{ symbol:", base + 1);
+    const row = src.slice(base, next > 0 ? next : base + 400);
+    assert.ok(!row.includes("frozen: true"), "BASECAT must stay tradeable");
+  });
+
   it("documents the TDZ error the live logs showed", () => {
     assert.throws(() => {
       new Function(`
