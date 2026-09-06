@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed — `hasPosition` TDZ aborted every `processToken` (blocked OPERATOR_SELL)
+
+Live Railway after OPERATOR_SELL #7 logged `processToken error (AERO/BRETT/...): Cannot access 'hasPosition' before initialization` on every token. Armed-idle logging read `hasPosition` before `const hasPosition = balance > 1`, so the function threw in the temporal dead zone and never reached buys, wave sells, or the MANUAL SELL / `sellhalf` operator path.
+
+- Declare `hasPosition` before the armed-idle log.
+- Buffer the calendar-bias display line until `lines` exists (same TDZ class).
+
 ### Added — native `OPERATOR_SELL=TOSHI:50` + `/sell SYMBOL [pct|all]`
 
 Game has a live TOSHI bag from the first RISK-wallet buy and needs an operator sell proof without waiting on wave gates.
