@@ -60,6 +60,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellhalf > hasPos, "sellhalf / OPERATOR_SELL must run after hasPosition is live");
     assert.ok(fn.includes("manualSellReason"), "OPERATOR_SELL reason path must remain");
     assert.ok(fn.includes("MANUAL SELL HALF"), "Telegram /sellhalf path must remain");
+    const piggyUnlock = fn.indexOf('cmd.action === "piggyunlock"');
+    assert.ok(piggyUnlock > hasPos, "piggyunlock must run after hasPosition is live");
   });
 
   it("executeBuy is the shared freeze gate for every buy entry", () => {

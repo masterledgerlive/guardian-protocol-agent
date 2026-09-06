@@ -73,6 +73,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Gas spike guard**: Base gas > 50 gwei = all trades paused
 - **Lose-zero gate** (opt-in Railway flags): block new buys (auto, cascade, ripple, operator) unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge — see below. Operator /buy is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`
 - **Sell floor (always on)**: never sell unless leftover after fair exit + fees covers `HITCH_COST_MULT` × hitch (default **2×**). Never lose money inserting storage / BTP / `§$STORE§` characters. Once the 2× floor is met, sell immediately. Only exception: `MANUAL SELL (operator)` + `ALLOW_LOSSY_OPERATOR_SELL=yes`
+- **Piggy-bank dust**: every token bag keeps a growing never-sell reserve (`PIGGY_BANK_PCT` default **2%** of units, plus `PIGGY_BANK_MIN_USD` default **$0.05**). Wave / moonshot / cascade / `/sell` / sellhalf / fib / stale / stop-loss compute `sellable = balance − piggyReserve` and leave the pile. Reserve floors up on buys and never auto-shrinks. Dust is sold only on an explicit unlock (`PIGGY UNLOCK` reason or Telegram `/piggyunlock SYMBOL`). Persisted on `tokens.json` (`piggyReserve`) and `positions.json` (`piggyReserves`) so restarts keep the pile. This is per-token dust — not the ETH skim `/piggy` pool.
 
 ### Two-Tier Capital System
 
@@ -113,13 +114,14 @@ CLANKER (tokenbot) · RSR · ODOS · IMAGINE · CBETH
 
 ```
 agent.js              — Main trading loop + Telegram command handler
+piggy-bank.js         — Per-token never-sell dust reserve (ratchet + unlock)
+lose-zero-gate.js     — LOSE-ZERO buy gate + 2× hitch sell floor
+swap-minout.js        — Uniswap amountOutMinimum sanity (sell + buy)
 vault-loader.js       — Blockchain key fetcher + AES-256-GCM decrypt
 vault-unlock.js       — Stage 1 boot unlock (password via Telegram)
 keystore.js           — Personal double-encrypted key manager
 log-formatter.js      — Structured human-readable log output
 bitstorage-orchestrator.js  — BITStorage / ShadowWeave strand injection
-swap-minout.js        — Uniswap amountOutMinimum sanity (sell + buy)
-lose-zero-gate.js     — LOSE_ZERO / frozen buy / 2× hitch-cover gates
 encryptkey.js         — One-time key encryption + inscription tool
 ```
 
@@ -172,6 +174,8 @@ REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys eve
 HITCH_COST_MULT           ← sell-side hitch cover multiplier (default 2). sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost). Buys stay 1×.
 ALLOW_LOSSY_OPERATOR_BUY  ← yes = allow MANUAL BUY (operator) even when leftover would not cover 1× hitch (default no)
 ALLOW_LOSSY_OPERATOR_SELL ← yes = allow MANUAL SELL (operator) even when leftover would not cover 2× hitch (default no)
+PIGGY_BANK_PCT            ← per-token never-sell dust as a fraction (0.02) or percent (2). Default 2% of current units.
+PIGGY_BANK_MIN_USD        ← USD floor converted to token units via live price (default $0.05). Set 0 to disable. Reserve = max(pct × balance, minUsd / price) and never auto-shrinks.
 BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
 OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Hitch cover applies unless ALLOW_LOSSY_OPERATOR_BUY=yes. Frozen catalog names are never queued.
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
@@ -208,12 +212,14 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /sell SYMBOL [pct|all]  manual sell (e.g. /sell TOSHI, /sell TOSHI 50, /sell TOSHI all)
                    50 / half = same as /sellhalf. Bypasses wave gates as MANUAL SELL (operator)
                    Railway: OPERATOR_SELL=TOSHI:50 queues one 50% sell after CDP ready
-/sellhalf SYMBOL sell 50% + cascade fires (unchanged)
-/exit SYMBOL     sell to ETH, no cascade
-/exitpct SYM 75  sell any % to ETH
+                   Always leaves the per-token piggy dust pile
+/sellhalf SYMBOL sell 50% + cascade fires (unchanged) — leaves piggy dust
+/piggyunlock SYMBOL  sell the locked dust pile (reason `PIGGY UNLOCK`). Only way to sell reserve.
+/exit SYMBOL     sell to ETH, no cascade (still leaves piggy dust)
+/exitpct SYM 75  sell any % to ETH (still leaves piggy dust)
 ```
 
-Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse new buys (auto, cascade, ripple, operator) unless leftover covers **1×** hitch and there is a clear edge. **Sells always use the 2× hitch floor** (`sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost)`, default `HITCH_COST_MULT=2`) — moonshot trim, stale cascade, fib, and peak exits hold unless leftover covers twice the hitch as profit cushion. When that floor is hit, sell immediately. Hitch/BTP bytes are sized so inject cost fits leftover; leftover too thin for extra hitch → skip hitch, never sell at a loss to insert storage. `MANUAL BUY (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`. `MANUAL SELL (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_SELL=yes`.
+Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse new buys (auto, cascade, ripple, operator) unless leftover covers **1×** hitch and there is a clear edge. **Sells always use the 2× hitch floor** (`sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost)`, default `HITCH_COST_MULT=2`) — moonshot trim, stale cascade, fib, and peak exits hold unless leftover covers twice the hitch as profit cushion. When that floor is hit, sell immediately. Hitch/BTP bytes are sized so inject cost fits leftover; leftover too thin for extra hitch → skip hitch, never sell at a loss to insert storage. `MANUAL BUY (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`. `MANUAL SELL (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_SELL=yes`. **Piggy-bank dust** is applied *before* the hitch / minOut math: `sellable = balance − piggyReserve` unless the reason starts with `PIGGY UNLOCK`. `/sell TOSHI all` cannot drain a bag that has a reserve — use `/piggyunlock TOSHI`.
 
 ### Vault & Security
 ```

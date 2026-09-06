@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added — per-token piggy-bank dust (never-sell reserve)
+
+Every token position keeps a growing dust pile. Sells must leave it. Dust is sold only when Game/operator explicitly unlocks it.
+
+- Config: `PIGGY_BANK_PCT` (default **2%** of current token units; accepts `0.02` or `2`) and `PIGGY_BANK_MIN_USD` (default **$0.05**, converted via live price). Reserve = `max(pct × balance, minUsd / price)`, capped at balance. Hypothesis: 2% matches the old ephemeral lottery % so we do not suddenly lock more than the bot already tried to keep; a $0.05 floor leaves a real pile on micro-caps without a min-token-count (1 TOSHI is worthless, 1 CBBTC would trap the bag).
+- Central `applyPiggyToSell` in `piggy-bank.js`. `executeSell` (wave, moonshot, cascade/ripple, operator `/sell` / sellhalf, fib, stale, stop-loss, clean exit) computes `sellable = balance − piggyReserve`. A 100% request still leaves dust.
+- Unlock: reason prefix `PIGGY UNLOCK` or Telegram `/piggyunlock SYMBOL`. Only then can the pile be sold.
+- Ratchet: floors up on buys / balance growth (`executeBuy` + each `processToken` tick). Never auto-decreases after partial sells. Cap at remaining units only.
+- Persist: `token.piggyReserve` in `tokens.json` and `piggyReserves` map in `positions.json`. Restarts keep the high-water mark (`loadPiggyReserve` takes the max of both).
+- Does **not** weaken LOSE_ZERO, frozen buy gate, 2× hitch sell floor, or PR #17 minOut sanity (`sanitizeAmountOutMinimum` / `toWei` real decimals). Hitch and minOut run on the reduced `piggy.tokensToSell` size (more conservative).
+- Distinct from the ETH skim `/piggy` pool (`positions.piggyBank`).
+
 ### Fixed — impossible Uniswap `amountOutMinimum` can no longer brick exits
 
 Two RISK TOSHI→WETH sells reverted with no ERC20 Transfer because `amountOutMinimum` was ~93k–93.5k WETH while selling ~4424 TOSHI:
