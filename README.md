@@ -187,7 +187,7 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /surf            current riding positions
 /tiers           live tier leaderboard + scores
 /waves           arm status all tokens
-/buy SYMBOL      manual buy
+/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator; bypasses LOSE_ZERO
 /sell SYMBOL     sell + cascade fires
 /exit SYMBOL     sell to ETH, no cascade
 /exitpct SYM 75  sell any % to ETH
