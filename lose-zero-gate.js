@@ -3,7 +3,8 @@
  *
  * Does not size trades or invent P&L. Decides allow vs block only.
  *
- * Buy penny-pinch: leftover must cover 1× hitch (existing LOSE-ZERO).
+ * Buy penny-pinch: leftover must cover 1× hitch (auto, cascade, ripple, operator).
+ * Operator /buy is lossy only if ALLOW_LOSSY_OPERATOR_BUY=yes (default no).
  * Sell lose-zero:  sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
  *                  HITCH_COST_MULT default 2 — twice the hitch as profit cushion.
  * inject_hitch_cost = calldata-char gas + provider/value fee + optional BTP inscription.
@@ -422,21 +423,21 @@ export function evaluateBuyGate({
   const covers = leftoverCoversInject(leftover);
   const tag = loseZero ? "LOSE_ZERO" : "REQUIRE_INJECT_COVER";
 
-  // Cascade redeploys exit proceeds — not a speculative new entry
-  if (isCascade) {
-    return { allow: true, log: null, leftover, reason: "cascade" };
-  }
+  // Cascade / ripple are capital redeploys, not a silent bypass — same
+  // leftover + edge gate as auto buys. isCascade is accepted for callers
+  // but never auto-allows.
+  void isCascade;
 
-  // Operator /buy — explicit size, not a speculative auto entry
-  if (isManualOperatorBuy(reason)) {
+  // Operator /buy is lossy only when ALLOW_LOSSY_OPERATOR_BUY=yes (default no).
+  if (canBypassBuyLossGate(reason, env)) {
     if (!loseZero && !injectReq) {
       return { allow: true, log: null, leftover, reason: "manual-operator" };
     }
     return {
       allow: true,
-      log: `${tag}: allow buy ${symbol} MANUAL BUY (operator)`,
+      log: `${tag}: allow buy ${symbol} MANUAL BUY (operator) ALLOW_LOSSY_OPERATOR_BUY`,
       leftover,
-      reason: "manual-operator",
+      reason: "lossy-operator",
     };
   }
 
@@ -502,7 +503,9 @@ export function buildBuyGateDecision({
 } = {}) {
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
-  if (isCascade || isManualOperatorBuy(reason) || (!loseZero && !injectReq)) {
+  // Cascade / ripple must compute leftover + edge. Operator skips math only
+  // when ALLOW_LOSSY_OPERATOR_BUY=yes (forced-proof bypass).
+  if (canBypassBuyLossGate(reason, env) || (!loseZero && !injectReq)) {
     return evaluateBuyGate({ isCascade, leftover: 0, hasEdge: false, symbol, reason, env });
   }
   const fairExit = computeFairExit(price, { feePct, gasCostEth, tradeEth, impactPct });
@@ -510,6 +513,14 @@ export function buildBuyGateDecision({
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
   return evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
+}
+
+export function isAllowLossyOperatorBuy(env = process.env) {
+  return envFlagYes("ALLOW_LOSSY_OPERATOR_BUY", env);
+}
+
+export function canBypassBuyLossGate(reason = "", env = process.env) {
+  return isManualOperatorBuy(reason) && isAllowLossyOperatorBuy(env);
 }
 
 export function isAllowLossyOperatorSell(env = process.env) {

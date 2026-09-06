@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed — cascade / ripple / operator buys must cover hitch under LOSE_ZERO
+
+Overnight capital rotated via cascade/ripple without leftover covering 1× `§$STORE§` hitch + edge. `executeBuy` skipped `buildBuyGateDecision` when `isCascade`, and `evaluateBuyGate` / `buildBuyGateDecision` auto-allowed cascade plus every `MANUAL BUY (operator)`.
+
+- Cascade and ripple now use the same leftover + edge gate as auto buys. No silent `isCascade` allow.
+- `executeBuy` calls the buy gate for cascade too (removed `!isCascade &&` skip).
+- Operator /buy is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes` (default no) — mirrors `ALLOW_LOSSY_OPERATOR_SELL`.
+- Frozen catalog gate (PR #13) unchanged: `frozen=true` still blocks NEW buys entirely. Sells stay on the 2× hitch floor.
+
 ### Catalog — frozen data-only add (KTA)
 
 Desk greenlight. Catalog-only — no capital, no unfreeze, no `tokens.json` runtime add. Buy-gate logic unchanged (PR #13).

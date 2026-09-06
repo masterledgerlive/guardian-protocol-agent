@@ -4297,8 +4297,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // FIX: gwei must be fetched locally — the main-loop `gwei` is not in scope here
     const gwei     = await getCurrentGasGwei();
 
-    // LOSE-ZERO / inject-cover: speculative NEW buys only. Cascade + sell-only paths are never gated here.
-    if (!isCascade && (isLoseZeroMode() || isInjectCoverRequired())) {
+    // LOSE-ZERO / inject-cover: every buy including cascade + ripple.
+    // Operator /buy bypasses hitch cover only when ALLOW_LOSSY_OPERATOR_BUY=yes.
+    if (isLoseZeroMode() || isInjectCoverRequired()) {
       const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
       const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
       const decision    = buildBuyGateDecision({
@@ -8748,8 +8749,8 @@ function applyOperatorBuyEnv() {
   }
   const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState, frozen);
   if (result.queued) {
-    console.log(`📱 OPERATOR_BUY queued: ${result.symbol} $${result.usd} (MANUAL BUY operator — LOSE_ZERO allows)`);
-    tg(`📱 <b>OPERATOR_BUY queued</b>\n${result.symbol} $${result.usd}\nFires on next cycle — LOSE_ZERO allows this operator path.`).catch(() => {});
+    console.log(`📱 OPERATOR_BUY queued: ${result.symbol} $${result.usd} (MANUAL BUY operator — hitch cover required unless ALLOW_LOSSY_OPERATOR_BUY=yes)`);
+    tg(`📱 <b>OPERATOR_BUY queued</b>\n${result.symbol} $${result.usd}\nFires on next cycle — LOSE_ZERO hitch cover applies unless ALLOW_LOSSY_OPERATOR_BUY=yes.`).catch(() => {});
   } else if (result.reason === "frozen") {
     const tok = tokens.find(t => t.symbol === result.symbol) || DEFAULT_TOKENS.find(t => t.symbol === result.symbol);
     console.log(`   ${frozenBuySkipLog(tok || { symbol: result.symbol, frozen: true })}`);
@@ -8863,9 +8864,9 @@ async function main() {
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
   if (isLoseZeroMode()) {
-    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — speculative non-cascade buys gated on edge + inject cover");
+    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover");
   } else if (isInjectCoverRequired()) {
-    console.log("🧷 REQUIRE_INJECT_COVER — non-cascade buys must cover §$STORE§ hitch cost");
+    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
   }
   console.log(`🧷 SELL FLOOR — leftover must cover ${hitchCostMult()}× hitch (HITCH_COST_MULT) after fees; never lose to storage insert`);
 

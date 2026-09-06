@@ -82,6 +82,18 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellFn >= 0 && (sellGate < 0 || sellGate > sellEnd), "executeSell must stay open on frozen names");
   });
 
+  it("executeBuy runs the hitch-cover gate for cascade (no !isCascade skip)", () => {
+    const buyFn = src.indexOf("async function executeBuy(");
+    const nextFn = src.indexOf("\nasync function ", buyFn + 1);
+    const body = src.slice(buyFn, nextFn > 0 ? nextFn : buyFn + 4000);
+    const gate = body.indexOf("buildBuyGateDecision");
+    assert.ok(gate >= 0, "executeBuy must call buildBuyGateDecision");
+    const prelude = body.slice(0, gate);
+    assert.ok(!prelude.includes("!isCascade &&"), "cascade/ripple must not skip the buy hitch-cover gate");
+    assert.ok(body.includes("isLoseZeroMode() || isInjectCoverRequired()"), "gate must run whenever LOSE_ZERO / REQUIRE_INJECT_COVER is on");
+    assert.ok(body.includes("ALLOW_LOSSY_OPERATOR_BUY"), "operator buy bypass must mention ALLOW_LOSSY_OPERATOR_BUY");
+  });
+
   it("does not unfreeze catalog names or flip BASECAT", () => {
     assert.match(src, /symbol: "STONKEX"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "BLUECHIP"[\s\S]*?frozen: true/);
