@@ -113,6 +113,14 @@ import {
   raceTimeout,
 } from "./lose-zero-gate.js";
 import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
+import {
+  encodeExactInputSingle,
+  sanitizeAmountOutMinimum,
+  spotOutWei,
+  slippageFloor,
+  toWei,
+  formatWei18,
+} from "./swap-minout.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -1478,22 +1486,30 @@ async function rpcCall(fn) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🔍 ON-CHAIN QUOTE — gets real pool price before every sell
-// Prevents "execution reverted" from stale cached prices setting minWeth too high
+// 🔍 ON-CHAIN QUOTE — live pool out before every swap (buy + sell)
+// minOut is then run through sanitizeAmountOutMinimum so an impossible floor
+// (TOSHI→WETH ~93k WETH) cannot be submitted.
 // ═══════════════════════════════════════════════════════════════════════════════
-async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
+async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
   try {
     const result = await rpcCall(c => c.simulateContract({
       address: QUOTER_V2,
       abi: QUOTER_ABI,
       functionName: "quoteExactInputSingle",
-      args: [{ tokenIn: tokenAddress, tokenOut: WETH_ADDRESS, amountIn, fee: feeTier, sqrtPriceLimitX96: 0n }]
+      args: [{ tokenIn, tokenOut, amountIn, fee: feeTier, sqrtPriceLimitX96: 0n }]
     }));
-    return result.result[0]; // amountOut in WETH wei
+    const out = result?.result?.[0];
+    return (typeof out === "bigint" && out > 0n) ? out : null;
   } catch (e) {
     console.log(`   ⚠️  On-chain quote failed: ${e.message?.slice(0,60)} — using cached price with wider slippage`);
     return null;
   }
+}
+async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
+  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier);
+}
+async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
+  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
 }
 
 
@@ -3885,8 +3901,9 @@ function buildRaceDisplay(token, price, balance, ethUsd) {
 // 🔓 APPROVE + ENCODE
 // ═══════════════════════════════════════════════════════════════════════════════
 function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n) {
-  const p = (v, isAddr = false) => (isAddr ? v.slice(2) : BigInt(v).toString(16)).padStart(64, "0");
-  return "0x04e45aaf" + p(tokenIn,true) + p(tokenOut,true) + p(fee) + p(recipient,true) + p(amountIn) + p(amountOutMin) + p(0);
+  return encodeExactInputSingle({
+    tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum: amountOutMin,
+  });
 }
 
 // ── FREE INSCRIPTION — embed receipt IN the swap calldata ─────────────────────
@@ -3895,8 +3912,7 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 // Result: inscription is permanently on Base at ZERO extra gas cost.
 // This is how the top MEV bots stamp their identity on every trade.
 function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n, receiptData = "") {
-  const p = (v, isAddr = false) => (isAddr ? v.slice(2) : BigInt(v).toString(16)).padStart(64, "0");
-  const swapCall = "0x04e45aaf" + p(tokenIn,true) + p(tokenOut,true) + p(fee) + p(recipient,true) + p(amountIn) + p(amountOutMin) + p(0);
+  const swapCall = encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee, amountOutMin);
   if (!receiptData || !BTP_INSCRIPTIONS_ENABLED) return swapCall;
   // Append receipt as trailing UTF-8 hex — router ignores it, Base stores it forever
   const receiptHex = Buffer.from(receiptData.slice(0, 200), "utf8").toString("hex");
@@ -4370,8 +4386,38 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       else useWeth = false; // fall back to direct ETH if wrap fails
     }
 
-    // Slippage guard using live ETH price
-    const minTokens = BigInt(Math.floor((ethToSpend * ethUsd / price) * SLIPPAGE_GUARD * 1e18));
+    // Slippage guard: quote (preferred) + USD spot, then minOut sanity.
+    // Always use the token's real decimals — 1e18 on an 8-dec token bricks the buy.
+    const tokenDecimals = await getTokenDecimals(token.address);
+    const spotTokens = spotOutWei({
+      amountInHuman: ethToSpend,
+      inUsd: ethUsd,
+      outUsd: price,
+      outDecimals: tokenDecimals,
+    });
+    let quotedTokens = null;
+    try {
+      quotedTokens = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
+    } catch { quotedTokens = null; }
+    const expectedTokens = quotedTokens && quotedTokens > 0n ? quotedTokens : spotTokens;
+    let minTokens = slippageFloor(expectedTokens, quotedTokens && quotedTokens > 0n ? SLIPPAGE_GUARD : 0.75);
+    const buyMinOut = sanitizeAmountOutMinimum({
+      minOut: minTokens,
+      expectedOut: quotedTokens,
+      spotOut: spotTokens,
+      slippage: SLIPPAGE_GUARD,
+      side: "buy",
+      symbol: token.symbol,
+    });
+    if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
+    if (!buyMinOut.allow) {
+      console.log(`   🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
+      return false;
+    }
+    minTokens = buyMinOut.amountOutMinimum;
+    if (quotedTokens && quotedTokens > 0n) {
+      console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
+    }
 
     const ind = getIndicatorScore(token.symbol);
     console.log(`\n   🟢 BUY ${token.symbol} [${tierLabel}] — ${reason}`);
@@ -4574,30 +4620,51 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (sellGate.log) console.log(`   ${sellGate.log}`);
     if (!sellGate.allow) return null;
 
-    const amtToSell = BigInt(Math.floor(sellable * sellPct * 1e18));
-    if (amtToSell === BigInt(0)) return null;
+    const tokenDecimals = await getTokenDecimals(token.address);
+    const amtHuman = sellable * sellPct;
+    const amtToSell = toWei(amtHuman, tokenDecimals);
+    if (amtToSell === 0n) return null;
 
-    // FIX: Restore slippage protection using live on-chain QuoterV2.
-    // Previous minWeth=0n was causing silent bad fills where thin pools drained
-    // positions for near-zero ETH. Now: quote the real pool output first, apply
-    // SLIPPAGE_GUARD (85%) floor. If QuoterV2 call fails, fall back to cached
-    // price estimate with a wider 75% guard to prevent total wipe on network issues.
+    // Slippage floor from QuoterV2 (bigint, never Number(wei)*0.85 — that
+    // loses precision above ~9e15 and was in the path that produced ~93k WETH
+    // minOut on 4424 TOSHI). Fallback: USD spot * 75%. Then sanitize so an
+    // impossible floor is clamped or the tx is not sent.
+    const spotWeth = spotOutWei({
+      amountInHuman: amtHuman,
+      inUsd: price,
+      outUsd: ethUsd,
+      outDecimals: 18,
+    });
+    let quotedWeth = null;
     let minWeth = 0n;
     try {
-      const quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
+      quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
       if (quotedWeth && quotedWeth > 0n) {
-        minWeth = BigInt(Math.floor(Number(quotedWeth) * SLIPPAGE_GUARD));
-        console.log(`   📐 QuoterV2: expect ${(Number(quotedWeth)/1e18).toFixed(6)} WETH → floor ${(Number(minWeth)/1e18).toFixed(6)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
+        minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
+        console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
       } else {
-        // Fallback: cached price estimate with wider 75% guard
-        const estWeth = (sellable * sellPct * price) / ethUsd;
-        minWeth = BigInt(Math.floor(estWeth * 0.75 * 1e18));
-        console.log(`   📐 Quote fallback: estimated ${estWeth.toFixed(6)} WETH → floor ${(estWeth*0.75).toFixed(6)} (75%)`);
+        minWeth = slippageFloor(spotWeth, 0.75);
+        console.log(`   📐 Quote fallback: estimated ${formatWei18(spotWeth)} WETH → floor ${formatWei18(minWeth)} (75%)`);
       }
     } catch (e) {
       console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — using 0 floor (protective sell)`);
       minWeth = 0n; // only on quote error — don't block protective/stop-loss sells
     }
+
+    const sellMinOut = sanitizeAmountOutMinimum({
+      minOut: minWeth,
+      expectedOut: quotedWeth,
+      spotOut: spotWeth,
+      slippage: SLIPPAGE_GUARD,
+      side: "sell",
+      symbol: token.symbol,
+    });
+    if (sellMinOut.log) console.log(`   ${sellMinOut.log}`);
+    if (!sellMinOut.allow) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
+      return null;
+    }
+    minWeth = sellMinOut.amountOutMinimum;
 
     const sellAmt   = sellable * sellPct;
     const ind       = getIndicatorScore(token.symbol);

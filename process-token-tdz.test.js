@@ -94,6 +94,24 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(body.includes("ALLOW_LOSSY_OPERATOR_BUY"), "operator buy bypass must mention ALLOW_LOSSY_OPERATOR_BUY");
   });
 
+  it("executeSell and executeBuy run amountOutMinimum sanity before submit", () => {
+    assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut helper must be imported");
+    const sellFn = src.indexOf("async function executeSell(");
+    const buyFn = src.indexOf("async function executeBuy(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const buyEnd = src.indexOf("\nasync function ", buyFn + 1);
+    const sellSanity = src.indexOf("sanitizeAmountOutMinimum", sellFn);
+    const buySanity = src.indexOf("sanitizeAmountOutMinimum", buyFn);
+    const sellSend = src.indexOf("encodeSwap(", sellFn);
+    const buySend = src.indexOf("encodeSwap(", buyFn);
+    assert.ok(sellFn >= 0 && sellSanity > sellFn && sellSanity < sellEnd, "executeSell must sanitize minOut");
+    assert.ok(buyFn >= 0 && buySanity > buyFn && buySanity < buyEnd, "executeBuy must sanitize minOut");
+    assert.ok(sellSanity < sellSend, "executeSell must sanitize before encodeSwap");
+    assert.ok(buySanity < buySend, "executeBuy must sanitize before encodeSwap");
+    assert.ok(src.includes("buildSellGateDecision"), "must not drop the 2× hitch sell floor");
+    assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
+  });
+
   it("does not unfreeze catalog names or flip BASECAT", () => {
     assert.match(src, /symbol: "STONKEX"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "BLUECHIP"[\s\S]*?frozen: true/);

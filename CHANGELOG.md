@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed — impossible Uniswap `amountOutMinimum` can no longer brick exits
+
+Two RISK TOSHI→WETH sells reverted with no ERC20 Transfer because `amountOutMinimum` was ~93k–93.5k WETH while selling ~4424 TOSHI:
+
+- `0x134bb40c9807fe2ebc48ab77a5a69cdbc29dea15c636a19acd43a7458521d3c6`
+- `0x693af50a02fd00cfb69ffee9e59c8a38bd86ea1f24a44be22dcdcd563033d8d3`
+
+On-chain calldata: hitch/BTP was trailing LIBM after the 228-byte `exactInputSingle` (slot not overwritten). The floor itself was computed insane (quote/slippage/`Number(wei)` path).
+
+- Shared `sanitizeAmountOutMinimum` in `swap-minout.js`: compare minOut to QuoterV2 expected out (preferred) or USD spot; if minOut > expected or orders of magnitude above spot, **clamp** to the slippage band and log. If there is no quote and no spot, **reject — do not send**.
+- **Covered call sites:** `executeSell` (all exits: wave / moonshot / operator / stop-loss), `executeBuy` (wave / OPERATOR_BUY / `/buy` / cascade / ripple), `encodeSwap` / `encodeSwapWithReceipt` (single encoder), `MempoolOrchestrator.injectAndSend` (refuses hitch that would overwrite the swap prefix / `amountOutMinimum`).
+- Sell + buy quotes both go through QuoterV2; floors use bigint slippage (`85n/100n`) instead of `Number(quotedWei) * 0.85`. Amount-in uses the token's real decimals.
+- Does not weaken LOSE_ZERO, frozen buy gate, or 2× hitch-cover. Protective `minOut=0` still allowed. No capital spends.
+
 ### Catalog — freeze VVV / TIBBIR (data-only)
 
 Desk: keep VVV and TIBBIR in the catalog but `frozen: true` until Uni V3 is proven. No capital, no unfreeze, no `tokens.json` runtime adds.

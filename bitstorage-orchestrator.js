@@ -61,6 +61,7 @@ import {
   FRAGMENT_SIZE,
   HEADER_SIZE,
 } from './bitstorage-strand-assembler.js';
+import { hitchPreservesSwapPrefix } from './swap-minout.js';
 
 // ─── GAS CONSTANTS (Base mainnet) ────────────────────────────────────────────
 const BASE_BLOCK_GAS_LIMIT   = 15_000_000n;
@@ -485,27 +486,36 @@ export class MempoolOrchestrator extends EventEmitter {
     const skipHitch = context.skipHitch === true || (Number.isFinite(maxBytes) && maxBytes <= 0);
 
     let chunk = null;
+    let injection = null;
     if (!skipHitch) {
       const peeked = this._nextQueuedChunk(context, { consume: false });
       if (peeked) {
         const size = (peeked.header?.length || 0) + (peeked.enc?.length || 0);
         if (!Number.isFinite(maxBytes) || size <= maxBytes) {
-          chunk = this._nextQueuedChunk(context, { consume: true });
+          const swapData = txParams.transaction.data || '0x';
+          const candidate = constructInjectionCalldata(
+            swapData,
+            peeked.header,
+            peeked.enc,
+          );
+          // Hitch/BTP must append AFTER the 228-byte exactInputSingle.
+          // If packing overwrites amountOutMinimum, refuse hitch (keep the chunk)
+          // and send the plain swap so an impossible floor cannot be introduced.
+          const prefix = hitchPreservesSwapPrefix(swapData, candidate.calldata);
+          if (!prefix.ok) {
+            console.log(`  ⚠️  ${prefix.log} — sending plain swap`);
+          } else {
+            chunk = this._nextQueuedChunk(context, { consume: true });
+            injection = candidate;
+          }
         }
       }
     }
 
-    if (!chunk) {
-      // No chunks queued, or leftover too thin — send the plain trade
+    if (!chunk || !injection) {
+      // No chunks queued, leftover too thin, or hitch would smash minOut
       return this.cdp.evm.sendTransaction(txParams);
     }
-
-    // Build the injection calldata
-    const injection = constructInjectionCalldata(
-      txParams.transaction.data || '0x',
-      chunk.header,
-      chunk.enc,
-    );
 
     // Patch the transaction
     const patchedParams = {

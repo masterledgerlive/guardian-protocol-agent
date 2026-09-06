@@ -118,13 +118,15 @@ vault-unlock.js       — Stage 1 boot unlock (password via Telegram)
 keystore.js           — Personal double-encrypted key manager
 log-formatter.js      — Structured human-readable log output
 bitstorage-orchestrator.js  — BITStorage / ShadowWeave strand injection
+swap-minout.js        — Uniswap amountOutMinimum sanity (sell + buy)
+lose-zero-gate.js     — LOSE_ZERO / frozen buy / 2× hitch-cover gates
 encryptkey.js         — One-time key encryption + inscription tool
 ```
 
 ### Infrastructure
 
 - **Chain**: Base (L2, Coinbase) — 2 second block times, sub-cent gas
-- **DEX**: Uniswap V3 — direct swap routing, QuoterV2 slippage protection
+- **DEX**: Uniswap V3 — direct swap routing, QuoterV2 slippage protection, `amountOutMinimum` sanity (`swap-minout.js`) so impossible floors cannot brick exits
 - **SDK**: Coinbase CDP v1.44.1 (v2 API)
 - **Deployment**: Railway (auto-deploy from GitHub)
 - **State**: GitHub (separate branch — no redeploy on state save)
