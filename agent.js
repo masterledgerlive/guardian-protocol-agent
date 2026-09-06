@@ -131,6 +131,24 @@ import {
   toWei,
   formatWei18,
 } from "./swap-minout.js";
+import {
+  BASE_QUOTER_V2,
+  evaluatePriceInsane,
+  noteLastSaneUsd,
+  getLastSaneUsd,
+  riskStartUsd,
+  bagVsRiskMult,
+  priceInsaneMinRatio,
+  priceInsaneMaxRatio,
+  isSlippageCooledDown,
+  slippageCooldownLog,
+  recordSlippageFail,
+  clearSlippageFails,
+  slippageFailLog,
+  isTooLittleReceived,
+  isSuccessfulSellFill,
+  failedFillLog,
+} from "./price-insane.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -181,10 +199,11 @@ let orchReady = false;
 const WALLET_ADDRESS = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
 const WETH_ADDRESS   = "0x4200000000000000000000000000000000000006";
 const SWAP_ROUTER    = "0x2626664c2603336E57B271c5C0b26F421741e481";
-// Uniswap V3 QuoterV2 on Base — used to get real on-chain price before every sell
-// so minWeth is based on what the pool will ACTUALLY pay, not our stale cached price.
-// This prevents "execution reverted" errors from slippage tolerance being set too high.
-const QUOTER_V2      = "0x3d4e44Eb1374240CE5F1B136041212501e4a098e";
+// Uniswap V3 QuoterV2 on Base — official deployment (see BASE_QUOTER_V2).
+// Do not use Ethereum QuoterV2 or any garbled lookalike — those miss on Base
+// and force the USD-mark fallback that built ~91k WETH minOut.
+// https://developers.uniswap.org/docs/protocols/v3/deployments/v3-base-deployments
+const QUOTER_V2      = BASE_QUOTER_V2;
 const QUOTER_ABI     = [{
   name: "quoteExactInputSingle",
   type: "function",
@@ -1527,6 +1546,46 @@ async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
 }
 async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
   return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
+}
+
+/**
+ * PRICE_INSANE — DexScreener/Gecko (or last sane seed) vs the mark hitch/minOut
+ * would use. Runs before those gates so a $69729 TOSHI moonshot cannot size a floor.
+ */
+async function gatePriceInsane(token, markUsd, side, balance = 0) {
+  let independentUsd = null;
+  try {
+    const q = await fetchTokenUsdQuote(token.address);
+    if (q && isValidUsdPrice(q.priceUsd)) independentUsd = q.priceUsd;
+  } catch { /* fall through to last sane / bag check */ }
+  const decision = evaluatePriceInsane({
+    symbol: token.symbol,
+    markUsd,
+    independentUsd,
+    lastSaneUsd: getLastSaneUsd(token.symbol),
+    balance,
+    riskStart: riskStartUsd(),
+    bagMult: bagVsRiskMult(),
+    minRatio: priceInsaneMinRatio(),
+    maxRatio: priceInsaneMaxRatio(),
+    side,
+  });
+  if (decision.log) console.log(`   ${decision.log}`);
+  if (decision.allow && independentUsd) noteLastSaneUsd(token.symbol, independentUsd);
+  return decision;
+}
+
+async function getSwapReceiptStatus(txHash) {
+  if (!txHash) return "unknown";
+  try {
+    const receipt = await rpcCall(c => c.getTransactionReceipt({ hash: txHash }));
+    const st = receipt?.status;
+    if (st === "reverted" || st === 0 || st === "0x0" || st === false) return "reverted";
+    if (st === "success" || st === 1 || st === "0x1" || st === true) return "success";
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 
@@ -4325,6 +4384,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       console.log(`   ${frozenBuySkipLog(token)}`);
       return false;
     }
+    // PRICE_INSANE before hitch / LOSE_ZERO / minOut use the mark
+    const buyPriceGate = await gatePriceInsane(token, price, "buy", getCachedBalance(token.symbol) || 0);
+    if (!buyPriceGate.allow) return false;
     if (!canTrade(token.symbol, isCascade)) { console.log(`   ⏳ ${token.symbol} cooldown`); return false; }
     if (drawdownHaltActive)                 { console.log(`   🛑 ${token.symbol} drawdown halt active`); return false; }
     if (isSafeMode())                       { console.log(`   🛡️  ${token.symbol} safe mode — no trades until vault unlocked`); return false; }
@@ -4578,6 +4640,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // The cooldown exists to prevent buying the same token twice too fast.
     // Blocking sells with the same timer was causing AIXBT-style traps where
     // the position grew through cascades but could never exit.
+    if (isSlippageCooledDown(token.symbol)) {
+      console.log(`   ${slippageCooldownLog(token.symbol)}`);
+      return null;
+    }
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
@@ -4605,6 +4671,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       token.piggyReserve = 0;
       return null;
     }
+
+    // PRICE_INSANE before piggy / hitch / minOut use the mark.
+    // Independent DexScreener/Gecko (or last sane seed) must agree; bag ≫ RISK start also refuses.
+    const sellPriceGate = await gatePriceInsane(token, price, "sell", totalBal);
+    if (!sellPriceGate.allow) return null;
 
     const piggy = applyPiggyToSell({
       balance: totalBal,
@@ -4723,17 +4794,46 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
     ]);
 
+    // Do not increment tradeCount / write BTP / log a win until the fill is real.
+    // netUsd / received / recUsd must exist BEFORE the BTP strand block (TDZ).
+    await sleep(4000); // reduced from 8s — Base block time is 2s, 4s is enough
+
+    const wAfter   = await getWethBalance();
+    const eAfter   = await getEthBalance();
+    let received = (wAfter - wBefore) + (eAfter - eBefore);
+    // Guard: received should always be positive after a sell.
+    // If negative, it means the balance read raced with another transaction.
+    // Use a minimum of 0 to avoid negative P&L corrupting piggy bank.
+    if (received < 0) {
+      console.log(`   ⚠️  Received negative (${received.toFixed(6)}) — likely balance race. Recalculating...`);
+      await sleep(2000); // reduced from 3s
+      const wRetry = await getWethBalance();
+      const eRetry = await getEthBalance();
+      received = Math.max(0, (wRetry - wBefore) + (eRetry - eBefore));
+    }
+    const recUsd   = received * ethUsd;
+    const invUsd   = (token.totalInvestedEth || 0) * sellPct * ethUsd;
+    const netUsd   = recUsd - invUsd;
+
+    const receiptStatus = await getSwapReceiptStatus(transactionHash);
+    if (!isSuccessfulSellFill({ received, receiptStatus })) {
+      const rec = recordSlippageFail(token.symbol);
+      console.log(`   ${failedFillLog(token.symbol, { received, receiptStatus, txHash: transactionHash })}`);
+      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+      await tg(`⚠️ <b>${token.symbol} SELL FAILED</b>\nReceived ${received.toFixed(6)} ETH — not a win\n${transactionHash ? `🔗 ${transactionHash}` : ""}`);
+      return null;
+    }
+    clearSlippageFails(token.symbol);
     lastTradeTime[token.symbol] = Date.now();
     tradeCount++;
-    // Invalidate cached balance immediately after sell — forces fresh read next loop
     tokenBalanceCache[token.symbol] = 0;
 
-    // 📜 BTP STRAND RECEIPT — sell chunk
+    // 📜 BTP STRAND RECEIPT — sell chunk (after fill math so netUsd is initialized)
     if (BTP_INSCRIPTIONS_ENABLED) {
       try {
         const entryP   = token.entryPrice || price;
         const pnlPct   = entryP > 0 ? ((price - entryP) / entryP * 100).toFixed(2) : "?";
-        const win      = netUsd >= 0;
+        const win      = received > 0 && netUsd >= 0;
         const chunkPos = (strandTrades.length % STRAND_SIZE) + 1;
         const gasCostE = await estimateGasCostEth();
 
@@ -4775,25 +4875,6 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         }
       } catch(e) { console.log("⚠️ BTP strand sell error: " + e.message); }
     }
-
-    await sleep(4000); // reduced from 8s — Base block time is 2s, 4s is enough
-
-    const wAfter   = await getWethBalance();
-    const eAfter   = await getEthBalance();
-    let received = (wAfter - wBefore) + (eAfter - eBefore);
-    // Guard: received should always be positive after a sell.
-    // If negative, it means the balance read raced with another transaction.
-    // Use a minimum of 0 to avoid negative P&L corrupting piggy bank.
-    if (received < 0) {
-      console.log(`   ⚠️  Received negative (${received.toFixed(6)}) — likely balance race. Recalculating...`);
-      await sleep(2000); // reduced from 3s
-      const wRetry = await getWethBalance();
-      const eRetry = await getEthBalance();
-      received = Math.max(0, (wRetry - wBefore) + (eRetry - eBefore));
-    }
-    const recUsd   = received * ethUsd;
-    const invUsd   = (token.totalInvestedEth || 0) * sellPct * ethUsd;
-    const netUsd   = recUsd - invUsd;
     // Post-fill sanity: warn if we received very little (possible bad fill)
     if (received > 0 && recUsd < procEth * ethUsd * 0.30) {
       console.log(`   ⚠️  [${token.symbol}] Low fill: received $${recUsd.toFixed(3)} vs expected ~$${(procEth*ethUsd).toFixed(3)} — possible thin pool`);
@@ -4836,7 +4917,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const pnlPct  = invUsd > 0 ? ((netUsd / invUsd) * 100).toFixed(1) : "?";
     const pnlPctNum = invUsd > 0 ? (netUsd / invUsd) * 100 : 0;
-    const winner  = netUsd >= 0;
+    const winner  = received > 0 && netUsd >= 0;
 
     // ── 🏄 Wave stats update ──────────────────────────────────────────────────
     const ws = initWaveStats(token.symbol);
@@ -4900,6 +4981,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     return Math.max(received - skim, 0);
   } catch (e) {
     console.log(`      ❌ SELL FAILED: ${e.message}`);
+    if (isTooLittleReceived(e)) {
+      const rec = recordSlippageFail(token.symbol);
+      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    }
     await tg(`⚠️ <b>${token.symbol} SELL FAILED</b>\n${e.message}`);
     return null;
   }
@@ -9186,6 +9271,7 @@ async function main() {
         const t = tokens.find(tk => tk.address.toLowerCase() === addr);
         if (!t || !isValidUsdPrice(p)) continue;
         setCachedPrice(addr, p);
+        noteLastSaneUsd(t.symbol, p);
         if (!history[t.symbol]) history[t.symbol] = { lastPrice: p };
         else history[t.symbol].lastPrice = p;
       }
@@ -9704,6 +9790,8 @@ async function main() {
         const price = history[token.symbol]?.lastPrice;
         if (!price) continue;
         const balance = getCachedBalance(token.symbol);
+        const moonPriceGate = await gatePriceInsane(token, price, "sell", balance);
+        if (!moonPriceGate.allow) continue;
         const posUsd  = balance * price;
         if (posUsd <= MOONSHOT_HOLD_USD * 1.5) continue; // already at moonshot size
         // Sell enough to bring position down to MOONSHOT_HOLD_USD — never into piggy dust
@@ -9748,7 +9836,11 @@ async function main() {
       // A single GT URL of 28+ addresses 400s or silently keeps ~10 prices.
       try {
         const pre = await prefetchMarketPrices(tokens.map(t => t.address));
-        for (const [addr, p] of Object.entries(pre.prices)) setCachedPrice(addr, p);
+        for (const [addr, p] of Object.entries(pre.prices)) {
+          setCachedPrice(addr, p);
+          const t = tokens.find(tk => tk.address.toLowerCase() === addr);
+          if (t && isValidUsdPrice(p)) noteLastSaneUsd(t.symbol, p);
+        }
         if (pre.misses.length) {
           console.log(`⏳ No quote (skip): ${pre.misses.map(a => {
             const t = tokens.find(tk => tk.address.toLowerCase() === a);

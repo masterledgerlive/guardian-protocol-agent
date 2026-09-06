@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed — PRICE_INSANE gate + Base QuoterV2 + no 0-ETH "wins"
+
+After piggy PR #18 + minOut PR #17, ~21 TOSHI→WETH sells still failed with `Too little received`. Logs showed TOSHI mark ~$69729 while Gecko/Dex spot ~$0.000122. Quote-fallback then built `amountOutMinimum` ~91k–93k WETH on ~4335 TOSHI. `sanitizeAmountOutMinimum` could not stop that because expected/spot were derived from the same insane mark (or Quoter missed).
+
+- **PRICE_INSANE** runs in `executeBuy` / `executeSell` (and moonshot trim) **before** hitch, LOSE_ZERO, piggy sizing, and minOut. If mark vs independent DexScreener/Gecko (or last sane seed) is outside **0.01×–100×**, or implied bag ≫ RISK start (default 100× of $15), refuse and log — do not compute hitch/minOut from fantasy. Live fixture: $69729 TOSHI vs $0.000122 spot.
+- **Base QuoterV2** is now the official Uniswap deployment `0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a` (https://developers.uniswap.org/docs/protocols/v3/deployments/v3-base-deployments). The previous `0x3d4e44Eb1374240CE5F1B136041212501e4a098e` is invalid on Base and forced the USD-mark fallback.
+- Cap consecutive `Too little received` (and 0-ETH fills) per symbol at **N=3**, then a 30m cooldown so the retry loop stops burning gas (`SLIP_RETRY_MAX` / `SLIP_COOLDOWN_MS`).
+- Failed swaps are never logged as ✅ / WAVE COMPLETE / 0.000000 ETH received as a win. Receipt + balance delta must show a real fill before tradeCount / BTP / ledger.
+- BTP strand sell no longer reads `netUsd` / `received` / `recUsd` before they are declared (TDZ: `Cannot access 'netUsd' before initialization`).
+- Does **not** weaken LOSE_ZERO, frozen buy, 2× hitch, piggy dust, or minOut sanitize.
+
 ### Added — per-token piggy-bank dust (never-sell reserve)
 
 Every token position keeps a growing dust pile. Sells must leave it. Dust is sold only when Game/operator explicitly unlocks it.

@@ -230,6 +230,7 @@ describe("agent.js wires piggy into every sell path", () => {
     assert.ok(body.includes("piggy.tokensToSell"), "sell size must be piggy-capped tokens");
     assert.ok(body.includes("toWei"), "minOut amount-in must use real decimals");
     assert.ok(body.includes("sanitizeAmountOutMinimum"), "minOut sanity must stay after piggy sizing");
+    assert.ok(body.includes("gatePriceInsane") || body.includes("evaluatePriceInsane"), "PRICE_INSANE must run before piggy uses the mark");
   });
 
   it("does not skip hitch / minOut / freeze gates", () => {
@@ -246,6 +247,8 @@ describe("agent.js wires piggy into every sell path", () => {
     const hitch = body.indexOf("buildSellGateDecision");
     const minOut = body.indexOf("sanitizeAmountOutMinimum");
     const encode = body.indexOf("encodeSwap(");
+    const insane = Math.max(body.indexOf("gatePriceInsane"), body.indexOf("evaluatePriceInsane"));
+    assert.ok(insane >= 0 && piggy > insane, "PRICE_INSANE before piggy uses the mark");
     assert.ok(piggy >= 0 && hitch > piggy, "piggy sizes the bag before the hitch floor");
     assert.ok(minOut > hitch, "minOut sanity runs after hitch");
     assert.ok(encode > minOut, "encodeSwap must not fire before minOut sanity");
