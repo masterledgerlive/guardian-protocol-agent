@@ -98,6 +98,9 @@ DEGEN · SEAM · AIXBT · TOSHI · KITE · XCN · PRIME
 ZORA · BNKR · TYBG · MIGGLES · MOG · HIGHER · GAME
 VIRTUAL · KEYCAT · DOGINME · SKI · LUNA · BENJI
 
+**Frozen catalog (data only — no capital / no unfreeze):**
+BASECAT · DRB · VVV · TIBBIR
+
 **Watchlist (learning, not trading):**
 RSR · ODOS · IMAGINE · CBETH
 

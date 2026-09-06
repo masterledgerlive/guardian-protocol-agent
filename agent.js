@@ -1260,6 +1260,27 @@ const DEFAULT_TOKENS = [
     frozen: true, frozenReason: "Capital concentration",
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:6, community:8, total:31 },
     notes: "FREN. FROZEN." },
+
+  // ── OVERNIGHT FROZEN ADDS — data-only, no capital, desk unfreeze required ──
+  { symbol: "BASECAT", address: "0xB2000000000000000000004c27f6523082f41D01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Overnight add — capital locked until Uni V3 swap path proven (deepest liq is Uni V4/o1). Desk unfreeze required.",
+    score: { liquidity:5, waveQuality:5, fundamentals:4, coinbaseFit:6, community:6, total:26 },
+    notes: "Basecat. FROZEN — Uni V3 WETH 1% pool exists; deepest liq is Uni V4/o1. Data only until V3 path proven." },
+
+  { symbol: "DRB",     address: "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Overnight add — capital locked until Uni V3 DRB/WETH 1% swap path proven. Desk unfreeze required.",
+    score: { liquidity:5, waveQuality:5, fundamentals:4, coinbaseFit:6, community:6, total:26 },
+    notes: "DebtReliefBot (DRB). FROZEN — feeTier matches Uni V3 DRB/WETH 1%. Data only until path proven." },
+
+  { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Overnight add — capital locked until Uni V3 swap path proven (deepest liq is Aerodrome). Desk unfreeze required.",
+    score: { liquidity:4, waveQuality:5, fundamentals:6, coinbaseFit:6, community:6, total:27 },
+    notes: "Venice Token (VVV). FROZEN — feeTier 10000 is a conservative Uni V3 placeholder. Deepest liq is Aerodrome." },
+
+  { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Overnight add — capital locked until Uni V3 pool confirmed. Desk unfreeze required.",
+    score: { liquidity:4, waveQuality:5, fundamentals:5, coinbaseFit:6, community:6, total:26 },
+    notes: "Ribbita by Virtuals (TIBBIR). FROZEN — data only until Uni V3 pool confirmed." },
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
