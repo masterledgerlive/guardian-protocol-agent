@@ -1,3 +1,5 @@
+import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
+
 /**
  * LOSE-ZERO / inject-cover gate for speculative buys AND lose-zero sells.
  *
@@ -7,7 +9,9 @@
  * Operator /buy is lossy only if ALLOW_LOSSY_OPERATOR_BUY=yes (default no).
  * Sell lose-zero:  sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
  *                  HITCH_COST_MULT default 2 — twice the hitch as profit cushion.
- * inject_hitch_cost = calldata-char gas + provider/value fee + optional BTP inscription.
+ * inject_hitch_cost = L2 calldata-char gas + live Base L1 data fee (GasPriceOracle
+ * getL1Fee / getL1FeeUpperBound) + provider/value fee + optional BTP inscription.
+ * L1 is preferred when quoted; oracle failure falls back to L2-only.
  *
  * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
  * if leftover is too thin for 2× hitch cover, hold (do not skip the reservation
@@ -19,6 +23,10 @@ export const STORE_HITCH_BYTES = 10;               // UTF-8 length of §$STORE§
 export const CALLDATA_GAS_PER_NONZERO_BYTE = 16;   // EIP-2028
 export const BTP_INSCRIBE_GAS_UNITS = 50_000;      // separate BTP self-send inscription tx
 export const DEFAULT_HITCH_COST_MULT = 2;          // sells reserve 2× hitch; buys stay 1×
+
+function hasLiveL1Fee(v) {
+  return v !== undefined && v !== null && Number.isFinite(Number(v)) && Number(v) >= 0;
+}
 
 export function envFlagYes(name, env = process.env) {
   return String(env[name] ?? "").trim().toLowerCase() === "yes";
@@ -46,19 +54,20 @@ export function estimateStoreHitchGasUnits() {
   return STORE_HITCH_BYTES * CALLDATA_GAS_PER_NONZERO_BYTE;
 }
 
-/** Hitch cost in ETH given gas price in gwei. */
-export function estimateInjectCostEth(gwei) {
+/** Hitch cost in ETH given gas price in gwei. Optional live L1 fee is added. */
+export function estimateInjectCostEth(gwei, l1FeeEth) {
   const g = Number(gwei);
-  if (!Number.isFinite(g) || g < 0) return 0;
-  return estimateStoreHitchGasUnits() * g * 1e-9;
+  if (!Number.isFinite(g) || g < 0) return hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0;
+  const l2 = estimateStoreHitchGasUnits() * g * 1e-9;
+  return l2 + (hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0);
 }
 
 /**
  * Price increment so a position of `tradeEth` covers hitch gas.
  * inject_cost_spread = (injectEth / tradeEth) * entryPrice
  */
-export function injectCostSpread(entryPrice, tradeEth, gwei) {
-  const injectEth = estimateInjectCostEth(gwei);
+export function injectCostSpread(entryPrice, tradeEth, gwei, l1FeeEth) {
+  const injectEth = estimateInjectCostEth(gwei, l1FeeEth);
   const price = Number(entryPrice);
   const eth = Number(tradeEth);
   if (!Number.isFinite(price) || price <= 0) return 0;
@@ -496,6 +505,7 @@ export function buildBuyGateDecision({
   gasCostEth = 0,
   tradeEth = 0,
   gwei = 0,
+  l1FeeEth,
   armed = false,
   net = 0,
   isCascade = false,
@@ -509,10 +519,23 @@ export function buildBuyGateDecision({
     return evaluateBuyGate({ isCascade, leftover: 0, hasEdge: false, symbol, reason, env });
   }
   const fairExit = computeFairExit(price, { feePct, gasCostEth, tradeEth, impactPct });
-  const spread = injectCostSpread(price, tradeEth, gwei);
+  const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
-  return evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
+  const l2FeeEth = estimateCalldataHitchEth(STORE_HITCH_BYTES, gwei);
+  const decision = evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
+  const source = hasLiveL1Fee(l1FeeEth) ? "oracle" : "fallback";
+  return {
+    ...decision,
+    l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
+    l2FeeEth,
+    hitchFeeSource: source,
+    feeSplitLog: formatHitchFeeSplit({
+      l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
+      l2FeeEth,
+      source,
+    }),
+  };
 }
 
 export function isAllowLossyOperatorBuy(env = process.env) {
@@ -555,7 +578,8 @@ export function estimateBtpInscribeEth(gwei, gasUnits = BTP_INSCRIBE_GAS_UNITS) 
 }
 
 /**
- * inject_hitch_cost = calldata chars + provider/value fee + optional BTP inscription.
+ * inject_hitch_cost = L2 calldata + live L1 data fee (when quoted) + provider
+ * + optional BTP (L2 gas + optional BTP L1). Missing L1 → L2-only fallback.
  */
 export function estimateInjectHitchCostEth({
   hitchBytes = STORE_HITCH_BYTES,
@@ -563,11 +587,15 @@ export function estimateInjectHitchCostEth({
   providerFeeEth = 0,
   btpInscribe = false,
   btpGasUnits = BTP_INSCRIBE_GAS_UNITS,
+  l1FeeEth,
+  btpL1FeeEth,
 } = {}) {
   const provider = Math.max(0, Number(providerFeeEth) || 0);
   const calldata = estimateCalldataHitchEth(hitchBytes, gwei);
+  const l1 = hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0;
   const btp = btpInscribe ? estimateBtpInscribeEth(gwei, btpGasUnits) : 0;
-  return calldata + provider + btp;
+  const btpL1 = btpInscribe && hasLiveL1Fee(btpL1FeeEth) ? Number(btpL1FeeEth) : 0;
+  return calldata + l1 + provider + btp + btpL1;
 }
 
 export function entrySliceEth(entryEth, sellPct) {
@@ -604,8 +632,12 @@ export function minSellProceedsEth({
   btpInscribe = false,
   btpGasUnits = BTP_INSCRIBE_GAS_UNITS,
   hitchCostMult: mult = DEFAULT_HITCH_COST_MULT,
+  l1FeeEth,
+  btpL1FeeEth,
 } = {}) {
-  const hitch = estimateInjectHitchCostEth({ hitchBytes, gwei, providerFeeEth, btpInscribe, btpGasUnits });
+  const hitch = estimateInjectHitchCostEth({
+    hitchBytes, gwei, providerFeeEth, btpInscribe, btpGasUnits, l1FeeEth, btpL1FeeEth,
+  });
   const m = Number.isFinite(Number(mult)) && Number(mult) >= 0 ? Number(mult) : DEFAULT_HITCH_COST_MULT;
   return entrySliceEth(entryEth, sellPct)
     + sellFeesEth({ projectedProceedsEth, feePct, gasCostEth, impactPct })
@@ -652,16 +684,17 @@ export function coversHitchAndEntry(args = {}) {
   };
 }
 
-/** Max hitch bytes leftover can pay at `gwei` after a provider fee. */
-export function maxHitchBytesForLeftover(leftoverEth, gwei, providerFeeEth = 0) {
+/** Max hitch bytes leftover can pay at `gwei` after a provider fee (+ optional L1/byte). */
+export function maxHitchBytesForLeftover(leftoverEth, gwei, providerFeeEth = 0, l1FeePerByteEth = 0) {
   const leftover = Number(leftoverEth);
   const fee = Math.max(0, Number(providerFeeEth) || 0);
   if (!Number.isFinite(leftover) || leftover <= 0) return 0;
   const afterFee = leftover - fee;
   if (afterFee <= 0) return 0;
   const g = Number(gwei);
-  if (!Number.isFinite(g) || g <= 0) return Number.MAX_SAFE_INTEGER;
-  const perByte = CALLDATA_GAS_PER_NONZERO_BYTE * g * 1e-9;
+  const l2PerByte = Number.isFinite(g) && g > 0 ? CALLDATA_GAS_PER_NONZERO_BYTE * g * 1e-9 : 0;
+  const l1PerByte = Math.max(0, Number(l1FeePerByteEth) || 0);
+  const perByte = l2PerByte + l1PerByte;
   if (perByte <= 0) return Number.MAX_SAFE_INTEGER;
   return Math.floor(afterFee / perByte);
 }
@@ -679,6 +712,9 @@ export function sizeHitchForSell({
   wantBtpInscribe = false,
   btpGasUnits = BTP_INSCRIBE_GAS_UNITS,
   hitchCostMult: mult = DEFAULT_HITCH_COST_MULT,
+  l1FeeEth,
+  l1FeePerByteEth,
+  btpL1FeeEth,
 } = {}) {
   const leftover = Number(leftoverEth);
   const m = Number.isFinite(Number(mult)) && Number(mult) > 0 ? Number(mult) : DEFAULT_HITCH_COST_MULT;
@@ -690,23 +726,32 @@ export function sizeHitchForSell({
   const budget = leftover / m;
   let remaining = budget;
   let btp = false;
+  const btpL1 = hasLiveL1Fee(btpL1FeeEth) ? Number(btpL1FeeEth) : 0;
   if (wantBtpInscribe) {
-    const btpCost = estimateBtpInscribeEth(gwei, btpGasUnits);
+    const btpCost = estimateBtpInscribeEth(gwei, btpGasUnits) + btpL1;
     if (btpCost > 0 && btpCost < remaining) {
       btp = true;
       remaining -= btpCost;
     }
   }
 
-  const maxBytes = maxHitchBytesForLeftover(remaining, gwei, providerFeeEth);
   const wanted = Math.max(0, Math.floor(Number(wantedBytes) || 0));
+  const perByteL1 = hasLiveL1Fee(l1FeePerByteEth)
+    ? Number(l1FeePerByteEth)
+    : (hasLiveL1Fee(l1FeeEth) && wanted > 0 ? Number(l1FeeEth) / wanted : 0);
+  const maxBytes = maxHitchBytesForLeftover(remaining, gwei, providerFeeEth, perByteL1);
   const hitchBytes = maxBytes <= 0 || wanted <= 0 ? 0 : Math.min(wanted, maxBytes);
+  const sizedL1 = hitchBytes > 0 && perByteL1 > 0
+    ? perByteL1 * hitchBytes
+    : (hitchBytes === wanted && hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : undefined);
   const injectCostEth = estimateInjectHitchCostEth({
     hitchBytes,
     gwei,
     providerFeeEth,
     btpInscribe: btp,
     btpGasUnits,
+    l1FeeEth: sizedL1,
+    btpL1FeeEth: btp ? btpL1FeeEth : undefined,
   });
   const skipHitch = hitchBytes === 0 && !btp;
   return { hitchBytes, btpInscribe: btp, injectCostEth, skipHitch, hitchCostMult: m };
@@ -734,6 +779,11 @@ export function evaluateSellGate({
   wantBtpInscribe = false,
   btpGasUnits = BTP_INSCRIBE_GAS_UNITS,
   hitchCostMult: multArg,
+  l1FeeEth,
+  reservedL1FeeEth,
+  l1FeePerByteEth,
+  btpL1FeeEth,
+  hitchFeeSource,
   reason = "",
   symbol = "?",
   env = process.env,
@@ -752,8 +802,19 @@ export function evaluateSellGate({
     providerFeeEth,
     btpGasUnits,
     hitchCostMult: mult,
+    l1FeeEth,
+    btpL1FeeEth,
   };
   const leftover = leftoverAfterFeesEth(base);
+
+  const wanted = Math.max(0, Number(wantedHitchBytes) || 0);
+  const reservedL1 = hasLiveL1Fee(reservedL1FeeEth)
+    ? Number(reservedL1FeeEth)
+    : (hasLiveL1Fee(l1FeeEth) && wanted > 0
+      ? Number(l1FeeEth) * STORE_HITCH_BYTES / wanted
+      : undefined);
+  const source = hitchFeeSource
+    || (hasLiveL1Fee(l1FeeEth) || hasLiveL1Fee(reservedL1) ? "oracle" : "fallback");
 
   // Floor always reserves N× the default §$STORE§ hitch. BTP / orch chunks
   // are extra — skip them if they would break the cushion, but never skip
@@ -764,11 +825,14 @@ export function evaluateSellGate({
     providerFeeEth,
     btpInscribe: false,
     btpGasUnits,
+    l1FeeEth: reservedL1,
   });
   const reservedCover = coversHitchAndEntry({
     ...base,
     hitchBytes: STORE_HITCH_BYTES,
     btpInscribe: false,
+    l1FeeEth: reservedL1,
+    btpL1FeeEth: undefined,
   });
 
   const sized = sizeHitchForSell({
@@ -779,29 +843,56 @@ export function evaluateSellGate({
     wantBtpInscribe,
     btpGasUnits,
     hitchCostMult: mult,
+    l1FeeEth,
+    l1FeePerByteEth,
+    btpL1FeeEth,
   });
   const check = coversHitchAndEntry({
     ...base,
     hitchBytes: sized.hitchBytes,
     btpInscribe: sized.btpInscribe,
+    l1FeeEth: sized.hitchBytes > 0 && hasLiveL1Fee(l1FeeEth) && wanted > 0
+      ? Number(l1FeeEth) * sized.hitchBytes / wanted
+      : (sized.hitchBytes === wanted ? l1FeeEth : undefined),
+    btpL1FeeEth: sized.btpInscribe ? btpL1FeeEth : undefined,
   });
 
-  const pack = (allow, why, extra = {}) => ({
-    allow,
-    leftover,
-    hitchBytes: extra.hitchBytes ?? sized.hitchBytes,
-    btpInscribe: extra.btpInscribe ?? sized.btpInscribe,
-    skipHitch: extra.skipHitch ?? sized.skipHitch,
-    injectCostEth: extra.injectCostEth ?? sized.injectCostEth,
-    hitchCostMult: mult,
-    hitchCoverEth: extra.hitchCoverEth ?? (mult * (extra.injectCostEth ?? sized.injectCostEth)),
-    reservedHitchEth: reservedHitch,
-    edge: extra.edge ?? check.edge,
-    minSellProceedsEth: extra.minSellProceedsEth ?? check.minSellProceedsEth,
-    sellNow: extra.sellNow ?? allow,
-    log: extra.log ?? `LOSE_ZERO: ${allow ? "allow" : "hold"} sell ${symbol} ${why}`,
-    reason: why,
-  });
+  const pack = (allow, why, extra = {}) => {
+    const bytes = extra.hitchBytes ?? sized.hitchBytes;
+    const l2FeeEth = estimateCalldataHitchEth(bytes || STORE_HITCH_BYTES, gwei);
+    const liveL1 = hasLiveL1Fee(extra.l1FeeEth)
+      ? Number(extra.l1FeeEth)
+      : (hasLiveL1Fee(reservedL1) ? Number(reservedL1) : (hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0));
+    const liveBtpL1 = extra.btpInscribe ?? sized.btpInscribe
+      ? (hasLiveL1Fee(btpL1FeeEth) ? Number(btpL1FeeEth) : 0)
+      : 0;
+    return {
+      allow,
+      leftover,
+      hitchBytes: bytes,
+      btpInscribe: extra.btpInscribe ?? sized.btpInscribe,
+      skipHitch: extra.skipHitch ?? sized.skipHitch,
+      injectCostEth: extra.injectCostEth ?? sized.injectCostEth,
+      hitchCostMult: mult,
+      hitchCoverEth: extra.hitchCoverEth ?? (mult * (extra.injectCostEth ?? sized.injectCostEth)),
+      reservedHitchEth: reservedHitch,
+      edge: extra.edge ?? check.edge,
+      minSellProceedsEth: extra.minSellProceedsEth ?? check.minSellProceedsEth,
+      sellNow: extra.sellNow ?? allow,
+      l1FeeEth: liveL1,
+      l2FeeEth,
+      btpL1FeeEth: liveBtpL1,
+      hitchFeeSource: extra.hitchFeeSource ?? source,
+      feeSplitLog: formatHitchFeeSplit({
+        l1FeeEth: liveL1,
+        l2FeeEth,
+        btpL1FeeEth: liveBtpL1,
+        source: extra.hitchFeeSource ?? source,
+      }),
+      log: extra.log ?? `LOSE_ZERO: ${allow ? "allow" : "hold"} sell ${symbol} ${why}`,
+      reason: why,
+    };
+  };
 
   if (canBypassSellLossGate(reason, env)) {
     return pack(true, "lossy-operator", {
@@ -870,6 +961,11 @@ export function buildSellGateDecision({
   wantedHitchBytes = STORE_HITCH_BYTES,
   wantBtpInscribe = false,
   hitchCostMult: multArg,
+  l1FeeEth,
+  reservedL1FeeEth,
+  l1FeePerByteEth,
+  btpL1FeeEth,
+  hitchFeeSource,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -884,6 +980,11 @@ export function buildSellGateDecision({
     providerFeeEth,
     wantBtpInscribe,
     hitchCostMult: multArg,
+    l1FeeEth,
+    reservedL1FeeEth,
+    l1FeePerByteEth,
+    btpL1FeeEth,
+    hitchFeeSource,
     reason,
     symbol,
     env,

@@ -2,7 +2,7 @@
 
 Snapshot: **2026-09-06 ~09:20 UTC**. Source: DexScreener `tokens/v1/base` + `latest/dex/tokens` (no invented stats).
 
-Rules in force: **LOSE-ZERO**; sell floor is `sell_target = fair_exit + fees + (HITCH_COST_MULT × hitch)` with **`HITCH_COST_MULT=2`**. RISK bag ~**$3–11**. Prefer Uniswap / Aerodrome. Freeze over hard-delete. **TOSHI residual ~4.5k stays tradeable.**
+Rules in force: **LOSE-ZERO**; sell floor is `sell_target = fair_exit + fees + (HITCH_COST_MULT × hitch)` with **`HITCH_COST_MULT=2`**. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee`. RISK bag ~**$3–11**. Prefer Uniswap / Aerodrome. Freeze over hard-delete. **TOSHI residual ~4.5k stays tradeable.**
 
 Bars used here:
 

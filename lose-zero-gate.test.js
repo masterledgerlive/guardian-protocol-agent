@@ -800,4 +800,91 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.equal(d.allow, false);
     assert.match(d.log, /hold sell TOSHI/);
   });
+
+  it("estimateInjectHitchCostEth adds live L1 on top of L2 calldata", () => {
+    const l2 = estimateInjectHitchCostEth({ hitchBytes: 10, gwei: 1 });
+    const both = estimateInjectHitchCostEth({ hitchBytes: 10, gwei: 1, l1FeeEth: 0.00001 });
+    assert.ok(Math.abs(both - (l2 + 0.00001)) < 1e-18);
+    const l2Only = estimateInjectHitchCostEth({ hitchBytes: 10, gwei: 1 });
+    assert.equal(l2Only, estimateCalldataHitchEth(10, 1));
+  });
+
+  it("adds BTP L1 when inscribing", () => {
+    const noBtpL1 = estimateInjectHitchCostEth({
+      hitchBytes: 10, gwei: 1, btpInscribe: true, btpL1FeeEth: 0.00002,
+    });
+    const l2 = estimateInjectHitchCostEth({ hitchBytes: 10, gwei: 1, btpInscribe: true });
+    assert.ok(Math.abs(noBtpL1 - (l2 + 0.00002)) < 1e-18);
+  });
+
+  it("sell floor uses live L1 so leftover that covers L2-only still holds", () => {
+    const l2Hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = l2Hitch * 2 + 1e-12;
+    const l2Only = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "TOSHI",
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+    });
+    assert.equal(l2Only.allow, true);
+
+    const liveL1 = 0.001; // dominates leftover
+    const withL1 = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      l1FeeEth: liveL1,
+      reservedL1FeeEth: liveL1,
+      hitchFeeSource: "getL1Fee",
+      symbol: "TOSHI",
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+    });
+    assert.equal(withL1.allow, false);
+    assert.match(withL1.log, /hitch would wipe edge/);
+    assert.match(withL1.feeSplitLog, /HITCH FEE — L1 /);
+    assert.match(withL1.feeSplitLog, /getL1Fee/);
+    assert.equal(withL1.hitchFeeSource, "getL1Fee");
+  });
+
+  it("sizeHitchForSell shrinks extra bytes when L1 per-byte is high", () => {
+    const store = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1, l1FeeEth: 0 });
+    const leftover = store * 2 + 0.000002;
+    const sized = sizeHitchForSell({
+      leftoverEth: leftover,
+      wantedBytes: 10_000,
+      gwei: 1,
+      hitchCostMult: 2,
+      l1FeePerByteEth: 1e-9, // 1 nETH / byte
+    });
+    assert.ok(sized.hitchBytes < 10_000);
+    assert.ok(sized.hitchBytes > 0);
+    assert.ok(2 * sized.injectCostEth <= leftover + 1e-18);
+  });
+
+  it("buy leftover spread includes live L1 hitch fee", () => {
+    const noL1 = injectCostSpread(2, 1, 1);
+    const withL1 = injectCostSpread(2, 1, 1, 0.0005);
+    assert.ok(withL1 > noL1);
+    const d = buildBuyGateDecision({
+      symbol: "AERO",
+      reason: "MIN TROUGH",
+      price: 1,
+      existingSellTarget: 1.001,
+      tradeEth: 1,
+      gwei: 0.05,
+      l1FeeEth: 0.01, // spread 0.01 — leftover cannot cover
+      armed: true,
+      net: 1,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.feeSplitLog, /HITCH FEE/);
+    assert.equal(d.hitchFeeSource, "oracle");
+  });
 });
+

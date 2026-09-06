@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added — hitch inject cost from live Base `GasPriceOracle.getL1Fee`
+
+LOSE_ZERO leftover and the 2× sell floor were pricing `§$STORE§` / hitch as L2 calldata-gas only (`16 gas/byte × gwei`). On Base the L1 data fee dominates what we actually pay to insert the message.
+
+- Shared helper `l1-fee-oracle.js` builds unsigned EIP-1559 swap+hitch bytes and calls the GasPriceOracle predeploy `0x420000000000000000000000000000000000000F`. Prefers `getL1Fee(unsigned RLP)`; uses `getL1FeeUpperBound(txSize)` when full RLP is missing or `getL1Fee` fails. Hitch L1 is the incremental fee of extra hitch bytes on a typical `exactInputSingle` envelope. Optional BTP self-send gets its own L1 quote.
+- `estimateInjectHitchCostEth` / buy leftover / sell+size gates prefer that live L1 (plus L2 calldata). Oracle failure keeps the previous L2-only fallback — never under-cover by inventing a fee.
+- Logs `HITCH FEE — L1 … + L2 …` when hitch is sized (`executeBuy`, `executeSell`, moonshot trim).
+- Does **not** weaken PRICE_INSANE, QuoterV2, piggy dust, minOut, frozen buy, 2× hitch multiplier, or DRAWDOWN / `HALT_NEW_ENTRIES`.
+
 ### Fixed — independent TOSHI spot was the Pancake VIRTUAL ghost ($69729)
 
 PRICE_INSANE (PR #19) correctly refused TOSHI sells, but the DexScreener/Gecko **independent** side was itself polluted. `/latest/dex/tokens/TOSHI` ranks PancakeSwap TOSHI/VIRTUAL first: **$69729.86**, ~$70M reported liq, **$0 volume**. Real Uniswap v3 TOSHI/WETH is ~$0.00012. Early logs: `mark $0.0001216 vs dex/gecko $69729.86`. Later both slots stuck at $69729 and refused only via implied bag.
