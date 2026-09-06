@@ -85,7 +85,15 @@ import {
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
 } from "./price-oracle.js";
-import { isLoseZeroMode, isInjectCoverRequired, buildBuyGateDecision } from "./lose-zero-gate.js";
+import {
+  isLoseZeroMode,
+  isInjectCoverRequired,
+  buildBuyGateDecision,
+  isManualOperatorBuy,
+  parseManualBuyCommand,
+  usdToForcedEth,
+  manualBuyReason,
+} from "./lose-zero-gate.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -4241,7 +4249,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const tierEth   = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
     const tierLabel = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
 
-    if (!isCascade && tierEth === 0) {
+    if (!isCascade && tierEth === 0 && !(forcedEth > 0 && isManualOperatorBuy(reason))) {
       console.log(`   🛑 ${token.symbol}: not in active tiers (${tierLabel}) — no new capital`);
       return false;
     }
@@ -5367,7 +5375,9 @@ async function processToken(cdp, token, bal) {
       }
 
       if (cmd.action === "buy") {
-        await executeBuy(cdp, token, bal, "MANUAL BUY", price);
+        lastTradeTime[token.symbol] = 0; // operator override — fire now
+        const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+        await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
@@ -6174,11 +6184,14 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       // Each command wrapped individually — one crash can never kill the whole handler
       try {
         if (text.startsWith("/buy ")) {
-        const sym = raw.split(" ")[1]?.toUpperCase();
-        if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
+        const parsed = parseManualBuyCommand(raw);
+        const sym = parsed?.symbol;
+        if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /buy SYMBOL [usd]`); continue; }
         if (manualCommands.find(c => c.symbol===sym && c.action==="buy")) { await tg(`⚠️ BUY ${sym} already queued`); continue; }
-        manualCommands.push({ symbol: sym, action: "buy" });
-        await tg(`📱 <b>BUY ${sym} queued</b>`);
+        manualCommands.push({ symbol: sym, action: "buy", usd: parsed.usd || 0 });
+        await tg(parsed.usd > 0
+          ? `📱 <b>BUY ${sym} queued</b>\n💵 Size: $${parsed.usd}`
+          : `📱 <b>BUY ${sym} queued</b>`);
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
@@ -8471,7 +8484,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/history SYMBOL — 7/30/90d chart\n` +
           `/wake (or /gm) — morning briefing\n\n` +
           `<b>📱 Manual Trade Commands:</b>\n` +
-          `/buy SYMBOL — manual buy\n` +
+          `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
           `/sell SYMBOL — sell + cascade fires\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/exit SYMBOL — sell 100% to ETH, NO cascade\n` +

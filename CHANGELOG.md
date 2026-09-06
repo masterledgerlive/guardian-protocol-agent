@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added — `/buy SYMBOL [usd]` operator size + LOSE_ZERO bypass
+
+- Telegram `/buy TOSHI`, `/buy TOSHI 3`, and `/buy TOSHI $3` queue a manual buy.
+- Optional USD is converted to `forcedEth = usd / ethUsd` and passed into `executeBuy`.
+- Reason is `MANUAL BUY (operator)` so LOSE_ZERO / inject-cover allow the operator path. Auto buys stay gated.
+
 ### Fixed — Binance OHLC must not overwrite Base tokens
 
 Boot seed was picking Binance `LUNAUSDT` (~$0.047) and `KITEUSDT` (~$0.13) because those CEX series have more daily bars than Base DEX pools. That is Terra / L1 KITE, not Virtuals LUNA (~$0.005) or a Base KITE pool.

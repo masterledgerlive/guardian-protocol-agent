@@ -15,6 +15,11 @@ import {
   computeLeftover,
   leftoverCoversInject,
   hasClearEdge,
+  isManualOperatorBuy,
+  parseBuyUsdArg,
+  parseManualBuyCommand,
+  usdToForcedEth,
+  manualBuyReason,
   evaluateBuyGate,
   buildBuyGateDecision,
 } from "./lose-zero-gate.js";
@@ -121,6 +126,42 @@ describe("evaluateBuyGate", () => {
     assert.equal(d.allow, true);
     assert.equal(d.log, null);
   });
+
+  it("LOSE_ZERO allows when reason starts with MANUAL BUY (operator)", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "TOSHI",
+      reason: "MANUAL BUY (operator) $3",
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.log, "LOSE_ZERO: allow buy TOSHI MANUAL BUY (operator)");
+  });
+
+  it("LOSE_ZERO still gates auto buys (MANUAL BUY without operator prefix)", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "TOSHI",
+      reason: "MANUAL BUY",
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /^LOSE_ZERO: block buy TOSHI no clear edge$/);
+  });
+
+  it("LOSE_ZERO still gates predicted-trough auto buys with leftover 0", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "AERO",
+      reason: "🧠 PREDICTED TROUGH [80% conf]",
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /^LOSE_ZERO: block buy AERO leftover is 0$/);
+  });
 });
 
 describe("buildBuyGateDecision", () => {
@@ -164,5 +205,53 @@ describe("buildBuyGateDecision", () => {
     assert.equal(hasClearEdge({ armed: true, net: 0.03 }), true);
     assert.equal(hasClearEdge({ armed: false, net: 0, reason: "MIN TROUGH" }), false);
     assert.equal(hasClearEdge({ armed: false, net: 0.03, reason: "🎯 MIN TROUGH" }), true);
+  });
+
+  it("operator /buy bypasses leftover-0 even without edge", () => {
+    const d = buildBuyGateDecision({
+      symbol: "TOSHI",
+      reason: manualBuyReason(3),
+      price: 0.0002,
+      existingSellTarget: null,
+      armed: false,
+      net: 0,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.reason, "manual-operator");
+    assert.match(d.log, /MANUAL BUY \(operator\)/);
+  });
+});
+
+describe("manual /buy parse", () => {
+  it("parses /buy SYMBOL and /buy SYMBOL 3 / $3", () => {
+    assert.deepEqual(parseManualBuyCommand("/buy TOSHI"), { symbol: "TOSHI", usd: 0 });
+    assert.deepEqual(parseManualBuyCommand("/buy TOSHI 3"), { symbol: "TOSHI", usd: 3 });
+    assert.deepEqual(parseManualBuyCommand("/buy TOSHI $3"), { symbol: "TOSHI", usd: 3 });
+    assert.deepEqual(parseManualBuyCommand("/buy toshi $3.50"), { symbol: "TOSHI", usd: 3.5 });
+    assert.equal(parseManualBuyCommand("/buy"), null);
+    assert.equal(parseManualBuyCommand("/sell TOSHI"), null);
+  });
+
+  it("parseBuyUsdArg accepts 3 and $3", () => {
+    assert.equal(parseBuyUsdArg("3"), 3);
+    assert.equal(parseBuyUsdArg("$3"), 3);
+    assert.equal(parseBuyUsdArg("$3.00"), 3);
+    assert.equal(parseBuyUsdArg("nope"), 0);
+    assert.equal(parseBuyUsdArg("0"), 0);
+  });
+
+  it("forcedEth = usd / ethUsd", () => {
+    assert.equal(usdToForcedEth(3, 3000), 0.001);
+    assert.equal(usdToForcedEth(0, 3000), 0);
+    assert.equal(usdToForcedEth(3, 0), 0);
+  });
+
+  it("manualBuyReason starts with MANUAL BUY (operator)", () => {
+    assert.equal(isManualOperatorBuy(manualBuyReason()), true);
+    assert.equal(isManualOperatorBuy(manualBuyReason(3)), true);
+    assert.equal(manualBuyReason(3), "MANUAL BUY (operator) $3");
+    assert.equal(isManualOperatorBuy("MANUAL BUY"), false);
+    assert.equal(isManualOperatorBuy("🎯 MIN TROUGH [PRIORITY]"), false);
   });
 });

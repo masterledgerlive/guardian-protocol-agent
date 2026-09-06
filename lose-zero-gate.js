@@ -80,6 +80,46 @@ export function leftoverCoversInject(leftover) {
   return Number(leftover) > 0;
 }
 
+/** Operator Telegram /buy — reason must start with this exact prefix. */
+export const MANUAL_BUY_OPERATOR_PREFIX = "MANUAL BUY (operator)";
+
+export function isManualOperatorBuy(reason = "") {
+  return String(reason || "").startsWith(MANUAL_BUY_OPERATOR_PREFIX);
+}
+
+/** Parse optional USD size: `3`, `$3`, `$3.50`. Invalid / missing → 0. */
+export function parseBuyUsdArg(arg) {
+  if (arg == null || arg === "") return 0;
+  const n = parseFloat(String(arg).trim().replace(/^\$/, "").replace(/,/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Parse `/buy SYMBOL` and `/buy SYMBOL 3` / `/buy SYMBOL $3`.
+ * @returns {{ symbol: string, usd: number } | null}
+ */
+export function parseManualBuyCommand(raw) {
+  const parts = String(raw || "").trim().split(/\s+/);
+  if ((parts[0] || "").toLowerCase() !== "/buy") return null;
+  const symbol = (parts[1] || "").toUpperCase();
+  if (!symbol) return null;
+  return { symbol, usd: parseBuyUsdArg(parts[2]) };
+}
+
+export function usdToForcedEth(usd, ethUsd) {
+  const u = Number(usd);
+  const e = Number(ethUsd);
+  if (!Number.isFinite(u) || u <= 0 || !Number.isFinite(e) || e <= 0) return 0;
+  return u / e;
+}
+
+export function manualBuyReason(usd = 0) {
+  const n = Number(usd);
+  return Number.isFinite(n) && n > 0
+    ? `${MANUAL_BUY_OPERATOR_PREFIX} $${n}`
+    : MANUAL_BUY_OPERATOR_PREFIX;
+}
+
 export function hasClearEdge({ reason = "", armed = false, net = 0 } = {}) {
   const positiveNet = Number(net) > 0;
   if (armed && positiveNet) return true;
@@ -96,6 +136,7 @@ export function evaluateBuyGate({
   leftover = 0,
   hasEdge = false,
   symbol = "?",
+  reason = "",
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
@@ -106,6 +147,19 @@ export function evaluateBuyGate({
   // Cascade redeploys exit proceeds — not a speculative new entry
   if (isCascade) {
     return { allow: true, log: null, leftover, reason: "cascade" };
+  }
+
+  // Operator /buy — explicit size, not a speculative auto entry
+  if (isManualOperatorBuy(reason)) {
+    if (!loseZero && !injectReq) {
+      return { allow: true, log: null, leftover, reason: "manual-operator" };
+    }
+    return {
+      allow: true,
+      log: `${tag}: allow buy ${symbol} MANUAL BUY (operator)`,
+      leftover,
+      reason: "manual-operator",
+    };
   }
 
   if (!loseZero && !injectReq) {
@@ -170,12 +224,12 @@ export function buildBuyGateDecision({
 } = {}) {
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
-  if (isCascade || (!loseZero && !injectReq)) {
-    return evaluateBuyGate({ isCascade, leftover: 0, hasEdge: false, symbol, env });
+  if (isCascade || isManualOperatorBuy(reason) || (!loseZero && !injectReq)) {
+    return evaluateBuyGate({ isCascade, leftover: 0, hasEdge: false, symbol, reason, env });
   }
   const fairExit = computeFairExit(price, { feePct, gasCostEth, tradeEth, impactPct });
   const spread = injectCostSpread(price, tradeEth, gwei);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
-  return evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, env });
+  return evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
 }
