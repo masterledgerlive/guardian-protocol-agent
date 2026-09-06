@@ -1177,6 +1177,23 @@ const DEFAULT_TOKENS = [
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — AI gaming agent infra. ACTIVE." },
 
+  // ── GREENLIGHT ADDS — liquid Base Uni/Aero books (DexScreener 2026-09-06) ──
+  { symbol: "BASECAT", address: "0xB2000000000000000000004c27f6523082f41D01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    score: { liquidity:8, waveQuality:6, fundamentals:4, coinbaseFit:7, community:7, total:32 },
+    notes: "Basecat — Uniswap v3 BASECAT/WETH ~$464k / ~$5.2M 24h. Not the low-vol 0xB200…E49B twin." },
+
+  { symbol: "DRB",     address: "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    score: { liquidity:8, waveQuality:6, fundamentals:5, coinbaseFit:7, community:7, total:33 },
+    notes: "DebtReliefBot — Uniswap v3 DRB/WETH ~$1.42M / ~$465k 24h." },
+
+  { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:39 },
+    notes: "Venice Token — Aerodrome VVV/WETH ~$13.1M / ~$435k; Uniswap v3 VVV/USDC ~$277k / ~$108k." },
+
+  { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    score: { liquidity:8, waveQuality:6, fundamentals:6, coinbaseFit:7, community:7, total:34 },
+    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin." },
+
   // ══════════════════════════════════════════════════════════════════════════
   // ❄️  FROZEN — price/wave data collected, NO capital deployed
   //     /unfreeze SYMBOL  |  /freeze SYMBOL  |  /frozenlist
@@ -7140,7 +7157,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const targets = symArg ? tokens.filter(t => t.symbol === symArg) : tokens;
 
         if (targets.length === 0) {
-          await tg(`❓ Unknown token: ${esc(symArg)}\nPortfolio: BRETT DEGEN AERO VIRTUAL AIXBT TOSHI SEAM XCN KEYCAT DOGINME WELL SKI`);
+          await tg(`❓ Unknown token: ${esc(symArg)}\nPortfolio: AERO BRETT VIRTUAL MORPHO CBBTC DEGEN AIXBT TOSHI KEYCAT DOGINME XCN SKI LUNA GAME BASECAT DRB VVV TIBBIR`);
         } else if (symArg) {
           // Detailed single token report
           const t = targets[0];

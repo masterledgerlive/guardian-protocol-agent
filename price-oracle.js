@@ -213,7 +213,7 @@ export const BINANCE_OHLC_DENYLIST = new Set([
   "LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "MOCHI", "KEYCAT", "DOGINME",
   "SKI", "MOG", "BASE", "TYBG", "BNKR", "BENJI", "ROOST", "TALENT", "TOBY",
   "SIMBA", "CRASH", "BRIUN", "NORMIE", "OGGY", "FREN", "PRIME", "XCN", "SEAM",
-  "CBBTC",
+  "CBBTC", "BASECAT", "DRB", "VVV", "TIBBIR", "CLANKER", "REI", "FAI",
 ]);
 
 export function allowBinanceOhlcSeed(symbol) {

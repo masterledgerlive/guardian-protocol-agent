@@ -18,7 +18,7 @@ Bars used here:
 
 | State | Symbols |
 |---|---|
-| **Active** (17) | AERO BRETT VIRTUAL MORPHO CBBTC DEGEN SEAM AIXBT TOSHI KEYCAT DOGINME XCN SKI MOG BASE LUNA GAME |
+| **Active** (17 → 14 keep + 4 adds) | AERO BRETT VIRTUAL MORPHO CBBTC DEGEN SEAM AIXBT TOSHI KEYCAT DOGINME XCN SKI MOG BASE LUNA GAME |
 | **Disabled** (2) | WELL KITE |
 | **Frozen** (17) | PRIME HIGHER MOCHI ZORA BNKR TYBG MIGGLES BENJI ROOST TALENT TOBY SIMBA CRASH BRIUN NORMIE OGGY FREN |
 
@@ -46,6 +46,10 @@ USD liq / 24h vol from DexScreener. Uni/Aero preferred when present.
 | SKI | Uni v2 SKI/WETH | $629k | $48k | Keep |
 | AIXBT | Uni v3 AIXBT/USDC | $333k | $30k | Keep |
 | XCN | Uni v3 XCN/USDC | $176k | $38k | Keep |
+| BASECAT | Uni v3 BASECAT/WETH | $464k | $5.23M | **ADDED** — high-vol book `0xB200…1D01` (not the $11.5M / $17k twin) |
+| DRB | Uni v3 DRB/WETH | $1.42M | $465k | **ADDED** — DebtReliefBot |
+| VVV | Aero VVV/WETH + Uni v3 VVV/USDC | $13.1M / $277k | $435k / $108k | **ADDED** — Venice Token |
+| TIBBIR | Uni v2 TIBBIR/VIRTUAL + Aero WETH | $3.28M / $385k | $183k / $929k | **ADDED** — Virtuals Ribbita (not Clanker twin) |
 
 ### Newly frozen (were active)
 
@@ -96,7 +100,7 @@ Prefer Uniswap V3 / Aerodrome. Do **not** add Aerodrome-only names until routing
 
 | Sym | Address | Best Uni/Aero | Liq | 24h vol | Rec |
 |---|---|---|---:|---:|---|
-| **CLANKER** (tokenbot) | `0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb` | Uni v3 CLANKER/WETH | $1.48M | $28k | **Best ADD** — watchlist address corrected (old `0x1d00…9317` was CLANKFUN) |
+| **CLANKER** (tokenbot) | `0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb` | Uni v3 CLANKER/WETH | $1.48M | $28k | Still watchlist — address corrected (old `0x1d00…9317` was CLANKFUN) |
 | **REI** | `0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD` | Aero $1.83M / Uni v3 $204k | $1.83M / $204k | $95k / $41k | Strong ADD |
 | FAI | `0xb33Ff54b9F7242EF1593d2C9Bcd8f9df46c77935` | Aero $2.49M / Uni v3 $256k | $2.49M / $256k | $15k / $1.8k | Watch — Uni vol thin |
 | SPX (SPX6900) | `0x50dA645f148798F68EF2d7dB7C1CB22A6819bb2C` | Aero SPX/WETH | $760k | $12k | Watch vol |
@@ -106,7 +110,7 @@ Prefer Uniswap V3 / Aerodrome. Do **not** add Aerodrome-only names until routing
 
 Unfreeze-first (already in catalog, real Uni book): **BNKR**, **MIGGLES**, **ZORA**. Not thawed in this PR — keep capital on the 14 actives + TOSHI residual.
 
-Skipped as ADD: Basecat / other brand-new high-vol memes (LOSE-ZERO / hitch cover).
+Skipped as ADD: **BSTONK** (desk: volatile). KEYCAT already in catalog — not duplicated.
 
 ---
 
@@ -114,5 +118,6 @@ Skipped as ADD: Basecat / other brand-new high-vol memes (LOSE-ZERO / hitch cove
 
 1. Freeze **SEAM**, **BASE**, **MOG**. **TOSHI stays active.**
 2. Stamp `noBasePool` / `brokenQuote` on dead/wrong-address rows; **skip their OHLC seed**.
-3. Correct watchlist **CLANKER** to tokenbot. Document ADDs above — no new active rows.
-4. Holdings we still hold are not deleted. Frozen tokens can still exit if a position exists.
+3. Correct watchlist **CLANKER** to tokenbot.
+4. **ADD** liquid actives: **BASECAT** `0xB200…1D01`, **DRB** `0x3ec2…8Ea2`, **VVV** `0xacfE…21bf`, **TIBBIR** `0xA4A2…6e00`.
+5. Holdings we still hold are not deleted. Frozen tokens can still exit if a position exists.

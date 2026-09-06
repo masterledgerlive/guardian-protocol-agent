@@ -9,7 +9,7 @@ Sleeping-game scout of `DEFAULT_TOKENS` against live DexScreener Base pools. See
 - Freeze SEAM, BASE, MOG (thin / dead book — not safe for ~$3–11 RISK + 2× hitch). TOSHI stays active.
 - Mark no-pool / broken-quote rows (`noBasePool`, `brokenQuote`) and skip their 8s OHLC seed so boot does not hang on CRASH/FREN/NORMIE/OGGY/KITE/SIMBA(ezETH)/BRIUN(UNIDX)/IMAGINE.
 - Correct watchlist CLANKER to tokenbot `0x1bc0c422…1Bcb` (old address was CLANKFUN).
-- Document ADD / unfreeze candidates (CLANKER, REI, FAI, ZORA, BNKR, MIGGLES). No new holdings added.
+- **ADD** liquid actives (desk greenlight, live DexScreener): BASECAT, DRB, VVV, TIBBIR. Skip BSTONK. KEYCAT not duplicated.
 
 ### Fixed — never sell at a loss to insert storage (2× hitch floor)
 

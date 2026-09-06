@@ -94,7 +94,7 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · CBBTC · DEGEN · AIXBT · TOSHI
-KEYCAT · DOGINME · XCN · SKI · LUNA · GAME
+KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB · VVV · TIBBIR
 
 **Frozen (no new capital):**
 SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · ZORA · BNKR · TYBG
