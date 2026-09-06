@@ -129,8 +129,11 @@ export function parseOperatorBuyEnv(raw) {
 }
 
 /**
- * Queue OPERATOR_BUY once onto `commands`. Idempotent via `state.done`
- * and an existing matching buy already in the queue.
+ * Queue OPERATOR_BUY onto `commands`.
+ *
+ * `state.done` means the buy *executed* (or was intentionally retired).
+ * Do NOT set it on queue — a fatal main() restart must be able to re-queue
+ * if the swap never happened. `already-queued` is a live-list check only.
  * @returns {{ queued: boolean, reason: string, symbol?: string, usd?: number }}
  */
 export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { done: false }) {
@@ -140,16 +143,34 @@ export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { d
     return { queued: false, reason: String(rawEnv ?? "").trim() ? "invalid" : "unset" };
   }
   if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
-    state.done = true;
     return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, usd: parsed.usd };
   }
   if (commands.some((c) => c.symbol === parsed.symbol && c.action === "buy")) {
-    state.done = true;
     return { queued: false, reason: "already-queued", symbol: parsed.symbol, usd: parsed.usd };
   }
-  commands.push({ symbol: parsed.symbol, action: "buy", usd: parsed.usd });
-  state.done = true;
+  commands.push({ symbol: parsed.symbol, action: "buy", usd: parsed.usd, source: "OPERATOR_BUY" });
   return { queued: true, reason: "queued", symbol: parsed.symbol, usd: parsed.usd };
+}
+
+/** Latch only after executeBuy actually sends the swap. */
+export function markOperatorBuyExecuted(state) {
+  if (state) {
+    state.done = true;
+    state.executed = true;
+  }
+  return state;
+}
+
+/**
+ * On in-process fatal main() restart: drop a queue-time latch so env buy
+ * re-queues. If the swap already executed, keep the latch to avoid a double buy.
+ * Legacy: `done=true` with `executed !== true` is a stale queue-time latch.
+ */
+export function clearOperatorBuyIfNotExecuted(state) {
+  if (!state) return state;
+  if (state.executed === true) return state;
+  state.done = false;
+  return state;
 }
 
 /** Per-token OHLC seed budget — one hung DexScreener/GT call must not stall boot. */
