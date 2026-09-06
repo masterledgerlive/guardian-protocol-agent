@@ -160,7 +160,8 @@ VAULT_STATE_BRANCH        ← tx hash on Base
 LOSE_ZERO                 ← yes = block speculative (non-cascade) buys unless there is a clear edge AND leftover / sell-target margin covers a short §$STORE§ calldata hitch (~10 bytes on Base)
 HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO
 REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory even when LOSE_ZERO is unset (sells and cascade exits are never blocked)
-OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI once at boot (after CDP ready). Same as /buy TOSHI $3. Idempotent. LOSE_ZERO still allows this operator path; auto stays gated.
+BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
+OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. LOSE_ZERO still allows this operator path; auto stays gated.
 ```
 
 No actual secrets in Railway. Just addresses of where to find them.

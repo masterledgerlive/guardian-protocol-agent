@@ -18,6 +18,7 @@
 
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
+import { buildRpcUrls } from './rpc-pool.js';
 
 const GITHUB_TOKEN  = process.env.GITHUB_TOKEN;
 const GITHUB_REPO   = process.env.GITHUB_REPO  || 'masterledgerlive/guardian-protocol-agent';
@@ -26,11 +27,7 @@ const WALLET        = '0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915';
 
 // ─── RPC ENDPOINTS — same pool Guardian uses ─────────────────────────────────
 
-const RPC_ENDPOINTS = [
-  'https://mainnet.base.org',
-  'https://base.llamarpc.com',
-  'https://base-rpc.publicnode.com',
-];
+const RPC_ENDPOINTS = buildRpcUrls(process.env);
 
 let rpcIndex = 0;
 function getPublicClient() {

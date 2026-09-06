@@ -22,6 +22,8 @@ import {
   manualBuyReason,
   parseOperatorBuyEnv,
   queueOperatorBuyOnce,
+  markOperatorBuyExecuted,
+  clearOperatorBuyIfNotExecuted,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
   evaluateBuyGate,
@@ -270,16 +272,17 @@ describe("OPERATOR_BUY env", () => {
     assert.equal(parseOperatorBuyEnv("TOSHI:0"), null);
   });
 
-  it("queues {symbol, action:buy, usd} once (idempotent)", () => {
+  it("queues {symbol, action:buy, usd} without latching until execute", () => {
     const commands = [];
     const known = new Set(["TOSHI", "AERO"]);
     const state = { done: false };
     const first = queueOperatorBuyOnce(commands, "TOSHI:3", known, state);
     assert.equal(first.queued, true);
-    assert.deepEqual(commands, [{ symbol: "TOSHI", action: "buy", usd: 3 }]);
+    assert.equal(state.done, false);
+    assert.deepEqual(commands, [{ symbol: "TOSHI", action: "buy", usd: 3, source: "OPERATOR_BUY" }]);
     const second = queueOperatorBuyOnce(commands, "TOSHI:3", known, state);
     assert.equal(second.queued, false);
-    assert.equal(second.reason, "already-applied");
+    assert.equal(second.reason, "already-queued");
     assert.equal(commands.length, 1);
   });
 
@@ -289,6 +292,18 @@ describe("OPERATOR_BUY env", () => {
     assert.equal(r.queued, false);
     assert.equal(r.reason, "already-queued");
     assert.equal(commands.length, 1);
+  });
+
+  it("latches done only after markOperatorBuyExecuted", () => {
+    const state = { done: false, executed: false };
+    const commands = [];
+    queueOperatorBuyOnce(commands, "TOSHI:3", new Set(["TOSHI"]), state);
+    assert.equal(state.done, false);
+    markOperatorBuyExecuted(state);
+    assert.equal(state.done, true);
+    assert.equal(state.executed, true);
+    clearOperatorBuyIfNotExecuted(state);
+    assert.equal(state.done, true);
   });
 });
 

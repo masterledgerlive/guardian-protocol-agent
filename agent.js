@@ -94,9 +94,12 @@ import {
   usdToForcedEth,
   manualBuyReason,
   queueOperatorBuyOnce,
+  markOperatorBuyExecuted,
+  clearOperatorBuyIfNotExecuted,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
 } from "./lose-zero-gate.js";
+import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -1360,15 +1363,9 @@ const ERC20_ABI = [
 ];
 
 // ── RPC ROTATION ──────────────────────────────────────────────────────────────
-const RPC_URLS = [
-  "https://mainnet.base.org",          // Coinbase official — most reliable
-  "https://base.llamarpc.com",          // LlamaNodes — high rate limit
-  "https://base-rpc.publicnode.com",    // PublicNode — reliable
-  "https://base.drpc.org",              // dRPC — good free tier
-  "https://base.meowrpc.com",           // MeowRPC — fast Base node
-  "https://base-pokt.nodies.app",       // Nodies — decentralized
-  "https://gateway.tenderly.co/public/base", // Tenderly public
-];
+// Env first: BASE_RPC || RPC_URL || BASE_RPC_URL. base.llamarpc.com is dead (CF 521).
+const RPC_URLS = buildRpcUrls(process.env);
+console.log("🔗 RPC pool: " + RPC_URLS.join(" → "));
 
 // ── MEV-PROTECTED RPC for actual swaps ────────────────────────────────────────
 // Routes swap transactions through private mempool — bypasses MEV sandwich bots
@@ -1397,31 +1394,23 @@ function nextRpc() {
   rpcIndex = (rpcIndex + 1) % RPC_URLS.length;
 }
 async function rpcCall(fn) {
-  for (let i = 0; i < RPC_URLS.length; i++) {
-    try {
-      // 6s timeout per RPC call — prevents silent hangs from locking the bot.
-      // Public Base RPC nodes (publicnode, llamarpc) occasionally stall indefinitely.
-      // Without this, getTokenBalance/getGasPrice hang inside processToken and burn
-      // the full 12s processToken timeout on EVERY token, every loop.
-      const result = await Promise.race([
-        fn(getClient()),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000))
-      ]);
-      return result;
-    }
-    catch (e) {
-      const msg = (e.message || "").toLowerCase();
-      const isQuota = msg.includes("429") || msg.includes("rate limit") ||
-                      msg.includes("over rate") || msg.includes("rpc timeout") ||
-                      msg.includes("quota") || msg.includes("exceeded") ||
-                      msg.includes("resource not found") || msg.includes("too many") ||
-                      msg.includes("unavailable") || msg.includes("502") || msg.includes("503");
-      if (isQuota) {
-        nextRpc(); await sleep(400); // rotate to next RPC
-      } else throw e;
-    }
-  }
-  throw new Error("All RPCs unavailable");
+  // Rotate through the whole pool. A single 521 / timeout / fetch fail must
+  // NOT throw — that used to kill main() on eth_getBalance at boot.
+  const ordered = RPC_URLS.map((_, i) => RPC_URLS[(rpcIndex + i) % RPC_URLS.length]);
+  return withRpcFailover(ordered, async (url) => {
+    const idx = RPC_URLS.indexOf(url);
+    if (idx >= 0) rpcIndex = idx;
+    const result = await Promise.race([
+      fn(getClient()),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000))
+    ]);
+    return result;
+  }, {
+    onFail(url, e) {
+      console.log(`⚠️  RPC ${url} failed: ${String(e.message || e).slice(0, 80)} — trying next`);
+      nextRpc();
+    },
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2080,7 +2069,7 @@ let manualCommands = [];
 let cachedBal      = null;   // updated each loop cycle — used in Telegram commands
 let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
-const operatorBuyState    = { done: false }; // OPERATOR_BUY env queued once per process
+const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
 const waveState    = {};
 const tradeLog     = [];
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
@@ -3596,7 +3585,14 @@ function canTrade(symbol, isCascade = false) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 💰 UNIFIED ETH+WETH BALANCE — the core fix for "out of ETH" bug
 // ═══════════════════════════════════════════════════════════════════════════════
-async function getEthBalance()   { return parseFloat(formatEther(await rpcCall(c => c.getBalance({ address: WALLET_ADDRESS })))); }
+async function getEthBalance() {
+  try {
+    return parseFloat(formatEther(await rpcCall(c => c.getBalance({ address: WALLET_ADDRESS }))));
+  } catch (e) {
+    console.log(`⚠️  eth_getBalance failed after RPC failover: ${e.message} — returning 0 (boot continues)`);
+    return 0;
+  }
+}
 async function getWethBalance()  {
   try { return parseFloat(formatEther(await rpcCall(c => c.readContract({ address: WETH_ADDRESS.toLowerCase(), abi: ERC20_ABI, functionName: "balanceOf", args: [WALLET_ADDRESS] })))); }
   catch { return 0; }
@@ -3625,8 +3621,13 @@ async function getTokenBalance(address) {
 
 // Returns { eth, weth, total, tradeable } — WETH is always included
 async function getFullBalance() {
-  const eth  = await getEthBalance();
-  const weth = await getWethBalance();
+  let eth = 0, weth = 0;
+  try { eth = await getEthBalance(); } catch (e) {
+    console.log(`⚠️  Boot wallet ETH read failed: ${e.message} — continuing`);
+  }
+  try { weth = await getWethBalance(); } catch (e) {
+    console.log(`⚠️  Boot wallet WETH read failed: ${e.message} — continuing`);
+  }
   const total = eth + weth;
   // Reserve = max of percentage reserve OR hard minimums + piggy
   const reserved   = Math.max(total * ETH_RESERVE_PCT, GAS_RESERVE + SELL_RESERVE + piggyBank);
@@ -5385,7 +5386,8 @@ async function processToken(cdp, token, bal) {
       if (cmd.action === "buy") {
         lastTradeTime[token.symbol] = 0; // operator override — fire now
         const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
-        await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+        const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
@@ -9134,7 +9136,13 @@ async function main() {
 
   // Warm up live ETH price immediately
   const ethUsdInit = await getLiveEthPrice();
-  const balInit    = await getFullBalance();
+  let balInit;
+  try {
+    balInit = await getFullBalance();
+  } catch (e) {
+    console.log(`⚠️  Boot wallet read failed: ${e.message} — continuing with zeros`);
+    balInit = { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 };
+  }
   console.log(`✅ CDP ready | ETH: ${balInit.eth.toFixed(6)} | WETH: ${balInit.weth.toFixed(6)} | ETH=$${ethUsdInit.toFixed(2)}\n`);
   if (STATE_BRANCH === GITHUB_BRANCH) {
     console.log(`⚠️  STATE_BRANCH == GITHUB_BRANCH (${GITHUB_BRANCH}) — state saves will trigger Railway redeploys!`);
@@ -9696,7 +9704,13 @@ process.on("unhandledRejection", (reason) => {
   console.log(`💀 Unhandled rejection (kept alive): ${reason}`);
 });
 
-main().catch(e => {
+function restartMainAfterFatal(e) {
   console.log(`💀 Fatal main() error — restarting in 30s: ${e.message}`);
-  setTimeout(() => main().catch(e2 => console.log(`💀 Restart failed: ${e2.message}`)), 30_000);
-});
+  clearOperatorBuyIfNotExecuted(operatorBuyState);
+  if (!operatorBuyState.done) {
+    console.log("📱 OPERATOR_BUY latch clear — will re-queue on restart (buy not executed)");
+  }
+  setTimeout(() => main().catch(restartMainAfterFatal), 30_000);
+}
+
+main().catch(restartMainAfterFatal);

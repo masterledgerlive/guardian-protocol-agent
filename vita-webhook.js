@@ -42,10 +42,31 @@ function err(res, msg, status = 400) {
 let botState = null;
 export function injectBotState(state) { botState = state; }
 
+let webhookBound = false;
+
+export function isAddrInUseError(err) {
+  return err?.code === "EADDRINUSE" || /EADDRINUSE/i.test(String(err?.message || ""));
+}
+
+export function handleWebhookListenError(err, port = PORT) {
+  if (isAddrInUseError(err)) {
+    webhookBound = true;
+    console.log(`⚠️  VITA webhook: port ${port} already in use — skip rebind, continue`);
+    return "eaddrinuse";
+  }
+  console.log(`⚠️  VITA webhook listen error: ${err?.message || err}`);
+  return "error";
+}
+
 // ── Server ────────────────────────────────────────────────────────────────────
 export function startVitaWebhook() {
   if (!SECRET) {
     console.log("⚠️  VITA webhook: VITA_WEBHOOK_SECRET not set — webhook disabled");
+    return;
+  }
+
+  if (webhookBound) {
+    console.log("🌐 VITA webhook already bound — skip rebind");
     return;
   }
 
@@ -152,7 +173,12 @@ export function startVitaWebhook() {
     }
   });
 
+  server.on("error", (e) => {
+    handleWebhookListenError(e, PORT);
+  });
+
   server.listen(PORT, () => {
+    webhookBound = true;
     console.log("🌐 VITA webhook listening on port " + PORT);
     console.log("   /vita/context  — memory context for new Claude session");
     console.log("   /vita/registry — full filing registry");
