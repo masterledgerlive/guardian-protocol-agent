@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed — independent TOSHI spot was the Pancake VIRTUAL ghost ($69729)
+
+PRICE_INSANE (PR #19) correctly refused TOSHI sells, but the DexScreener/Gecko **independent** side was itself polluted. `/latest/dex/tokens/TOSHI` ranks PancakeSwap TOSHI/VIRTUAL first: **$69729.86**, ~$70M reported liq, **$0 volume**. Real Uniswap v3 TOSHI/WETH is ~$0.00012. Early logs: `mark $0.0001216 vs dex/gecko $69729.86`. Later both slots stuck at $69729 and refused only via implied bag.
+
+- **Pair picker** prefers Uniswap/Aerodrome **WETH or USDC** (plus native ETH / USDbC), requires the wanted token as `baseToken`, drops zero-volume mega-liq ghosts, and pins the known TOSHI Uni v3 WETH pool. A $69729 dex row is never selected as independent.
+- **sanitizeIndependentUsd**: $69729 vs last sane / ETH-normalized ~$0.00012 is rejected as independent; sane ~1.2e-4 is kept. If mark **and** independent are both fantasy, still refuse vs last sane / ETH-normalized — do not cache the moonshot into both slots.
+- **Trusted last-sane**: a verified WETH/USDC quote can replace an untrusted cached fantasy; an untrusted 100× jump cannot overwrite a sane seed or the mark cache.
+- **Backoff** (optional, does not weaken refuse): after PRICE_INSANE, skip re-fetch / re-attempt for 10m and reprint the log at most every 15m (`PRICE_INSANE_RETRY_COOLDOWN_MS` / `PRICE_INSANE_LOG_COOLDOWN_MS`).
+- Does **not** weaken LOSE_ZERO, frozen buy, 2× hitch, piggy dust, minOut sanitize, or Base QuoterV2.
+
 ### Fixed — PRICE_INSANE gate + Base QuoterV2 + no 0-ETH "wins"
 
 After piggy PR #18 + minOut PR #17, ~21 TOSHI→WETH sells still failed with `Too little received`. Logs showed TOSHI mark ~$69729 while Gecko/Dex spot ~$0.000122. Quote-fallback then built `amountOutMinimum` ~91k–93k WETH on ~4335 TOSHI. `sanitizeAmountOutMinimum` could not stop that because expected/spot were derived from the same insane mark (or Quoter missed).

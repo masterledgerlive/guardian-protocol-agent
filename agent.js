@@ -140,6 +140,7 @@ import {
   bagVsRiskMult,
   priceInsaneMinRatio,
   priceInsaneMaxRatio,
+  isPriceJumpInsane,
   isSlippageCooledDown,
   slippageCooldownLog,
   recordSlippageFail,
@@ -148,6 +149,15 @@ import {
   isTooLittleReceived,
   isSuccessfulSellFill,
   failedFillLog,
+  isPriceInsaneCooledDown,
+  shouldLogPriceInsane,
+  markPriceInsaneLogged,
+  recordPriceInsaneRefuse,
+  peekPriceInsaneBackoff,
+  clearPriceInsaneBackoff,
+  priceInsaneBackoffLog,
+  priceInsaneRetryCooldownMs,
+  priceInsaneLogCooldownMs,
 } from "./price-insane.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
@@ -1553,16 +1563,39 @@ async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
  * would use. Runs before those gates so a $69729 TOSHI moonshot cannot size a floor.
  */
 async function gatePriceInsane(token, markUsd, side, balance = 0) {
+  // After a refuse, skip re-fetch / re-attempt this minute. Still refuse.
+  if (isPriceInsaneCooledDown(token.symbol)) {
+    const prev = peekPriceInsaneBackoff(token.symbol);
+    if (shouldLogPriceInsane(token.symbol, Date.now(), { logMs: priceInsaneLogCooldownMs() })) {
+      console.log(`   ${priceInsaneBackoffLog(token.symbol)}`);
+      markPriceInsaneLogged(token.symbol);
+    }
+    return prev?.lastDecision || {
+      allow: false,
+      code: "PRICE_INSANE",
+      reason: "backoff",
+      log: null,
+    };
+  }
+
   let independentUsd = null;
+  let ethNormalizedUsd = null;
+  let trustedQuote = false;
   try {
     const q = await fetchTokenUsdQuote(token.address);
-    if (q && isValidUsdPrice(q.priceUsd)) independentUsd = q.priceUsd;
+    if (q && isValidUsdPrice(q.priceUsd)) {
+      independentUsd = q.priceUsd;
+      trustedQuote = Boolean(q.trustedQuote || q.verifiedPool);
+      // A verified WETH/USDC (or native ETH) pool IS the ETH/USD-normalized spot.
+      if (trustedQuote) ethNormalizedUsd = q.priceUsd;
+    }
   } catch { /* fall through to last sane / bag check */ }
   const decision = evaluatePriceInsane({
     symbol: token.symbol,
     markUsd,
     independentUsd,
     lastSaneUsd: getLastSaneUsd(token.symbol),
+    ethNormalizedUsd,
     balance,
     riskStart: riskStartUsd(),
     bagMult: bagVsRiskMult(),
@@ -1570,8 +1603,21 @@ async function gatePriceInsane(token, markUsd, side, balance = 0) {
     maxRatio: priceInsaneMaxRatio(),
     side,
   });
-  if (decision.log) console.log(`   ${decision.log}`);
-  if (decision.allow && independentUsd) noteLastSaneUsd(token.symbol, independentUsd);
+  if (decision.log && shouldLogPriceInsane(token.symbol, Date.now(), { logMs: priceInsaneLogCooldownMs() })) {
+    console.log(`   ${decision.log}`);
+    markPriceInsaneLogged(token.symbol);
+  }
+  if (!decision.allow) {
+    recordPriceInsaneRefuse(token.symbol, decision, Date.now(), {
+      retryMs: priceInsaneRetryCooldownMs(),
+    });
+    return decision;
+  }
+  clearPriceInsaneBackoff(token.symbol);
+  // Only cache a sanitized independent — never write $69729 into last-sane.
+  if (decision.independentUsd) {
+    noteLastSaneUsd(token.symbol, decision.independentUsd, undefined, { trusted: trustedQuote });
+  }
   return decision;
 }
 
@@ -2159,10 +2205,14 @@ function getCachedPrice(address) {
   return c.price;
 }
 
-function setCachedPrice(address, price) {
+function setCachedPrice(address, price, { trusted = false } = {}) {
   if (!isValidEvmAddress(address) || !isValidUsdPrice(price)) return;
   const key = address.toLowerCase();
-  priceCache[key] = { price, timestamp: Date.now(), failCount: 0 };
+  const prev = priceCache[key]?.price;
+  // Untrusted jump (sane $0.00012 → junk $69729) must not overwrite the mark.
+  // A trusted WETH/USDC pool may replace a cached fantasy so both slots recover.
+  if (isValidUsdPrice(prev) && !trusted && isPriceJumpInsane(price, prev)) return;
+  priceCache[key] = { price, timestamp: Date.now(), failCount: 0, trusted: !!trusted };
 }
 
 function isPriceCacheStale(address, hasPosition = false) {
@@ -2568,9 +2618,14 @@ async function loadHistoricalData(days = 90) {
         // Still pin lastPrice to a live Base quote so prediction is not $0 / CEX.
         const live = await fetchTokenUsdQuote(token.address);
         if (live && isValidUsdPrice(live.priceUsd) && !token._watchlist) {
-          if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-          history[token.symbol].lastPrice = live.priceUsd;
-          console.log(`   ⚠️  ${token.symbol}: no Base OHLC — live ${live.source} $${live.priceUsd} (waves from ticks, not CEX)`);
+          const trusted = Boolean(live.trustedQuote || live.verifiedPool);
+          if (noteLastSaneUsd(token.symbol, live.priceUsd, undefined, { trusted })) {
+            if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
+            history[token.symbol].lastPrice = live.priceUsd;
+            console.log(`   ⚠️  ${token.symbol}: no Base OHLC — live ${live.source} $${live.priceUsd} (waves from ticks, not CEX)`);
+          } else {
+            console.log(`   ⚠️  ${token.symbol}: no Base OHLC — rejected insane ${live.source} $${live.priceUsd} (keep last sane)`);
+          }
         } else if (token.disabled || token.symbol === "KITE") {
           console.log(`   ⏭️  ${token.symbol}: no Base pool — skip seed (no CEX overwrite)`);
         } else {
@@ -2596,7 +2651,13 @@ async function loadHistoricalData(days = 90) {
           const seedClose = candles[candles.length - 1].c;
           if (picked?.src === "Binance") {
             const liveQuote = await fetchTokenUsdQuote(token.address);
-            history[token.symbol].lastPrice = preferBaseQuoteForLastPrice(seedClose, liveQuote?.priceUsd) ?? seedClose;
+            const trusted = Boolean(liveQuote?.trustedQuote || liveQuote?.verifiedPool);
+            history[token.symbol].lastPrice = preferBaseQuoteForLastPrice(
+              seedClose, liveQuote?.priceUsd, { trusted }
+            ) ?? seedClose;
+            if (liveQuote && isValidUsdPrice(liveQuote.priceUsd)) {
+              noteLastSaneUsd(token.symbol, liveQuote.priceUsd, undefined, { trusted });
+            }
             if (liveQuote && history[token.symbol].lastPrice !== seedClose) {
               console.log(`   💱 ${token.symbol}: lastPrice pinned to Base ${liveQuote.source} $${liveQuote.priceUsd} (rejected CEX seed $${seedClose})`);
             }
@@ -3902,8 +3963,13 @@ async function getTokenPrice(address, hasPosition = false) {
   // GeckoTerminal fills gaps. Never cache or return $0.
   const quote = await fetchTokenUsdQuote(address);
   if (quote && isValidUsdPrice(quote.priceUsd)) {
-    setCachedPrice(address, quote.priceUsd);
-    return quote.priceUsd;
+    const trusted = Boolean(quote.trustedQuote || quote.verifiedPool);
+    const existing = getCachedPrice(address);
+    if (!trusted && isValidUsdPrice(existing) && isPriceJumpInsane(quote.priceUsd, existing)) {
+      return existing;
+    }
+    setCachedPrice(address, quote.priceUsd, { trusted });
+    return getCachedPrice(address) ?? quote.priceUsd;
   }
 
   const existing = priceCache[key];
@@ -9270,10 +9336,13 @@ async function main() {
       for (const [addr, p] of Object.entries(bootQuotes.prices)) {
         const t = tokens.find(tk => tk.address.toLowerCase() === addr);
         if (!t || !isValidUsdPrice(p)) continue;
-        setCachedPrice(addr, p);
-        noteLastSaneUsd(t.symbol, p);
+        const trusted = Boolean(bootQuotes.meta[addr]?.trustedQuote || bootQuotes.meta[addr]?.verifiedPool);
+        if (!noteLastSaneUsd(t.symbol, p, undefined, { trusted })) continue;
+        setCachedPrice(addr, p, { trusted });
         if (!history[t.symbol]) history[t.symbol] = { lastPrice: p };
-        else history[t.symbol].lastPrice = p;
+        else if (!isPriceJumpInsane(p, history[t.symbol].lastPrice) || trusted) {
+          history[t.symbol].lastPrice = p;
+        }
       }
       console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
       if (bootQuotes.misses.length) {
@@ -9586,7 +9655,9 @@ async function main() {
       const quote = await fetchTokenUsdQuote(t.address);
       const ws    = initWaveState(t.symbol);
       if (quote && isValidUsdPrice(quote.priceUsd)) {
-        setCachedPrice(t.address, quote.priceUsd);
+        setCachedPrice(t.address, quote.priceUsd, {
+          trusted: Boolean(quote.trustedQuote || quote.verifiedPool),
+        });
         const pool = quote.pairAddress ? ` pool=${quote.pairAddress} (${quote.dexId || "?"})` : "";
         console.log(`   ✅ ${t.symbol}: $${quote.priceUsd.toFixed(8)} via ${quote.source}${pool} | ${ws.peaks.length}P ${ws.troughs.length}T | ${t.address}`);
       } else {
@@ -9837,9 +9908,10 @@ async function main() {
       try {
         const pre = await prefetchMarketPrices(tokens.map(t => t.address));
         for (const [addr, p] of Object.entries(pre.prices)) {
-          setCachedPrice(addr, p);
+          const trusted = Boolean(pre.meta[addr]?.trustedQuote || pre.meta[addr]?.verifiedPool);
           const t = tokens.find(tk => tk.address.toLowerCase() === addr);
-          if (t && isValidUsdPrice(p)) noteLastSaneUsd(t.symbol, p);
+          if (t && isValidUsdPrice(p)) noteLastSaneUsd(t.symbol, p, undefined, { trusted });
+          setCachedPrice(addr, p, { trusted });
         }
         if (pre.misses.length) {
           console.log(`⏳ No quote (skip): ${pre.misses.map(a => {

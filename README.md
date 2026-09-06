@@ -73,7 +73,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Gas spike guard**: Base gas > 50 gwei = all trades paused
 - **Lose-zero gate** (opt-in Railway flags): block new buys (auto, cascade, ripple, operator) unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge — see below. Operator /buy is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`
 - **Sell floor (always on)**: never sell unless leftover after fair exit + fees covers `HITCH_COST_MULT` × hitch (default **2×**). Never lose money inserting storage / BTP / `§$STORE§` characters. Once the 2× floor is met, sell immediately. Only exception: `MANUAL SELL (operator)` + `ALLOW_LOSSY_OPERATOR_SELL=yes`
-- **PRICE_INSANE** (always on, before hitch / minOut): refuse buy/sell if the USD mark vs independent DexScreener/Gecko (or last sane seed) is outside **0.01×–100×**, or implied bag ≫ RISK start. Stops hitch/minOut from a fantasy mark (live TOSHI $69729 vs ~$0.000122 spot).
+- **PRICE_INSANE** (always on, before hitch / minOut): refuse buy/sell if the USD mark vs independent DexScreener/Gecko (or last sane / ETH-normalized WETH-USDC pool) is outside **0.01×–100×**, or implied bag ≫ RISK start. Independent quotes use Uniswap/Aerodrome WETH or USDC only — a Pancake TOSHI/VIRTUAL ghost at $69729 is never the reference. After a refuse, skip re-attempt / re-log for a few minutes (still refuse).
 - **Slippage cooldown**: after 3 consecutive `Too little received` / 0-ETH fills on a symbol, skip that name for 30 minutes so the retry loop does not burn gas.
 - **Piggy-bank dust**: every token bag keeps a growing never-sell reserve (`PIGGY_BANK_PCT` default **2%** of units, plus `PIGGY_BANK_MIN_USD` default **$0.05**). Wave / moonshot / cascade / `/sell` / sellhalf / fib / stale / stop-loss compute `sellable = balance − piggyReserve` and leave the pile. Reserve floors up on buys and never auto-shrinks. Dust is sold only on an explicit unlock (`PIGGY UNLOCK` reason or Telegram `/piggyunlock SYMBOL`). Persisted on `tokens.json` (`piggyReserve`) and `positions.json` (`piggyReserves`) so restarts keep the pile. This is per-token dust — not the ETH skim `/piggy` pool.
 
@@ -116,7 +116,8 @@ CLANKER (tokenbot) · RSR · ODOS · IMAGINE · CBETH
 
 ```
 agent.js              — Main trading loop + Telegram command handler
-price-insane.js       — PRICE_INSANE mark gate + Base QuoterV2 + slippage cooldown
+price-insane.js       — PRICE_INSANE mark gate + Base QuoterV2 + slippage / refuse backoff
+price-oracle.js       — DexScreener/Gecko quotes; Uni/Aero WETH-USDC only (no ghost pairs)
 piggy-bank.js         — Per-token never-sell dust reserve (ratchet + unlock)
 lose-zero-gate.js     — LOSE-ZERO buy gate + 2× hitch sell floor
 swap-minout.js        — Uniswap amountOutMinimum sanity (after PRICE_INSANE)
@@ -184,6 +185,8 @@ OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSH
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
 PRICE_INSANE_MIN_RATIO    ← mark / DexScreener-Gecko (or last sane) floor (default 0.01)
 PRICE_INSANE_MAX_RATIO    ← mark / DexScreener-Gecko (or last sane) ceiling (default 100)
+PRICE_INSANE_RETRY_COOLDOWN_MS ← after a PRICE_INSANE refuse, skip re-fetch / re-attempt (default 600000 = 10m). Still refuse.
+PRICE_INSANE_LOG_COOLDOWN_MS   ← reprint PRICE_INSANE at most this often (default 900000 = 15m)
 RISK_START_USD            ← RISK wallet start for implied-bag cap (default 15)
 BAG_VS_RISK_MULT          ← refuse if balance × mark > RISK_START_USD × this (default 100)
 SLIP_RETRY_MAX            ← consecutive Too little received / 0-ETH fills before cooldown (default 3)

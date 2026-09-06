@@ -22,6 +22,14 @@ import {
   noteLastSaneUsd,
   getLastSaneUsd,
   pickPriceReference,
+  sanitizeIndependentUsd,
+  isPriceJumpInsane,
+  recordPriceInsaneRefuse,
+  isPriceInsaneCooledDown,
+  shouldLogPriceInsane,
+  markPriceInsaneLogged,
+  peekPriceInsaneBackoff,
+  clearPriceInsaneBackoff,
   isTooLittleReceived,
   isSlippageCooledDown,
   recordSlippageFail,
@@ -160,6 +168,58 @@ describe("PRICE_INSANE — live TOSHI $69729 moonshot", () => {
     assert.equal(ref.src, "dex/gecko");
     assert.equal(ref.usd, TOSHI_GECKO_SPOT_USD);
   });
+
+  it("rejects a $69729 dex quote as independent; accepts sane ~1.2e-4", () => {
+    const junk = sanitizeIndependentUsd(TOSHI_MOONSHOT_MARK_USD, {
+      lastSaneUsd: TOSHI_GECKO_SPOT_USD,
+    });
+    assert.equal(junk.rejected, true);
+    assert.equal(junk.usd, null);
+    assert.equal(junk.vs, "last-sane");
+
+    const sane = sanitizeIndependentUsd(0.0001216, {
+      lastSaneUsd: TOSHI_GECKO_SPOT_USD,
+    });
+    assert.equal(sane.rejected, false);
+    assert.ok(sane.usd > 1e-4 && sane.usd < 1.5e-4);
+
+    const vsEth = sanitizeIndependentUsd(TOSHI_MOONSHOT_MARK_USD, {
+      ethNormalizedUsd: 0.0001216,
+    });
+    assert.equal(vsEth.rejected, true);
+    assert.equal(vsEth.vs, "eth-normalized");
+  });
+
+  it("refuses when mark and independent are both $69729 vs last sane / ETH-normalized", () => {
+    const r = evaluatePriceInsane({
+      symbol: "TOSHI",
+      markUsd: TOSHI_MOONSHOT_MARK_USD,
+      independentUsd: TOSHI_MOONSHOT_MARK_USD,
+      lastSaneUsd: TOSHI_GECKO_SPOT_USD,
+      ethNormalizedUsd: TOSHI_GECKO_SPOT_USD,
+      balance: TOSHI_BAG_UNITS,
+      side: "sell",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "PRICE_INSANE");
+    assert.equal(r.reason, "ratio");
+    assert.equal(r.independentRejected, true);
+    assert.ok(r.refSrc === "last-sane" || r.refSrc === "eth-normalized");
+    assert.notEqual(r.refSrc, "dex/gecko");
+    assert.ok(r.refUsd < 0.001);
+    assert.match(r.log, /last-sane|eth-normalized/);
+    assert.doesNotMatch(r.log, /dex\/gecko \$69729/);
+  });
+
+  it("does not treat junk independent as the reference when last sane exists", () => {
+    const ref = pickPriceReference({
+      independentUsd: null, // already sanitized away
+      lastSaneUsd: TOSHI_GECKO_SPOT_USD,
+      ethNormalizedUsd: TOSHI_GECKO_SPOT_USD,
+    });
+    assert.equal(ref.src, "last-sane");
+    assert.equal(ref.usd, TOSHI_GECKO_SPOT_USD);
+  });
 });
 
 describe("last sane seed store", () => {
@@ -169,6 +229,38 @@ describe("last sane seed store", () => {
     assert.equal(getLastSaneUsd("toshi", store), TOSHI_GECKO_SPOT_USD);
     assert.equal(noteLastSaneUsd("TOSHI", TOSHI_MOONSHOT_MARK_USD, store), false);
     assert.equal(getLastSaneUsd("TOSHI", store), TOSHI_GECKO_SPOT_USD);
+  });
+
+  it("lets a trusted WETH/USDC pool replace an untrusted cached fantasy", () => {
+    const store = Object.create(null);
+    assert.equal(noteLastSaneUsd("TOSHI", TOSHI_MOONSHOT_MARK_USD, store, { trusted: false }), true);
+    assert.equal(noteLastSaneUsd("TOSHI", TOSHI_GECKO_SPOT_USD, store, { trusted: true }), true);
+    assert.equal(getLastSaneUsd("TOSHI", store), TOSHI_GECKO_SPOT_USD);
+    assert.equal(noteLastSaneUsd("TOSHI", TOSHI_MOONSHOT_MARK_USD, store, { trusted: true }), false);
+    assert.equal(getLastSaneUsd("TOSHI", store), TOSHI_GECKO_SPOT_USD);
+  });
+});
+
+describe("PRICE_INSANE log / retry backoff", () => {
+  it("still refuses during backoff and does not re-log every minute", () => {
+    const store = Object.create(null);
+    const t0 = 5_000_000;
+    const decision = { allow: false, code: "PRICE_INSANE", reason: "ratio" };
+    recordPriceInsaneRefuse("TOSHI", decision, t0, { retryMs: 10 * 60 * 1000, store });
+    markPriceInsaneLogged("TOSHI", t0, store);
+    assert.equal(isPriceInsaneCooledDown("TOSHI", t0 + 60_000, store), true);
+    assert.equal(shouldLogPriceInsane("TOSHI", t0 + 60_000, { logMs: 15 * 60 * 1000, store }), false);
+    assert.equal(peekPriceInsaneBackoff("TOSHI", store).lastDecision.code, "PRICE_INSANE");
+    assert.equal(isPriceInsaneCooledDown("TOSHI", t0 + 11 * 60 * 1000, store), false);
+    assert.equal(shouldLogPriceInsane("TOSHI", t0 + 16 * 60 * 1000, { logMs: 15 * 60 * 1000, store }), true);
+    clearPriceInsaneBackoff("TOSHI", store);
+    assert.equal(isPriceInsaneCooledDown("TOSHI", t0 + 12 * 60 * 1000, store), false);
+  });
+
+  it("flags a 100× mark jump as insane", () => {
+    assert.equal(isPriceJumpInsane(TOSHI_MOONSHOT_MARK_USD, TOSHI_GECKO_SPOT_USD), true);
+    assert.equal(isPriceJumpInsane(0.000125, TOSHI_GECKO_SPOT_USD), false);
+    assert.equal(isPriceJumpInsane(0, TOSHI_GECKO_SPOT_USD), false);
   });
 });
 
@@ -268,6 +360,9 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     assert.ok(sellBody.includes("isSlippageCooledDown"), "sell must honor Too-little-received cooldown");
     assert.ok(sellBody.includes("isSuccessfulSellFill"), "sell must refuse 0-ETH success");
     assert.ok(sellBody.includes("recordSlippageFail"), "Too little received must increment the streak");
+    assert.ok(src.includes("isPriceInsaneCooledDown"), "PRICE_INSANE backoff must skip re-attempt");
+    assert.ok(src.includes("trustedQuote") || src.includes("verifiedPool"), "must honor verified WETH/USDC pool quotes");
+    assert.ok(src.includes("isPriceJumpInsane"), "must not cache a 100× fantasy into the mark");
     assert.ok(src.includes("buildSellGateDecision"), "2× hitch stays");
     assert.ok(src.includes("isCatalogFrozen(token)"), "frozen buy gate stays");
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut sanitize stays");
