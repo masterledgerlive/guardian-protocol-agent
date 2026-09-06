@@ -80,6 +80,10 @@ import {
   prefetchMarketPrices,
   fetchTokenUsdQuote,
   hasUsableCostBasis,
+  allowBinanceOhlcSeed,
+  pickHistoricalSeedSource,
+  preferBaseQuoteForLastPrice,
+  pickGeckoTerminalPool,
 } from "./price-oracle.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
@@ -2160,12 +2164,15 @@ async function fetchCandlesDexScreener(tokenAddress, days = 90) {
     if (!pRes.ok) return null;
     const pJson = await pRes.json();
 
-    // Find the highest-liquidity Base pair
+    // Find the highest-liquidity Base pair (V2/V3/Aerodrome/Rocketswap)
     const pairs = (pJson.pairs || []).filter(p => p.chainId === "base");
     if (!pairs.length) return null;
     pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
     const pair = pairs[0];
     const pairAddr = pair.pairAddress;
+    // DexScreener's unofficial v3 chart 404s on V2/Rocketswap. Use GT OHLCV on this pool.
+    const gtFromPair = await fetchCandlesGeckoPool(pairAddr, days);
+    if (gtFromPair) return gtFromPair;
 
     // Fetch candles from DexScreener chart endpoint
     const res1d = await fetch(`https://io.dexscreener.com/dex/chart/amm/v3/base/${pairAddr}?res=1D&cb=0`, { headers: { Accept: "application/json" } });
@@ -2184,49 +2191,70 @@ async function fetchCandlesDexScreener(tokenAddress, days = 90) {
   } catch { return null; }
 }
 
-async function fetchCandlesGeckoTerminal(tokenAddress, days = 90) {
+async function geckoTerminalGet(url, attempts = 4) {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "application/json", "User-Agent": "guardian-protocol-agent/price-oracle" },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.status === 429 || res.status === 503) {
+        lastErr = new Error(`GT HTTP ${res.status}`);
+        await sleep(800 * (i + 1));
+        continue;
+      }
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      await sleep(400 * (i + 1));
+    }
+  }
+  if (lastErr) return null;
+  return null;
+}
+
+async function parseGeckoOhlcv(ohlcJson) {
+  const raw = ohlcJson?.data?.attributes?.ohlcv_list;
+  if (!Array.isArray(raw) || raw.length < 5) return null;
+  const candles = raw.slice().reverse().map(c => ({
+    t: c[0] * 1000, o: c[1], h: c[2], l: c[3], c: c[4], v: c[5] || 0
+  })).filter(c => c.c > 0);
+  return candles.length >= 7 ? candles : null;
+}
+
+async function fetchCandlesGeckoPool(poolAddr, days = 90) {
+  if (!isValidEvmAddress(poolAddr)) return null;
+  const limit = Math.min(days, 365);
+  const ohlcJson = await geckoTerminalGet(
+    `https://api.geckoterminal.com/api/v2/networks/base/pools/${poolAddr}/ohlcv/day?limit=${limit}&currency=usd`
+  );
+  return parseGeckoOhlcv(ohlcJson);
+}
+
+async function fetchCandlesGeckoTerminal(tokenAddress, days = 90, hintPool = null) {
   try {
-    // Step 1: look up the top pool for this token on Base
-    const poolRes = await fetch(
-      `https://api.geckoterminal.com/api/v2/networks/base/tokens/${tokenAddress}/pools?page=1`,
-      { headers: { Accept: "application/json" } }
+    if (hintPool) {
+      const hinted = await fetchCandlesGeckoPool(hintPool, days);
+      if (hinted) return hinted;
+    }
+    if (!isValidEvmAddress(tokenAddress)) return null;
+    const poolJson = await geckoTerminalGet(
+      `https://api.geckoterminal.com/api/v2/networks/base/tokens/${tokenAddress.toLowerCase()}/pools?page=1`
     );
-    if (!poolRes.ok) return null;
-    const poolJson = await poolRes.json();
-    const pools = poolJson?.data;
-    if (!Array.isArray(pools) || !pools.length) return null;
-
-    // Pick highest volume pool
-    const pool = pools.sort((a, b) =>
-      (b.attributes?.volume_usd?.h24 || 0) - (a.attributes?.volume_usd?.h24 || 0)
-    )[0];
-    const poolAddr = pool.attributes?.address;
+    const pool = pickGeckoTerminalPool(poolJson?.data);
+    const poolAddr = pool?.attributes?.address;
     if (!poolAddr) return null;
-
-    // Step 2: fetch daily OHLCV for that pool
-    const limit = Math.min(days, 365);
-    const ohlcRes = await fetch(
-      `https://api.geckoterminal.com/api/v2/networks/base/pools/${poolAddr}/ohlcv/day?limit=${limit}&currency=usd`,
-      { headers: { Accept: "application/json" } }
-    );
-    if (!ohlcRes.ok) return null;
-    const ohlcJson = await ohlcRes.json();
-    const raw = ohlcJson?.data?.attributes?.ohlcv_list;
-    if (!Array.isArray(raw) || raw.length < 5) return null;
-
-    // raw: [[timestamp, open, high, low, close, volume], ...]  newest first → reverse
-    const candles = raw.reverse().map(c => ({
-      t: c[0] * 1000, o: c[1], h: c[2], l: c[3], c: c[4], v: c[5] || 0
-    })).filter(c => c.c > 0);
-    return candles.length >= 7 ? candles : null;
+    return await fetchCandlesGeckoPool(poolAddr, days);
   } catch { return null; }
 }
 
-// Source 3: Binance public REST — free, no key, best for BTC/ETH macro context
-// Also used as fallback for any token listed on Binance (BRETT, VIRTUAL etc.)
+// Source 3: Binance — ONLY for allowlisted CEX-equivalent assets (not Base memes).
+// LUNAUSDT / KITEUSDT are different tokens and must never seed Base lastPrice.
 async function fetchCandlesBinance(symbol, days = 90) {
+  if (!allowBinanceOhlcSeed(symbol)) return null;
   try {
-    // Binance uses SYMBOL+"USDT" pairs. Map common tokens.
     const binanceSymbol = symbol.toUpperCase() + "USDT";
     const limit  = Math.min(days, 500);
     const res    = await fetch(
@@ -2291,8 +2319,8 @@ async function fetchHistoricalCandles(tokenAddress, days = 90, symbol = null) {
   const ds = await fetchCandlesDexScreener(tokenAddress, days);
   if (ds && ds.length >= 7) return ds;
 
-  // Fallback 2: Binance (works for tokens listed on CEX — BRETT, VIRTUAL, DEGEN etc.)
-  if (symbol) {
+  // Fallback 2: Binance only when the CEX ticker is the same Base asset
+  if (symbol && allowBinanceOhlcSeed(symbol)) {
     const bi = await fetchCandlesBinance(symbol, days);
     if (bi && bi.length >= 5) return bi;
   }
@@ -2316,8 +2344,8 @@ async function loadHistoricalData(days = 90) {
   // that's 6 requests per batch. At 3s between batches = ~120 req/min ceiling,
   // but because we wait for each batch to complete before starting the next,
   // in practice it's ~6 req per 3s = 120/min max — well under GT's free tier.
-  const BATCH_SIZE = 3;
-  const BATCH_SLEEP = 3000; // 3s between batches
+  const BATCH_SIZE = 2;      // keep GT under free-tier 429s
+  const BATCH_SLEEP = 1500;
 
   for (let batchStart = 0; batchStart < allTokens.length; batchStart += BATCH_SIZE) {
     const batch = allTokens.slice(batchStart, batchStart + BATCH_SIZE);
@@ -2328,37 +2356,51 @@ async function loadHistoricalData(days = 90) {
       let candles = null;
       let gtError = null, dsError = null;
 
-      // GT, DS, and Binance in parallel per token within the batch
-      const [gtResult, dsResult, biResult] = await Promise.allSettled([
-        fetchCandlesGeckoTerminal(token.address, days),
-        fetchCandlesDexScreener(token.address, days),
-        fetchCandlesBinance(token.symbol, days),
-      ]);
+      // Base DEX first. Binance only for allowlisted CEX-equivalent tickers.
+      const allowBi = allowBinanceOhlcSeed(token.symbol);
+      // Sequential Base path: DS pair → GT OHLCV. Do not fire GT twice in parallel (429).
+      let dsCandles = null, gtCandles = null, biCandles = null;
+      try {
+        dsCandles = await fetchCandlesDexScreener(token.address, days);
+      } catch (e) { dsError = `DS: ${e.message || "error"}`; }
+      if (!(dsCandles?.length >= 7)) {
+        try {
+          gtCandles = await fetchCandlesGeckoTerminal(token.address, days);
+        } catch (e) { gtError = `GT: ${e.message || "error"}`; }
+      }
+      if (allowBi) {
+        try { biCandles = await fetchCandlesBinance(token.symbol, days); } catch { /* ignore */ }
+      }
 
-      const gtCandles = gtResult.status === "fulfilled" ? gtResult.value : null;
-      const dsCandles = dsResult.status === "fulfilled" ? dsResult.value : null;
-      const biCandles = biResult?.status === "fulfilled" ? biResult.value : null;
-      if (gtResult.status === "rejected") gtError = `GT: ${gtResult.reason?.message || "error"}`;
-      if (dsResult.status === "rejected") dsError = `DS: ${dsResult.reason?.message || "error"}`;
+      const picked = pickHistoricalSeedSource({
+        gt: gtCandles, ds: dsCandles, binance: biCandles, allowBinance: allowBi,
+      });
 
-      // Pick the source with the most candles (more history = better wave detection)
-      const all = [
-        { src: "GeckoTerminal", data: gtCandles },
-        { src: "DexScreener",   data: dsCandles },
-        { src: "Binance",       data: biCandles },
-      ].filter(s => s.data?.length >= 5).sort((a,b) => b.data.length - a.data.length);
-
-      if (all.length > 0) {
-        candles = all[0].data;
-        const sources = all.map(s => `${s.src}(${s.data.length}d)`).join(" | ");
-        console.log(`   📡 ${token.symbol}: ${all[0].src} ✅ (${candles.length} candles) [${sources}]`);
+      if (picked) {
+        candles = picked.data;
+        const sources = [
+          gtCandles?.length ? `GeckoTerminal(${gtCandles.length}d)` : null,
+          dsCandles?.length ? `DexScreener(${dsCandles.length}d)` : null,
+          allowBi && biCandles?.length ? `Binance(${biCandles.length}d)` : null,
+        ].filter(Boolean).join(" | ");
+        console.log(`   📡 ${token.symbol}: ${picked.src} ✅ (${candles.length} candles) [${sources || picked.src}]`);
       } else {
         gtError = gtError || (gtCandles ? `only ${gtCandles?.length} candles` : "no data");
         dsError = dsError || (dsCandles ? `only ${dsCandles?.length} candles` : "no data");
       }
 
       if (!candles || candles.length < 7) {
-        console.log(`   ❌ ${token.symbol}: SEED FAILED — ${gtError || "GT:ok"} | ${dsError || "DS:ok"} → building from live ticks`);
+        // Still pin lastPrice to a live Base quote so prediction is not $0 / CEX.
+        const live = await fetchTokenUsdQuote(token.address);
+        if (live && isValidUsdPrice(live.priceUsd) && !token._watchlist) {
+          if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
+          history[token.symbol].lastPrice = live.priceUsd;
+          console.log(`   ⚠️  ${token.symbol}: no Base OHLC — live ${live.source} $${live.priceUsd} (waves from ticks, not CEX)`);
+        } else if (token.disabled || token.symbol === "KITE") {
+          console.log(`   ⏭️  ${token.symbol}: no Base pool — skip seed (no CEX overwrite)`);
+        } else {
+          console.log(`   ❌ ${token.symbol}: SEED FAILED — ${gtError || "GT:ok"} | ${dsError || "DS:ok"} → building from live ticks`);
+        }
         skipped++;
         return;
       }
@@ -2376,7 +2418,16 @@ async function loadHistoricalData(days = 90) {
           }));
           const liveReadings = history[token.symbol].readings.filter(r => !r.synthetic);
           history[token.symbol].readings = [...syntheticReadings, ...liveReadings].slice(-2000);
-          history[token.symbol].lastPrice = candles[candles.length - 1].c;
+          const seedClose = candles[candles.length - 1].c;
+          if (picked?.src === "Binance") {
+            const liveQuote = await fetchTokenUsdQuote(token.address);
+            history[token.symbol].lastPrice = preferBaseQuoteForLastPrice(seedClose, liveQuote?.priceUsd) ?? seedClose;
+            if (liveQuote && history[token.symbol].lastPrice !== seedClose) {
+              console.log(`   💱 ${token.symbol}: lastPrice pinned to Base ${liveQuote.source} $${liveQuote.priceUsd} (rejected CEX seed $${seedClose})`);
+            }
+          } else {
+            history[token.symbol].lastPrice = seedClose;
+          }
         }
       } else {
         // Watchlist — store in watchPrices

@@ -201,3 +201,67 @@ export function hasUsableCostBasis(token) {
   if (!token || token.unknownEntry) return false;
   return isValidUsdPrice(token.entryPrice);
 }
+
+// ── Historical seed: never let a CEX ticker overwrite a Base token ───────────
+// Binance SYMBOLUSDT is only safe when the CEX listing is the same asset as
+// our Base contract. LUNAUSDT is Terra; KITEUSDT is L1 KITE — not Virtuals/Base.
+export const BINANCE_OHLC_ALLOWLIST = new Set([
+  "AERO", "BRETT", "VIRTUAL", "DEGEN", "TOSHI", "MORPHO", "AIXBT", "ZORA", "WELL",
+]);
+
+export const BINANCE_OHLC_DENYLIST = new Set([
+  "LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "MOCHI", "KEYCAT", "DOGINME",
+  "SKI", "MOG", "BASE", "TYBG", "BNKR", "BENJI", "ROOST", "TALENT", "TOBY",
+  "SIMBA", "CRASH", "BRIUN", "NORMIE", "OGGY", "FREN", "PRIME", "XCN", "SEAM",
+  "CBBTC",
+]);
+
+export function allowBinanceOhlcSeed(symbol) {
+  const s = String(symbol || "").toUpperCase();
+  if (!s) return false;
+  if (BINANCE_OHLC_DENYLIST.has(s)) return false;
+  return BINANCE_OHLC_ALLOWLIST.has(s);
+}
+
+/**
+ * Prefer Base DEX candles whenever they exist, even if Binance has a longer
+ * history. Binance is last-resort and only for allowlisted CEX-equivalent assets.
+ */
+export function pickHistoricalSeedSource({ gt, ds, binance, allowBinance } = {}) {
+  const base = [
+    { src: "GeckoTerminal", data: gt },
+    { src: "DexScreener", data: ds },
+  ].filter((s) => Array.isArray(s.data) && s.data.length >= 5);
+
+  if (base.length) {
+    base.sort((a, b) => b.data.length - a.data.length);
+    return base[0];
+  }
+
+  if (allowBinance && Array.isArray(binance) && binance.length >= 5) {
+    return { src: "Binance", data: binance };
+  }
+  return null;
+}
+
+/** Live Base quote wins lastPrice when the seed close is missing or a different asset. */
+export function preferBaseQuoteForLastPrice(seedClose, baseQuoteUsd) {
+  if (!isValidUsdPrice(baseQuoteUsd)) return null;
+  if (!isValidUsdPrice(seedClose)) return baseQuoteUsd;
+  const ratio = baseQuoteUsd / seedClose;
+  if (ratio < 0.75 || ratio > 1.25) return baseQuoteUsd;
+  return seedClose;
+}
+
+export function pickGeckoTerminalPool(pools) {
+  if (!Array.isArray(pools) || !pools.length) return null;
+  const scored = pools.map((p) => {
+    const a = p?.attributes || {};
+    const liq = parseFloat(a.reserve_in_usd ?? a.reserve_usd ?? 0);
+    const vol = parseFloat(a.volume_usd?.h24 ?? 0);
+    return { pool: p, liq, vol, address: a.address || null };
+  }).filter((x) => x.address);
+  if (!scored.length) return null;
+  scored.sort((a, b) => (b.liq - a.liq) || (b.vol - a.vol));
+  return scored[0].pool;
+}
