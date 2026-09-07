@@ -1,0 +1,12 @@
+{
+  "benchmark_id": "0001-tiny",
+  "version": "0.1.0",
+  "title": "Tiny Object",
+  "canonical_path": "canonical.txt",
+  "requirements": [
+    "exact reconstruction",
+    "complete trace",
+    "deterministic pipeline given fixed strategy + cost assumptions"
+  ],
+  "legal": "Original short fixture authored for this repository; lawful to use as benchmark input."
+}

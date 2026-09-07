@@ -1,0 +1,15 @@
+{
+  "arena_version": "0.1.0",
+  "baseline": "FIFO-0.1",
+  "strategies": [
+    {
+      "strategy_id": "FIFO",
+      "strategy_version": "0.1",
+      "parent_strategy_id": null,
+      "path": "strategies/fifo/index.js",
+      "module_dependencies": [],
+      "status": "baseline",
+      "benchmark_results": ["arena/reports/0001-FIFO-0.1.json"]
+    }
+  ]
+}

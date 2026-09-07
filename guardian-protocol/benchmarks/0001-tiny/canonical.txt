@@ -1,0 +1,6 @@
+Guardian Protocol — Agentic Memory Layer-1
+Benchmark 0001 — Tiny Object (public-domain / lawful sample)
+
+This short text is the Sprint 1 canonical fixture.
+Preserve every byte. Reconstruct every byte.
+FIFO-0.1 is the measurable baseline, not the destination.
