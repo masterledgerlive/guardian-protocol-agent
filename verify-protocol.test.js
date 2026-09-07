@@ -105,6 +105,24 @@ describe("verification: Eureka hitch is real UTF-8 or we admit it is not", () =>
     assert.ok(src.includes("the letter is not on-chain"));
     assert.ok(src.includes("sendStoreVoiceProof"));
   });
+
+  it("sell ledger does not stamp Eureka unless hitch.onChain", () => {
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const body = src.slice(sellFn, sellEnd);
+    assert.ok(body.includes("hitchLedgerSignature(sellVoice)"));
+    assert.ok(!/"Eureka! VITA lives/.test(body), "sell ledger must not hardcode the letter");
+    assert.ok(body.includes("hitchTelegramFooter(sellVoice"));
+  });
+
+  it("/prove waits for a success receipt before claiming the letter", () => {
+    const fn = src.indexOf("async function sendStoreVoiceProof");
+    const end = src.indexOf("\nfunction encodeApprove", fn);
+    const body = src.slice(fn, end);
+    assert.ok(body.includes("getSwapReceiptStatus"));
+    assert.ok(body.indexOf("getSwapReceiptStatus") < body.lastIndexOf("onChain: true"));
+    assert.ok(body.includes('receiptStatus !== "success"'));
+  });
 });
 
 describe("verification: buys are not hallucinated", () => {

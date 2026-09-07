@@ -116,6 +116,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
     assert.ok(src.includes("planVoiceHitch") && src.includes("appendUtf8Hitch"), "UTF-8 §$STORE§ hitch must ride the swap");
     assert.ok(src.includes("hitchTelegramFooter"), "Telegram must not claim a letter that is not on-chain");
+    assert.ok(src.includes("hitchLedgerSignature"), "ledger must not stamp Eureka on a plain swap");
     assert.ok(src.includes("sendStoreVoiceProof") && src.includes("/prove"), "dedicated 0-ETH /prove must exist");
     assert.ok(src.includes("storeVoiceEnabled()"), "voice hitch must not depend on BTP auto-suspend");
     assert.ok(src.includes("isSuccessfulBuyFill"), "buys must refuse 0-token success");

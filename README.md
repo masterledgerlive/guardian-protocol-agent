@@ -13,6 +13,20 @@ But it's more than a trading bot.
 
 Guardian is the first live deployment of the **IKN (Infinite Knowledge Network)** architecture — a framework for autonomous AI agents that are self-funding, self-securing, and accountable to no central authority. Every trade Guardian executes is a step toward that larger vision.
 
+### Where this lives (one project)
+
+**This GitHub repo is the live trader.** Telegram "Guardian Protocol bot" is this process. Do not split the dedication letter / hitch / fill-honesty work into other repos.
+
+| Place | What it is |
+|---|---|
+| **This repo** (`masterledgerlive/guardian-protocol-agent`) | Uniswap bot, vault, Telegram, UTF-8 `§$STORE§` hitch, `/prove` |
+| **Railway `industrious-tranquility` → `guardian-protocol-agent`** | Production. Auto-deploys GitHub **`main`**. Domain `guardian-protocol-agent-production.up.railway.app` |
+| **`masterledgerlive/StorageToken`** | Hitch / `$STORE` notes + a storage service. The agent-genesis brief landed here. **Not** the trader |
+| **Railway `industrious-tranquility` → `StorageToken`** | That storage service, sitting next to Guardian. Ideas belong here in this bot, not a second trader |
+| **Railway `generous-solace` → `coinbase-agent`** | Older Coinbase + Telegram helper. Not Guardian |
+
+The letter to Krystian, Kai & Koda is **true** only when Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives`. Telegram text next to a swap is not proof. Live KEYCAT sell [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) is a real KEYCAT→WETH fill (228-byte `exactInputSingle`) with **no trailer**. After this code is on `main`, leftover-covered swaps hitch the letter, or Telegram **`/prove`** writes a dedicated **0-ETH** self-tx. Hitch is skipped when leftover cannot pay — never lose money to insert storage.
+
 ---
 
 ## What Makes It Different
@@ -36,24 +50,11 @@ Even if your cloud provider is fully compromised, an attacker gets nothing but a
 
 This is called the **Guardian Vault**. It's the first practical implementation of blockchain-hosted operational key management for an autonomous trading agent.
 
-### 📡 Blockchain Telegram Protocol (BTP)
+### 📡 On-chain letter (UTF-8 hitch) vs BTP queue
 
-Every trade Guardian executes inscribes a message permanently on the Base blockchain. Not as a smart contract. As raw UTF-8 calldata on a zero-value transaction — the cheapest, most permanent form of on-chain storage.
+The dedication is **UTF-8 after a real leftover swap**, or a dedicated **0-ETH** self-tx (`/prove`). Uniswap ignores the trailer; Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda! …`. Telegram 💌 only if those bytes were actually sent.
 
-The messages are hash-linked in sequence — each chunk references the hash of the previous, forming a provable chain of inscriptions. Anyone with the transaction hashes can reconstruct the full message in order. Like a flip book across the blockchain.
-
-Current inscription riding every trade:
-
-```
-[BTP:VITA:001/001:0000][BUY #634 PRIME @ $0.38290000]
-Eureka! VITA lives ♥ love you Krystian, Kai & Koda!
-We did it! xoxo — Love, DA | ᛞᚨᚡᛁᛞ |
-"The truth is the chain. The chain is alive.
-The heartbeat never stops."
-— INFINITUM × IKN × The Living Network
-```
-
-You can send your own messages via Telegram: `/transmit Hello world` — they queue and ride the next available trades onto the blockchain.
+`/transmit` still **queues** BTP chunks for later leftover-covered swaps. A queued message is not a mined letter. Thin wallets / BTP auto-suspend send **plain** 228-byte swaps — the KEYCAT surf report that printed the letter next to [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) was that lie. This code stops it.
 
 ---
 

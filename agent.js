@@ -4195,6 +4195,10 @@ function hitchTelegramFooter(hitch, txHash) {
   return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
 }
 
+function hitchLedgerSignature(hitch) {
+  return hitch?.onChain && hitch.utf8 ? hitch.utf8 : "NO UTF-8 HITCH — letter not on-chain";
+}
+
 /**
  * Genesis dedicated storage: 0-value self-send with UTF-8 §$STORE§ letter.
  * Not a swap. Never invent a hash. Used by Telegram /prove so the letter
@@ -4242,6 +4246,16 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
   ]);
   if (!transactionHash) {
     return { ok: false, onChain: false, reason: "no-hash" };
+  }
+  await sleep(4000);
+  const receiptStatus = await getSwapReceiptStatus(transactionHash);
+  if (receiptStatus !== "success") {
+    return {
+      ok: false,
+      onChain: false,
+      reason: `receipt ${receiptStatus} — letter not claimed`,
+      txHash: transactionHash,
+    };
   }
   lastStoreVoiceProofAt = Date.now();
   console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
@@ -4907,7 +4921,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct() * 100).toFixed(0)}% / $${piggyBankMinUsd().toFixed(2)} floor)`);
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
-    await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature: buyVoice.onChain ? buyVoice.utf8 : "NO UTF-8 HITCH — letter not on-chain" });
+    await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
     if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
@@ -5232,7 +5246,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       scoreCompletedWave(token.symbol, actualLow, actualHigh);
     }
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
-    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature:"Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network" });
+    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
 
     console.log(`      ✅ https://basescan.org/tx/${transactionHash}`);
     console.log(`      💰 Received: ${received.toFixed(6)} ETH ($${recUsd.toFixed(2)}) | Net: ${netUsd>=0?"+":""}$${netUsd.toFixed(2)}`);
@@ -7930,9 +7944,13 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           try {
             const proof = await sendStoreVoiceProof(cdpClient, extra);
             if (!proof.ok || !proof.onChain || !proof.txHash) {
+              const failLink = proof.txHash
+                ? `\n🔗 <a href="https://basescan.org/tx/${proof.txHash}">View on Basescan ↗</a>`
+                : "";
               await tg(
                 `⚠️ <b>PROOF NOT ON-CHAIN</b>\n${proof.reason || "send failed"}\n` +
-                `The letter was not written. Telegram is not a receipt.`
+                `The letter was not written. Telegram is not a receipt.` +
+                failLink
               );
             } else {
               await tg(
@@ -9898,8 +9916,8 @@ async function main() {
       `StrandID: <code>0x${strandID}</code>\n` +
       `Chunks queued: ${totalChunks * 3} (real + noise)\n` +
       `kMaster: <code>${kMaster.slice(0,16)}...</code>\n` +
-      `Each trade carries one fragment silently.\n` +
-      `💌 VITA inscription strand active — riding every swap tx on Base`
+      `LIBM fragments ride leftover-covered swaps only.\n` +
+      `💌 Eureka UTF-8 is true only if Basescan Input Data shows §$STORE§ — use /prove`
     );
     orch.on("strand-complete", async (e) => {
       await tg(`✅ <b>BITStorage strand complete</b>\n"${e.name}" sealed on Base\n+${e.bitsEarned} BITS earned`);
