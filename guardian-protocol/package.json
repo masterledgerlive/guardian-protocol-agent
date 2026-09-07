@@ -1,6 +1,6 @@
 {
   "name": "guardian-protocol-l1",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Agentic Memory Layer-1 / Guardian Protocol — simulation & Arena (sidelined from the live trading injector)",

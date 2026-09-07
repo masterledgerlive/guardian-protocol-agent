@@ -1,5 +1,11 @@
 # CHANGELOG — guardian-protocol (L1 sideline)
 
+## 0.1.2 — 2026-09-07
+
+- Redesigned Agentic Memory Network blueprint: **MemoryBFT**, DataCore Swarm Manager, AgenticEVM dual-block pacing, Tier-1 ML-DSA sealing
+- LLM handoff summary embedded in HANDOFF + HYPERLIQUID_BLUEPRINT
+- Arbitrage→storage subsidy documented as explicit economic **hypothesis** (never assumed)
+
 ## 0.1.1 — 2026-09-07
 
 - Peer-review correction: Hyperliquid is the **dual-engine L1 blueprint** (DataCore + AgenticEVM under one BFT), not a messaging bridge

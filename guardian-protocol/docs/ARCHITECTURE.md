@@ -58,23 +58,24 @@ Every transition emits an immutable replay event.
 
 These are **research inspirations** for the sideline. They are not hard-coded product dependencies.
 
-**Correction (v0.1.1):** Hyperliquid is **not** a messaging bridge (do not conflate with Hyperlane). It is an application-specific **dual-engine Layer-1**. Full corrected theory: [`HYPERLIQUID_BLUEPRINT.md`](./HYPERLIQUID_BLUEPRINT.md).
+**Correction (v0.1.2):** Full Agentic Memory Network redesign — **MemoryBFT**, DataCore Swarm Manager, AgenticEVM **dual-block** pacing, Tier-1 **ML-DSA** sealing, arbitrage subsidy as hypothesis. Canonical theory: [`HYPERLIQUID_BLUEPRINT.md`](./HYPERLIQUID_BLUEPRINT.md). Hyperliquid is **not** a messaging bridge.
 
-### Hyperliquid.xyz — primary L1 blueprint (dual-engine)
+### Hyperliquid.xyz — primary L1 blueprint (dual-engine + dual-block)
 
-Hyperliquid separates a native high-frequency engine (**HyperCore**) from an EVM lane (**HyperEVM**) under one consensus (**HyperBFT**). Contracts read core state with no bridge.
+Hyperliquid separates a native high-frequency engine (**HyperCore**) from an EVM lane (**HyperEVM**) under one consensus (**HyperBFT**), and paces the EVM with dual block classes. Contracts read core state with no bridge.
 
 Guardian maps that blueprint onto memory:
 
 | Hyperliquid | Guardian L1 theory |
 |---|---|
-| HyperCore | **DataCore** — native ingestion, Trickle commitments, Swarm coordination |
-| HyperEVM | **AgenticEVM** — storage token, agents, x402-style micro-fees, Arena settlement |
-| HyperBFT | Single sub-second finality domain (research target; figures are claims to verify) |
+| HyperBFT | **MemoryBFT** — shared sub-second, reorg-resistant finality (design target) |
+| HyperCore | **DataCore** — native sparsing, compression routing, PQ pointer anchoring, Swarm Manager |
+| HyperEVM | **AgenticEVM** — Storage Token, agents, x402 candidates, 0x-style routing |
+| Dual blocks | Small (~1s / ~2M) vs Large (~60s / ~30M) — **targets** for agent HF vs heavy deploy |
 
-Do **not** force bulk memory through a single congested EVM. DataCore owns heavy routing; AgenticEVM owns programmable economics; both share one finality so agents read fragment/commitment state instantly.
+Do **not** force bulk memory through a single congested EVM. DataCore owns heavy routing; AgenticEVM owns programmable economics via dual-block pacing; both share MemoryBFT so agents read fragment/commitment state via precompiles.
 
-Published Hyperliquid throughput / zero-gas order claims are **inputs to evaluate**, not proofs that Guardian already achieves them.
+Published Hyperliquid throughput / zero-gas / finality claims are **inputs to evaluate**, not proofs that Guardian already achieves them.
 
 ### 0x.org — value routing on AgenticEVM (not the data plane)
 

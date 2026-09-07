@@ -10,8 +10,12 @@ Token utility may include storage credits, retrieval fees, node incentives, benc
 
 Per `HYPERLIQUID_BLUEPRINT.md`:
 
-- **AgenticEVM** — storage token markets, 0x-style intent routing, agent micro-fees
+- **AgenticEVM (dual-block)** — Storage Token markets, 0x-style intent routing, agent micro-fees on small blocks; heavy orchestration on large blocks
 - **DataCore** — near-protocol-cost injection/anchoring hypotheses (do not assume zero cost until measured)
-- Agents on AgenticEVM read DataCore state under one consensus — **no messaging bridge required** for that read path
+- Agents on AgenticEVM read DataCore state under **MemoryBFT** — **no messaging bridge** for that read path
 
-0x routing funds or schedules preservation work; it does not replace DataCore. Never assume arbitrage profit. Messaging-bridge treasury designs are out of scope for the core L1 thesis.
+## Arbitrage-funded storage (hypothesis)
+
+Proposed loop: agent spreads on AgenticEVM → convert to Storage Token → pay Tier-2 nodes; DataCore anchors receipt at native cost.
+
+**The simulator must calculate profitability, never assume it.** Deferred queues and treasury limits remain valid outcomes. Messaging-bridge treasury designs are out of scope for the core L1 thesis.

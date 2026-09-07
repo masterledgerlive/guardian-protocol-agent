@@ -22,4 +22,4 @@ Adapters to live hitch/injector, DA layers, and storage networks—only after th
 
 ## Later — Dual-engine L1 (theory → design)
 
-After Arena trust: specify DataCore native actions + AgenticEVM interfaces under one consensus (see `HYPERLIQUID_BLUEPRINT.md`). Simulation of dual-engine finality/reorg assumptions before any chain implementation.
+After Arena trust: specify **MemoryBFT** assumptions, DataCore native actions + Swarm Manager, AgenticEVM **dual-block** interfaces and read precompiles, Tier-1 ML-DSA seal modules (see `HYPERLIQUID_BLUEPRINT.md`). Simulate finality/reorg and dual-block congestion before any chain implementation.
