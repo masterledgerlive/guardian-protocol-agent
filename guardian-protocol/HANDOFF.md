@@ -1,6 +1,6 @@
 # HANDOFF — Agentic Memory Layer-1 / Guardian Protocol
 
-**Status:** Foundational research / simulation specification v0.1  
+**Status:** Foundational research / simulation specification v0.1.1  
 **Audience:** Human developers, autonomous coding agents, researchers  
 **Relation to live trader:** This tree is a **sideline**. Do not modify root `agent.js`, hitch/injector, or trading gates from here.
 
@@ -11,25 +11,42 @@
 1. This file (`HANDOFF.md`)
 2. `docs/CONSTITUTION.md`
 3. `docs/ARCHITECTURE.md`
-4. `docs/SIMULATION.md`
-5. Then inspect what already exists under `simulator/` and `strategies/`
+4. `docs/HYPERLIQUID_BLUEPRINT.md` — corrected L1 theory (dual-engine; **not** a bridge)
+5. `docs/SIMULATION.md`
+6. Then inspect what already exists under `simulator/` and `strategies/`
+
+---
+
+## Peer-review correction (read this)
+
+Earlier handoff text under-specified Hyperliquid and risked conflating it with messaging bridges (Hyperlane-style). **Correct paradigm:**
+
+- **Hyperliquid** = dual-engine app-specific L1 blueprint → **DataCore + AgenticEVM** under one BFT
+- **0x** = intent/value routing on AgenticEVM
+- **Arbitrum** = compression / DA cost economics for models and interim hitching
+- Messaging bridges are **not** the architecture
+
+Full write-up: `docs/HYPERLIQUID_BLUEPRINT.md`.
 
 ---
 
 ## What this project is
 
-An open, decentralized **memory and knowledge-preservation** architecture:
+An open, decentralized **memory and knowledge-preservation** architecture aiming at an application-specific Layer-1:
 
 | Layer | Role |
 |---|---|
 | Canonical truth | Information that must remain recoverable bit-for-bit |
-| Cryptographic state (Trickle) | Commitments, manifests, hashes, provenance |
+| Cryptographic state (Trickle) | Commitments, manifests, hashes, provenance — ideally **DataCore native actions** |
 | Physical preservation (Swarm) | Distributed encrypted fragments / DePIN |
+| AgenticEVM | Programmable lane: token, agents, 0x-style routing, micro-payments |
 | Knowledge/index | Retrieval structures (may be lossy if labeled) |
 | Agentic refinement | Competing strategies in the Arena |
 | Arena | Neutral simulation where strategies compete under identical rules |
 
 **Core principle:** Preserve the original. Improve everything around it.
+
+**L1 thesis:** Separate heavy data ingestion (DataCore) from smart-contract logic (AgenticEVM) under **one** sub-second consensus so agents read memory state with no bridge.
 
 ---
 
@@ -39,9 +56,10 @@ An open, decentralized **memory and knowledge-preservation** architecture:
 - Not a claim that simulations are production results
 - Not permission to treat a pointer/URL/hash as lossless preservation
 - Not a token/mainnet deployment sprint
+- Not “bridge messages between chains and call that a memory L1”
+- Not a claim that Hyperliquid’s published throughput/finality numbers are already our measurements
 
-The root injector (`bitstorage-orchestrator.js`, hitch, `$STORE`) is a **technology baseline** whose ideas (calldata hitch, dual-lane queue, strand assembly, L1 fee awareness) inform this research. This package must remain independently runnable.
-
+The root injector (`bitstorage-orchestrator.js`, hitch, `$STORE`) is a **transitional technology baseline** (calldata hitch, dual-lane queue, strand assembly, L1 fee awareness). This package must remain independently runnable while the dual-engine L1 is designed and simulated.
 ---
 
 ## Agent on-ramp

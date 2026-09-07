@@ -38,7 +38,8 @@ Working **event-driven simulator**:
 |---|---|
 | [HANDOFF.md](./HANDOFF.md) | Single on-ramp |
 | [docs/CONSTITUTION.md](./docs/CONSTITUTION.md) | Invariants |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Dual-lane + peer review vs 0x / Hyperliquid / Arbitrum |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Dual-lane + dual-engine peer review |
+| [docs/HYPERLIQUID_BLUEPRINT.md](./docs/HYPERLIQUID_BLUEPRINT.md) | Corrected L1 theory: DataCore + AgenticEVM (not a bridge) |
 | [docs/SIMULATION.md](./docs/SIMULATION.md) | Simulator contracts |
 | [docs/WHITEPAPER.md](./docs/WHITEPAPER.md) | Thesis v0.1 |
 | [docs/ROADMAP.md](./docs/ROADMAP.md) | Sprint ladder |
@@ -49,9 +50,11 @@ Root modules (`bitstorage-orchestrator.js`, strand assembler, L1 fee oracle, hit
 
 Inspiration (research candidates, not hard dependencies):
 
-- [0x](https://0x.org) — intent / swap routing patterns
-- [Hyperliquid](https://hyperliquid.xyz) — high-throughput L1 execution & state efficiency
-- [Arbitrum](https://arbitrum.io) — compressed data availability / L2 posting economics
+- [Hyperliquid](https://hyperliquid.xyz) — **primary blueprint**: dual-engine L1 (native core + EVM under one BFT) → DataCore + AgenticEVM
+- [0x](https://0x.org) — intent / value routing on AgenticEVM
+- [Arbitrum](https://arbitrum.io) — compressed DA / posting cost economics for models and interim hitching
+
+Do not conflate Hyperliquid with messaging bridges. See `docs/HYPERLIQUID_BLUEPRINT.md`.
 
 ## Arena baseline
 

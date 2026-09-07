@@ -1,5 +1,11 @@
 # CHANGELOG — guardian-protocol (L1 sideline)
 
+## 0.1.1 — 2026-09-07
+
+- Peer-review correction: Hyperliquid is the **dual-engine L1 blueprint** (DataCore + AgenticEVM under one BFT), not a messaging bridge
+- Add `docs/HYPERLIQUID_BLUEPRINT.md`; update HANDOFF, ARCHITECTURE, ECONOMICS, WHITEPAPER, README
+- Clarify 0x = AgenticEVM value routing; Arbitrum = compression/DA cost economics; remove Hyperlane-as-core framing
+
 ## 0.1.0 — 2026-09-07
 
 - Initial sideline package: thesis docs, constitution, architecture peer-review vs 0x / Hyperliquid / Arbitrum patterns

@@ -31,7 +31,9 @@ Model migration between high-demand (low latency, heavy index/replication) and d
 
 ## 5–13. Dual-lane, nodes, injection, queue, treasury, agentic economics, token design, cross-chain
 
-See `ARCHITECTURE.md`, `INJECTION_ENGINE.md`, `TREASURY.md`, `ECONOMICS.md`. Token/ERC-404/x402/stablecoin/0x+Hyperlane fusions are modular research candidates.
+See `ARCHITECTURE.md`, `HYPERLIQUID_BLUEPRINT.md`, `INJECTION_ENGINE.md`, `TREASURY.md`, `ECONOMICS.md`.
+
+**L1 paradigm (corrected):** Hyperliquid-style dual-engine (DataCore + AgenticEVM under one BFT). **0x** = value/intent routing on AgenticEVM. **Arbitrum** = compression/DA cost inputs. Token/ERC-404/x402/stablecoin mechanisms are modular research candidates on AgenticEVM — not messaging-bridge architectures.
 
 ## 14–17. Cryptography, Knowledge DNA, Arena, incentives
 

@@ -58,43 +58,57 @@ Every transition emits an immutable replay event.
 
 These are **research inspirations** for the sideline. They are not hard-coded product dependencies.
 
-### 0x.org — intent and routing
+**Correction (v0.1.1):** Hyperliquid is **not** a messaging bridge (do not conflate with Hyperlane). It is an application-specific **dual-engine Layer-1**. Full corrected theory: [`HYPERLIQUID_BLUEPRINT.md`](./HYPERLIQUID_BLUEPRINT.md).
 
-0x-style intent → route discovery → economic execution maps cleanly onto:
+### Hyperliquid.xyz — primary L1 blueprint (dual-engine)
+
+Hyperliquid separates a native high-frequency engine (**HyperCore**) from an EVM lane (**HyperEVM**) under one consensus (**HyperBFT**). Contracts read core state with no bridge.
+
+Guardian maps that blueprint onto memory:
+
+| Hyperliquid | Guardian L1 theory |
+|---|---|
+| HyperCore | **DataCore** — native ingestion, Trickle commitments, Swarm coordination |
+| HyperEVM | **AgenticEVM** — storage token, agents, x402-style micro-fees, Arena settlement |
+| HyperBFT | Single sub-second finality domain (research target; figures are claims to verify) |
+
+Do **not** force bulk memory through a single congested EVM. DataCore owns heavy routing; AgenticEVM owns programmable economics; both share one finality so agents read fragment/commitment state instantly.
+
+Published Hyperliquid throughput / zero-gas order claims are **inputs to evaluate**, not proofs that Guardian already achieves them.
+
+### 0x.org — value routing on AgenticEVM (not the data plane)
+
+0x-style intent → route discovery → economic execution belongs on **AgenticEVM**:
 
 ```text
-agent intent → route discovery → economic execution → cross-chain/message → storage injection
+agent intent → route discovery → economic execution → DataCore injection request
 ```
 
-Candidate: treat preservation jobs as intents with quoted costs, slippage-like budget caps, and fill-or-kill / deferred semantics (mirrors Immediate / Batch / Deferred). DEX spread capture as treasury funding is a **hypothesis to simulate conservatively**—never assume arbitrage profit exists.
+Treat preservation jobs as intents with quoted costs, budget caps, and fill-or-kill / deferred semantics (Immediate / Batch / Deferred). DEX spread capture as treasury funding is a **hypothesis to simulate conservatively** — never assume arbitrage profit exists.
 
-### Hyperliquid.xyz — execution density
+### Arbitrum.io — compression / DA cost economics
 
-Hyperliquid demonstrates that high-throughput L1/app-chain designs can keep frequent state updates cheap relative to general-purpose L1s. For Guardian L1 research:
+Arbitrum’s batch compression and L2 posting math inform CostModel assumptions and interim hitch experiments:
 
-- Trickle events should be sized like order/state updates (small, frequent, auditable)
-- Swarm payloads should not pollute the Trickle
-- Arena cost models should compare “post commitments on dense L1” vs “post on L2/blobs/calldata hitch”
-
-### Arbitrum.io — compressed data posting
-
-Arbitrum’s data compression / batch posting economics inform the Trickle vs Swarm split:
-
-- Compress and batch commitments (and optionally DA blobs) before settlement
+- Compress and batch commitments before expensive settlement
 - Distinguish **data availability** from **permanent archival**
-- Model L1 posting cost as a first-class CostModel input (aligned with the live bot’s L1 fee oracle concept, without coupling runtimes)
+- Compare “post on L2/blobs/calldata hitch” vs “native DataCore action”
+
+Useful for economics — **not** the long-term dual-engine paradigm.
 
 ### Live injector baseline (same monorepo, separate package)
 
-Root `bitstorage-orchestrator.js` already implements a practical Trickle: hitch encrypted fragments onto economically motivated Base swaps (Standby / Fast Pass / Silo). Guardian L1 generalizes that into:
+Root `bitstorage-orchestrator.js` is a **transitional** Trickle: hitch fragments onto Base swaps (Standby / Fast Pass / Silo). It proves calldata injection economics today. It is **not** DataCore+AgenticEVM yet.
+
+Guardian L1 generalizes toward the Hyperliquid-style dual-engine target via:
 
 - strategy-pluggable scheduling
 - multi-node Swarm simulation
 - Arena scoring
 - long-tail / short-tail migration research
+- eventual DataCore / AgenticEVM separation under one consensus (post-simulator)
 
 **Boundary:** do not import or mutate root trading modules from this package in Sprint 1–4. Adapters are Sprint 5+.
-
 ## Personal Node / Tier 1
 
 Local ingestion: filter, preprocess, dedupe, compress experiments, encrypt, seal, chunk, classify, index, emit manifests. Slow/free local path vs fast/paid Swarm path.

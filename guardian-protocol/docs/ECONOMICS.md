@@ -6,4 +6,12 @@ HTTP payment candidates (e.g. x402) and stablecoin rails are **options**, not in
 
 Token utility may include storage credits, retrieval fees, node incentives, benchmark rewards, agent fees, governance/staking, routing fees. Speculative market value must not be a prerequisite for technical viability.
 
-Cross-chain / 0x + Hyperlane-style routing is a research candidate. Never assume arbitrage profit.
+## Placement on the dual-engine L1 (theory)
+
+Per `HYPERLIQUID_BLUEPRINT.md`:
+
+- **AgenticEVM** — storage token markets, 0x-style intent routing, agent micro-fees
+- **DataCore** — near-protocol-cost injection/anchoring hypotheses (do not assume zero cost until measured)
+- Agents on AgenticEVM read DataCore state under one consensus — **no messaging bridge required** for that read path
+
+0x routing funds or schedules preservation work; it does not replace DataCore. Never assume arbitrage profit. Messaging-bridge treasury designs are out of scope for the core L1 thesis.
