@@ -1,6 +1,6 @@
 # Token universe scout — Base / DexScreener
 
-Snapshot: **2026-09-06 ~09:20 UTC**. Source: DexScreener `tokens/v1/base` + `latest/dex/tokens` (no invented stats).
+Snapshot: **2026-09-07 ~02:30 UTC** (REI / CLANKER live pass). Prior prune: **2026-09-06 ~09:20 UTC**. Source: DexScreener `latest/dex/tokens` (no invented stats).
 
 Rules in force: **LOSE-ZERO**; sell floor is `sell_target = fair_exit + fees + (HITCH_COST_MULT × hitch)` with **`HITCH_COST_MULT=2`**. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee`. RISK bag ~**$3–11**. Prefer Uniswap / Aerodrome. Freeze over hard-delete. **TOSHI residual ~4.5k stays tradeable.**
 
@@ -100,15 +100,15 @@ Prefer Uniswap V3 / Aerodrome. Do **not** add Aerodrome-only names until routing
 
 | Sym | Address | Best Uni/Aero | Liq | 24h vol | Rec |
 |---|---|---|---:|---:|---|
-| **CLANKER** (tokenbot) | `0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb` | Uni v3 CLANKER/WETH | $1.48M | $28k | Still watchlist — address corrected (old `0x1d00…9317` was CLANKFUN) |
-| **REI** | `0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD` | Aero $1.83M / Uni v3 $204k | $1.83M / $204k | $95k / $41k | Strong ADD |
+| REI | `0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD` | Uni v3 REI/WETH 1% + Aero WETH | $208k / $1.86M | $77k / $237k | **ADDED tradeable** — Uni V3 proven 2026-09-07 |
+| CLANKER (tokenbot) | `0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb` | Uni v3 CLANKER/WETH 1% | $1.49M | $30k | **PROMOTED from watchlist** — Uni V3 proven. Not CLANKFUN. |
 | FAI | `0xb33Ff54b9F7242EF1593d2C9Bcd8f9df46c77935` | Aero $2.49M / Uni v3 $256k | $2.49M / $256k | $15k / $1.8k | Watch — Uni vol thin |
 | SPX (SPX6900) | `0x50dA645f148798F68EF2d7dB7C1CB22A6819bb2C` | Aero SPX/WETH | $760k | $12k | Watch vol |
 | cbXRP | `0xcb585250f852C6c6bf90434AB21A00f02833a4af` | Aero $596k; Uni v3 only $47k | $596k | $1.24M | WELL-like routing risk |
 | KAITO | `0x98d0baa52b2D063E780DE12F615f963Fe8537553` | Aero $16k / Uni v3 $10k | $16k | $36k | Too thin |
 | IMAGINE (watchlist) | `0x078D…E666` | none | 0 | 0 | Dead — skip seed |
 
-Unfreeze-first (already in catalog, real Uni book): **BNKR**, **MIGGLES**, **ZORA**. Not thawed in this PR — keep capital on the 14 actives + TOSHI residual.
+Unfreeze-first (already in catalog, real Uni book): **BNKR**, **MIGGLES**, **ZORA**. Not thawed in this PR — capital stays concentrated. **REI** and **CLANKER** added as tradeable 2026-09-07 (Uni V3 proven).
 
 Skipped as ADD: **BSTONK** (desk: volatile). KEYCAT already in catalog — not duplicated.
 

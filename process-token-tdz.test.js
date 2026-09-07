@@ -114,6 +114,13 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
     assert.ok(src.includes("evaluatePriceInsane"), "PRICE_INSANE must run before hitch/minOut");
     assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
+    assert.ok(src.includes("planVoiceHitch") && src.includes("appendUtf8Hitch"), "UTF-8 §$STORE§ hitch must ride the swap");
+    assert.ok(src.includes("hitchTelegramFooter"), "Telegram must not claim a letter that is not on-chain");
+    assert.ok(src.includes("sendStoreVoiceProof") && src.includes("/prove"), "dedicated 0-ETH /prove must exist");
+    assert.ok(src.includes("storeVoiceEnabled()"), "voice hitch must not depend on BTP auto-suspend");
+    assert.ok(src.includes("isSuccessfulBuyFill"), "buys must refuse 0-token success");
+    assert.ok(src.includes("nextVitaModel"), "VITA must cycle models");
+    assert.ok(!src.includes("enabled: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended"), "must not gate UTF-8 voice on BTP suspend");
     assert.ok(src.includes("GAS_PRICE_ORACLE"), "GasPriceOracle predeploy helper");
     assert.ok(src.includes("formatHitchFeeSplit") || src.includes("HITCH FEE"), "must log L1 vs L2 hitch split");
     assert.ok(!src.includes("HALT_NEW_ENTRIES=\"\"") && !src.includes("HALT_NEW_ENTRIES = \"\""), "must not clear HALT_NEW_ENTRIES");
@@ -130,7 +137,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.match(src, /symbol: "VVV"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "TIBBIR"[\s\S]*?frozen: true/);
     assert.ok(!/\bsymbol: "(BSTONK|FLOCK|HYDX)"/.test(src), "do not add BSTONK/FLOCK/HYDX");
-    for (const sym of ["BASECAT", "DRB"]) {
+    for (const sym of ["BASECAT", "DRB", "REI", "CLANKER"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
       assert.ok(base >= 0, `${sym} must remain in catalog`);
       const next = src.indexOf("{ symbol:", base + 1);

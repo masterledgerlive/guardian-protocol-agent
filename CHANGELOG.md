@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Fixed — buys that did not fill were logged as wins; Eureka letter was claimed off-chain
+
+Telegram printed `BOUGHT` + the VITA letter after `cdp.evm.sendTransaction` returned a hash. Sells already waited for receipt + ETH delta (`isSuccessfulSellFill`). Buys did not — a revert / 0-token fill still incremented `tradeCount`, wrote BTP, and claimed Eureka. Live KEYCAT sell `0x5c0a93e4…` is a **plain 228-byte** `exactInputSingle` with **no trailing UTF-8**.
+
+Genesis / StorageToken rule (brief that landed in `masterledgerlive/StorageToken`, not this repo): hitch `§$STORE§` on a **real leftover swap**, **or** send a dedicated 0-value storage tx. Never invent a swap/hash. Never claim Telegram text is on-chain unless those bytes are in the mined calldata.
+
+- **Buy fill gate** — `isSuccessfulBuyFill` requires receipt success **and** token-balance delta > 0. Failed buys do not increment `tradeCount`, do not BTP, do not print 💌. Slippage cooldown applies to buys too.
+- **UTF-8 hitch** — leftover-covered buys/sells append `§$STORE§ Eureka! VITA lives ♥ …` after the 228-byte swap. Telegram 💌 only if those bytes were actually sent.
+- **`/prove`** — dedicated 0-ETH self-tx with the full letter. `/voiceon` `/voiceoff`. Independent of BTP auto-suspend.
+- **VITA model cycle** — `nextVitaModel()` round-robins Anthropic ids (`claude-sonnet-4-20250514`, `claude-opus-4-20250514`). Railway `VITA_MODELS=id1,id2`. Telegram `/models`.
+- **Catalog** — ADD tradeable **REI** (`0x6B25…4cFD`, Uni v3 1% ~$208k / ~$77k) and **CLANKER** (`0x1bc0…1Bcb`, Uni v3 1% ~$1.49M / ~$30k). Live DexScreener 2026-09-07. STONKEX/BLUECHIP/VELVET/KTA/VVV/TIBBIR stay frozen. BASECAT/DRB stay tradeable.
+- Does **not** weaken PRICE_INSANE, QuoterV2, piggy, minOut, LOSE_ZERO, frozen buy, L1 oracle, or `HALT_NEW_ENTRIES`. This agent does not send live capital.
+
 ### Added — hitch inject cost from live Base `GasPriceOracle.getL1Fee`
 
 LOSE_ZERO leftover and the 2× sell floor were pricing `§$STORE§` / hitch as L2 calldata-gas only (`16 gas/byte × gwei`). On Base the L1 data fee dominates what we actually pay to insert the message.
