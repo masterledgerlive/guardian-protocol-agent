@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed — `/buy XCN $1` never filled: `minTrgh` TDZ + dead WETH book
+
+Live Railway after PR #31 (`946cc30`): Telegram queued `/buy XCN $1`, then every `processToken(XCN)` crashed with `Cannot access 'minTrgh' before initialization`. `stopLossPrice` used `minTrgh` before `entryTroughForBuy` declared it — so **no token** could finish processToken (manual buys never reached `cmd.action === "buy"`).
+
+Also: Uni V3 **XCN/WETH ~$212** while **XCN/USDC ~$173k** is the real book. Bot is WETH `exactInputSingle` only — a $1 XCN smoke would slip/fail even after the TDZ fix.
+
+Changes (still LOSE_ZERO / 2× hitch sell / piggy never-sell / Eureka on leftover):
+
+- **TDZ fix** — compute `minTrgh` (inject pullback trough) **before** `stopLossPrice`.
+- **Freeze XCN** for new buys; keep wave OHLC via DexScreener/Gecko + **Binance allowlist** (same Onyxcoin asset).
+- **Per-token min buy USD** (`token-mins.js`) — Telegram `/buy` and operator path refuse below the book floor (`TOKEN_MIN_BUY_USD_JSON` override).
+- **Multi-source wave seed** — rank + merge GT/DS/(Binance) candles; log multi-source coverage.
+- **No-loss cycle align gate** — auto buys need ≥`CYCLE_ALIGN_MIN` (default **2**) of trough/momentum/pred/pullback/leftover/smartMoney. Telegram `/cycles` shows succession streaks + live mins.
+
 ### Fixed — dragnet burns cycles; inject mains never buy; revenue flat
 
 Live Railway `industrious-tranquility` / `guardian-protocol-agent` @ `9833348` (2026-09-07):

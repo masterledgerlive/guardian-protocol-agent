@@ -32,6 +32,13 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(use >= decl, "hasPosition used before initialization (TDZ)");
   });
 
+  it("declares minTrgh before stopLossPrice (PR #31 TDZ)", () => {
+    const minDecl = fn.search(/\bconst minTrgh\b/);
+    const stop = fn.search(/\bconst stopLossPrice\b/);
+    assert.ok(minDecl >= 0, "const minTrgh must exist");
+    assert.ok(stop > minDecl, "stopLossPrice must not TDZ on minTrgh");
+  });
+
   it("does not touch lines before const lines is declared", () => {
     const decl = fn.search(/\bconst lines\b/);
     const firstPush = fn.search(/\blines\.push\b/);

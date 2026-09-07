@@ -125,6 +125,20 @@ import {
   shouldRecycleUnknownDust,
 } from "./inject-revenue.js";
 import {
+  minBuyUsdForToken,
+  operatorBuyBelowMin,
+  applyWethDeadFreeze,
+} from "./token-mins.js";
+import {
+  cycleAlignMin,
+  rankWaveSeedSources,
+  mergeWaveCandles,
+  scoreEntryAlignment,
+  canExecuteNoLossCycle,
+  createSuccessionTracker,
+  formatSuccessionReport,
+} from "./wave-cycle.js";
+import {
   applyPiggyToSell,
   ratchetPiggyReserve,
   computeSellable,
@@ -1359,8 +1373,10 @@ const DEFAULT_TOKENS = [
     notes: "Farcaster-born Base meme. 220k+ holders, $1.8M liquidity. Strong community narrative." },
 
   { symbol: "XCN",     address: "0x9c632e6aaa3ea73f91554f8a3cb2ed2f29605e0c", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    frozen: true, minBuyUsd: 25,
+    frozenReason: "DEAD WETH book — Uni V3 XCN/USDC ~$173k is live; XCN/WETH ~$212. Bot is WETH exactInputSingle only. Wave data OK (Binance + DS/GT); no new buys until USDC route or deeper WETH.",
     score: { liquidity:5, waveQuality:5, fundamentals:6, coinbaseFit:7, community:5, total:28 },
-    notes: "Onyx Protocol — L3 governance + gas token. Coinbase listed, real utility for chain operations." },
+    notes: "Onyx Protocol — L3 governance + gas token. Coinbase listed. FROZEN for buys — USDC-primary on Base." },
 
   { symbol: "SKI",     address: "0x768BE13e1680b5ebE0024C42c896E3dB59ec0149", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     score: { liquidity:5, waveQuality:5, fundamentals:4, coinbaseFit:6, community:7, total:27 },
@@ -2495,6 +2511,8 @@ let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
 const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
 const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
+/** Per-token no-loss succession streaks (wave completes with net > 0). */
+const successionTracker   = createSuccessionTracker();
 const waveState    = {};
 const tradeLog     = [];
 let netPositions   = {};
@@ -2816,18 +2834,24 @@ async function loadHistoricalData(days = 90) {
         try { biCandles = await fetchCandlesBinance(token.symbol, days); } catch { /* ignore */ }
       }
 
-      const picked = pickHistoricalSeedSource({
+      const ranked = rankWaveSeedSources({
+        gt: gtCandles, ds: dsCandles, binance: biCandles, allowBinance: allowBi,
+      });
+      // Keep pickHistoricalSeedSource as a compatibility alias for the ranked pick.
+      const picked = ranked.picked || pickHistoricalSeedSource({
         gt: gtCandles, ds: dsCandles, binance: biCandles, allowBinance: allowBi,
       });
 
       if (picked) {
-        candles = picked.data;
-        const sources = [
-          gtCandles?.length ? `GeckoTerminal(${gtCandles.length}d)` : null,
-          dsCandles?.length ? `DexScreener(${dsCandles.length}d)` : null,
-          allowBi && biCandles?.length ? `Binance(${biCandles.length}d)` : null,
-        ].filter(Boolean).join(" | ");
-        console.log(`   📡 ${token.symbol}: ${picked.src} ✅ (${candles.length} candles) [${sources || picked.src}]`);
+        const secondary = ranked.sources
+          .filter((s) => s.src !== picked.src)
+          .map((s) => s.data);
+        candles = mergeWaveCandles(picked.data, secondary) || picked.data;
+        const sources = ranked.sources
+          .map((s) => `${s.src}(${s.bars}d)`)
+          .join(" | ") || picked.src;
+        const multiTag = ranked.multi ? " multi-source" : "";
+        console.log(`   📡 ${token.symbol}: ${picked.src} ✅ (${candles.length} candles)${multiTag} [${sources}]`);
       } else {
         gtError = gtError || (gtCandles ? `only ${gtCandles?.length} candles` : "no data");
         dsError = dsError || (dsCandles ? `only ${dsCandles?.length} candles` : "no data");
@@ -4834,6 +4858,15 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
+    // Per-token min buy floor — smoke tests must clear the book minimum.
+    if (isManualOperatorBuy(reason)) {
+      const forcedUsd = (() => {
+        const m = String(reason || "").match(/\$([0-9]+(?:\.[0-9]+)?)/);
+        return m ? Number(m[1]) : 0;
+      })();
+      const below = operatorBuyBelowMin({ symbol: token.symbol, usd: forcedUsd, token });
+      if (below) return await skipBuy(reason, token.symbol, below);
+    }
     // PRICE_INSANE before hitch / LOSE_ZERO / minOut use the mark
     const buyPriceGate = await gatePriceInsane(token, price, "buy", getCachedBalance(token.symbol) || 0);
     if (!buyPriceGate.allow) {
@@ -5455,6 +5488,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const pnlPct  = invUsd > 0 ? ((netUsd / invUsd) * 100).toFixed(1) : "?";
     const pnlPctNum = invUsd > 0 ? (netUsd / invUsd) * 100 : 0;
     const winner  = received > 0 && netUsd >= 0;
+    // No-loss succession streak — continuous cycles compound piggy + Eureka hitch
+    try {
+      const streak = successionTracker.recordCycleResult(token.symbol, netUsd);
+      console.log(`   🔁 ${token.symbol} succession: streak ${streak.streak} (best ${streak.best}) · ${streak.totalWins}W/${streak.totalLosses}L`);
+    } catch { /* never crash sell path */ }
 
     // ── 🏄 Wave stats update ──────────────────────────────────────────────────
     const ws = initWaveStats(token.symbol);
@@ -5922,25 +5960,11 @@ async function processToken(cdp, token, bal) {
     // Prediction-enhanced sell: fires at confirmed peak OR when cycle says peak is imminent
     const predSell  = pred.ready && pred.action === "pre-sell" && pred.confidence >= PRED_CONFIDENCE_SELL;
     const shouldSell = (atMaxPeak || predSell || earlySellSignal || profitableSell) && sellable > 1 && netIfSellNow > breakEvenBuffer;
-    // Stop loss check — must be declared BEFORE shouldFibExit which references it
-    const stopLossPrice= minTrgh ? minTrgh * (1 - STOP_LOSS_PCT) : null;
-    const stopLossHit  = entry && stopLossPrice && price < stopLossPrice;
-    // Fibonacci partial exit: fires independently from shouldSell — it's a scale-out, not a full exit
-    const shouldFibExit = fibHit && !shouldSell && !stopLossHit && sellable > 1 && netIfSellNow > 0;
 
     // ── WAVE ENTRY INTELLIGENCE v18 ─────────────────────────────────────────
-    // Problem: atMinTrough with 0.5% tolerance misses entries when:
-    //   a) Price already bounced past trough before 2P/2T was reached
-    //   b) Fast upswing happened, new lower-low is likely
-    //   c) Bot built wave history AFTER the trough already passed
-    //
-    // Solution: multi-condition entry zone with adaptive tolerance
-    //   1. AT trough: price within TROUGH_ENTRY_BAND of confirmed MIN (wider)
-    //   2. PULLBACK entry: price dipped from recent high → back near trough zone
-    //   3. MOMENTUM entry: RSI oversold + MACD cross-up + near recent low (pre-emptive)
-    //   4. LOWER-LOW detection: if last wave went up fast without buying, project new trough
-    //   5. CALENDAR BIAS: Monday open / Friday close adjust entry urgency
-
+    // minTrgh MUST be declared before stopLossPrice — PR #31 left a TDZ that
+    // crashed every processToken (live: `/buy XCN $1` queued then
+    // "Cannot access 'minTrgh' before initialization" forever).
     const TROUGH_ENTRY_BAND = 0.035; // 3.5% — wider entry window catches bounces
     // FIX v18: atMinTrough requires price to NOT be in a rapid fall.
     // If still dropping fast (>1% in 5 ticks), let it reach its real bottom first.
@@ -5956,6 +5980,12 @@ async function processToken(cdp, token, bal) {
       price,
       preferRecent: injectMain,
     }) ?? minTrghRaw;
+    // Stop loss check — must be declared BEFORE shouldFibExit which references it
+    const stopLossPrice= minTrgh ? minTrgh * (1 - STOP_LOSS_PCT) : null;
+    const stopLossHit  = entry && stopLossPrice && price < stopLossPrice;
+    // Fibonacci partial exit: fires independently from shouldSell — it's a scale-out, not a full exit
+    const shouldFibExit = fibHit && !shouldSell && !stopLossHit && sellable > 1 && netIfSellNow > 0;
+
     const atMinTrough     = minTrgh && price <= minTrgh * (1 + TROUGH_ENTRY_BAND) && !priceFallingFast;
 
     // Lower-low detector: if price ran up fast after we missed the trough,
@@ -6014,8 +6044,28 @@ async function processToken(cdp, token, bal) {
     const smartMoneyConfirming = topTraderSig?.signal === 'BUY'  && (topTraderSig?.confidence || 0) >= 60;
 
     // ── COMPOSITE BUY CONDITION ──────────────────────────────────────────────
-    // Any ONE of these entry signals + armed + not maxed = buy
-    const entrySignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent || injectPullback;
+    // Continuous no-loss cycles: need ≥ CYCLE_ALIGN_MIN (default 2) of trough /
+    // momentum / prediction / pullback / leftover / smartMoney agreeing.
+    // Operator Telegram /buy bypasses this (handled in manual cmd path).
+    const priceSignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent || injectPullback;
+    const alignment = scoreEntryAlignment({
+      atMinTrough,
+      momentumEntry,
+      predBuy,
+      injectPullback,
+      nearProjectedLow,
+      troughImminent,
+      leftoverCovers: !!(arm.armed && (arm.net || 0) > 0),
+      smartMoneyConfirming,
+    });
+    const cycleGate = canExecuteNoLossCycle(alignment, {
+      alignMin: cycleAlignMin(),
+      hasPriceSignal: !!priceSignal,
+      armed: !!arm.armed,
+      frozen: isCatalogFrozen(token),
+      fallingFast: !!priceFallingFast,
+    });
+    const entrySignal = priceSignal && cycleGate.allow;
     const shouldBuy = !isCatalogFrozen(token) && entrySignal && arm.armed && !atMaxPosition && !shouldSell
                    && !smartMoneyBlocking
                    && bal.tradeableWithWeth >= MIN_ETH_TRADE
@@ -6035,7 +6085,7 @@ async function processToken(cdp, token, bal) {
       const entryPct = minTrgh ? ((price - minTrgh) / minTrgh * 100).toFixed(1) : "?";
       if (Math.random() < 0.1) {
         const calStr = calendarBuyBias ? "📅MON/TUE-BIAS" : calendarSellBias ? "📅FRI-BIAS" : "";
-        console.log(`  📊 [${token.symbol}] Armed +${entryPct}% above trough | RSI:${ind.rsi?.toFixed(0)||"?"} | mom:${momentumEntry} | projLow:${nearProjectedLow} | imminent:${troughImminent} ${calStr}`);
+        console.log(`  📊 [${token.symbol}] Armed +${entryPct}% above trough | RSI:${ind.rsi?.toFixed(0)||"?"} | mom:${momentumEntry} | projLow:${nearProjectedLow} | imminent:${troughImminent} | align:${alignment.count}/${cycleGate.min} (${cycleGate.reason}) ${calStr}`);
       }
       if (calendarBuyBias) {
         calendarBiasNote = `  │ 📅 CALENDAR BIAS: ${isMondayOpen?"Monday open — aggressive entry":isTuesdayDip?"Tuesday dip pattern":"Month-end pressure"}`;
@@ -6608,29 +6658,34 @@ async function loadFromGitHub() {
     const saved = tf.content.tokens;
     // FIX v18: Restore state but preserve frozen/disabled flags from code definition.
     // Never let saved state override code-defined frozen status.
-    tokens = DEFAULT_TOKENS.map(def => ({
-      ...def, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null,
+    tokens = DEFAULT_TOKENS.map(def => {
+      const base = applyWethDeadFreeze(def);
+      return {
+      ...base, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null,
       ...(saved.find(s => s.symbol === def.symbol) || {}),
       // Catalog address / fee are authoritative — saved typos must not stick
-      address: def.address, feeTier: def.feeTier, poolFeePct: def.poolFeePct, minNetMargin: def.minNetMargin,
+      address: base.address, feeTier: base.feeTier, poolFeePct: base.poolFeePct, minNetMargin: base.minNetMargin,
+      minBuyUsd: base.minBuyUsd,
       // Sanity clamp: totalInvestedEth must never be negative
       totalInvestedEth: Math.max(0, (saved.find(s => s.symbol === def.symbol) || {}).totalInvestedEth || 0),
       piggyReserve: loadPiggyReserve(saved.find(s => s.symbol === def.symbol) || {}, null),
       // Always re-apply frozen/disabled from code — never let saved state override
-      frozen: def.frozen || false,
-      frozenReason: def.frozenReason || undefined,
-      disabled: def.disabled || false,
-      disabledReason: def.disabledReason || undefined,
-      noBasePool: def.noBasePool || false,
-      brokenQuote: def.brokenQuote || false,
-    }));
+      frozen: base.frozen || false,
+      frozenReason: base.frozenReason || undefined,
+      disabled: base.disabled || false,
+      disabledReason: base.disabledReason || undefined,
+      noBasePool: base.noBasePool || false,
+      brokenQuote: base.brokenQuote || false,
+    };
+    });
     tokensSha = tf.sha;
   } else {
-    tokens = DEFAULT_TOKENS.map(t => ({ ...t, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
+    tokens = DEFAULT_TOKENS.map(t => ({ ...applyWethDeadFreeze(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
     // Sync frozen flags from DEFAULT_TOKENS definition (authoritative)
     for (const t of tokens) {
-      const def = DEFAULT_TOKENS.find(d => d.symbol === t.symbol);
+      const def = applyWethDeadFreeze(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
       if (def?.frozen) { t.frozen = true; t.frozenReason = def.frozenReason; }
+      if (def?.minBuyUsd != null) t.minBuyUsd = def.minBuyUsd;
     }
 
     // ── CORRUPTED ENTRY PRICE SCRUB ──────────────────────────────────────────
@@ -7055,6 +7110,11 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           await tg(`❄️ <b>${sym} is frozen</b> — new buys blocked.\n${tok.frozenReason || "Catalog freeze."}\nSells/exits remain allowed.`);
           continue;
         }
+        const below = operatorBuyBelowMin({ symbol: sym, usd: parsed.usd, token: tok });
+        if (below) {
+          await tg(`🛑 <b>${sym} min buy $${minBuyUsdForToken(tok).toFixed(2)}</b>\n${below}\nTry a larger size or pick a live WETH book (/tiers).`);
+          continue;
+        }
         if (manualCommands.find(c => c.symbol===sym && c.action==="buy")) { await tg(`⚠️ BUY ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "buy", usd: parsed.usd || 0 });
         await tg(operatorBuyQueuedTelegram(sym, parsed.usd));
@@ -7144,6 +7204,21 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         await tg(`🚪 <b>CLEAN EXIT ${sym} ${pct}% queued</b>\nWill sell to ETH — NO cascade will fire`);
       } else if (text === "/status") {
         await sendFullReport(bal, ethUsd, "📊 STATUS");
+      } else if (text === "/cycles" || text === "/succession") {
+        const align = cycleAlignMin();
+        const report = formatSuccessionReport(successionTracker.all());
+        const liveMins = tokens
+          .filter(t => !t.frozen && !t.disabled)
+          .map(t => `${t.symbol}: min $${minBuyUsdForToken(t).toFixed(2)}`)
+          .slice(0, 24)
+          .join("\n");
+        await tg(
+          `🔁 <b>NO-LOSS SUCCESSION</b>\n` +
+          `Align gate: ≥${align} of trough/momentum/pred/pullback/leftover/smartMoney\n` +
+          `Piggy + Eureka hitch ride leftover-covered fills only.\n\n` +
+          `<b>Cycles</b>\n${report}\n\n` +
+          `<b>Live min buys (WETH books)</b>\n${liveMins || "none"}`
+        );
       } else if (text === "/turbo") {
         // Turbo mode: already the new default — confirm current settings
         await tg(
@@ -9435,6 +9510,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/wake (or /gm) — morning briefing\n\n` +
           `<b>📱 Manual Trade Commands:</b>\n` +
           `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
+          `/cycles — no-loss succession streaks + per-token min buys\n` +
           `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +

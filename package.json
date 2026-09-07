@@ -5,7 +5,7 @@
   "main": "agent.js",
   "scripts": {
     "start": "node agent.js",
-    "test": "node --test price-oracle.test.js lose-zero-gate.test.js rpc-pool.test.js process-token-tdz.test.js swap-minout.test.js piggy-bank.test.js price-insane.test.js l1-fee-oracle.test.js vita-models.test.js verify-protocol.test.js chain-ledger.test.js inject-revenue.test.js",
+    "test": "node --test price-oracle.test.js lose-zero-gate.test.js rpc-pool.test.js process-token-tdz.test.js swap-minout.test.js piggy-bank.test.js price-insane.test.js l1-fee-oracle.test.js vita-models.test.js verify-protocol.test.js chain-ledger.test.js inject-revenue.test.js token-mins-wave.test.js",
     "test:quotes": "node verify-quotes.js"
   },
   "dependencies": {
