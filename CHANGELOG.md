@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed — new majors live but not injection-ready (OHLC + capital)
+
+Railway @ `0930b8a` booted **24 active** including LINK/AAVE/UNI/VVV/ZORA/BNKR, then LINK/AAVE/UNI hit the 8s Dex seed timeout with no Binance fallback. Dead-wave −15 also kept no-history majors out of Tier 1/2 so hitch had nowhere to land.
+
+- Allowlist **LINK / AAVE / UNI** for Binance OHLC (same CEX asset as Base Uni V3 contracts). BNKR/VVV stay denylisted (Base-native).
+- Inject-surface score +12 for high-liquidity catalog names with &lt;2 trades so deep Uni books compete for capital.
+- Boot banner prints the live active symbol list (not the stale “15 + MOG…” line).
+- **UNI is a main inject player**: reserved Tier-1 seat (prefer UNI), `injectMain` + score floor for UNI/CBBTC/LINK/AAVE/AERO/MORPHO so the injector actually uses Uniswap’s own token and other majors — not only meme books with history.
+
 ### Added — top-100 Uniswap V3 majors for hitch injection
 
 Canon catalog could see Base meme/Base-native names but not the bigger CMC top-100 books that actually trade on **Uniswap V3** (the bot’s only router). Live scout 2026-09-07 (DexScreener + factory `getPool`):

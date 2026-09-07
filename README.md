@@ -97,8 +97,11 @@ Scores are computed live every cycle from real trade history. The best-performin
 Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (residual bag).
 
 **Active (tradeable):**
-AERO · BRETT · VIRTUAL · MORPHO · CBBTC · LINK · AAVE · UNI · DEGEN · AIXBT · TOSHI
+AERO · BRETT · VIRTUAL · MORPHO · CBBTC · LINK · AAVE · **UNI** (inject main / T1 reserved) · DEGEN · AIXBT · TOSHI
 KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
+
+**Inject main players (Tier-1 seat reserved for UNI first):**
+UNI · CBBTC · LINK · AAVE · AERO · MORPHO
 
 **Frozen (no new capital):**
 SEAM · MOG · BASE · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI

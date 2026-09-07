@@ -66,6 +66,10 @@ WELL (Aerodrome-primary) · KITE (no Base pool)
 4. Do **not** add stables or Aerodrome-only majors.
 5. Holdings on frozen names can still exit.
 
+### Follow-up — injection-ready (live Railway @ 0930b8a)
+
+Boot showed **24 active** but LINK/AAVE/UNI Dex OHLC timed out at 8s. Fix: Binance allowlist for LINK/AAVE/UNI + inject-surface score boost so deep Uni books get Tier capital before trade history exists.
+
 ---
 
 ## Prior scout notes (2026-09-07 morning)

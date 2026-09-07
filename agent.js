@@ -335,6 +335,14 @@ const TIER2_MIN_SLOT_USD = 4.00;    // minimum slot size to add a tier-2 positio
 const TIER2_MAX_SLOTS    = 6;       // never more than 6 tier-2 slots regardless of capital
 const MOONSHOT_HOLD_USD  = 0.50;    // keep this much in non-tier tokens as lottery bag
 
+// Injector main players — always compete for Tier 1 so hitch lands on real Uni books.
+// UNI is first: we route on Uniswap, so UNI itself is a core injection surface.
+const INJECT_MAIN_PLAYERS = ["UNI", "CBBTC", "LINK", "AAVE", "AERO", "MORPHO"];
+
+function isInjectMainPlayer(symbol) {
+  return INJECT_MAIN_PLAYERS.includes(String(symbol || "").toUpperCase());
+}
+
 // Compute a live performance score for a token (0–100)
 // Higher = better. Used to rank tokens for tier assignment every cycle.
 function calcTokenScore(symbol, gasCostEth, tradeEth) {
@@ -399,26 +407,54 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
   if (noPrice >= 5) score -= 20; // can't get a price = can't trade
   if (token?.unknownEntry || !isValidUsdPrice(history[symbol]?.lastPrice)) score -= 20;
 
+  // ── Inject-surface boost — deep Uni V3 majors get capital so hitch can land ─
+  // New names with no trade history otherwise sit at moonshot with dead-wave −15.
+  // Prefer proven injection books (catalog liquidity ≥ 8) until they earn rank.
+  if (totalTrades < 2 && (token?.score?.liquidity || 0) >= 8) {
+    score += 12;
+  }
+  // Main inject players (UNI first) always get a hard floor so they are not starved
+  // by meme books that already have wave history.
+  if (isInjectMainPlayer(symbol) || token?.injectMain) {
+    score += 28;
+  }
+
   return Math.max(0, Math.min(100, score));
 }
 
 // Compute tier assignments for all tokens — returns { tier1: [syms], tier2: [syms] }
 // Called once per main loop cycle. Scores all tokens, picks top N for each tier.
+// Reserves at least one Tier-1 seat for an inject main (prefer UNI) when present.
 function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
   const scored = tokens
     .filter(t => !t.disabled && !t.frozen)   // frozen tokens never compete for capital
     .map(t => ({ symbol: t.symbol, score: calcTokenScore(t.symbol, gasCostEth, tradeEth) }))
     .sort((a, b) => b.score - a.score);
 
-  const tier1 = scored.slice(0, TIER1_COUNT).map(s => s.symbol);
+  const bySym = new Map(scored.map(s => [s.symbol, s.score]));
+  const activeMains = INJECT_MAIN_PLAYERS.filter(s => bySym.has(s));
+  // Prefer UNI, else best-scoring inject main
+  let reservedMain = null;
+  if (activeMains.includes("UNI")) reservedMain = "UNI";
+  else if (activeMains.length) {
+    reservedMain = activeMains.slice().sort((a, b) => (bySym.get(b) || 0) - (bySym.get(a) || 0))[0];
+  }
+
+  const tier1 = [];
+  if (reservedMain) tier1.push(reservedMain);
+  for (const s of scored) {
+    if (tier1.length >= TIER1_COUNT) break;
+    if (tier1.includes(s.symbol)) continue;
+    tier1.push(s.symbol);
+  }
 
   // Tier 2: how many slots can we afford?
   const tier2Capital   = totalTradeableUsd * TIER2_PCT;
   const maxTier2Slots  = Math.min(TIER2_MAX_SLOTS, Math.floor(tier2Capital / TIER2_MIN_SLOT_USD));
-  const tier2Candidates = scored.slice(TIER1_COUNT);
+  const tier2Candidates = scored.filter(s => !tier1.includes(s.symbol));
   const tier2 = tier2Candidates.slice(0, maxTier2Slots).map(s => s.symbol);
 
-  return { tier1, tier2, scored };
+  return { tier1, tier2, scored, reservedMain };
 }
 
 // How much ETH to deploy for a token given its tier and current capital
@@ -1194,8 +1230,9 @@ const DEFAULT_TOKENS = [
   // These are the horses. Deep liquidity, clean waves, real fundamentals.
 
   { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    injectMain: true,
     score: { liquidity:9, waveQuality:9, fundamentals:8, coinbaseFit:10, community:8, total:44 },
-    notes: "Aerodrome — the DEX backbone of Base. Coinbase's own liquidity hub. Deep pool, clean waves, real revenue from fees. Crown jewel of Base." },
+    notes: "Aerodrome — inject main. DEX backbone of Base. Deep Uni V3 + Aero books. Crown jewel liquidity hub." },
 
   { symbol: "BRETT",   address: "0x532f27101965dd16442E59d40670FaF5eBB142E4", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:8, waveQuality:9, fundamentals:6, coinbaseFit:9, community:9, total:41 },
@@ -1210,23 +1247,27 @@ const DEFAULT_TOKENS = [
     notes: "PROMOTED FROM WATCHLIST. Coinbase chose Morpho for their $1B+ lending product on Base. Real yield, real revenue, Coinbase-native. This is infrastructure." },
 
   { symbol: "CBBTC",   address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    injectMain: true,
     score: { liquidity:9, waveQuality:8, fundamentals:10, coinbaseFit:10, community:8, total:45 },
-    notes: "PROMOTED FROM WATCHLIST. Coinbase-issued BTC on Base. Follows BTC cycles exactly. Maximum trust. Waves ride BTC momentum. Long-term anchor asset." },
+    notes: "PROMOTED FROM WATCHLIST. Coinbase-issued BTC on Base — inject main (BTC market). Follows BTC cycles. Uniswap v3 cbBTC/WETH deep book." },
 
   // ── TOP-100 MAJORS — Uniswap V3 WETH books on Base (factory-verified 2026-09-07) ──
   // Injection surface: deep Uni V3 pools so hitch-covered swaps can land on real majors.
 
   { symbol: "LINK",    address: "0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    injectMain: true,
     score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:8, total:42 },
-    notes: "Chainlink — top-100 major. Uniswap v3 LINK/WETH 0.3% (factory) + LINK/USDC ~$137k / ~$141k 24h. KEEP: Uni V3 proven for injection." },
+    notes: "Chainlink — inject main. Uniswap v3 LINK/WETH 0.3% (factory) + LINK/USDC ~$137k / ~$141k 24h." },
 
   { symbol: "AAVE",    address: "0x63706e401c06ac8513145b7687A14804d17f814b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    injectMain: true,
     score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:7, total:41 },
-    notes: "Aave — top-100 DeFi major. Uniswap v3 AAVE/WETH 0.3% (factory) ~$134k / ~$48k 24h. KEEP: Uni V3 proven for injection." },
+    notes: "Aave — inject main. Uniswap v3 AAVE/WETH 0.3% (factory) ~$134k / ~$48k 24h." },
 
-  { symbol: "UNI",     address: "0xc3De830EA07524a0761646a6a4e4be0e114a3C83", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:8, total:42 },
-    notes: "Uniswap — top-100 DEX major. Uniswap v3 UNI/WETH 1% (factory deepest) ~$105k / ~$48k 24h. KEEP: Uni V3 proven for injection." },
+  { symbol: "UNI",     address: "0xc3De830EA07524a0761646a6a4e4be0e114a3C83", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    injectMain: true,
+    score: { liquidity:9, waveQuality:8, fundamentals:10, coinbaseFit:10, community:9, total:46 },
+    notes: "MAIN INJECT PLAYER — Uniswap token on Uniswap V3. We route every hitch swap here; UNI stays Tier-1 reserved. Uni v3 UNI/WETH 1% factory-deepest." },
 
   // ── TIER 2: SOLID (30-39) ─────────────────────────────────────────────────
 
@@ -9254,12 +9295,16 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         let msg = `🏆 <b>TIER LEADERBOARD</b>\n`;
         msg += `💰 Tradeable: $${(bal2.tradeableWithWeth * ethPrice2).toFixed(2)}\n\n`;
         msg += `<b>🥇 TIER 1 — $${t1Usd2}/slot (65% capital, top 3)</b>\n`;
+        if (ta2.reservedMain) {
+          msg += `💉 Inject main seat: <b>${ta2.reservedMain}</b> (UNI preferred)\n`;
+        }
         for (const sym of ta2.tier1) {
           const sc = ta2.scored.find(s => s.symbol === sym);
           const t  = tokens.find(t => t.symbol === sym);
           const arm = getArmStatus(sym, gc2, bal2.tradeableWithWeth);
           const pos = t?.entryPrice ? `🏇 IN` : `⏳ READY`;
-          msg += `   ${pos} <b>${sym}</b> — score ${sc?.score || 0}/100 | ${arm.armed ? (arm.net*100).toFixed(1)+"% margin" : "building"}\n`;
+          const inj = isInjectMainPlayer(sym) ? " 💉" : "";
+          msg += `   ${pos} <b>${sym}</b>${inj} — score ${sc?.score || 0}/100 | ${arm.armed ? (arm.net*100).toFixed(1)+"% margin" : "building"}\n`;
         }
         msg += `\n<b>🥈 TIER 2 — $${t2Usd2}/slot (35% capital, ${t2Slots2} slots)</b>\n`;
         if (ta2.tier2.length === 0) {
@@ -9521,14 +9566,16 @@ function bootstrapWavesFromCandles() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 async function main() {
+  const bootActive = DEFAULT_TOKENS.filter(t => !t.frozen && !t.disabled).map(t => t.symbol);
+  const bootFrozen = DEFAULT_TOKENS.filter(t => t.frozen && !t.disabled).length;
   console.log("═══════════════════════════════════════════════════════════");
   console.log("⚔️💓  GUARDIAN PROTOCOL — HEARTBEAT EDITION v18.1 — CHAIN-FIRST + INSTANT WAVE ARM + 3-SOURCE DATA");
-  console.log("   ✅ Active tokens: original 15 + MOG, BASE, LUNA, GAME");
-  console.log("   ❄️  Frozen tokens: 16 tokens collecting wave data, no capital deployed");
-  console.log("   🔧 Fixes: drawdown ghost halt, /bank live chain read, sell gas gate, frozen system");
+  console.log(`   ✅ Active (${bootActive.length}): ${bootActive.join(" ")}`);
+  console.log(`   ❄️  Frozen: ${bootFrozen} collecting wave data, no new capital`);
+  console.log("   🔧 Inject surface: Uni V3 WETH books + §$STORE§ hitch on leftover swaps");
   console.log("      ETH+WETH unified | Auto gas top-up | Ledger wave seeding");
   console.log("      Live ETH price | Gas spike guard | Drawdown breaker");
-  console.log("      v15.7: RPC fix (7 endpoints + quota rotation), 10 new tokens, ETH/WETH manager");
+  console.log("      Top-100 majors: LINK AAVE UNI + thawed VVV ZORA BNKR");
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
   if (isLoseZeroMode()) {
@@ -10198,6 +10245,9 @@ async function main() {
       const tier2Usd = tier2Slots > 0 ? (bal.tradeableWithWeth * ethUsd * TIER2_PCT / tier2Slots).toFixed(2) : "0";
       console.log(`🏆 T1[$${tier1Usd}/slot]: ${t1Str}`);
       console.log(`🥈 T2[$${tier2Usd}/slot x${tier2Slots}]: ${t2Str}`);
+      if (tAssign.reservedMain) {
+        console.log(`💉 Inject main reserved T1: ${tAssign.reservedMain} (UNI preferred among ${INJECT_MAIN_PLAYERS.join("/")})`);
+      }
 
       // ── CONTINUOUS BALANCE RECONCILIATION (Hummingbot pattern) ──────────────
       // Every 60 seconds: verify open positions against actual on-chain balances
