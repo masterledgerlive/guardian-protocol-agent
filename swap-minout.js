@@ -282,6 +282,19 @@ export function decodeStoreVoiceCalldata(data) {
 }
 
 /**
+ * Encoding is free of P&L only when leftover covers hitch cost.
+ * leftoverCoverEth >= hitchCostEth → allow hitch.
+ * leftover too thin → skip hitch, never sell/buy at a loss to insert storage.
+ */
+export function encodingDoesNotLoseMoney({ leftoverEth, hitchCostEth } = {}) {
+  const left = Number(leftoverEth);
+  const cost = Number(hitchCostEth);
+  if (!Number.isFinite(left) || left <= 0) return false;
+  if (!Number.isFinite(cost) || cost < 0) return false;
+  return left >= cost;
+}
+
+/**
  * Before submit: amountOutMinimum must sit under a quoted expected out (preferred)
  * or a USD spot estimate, inside a sane slippage band.
  *

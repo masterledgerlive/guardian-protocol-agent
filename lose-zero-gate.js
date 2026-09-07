@@ -5,8 +5,10 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  *
  * Does not size trades or invent P&L. Decides allow vs block only.
  *
- * Buy penny-pinch: leftover must cover 1× hitch (auto, cascade, ripple, operator).
- * Operator /buy is lossy only if ALLOW_LOSSY_OPERATOR_BUY=yes (default no).
+ * Buy penny-pinch: leftover must cover 1× hitch (auto, cascade, ripple).
+ * Operator Telegram /buy is an explicit test: leftover+edge never block it.
+ * Hitch Eureka if leftover covers 1× hitch; otherwise send a plain swap.
+ * Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply.
  * Sell lose-zero:  sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
  *                  HITCH_COST_MULT default 2 — twice the hitch as profit cushion.
  * inject_hitch_cost = L2 calldata-char gas + live Base L1 data fee (GasPriceOracle
@@ -14,8 +16,9 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * L1 is preferred when quoted; oracle failure falls back to L2-only.
  *
  * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
- * if leftover is too thin for 2× hitch cover, hold (do not skip the reservation
- * to sneak a thin sell). Once the 2× floor is met, sell immediately.
+ * if leftover is too thin for hitch, skip hitch and still sell when the wave itself
+ * is profitable after fees. Hold only when leftover after fees is ≤ 0.
+ * Once hitch leftover is met, attach Eureka on the way out.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -437,16 +440,16 @@ export function evaluateBuyGate({
   // but never auto-allows.
   void isCascade;
 
-  // Operator /buy is lossy only when ALLOW_LOSSY_OPERATOR_BUY=yes (default no).
-  if (canBypassBuyLossGate(reason, env)) {
-    if (!loseZero && !injectReq) {
-      return { allow: true, log: null, leftover, reason: "manual-operator" };
-    }
+  // Operator /buy is an explicit test — leftover+edge never block.
+  // Hitch vs plain is decided by leftover cover (skipHitch).
+  if (isManualOperatorBuy(reason) || canBypassBuyLossGate(reason, env)) {
+    const covers = leftoverCoversInject(leftover);
     return {
       allow: true,
-      log: `${tag}: allow buy ${symbol} MANUAL BUY (operator) ALLOW_LOSSY_OPERATOR_BUY`,
       leftover,
-      reason: "lossy-operator",
+      skipHitch: !covers,
+      log: `${tag}: allow buy ${symbol} MANUAL BUY (operator) ${covers ? "hitch covered" : "plain swap (hitch not covered)"}`,
+      reason: covers ? "operator-hitch" : "operator-plain",
     };
   }
 
@@ -513,20 +516,13 @@ export function buildBuyGateDecision({
 } = {}) {
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
-  // Cascade / ripple must compute leftover + edge. Operator skips math only
-  // when ALLOW_LOSSY_OPERATOR_BUY=yes (forced-proof bypass).
-  if (canBypassBuyLossGate(reason, env) || (!loseZero && !injectReq)) {
-    return evaluateBuyGate({ isCascade, leftover: 0, hasEdge: false, symbol, reason, env });
-  }
   const fairExit = computeFairExit(price, { feePct, gasCostEth, tradeEth, impactPct });
   const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
   const l2FeeEth = estimateCalldataHitchEth(STORE_HITCH_BYTES, gwei);
-  const decision = evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
   const source = hasLiveL1Fee(l1FeeEth) ? "oracle" : "fallback";
-  return {
-    ...decision,
+  const feeFields = {
     l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
     l2FeeEth,
     hitchFeeSource: source,
@@ -536,6 +532,33 @@ export function buildBuyGateDecision({
       source,
     }),
   };
+
+  // Operator /buy always computes leftover so hitch can ride when covered.
+  if (isManualOperatorBuy(reason)) {
+    return {
+      ...evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env }),
+      leftover,
+      ...feeFields,
+    };
+  }
+
+  if (!loseZero && !injectReq) {
+    return {
+      allow: true,
+      log: null,
+      leftover: 0,
+      skipHitch: false,
+      reason: "gate-off",
+      ...feeFields,
+    };
+  }
+
+  const decision = evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
+  return {
+    ...decision,
+    skipHitch: decision.skipHitch ?? false,
+    ...feeFields,
+  };
 }
 
 export function isAllowLossyOperatorBuy(env = process.env) {
@@ -543,7 +566,10 @@ export function isAllowLossyOperatorBuy(env = process.env) {
 }
 
 export function canBypassBuyLossGate(reason = "", env = process.env) {
-  return isManualOperatorBuy(reason) && isAllowLossyOperatorBuy(env);
+  // Operator Telegram /buy is the test path. Leftover+edge never block.
+  // ALLOW_LOSSY_OPERATOR_BUY is kept as a redundant alias (always true for operator).
+  void env;
+  return isManualOperatorBuy(reason);
 }
 
 export function isAllowLossyOperatorSell(env = process.env) {
@@ -911,9 +937,10 @@ export function evaluateSellGate({
     });
   }
 
-  // No leftover, or leftover cannot cover N× reserved hitch — hold.
-  if (leftover <= 0 || !reservedCover.covers) {
-    return pack(false, "hitch would wipe edge", {
+  // Trade itself loses after fees (piggy dust already reserved in executeSell).
+  // Hitch is optional: never hold a profitable wave hostage to insertion cost.
+  if (leftover <= 0) {
+    return pack(false, "trade would lose after fees", {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
@@ -922,6 +949,22 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: false,
+      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money`,
+    });
+  }
+
+  // Profitable after fees, but N× hitch would eat it — plain sale, letter skipped.
+  if (!reservedCover.covers) {
+    return pack(true, "plain sale hitch skipped", {
+      hitchBytes: 0,
+      btpInscribe: false,
+      skipHitch: true,
+      injectCostEth: 0,
+      hitchCoverEth: reservedCover.hitchCoverEth,
+      edge: reservedCover.edge,
+      minSellProceedsEth: reservedCover.minSellProceedsEth,
+      sellNow: true,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${mult}x hitch; Eureka skipped so we still take the wave`,
     });
   }
 

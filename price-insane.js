@@ -381,6 +381,27 @@ export function failedFillLog(symbol, { received = 0, receiptStatus = "unknown",
   );
 }
 
+/**
+ * A buy that mined but delivered 0 tokens / reverted is a FAIL, not a win.
+ * Telegram / ledger / Eureka letter must not fire on a hallucinated fill.
+ */
+export function isSuccessfulBuyFill({ receivedTokens, receiptStatus } = {}) {
+  if (receiptStatus === "reverted" || receiptStatus === 0 || receiptStatus === "0x0") {
+    return false;
+  }
+  const got = Number(receivedTokens);
+  return Number.isFinite(got) && got > 0;
+}
+
+export function failedBuyFillLog(symbol, { receivedTokens = 0, receiptStatus = "unknown", txHash = "" } = {}) {
+  const got = Number(receivedTokens) || 0;
+  const tx = txHash ? ` tx=${txHash}` : "";
+  return (
+    `❌ BUY FAILED [${symbol}]: ${receiptStatus === "reverted" ? "swap reverted" : "Received 0 tokens"} ` +
+    `(got ${got.toFixed(6)} tokens${tx}) — not a win, not logging success, letter not claimed`
+  );
+}
+
 /** Console helper used by log-formatter: 0 ETH is never a profit checkmark. */
 export function sellFillIsWin(received, netUsd) {
   return Number(received) > 0 && Number(netUsd) >= 0;

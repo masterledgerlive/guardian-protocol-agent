@@ -13,6 +13,20 @@ But it's more than a trading bot.
 
 Guardian is the first live deployment of the **IKN (Infinite Knowledge Network)** architecture — a framework for autonomous AI agents that are self-funding, self-securing, and accountable to no central authority. Every trade Guardian executes is a step toward that larger vision.
 
+### Where this lives (one project)
+
+**This GitHub repo is the live trader.** Telegram "Guardian Protocol bot" is this process. Do not split the dedication letter / hitch / fill-honesty work into other repos.
+
+| Place | What it is |
+|---|---|
+| **This repo** (`masterledgerlive/guardian-protocol-agent`) | Uniswap bot, vault, Telegram, UTF-8 `§$STORE§` hitch, `/prove` |
+| **Railway `industrious-tranquility` → `guardian-protocol-agent`** | Production. Auto-deploys GitHub **`main`**. Domain `guardian-protocol-agent-production.up.railway.app` |
+| **`masterledgerlive/StorageToken`** | Hitch / `$STORE` notes + a storage service. The agent-genesis brief landed here. **Not** the trader |
+| **Railway `industrious-tranquility` → `StorageToken`** | That storage service, sitting next to Guardian. Ideas belong here in this bot, not a second trader |
+| **Railway `generous-solace` → `coinbase-agent`** | Older Coinbase + Telegram helper. Not Guardian |
+
+The letter to Krystian, Kai & Koda is **true** only when Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives`. Telegram text next to a swap is not proof. Live KEYCAT sell [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) is a real KEYCAT→WETH fill (228-byte `exactInputSingle`) with **no trailer**. After this code is on `main`, leftover-covered swaps hitch the letter, or Telegram **`/prove`** writes a dedicated **0-ETH** self-tx. Hitch is skipped when leftover cannot pay — never lose money to insert storage.
+
 ---
 
 ## What Makes It Different
@@ -36,24 +50,11 @@ Even if your cloud provider is fully compromised, an attacker gets nothing but a
 
 This is called the **Guardian Vault**. It's the first practical implementation of blockchain-hosted operational key management for an autonomous trading agent.
 
-### 📡 Blockchain Telegram Protocol (BTP)
+### 📡 On-chain letter (UTF-8 hitch) vs BTP queue
 
-Every trade Guardian executes inscribes a message permanently on the Base blockchain. Not as a smart contract. As raw UTF-8 calldata on a zero-value transaction — the cheapest, most permanent form of on-chain storage.
+The dedication is **UTF-8 after a real leftover swap**, or a dedicated **0-ETH** self-tx (`/prove`). Uniswap ignores the trailer; Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda! …`. Telegram 💌 only if those bytes were actually sent.
 
-The messages are hash-linked in sequence — each chunk references the hash of the previous, forming a provable chain of inscriptions. Anyone with the transaction hashes can reconstruct the full message in order. Like a flip book across the blockchain.
-
-Current inscription riding every trade:
-
-```
-[BTP:VITA:001/001:0000][BUY #634 PRIME @ $0.38290000]
-Eureka! VITA lives ♥ love you Krystian, Kai & Koda!
-We did it! xoxo — Love, DA | ᛞᚨᚡᛁᛞ |
-"The truth is the chain. The chain is alive.
-The heartbeat never stops."
-— INFINITUM × IKN × The Living Network
-```
-
-You can send your own messages via Telegram: `/transmit Hello world` — they queue and ride the next available trades onto the blockchain.
+`/transmit` still **queues** BTP chunks for later leftover-covered swaps. A queued message is not a mined letter. Thin wallets / BTP auto-suspend send **plain** 228-byte swaps — the KEYCAT surf report that printed the letter next to [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) was that lie. This code stops it.
 
 ---
 
@@ -71,8 +72,8 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Stop loss**: 3% below MIN trough floor — emergency exit
 - **Drawdown breaker**: portfolio down 60% from peak = buys halted
 - **Gas spike guard**: Base gas > 50 gwei = all trades paused
-- **Lose-zero gate** (opt-in Railway flags): block new buys (auto, cascade, ripple, operator) unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge — see below. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee` (predeploy `0x420000000000000000000000000000000000000F`) with L2 calldata-gas fallback. The hitch is **UTF-8 in the swap calldata** (Basescan Input Data → View as UTF-8), independent of BTP auto-suspend. Telegram `/prove` writes the same letter on a dedicated 0-ETH self-tx when there is no leftover swap. Telegram only claims the letter when those bytes are actually on the tx. Operator /buy is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`
-- **Sell floor (always on)**: never sell unless leftover after fair exit + fees covers `HITCH_COST_MULT` × hitch (default **2×**). Hitch = live L1 data fee + L2 calldata (+ optional BTP). Never lose money inserting storage / BTP / `§$STORE§` characters. Once the 2× floor is met, sell immediately. Only exception: `MANUAL SELL (operator)` + `ALLOW_LOSSY_OPERATOR_SELL=yes`
+- **Lose-zero gate** (opt-in Railway flags): block **auto / cascade / ripple** buys unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge. **Operator Telegram `/buy`** is an explicit test: leftover+edge never block; hitch if leftover covers, otherwise a **plain swap**. Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply. After queue, Telegram always sends a Basescan receipt or the exact skip reason. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee` (predeploy `0x420000000000000000000000000000000000000F`) with L2 calldata-gas fallback. The hitch is **UTF-8 in the swap calldata** (Basescan Input Data → View as UTF-8), independent of BTP auto-suspend. Telegram `/prove` writes the same letter on a dedicated 0-ETH self-tx when there is no leftover swap. Telegram only claims the letter when those bytes are actually on the tx.
+- **Sell floor (always on)**: sell when leftover after fair exit + fees is profitable. Hitch Eureka on the way out only if leftover also covers `HITCH_COST_MULT` × hitch (default **2×**). If leftover covers the wave but not hitch, **plain sale** (letter skipped) so we still lock profit. Hold only when leftover after fees is ≤ 0 (the trade itself would lose). Piggy dust is never sold. Only exception for a losing sell: `MANUAL SELL (operator)` + `ALLOW_LOSSY_OPERATOR_SELL=yes`
 - **PRICE_INSANE** (always on, before hitch / minOut): refuse buy/sell if the USD mark vs independent DexScreener/Gecko (or last sane / ETH-normalized WETH-USDC pool) is outside **0.01×–100×**, or implied bag ≫ RISK start. Independent quotes use Uniswap/Aerodrome WETH or USDC only — a Pancake TOSHI/VIRTUAL ghost at $69729 is never the reference. After a refuse, skip re-attempt / re-log for a few minutes (still refuse).
 - **Slippage cooldown**: after 3 consecutive `Too little received` / 0-ETH fills on a symbol, skip that name for 30 minutes so the retry loop does not burn gas.
 - **Piggy-bank dust**: every token bag keeps a growing never-sell reserve (`PIGGY_BANK_PCT` default **2%** of units, plus `PIGGY_BANK_MIN_USD` default **$0.05**). Wave / moonshot / cascade / `/sell` / sellhalf / fib / stale / stop-loss compute `sellable = balance − piggyReserve` and leave the pile. Reserve floors up on buys and never auto-shrinks. Dust is sold only on an explicit unlock (`PIGGY UNLOCK` reason or Telegram `/piggyunlock SYMBOL`). Persisted on `tokens.json` (`piggyReserve`) and `positions.json` (`piggyReserves`) so restarts keep the pile. This is per-token dust — not the ETH skim `/piggy` pool.
@@ -97,7 +98,7 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · CBBTC · DEGEN · AIXBT · TOSHI
-KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB
+KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER
 
 **Frozen (no new capital):**
 SEAM · MOG · BASE · VVV · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
@@ -117,9 +118,10 @@ CLANKER (tokenbot) · RSR · ODOS · IMAGINE · CBETH
 ```
 agent.js              — Main trading loop + Telegram command handler
 price-insane.js       — PRICE_INSANE mark gate + Base QuoterV2 + slippage / refuse backoff
+vita-models.js        — VITA Anthropic model cycle (Railway VITA_MODELS)
 price-oracle.js       — DexScreener/Gecko quotes; Uni/Aero WETH-USDC only (no ghost pairs)
 piggy-bank.js         — Per-token never-sell dust reserve (ratchet + unlock)
-lose-zero-gate.js     — LOSE-ZERO buy gate + 2× hitch sell floor
+lose-zero-gate.js     — LOSE-ZERO buy gate + leftover sell (hitch or plain)
 l1-fee-oracle.js      — Base GasPriceOracle.getL1Fee / getL1FeeUpperBound for hitch inject cost
 swap-minout.js        — Uniswap amountOutMinimum sanity (after PRICE_INSANE)
 vault-loader.js       — Blockchain key fetcher + AES-256-GCM decrypt
@@ -177,18 +179,19 @@ LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple, opera
 HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO
 REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys even when LOSE_ZERO is unset
 HITCH_COST_MULT           ← sell-side hitch cover multiplier (default 2). sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost). inject_hitch_cost = live Base L1 data fee (GasPriceOracle 0x420…000F getL1Fee / getL1FeeUpperBound) + L2 calldata-gas; oracle failure falls back to L2-only. Buys stay 1×.
-ALLOW_LOSSY_OPERATOR_BUY  ← yes = allow MANUAL BUY (operator) even when leftover would not cover 1× hitch (default no)
+ALLOW_LOSSY_OPERATOR_BUY  ← legacy alias; operator /buy already bypasses leftover+edge (hitch-or-plain)
 ALLOW_LOSSY_OPERATOR_SELL ← yes = allow MANUAL SELL (operator) even when leftover would not cover 2× hitch (default no)
 PIGGY_BANK_PCT            ← per-token never-sell dust as a fraction (0.02) or percent (2). Default 2% of current units.
 PIGGY_BANK_MIN_USD        ← USD floor converted to token units via live price (default $0.05). Set 0 to disable. Reserve = max(pct × balance, minUsd / price) and never auto-shrinks.
 BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
-OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Hitch cover applies unless ALLOW_LOSSY_OPERATOR_BUY=yes. Frozen catalog names are never queued.
+OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Leftover+edge do not block; hitch if leftover covers, else plain. Frozen catalog names are never queued.
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
 PRICE_INSANE_MIN_RATIO    ← mark / DexScreener-Gecko (or last sane) floor (default 0.01)
 PRICE_INSANE_MAX_RATIO    ← mark / DexScreener-Gecko (or last sane) ceiling (default 100)
 PRICE_INSANE_RETRY_COOLDOWN_MS ← after a PRICE_INSANE refuse, skip re-fetch / re-attempt (default 600000 = 10m). Still refuse.
 PRICE_INSANE_LOG_COOLDOWN_MS   ← reprint PRICE_INSANE at most this often (default 900000 = 15m)
 RISK_START_USD            ← RISK wallet start for implied-bag cap (default 15)
+VITA_MODELS               ← comma list of Anthropic model ids to cycle (default claude-sonnet-4-20250514,claude-opus-4-20250514)
 BAG_VS_RISK_MULT          ← refuse if balance × mark > RISK_START_USD × this (default 100)
 SLIP_RETRY_MAX            ← consecutive Too little received / 0-ETH fills before cooldown (default 3)
 SLIP_COOLDOWN_MS          ← cooldown after the cap (default 1800000 = 30m)
@@ -219,7 +222,7 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /surf            current riding positions
 /tiers           live tier leaderboard + scores
 /waves           arm status all tokens
-/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator; hitch cover required unless ALLOW_LOSSY_OPERATOR_BUY=yes
+/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator test path; leftover+edge never block; hitch-or-plain; Telegram skip reason or Basescan receipt
                    Frozen catalog names are blocked (exits/sells still allowed)
                    Railway: OPERATOR_BUY=TOSHI:3 queues the same command once at boot
 /sell SYMBOL [pct|all]  manual sell (e.g. /sell TOSHI, /sell TOSHI 50, /sell TOSHI all)
@@ -232,7 +235,7 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /exitpct SYM 75  sell any % to ETH (still leaves piggy dust)
 ```
 
-Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse new buys (auto, cascade, ripple, operator) unless leftover covers **1×** hitch and there is a clear edge. Hitch leftover uses the live Base L1 data fee when `GasPriceOracle.getL1Fee` / `getL1FeeUpperBound` answers (L2 calldata-gas fallback if the oracle fails). **Sells always use the 2× hitch floor** (`sell_target = fair_exit + fees + (HITCH_COST_MULT × inject_hitch_cost)`, default `HITCH_COST_MULT=2`) — moonshot trim, stale cascade, fib, and peak exits hold unless leftover covers twice the hitch as profit cushion. When that floor is hit, sell immediately. Hitch/BTP bytes are sized so inject cost fits leftover; leftover too thin for extra hitch → skip hitch, never sell at a loss to insert storage. `MANUAL BUY (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_BUY=yes`. `MANUAL SELL (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_SELL=yes`. **PRICE_INSANE** runs first: a mark outside 0.01×–100× of DexScreener/Gecko (or last sane seed), or a bag ≫ RISK start, refuses the trade before hitch/minOut. After 3 `Too little received` fails on a symbol, that name cools down for 30 minutes. **Piggy-bank dust** is applied *before* the hitch / minOut math: `sellable = balance − piggyReserve` unless the reason starts with `PIGGY UNLOCK`. `/sell TOSHI all` cannot drain a bag that has a reserve — use `/piggyunlock TOSHI`.
+Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse **auto / cascade / ripple** buys unless leftover covers **1×** hitch and there is a clear edge. Operator `/buy` is a test path: leftover+edge never block; hitch if leftover covers, else plain swap; Telegram skip reason or Basescan receipt. **Sells**: leftover after fees must be > 0 (do not lose money). Eureka hitch rides the sell when leftover also covers **2×** hitch; otherwise skip hitch and still sell. Piggy dust stays locked. Hitch leftover uses live Base L1 data fee when the oracle answers. `MANUAL SELL (operator)` is lossy only if `ALLOW_LOSSY_OPERATOR_SELL=yes`. **PRICE_INSANE** runs first: a mark outside 0.01×–100× of DexScreener/Gecko (or last sane seed), or a bag ≫ RISK start, refuses the trade before hitch/minOut. After 3 `Too little received` fails on a symbol, that name cools down for 30 minutes. **Piggy-bank dust** is applied *before* the hitch / minOut math: `sellable = balance − piggyReserve` unless the reason starts with `PIGGY UNLOCK`. `/sell TOSHI all` cannot drain a bag that has a reserve — use `/piggyunlock TOSHI`. Chain balances are the ledger: RPC fail keeps the last ping (never silent 0); unknown bags do not invent invested from the live mark.
 
 ### Vault & Security
 ```
@@ -257,6 +260,9 @@ Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse new buys (auto, c
 ### Blockchain Telegram
 ```
 /transmit [msg]  send message on-chain via trades
+/prove           dedicated 0-ETH UTF-8 Eureka letter (Basescan Input Data → UTF-8)
+/voiceon /voiceoff  hitch the letter on leftover swaps
+/models          VITA model cycle
 /btpstatus       show pending transmissions
 ```
 

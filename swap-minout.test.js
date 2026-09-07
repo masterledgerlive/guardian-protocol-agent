@@ -24,6 +24,7 @@ import {
   STORE_VOICE_TAG,
   encodeStoreVoiceCalldata,
   decodeStoreVoiceCalldata,
+  encodingDoesNotLoseMoney,
 } from "./swap-minout.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
@@ -173,6 +174,12 @@ describe("UTF-8 §$STORE§ hitch (Genesis voice)", () => {
     assert.match(utf8, /Krystian, Kai & Koda/);
     assert.match(utf8, /The truth is the chain/);
     assert.equal(decodeTrailingUtf8(data), "");
+  });
+
+  it("encodingDoesNotLoseMoney is true only when leftover covers hitch cost", () => {
+    assert.equal(encodingDoesNotLoseMoney({ leftoverEth: 0.00002, hitchCostEth: 0.00001 }), true);
+    assert.equal(encodingDoesNotLoseMoney({ leftoverEth: 0.00001, hitchCostEth: 0.00002 }), false);
+    assert.equal(encodingDoesNotLoseMoney({ leftoverEth: 0, hitchCostEth: 0 }), false);
   });
 });
 

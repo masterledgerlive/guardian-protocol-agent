@@ -358,6 +358,47 @@ export function hasUsableCostBasis(token) {
   return isValidUsdPrice(token.entryPrice);
 }
 
+/**
+ * Invested ETH used by leftover / P&L. Unknown bags (chain truth, no fill
+ * receipt) contribute 0 — never a live mark invented as "what we paid."
+ */
+export function costBasisEth(token) {
+  if (!hasUsableCostBasis(token)) return 0;
+  const n = Number(token.totalInvestedEth);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Trust a saved entry only when a fill receipt / ledger buy exists.
+ * Live-market "UNKNOWN ENTRY" copies are not cost basis.
+ */
+export function shouldTrustSavedCostBasis(token, { net, tradeLog } = {}) {
+  if (!token || token.unknownEntry) return false;
+  if (!isValidUsdPrice(token.entryPrice)) return false;
+  if (Number(net?.lastBuyPrice) > 0) return true;
+  if (Array.isArray(tradeLog) && tradeLog.some((t) =>
+    t && t.symbol === token.symbol && String(t.type || "").toUpperCase() === "BUY" && t.tx
+  )) return true;
+  return false;
+}
+
+/**
+ * Bag is on-chain but we do not know what was paid. Keep a display mark so
+ * processToken still treats it as a holding; leftover = proceeds − fees.
+ */
+export function applyUnknownChainHolding(token, { units, priceUsd } = {}) {
+  if (!token) return token;
+  token.unknownEntry = true;
+  token.totalInvestedEth = 0;
+  token.entryTime = token.entryTime || Date.now();
+  const u = Number(units);
+  if (Number.isFinite(u) && u > 0) token.chainUnits = u;
+  if (isValidUsdPrice(priceUsd) && !isValidUsdPrice(token.entryPrice)) {
+    token.entryPrice = priceUsd;
+  }
+  return token;
+}
+
 // ── Historical seed: never let a CEX ticker overwrite a Base token ───────────
 // Binance SYMBOLUSDT is only safe when the CEX listing is the same asset as
 // our Base contract. LUNAUSDT is Terra; KITEUSDT is L1 KITE — not Virtuals/Base.

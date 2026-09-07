@@ -8,6 +8,9 @@ import {
   parseGeckoTerminalPrices,
   hasUsableCostBasis,
   GECKO_TERMINAL_CHUNK,
+  costBasisEth,
+  shouldTrustSavedCostBasis,
+  applyUnknownChainHolding,
   allowBinanceOhlcSeed,
   pickHistoricalSeedSource,
   preferBaseQuoteForLastPrice,
@@ -174,6 +177,13 @@ describe("cost basis", () => {
     assert.equal(hasUsableCostBasis({ entryPrice: 0, unknownEntry: false }), false);
     assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false }), true);
     assert.equal(hasUsableCostBasis({ entryPrice: 2.54 }), true);
+    assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: true, totalInvestedEth: 0.0002 }), 0);
+    assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: false, totalInvestedEth: 0.0002 }), 0.0002);
+    const invented = { symbol: "TOSHI", entryPrice: 0.000129, totalInvestedEth: 0.0002, unknownEntry: false };
+    assert.equal(shouldTrustSavedCostBasis(invented, {}), false);
+    applyUnknownChainHolding(invented, { units: 4514, priceUsd: 0.000129 });
+    assert.equal(invented.unknownEntry, true);
+    assert.equal(invented.totalInvestedEth, 0);
   });
 });
 

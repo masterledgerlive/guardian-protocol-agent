@@ -2,17 +2,50 @@
 
 ## Unreleased
 
-### Fixed — UTF-8 `§$STORE§` hitch actually rides the swap (KEYCAT 0x5c0a93e4…)
+### Fixed — boot recon crashed on `netPositions is not defined`
 
-Telegram printed the VITA letter on KEYCAT→WETH `0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf` but Basescan Input Data was only 228-byte `exactInputSingle` — no trailing UTF-8. The letter was never on-chain.
+Live after PR #25 (`6bb972f`): on-chain scan was honest (9 bags, unknown cost, ~$5.14 chain mark) then `CHAIN RECONCILIATION — netPositions is not defined`. `const netPositions` lived only inside the boot-scan try, so `processToken` could not read the ledger either. Hoist `let netPositions = {}` to module scope.
 
-Genesis / StorageToken rule: hitch `§$STORE§` on a **real** leftover swap; never invent a hash; never claim Telegram text is on-chain.
+### Fixed — /buy went silent; account amounts were invented, not chain pings
 
-- `appendUtf8Hitch` / `planVoiceHitch` append `§$STORE§ Eureka! VITA lives ♥ …` after the 228-byte swap (router ignores trailer). Sized to leftover hitch bytes. Prefix / minOut still refused if packing would smash the slot.
-- Buy + sell (and moonshot via `executeSell`) send the hitched calldata. Telegram 💌 only quotes the bytes that were actually appended; otherwise it says the letter is not on-chain.
-- Voice hitch is **independent of BTP auto-suspend** (thin wallets were silently sending plain swaps while Telegram printed the letter). `/voiceon` `/voiceoff`.
-- Telegram `/prove` (or `/store`) sends a **dedicated 0-ETH self-tx** with the full UTF-8 letter — Genesis StorageToken rule: leftover hitch **or** dedicated storage; never invent a swap/hash. Basescan Input Data → View as UTF-8. Cooldown 2m. Refuses if ETH cannot cover L1+L2+reserve.
-- Does **not** weaken PRICE_INSANE, Quoter, piggy, minOut, LOSE_ZERO, frozen, L1 oracle, or `HALT_NEW_ENTRIES`. No capital from this change. This agent does not send live txs.
+Live Railway after PR #24: Telegram `/buy TOSHI $1` queued, then `LOSE_ZERO: block buy TOSHI no clear edge` with **no Telegram skip**. Boot copied live Dex marks into `totalInvestedEth` ("UNKNOWN ENTRY"), so leftover ≈ −fees and KEYCAT/BASECAT held forever. `getTokenBalance` `catch { return 0 }` plus `/buy` live fetch dividing by `1e18` (not real decimals) printed false zeros. `/bank` dropped bags with `b < 1` (CLANKER) and mixed lottery dust with piggy. Telegram HTML `can't parse entities` ate `/bank` and pulse.
+
+- **Operator `/buy` is a test path.** Leftover+edge never block `MANUAL BUY (operator)`. Hitch Eureka if leftover covers 1× hitch; otherwise **plain swap**. Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply. After queue, Telegram always sends a Basescan receipt **or** the exact skip reason (`Nothing sent. No Basescan receipt`).
+- **Chain is the ledger.** RPC fail keeps the last successful ping — never silent 0. Token units use `decimals()`, not 1e18. `/bank` and pulse list every bag (including dust) from a live ping. Unknown bags show "unknown cost basis — chain balance is truth"; leftover for those sells is **proceeds − fees** (not a fake breakeven at the live mark).
+- Saved entries without a fill receipt / ledger buy are treated as unknown, so a restart cannot keep invented P&L.
+
+Does **not** weaken PRICE_INSANE, QuoterV2, piggy never-sell, minOut, auto LOSE_ZERO, frozen buy, or L1 oracle.
+
+### Fixed — hitch was freezing profitable KEYCAT/BASECAT sells
+
+Live after PR #23: Telegram had the Eureka letter (`/prove` / hitch copy) but **no fills**. Logs: `LOSE_ZERO: hold sell KEYCAT hitch would wipe edge` every cycle. Moonshot allowed BASECAT (2× hitch), then `executeSell` re-gated and held. The 2× hitch floor was treating insertion cost as a veto on the wave.
+
+- **Sell if leftover after fees > 0.** Hitch Eureka on the way out only when leftover also covers 2× hitch. Otherwise **plain sale** — Basescan receipt of the swap, letter skipped so we still take profit. Hold only when the trade itself would lose (leftover after fees ≤ 0). Piggy dust still never sold; 1% skim still funds piggy / pred / agent on winning fills.
+- **Buy** still needs leftover covering 1× hitch + a clear wave edge so round-trips can pay piggy + agent. Eureka hitch on leftover-covered buys; `/prove` remains the dedicated 0-ETH letter.
+- **Early sell** waits for MACD cross-down while still overbought / near the peak (not RSI≥75 alone) so bags can run for max profit before the target floor.
+
+### Fixed — live bot was not trading: $3 floor + fake Telegram receipts + no Railway deploy
+
+Railway `industrious-tranquility` / `guardian-protocol-agent` still ran **`main` @ `7ad6c85`**. This PR was never merged, so there was no restart. Live logs: KEYCAT/BASECAT `AT MIN TROUGH — BUYING` then `Wallet too small: $2.59 (need $3)` every cycle. Telegram sent **BUY RECEIPT** *before* `executeBuy`, so the chat showed buys with no Basescan hash.
+
+- **MIN_POS_USD default $0.50** (was $3). Matches T1 slot floor. Env `MIN_POS_USD` overrides. $2.59 liquid ETH can trade again.
+- **Telegram receipts only after a fill** — no BUY TRIGGERED / SELL RECEIPT / FIB ladder message before the swap. `executeBuy` / `executeSell` still send BOUGHT / WAVE COMPLETE with hitch footer + Basescan link.
+- **Fib latch after fill** — `recordFibLevelExecuted` used to fire *before* `executeSell`. A hitch-hold then skipped that KEYCAT 100% rung forever.
+- UTF-8 Eureka hitch stays on leftover **buys and sells**. Leftover gate still sizes the 10-byte `§$STORE§` cover so a long letter cannot freeze the book.
+
+### Fixed — buys that did not fill were logged as wins; Eureka letter was claimed off-chain
+
+Telegram printed `BOUGHT` + the VITA letter after `cdp.evm.sendTransaction` returned a hash. Sells already waited for receipt + ETH delta (`isSuccessfulSellFill`). Buys did not — a revert / 0-token fill still incremented `tradeCount`, wrote BTP, and claimed Eureka. Live KEYCAT sell `0x5c0a93e4…` is a **plain 228-byte** `exactInputSingle` with **no trailing UTF-8**.
+
+Genesis / StorageToken rule (brief that landed in `masterledgerlive/StorageToken`, not this repo): hitch `§$STORE§` on a **real leftover swap**, **or** send a dedicated 0-value storage tx. Never invent a swap/hash. Never claim Telegram text is on-chain unless those bytes are in the mined calldata.
+
+- **Buy fill gate** — `isSuccessfulBuyFill` requires receipt success **and** token-balance delta > 0. Failed buys do not increment `tradeCount`, do not BTP, do not print 💌. Slippage cooldown applies to buys too.
+- **UTF-8 hitch** — leftover-covered buys/sells append `§$STORE§ Eureka! VITA lives ♥ …` after the 228-byte swap. Telegram 💌 only if those bytes were actually sent. Sell **ledger** signature uses the same gate (it used to always write the Eureka string).
+- **`/prove`** — dedicated 0-ETH self-tx with the full letter; waits for a **success receipt** before claiming. `/voiceon` `/voiceoff`. Independent of BTP auto-suspend.
+- **Project map** — README names this repo + Railway `industrious-tranquility` / `guardian-protocol-agent` as the live trader. StorageToken and `coinbase-agent` are not this bot.
+- **VITA model cycle** — `nextVitaModel()` round-robins Anthropic ids (`claude-sonnet-4-20250514`, `claude-opus-4-20250514`). Railway `VITA_MODELS=id1,id2`. Telegram `/models`.
+- **Catalog** — ADD tradeable **REI** (`0x6B25…4cFD`, Uni v3 1% ~$208k / ~$77k) and **CLANKER** (`0x1bc0…1Bcb`, Uni v3 1% ~$1.49M / ~$30k). Live DexScreener 2026-09-07. STONKEX/BLUECHIP/VELVET/KTA/VVV/TIBBIR stay frozen. BASECAT/DRB stay tradeable.
+- Does **not** weaken PRICE_INSANE, QuoterV2, piggy, minOut, LOSE_ZERO, frozen buy, L1 oracle, or `HALT_NEW_ENTRIES`. This agent does not send live capital.
 
 ### Added — hitch inject cost from live Base `GasPriceOracle.getL1Fee`
 
