@@ -9,6 +9,7 @@ Railway @ `0930b8a` booted **24 active** including LINK/AAVE/UNI/VVV/ZORA/BNKR, 
 - Allowlist **LINK / AAVE / UNI** for Binance OHLC (same CEX asset as Base Uni V3 contracts). BNKR/VVV stay denylisted (Base-native).
 - Inject-surface score +12 for high-liquidity catalog names with &lt;2 trades so deep Uni books compete for capital.
 - Boot banner prints the live active symbol list (not the stale “15 + MOG…” line).
+- **UNI is a main inject player**: reserved Tier-1 seat (prefer UNI), `injectMain` + score floor for UNI/CBBTC/LINK/AAVE/AERO/MORPHO so the injector actually uses Uniswap’s own token and other majors — not only meme books with history.
 
 ### Added — top-100 Uniswap V3 majors for hitch injection
 

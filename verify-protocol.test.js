@@ -221,6 +221,18 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     assert.ok(src.includes("Inject-surface boost"), "deep Uni books get capital before trade history");
     assert.ok(src.includes("score?.liquidity"), "inject boost uses catalog liquidity");
   });
+
+  it("reserves UNI as a Tier-1 inject main player", () => {
+    assert.ok(src.includes('INJECT_MAIN_PLAYERS = ["UNI"'), "UNI is first inject main");
+    assert.ok(src.includes("injectMain: true"), "UNI row marked injectMain");
+    assert.ok(src.includes("reservedMain"), "tier assign reserves inject main seat");
+    assert.ok(src.includes('if (activeMains.includes("UNI")) reservedMain = "UNI"'), "UNI preferred for T1 seat");
+    const uni = src.indexOf('symbol: "UNI"');
+    assert.ok(uni >= 0);
+    const row = src.slice(uni, src.indexOf("{ symbol:", uni + 1));
+    assert.ok(row.includes("injectMain: true"));
+    assert.ok(!row.includes("frozen: true"));
+  });
 });
 
 describe("verification: operator /buy is honest and chain is the ledger", () => {
