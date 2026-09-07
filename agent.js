@@ -5713,12 +5713,15 @@ async function processToken(cdp, token, bal) {
     const fibHit = entry ? checkFibTargetHit(token.symbol, price, entry, gasCost, bal.tradeableWithWeth, ethUsd) : null;
     const fibTargetData = entry ? getFibTargets(token.symbol, entry, gasCost, bal.tradeableWithWeth, ethUsd) : null;
 
-    // ── EARLY SELL: don't wait for peak confirmation when signals are maxed ─
+    // ── EARLY SELL: lock the wave only when it is turning, not while RSI is still pumping ─
+    // Target is the floor (sell before it plummets). Let the bag run until MACD
+    // cross-down while still overbought / near the peak — max profit, then exit.
     const rsiVal  = ind.rsi;
     const bbData  = ind.bb;
     const nearPeak = maxPeak && price >= maxPeak * 0.970; // within 3% of peak
     const earlySellSignal = entry
-      && rsiVal   !== null && rsiVal >= 75
+      && rsiVal   !== null && rsiVal >= RSI_OVERBOUGHT
+      && ind.macd?.crossDown === true
       && bbData   !== null && price >= bbData.upper * 0.998
       && nearPeak
       && netIfSellNow > breakEvenBuffer * 2
@@ -10169,11 +10172,11 @@ async function main() {
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
         if (!moonGate.allow) {
-          console.log(`🌙 MOONSHOT TRIM ${token.symbol}: HOLD — leftover does not cover ${hitchCostMult()}× hitch after fees`);
+          console.log(`🌙 MOONSHOT TRIM ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
           continue;
         }
-        // 2× hitch floor met — sell immediately, do not wait past it
-        console.log(`🌙 MOONSHOT TRIM ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell) — ${hitchCostMult()}× hitch covered, selling now`);
+        const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
+        console.log(`🌙 MOONSHOT TRIM ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
           const p = await executeSell(cdpClient, token, sellPct, moonReason, price, false);
           if (p > 0) {

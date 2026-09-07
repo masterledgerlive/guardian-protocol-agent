@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed — hitch was freezing profitable KEYCAT/BASECAT sells
+
+Live after PR #23: Telegram had the Eureka letter (`/prove` / hitch copy) but **no fills**. Logs: `LOSE_ZERO: hold sell KEYCAT hitch would wipe edge` every cycle. Moonshot allowed BASECAT (2× hitch), then `executeSell` re-gated and held. The 2× hitch floor was treating insertion cost as a veto on the wave.
+
+- **Sell if leftover after fees > 0.** Hitch Eureka on the way out only when leftover also covers 2× hitch. Otherwise **plain sale** — Basescan receipt of the swap, letter skipped so we still take profit. Hold only when the trade itself would lose (leftover after fees ≤ 0). Piggy dust still never sold; 1% skim still funds piggy / pred / agent on winning fills.
+- **Buy** still needs leftover covering 1× hitch + a clear wave edge so round-trips can pay piggy + agent. Eureka hitch on leftover-covered buys; `/prove` remains the dedicated 0-ETH letter.
+- **Early sell** waits for MACD cross-down while still overbought / near the peak (not RSI≥75 alone) so bags can run for max profit before the target floor.
+
 ### Fixed — live bot was not trading: $3 floor + fake Telegram receipts + no Railway deploy
 
 Railway `industrious-tranquility` / `guardian-protocol-agent` still ran **`main` @ `7ad6c85`**. This PR was never merged, so there was no restart. Live logs: KEYCAT/BASECAT `AT MIN TROUGH — BUYING` then `Wallet too small: $2.59 (need $3)` every cycle. Telegram sent **BUY RECEIPT** *before* `executeBuy`, so the chat showed buys with no Basescan hash.
