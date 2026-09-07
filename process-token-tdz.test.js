@@ -93,7 +93,7 @@ describe("processToken hasPosition TDZ", () => {
     const prelude = body.slice(0, gate);
     assert.ok(!prelude.includes("!isCascade &&"), "cascade/ripple must not skip the buy hitch-cover gate");
     assert.ok(body.includes("isLoseZeroMode() || isInjectCoverRequired()"), "gate must run whenever LOSE_ZERO / REQUIRE_INJECT_COVER is on");
-    assert.ok(body.includes("ALLOW_LOSSY_OPERATOR_BUY"), "operator buy bypass must mention ALLOW_LOSSY_OPERATOR_BUY");
+    assert.ok(body.includes("isManualOperatorBuy"), "operator /buy is the leftover+edge test bypass");
   });
 
   it("executeSell and executeBuy run amountOutMinimum sanity before submit", () => {

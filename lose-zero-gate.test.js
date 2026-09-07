@@ -85,7 +85,7 @@ describe("env flags", () => {
     assert.equal(isAllowLossyOperatorBuy({}), false);
     assert.equal(isAllowLossyOperatorBuy({ ALLOW_LOSSY_OPERATOR_BUY: "yes" }), true);
     assert.equal(isAllowLossyOperatorBuy({ ALLOW_LOSSY_OPERATOR_BUY: "true" }), false);
-    assert.equal(canBypassBuyLossGate("MANUAL BUY (operator) $3", {}), false);
+    assert.equal(canBypassBuyLossGate("MANUAL BUY (operator) $3", {}), true);
     assert.equal(canBypassBuyLossGate("MANUAL BUY (operator) $3", { ALLOW_LOSSY_OPERATOR_BUY: "yes" }), true);
     assert.equal(canBypassBuyLossGate("🎯 MIN TROUGH", { ALLOW_LOSSY_OPERATOR_BUY: "yes" }), false);
   });
@@ -206,27 +206,30 @@ describe("evaluateBuyGate", () => {
     assert.equal(d.log, null);
   });
 
-  it("operator buy is gated under LOSE_ZERO unless ALLOW_LOSSY_OPERATOR_BUY=yes", () => {
-    const blocked = evaluateBuyGate({
+  it("operator /buy is an explicit test — leftover+edge never block; hitch only if leftover covers", () => {
+    const plain = evaluateBuyGate({
       leftover: 0,
       hasEdge: false,
       symbol: "TOSHI",
       reason: "MANUAL BUY (operator) $3",
       env: { LOSE_ZERO: "yes" },
     });
-    assert.equal(blocked.allow, false);
-    assert.match(blocked.log, /^LOSE_ZERO: block buy TOSHI no clear edge$/);
+    assert.equal(plain.allow, true);
+    assert.equal(plain.skipHitch, true);
+    assert.equal(plain.reason, "operator-plain");
+    assert.match(plain.log, /MANUAL BUY \(operator\) plain swap/);
 
-    const allowed = evaluateBuyGate({
-      leftover: 0,
+    const hitch = evaluateBuyGate({
+      leftover: 0.05,
       hasEdge: false,
       symbol: "TOSHI",
       reason: "MANUAL BUY (operator) $3",
-      env: { LOSE_ZERO: "yes", ALLOW_LOSSY_OPERATOR_BUY: "yes" },
+      env: { LOSE_ZERO: "yes" },
     });
-    assert.equal(allowed.allow, true);
-    assert.equal(allowed.reason, "lossy-operator");
-    assert.equal(allowed.log, "LOSE_ZERO: allow buy TOSHI MANUAL BUY (operator) ALLOW_LOSSY_OPERATOR_BUY");
+    assert.equal(hitch.allow, true);
+    assert.equal(hitch.skipHitch, false);
+    assert.equal(hitch.reason, "operator-hitch");
+    assert.match(hitch.log, /MANUAL BUY \(operator\) hitch covered/);
   });
 
   it("LOSE_ZERO still gates auto buys (MANUAL BUY without operator prefix)", () => {
@@ -297,7 +300,7 @@ describe("buildBuyGateDecision", () => {
     assert.equal(hasClearEdge({ armed: false, net: 0.03, reason: "🎯 MIN TROUGH" }), true);
   });
 
-  it("operator /buy without ALLOW_LOSSY_OPERATOR_BUY is gated (leftover 0)", () => {
+  it("operator /buy leftover-0 is allowed as a plain swap (test path)", () => {
     const d = buildBuyGateDecision({
       symbol: "TOSHI",
       reason: manualBuyReason(3),
@@ -307,24 +310,33 @@ describe("buildBuyGateDecision", () => {
       net: 0,
       env: { LOSE_ZERO: "yes" },
     });
-    assert.equal(d.allow, false);
+    assert.equal(d.allow, true);
     assert.equal(d.leftover, 0);
-    assert.match(d.log, /LOSE_ZERO: block buy TOSHI/);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.reason, "operator-plain");
+    assert.match(d.log, /MANUAL BUY \(operator\) plain swap/);
   });
 
-  it("operator /buy with ALLOW_LOSSY_OPERATOR_BUY=yes still bypasses leftover-0", () => {
+  it("operator /buy with leftover covering hitch still hitch Eureka", () => {
     const d = buildBuyGateDecision({
       symbol: "TOSHI",
       reason: manualBuyReason(3),
-      price: 0.0002,
-      existingSellTarget: null,
+      price: 1,
+      existingSellTarget: 1.05,
+      feePct: 0,
+      impactPct: 0,
+      gasCostEth: 0,
+      tradeEth: 1,
+      gwei: 0,
       armed: false,
       net: 0,
-      env: { LOSE_ZERO: "yes", ALLOW_LOSSY_OPERATOR_BUY: "yes" },
+      env: { LOSE_ZERO: "yes" },
     });
     assert.equal(d.allow, true);
-    assert.equal(d.reason, "lossy-operator");
-    assert.match(d.log, /MANUAL BUY \(operator\) ALLOW_LOSSY_OPERATOR_BUY/);
+    assert.ok(d.leftover > 0);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.reason, "operator-hitch");
+    assert.match(d.log, /MANUAL BUY \(operator\) hitch covered/);
   });
 
   it("buildBuyGateDecision computes leftover for isCascade=true (no skip)", () => {

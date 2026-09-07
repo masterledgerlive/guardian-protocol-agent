@@ -198,3 +198,31 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     assert.ok(!row.includes("frozen: true"), "REI must be tradeable");
   });
 });
+
+describe("verification: operator /buy is honest and chain is the ledger", () => {
+  it("operator leftover-0 buy is allowed as a plain swap (test path)", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "TOSHI",
+      reason: "MANUAL BUY (operator) $1",
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+  });
+
+  it("executeBuy telegrams operator skips; receipts still wait for fill", () => {
+    assert.ok(src.includes("operatorBuySkipTelegram"));
+    assert.ok(src.includes("async function skipBuy"));
+    const buyFn = src.indexOf("async function executeBuy(");
+    const body = src.slice(buyFn, src.indexOf("\nasync function executeSell", buyFn));
+    assert.ok(body.indexOf("isSuccessfulBuyFill") < body.indexOf("BOUGHT"));
+  });
+
+  it("does not invent invested ETH from a live mark", () => {
+    assert.ok(src.includes("applyUnknownChainHolding"));
+    assert.ok(src.includes("costBasisEth(token)"));
+    assert.ok(!src.includes("UNKNOWN ENTRY resolved from live market"));
+  });
+});

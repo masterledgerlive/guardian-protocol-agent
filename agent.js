@@ -80,6 +80,9 @@ import {
   prefetchMarketPrices,
   fetchTokenUsdQuote,
   hasUsableCostBasis,
+  costBasisEth,
+  shouldTrustSavedCostBasis,
+  applyUnknownChainHolding,
   allowBinanceOhlcSeed,
   pickHistoricalSeedSource,
   preferBaseQuoteForLastPrice,
@@ -124,6 +127,16 @@ import {
   piggyBankPct,
   piggyBankMinUsd,
 } from "./piggy-bank.js";
+import {
+  decodeErc20Balance,
+  resolveFailedBalanceRead,
+  sanitizeTelegramHtml,
+  splitTelegramHtmlChunks,
+  operatorBuySkipTelegram,
+  operatorBuyQueuedTelegram,
+  unknownCostBasisLine,
+  UNKNOWN_COST_BASIS_LABEL,
+} from "./chain-ledger.js";
 import {
   estimateHitchL1FeeEth,
   formatHitchFeeSplit,
@@ -3920,17 +3933,30 @@ function canTrade(symbol, isCascade = false) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // 💰 UNIFIED ETH+WETH BALANCE — the core fix for "out of ETH" bug
 // ═══════════════════════════════════════════════════════════════════════════════
+let lastEthBalance = null;
+let lastWethBalance = null;
+
 async function getEthBalance() {
   try {
-    return parseFloat(formatEther(await rpcCall(c => c.getBalance({ address: WALLET_ADDRESS }))));
+    const v = parseFloat(formatEther(await rpcCall(c => c.getBalance({ address: WALLET_ADDRESS }))));
+    lastEthBalance = v;
+    return v;
   } catch (e) {
-    console.log(`⚠️  eth_getBalance failed after RPC failover: ${e.message} — returning 0 (boot continues)`);
-    return 0;
+    const resolved = resolveFailedBalanceRead({ error: e, lastKnown: lastEthBalance, label: "eth_getBalance" });
+    console.log(`⚠️  ${resolved.log}`);
+    return resolved.balance;
   }
 }
 async function getWethBalance()  {
-  try { return parseFloat(formatEther(await rpcCall(c => c.readContract({ address: WETH_ADDRESS.toLowerCase(), abi: ERC20_ABI, functionName: "balanceOf", args: [WALLET_ADDRESS] })))); }
-  catch { return 0; }
+  try {
+    const v = parseFloat(formatEther(await rpcCall(c => c.readContract({ address: WETH_ADDRESS.toLowerCase(), abi: ERC20_ABI, functionName: "balanceOf", args: [WALLET_ADDRESS] }))));
+    lastWethBalance = v;
+    return v;
+  } catch (e) {
+    const resolved = resolveFailedBalanceRead({ error: e, lastKnown: lastWethBalance, label: "WETH balanceOf" });
+    console.log(`⚠️  ${resolved.log}`);
+    return resolved.balance;
+  }
 }
 // Token decimal cache — read once per token, never changes
 const tokenDecimalsCache = {};
@@ -3946,22 +3972,34 @@ async function getTokenDecimals(address) {
 }
 
 async function getTokenBalance(address) {
+  const addr = String(address || "").toLowerCase();
+  const token = tokens.find(t => String(t.address || "").toLowerCase() === addr);
+  const lastKnown = token && Object.prototype.hasOwnProperty.call(tokenBalanceCache, token.symbol)
+    ? tokenBalanceCache[token.symbol]
+    : undefined;
   try {
-    const addr     = address.toLowerCase();
     const raw      = await rpcCall(c => c.readContract({ address: addr, abi: ERC20_ABI, functionName: "balanceOf", args: [WALLET_ADDRESS] }));
     const decimals = await getTokenDecimals(addr);
-    return Number(raw) / Math.pow(10, decimals);
-  } catch { return 0; }
+    return decodeErc20Balance(raw, decimals);
+  } catch (e) {
+    const resolved = resolveFailedBalanceRead({
+      error: e,
+      lastKnown: Number.isFinite(lastKnown) ? lastKnown : undefined,
+      label: `balanceOf ${addr.slice(0, 10)}…`,
+    });
+    console.log(`⚠️  ${resolved.log} — not treating RPC fail as 0`);
+    return resolved.balance;
+  }
 }
 
 // Returns { eth, weth, total, tradeable } — WETH is always included
 async function getFullBalance() {
-  let eth = 0, weth = 0;
+  let eth = Number.isFinite(lastEthBalance) ? lastEthBalance : 0, weth = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
   try { eth = await getEthBalance(); } catch (e) {
-    console.log(`⚠️  Boot wallet ETH read failed: ${e.message} — continuing`);
+    console.log(`⚠️  Boot wallet ETH read failed: ${e.message} — keeping last ping ${eth}`);
   }
   try { weth = await getWethBalance(); } catch (e) {
-    console.log(`⚠️  Boot wallet WETH read failed: ${e.message} — continuing`);
+    console.log(`⚠️  Boot wallet WETH read failed: ${e.message} — keeping last ping ${weth}`);
   }
   const total = eth + weth;
   // Reserve = max of percentage reserve OR hard minimums + piggy
@@ -4050,6 +4088,10 @@ function getCachedBalance(symbol) {
   return tokenBalanceCache[symbol] ?? 0;
 }
 
+function hasFreshChainBalance(symbol) {
+  return Object.prototype.hasOwnProperty.call(tokenBalanceCache, symbol);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 💱 PRICES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -4088,8 +4130,31 @@ async function getTokenPrice(address, hasPosition = false) {
 // 🏇 RACE DISPLAY
 // ═══════════════════════════════════════════════════════════════════════════════
 function buildRaceDisplay(token, price, balance, ethUsd) {
+  const piggyKeep  = syncTokenPiggy(token, balance, price);
+  const sellable   = computeSellable(balance, piggyKeep);
+  const nowUsd     = sellable * price;
+  const ind        = getIndicatorScore(token.symbol);
+
+  if (token.unknownEntry || !hasUsableCostBasis(token)) {
+    if (balance < 0.001) return null;
+    const sellTarget = getMaxPeak(token.symbol);
+    return {
+      bar: "⬜".repeat(10), racePct: "?",
+      nowUsd: nowUsd.toFixed(2), tgtUsd: "?",
+      invUsd: "n/a", pnlUsd: "n/a", pnlPct: "n/a", pnlSign: "",
+      sellTarget, entry: token.entryPrice || price, balance, sellable, lottery: 0, piggy: piggyKeep,
+      unknownEntry: true,
+      lines: [
+        `🏇 chain ${sellable >= 1 ? Math.floor(sellable) : sellable.toFixed(4)} ${token.symbol} ≈ $${nowUsd.toFixed(2)}`,
+        `⚠️ ${UNKNOWN_COST_BASIS_LABEL}`,
+        `🐷 ${piggyKeep >= 1 ? piggyKeep.toFixed(2) : piggyKeep.toFixed(4)} piggy dust`,
+        `💓 ${ind.detail || "building..."}`,
+      ].join("\n"),
+    };
+  }
+
   const entry   = token.entryPrice;
-  const invEth  = token.totalInvestedEth || 0;
+  const invEth  = costBasisEth(token);
   const invUsd  = invEth * ethUsd;
   if (!entry || entry <= 0) return null;
 
@@ -4109,9 +4174,6 @@ function buildRaceDisplay(token, price, balance, ethUsd) {
   const sellTarget = getMaxPeak(token.symbol);
   const validST    = sellTarget && sellTarget > entry;
   const lottery    = calcLotteryKeep(balance);
-  const piggyKeep  = syncTokenPiggy(token, balance, price);
-  const sellable   = computeSellable(balance, piggyKeep);
-  const nowUsd     = sellable * price;
   const tgtUsd     = validST ? sellable * sellTarget : null;
   const pnlUsd     = nowUsd - invUsd;
   const pnlPct     = invUsd > 0 ? pnlUsd / invUsd * 100 : 0;
@@ -4119,7 +4181,6 @@ function buildRaceDisplay(token, price, balance, ethUsd) {
   const racePct    = raceRange > 0 ? Math.max(0, Math.min(100, (price - entry) / raceRange * 100)) : 0;
   const barFill    = Math.floor(racePct / 10);
   const raceBar    = "🟩".repeat(barFill) + "⬜".repeat(10 - barFill);
-  const ind        = getIndicatorScore(token.symbol);
 
   // Projected profit when MAX peak is hit
   const projNetUsd    = tgtUsd !== null ? tgtUsd * (1 - (token.poolFeePct||0.006)) - invUsd : null;
@@ -4654,33 +4715,50 @@ async function btpInscribe(cdp, tradeLabel) {
 }
 
 
+/** Operator /buy must never go silent — Telegram the skip reason or a fill receipt. */
+async function skipBuy(reason, symbol, detail) {
+  const line = String(detail || "buy skipped");
+  console.log(`   ${line}`);
+  if (isManualOperatorBuy(reason)) {
+    await tg(operatorBuySkipTelegram(symbol, line));
+  }
+  return false;
+}
+
 async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCascade = false) {
   try {
     // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
     // cascade / ripple) dies here. Sells never call this function.
     if (isCatalogFrozen(token)) {
-      console.log(`   ${frozenBuySkipLog(token)}`);
-      return false;
+      return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
     // PRICE_INSANE before hitch / LOSE_ZERO / minOut use the mark
     const buyPriceGate = await gatePriceInsane(token, price, "buy", getCachedBalance(token.symbol) || 0);
-    if (!buyPriceGate.allow) return false;
-    if (isSlippageCooledDown(token.symbol)) {
-      console.log(`   ${slippageCooldownLog(token.symbol)}`);
-      return false;
+    if (!buyPriceGate.allow) {
+      return await skipBuy(reason, token.symbol, buyPriceGate.log || `PRICE_INSANE — ${token.symbol} mark refused`);
     }
-    if (!canTrade(token.symbol, isCascade)) { console.log(`   ⏳ ${token.symbol} cooldown`); return false; }
-    if (drawdownHaltActive)                 { console.log(`   🛑 ${token.symbol} drawdown halt active`); return false; }
-    if (isSafeMode())                       { console.log(`   🛡️  ${token.symbol} safe mode — no trades until vault unlocked`); return false; }
+    if (isSlippageCooledDown(token.symbol)) {
+      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol));
+    }
+    if (!canTrade(token.symbol, isCascade)) {
+      return await skipBuy(reason, token.symbol, `⏳ ${token.symbol} cooldown`);
+    }
+    if (drawdownHaltActive) {
+      return await skipBuy(reason, token.symbol, `🛑 ${token.symbol} drawdown halt active`);
+    }
+    if (isSafeMode()) {
+      return await skipBuy(reason, token.symbol, `🛡️  ${token.symbol} safe mode — no trades until vault unlocked`);
+    }
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
     // FIX: gwei must be fetched locally — the main-loop `gwei` is not in scope here
     const gwei     = await getCurrentGasGwei();
 
-    // LOSE-ZERO / inject-cover: every buy including cascade + ripple.
-    // Operator /buy bypasses hitch cover only when ALLOW_LOSSY_OPERATOR_BUY=yes.
-    if (isLoseZeroMode() || isInjectCoverRequired()) {
+    // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
+    // sizes leftover so hitch can ride when covered; leftover+edge never block it.
+    let buySkipHitch = false;
+    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
       const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
       const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
       const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
@@ -4702,18 +4780,27 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       });
       logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
-      if (!decision.allow) return false;
+      buySkipHitch = !!decision.skipHitch;
+      if (!decision.allow) {
+        return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");
+      }
     }
 
     // Gas spike check before every trade
-    if (!(await isGasSafe())) return false;
+    if (!(await isGasSafe())) {
+      return await skipBuy(reason, token.symbol, `⛽ ${token.symbol} gas spike — not sending`);
+    }
 
     // Unified balance: ETH + WETH
     const { eth, weth, tradeableWithWeth } = bal;
     const totalAvail = eth + weth - GAS_RESERVE - SELL_RESERVE;
-    if (totalAvail < MIN_ETH_TRADE)          { console.log(`   🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`); return false; }
+    if (totalAvail < MIN_ETH_TRADE) {
+      return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`);
+    }
     const posUsd = totalAvail * ethUsd;
-    if (posUsd < minPosUsd())               { console.log(`   🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`); return false; }
+    if (posUsd < minPosUsd()) {
+      return await skipBuy(reason, token.symbol, `🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`);
+    }
 
     const armStatus = getArmStatus(token.symbol, gasCost, totalAvail);
     const maxPct    = armStatus.armed ? getCascadePct(armStatus.net) : 0.30;
@@ -4726,15 +4813,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const tierEth   = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
     const tierLabel = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
 
-    if (!isCascade && tierEth === 0 && !(forcedEth > 0 && isManualOperatorBuy(reason))) {
-      console.log(`   🛑 ${token.symbol}: not in active tiers (${tierLabel}) — no new capital`);
-      return false;
+    if (!isCascade && tierEth === 0 && !isManualOperatorBuy(reason)) {
+      return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabel}) — no new capital`);
     }
 
-    const maxSpend  = Math.min(totalAvail * maxPct, forcedEth > 0 ? forcedEth : tierEth * 1.2);
+    const maxSpend  = Math.min(totalAvail * maxPct, forcedEth > 0 ? forcedEth : (tierEth > 0 ? tierEth * 1.2 : totalAvail * maxPct));
     const minSpend  = minPosUsd() / ethUsd;
     const ethToSpend= forcedEth > 0
-      ? Math.min(forcedEth, maxSpend)
+      ? Math.min(forcedEth, Math.max(totalAvail, 0))
       : Math.min(Math.max(minSpend, tierEth), maxSpend);
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
@@ -4778,8 +4864,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     });
     if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
     if (!buyMinOut.allow) {
-      console.log(`   🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
-      return false;
+      return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
     }
     minTokens = buyMinOut.amountOutMinimum;
     if (quotedTokens && quotedTokens > 0n) {
@@ -4803,6 +4888,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const tokensBefore = await getTokenBalance(token.address);
     const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
+      skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
       maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
     });
@@ -4911,10 +4997,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // ── Cost basis tracking: weighted average entry price ─────────────────────
     // When adding to an existing position, blend the entry prices so P&L display
     // and breakeven calculation reflect the true average cost, not just the latest buy.
-    const prevInvested = token.totalInvestedEth || 0;
+    const prevInvested = costBasisEth(token);
     const prevTokenBal = tokensBefore;
     token.totalInvestedEth = prevInvested + ethToSpend;
-    if (prevInvested > 0 && prevTokenBal > 0 && token.entryPrice) {
+    if (prevInvested > 0 && prevTokenBal > 0 && hasUsableCostBasis(token)) {
       // Weighted average: (prevTokens * prevEntryPrice + newTokens * newPrice) / totalTokens
       const newTokensEstimate = receivedTokens;
       const totalTokensEstimate = prevTokenBal + newTokensEstimate;
@@ -4923,6 +5009,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       token.entryPrice = price;
     }
     token.entryTime = Date.now();
+    token.unknownEntry = false;
     {
       const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
       token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, estBal, price);
@@ -5046,7 +5133,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       symbol: token.symbol,
       reason,
       sellPct,
-      entryEth: token.totalInvestedEth || 0,
+      entryEth: costBasisEth(token),
       projectedProceedsEth: procEth,
       feePct: token.poolFeePct || 0.006,
       impactPct: PRICE_IMPACT_EST,
@@ -5567,7 +5654,7 @@ async function processToken(cdp, token, bal) {
     if (!token.entryPrice && isDeadWaveSkipped(token.symbol)) {
       return; // silent skip — already logged when streak was hit
     }
-    const heldPosition = !!(token.entryPrice); // true if we have an open position — used for price cache TTL
+    const heldPosition = !!(token.entryPrice) || getCachedBalance(token.symbol) > 0.001;
     const price = await getTokenPrice(token.address, heldPosition);
     if (!isValidUsdPrice(price)) {
       noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
@@ -5575,15 +5662,14 @@ async function processToken(cdp, token, bal) {
       return false;
     }
 
-    // Holding with missing cost basis: resolve from live market, never $0
-    if (token.unknownEntry && isValidUsdPrice(price) && getCachedBalance(token.symbol) > 0.001) {
-      const ethNow = await getLiveEthPrice();
-      const balNow = getCachedBalance(token.symbol);
-      token.entryPrice       = price;
-      token.totalInvestedEth = (balNow * price) / ethNow;
-      token.entryTime        = token.entryTime || Date.now();
-      token.unknownEntry     = false;
-      console.log(`   ✅ ${token.symbol}: UNKNOWN ENTRY resolved from live market @ $${price} val≈$${(balNow * price).toFixed(2)}`);
+    // Holding with missing cost basis: chain units are truth. Do NOT copy
+    // the live mark as invested — that zeros leftover and freezes sells.
+    if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog }) &&
+        (getCachedBalance(token.symbol) > 0.001 || token.unknownEntry)) {
+      applyUnknownChainHolding(token, {
+        units: getCachedBalance(token.symbol),
+        priceUsd: price,
+      });
     }
 
     recordPrice(token.symbol, price);
@@ -5596,7 +5682,7 @@ async function processToken(cdp, token, bal) {
     // Auto-clear stale entry price only when balance is truly zero (not dust)
     // FIX: was 0.001 threshold — too high, was clearing valid micro-positions
     // Only clear if balance is effectively zero AND token hasn't traded recently
-    if (token.entryPrice && balance === 0) {
+    if (token.entryPrice && hasFreshChainBalance(token.symbol) && balance === 0) {
       const recentTrade = tradeLog.slice(-20).find(t => t.symbol === token.symbol);
       const minsAgo = recentTrade ? (Date.now() - new Date(recentTrade.timestamp).getTime()) / 60000 : 999;
       if (minsAgo > 30) { // only clear if no trade in last 30 min
@@ -5812,7 +5898,10 @@ async function processToken(cdp, token, bal) {
 
     // Declare BEFORE the armed-idle log — `const hasPosition` after first use is a TDZ
     // that throws on every armed token and aborts processToken (buys, sells, OPERATOR_SELL).
-    const hasPosition = balance > 1;
+    const hasPosition = balance > 0.001;
+    const pnlStr    = hasUsableCostBasis(token) && entry
+      ? ` | P&L: ${((price-entry)/entry*100).toFixed(1)}%`
+      : (token.unknownEntry && hasPosition ? ` | ${UNKNOWN_COST_BASIS_LABEL}` : "");
     // Calendar note is pushed after `lines` is created (same TDZ class as hasPosition).
     let calendarBiasNote = null;
 
@@ -5836,7 +5925,6 @@ async function processToken(cdp, token, bal) {
                  hasPosition    ? "🏇 RIDING" :
                  arm.armed      ? `✅ ARMED [${arm.priority}]` : "⏳ BUILDING";
 
-    const pnlStr    = entry ? ` | P&L: ${((price-entry)/entry*100).toFixed(1)}%` : "";
     const pctToBuy  = minTrgh ? ((price-minTrgh)/minTrgh*100).toFixed(1) : "?";
     const pctToSell = maxPeak ? ((price-maxPeak)/maxPeak*100).toFixed(1) : "?";
 
@@ -5866,6 +5954,10 @@ async function processToken(cdp, token, bal) {
       const barsLeft = pred.barsToTurn ? pred.barsToTurn : "?";
       const surfBar  = surfRideBar(surfPct);
       const barsStr  = barsLeft !== "?" ? ` | ⏳${barsLeft}b` : "";
+      if (rd.unknownEntry) {
+        lines.push(`  │ 🏄 [${surfBar}] ${(surfPct*100).toFixed(0)}%${barsStr} | chain ${rd.sellable >= 1 ? Math.floor(rd.sellable) : Number(rd.sellable).toFixed(4)}`);
+        lines.push(`  │ 💲 SELL NOW ~$${rd.nowUsd} | ${UNKNOWN_COST_BASIS_LABEL}`);
+      } else {
       lines.push(`  │ 🏄 [${surfBar}] ${(surfPct*100).toFixed(0)}%${barsStr} | Entry:$${rd.entry.toFixed(8)} In:$${rd.invUsd}`);
       lines.push(`  │ 💲 SELL NOW ~$${rd.nowUsd} | ${rd.pnlSign}$${rd.pnlUsd} (${rd.pnlSign}${rd.pnlPct}%)`);
       // Enhance sell target with projected peak if available and higher
@@ -5883,6 +5975,7 @@ async function processToken(cdp, token, bal) {
         lines.push(`  │ 🟡 NEAR BREAKEVEN — $${netNow.toFixed(3)} net`);
       else
         lines.push(`  │ ✅ PROFIT ZONE: +$${netNow.toFixed(3)} net after fees`);
+      }
       // Show next Fibonacci target if we have one
       if (fibTargetData?.exitLadder?.length) {
         const nextFib = fibTargetData.exitLadder.find(t => t.price > price);
@@ -6035,16 +6128,15 @@ async function processToken(cdp, token, bal) {
       // ── FORCE LIVE BALANCE FETCH before any manual command ─────────────────
       // Fixes stuck positions where cache shows 0 but wallet has tokens
       try {
-        const livebal = await rpcCall(c => c.readContract({
-          address: token.address, abi: ERC20_ABI, functionName: "balanceOf", args: [WALLET_ADDRESS]
-        }));
-        const liveBal = Number(livebal) / 1e18;
-        if (liveBal > 0 && liveBal !== tokenBalanceCache[token.symbol]) {
-          console.log(`   🔄 [${token.symbol}] Cache was ${tokenBalanceCache[token.symbol]?.toFixed(6)||"?"} — live: ${liveBal.toFixed(6)} — cache updated`);
+        const liveBal = await getTokenBalance(token.address);
+        if (Number.isFinite(liveBal)) {
+          if (liveBal !== tokenBalanceCache[token.symbol]) {
+            console.log(`   🔄 [${token.symbol}] Cache was ${tokenBalanceCache[token.symbol]?.toFixed(6)||"?"} — live: ${liveBal.toFixed(6)} — cache updated`);
+          }
           tokenBalanceCache[token.symbol] = liveBal;
         }
       } catch (e) {
-        console.log(`   ⚠️  [${token.symbol}] Live balance fetch failed: ${e.message}`);
+        console.log(`   ⚠️  [${token.symbol}] Live balance fetch failed: ${e.message} — not treating as 0`);
       }
 
       if (cmd.action === "buy") {
@@ -6631,8 +6723,7 @@ async function tg(msg) {
     const cid = process.env.TELEGRAM_CHAT_ID;
     if (!tok || !cid) { console.log("⚠️  Telegram: no token/chat_id set"); return; }
     // Telegram messages >4096 chars get rejected — split them
-    const chunks = [];
-    for (let i = 0; i < msg.length; i += 4000) chunks.push(msg.slice(i, i + 4000));
+    const chunks = splitTelegramHtmlChunks(sanitizeTelegramHtml(msg), 4000);
     for (const chunk of chunks) {
       const res = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -6681,13 +6772,12 @@ async function sendMiniUpdate(bal, ethUsd) {
         ? Math.max(0, Math.min(100, (price - minT) / (maxP - minT) * 100)).toFixed(0)
         : "?";
 
-      if (t.entryPrice && bal2 > 1) {
-        // Riding with entry — show full P&L
-        const pnl = rd ? ` ${rd.pnlSign}$${rd.pnlUsd}` : "";
+      if ((t.unknownEntry || !hasUsableCostBasis(t)) && bal2 > 0.001) {
+        const usd = (bal2 * price).toFixed(2);
+        lines += `🏇 <b>${t.symbol}</b> $${price.toFixed(6)} [${wpos}%] chain $${usd} — unknown basis\n`;
+      } else if (hasUsableCostBasis(t) && bal2 > 0.001) {
+        const pnl = rd && rd.pnlUsd !== "n/a" ? ` ${rd.pnlSign}$${rd.pnlUsd}` : "";
         lines += `🏇 <b>${t.symbol}</b> $${price.toFixed(6)} [${wpos}%]${pnl}\n`;
-      } else if (bal2 > 1) {
-        // Holding but no entry recorded
-        lines += `🏇 <b>${t.symbol}</b> $${price.toFixed(6)} [${wpos}%] (no entry)\n`;
       } else if (arm.armed) {
         // Armed, watching for buy
         const distMin = minT ? ((price-minT)/minT*100).toFixed(1) : "?";
@@ -6840,9 +6930,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         }
         if (manualCommands.find(c => c.symbol===sym && c.action==="buy")) { await tg(`⚠️ BUY ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "buy", usd: parsed.usd || 0 });
-        await tg(parsed.usd > 0
-          ? `📱 <b>BUY ${sym} queued</b>\n💵 Size: $${parsed.usd}`
-          : `📱 <b>BUY ${sym} queued</b>`);
+        await tg(operatorBuyQueuedTelegram(sym, parsed.usd));
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);
         const sym = parsed?.symbol;
@@ -6890,10 +6978,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             await tg(`❓ <b>${sym}</b> — no live USD quote. Exit skipped (will not invent $0).`);
             continue;
           }
-          token.entryPrice       = live;
-          token.totalInvestedEth = 0;
-          token.unknownEntry     = false;
-          await tg(`⚠️ <b>${sym}</b> — no entry recorded\nUsing live market $${live} as cost basis for exit`);
+          applyUnknownChainHolding(token, { units: bal, priceUsd: live });
+          await tg(`⚠️ <b>${sym}</b> — no fill receipt for cost basis\n${UNKNOWN_COST_BASIS_LABEL}\nExit leftover = proceeds − fees.`);
         }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: 0.98 });
@@ -6911,10 +6997,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             await tg(`❓ <b>${sym}</b> — no live USD quote. Exit skipped (will not invent $0).`);
             continue;
           }
-          token.entryPrice       = live;
-          token.totalInvestedEth = 0;
-          token.unknownEntry     = false;
-          await tg(`⚠️ <b>${sym}</b> — no entry recorded\nUsing live market $${live} as cost basis for half exit`);
+          applyUnknownChainHolding(token, { units: bal, priceUsd: live });
+          await tg(`⚠️ <b>${sym}</b> — no fill receipt for cost basis\n${UNKNOWN_COST_BASIS_LABEL}\nExit leftover = proceeds − fees.`);
         }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: 0.50 });
@@ -7329,27 +7413,41 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         let invested = 0, currentValue = 0, unrealisedPnl = 0, posDetails = "";
 
         for (const t of tokens) {
-          if (t.frozen) continue; // skip frozen tokens in bank statement
           const p   = history[t.symbol]?.lastPrice || 0;
-          const b   = tokenBalanceCache[t.symbol] ?? await getTokenBalance(t.address);
-          if (b < 1) continue;
-          const lottery  = Math.max(Math.floor(b * LOTTERY_PCT), MIN_LOTTERY_TOKENS);
-          const sellable = Math.max(b - lottery, 0);
-          const invUsd   = (t.totalInvestedEth || 0) * ethUsd;
-          const nowUsd   = sellable * p;
-          const pnl      = nowUsd - invUsd;
-          invested      += invUsd;
-          currentValue  += nowUsd;
-          unrealisedPnl += pnl;
+          let b;
+          try {
+            b = await getTokenBalance(t.address);
+            tokenBalanceCache[t.symbol] = b;
+          } catch (e) {
+            b = hasFreshChainBalance(t.symbol) ? tokenBalanceCache[t.symbol] : 0;
+            console.log(`   ⚠️  /bank ${t.symbol} balance ping failed: ${e.message}`);
+          }
+          if (!(b > 0.001) && !(p > 0 && b * p >= 0.05)) continue;
+          const piggyKeep = t.piggyReserve || 0;
+          const sellable = computeSellable(b, piggyKeep);
+          const nowUsd   = (Number.isFinite(p) && p > 0 ? p : 0) * b;
+          const trusted  = hasUsableCostBasis(t);
+          const invUsd   = trusted ? costBasisEth(t) * ethUsd : 0;
+          if (trusted) {
+            invested      += invUsd;
+            currentValue  += nowUsd;
+            unrealisedPnl += nowUsd - invUsd;
+          } else {
+            currentValue  += nowUsd;
+          }
           const maxP   = getMaxPeak(t.symbol);
-          const projUsd = maxP ? (sellable * maxP * (1-(t.poolFeePct||0.006)) - invUsd) : null;
+          const projUsd = trusted && maxP ? (sellable * maxP * (1-(t.poolFeePct||0.006)) - invUsd) : null;
           posDetails +=
             "\n<b>" + t.symbol + "</b>\n" +
-            "   Invested:    $" + invUsd.toFixed(2) + "\n" +
+            (trusted
+              ? "   Invested:    $" + invUsd.toFixed(2) + "\n"
+              : "   Invested:    " + UNKNOWN_COST_BASIS_LABEL + "\n") +
             "   Now worth:   $" + nowUsd.toFixed(2) + "\n" +
-            "   Unrealised:  " + (pnl>=0?"+":" ") + "$" + pnl.toFixed(2) + "\n" +
-            "   At target:   " + (projUsd !== null ? "+$"+projUsd.toFixed(2) : "calculating") + "\n" +
-            "   Holding:     " + (sellable>=1?Math.floor(sellable):sellable.toFixed(4)) + " tradeable + " + lottery + " forever\n";
+            (trusted
+              ? "   Unrealised:  " + ((nowUsd-invUsd)>=0?"+":" ") + "$" + (nowUsd-invUsd).toFixed(2) + "\n"
+              : "   Unrealised:  n/a — chain is ledger\n") +
+            "   At target:   " + (projUsd !== null ? "+$"+projUsd.toFixed(2) : (trusted ? "calculating" : "n/a")) + "\n" +
+            "   Holding:     " + (b>=1?b.toFixed(2):b.toFixed(6)) + " on-chain | 🐷 " + (piggyKeep>=1?piggyKeep.toFixed(2):piggyKeep.toFixed(4)) + " dust\n";
         }
 
         const walletUsd  = bal.total * ethUsd;
@@ -7380,7 +7478,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
           "<b>PROOF</b>\n" +
           "   On-chain: basescan.org/address/" + WALLET_ADDRESS + "\n" +
-          "   Every trade recorded. Nothing hidden."
+          "   Every number is a chain ping. Invented P&L is not shown."
         );
 
       // ── 🏄 SURFER COMMANDS ──────────────────────────────────────────────────
@@ -9306,8 +9404,8 @@ function applyOperatorBuyEnv() {
   }
   const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState, frozen);
   if (result.queued) {
-    console.log(`📱 OPERATOR_BUY queued: ${result.symbol} $${result.usd} (MANUAL BUY operator — hitch cover required unless ALLOW_LOSSY_OPERATOR_BUY=yes)`);
-    tg(`📱 <b>OPERATOR_BUY queued</b>\n${result.symbol} $${result.usd}\nFires on next cycle — LOSE_ZERO hitch cover applies unless ALLOW_LOSSY_OPERATOR_BUY=yes.`).catch(() => {});
+    console.log(`📱 OPERATOR_BUY queued: ${result.symbol} $${result.usd} (MANUAL BUY operator — leftover+edge do not block; hitch if leftover covers)`);
+    tg(operatorBuyQueuedTelegram(result.symbol, result.usd)).catch(() => {});
   } else if (result.reason === "frozen") {
     const tok = tokens.find(t => t.symbol === result.symbol) || DEFAULT_TOKENS.find(t => t.symbol === result.symbol);
     console.log(`   ${frozenBuySkipLog(tok || { symbol: result.symbol, frozen: true })}`);
@@ -9654,36 +9752,25 @@ async function main() {
       const hasRealHolding = bal > 1 || (valueUsd !== null && valueUsd > 0.05);
 
       if (hasRealHolding) {
-        // Real holding on-chain
         found++;
-        if (!hasUsableCostBasis(token)) {
-          // Recover from ledger
-          if (net?.lastBuyPrice > 0) {
-            const ethNet = Math.max(0, net.ethIn - net.ethOut);
-            token.entryPrice       = net.lastBuyPrice;
-            token.totalInvestedEth = ethNet > 0 ? ethNet : net.lastBuyEth;
-            token.entryTime        = net.lastBuyTime;
-            token.unknownEntry     = false;
-            recovered++;
-            const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
-            console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
-                       `ethIn=${token.totalInvestedEth.toFixed(4)}${shown}`);
-          } else if (hasQuote) {
-            token.entryPrice       = price;
-            token.totalInvestedEth = valueUsd / ethPriceNow;
-            token.entryTime        = Date.now();
-            token.unknownEntry     = false;
-            recovered++;
-            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: bal=${bal.toFixed(2)} val≈$${valueUsd.toFixed(2)} — using live market $${price}`);
-          } else {
-            token.entryPrice       = null;
-            token.totalInvestedEth = 0;
-            token.unknownEntry     = true;
-            recovered++;
-            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: bal=${bal.toFixed(2)} — NO MARKET QUOTE — excluded from margin math`);
-          }
-        } else {
+        const netBuy = net?.lastBuyPrice > 0;
+        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog });
+        if (netBuy) {
+          const ethNet = Math.max(0, net.ethIn - net.ethOut);
+          token.entryPrice       = net.lastBuyPrice;
+          token.totalInvestedEth = ethNet > 0 ? ethNet : net.lastBuyEth;
+          token.entryTime        = net.lastBuyTime;
+          token.unknownEntry     = false;
+          recovered++;
+          const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
+          console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
+                     `ethIn=${token.totalInvestedEth.toFixed(4)}${shown}`);
+        } else if (trusted) {
           confirmed++;
+        } else {
+          applyUnknownChainHolding(token, { units: bal, priceUsd: hasQuote ? price : undefined });
+          recovered++;
+          console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: ${unknownCostBasisLine(symbol, bal, valueUsd)}`);
         }
       } else if (bal <= 0.001 && token.entryPrice) {
         // Ghost — positions.json had entry but blockchain shows nothing
@@ -9698,36 +9785,41 @@ async function main() {
 
     // ── Step 3: Summary + Telegram ──────────────────────────────────────────
     const openNow = tokens.filter(t => hasUsableCostBasis(t));
-    const unknownNow = tokens.filter(t => t.unknownEntry);
-    const totalHeld = openNow.reduce((s, t) => {
+    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !hasUsableCostBasis(t)));
+    const heldNow = tokens.filter(t => (tokenBalanceCache[t.symbol] || 0) > 0.001);
+    const totalHeld = heldNow.reduce((s, t) => {
       const p = history[t.symbol]?.lastPrice;
-      if (!isValidUsdPrice(p) && !isValidUsdPrice(t.entryPrice)) return s;
-      return s + (tokenBalanceCache[t.symbol] || 0) * (isValidUsdPrice(p) ? p : t.entryPrice);
+      const mark = isValidUsdPrice(p) ? p : (isValidUsdPrice(t.entryPrice) ? t.entryPrice : 0);
+      if (!mark) return s;
+      return s + (tokenBalanceCache[t.symbol] || 0) * mark;
     }, 0);
 
     console.log(`🔍 On-chain scan: ${found} holdings | ${recovered} recovered | ${confirmed} confirmed | ${ghosts} ghosts cleared`);
-    console.log(`📊 Open positions (${openNow.length}): ${openNow.map(t => t.symbol + "@$" + t.entryPrice.toFixed(6)).join(", ") || "none"}`);
-    console.log(`💰 Total held value: ~$${totalHeld.toFixed(2)}`);
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => t.symbol + "@$" + t.entryPrice.toFixed(6)).join(", ") || "none"}`);
+    console.log(`⚠️ Unknown basis (${unknownNow.length}): ${unknownNow.map(t => t.symbol).join(", ") || "none"}`);
+    console.log(`💰 Total held value: ~$${totalHeld.toFixed(2)} (chain units × live mark)`);
 
-    // Send Telegram boot report
     let bootMsg = "🔍 <b>BOOT SCAN — BASE BLOCKCHAIN</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-    if (openNow.length > 0) {
+    if (heldNow.length > 0) {
       bootMsg += "📊 <b>Holdings found on-chain:</b>\n";
-      for (const t of openNow) {
+      for (const t of heldNow) {
         const bal = tokenBalanceCache[t.symbol] || 0;
         const p   = history[t.symbol]?.lastPrice || t.entryPrice || 0;
         const val = (bal * p).toFixed(2);
-        const pnl = t.entryPrice > 0 && p > 0
-          ? ((p - t.entryPrice) / t.entryPrice * 100).toFixed(1)
-          : "?";
-        bootMsg += `   <b>${t.symbol}</b>: entry $${t.entryPrice.toFixed(6)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
+        if (hasUsableCostBasis(t)) {
+          const pnl = t.entryPrice > 0 && p > 0
+            ? ((p - t.entryPrice) / t.entryPrice * 100).toFixed(1)
+            : "?";
+          bootMsg += `   <b>${t.symbol}</b>: entry $${t.entryPrice.toFixed(6)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
+        } else {
+          bootMsg += `   <b>${t.symbol}</b>: ${bal >= 1 ? bal.toFixed(2) : bal.toFixed(6)} on-chain ~$${val}\n   ${UNKNOWN_COST_BASIS_LABEL}\n`;
+        }
       }
     } else {
       bootMsg += "No open positions found on-chain\n";
     }
     if (unknownNow.length) {
-      bootMsg += `\n⚠️ UNKNOWN (no quote, excluded from margin): ${unknownNow.map(t => t.symbol).join(", ")}\n`;
+      bootMsg += `\n⚠️ UNKNOWN cost basis (leftover = proceeds − fees): ${unknownNow.map(t => t.symbol).join(", ")}\n`;
     }
     if (recovered > 0) bootMsg += `\n✅ ${recovered} position(s) recovered from ledger\n`;
     if (ghosts > 0)    bootMsg += `👻 ${ghosts} ghost(s) cleared\n`;
@@ -9769,14 +9861,12 @@ async function main() {
   // If balance > dust threshold → record as open position with live market price.
   // This runs ONCE at boot to reconcile any positions the saved state missed.
   try {
-    const ethPriceBoot    = await getLiveEthPrice();
     console.log("🔗 CHAIN RECONCILIATION — reading live balances from wallet...");
     let reconciled = 0;
     for (const token of tokens) {
       if (token.frozen || token.disabled) continue;
-      // Only reconcile if no entryPrice already loaded from saved state
-      if (token.entryPrice) {
-        console.log(`   ✓ ${token.symbol}: already has saved entry $${token.entryPrice.toFixed(8)}`);
+      if (shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog })) {
+        console.log(`   ✓ ${token.symbol}: trusted fill receipt entry $${token.entryPrice.toFixed(8)}`);
         continue;
       }
       try {
@@ -9784,21 +9874,17 @@ async function main() {
         const livePrice = liveBal > 0.001 ? await getTokenPrice(token.address, true) : null;
         if (liveBal > 0.001 && isValidUsdPrice(livePrice)) {
           const valueUsd = liveBal * livePrice;
-          // Only record as position if worth more than dust ($0.05)
           if (valueUsd >= 0.05) {
-            token.entryPrice       = livePrice; // use live price as cost basis (unknown true entry)
-            token.totalInvestedEth = valueUsd / ethPriceBoot;
-            token.entryTime        = Date.now();
-            token.unknownEntry     = false;
+            applyUnknownChainHolding(token, { units: liveBal, priceUsd: livePrice });
             tokenBalanceCache[token.symbol] = liveBal;
-            console.log(`   🔗 ${token.symbol}: ${liveBal.toFixed(4)} tokens @ $${livePrice.toFixed(8)} = $${valueUsd.toFixed(3)} — RECONCILED`);
+            console.log(`   🔗 ${token.symbol}: ${liveBal.toFixed(4)} tokens @ $${livePrice.toFixed(8)} = $${valueUsd.toFixed(3)} — chain truth, unknown cost`);
             reconciled++;
           } else {
-            tokenBalanceCache[token.symbol] = liveBal; // cache the dust too
+            tokenBalanceCache[token.symbol] = liveBal;
             console.log(`   💨 ${token.symbol}: $${valueUsd.toFixed(4)} dust — not recording as position`);
           }
         } else if (liveBal > 0.001 && !isValidUsdPrice(livePrice)) {
-          token.unknownEntry = true;
+          applyUnknownChainHolding(token, { units: liveBal });
           tokenBalanceCache[token.symbol] = liveBal;
           console.log(`   ⚠️  ${token.symbol}: bal=${liveBal.toFixed(4)} — NO MARKET QUOTE — UNKNOWN, excluded from margin`);
         }
@@ -9822,7 +9908,7 @@ async function main() {
       await tg(
         "🔗 <b>CHAIN POSITIONS LOADED</b>\n━━━━━━━━━━━━━━━━━━━━\n" +
         posLines +
-        "\nAll data is live from your wallet.\nUse /bank for full statement."
+        "\nChain units are truth. Unknown cost basis is not invented P&L.\nUse /bank for full statement."
       );
     }
   } catch (e) {
@@ -10159,7 +10245,7 @@ async function main() {
           symbol: token.symbol,
           reason: moonReason,
           sellPct,
-          entryEth: token.totalInvestedEth || 0,
+          entryEth: costBasisEth(token),
           projectedProceedsEth: (balance * sellPct * price) / ethUsd,
           feePct: token.poolFeePct || 0.006,
           impactPct: PRICE_IMPACT_EST,
