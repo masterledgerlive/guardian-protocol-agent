@@ -2396,6 +2396,7 @@ const operatorBuyState    = { done: false, executed: false }; // done only after
 const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
 const waveState    = {};
 const tradeLog     = [];
+let netPositions   = {};
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
 // Cached token balances — refreshed each main loop cycle, used in Telegram responses
 const tokenBalanceCache = {};
@@ -9650,7 +9651,7 @@ async function main() {
     const ethPriceNow = await getLiveEthPrice();
 
     // ── Step 1: Read ledger for entry prices (best effort) ──────────────────
-    const netPositions = {};
+    netPositions = {};
     try {
       // Try multiple times — ledger is critical
       let ledgerData = null;

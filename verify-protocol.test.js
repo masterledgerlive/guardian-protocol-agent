@@ -225,4 +225,15 @@ describe("verification: operator /buy is honest and chain is the ledger", () => 
     assert.ok(src.includes("costBasisEth(token)"));
     assert.ok(!src.includes("UNKNOWN ENTRY resolved from live market"));
   });
+
+  it("netPositions is module-scoped so processToken and chain recon can read the ledger", () => {
+    assert.match(src, /^let netPositions\s*=/m);
+    const scan = src.indexOf("ON-CHAIN POSITION RECOVERY");
+    const scanBody = src.slice(scan, src.indexOf("Start VITA webhook", scan));
+    assert.ok(!scanBody.includes("const netPositions"), "boot scan must not shadow netPositions in a block");
+    const proc = src.indexOf("async function processToken");
+    const procBody = src.slice(proc, src.indexOf("\nasync function runPredFundTick", proc));
+    assert.ok(procBody.includes("netPositions[token.symbol]"));
+    assert.ok(src.includes("CHAIN RECONCILIATION"));
+  });
 });
