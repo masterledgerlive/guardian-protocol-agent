@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added — top-100 Uniswap V3 majors for hitch injection
+
+Canon catalog could see Base meme/Base-native names but not the bigger CMC top-100 books that actually trade on **Uniswap V3** (the bot’s only router). Live scout 2026-09-07 (DexScreener + factory `getPool`):
+
+- **ADD tradeable:** LINK (`0x88Fb…e196`, fee 3000), AAVE (`0x6370…814b`, fee 3000), UNI (`0xc3De…3C83`, fee 10000).
+- **UNFREEZE:** VVV (fee → 10000 — Uni V3 WETH/USDC proven), ZORA (fee → 10000), BNKR (deep Uni V3 WETH ~$1.8M).
+- Entry sanity treats **AAVE** like CBBTC (unit price ≫ $50).
+- **Skipped:** USDT/EURC (no wave), cbETH (V3 thin), cbXRP/CRV (wrong venue), SOL/COMP/WBTC (too thin vs CBBTC).
+
 ### Fixed — boot recon crashed on `netPositions is not defined`
 
 Live after PR #25 (`6bb972f`): on-chain scan was honest (9 bags, unknown cost, ~$5.14 chain mark) then `CHAIN RECONCILIATION — netPositions is not defined`. `const netPositions` lived only inside the boot-scan try, so `processToken` could not read the ledger either. Hoist `let netPositions = {}` to module scope.

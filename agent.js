@@ -1213,6 +1213,21 @@ const DEFAULT_TOKENS = [
     score: { liquidity:9, waveQuality:8, fundamentals:10, coinbaseFit:10, community:8, total:45 },
     notes: "PROMOTED FROM WATCHLIST. Coinbase-issued BTC on Base. Follows BTC cycles exactly. Maximum trust. Waves ride BTC momentum. Long-term anchor asset." },
 
+  // ── TOP-100 MAJORS — Uniswap V3 WETH books on Base (factory-verified 2026-09-07) ──
+  // Injection surface: deep Uni V3 pools so hitch-covered swaps can land on real majors.
+
+  { symbol: "LINK",    address: "0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:8, total:42 },
+    notes: "Chainlink — top-100 major. Uniswap v3 LINK/WETH 0.3% (factory) + LINK/USDC ~$137k / ~$141k 24h. KEEP: Uni V3 proven for injection." },
+
+  { symbol: "AAVE",    address: "0x63706e401c06ac8513145b7687A14804d17f814b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:7, total:41 },
+    notes: "Aave — top-100 DeFi major. Uniswap v3 AAVE/WETH 0.3% (factory) ~$134k / ~$48k 24h. KEEP: Uni V3 proven for injection." },
+
+  { symbol: "UNI",     address: "0xc3De830EA07524a0761646a6a4e4be0e114a3C83", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:8, total:42 },
+    notes: "Uniswap — top-100 DEX major. Uniswap v3 UNI/WETH 1% (factory deepest) ~$105k / ~$48k 24h. KEEP: Uni V3 proven for injection." },
+
   // ── TIER 2: SOLID (30-39) ─────────────────────────────────────────────────
 
   { symbol: "DEGEN",   address: "0x4ed4e862860bed51a9570b96d89af5e1b0efefed", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
@@ -1300,10 +1315,9 @@ const DEFAULT_TOKENS = [
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
     notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317." },
 
-  { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
-    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+  { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:39 },
-    notes: "Venice Token — Aerodrome VVV/WETH ~$13.1M / ~$435k; Uniswap v3 VVV/USDC ~$277k / ~$108k. FROZEN data-only until Uni V3 proven." },
+    notes: "Venice Token — UNFROZEN 2026-09-07. Uniswap v3 VVV/WETH 1% (factory deepest) + VVV/USDC 0.3% ~$285k / ~$432k. Aero backup. KEEP: Uni V3 proven." },
 
   { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
@@ -1350,15 +1364,13 @@ const DEFAULT_TOKENS = [
     score: { liquidity:5, waveQuality:6, fundamentals:5, coinbaseFit:7, community:7, total:30 },
     notes: "Mochi. FROZEN." },
 
-  { symbol: "ZORA",    address: "0x1111111111166b7FE7bd91427724B487980aFc69", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
-    frozen: true, frozenReason: "Capital concentration",
+  { symbol: "ZORA",    address: "0x1111111111166b7FE7bd91427724B487980aFc69", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:9, community:9, total:42 },
-    notes: "Zora platform token. FROZEN." },
+    notes: "Zora platform token — UNFROZEN 2026-09-07 for Uni V3 injection surface. Uniswap v3 ZORA/WETH 1% (factory deepest) + ZORA/USDC ~$95k / ~$128k." },
 
   { symbol: "BNKR",    address: "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
-    frozen: true, frozenReason: "Capital concentration",
     score: { liquidity:8, waveQuality:7, fundamentals:8, coinbaseFit:8, community:8, total:39 },
-    notes: "BankrCoin. FROZEN." },
+    notes: "BankrCoin — UNFROZEN 2026-09-07. Uniswap v3 BNKR/WETH 1% ~$1.83M / ~$252k 24h. Deep injection book." },
 
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -6589,13 +6601,13 @@ async function loadFromGitHub() {
         //   1. Entry must be > 0
         //   2. If currentPrice is known, entry must be within 50x/0.02x range
         //   3. CRITICAL: even if currentPrice=0 at boot, reject any entry > $100
-        //      (no real token on this list trades above $100 except CBBTC/ETH itself)
+        //      (no real token on this list trades above $100 except CBBTC/ETH/AAVE-class)
         //      MIGGLES=$404 and TOBY=$25 are clearly USD-stored-as-price bugs.
-        //   4. CBBTC exception: BTC-like tokens may have high price
-        const isBtcLike = t.symbol === "CBBTC" || t.symbol === "cbBTC";
+        //   4. High unit-price majors: BTC-like + AAVE may exceed the $50 meme/DeFi cap
+        const isHighUnitPrice = t.symbol === "CBBTC" || t.symbol === "cbBTC" || t.symbol === "AAVE";
         // $50 cap catches corrupted USD-as-price entries (MIGGLES=$404, TOBY=$25.86)
-        // Base tokens range: $0.000001 (memes) to ~$5 (DeFi). Nothing legit > $50 except BTC.
-        const maxSaneEntry = isBtcLike ? 200000 : 50;
+        // Base tokens range: $0.000001 (memes) to ~$5 (DeFi). Nothing legit > $50 except BTC/AAVE-class.
+        const maxSaneEntry = isHighUnitPrice ? 200000 : 50;
         const isSane = savedEntry > 0 &&
           savedEntry < maxSaneEntry &&
           (currentPrice === 0 || (savedEntry <= currentPrice * 50 && savedEntry >= currentPrice * 0.02));
@@ -7806,7 +7818,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const targets = symArg ? tokens.filter(t => t.symbol === symArg) : tokens;
 
         if (targets.length === 0) {
-          await tg(`❓ Unknown token: ${esc(symArg)}\nPortfolio: AERO BRETT VIRTUAL MORPHO CBBTC DEGEN AIXBT TOSHI KEYCAT DOGINME XCN SKI LUNA GAME BASECAT DRB VVV TIBBIR`);
+          await tg(`❓ Unknown token: ${esc(symArg)}\nPortfolio: AERO BRETT VIRTUAL MORPHO CBBTC LINK AAVE UNI DEGEN AIXBT TOSHI KEYCAT DOGINME XCN SKI LUNA GAME BASECAT DRB REI CLANKER VVV ZORA BNKR`);
         } else if (symArg) {
           // Detailed single token report
           const t = targets[0];
