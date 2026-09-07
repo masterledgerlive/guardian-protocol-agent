@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — dragnet burns cycles; inject mains never buy; revenue flat
+
+Live Railway `industrious-tranquility` / `guardian-protocol-agent` @ `9833348` (2026-09-07):
+
+- Tradeable ~**0.0024 ETH (~$6)** → T1 reserved **UNI > CBBTC > LINK** at ~$1.30/slot, **T2=none**.
+- UNI/LINK/CBBTC **ARMED** on 90d candle MINs (UNI buy trigger ~$3.17 while mark ~$7) → **zero fills, zero hitch**.
+- SKI/DRB passed `LOSE_ZERO: leftover covers inject` every ~60s then `not in active tiers (OUT)` — hitch L1 fee RPC for nothing.
+- Unknown-cost dust bags never moonshot-trimmed (`if (!entryPrice) continue`) → capital stuck, no recycle into inject trades.
+- Historical `bot-state` ledger (Mar): **+$324 net / 70% WR** on larger book — cascade churn and AIXBT stop-outs were the main leaks; current live issue is **no trades at all**.
+
+Changes (still LOSE_ZERO / 2× hitch sell floor / never lose to insert):
+
+- **Small-book tiers** (`<$15`): 2 T1 seats @ 85%, cheaper T2 floor so leftover-covered swaps can hitch.
+- **Inject pullback entry** + entry-trough climb to recent low when 90d MIN is stale; candle seed prefers 14d low for inject mains.
+- **Tier gate before hitch L1 fee** so OUT tokens die without oracle spam.
+- **Dust recycle** for unknown-cost bags above lottery floor (plain sale if hitch not covered).
+
 ### Fixed — new majors live but not injection-ready (OHLC + capital)
 
 Railway @ `0930b8a` booted **24 active** including LINK/AAVE/UNI/VVV/ZORA/BNKR, then LINK/AAVE/UNI hit the 8s Dex seed timeout with no Binance fallback. Dead-wave −15 also kept no-history majors out of Tier 1/2 so hitch had nowhere to land.
