@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed — boot recon crashed on `netPositions is not defined`
+
+Live after PR #25 (`6bb972f`): on-chain scan was honest (9 bags, unknown cost, ~$5.14 chain mark) then `CHAIN RECONCILIATION — netPositions is not defined`. `const netPositions` lived only inside the boot-scan try, so `processToken` could not read the ledger either. Hoist `let netPositions = {}` to module scope.
+
 ### Fixed — /buy went silent; account amounts were invented, not chain pings
 
 Live Railway after PR #24: Telegram `/buy TOSHI $1` queued, then `LOSE_ZERO: block buy TOSHI no clear edge` with **no Telegram skip**. Boot copied live Dex marks into `totalInvestedEth` ("UNKNOWN ENTRY"), so leftover ≈ −fees and KEYCAT/BASECAT held forever. `getTokenBalance` `catch { return 0 }` plus `/buy` live fetch dividing by `1e18` (not real decimals) printed false zeros. `/bank` dropped bags with `b < 1` (CLANKER) and mixed lottery dust with piggy. Telegram HTML `can't parse entities` ate `/bank` and pulse.
