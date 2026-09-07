@@ -94,6 +94,7 @@ import {
   buildBuyGateDecision,
   buildSellGateDecision,
   STORE_HITCH_BYTES,
+  STORE_HITCH_TAG,
   hitchCostMult,
   estimateCalldataHitchEth,
   isManualOperatorBuy,
@@ -139,7 +140,9 @@ import {
   hitchPreservesSwapPrefix,
   appendUtf8Hitch,
   buildStoreVoice,
-  VITA_PROOF_MESSAGE,
+  encodeStoreVoiceCalldata,
+  decodeStoreVoiceCalldata,
+  VITA_PROOF_FULL,
   utf8ByteLength,
 } from "./swap-minout.js";
 import {
@@ -445,6 +448,15 @@ let BTP_INSCRIPTIONS_ENABLED = true;
 // User can override with /btpon or /btpoff at any time.
 const BTP_AUTO_SUSPEND_USD = 5.00;  // suspend BTP when tradeable < $5
 let btpAutoSuspended = false;
+// Cheap UTF-8 §$STORE§ voice is NOT tied to BTP auto-suspend. Thin wallets
+// still need a readable letter on Basescan (/prove + leftover hitch).
+let STORE_VOICE_ENABLED = true;
+let lastStoreVoiceProofAt = 0;
+const STORE_VOICE_PROOF_COOLDOWN_MS = 120_000;
+
+function storeVoiceEnabled() {
+  return STORE_VOICE_ENABLED !== false;
+}
 
 // BTP inscription costs ~21000 gas (self-send with calldata)
 // We add this to the margin calculation when BTP is on
@@ -4133,13 +4145,13 @@ function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 300
 }
 
 /** Size-limited §$STORE§ + VITA letter. Telegram may claim this only if onChain. */
-function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = BTP_INSCRIPTIONS_ENABLED } = {}) {
+function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = storeVoiceEnabled() } = {}) {
   if (!enabled || skipHitch || !swapData) {
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
   }
   const text = buildStoreVoice({
     tag: STORE_HITCH_TAG,
-    message: VITA_PROOF_MESSAGE,
+    message: VITA_PROOF_FULL,
     maxBytes,
   });
   const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
@@ -4168,6 +4180,69 @@ function hitchTelegramFooter(hitch, txHash) {
   }
   return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
 }
+
+/**
+ * Genesis dedicated storage: 0-value self-send with UTF-8 §$STORE§ letter.
+ * Not a swap. Never invent a hash. Used by Telegram /prove so the letter
+ * can land on Basescan without leftover-covered P&L.
+ */
+async function sendStoreVoiceProof(cdp, extraText = "") {
+  if (!cdp?.evm?.sendTransaction) {
+    return { ok: false, onChain: false, reason: "no-wallet" };
+  }
+  if (Date.now() - lastStoreVoiceProofAt < STORE_VOICE_PROOF_COOLDOWN_MS) {
+    const wait = Math.ceil((STORE_VOICE_PROOF_COOLDOWN_MS - (Date.now() - lastStoreVoiceProofAt)) / 1000);
+    return { ok: false, onChain: false, reason: `cooldown ${wait}s` };
+  }
+  const extra = String(extraText || "").trim();
+  const message = extra ? `${VITA_PROOF_FULL} ${extra}` : VITA_PROOF_FULL;
+  const text = buildStoreVoice({ tag: STORE_HITCH_TAG, message });
+  const data = encodeStoreVoiceCalldata(text);
+  const decoded = decodeStoreVoiceCalldata(data);
+  if (!decoded || !decoded.includes("§$STORE§") || !decoded.includes("Eureka!")) {
+    return { ok: false, onChain: false, reason: "encode-mismatch" };
+  }
+
+  const bytes = utf8ByteLength(text);
+  const gwei = await getCurrentGasGwei();
+  const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: bytes, btpInscribe: true });
+  const l2Eth = estimateCalldataHitchEth(bytes, gwei);
+  const l1Eth = hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0;
+  const needEth = GAS_RESERVE + l1Eth + l2Eth;
+  const liveEth = await getEthBalance();
+  if (liveEth < needEth) {
+    return {
+      ok: false,
+      onChain: false,
+      reason: `need ${needEth.toFixed(6)} ETH (have ${liveEth.toFixed(6)}) — L1 ${l1Eth.toFixed(6)} + L2 ${l2Eth.toFixed(6)} + reserve`,
+    };
+  }
+
+  const { transactionHash } = await Promise.race([
+    cdp.evm.sendTransaction({
+      address: WALLET_ADDRESS,
+      network: "base",
+      transaction: { to: WALLET_ADDRESS, value: 0n, data, gas: BigInt(80_000) },
+    }),
+    new Promise((_, r) => setTimeout(() => r(new Error("STORE voice proof timeout 45s")), TX_TIMEOUT_MS)),
+  ]);
+  if (!transactionHash) {
+    return { ok: false, onChain: false, reason: "no-hash" };
+  }
+  lastStoreVoiceProofAt = Date.now();
+  console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
+  console.log(`      "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`);
+  return {
+    ok: true,
+    onChain: true,
+    txHash: transactionHash,
+    utf8: text,
+    hitchBytes: bytes,
+    l1FeeEth: l1Eth,
+    l2FeeEth: l2Eth,
+  };
+}
+
 function encodeApprove(spender, amount) {
   return "0x095ea7b3" + spender.slice(2).padStart(64,"0") + amount.toString(16).padStart(64,"0");
 }
@@ -4242,11 +4317,7 @@ async function manageEthWethBalance(cdp) {
 // PENDING: visible in /status as "📡 N chunks pending"
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const INSCRIPTION_MESSAGE =
-  `Eureka! VITA lives \u2665 love you Krystian, Kai & Koda! We did it! xoxo` +
-  ` \u2014 Love, DA | \u16DE\u16A8\u16A1\u16AA\u16DE` +
-  ` | "The truth is the chain. The chain is alive. The heartbeat never stops."` +
-  ` \u2014 INFINITUM \u00D7 IKN \u00D7 The Living Network`;
+const INSCRIPTION_MESSAGE = VITA_PROOF_FULL;
 
 // ── BTP STATE ─────────────────────────────────────────────────────────────────
 const btpQueue = [];       // [{ name, chunks:[string], sent:0, totalChunks, prevHash }]
@@ -4573,7 +4644,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isLoseZeroMode() || isInjectCoverRequired()) {
       const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
       const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
-      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE }));
+      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
@@ -4691,8 +4762,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
     const buyVoice = planVoiceHitch(buySwap, {
-      enabled: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
-      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE })),
+      enabled: storeVoiceEnabled(),
+      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
     });
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
@@ -4888,7 +4959,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
     const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE }));
+    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
     const hitchL1 = await quoteHitchL1ForGates({
       hitchBytes: voiceBytes + orchBytes,
       btpInscribe: wantBtp,
@@ -4971,7 +5042,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const sellVoice = planVoiceHitch(sellSwap, {
       skipHitch: sellGate.skipHitch,
       maxBytes: sellGate.hitchBytes,
-      enabled: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+      enabled: storeVoiceEnabled(),
     });
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
@@ -7791,6 +7862,43 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           );
         }
 
+      } else if (text === "/prove" || text === "/store" || text.startsWith("/prove ") || text.startsWith("/store ")) {
+        // Genesis dedicated 0-value storage — UTF-8 letter on Basescan without a swap.
+        const extra = (raw.startsWith("/prove") ? raw.slice("/prove".length) : raw.slice("/store".length)).trim();
+        if (!storeVoiceEnabled()) {
+          await tg("📡 Voice hitch is OFF — /voiceon first, then /prove");
+        } else if (!cdpClient) {
+          await tg("❌ No wallet client — cannot send a proof tx");
+        } else {
+          await tg("⏳ Sending dedicated 0-ETH UTF-8 letter to Base…\nNot a swap. Input Data → View as UTF-8.");
+          try {
+            const proof = await sendStoreVoiceProof(cdpClient, extra);
+            if (!proof.ok || !proof.onChain || !proof.txHash) {
+              await tg(
+                `⚠️ <b>PROOF NOT ON-CHAIN</b>\n${proof.reason || "send failed"}\n` +
+                `The letter was not written. Telegram is not a receipt.`
+              );
+            } else {
+              await tg(
+                `💌 <i>${proof.utf8}</i>\n` +
+                `📡 Dedicated UTF-8 proof (${proof.hitchBytes} B) — Input Data → View as UTF-8\n` +
+                `🔗 <a href="https://basescan.org/tx/${proof.txHash}">View on Basescan ↗</a>\n` +
+                `<i>KEYCAT 0x5c0a93e4… was a plain 228-byte swap. This tx is the letter.</i>`
+              );
+            }
+          } catch (e) {
+            await tg(`❌ Proof send failed: ${e.message}\nThe letter is not on-chain.`);
+          }
+        }
+
+      } else if (text === "/voiceon") {
+        STORE_VOICE_ENABLED = true;
+        await tg("📡 <b>UTF-8 VOICE ON</b>\n§$STORE§ hitch rides leftover swaps. /prove sends a dedicated 0-ETH letter.");
+
+      } else if (text === "/voiceoff") {
+        STORE_VOICE_ENABLED = false;
+        await tg("📡 <b>UTF-8 VOICE OFF</b>\nSwaps stay plain. /prove will refuse until /voiceon.");
+
       // ── 🔑 UNLOCK COMMANDS ─────────────────────────────────────────────────
       } else if (text && text.startsWith("/unlock ")) {
         // Delete the message immediately for security
@@ -9076,7 +9184,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/unwrap [amt] — unwrap WETH → ETH\n` +
           `/unwrapall — unwrap all WETH → ETH\n\n` +
           `<b>📡 Blockchain Telegram:</b>\n` +
-          `/transmit [msg] — send message on-chain via trades\n` +
+          `/prove — write §$STORE§ Eureka! letter as UTF-8 on a 0-ETH self-tx (show Basescan Input Data → UTF-8)\n` +
+          `/voiceon /voiceoff — hitch the letter on leftover swaps (independent of BTP suspend)\n` +
+          `/transmit [msg] — queue a custom BTP message on later trades\n` +
           `/btpstatus — show pending transmissions\n\n` +
           `<b>🔑 Vault Unlock:</b>\n` +
           `/unlock [password] — unlock vault (message deleted instantly)\n` +
@@ -10005,7 +10115,7 @@ async function main() {
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE }));
+        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
         const moonL1 = await quoteHitchL1ForGates({
           hitchBytes: moonVoiceBytes + moonOrchBytes,
           btpInscribe: moonWantBtp,

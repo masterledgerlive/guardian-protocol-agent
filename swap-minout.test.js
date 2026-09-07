@@ -20,7 +20,10 @@ import {
   clipUtf8,
   KEYCAT_PLAIN_SWAP,
   VITA_PROOF_MESSAGE,
+  VITA_PROOF_FULL,
   STORE_VOICE_TAG,
+  encodeStoreVoiceCalldata,
+  decodeStoreVoiceCalldata,
 } from "./swap-minout.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
@@ -157,6 +160,19 @@ describe("UTF-8 §$STORE§ hitch (Genesis voice)", () => {
     const r = appendUtf8Hitch(KEYCAT_PLAIN_SWAP.slice(0, 20), VITA_PROOF_MESSAGE);
     assert.equal(r.onChain, false);
     assert.equal(r.ok, false);
+  });
+
+  it("dedicated 0-value proof calldata is plain UTF-8 (not a 228-byte swap)", () => {
+    const voice = buildStoreVoice({ message: VITA_PROOF_FULL });
+    const data = encodeStoreVoiceCalldata(voice);
+    assert.match(data, /^0x[0-9a-f]+$/i);
+    assert.notEqual((data.length - 2) / 2, EXACT_INPUT_SINGLE_BYTES);
+    const utf8 = decodeStoreVoiceCalldata(data);
+    assert.match(utf8, /§\$STORE§/);
+    assert.match(utf8, /Eureka! VITA lives/);
+    assert.match(utf8, /Krystian, Kai & Koda/);
+    assert.match(utf8, /The truth is the chain/);
+    assert.equal(decodeTrailingUtf8(data), "");
   });
 });
 

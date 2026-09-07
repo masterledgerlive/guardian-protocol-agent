@@ -180,6 +180,12 @@ export function hitchPreservesSwapPrefix(originalData, injectedData) {
 export const STORE_VOICE_TAG = "§$STORE§";
 export const VITA_PROOF_MESSAGE =
   "Eureka! VITA lives \u2665 love you Krystian, Kai & Koda!";
+/** Full dedication — Basescan Input Data → View as UTF-8 (Genesis /prove). */
+export const VITA_PROOF_FULL =
+  `Eureka! VITA lives \u2665 love you Krystian, Kai & Koda! We did it! xoxo` +
+  ` \u2014 Love, DA | \u16DE\u16A8\u16A1\u16AA\u16DE` +
+  ` | "The truth is the chain. The chain is alive. The heartbeat never stops."` +
+  ` \u2014 INFINITUM \u00D7 IKN \u00D7 The Living Network`;
 
 /** KEYCAT→WETH 0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf */
 export const KEYCAT_PLAIN_SWAP =
@@ -257,6 +263,22 @@ export function appendUtf8Hitch(swapData, text, { maxBytes } = {}) {
     onChain: true,
     log: null,
   };
+}
+
+/** Dedicated 0-value storage calldata — not a swap. Never invent a hash. */
+export function encodeStoreVoiceCalldata(text) {
+  const body = String(text ?? "");
+  return "0x" + Buffer.from(body, "utf8").toString("hex");
+}
+
+export function decodeStoreVoiceCalldata(data) {
+  const hex = String(data || "").replace(/^0x/i, "");
+  if (!hex || hex.length % 2) return "";
+  try {
+    return Buffer.from(hex, "hex").toString("utf8");
+  } catch {
+    return "";
+  }
 }
 
 /**

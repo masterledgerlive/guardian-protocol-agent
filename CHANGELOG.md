@@ -10,7 +10,9 @@ Genesis / StorageToken rule: hitch `§$STORE§` on a **real** leftover swap; nev
 
 - `appendUtf8Hitch` / `planVoiceHitch` append `§$STORE§ Eureka! VITA lives ♥ …` after the 228-byte swap (router ignores trailer). Sized to leftover hitch bytes. Prefix / minOut still refused if packing would smash the slot.
 - Buy + sell (and moonshot via `executeSell`) send the hitched calldata. Telegram 💌 only quotes the bytes that were actually appended; otherwise it says the letter is not on-chain.
-- Does **not** weaken PRICE_INSANE, Quoter, piggy, minOut, LOSE_ZERO, frozen, L1 oracle, or `HALT_NEW_ENTRIES`. No capital from this change.
+- Voice hitch is **independent of BTP auto-suspend** (thin wallets were silently sending plain swaps while Telegram printed the letter). `/voiceon` `/voiceoff`.
+- Telegram `/prove` (or `/store`) sends a **dedicated 0-ETH self-tx** with the full UTF-8 letter — Genesis StorageToken rule: leftover hitch **or** dedicated storage; never invent a swap/hash. Basescan Input Data → View as UTF-8. Cooldown 2m. Refuses if ETH cannot cover L1+L2+reserve.
+- Does **not** weaken PRICE_INSANE, Quoter, piggy, minOut, LOSE_ZERO, frozen, L1 oracle, or `HALT_NEW_ENTRIES`. No capital from this change. This agent does not send live txs.
 
 ### Added — hitch inject cost from live Base `GasPriceOracle.getL1Fee`
 

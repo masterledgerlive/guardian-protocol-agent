@@ -116,6 +116,9 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
     assert.ok(src.includes("planVoiceHitch") && src.includes("appendUtf8Hitch"), "UTF-8 §$STORE§ hitch must ride the swap");
     assert.ok(src.includes("hitchTelegramFooter"), "Telegram must not claim a letter that is not on-chain");
+    assert.ok(src.includes("sendStoreVoiceProof") && src.includes("/prove"), "dedicated 0-ETH /prove must exist");
+    assert.ok(src.includes("storeVoiceEnabled()"), "voice hitch must not depend on BTP auto-suspend");
+    assert.ok(!src.includes("enabled: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended"), "must not gate UTF-8 voice on BTP suspend");
     assert.ok(src.includes("GAS_PRICE_ORACLE"), "GasPriceOracle predeploy helper");
     assert.ok(src.includes("formatHitchFeeSplit") || src.includes("HITCH FEE"), "must log L1 vs L2 hitch split");
     assert.ok(!src.includes("HALT_NEW_ENTRIES=\"\"") && !src.includes("HALT_NEW_ENTRIES = \"\""), "must not clear HALT_NEW_ENTRIES");
