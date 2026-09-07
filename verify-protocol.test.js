@@ -215,6 +215,12 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     assert.match(src.slice(vvv, vvv + 200), /feeTier:\s*10000/);
     assert.ok(src.includes('t.symbol === "AAVE"'), "AAVE high unit-price entry sanity");
   });
+
+  it("boot banner and scoring make new majors injection-ready", () => {
+    assert.ok(src.includes("bootActive.join"), "boot banner lists live active symbols");
+    assert.ok(src.includes("Inject-surface boost"), "deep Uni books get capital before trade history");
+    assert.ok(src.includes("score?.liquidity"), "inject boost uses catalog liquidity");
+  });
 });
 
 describe("verification: operator /buy is honest and chain is the ledger", () => {

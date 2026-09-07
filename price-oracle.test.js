@@ -194,7 +194,13 @@ describe("Binance must not overwrite Base", () => {
     }
     assert.equal(allowBinanceOhlcSeed("AERO"), true);
     assert.equal(allowBinanceOhlcSeed("BRETT"), true);
+    assert.equal(allowBinanceOhlcSeed("LINK"), true);
+    assert.equal(allowBinanceOhlcSeed("AAVE"), true);
+    assert.equal(allowBinanceOhlcSeed("UNI"), true);
+    assert.equal(allowBinanceOhlcSeed("ZORA"), true);
     assert.equal(allowBinanceOhlcSeed("CBBTC"), false);
+    assert.equal(allowBinanceOhlcSeed("BNKR"), false);
+    assert.equal(allowBinanceOhlcSeed("VVV"), false);
   });
 
   it("prefers shorter Base history over a longer CEX LUNA series", () => {

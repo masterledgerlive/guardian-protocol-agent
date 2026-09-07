@@ -404,6 +404,8 @@ export function applyUnknownChainHolding(token, { units, priceUsd } = {}) {
 // our Base contract. LUNAUSDT is Terra; KITEUSDT is L1 KITE — not Virtuals/Base.
 export const BINANCE_OHLC_ALLOWLIST = new Set([
   "AERO", "BRETT", "VIRTUAL", "DEGEN", "TOSHI", "MORPHO", "AIXBT", "ZORA", "WELL",
+  // Top-100 majors on Base — same CEX asset as the Uni V3 catalog contracts
+  "LINK", "AAVE", "UNI",
 ]);
 
 export const BINANCE_OHLC_DENYLIST = new Set([

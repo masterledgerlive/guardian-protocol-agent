@@ -399,6 +399,13 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
   if (noPrice >= 5) score -= 20; // can't get a price = can't trade
   if (token?.unknownEntry || !isValidUsdPrice(history[symbol]?.lastPrice)) score -= 20;
 
+  // ── Inject-surface boost — deep Uni V3 majors get capital so hitch can land ─
+  // New names with no trade history otherwise sit at moonshot with dead-wave −15.
+  // Prefer proven injection books (catalog liquidity ≥ 8) until they earn rank.
+  if (totalTrades < 2 && (token?.score?.liquidity || 0) >= 8) {
+    score += 12;
+  }
+
   return Math.max(0, Math.min(100, score));
 }
 
@@ -9521,14 +9528,16 @@ function bootstrapWavesFromCandles() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 async function main() {
+  const bootActive = DEFAULT_TOKENS.filter(t => !t.frozen && !t.disabled).map(t => t.symbol);
+  const bootFrozen = DEFAULT_TOKENS.filter(t => t.frozen && !t.disabled).length;
   console.log("═══════════════════════════════════════════════════════════");
   console.log("⚔️💓  GUARDIAN PROTOCOL — HEARTBEAT EDITION v18.1 — CHAIN-FIRST + INSTANT WAVE ARM + 3-SOURCE DATA");
-  console.log("   ✅ Active tokens: original 15 + MOG, BASE, LUNA, GAME");
-  console.log("   ❄️  Frozen tokens: 16 tokens collecting wave data, no capital deployed");
-  console.log("   🔧 Fixes: drawdown ghost halt, /bank live chain read, sell gas gate, frozen system");
+  console.log(`   ✅ Active (${bootActive.length}): ${bootActive.join(" ")}`);
+  console.log(`   ❄️  Frozen: ${bootFrozen} collecting wave data, no new capital`);
+  console.log("   🔧 Inject surface: Uni V3 WETH books + §$STORE§ hitch on leftover swaps");
   console.log("      ETH+WETH unified | Auto gas top-up | Ledger wave seeding");
   console.log("      Live ETH price | Gas spike guard | Drawdown breaker");
-  console.log("      v15.7: RPC fix (7 endpoints + quota rotation), 10 new tokens, ETH/WETH manager");
+  console.log("      Top-100 majors: LINK AAVE UNI + thawed VVV ZORA BNKR");
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
   if (isLoseZeroMode()) {
