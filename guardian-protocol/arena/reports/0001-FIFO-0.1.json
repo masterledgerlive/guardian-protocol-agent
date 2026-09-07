@@ -1,0 +1,315 @@
+{
+  "BENCHMARK": "0001",
+  "BENCHMARK_VERSION": "0.1.0",
+  "STRATEGY": "FIFO-0.1",
+  "GENERATED_AT_KIND": "simulated_clock",
+  "INPUT_FILE_SHA256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+  "BENCHMARK_META": {
+    "object_id": "benchmark-0001",
+    "strategy": "FIFO-0.1",
+    "final_state": "ARCHIVED"
+  },
+  "INPUT": {
+    "bytes": 263,
+    "sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+    "label": "buffer"
+  },
+  "PIPELINE": {
+    "chunks": 2,
+    "encoded_bytes": 263,
+    "redundancy": 1,
+    "merkle_root": "223050ed0ca45f9bae3ff2fb59cc9bfbf15bd0226efd37813047cd69d87c21de",
+    "placements": 2
+  },
+  "RESULT": {
+    "reconstruction": "PASS",
+    "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+    "exact_match": true
+  },
+  "ECONOMICS": {
+    "simulated_cost": 0.0001304208,
+    "storage_cost": 1.315e-7,
+    "compute_cost": 0.00002,
+    "bandwidth_cost": 2.63e-7,
+    "proof_cost": 0.00001,
+    "transaction_cost": 0.0001,
+    "node_reward": 2.63e-8,
+    "kind": "simulated"
+  },
+  "PERFORMANCE": {
+    "injection_time": 17,
+    "retrieval_time": 1,
+    "reconstruction_time": 1,
+    "kind": "simulated_wall_ms_or_counter"
+  },
+  "TRACE": {
+    "events": 11,
+    "replay_hash": "e8a3a57f489f50212312039ebf1bd32a329c41c918d89450f6523c6704248d74"
+  },
+  "ASSUMPTIONS": [
+    "FIFO ordering of a single object job (no multi-job reordering yet)",
+    "fixed chunk_size=256",
+    "static redundancy=1",
+    "identity encoding (no compression)",
+    "round-robin single-node placement per chunk",
+    "all costs are hypothetical (CostModel assumptions)",
+    "cost_model=hypothetical-sprint1-v0.1",
+    "cost.transaction_fee=0.0001",
+    "cost.bandwidth_price_per_byte=1e-9",
+    "cost.compute_price_per_chunk=0.00001",
+    "cost.storage_price_per_byte=5e-10",
+    "cost.node_reward_per_byte=1e-10",
+    "cost.redundancy=1",
+    "cost.chunk_size=256",
+    "cost.proof_price_per_chunk=0.000005",
+    "kind=simulated"
+  ],
+  "METRICS": {
+    "primary": {
+      "reconstruction_success": true,
+      "bit_for_bit_equality": true,
+      "cost": 0.0001304208,
+      "throughput_bytes_per_unit_time": 15.470588235294118,
+      "latency_retrieval": 1,
+      "storage_overhead": 1,
+      "verification_cost": 0.00001,
+      "proof_overhead": 0.00001
+    },
+    "secondary": {
+      "node_count": 3,
+      "node_utilization": 0.000008766666666715217,
+      "redundancy": 1,
+      "chunk_count": 2,
+      "encoded_bytes": 263,
+      "event_count": 11
+    },
+    "derived": {
+      "cost_per_GB": 495.896577946768,
+      "effective_storage_ratio": 1,
+      "reconstruction_success_rate": 1,
+      "cost_per_verified_GB": 495.896577946768,
+      "retrieval_latency": 1,
+      "repair_cost": 0,
+      "proof_overhead": 0.00001,
+      "agent_improvement_delta": null
+    }
+  },
+  "TREASURY": {
+    "balance": 9.9998695792,
+    "available": 8.999882621280001,
+    "spent": 0.0001304208,
+    "reserve_ratio": 0.1,
+    "deferred_count": 0,
+    "treasury_health": 0.9000000000000001
+  },
+  "STORAGE": {
+    "node_count": 3,
+    "total_capacity": 30000000,
+    "total_available": 29999737,
+    "nodes": [
+      {
+        "id": "node-0",
+        "capacity": 10000000,
+        "available": 9999744,
+        "fragments": 1,
+        "region": "sim-region-0"
+      },
+      {
+        "id": "node-1",
+        "capacity": 10000000,
+        "available": 9999993,
+        "fragments": 1,
+        "region": "sim-region-1"
+      },
+      {
+        "id": "node-2",
+        "capacity": 10000000,
+        "available": 10000000,
+        "fragments": 0,
+        "region": "sim-region-2"
+      }
+    ]
+  },
+  "STATUS": "REPRODUCIBLE",
+  "REPRODUCIBLE": true,
+  "replay": {
+    "event_count": 11,
+    "replay_hash": "e8a3a57f489f50212312039ebf1bd32a329c41c918d89450f6523c6704248d74",
+    "events": [
+      {
+        "event_id": "evt-000001",
+        "timestamp": 2,
+        "object_id": "benchmark-0001",
+        "previous_state": "RECEIVED",
+        "new_state": "VALIDATED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "INPUT_OK",
+        "cryptographic_references": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468"
+        }
+      },
+      {
+        "event_id": "evt-000002",
+        "timestamp": 4,
+        "object_id": "benchmark-0001",
+        "previous_state": "VALIDATED",
+        "new_state": "CHUNKED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "FIFO_FIXED_CHUNK_STATIC_RESERVE",
+        "chunk_count": 2,
+        "chunk_size": 256
+      },
+      {
+        "event_id": "evt-000003",
+        "timestamp": 6,
+        "object_id": "benchmark-0001",
+        "previous_state": "CHUNKED",
+        "new_state": "ENCODED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "IDENTITY_ENCODE",
+        "cryptographic_references": {
+          "merkle_root": "223050ed0ca45f9bae3ff2fb59cc9bfbf15bd0226efd37813047cd69d87c21de"
+        }
+      },
+      {
+        "event_id": "evt-000004",
+        "timestamp": 8,
+        "object_id": "benchmark-0001",
+        "previous_state": "ENCODED",
+        "new_state": "COST_ESTIMATED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "COST_MODEL",
+        "estimated_cost": 0.0001304208
+      },
+      {
+        "event_id": "evt-000005",
+        "timestamp": 10,
+        "object_id": "benchmark-0001",
+        "previous_state": "COST_ESTIMATED",
+        "new_state": "TREASURY_CHECK",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "RESERVE_CHECK",
+        "resource_state": {
+          "balance": 10,
+          "available": 9,
+          "spent": 0,
+          "reserve_ratio": 0.1,
+          "deferred_count": 0,
+          "treasury_health": 0.9
+        },
+        "estimated_cost": 0.0001304208
+      },
+      {
+        "event_id": "evt-000006",
+        "timestamp": 12,
+        "object_id": "benchmark-0001",
+        "previous_state": "TREASURY_CHECK",
+        "new_state": "SCHEDULED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "LANE_BATCH",
+        "actual_cost": 0.0001304208,
+        "resource_state": {
+          "balance": 9.9998695792,
+          "available": 8.999882621280001,
+          "spent": 0.0001304208,
+          "reserve_ratio": 0.1,
+          "deferred_count": 0,
+          "treasury_health": 0.9000000000000001
+        }
+      },
+      {
+        "event_id": "evt-000007",
+        "timestamp": 14,
+        "object_id": "benchmark-0001",
+        "previous_state": "SCHEDULED",
+        "new_state": "INJECTED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "SWARM_WRITE",
+        "placements": 2
+      },
+      {
+        "event_id": "evt-000008",
+        "timestamp": 16,
+        "object_id": "benchmark-0001",
+        "previous_state": "INJECTED",
+        "new_state": "STORED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "FRAGMENTS_ACK",
+        "resource_state": {
+          "node_count": 3,
+          "total_capacity": 30000000,
+          "total_available": 29999737,
+          "nodes": [
+            {
+              "id": "node-0",
+              "capacity": 10000000,
+              "available": 9999744,
+              "fragments": 1,
+              "region": "sim-region-0"
+            },
+            {
+              "id": "node-1",
+              "capacity": 10000000,
+              "available": 9999993,
+              "fragments": 1,
+              "region": "sim-region-1"
+            },
+            {
+              "id": "node-2",
+              "capacity": 10000000,
+              "available": 10000000,
+              "fragments": 0,
+              "region": "sim-region-2"
+            }
+          ]
+        }
+      },
+      {
+        "event_id": "evt-000009",
+        "timestamp": 23,
+        "object_id": "benchmark-0001",
+        "previous_state": "STORED",
+        "new_state": "VERIFIED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "BIT_EXACT",
+        "cryptographic_references": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "merkle_root": "223050ed0ca45f9bae3ff2fb59cc9bfbf15bd0226efd37813047cd69d87c21de"
+        }
+      },
+      {
+        "event_id": "evt-000010",
+        "timestamp": 25,
+        "object_id": "benchmark-0001",
+        "previous_state": "VERIFIED",
+        "new_state": "INDEXED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "MANIFEST_INDEX",
+        "cryptographic_references": {
+          "merkle_root": "223050ed0ca45f9bae3ff2fb59cc9bfbf15bd0226efd37813047cd69d87c21de"
+        }
+      },
+      {
+        "event_id": "evt-000011",
+        "timestamp": 27,
+        "object_id": "benchmark-0001",
+        "previous_state": "INDEXED",
+        "new_state": "ARCHIVED",
+        "strategy_id": "FIFO",
+        "strategy_version": "0.1",
+        "reason_code": "COMPLETE"
+      }
+    ]
+  }
+}

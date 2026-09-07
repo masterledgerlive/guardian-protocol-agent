@@ -334,6 +334,12 @@ The heartbeat never stops.
 
 ---
 
+---
+
+## Agentic Memory Layer-1 (sideline research)
+
+The live trader/injector above is unchanged. A separate research Arena lives in **`guardian-protocol/`** (start at [`GUARDIAN_L1.md`](./GUARDIAN_L1.md) → [`guardian-protocol/HANDOFF.md`](./guardian-protocol/HANDOFF.md)). Same monorepo, separate package — do not merge L1 simulator work into `agent.js` / hitch paths.
+
 *Built by DA | ᛞᚨᚡᛁᛞ — Clearwater, FL*
 *INFINITUM × IKN × The Living Network*
 *linktr.ee/infinitumikn · x.com/infinitumikn*
