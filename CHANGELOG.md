@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed — live bot was not trading: $3 floor + fake Telegram receipts + no Railway deploy
+
+Railway `industrious-tranquility` / `guardian-protocol-agent` still ran **`main` @ `7ad6c85`**. This PR was never merged, so there was no restart. Live logs: KEYCAT/BASECAT `AT MIN TROUGH — BUYING` then `Wallet too small: $2.59 (need $3)` every cycle. Telegram sent **BUY RECEIPT** *before* `executeBuy`, so the chat showed buys with no Basescan hash.
+
+- **MIN_POS_USD default $0.50** (was $3). Matches T1 slot floor. Env `MIN_POS_USD` overrides. $2.59 liquid ETH can trade again.
+- **Telegram receipts only after a fill** — no BUY TRIGGERED / SELL RECEIPT / FIB ladder message before the swap. `executeBuy` / `executeSell` still send BOUGHT / WAVE COMPLETE with hitch footer + Basescan link.
+- **Fib latch after fill** — `recordFibLevelExecuted` used to fire *before* `executeSell`. A hitch-hold then skipped that KEYCAT 100% rung forever.
+- UTF-8 Eureka hitch stays on leftover **buys and sells**. Leftover gate still sizes the 10-byte `§$STORE§` cover so a long letter cannot freeze the book.
+
 ### Fixed — buys that did not fill were logged as wins; Eureka letter was claimed off-chain
 
 Telegram printed `BOUGHT` + the VITA letter after `cdp.evm.sendTransaction` returned a hash. Sells already waited for receipt + ETH delta (`isSuccessfulSellFill`). Buys did not — a revert / 0-token fill still incremented `tradeCount`, wrote BTP, and claimed Eureka. Live KEYCAT sell `0x5c0a93e4…` is a **plain 228-byte** `exactInputSingle` with **no trailing UTF-8**.

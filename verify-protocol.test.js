@@ -148,6 +148,28 @@ describe("verification: buys are not hallucinated", () => {
     assert.ok(body.includes("getSwapReceiptStatus"), "must read receipt");
     assert.ok(body.includes("hitchTelegramFooter"), "must not print Eureka unless hitch is on the tx");
   });
+
+  it("does not Telegram a buy/sell receipt before the swap is sent", () => {
+    assert.ok(!src.includes("BUY TRIGGERED"));
+    assert.ok(!src.includes("⚡ Executing now..."));
+    const buyZone = src.indexOf("// ── BUY AT MIN TROUGH");
+    const buyCall = src.indexOf("await executeBuy", buyZone);
+    const buyTg = src.indexOf("await tg(", buyZone);
+    assert.ok(buyCall > 0, "trough still calls executeBuy");
+    assert.ok(buyTg < 0 || buyTg > buyCall + 400, "no Telegram receipt before executeBuy");
+  });
+
+  it("fib rung is latched only after a real sell fill", () => {
+    const fib = src.indexOf("if (shouldFibExit)");
+    const body = src.slice(fib, src.indexOf("// ── SELL AT MAX PEAK", fib));
+    assert.ok(body.indexOf("await executeSell") < body.indexOf("recordFibLevelExecuted"));
+  });
+
+  it("MIN_POS_USD default is $0.50 so a $2.59 book is not frozen", () => {
+    assert.ok(src.includes("DEFAULT_MIN_POS_USD = 0.50"));
+    assert.ok(src.includes("function minPosUsd("));
+    assert.ok(!src.includes("const MIN_POS_USD       = 3.00"));
+  });
 });
 
 describe("verification: new live Uni V3 books are catalogued", () => {

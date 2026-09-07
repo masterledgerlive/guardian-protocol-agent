@@ -271,7 +271,14 @@ const SELL_RESERVE      = 0.001;
 const MAX_BUY_PCT       = 0.33;    // hard cap: never more than 33% in one token
 const ETH_RESERVE_PCT   = 0.20;    // keep 20% as reserve
 const MIN_ETH_TRADE     = 0.0005;
-const MIN_POS_USD       = 3.00;    // minimum meaningful position size
+// $3 parked a live $2.59 book (KEYCAT/BASECAT "BUYING" then Wallet too small).
+// T1 already deploys slots down to $0.50. Env MIN_POS_USD overrides.
+const DEFAULT_MIN_POS_USD = 0.50;
+function minPosUsd() {
+  const n = Number(process.env.MIN_POS_USD);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return DEFAULT_MIN_POS_USD;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🏆 TWO-TIER REVOLVING CAPITAL SYSTEM
@@ -407,7 +414,8 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
   if (tier1.includes(symbol)) {
     const slotUsd = (totalTradeableUsd * TIER1_PCT) / TIER1_COUNT;
     // At very low capital: use whatever is available rather than blocking entirely.
-    // If slot < MIN_POS_USD we still allow it — gas check in executeBuy will catch truly tiny amounts.
+    // At very low capital: use whatever is available rather than blocking entirely.
+    // If slot < $0.50 we still allow it — gas check in executeBuy will catch truly tiny amounts.
     if (slotUsd < 0.50) return 0; // truly nothing — don't even try
     return Math.min(totalTradeableEth * TIER1_PCT / TIER1_COUNT, totalTradeableEth * MAX_BUY_PCT);
   }
@@ -416,7 +424,7 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
     const slots         = Math.min(TIER2_MAX_SLOTS, Math.floor(tier2Capital / TIER2_MIN_SLOT_USD));
     if (slots === 0) return 0; // no tier2 slots affordable yet
     const slotUsd = tier2Capital / slots;
-    if (slotUsd < MIN_POS_USD) return 0;
+    if (slotUsd < minPosUsd()) return 0;
     return Math.min(totalTradeableEth * TIER2_PCT / slots, totalTradeableEth * MAX_BUY_PCT);
   }
   return 0; // not in any tier — no new capital
@@ -4705,7 +4713,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const totalAvail = eth + weth - GAS_RESERVE - SELL_RESERVE;
     if (totalAvail < MIN_ETH_TRADE)          { console.log(`   🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`); return false; }
     const posUsd = totalAvail * ethUsd;
-    if (posUsd < MIN_POS_USD)               { console.log(`   🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${MIN_POS_USD})`); return false; }
+    if (posUsd < minPosUsd())               { console.log(`   🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`); return false; }
 
     const armStatus = getArmStatus(token.symbol, gasCost, totalAvail);
     const maxPct    = armStatus.armed ? getCascadePct(armStatus.net) : 0.30;
@@ -4724,7 +4732,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
 
     const maxSpend  = Math.min(totalAvail * maxPct, forcedEth > 0 ? forcedEth : tierEth * 1.2);
-    const minSpend  = MIN_POS_USD / ethUsd;
+    const minSpend  = minPosUsd() / ethUsd;
     const ethToSpend= forcedEth > 0
       ? Math.min(forcedEth, maxSpend)
       : Math.min(Math.max(minSpend, tierEth), maxSpend);
@@ -6112,62 +6120,25 @@ async function processToken(cdp, token, bal) {
     // This guarantees we ALWAYS lock in profit at the nearest profitable target,
     // even if we miss the absolute top — the ladder always has a rung to hit.
     if (shouldFibExit) {
-      const { target, targets } = fibHit;
-      const exitPct  = target.sellPct; // partial % defined in fib ladder
-      const nextTarget = targets.exitLadder.find(t => t.price > target.price && !isFibLevelAlreadyExecuted(token.symbol, t.pct));
+      const { target } = fibHit;
+      const exitPct  = target.sellPct;
       const goldenStr  = target.isGolden ? ` 🌊 TSUNAMI LEVEL` : ``;
 
-      // FIX: Record this level as executed BEFORE the sell so even if executeSell
-      // fails, we don't retry the same level next cycle (which would double-sell).
-      recordFibLevelExecuted(token.symbol, target.pct);
-
       console.log(`  📐 [${token.symbol}] FIB EXIT — ${target.label}${goldenStr} @ $${price.toFixed(8)} (${(exitPct*100).toFixed(0)}% partial)`);
-      await tg(
-        `📐 <b>FIB LADDER EXIT — ${token.symbol}</b>${goldenStr}\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🎯 Hit: ${target.label} @ $${target.price.toFixed(6)}\n` +
-        `💲 Price now: $${price.toFixed(8)}\n` +
-        `🪙 Selling: ${(exitPct*100).toFixed(0)}% (partial — locking profit)\n` +
-        `📈 Est profit: ~$${(netIfSellNow * exitPct).toFixed(3)}\n` +
-        `${nextTarget ? `⏭️  Next target: ${nextTarget.label} @ $${nextTarget.price.toFixed(6)}\n` : `🏆 Final level — holding remainder\n`}` +
-        `${targets.goldenTarget?.price > price ? `🌊 Tsunami target: $${targets.goldenTarget.price.toFixed(6)} (+${(((targets.goldenTarget.price-price)/price)*100).toFixed(1)}%)\n` : ``}` +
-        `${targets.reloadZone ? `🔄 Reload zone: $${targets.reloadZone.price.toFixed(6)} (61.8% retrace)\n` : ``}` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💓 ${ind.detail}`
-      );
       const proceeds = await executeSell(cdp, token, exitPct, `📐 FIB ${target.label}`, price, false);
-      if (proceeds > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, proceeds, nb); }
+      // Only latch the rung after a real fill. Recording first made hitch-holds
+      // skip KEYCAT fib 100% forever with no Basescan receipt.
+      if (proceeds > 0) {
+        recordFibLevelExecuted(token.symbol, target.pct);
+        const nb = await getFullBalance();
+        await triggerCascade(cdp, token.symbol, proceeds, nb);
+      }
       return;
     }
 
     // ── SELL AT MAX PEAK ───────────────────────────────────────────────────
     if (shouldSell) {
       pa.lastSellAlertPct = 100; // sold — reset on next buy
-      const pnlUsd  = rd ? `+$${rd.pnlUsd}` : "?";
-      const pnlPct  = rd ? `+${rd.pnlPct}%` : "?";
-      const valueNow= rd ? `~$${rd.nowUsd}` : `${Math.floor(balance)} tokens`;
-      const sellReasonLabel = earlySellSignal && !atMaxPeak && !predSell
-        ? `🚀 EARLY SELL — RSI${rsiVal?.toFixed(0)} overbought + BB upper`
-        : predSell && !atMaxPeak
-          ? `🧠 PREDICTED PEAK [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
-          : `🎯 MAX PEAK HIT`;
-      await tg(
-        `🎉🔴 <b>SELL TRIGGERED — ${token.symbol}!</b>\n` +
-        `[🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩] 100% — ${sellReasonLabel}!\n\n` +
-        `📋 <b>SELL RECEIPT</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💲 Sell price:  $${price.toFixed(8)}\n` +
-        `🎯 Target was:  $${maxPeak?.toFixed(8)||"?"}\n` +
-        `🪙 Tokens sold: ~${Math.floor(balance * 0.98)} (98%)\n` +
-        `💰 Value:       ${valueNow}\n` +
-        (rd ? `📥 Entry was:   $${rd.entry.toFixed(8)}\n💵 Invested:    $${rd.invUsd}\n` : "") +
-        `📈 P&L:         ${pnlUsd} (${pnlPct})\n` +
-        `🐷 Piggy skim:  1%\n` +
-        `🐷 Piggy dust: ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : (token.piggyReserve || 0).toFixed(4)} tokens locked (not sold)\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💓 ${ind.detail}\n` +
-        `⚡ Executing now...`
-      );
       const sellReason = earlySellSignal && !atMaxPeak && !predSell
         ? `🚀 EARLY SELL RSI${rsiVal?.toFixed(0)} BB-upper near-peak $${maxPeak?.toFixed(8)||"?"}`
         : predSell && !atMaxPeak
@@ -6182,23 +6153,6 @@ async function processToken(cdp, token, bal) {
     if (shouldBuy) {
       pa.lastBuyAlertPct = 100; // bought — reset sell alerts
       pa.lastSellAlertPct = 0;
-      const potentialPct = maxPeak ? ((maxPeak - price) / price * 100).toFixed(1) : "?";
-      const potentialUsd = maxPeak ? ((maxPeak - price) / price * bal.tradeableWithWeth * 0.30 * ethUsd).toFixed(2) : "?";
-      await tg(
-        `🎉🟢 <b>BUY TRIGGERED — ${token.symbol}!</b>\n` +
-        `[⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜] 0% → riding begins!\n\n` +
-        `📋 <b>BUY RECEIPT</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🛒 Buy price:   $${price.toFixed(8)}\n` +
-        `📉 MIN trough:  $${minTrgh.toFixed(8)} ✅ AT BOTTOM\n` +
-        `🎯 Sell target: $${maxPeak?.toFixed(8)||"?"}\n` +
-        `📈 Potential:   +${potentialPct}% → +$${potentialUsd}\n` +
-        `📊 Wave:        ${peakCnt}P/${trghCnt}T | ${arm.priority} ${(arm.net*100).toFixed(2)}% net\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💓 ${ind.detail}\n` +
-        `${indConfirmed?"✅ Indicators confirmed":"⚠️ buying unconfirmed — watching"}\n` +
-        `⚡ Executing now...`
-      );
       stalePriceRef[token.symbol] = { price, timestamp: Date.now() }; // seed stale tracker on buy
       await executeBuy(cdp, token, bal, predBuy && !atMinTrough
         ? `🧠 PREDICTED TROUGH [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
