@@ -42,13 +42,14 @@ Bot = **Uniswap V3 only**. Many CoinMarketCap top-100 names have **no** liquid B
 
 | Sym | Best useful pool | Note |
 |---|---|---|
-| AERO BRETT VIRTUAL MORPHO CBBTC DEGEN AIXBT TOSHI KEYCAT DOGINME XCN SKI LUNA GAME BASECAT DRB REI CLANKER | prior KEEP | unchanged |
+| AERO BRETT VIRTUAL MORPHO CBBTC DEGEN AIXBT TOSHI KEYCAT DOGINME SKI LUNA GAME BASECAT DRB REI CLANKER | prior KEEP | unchanged |
+| **XCN** | Uni V3 **USDC** ~$173k; WETH ~$212 | **FROZEN buys** — WETH-dead / USDC-primary (bot is WETH-only). Wave data still seeded (DS/GT + Binance). |
 | **LINK AAVE UNI** | Uni V3 WETH (factory fee above) | **NEW** top-100 injection targets |
 | **VVV ZORA BNKR** | Uni V3 WETH 1% | **THAWED** |
 
 ### Still frozen
 
-TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN · NORMIE · OGGY · FREN
+XCN (WETH-dead) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN · NORMIE · OGGY · FREN
 
 MIGGLES stays frozen (Uni V2 primary; Uni V3 thin — WELL lesson).
 

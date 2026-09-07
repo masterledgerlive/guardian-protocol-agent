@@ -198,6 +198,7 @@ describe("Binance must not overwrite Base", () => {
     assert.equal(allowBinanceOhlcSeed("AAVE"), true);
     assert.equal(allowBinanceOhlcSeed("UNI"), true);
     assert.equal(allowBinanceOhlcSeed("ZORA"), true);
+    assert.equal(allowBinanceOhlcSeed("XCN"), true); // Onyxcoin — wave OHLC even while WETH-buy frozen
     assert.equal(allowBinanceOhlcSeed("CBBTC"), false);
     assert.equal(allowBinanceOhlcSeed("BNKR"), false);
     assert.equal(allowBinanceOhlcSeed("VVV"), false);
