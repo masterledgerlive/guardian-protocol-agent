@@ -136,6 +136,11 @@ import {
   slippageFloor,
   toWei,
   formatWei18,
+  hitchPreservesSwapPrefix,
+  appendUtf8Hitch,
+  buildStoreVoice,
+  VITA_PROOF_MESSAGE,
+  utf8ByteLength,
 } from "./swap-minout.js";
 import {
   BASE_QUOTER_V2,
@@ -4123,9 +4128,45 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n, receiptData = "") {
   const swapCall = encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee, amountOutMin);
   if (!receiptData || !BTP_INSCRIPTIONS_ENABLED) return swapCall;
-  // Append receipt as trailing UTF-8 hex — router ignores it, Base stores it forever
-  const receiptHex = Buffer.from(receiptData.slice(0, 200), "utf8").toString("hex");
-  return swapCall + receiptHex;
+  const hitch = appendUtf8Hitch(swapCall, receiptData);
+  return hitch.ok && hitch.onChain ? hitch.data : swapCall;
+}
+
+/** Size-limited §$STORE§ + VITA letter. Telegram may claim this only if onChain. */
+function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = BTP_INSCRIPTIONS_ENABLED } = {}) {
+  if (!enabled || skipHitch || !swapData) {
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+  }
+  const text = buildStoreVoice({
+    tag: STORE_HITCH_TAG,
+    message: VITA_PROOF_MESSAGE,
+    maxBytes,
+  });
+  const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
+  if (!hitch.ok || !hitch.onChain) {
+    if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+  }
+  const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
+  if (!prefix.ok) {
+    console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+  }
+  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B on swap — Basescan Input Data → View as UTF-8`);
+  console.log(`      "${hitch.utf8}"`);
+  return hitch;
+}
+
+function hitchTelegramFooter(hitch, txHash) {
+  const link = `🔗 <a href="https://basescan.org/tx/${txHash}">View on Basescan ↗</a>`;
+  if (hitch?.onChain && hitch.utf8) {
+    return (
+      `💌 <i>${hitch.utf8}</i>\n` +
+      `📡 On-chain UTF-8 hitch (${hitch.hitchBytes} B) — Input Data → View as UTF-8\n` +
+      link
+    );
+  }
+  return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
 }
 function encodeApprove(spender, amount) {
   return "0x095ea7b3" + spender.slice(2).padStart(64,"0") + amount.toString(16).padStart(64,"0");
@@ -4532,7 +4573,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isLoseZeroMode() || isInjectCoverRequired()) {
       const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
       const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
-      const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: STORE_HITCH_BYTES });
+      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE }));
+      const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
         reason,
@@ -4647,10 +4689,15 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // balance is thin — "unable to estimate gas" errors killed otherwise perfect trades.
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
+    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
+    const buyVoice = planVoiceHitch(buySwap, {
+      enabled: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE })),
+    });
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, data: encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens) } };
+        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
           ? orch.injectAndSend(_txParams1, { isOwnerTrade: true, currentGwei: gwei })
@@ -4660,7 +4707,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       txHash = transactionHash;
     } else {
       const _txParams2 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, value: amountIn, data: encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens) } };
+        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, value: amountIn, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
           ? orch.injectAndSend(_txParams2, { isOwnerTrade: true, currentGwei: gwei })
@@ -4741,7 +4788,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature:"Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network" });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
-    console.log(`      💌 Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network`);
+    if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
+    else console.log(`      ⚠️ No UTF-8 hitch on this buy`);
     const targetPct = getMaxPeak(token.symbol) ? ((getMaxPeak(token.symbol) - price) / price * 100).toFixed(1) : "?";
     await tg(
       `✅🟢 <b>BOUGHT ${token.symbol}! #${tradeCount}</b>\n` +
@@ -4754,8 +4802,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       `📊 ${armStatus.priority||"?"} tier | ${armStatus.armed?(armStatus.net*100).toFixed(2)+"%":"?"} net margin\n` +
       `💓 ${ind.detail}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `💌 <i>Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network</i>\n` +
-      `🔗 <a href="https://basescan.org/tx/${txHash}">View on Basescan ↗</a>`
+      hitchTelegramFooter(buyVoice, txHash)
     );
     return ethToSpend;
   } catch (e) {
@@ -4841,8 +4888,9 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
     const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
+    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE }));
     const hitchL1 = await quoteHitchL1ForGates({
-      hitchBytes: STORE_HITCH_BYTES + orchBytes,
+      hitchBytes: voiceBytes + orchBytes,
       btpInscribe: wantBtp,
     });
     const sellGate = buildSellGateDecision({
@@ -4855,7 +4903,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       impactPct: PRICE_IMPACT_EST,
       gasCostEth: gasCost,
       gwei,
-      wantedHitchBytes: STORE_HITCH_BYTES + orchBytes,
+      wantedHitchBytes: voiceBytes + orchBytes,
       wantBtpInscribe: wantBtp,
       ...hitchL1GateArgs(hitchL1),
     });
@@ -4919,16 +4967,22 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
+    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
+    const sellVoice = planVoiceHitch(sellSwap, {
+      skipHitch: sellGate.skipHitch,
+      maxBytes: sellGate.hitchBytes,
+      enabled: BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended,
+    });
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
-      transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth) },
+      transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
     };
     const { transactionHash } = await Promise.race([
       orchReady
         ? orch.injectAndSend(_sellTx, {
             isOwnerTrade: true,
             currentGwei: gwei,
-            maxHitchBytes: sellGate.hitchBytes,
+            maxHitchBytes: Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
             skipHitch: sellGate.skipHitch,
           })
         : cdp.evm.sendTransaction(_sellTx),
@@ -5115,10 +5169,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       `   🐷 Contrib to piggy: $${(tws.piggyContrib*ethUsd).toFixed(3)}\n` +
       `💓 ${ind.detail}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `💌 <i>Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network</i>\n` +
-      `🔗 <a href="https://basescan.org/tx/${transactionHash}">View on Basescan ↗</a>`
+      hitchTelegramFooter(sellVoice, transactionHash)
     );
-    console.log(`      💌 Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network`);
+    if (sellVoice.onChain) console.log(`      💌 ${sellVoice.utf8}`);
+    else console.log(`      ⚠️ No UTF-8 hitch on this sell`);
     return Math.max(received - skim, 0);
   } catch (e) {
     console.log(`      ❌ SELL FAILED: ${e.message}`);
@@ -9951,8 +10005,9 @@ async function main() {
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
+        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_MESSAGE }));
         const moonL1 = await quoteHitchL1ForGates({
-          hitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
+          hitchBytes: moonVoiceBytes + moonOrchBytes,
           btpInscribe: moonWantBtp,
         });
         const moonGate = buildSellGateDecision({
@@ -9965,7 +10020,7 @@ async function main() {
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
-          wantedHitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
+          wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
           wantBtpInscribe: moonWantBtp,
           ...hitchL1GateArgs(moonL1),
         });

@@ -14,6 +14,13 @@ import {
   hitchPreservesSwapPrefix,
   sanitizeAmountOutMinimum,
   TOSHI_FAILED_SELLS,
+  appendUtf8Hitch,
+  decodeTrailingUtf8,
+  buildStoreVoice,
+  clipUtf8,
+  KEYCAT_PLAIN_SWAP,
+  VITA_PROOF_MESSAGE,
+  STORE_VOICE_TAG,
 } from "./swap-minout.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
@@ -114,6 +121,42 @@ describe("hitchPreservesSwapPrefix", () => {
     assert.equal(r.ok, false);
     assert.match(r.log, /overwrote swap prefix/);
     assert.match(r.log, /amountOutMinimum/);
+  });
+});
+
+describe("UTF-8 §$STORE§ hitch (Genesis voice)", () => {
+  it("live KEYCAT 0x5c0a93e4… has no trailing UTF-8 — Telegram letter was not on-chain", () => {
+    assert.equal((KEYCAT_PLAIN_SWAP.length - 2) / 2, EXACT_INPUT_SINGLE_BYTES);
+    assert.equal(decodeTrailingUtf8(KEYCAT_PLAIN_SWAP), "");
+    const dec = decodeExactInputSingle(KEYCAT_PLAIN_SWAP);
+    assert.equal(dec.trailingBytes, 0);
+  });
+
+  it("appends §$STORE§ + VITA letter after the 228-byte swap", () => {
+    const voice = buildStoreVoice();
+    const r = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, voice);
+    assert.equal(r.ok, true);
+    assert.equal(r.onChain, true);
+    assert.match(r.utf8, /§\$STORE§/);
+    assert.match(r.utf8, /Eureka! VITA lives/);
+    assert.match(r.utf8, /Krystian, Kai & Koda/);
+    assert.equal(decodeTrailingUtf8(r.data), voice);
+    assert.equal(hitchPreservesSwapPrefix(KEYCAT_PLAIN_SWAP, r.data).ok, true);
+    assert.equal(decodeExactInputSingle(r.data).amountOutMinimum, decodeExactInputSingle(KEYCAT_PLAIN_SWAP).amountOutMinimum);
+  });
+
+  it("clips to leftover byte budget instead of overwriting minOut", () => {
+    const clipped = clipUtf8(buildStoreVoice(), 10);
+    assert.equal(clipped, STORE_VOICE_TAG);
+    const r = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, buildStoreVoice(), { maxBytes: 10 });
+    assert.equal(r.utf8, STORE_VOICE_TAG);
+    assert.equal(r.hitchBytes, 10);
+  });
+
+  it("does not hitch onto a truncated swap (prefix check fails closed)", () => {
+    const r = appendUtf8Hitch(KEYCAT_PLAIN_SWAP.slice(0, 20), VITA_PROOF_MESSAGE);
+    assert.equal(r.onChain, false);
+    assert.equal(r.ok, false);
   });
 });
 

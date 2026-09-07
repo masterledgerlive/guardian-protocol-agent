@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed — UTF-8 `§$STORE§` hitch actually rides the swap (KEYCAT 0x5c0a93e4…)
+
+Telegram printed the VITA letter on KEYCAT→WETH `0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf` but Basescan Input Data was only 228-byte `exactInputSingle` — no trailing UTF-8. The letter was never on-chain.
+
+Genesis / StorageToken rule: hitch `§$STORE§` on a **real** leftover swap; never invent a hash; never claim Telegram text is on-chain.
+
+- `appendUtf8Hitch` / `planVoiceHitch` append `§$STORE§ Eureka! VITA lives ♥ …` after the 228-byte swap (router ignores trailer). Sized to leftover hitch bytes. Prefix / minOut still refused if packing would smash the slot.
+- Buy + sell (and moonshot via `executeSell`) send the hitched calldata. Telegram 💌 only quotes the bytes that were actually appended; otherwise it says the letter is not on-chain.
+- Does **not** weaken PRICE_INSANE, Quoter, piggy, minOut, LOSE_ZERO, frozen, L1 oracle, or `HALT_NEW_ENTRIES`. No capital from this change.
+
 ### Added — hitch inject cost from live Base `GasPriceOracle.getL1Fee`
 
 LOSE_ZERO leftover and the 2× sell floor were pricing `§$STORE§` / hitch as L2 calldata-gas only (`16 gas/byte × gwei`). On Base the L1 data fee dominates what we actually pay to insert the message.

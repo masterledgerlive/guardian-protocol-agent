@@ -171,6 +171,95 @@ export function hitchPreservesSwapPrefix(originalData, injectedData) {
 }
 
 /**
+ * Genesis / $STORE voice: hitch is UTF-8 after the 228-byte swap so Basescan
+ * "View Input As UTF-8" shows the letter. Never invent a hash. Never claim
+ * Telegram text is on-chain unless this trailer is actually in the sent tx.
+ *
+ * Live KEYCAT sell 0x5c0a93e4… was 228 bytes, no trailer — Telegram lied.
+ */
+export const STORE_VOICE_TAG = "§$STORE§";
+export const VITA_PROOF_MESSAGE =
+  "Eureka! VITA lives \u2665 love you Krystian, Kai & Koda!";
+
+/** KEYCAT→WETH 0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf */
+export const KEYCAT_PLAIN_SWAP =
+  "0x04e45aaf" +
+  "0000000000000000000000009a26f5433671751c3276a065f57e5a02d2817973" +
+  "0000000000000000000000004200000000000000000000000000000000000006" +
+  "0000000000000000000000000000000000000000000000000000000000002710" +
+  "00000000000000000000000050e1c4608c48b0c52e1ea5fbabc1c9126ea17915" +
+  "00000000000000000000000000000000000000000000008a9a9fb5d27da80000" +
+  "000000000000000000000000000000000000000000000000000241b69d13937f" +
+  "0000000000000000000000000000000000000000000000000000000000000000";
+
+export function utf8ByteLength(text) {
+  return Buffer.byteLength(String(text ?? ""), "utf8");
+}
+
+export function clipUtf8(text, maxBytes) {
+  let s = String(text ?? "");
+  if (maxBytes == null || !Number.isFinite(Number(maxBytes))) return s;
+  const cap = Math.floor(Number(maxBytes));
+  if (cap <= 0) return "";
+  let buf = Buffer.from(s, "utf8");
+  if (buf.length <= cap) return s;
+  while (buf.length > cap && s.length) {
+    s = s.slice(0, -1);
+    buf = Buffer.from(s, "utf8");
+  }
+  return s;
+}
+
+export function buildStoreVoice({
+  tag = STORE_VOICE_TAG,
+  message = VITA_PROOF_MESSAGE,
+  maxBytes,
+} = {}) {
+  const body = message ? `${tag} ${message}` : String(tag || "");
+  return clipUtf8(body, maxBytes);
+}
+
+export function decodeTrailingUtf8(data) {
+  const hex = String(data || "").replace(/^0x/i, "").toLowerCase();
+  if (hex.length < EXACT_INPUT_SINGLE_BYTES * 2) return "";
+  if (!hex.startsWith(EXACT_INPUT_SINGLE_SELECTOR)) return "";
+  const trail = hex.slice(EXACT_INPUT_SINGLE_BYTES * 2);
+  if (!trail || trail.length % 2) return "";
+  try {
+    return Buffer.from(trail, "hex").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Append UTF-8 hitch after exactInputSingle. Refuses if it would smash the
+ * 228-byte prefix / amountOutMinimum. Truncates to maxBytes.
+ */
+export function appendUtf8Hitch(swapData, text, { maxBytes } = {}) {
+  const orig = String(swapData || "").toLowerCase().startsWith("0x")
+    ? String(swapData)
+    : `0x${swapData || ""}`;
+  const clipped = clipUtf8(text, maxBytes);
+  if (!clipped) {
+    return { ok: true, data: orig, hitchBytes: 0, utf8: "", onChain: false, log: null };
+  }
+  const data = orig + Buffer.from(clipped, "utf8").toString("hex");
+  const prefix = hitchPreservesSwapPrefix(orig, data);
+  if (!prefix.ok) {
+    return { ok: false, data: orig, hitchBytes: 0, utf8: "", onChain: false, log: prefix.log };
+  }
+  return {
+    ok: true,
+    data,
+    hitchBytes: utf8ByteLength(clipped),
+    utf8: clipped,
+    onChain: true,
+    log: null,
+  };
+}
+
+/**
  * Before submit: amountOutMinimum must sit under a quoted expected out (preferred)
  * or a USD spot estimate, inside a sane slippage band.
  *
