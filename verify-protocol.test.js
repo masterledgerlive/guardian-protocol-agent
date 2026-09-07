@@ -46,7 +46,7 @@ describe("verification: math actually covers hitch without losing money", () => 
     assert.equal(leftoverCoversInject(leftoverThin), false);
   });
 
-  it("sell floor defaults to 2× hitch — leftover that only covers 1× must hold", () => {
+  it("sell floor defaults to 2× hitch — leftover that only covers 1× skips hitch and still sells", () => {
     assert.equal(hitchCostMult({}), 2);
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const oneX = evaluateSellGate({
@@ -67,10 +67,25 @@ describe("verification: math actually covers hitch without losing money", () => 
       symbol: "AERO",
       reason: "🌙 MOONSHOT TRIM — not in active tiers",
     });
-    assert.equal(oneX.allow, false);
+    assert.equal(oneX.allow, true);
+    assert.equal(oneX.skipHitch, true);
     assert.equal(twoX.allow, true);
     assert.equal(encodingDoesNotLoseMoney({ leftoverEth: hitch, hitchCostEth: hitch * 2 }), false);
     assert.equal(encodingDoesNotLoseMoney({ leftoverEth: hitch * 2, hitchCostEth: hitch * 2 }), true);
+  });
+
+  it("unprofitable leftover after fees still holds — we do not sell at a loss", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.0005,
+      entryEth: 0.001,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "KEYCAT",
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /leftover after fees/);
   });
 
   it("LOSE_ZERO auto buy still needs leftover + edge — cascade is not a free pass", () => {

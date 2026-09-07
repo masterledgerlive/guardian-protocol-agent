@@ -701,18 +701,18 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.ok(r.edge > 0);
   });
 
-  it("sell blocked when hitch would wipe edge (TOSHI moonshot trim)", () => {
+  it("sell blocked when leftover after fees is ≤ 0 (TOSHI moonshot trim)", () => {
     assert.equal(isMoonshotTrimReason(toshiMoonshot.reason), true);
     const d = evaluateSellGate(toshiMoonshot);
     assert.equal(d.allow, false);
     assert.equal(d.sellNow, false);
-    assert.match(d.log, /hold sell TOSHI hitch would wipe edge/);
+    assert.match(d.log, /hold sell TOSHI leftover after fees/);
     assert.ok(d.leftover <= 0 || d.leftover <= d.hitchCoverEth);
   });
 
-  it("sell blocked when leftover covers 1× hitch but not 2×", () => {
+  it("sell allowed plain when leftover covers 1× hitch but not 2×", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
-    // leftover after fees = 1.5× hitch — enough for 1× buy cover, not 2× sell cover
+    // leftover after fees = 1.5× hitch — enough for 1× buy cover, not 2× sell hitch
     const leftover = hitch * 1.5;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01 + leftover,
@@ -725,8 +725,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       reason: "🌙 MOONSHOT TRIM — not in active tiers",
       symbol: "TOSHI",
     });
-    assert.equal(d.allow, false);
-    assert.match(d.log, /hitch would wipe edge/);
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.log, /plain/);
   });
 
   it("sell allowed when leftover covers hitch + edge (2×)", () => {
@@ -817,7 +818,7 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.ok(Math.abs(noBtpL1 - (l2 + 0.00002)) < 1e-18);
   });
 
-  it("sell floor uses live L1 so leftover that covers L2-only still holds", () => {
+  it("sell skips hitch when live L1 would wipe leftover but fees are still covered", () => {
     const l2Hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = l2Hitch * 2 + 1e-12;
     const l2Only = evaluateSellGate({
@@ -831,7 +832,7 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     });
     assert.equal(l2Only.allow, true);
 
-    const liveL1 = 0.001; // dominates leftover
+    const liveL1 = 0.001; // hitch L1 dominates leftover — skip letter, still take the wave
     const withL1 = evaluateSellGate({
       projectedProceedsEth: 0.01 + leftover,
       entryEth: 0.01,
@@ -844,8 +845,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       symbol: "TOSHI",
       reason: "🌙 MOONSHOT TRIM — not in active tiers",
     });
-    assert.equal(withL1.allow, false);
-    assert.match(withL1.log, /hitch would wipe edge/);
+    assert.equal(withL1.allow, true);
+    assert.equal(withL1.skipHitch, true);
+    assert.match(withL1.log, /plain/);
     assert.match(withL1.feeSplitLog, /HITCH FEE — L1 /);
     assert.match(withL1.feeSplitLog, /getL1Fee/);
     assert.equal(withL1.hitchFeeSource, "getL1Fee");

@@ -14,8 +14,9 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * L1 is preferred when quoted; oracle failure falls back to L2-only.
  *
  * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
- * if leftover is too thin for 2× hitch cover, hold (do not skip the reservation
- * to sneak a thin sell). Once the 2× floor is met, sell immediately.
+ * if leftover is too thin for hitch, skip hitch and still sell when the wave itself
+ * is profitable after fees. Hold only when leftover after fees is ≤ 0.
+ * Once hitch leftover is met, attach Eureka on the way out.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -911,9 +912,10 @@ export function evaluateSellGate({
     });
   }
 
-  // No leftover, or leftover cannot cover N× reserved hitch — hold.
-  if (leftover <= 0 || !reservedCover.covers) {
-    return pack(false, "hitch would wipe edge", {
+  // Trade itself loses after fees (piggy dust already reserved in executeSell).
+  // Hitch is optional: never hold a profitable wave hostage to insertion cost.
+  if (leftover <= 0) {
+    return pack(false, "trade would lose after fees", {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
@@ -922,6 +924,22 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: false,
+      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money`,
+    });
+  }
+
+  // Profitable after fees, but N× hitch would eat it — plain sale, letter skipped.
+  if (!reservedCover.covers) {
+    return pack(true, "plain sale hitch skipped", {
+      hitchBytes: 0,
+      btpInscribe: false,
+      skipHitch: true,
+      injectCostEth: 0,
+      hitchCoverEth: reservedCover.hitchCoverEth,
+      edge: reservedCover.edge,
+      minSellProceedsEth: reservedCover.minSellProceedsEth,
+      sellNow: true,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${mult}x hitch; Eureka skipped so we still take the wave`,
     });
   }
 

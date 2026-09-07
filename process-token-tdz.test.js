@@ -39,7 +39,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(firstPush > decl, "lines.push before initialization (TDZ)");
   });
 
-  it("executeSell and moonshot trim use the 2× hitch sell floor", () => {
+  it("executeSell and moonshot trim use leftover sell gate (hitch or plain)", () => {
     assert.ok(src.includes("buildSellGateDecision"), "sell floor helper must be imported");
     assert.ok(src.includes("HITCH_COST_MULT"), "sell floor must mention HITCH_COST_MULT");
     const sellFn = src.indexOf("async function executeSell(");
@@ -110,7 +110,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(buyFn >= 0 && buySanity > buyFn && buySanity < buyEnd, "executeBuy must sanitize minOut");
     assert.ok(sellSanity < sellSend, "executeSell must sanitize before encodeSwap");
     assert.ok(buySanity < buySend, "executeBuy must sanitize before encodeSwap");
-    assert.ok(src.includes("buildSellGateDecision"), "must not drop the 2× hitch sell floor");
+    assert.ok(src.includes("buildSellGateDecision"), "must size hitch or skip it — never lose to insert storage");
     assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
     assert.ok(src.includes("evaluatePriceInsane"), "PRICE_INSANE must run before hitch/minOut");
     assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
