@@ -97,19 +97,22 @@ Scores are computed live every cycle from real trade history. The best-performin
 Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (residual bag).
 
 **Active (tradeable):**
-AERO · BRETT · VIRTUAL · MORPHO · CBBTC · DEGEN · AIXBT · TOSHI
-KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER
+AERO · BRETT · VIRTUAL · MORPHO · CBBTC · LINK · AAVE · UNI · DEGEN · AIXBT · TOSHI
+KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
 
 **Frozen (no new capital):**
-SEAM · MOG · BASE · VVV · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
-ZORA · BNKR · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
+SEAM · MOG · BASE · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
+TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
 CRASH · BRIUN · NORMIE · OGGY · FREN
 
 **Disabled:**
 WELL (Aerodrome-primary — Uniswap V3 reverts) · KITE (no Base pool)
 
 **Watchlist (learning, not trading):**
-CLANKER (tokenbot) · RSR · ODOS · IMAGINE · CBETH
+CLANKER (tokenbot — also active) · RSR · ODOS · IMAGINE · CBETH
+
+**Skipped majors (no safe Uni V3 WETH book for $3–11 RISK):**
+USDT/EURC (stables — no wave amplitude) · cbETH (Uni V3 thin; mostly V4) · cbXRP (Aerodrome-primary) · CRV (Uni V4 primary) · SOL/COMP/WBTC (thin vs peers)
 
 ---
 

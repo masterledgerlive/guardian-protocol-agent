@@ -197,6 +197,24 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     const row = src.slice(rei, next);
     assert.ok(!row.includes("frozen: true"), "REI must be tradeable");
   });
+
+  it("adds top-100 Uni V3 majors LINK AAVE UNI and thaws VVV ZORA BNKR", () => {
+    assert.ok(src.includes("0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196"), "LINK");
+    assert.ok(src.includes("0x63706e401c06ac8513145b7687A14804d17f814b"), "AAVE");
+    assert.ok(src.includes("0xc3De830EA07524a0761646a6a4e4be0e114a3C83"), "UNI");
+    for (const sym of ["LINK", "AAVE", "UNI", "VVV", "ZORA", "BNKR"]) {
+      const base = src.indexOf(`symbol: "${sym}"`);
+      assert.ok(base >= 0, `${sym} in catalog`);
+      const next = src.indexOf("{ symbol:", base + 1);
+      const row = src.slice(base, next > 0 ? next : base + 500);
+      assert.ok(!row.includes("frozen: true"), `${sym} must be tradeable for injection`);
+    }
+    const uni = src.indexOf('symbol: "UNI"');
+    assert.match(src.slice(uni, uni + 200), /feeTier:\s*10000/);
+    const vvv = src.indexOf('symbol: "VVV"');
+    assert.match(src.slice(vvv, vvv + 200), /feeTier:\s*10000/);
+    assert.ok(src.includes('t.symbol === "AAVE"'), "AAVE high unit-price entry sanity");
+  });
 });
 
 describe("verification: operator /buy is honest and chain is the ledger", () => {
