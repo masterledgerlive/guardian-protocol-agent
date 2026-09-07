@@ -38,6 +38,8 @@ import {
   slippageCooldownLog,
   isSuccessfulSellFill,
   failedFillLog,
+  isSuccessfulBuyFill,
+  failedBuyFillLog,
   sellFillIsWin,
   isBaseQuoterV2,
 } from "./price-insane.js";
@@ -312,10 +314,15 @@ describe("failed swap is never a win", () => {
     assert.equal(isSuccessfulSellFill({ received: 0.000000, receiptStatus: "unknown" }), false);
     assert.equal(isSuccessfulSellFill({ received: 0.001, receiptStatus: "reverted" }), false);
     assert.equal(isSuccessfulSellFill({ received: 0.001, receiptStatus: "success" }), true);
+    assert.equal(isSuccessfulBuyFill({ receivedTokens: 0, receiptStatus: "success" }), false);
+    assert.equal(isSuccessfulBuyFill({ receivedTokens: 0, receiptStatus: "unknown" }), false);
+    assert.equal(isSuccessfulBuyFill({ receivedTokens: 12, receiptStatus: "reverted" }), false);
+    assert.equal(isSuccessfulBuyFill({ receivedTokens: 12, receiptStatus: "success" }), true);
     assert.equal(sellFillIsWin(0, 12), false);
     assert.equal(sellFillIsWin(0.01, -1), false);
     assert.equal(sellFillIsWin(0.01, 0.5), true);
     assert.match(failedFillLog("TOSHI", { received: 0, txHash: "0xabc" }), /not a win/);
+    assert.match(failedBuyFillLog("AERO", { receivedTokens: 0, txHash: "0xdef" }), /not a win/);
   });
 });
 
@@ -359,6 +366,8 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     assert.ok(buyInsane < buyMin, "buy PRICE_INSANE before minOut");
     assert.ok(sellBody.includes("isSlippageCooledDown"), "sell must honor Too-little-received cooldown");
     assert.ok(sellBody.includes("isSuccessfulSellFill"), "sell must refuse 0-ETH success");
+    assert.ok(buyBody.includes("isSuccessfulBuyFill"), "buy must refuse 0-token success");
+    assert.ok(buyBody.includes("getSwapReceiptStatus"), "buy must wait for receipt");
     assert.ok(sellBody.includes("recordSlippageFail"), "Too little received must increment the streak");
     assert.ok(src.includes("isPriceInsaneCooledDown"), "PRICE_INSANE backoff must skip re-attempt");
     assert.ok(src.includes("trustedQuote") || src.includes("verifiedPool"), "must honor verified WETH/USDC pool quotes");
