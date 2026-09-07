@@ -118,6 +118,13 @@ import {
   raceTimeout,
 } from "./lose-zero-gate.js";
 import {
+  tierBookParams,
+  entryTroughForBuy,
+  isInjectPullbackEntry,
+  nearEntryScoreBoost,
+  shouldRecycleUnknownDust,
+} from "./inject-revenue.js";
+import {
   applyPiggyToSell,
   ratchetPiggyReserve,
   computeSellable,
@@ -419,13 +426,41 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
     score += 28;
   }
 
+  // Near-entry boost — prefer inject mains that can buy THIS cycle (recent pullback)
+  // over ones armed on a stale 90d min the mark will never revisit.
+  const readingsForEntry = history[symbol]?.readings || [];
+  const recentPx = readingsForEntry.slice(-20).map(r => r.price).filter(p => p > 0);
+  const recentLow = recentPx.length ? Math.min(...recentPx) : history[symbol]?.lastPrice;
+  const lastPx = history[symbol]?.lastPrice;
+  const pullbackNow = isInjectPullbackEntry({
+    isInjectMain: isInjectMainPlayer(symbol) || !!token?.injectMain,
+    price: lastPx,
+    recentLow,
+    recentReadings: recentPx.length,
+    priceFallingFast: false,
+  });
+  score += nearEntryScoreBoost({
+    isInjectMain: isInjectMainPlayer(symbol) || !!token?.injectMain,
+    pullback: pullbackNow,
+  });
+
   return Math.max(0, Math.min(100, score));
 }
 
 // Compute tier assignments for all tokens — returns { tier1: [syms], tier2: [syms] }
 // Called once per main loop cycle. Scores all tokens, picks top N for each tier.
 // Reserves at least one Tier-1 seat for an inject main (prefer UNI) when present.
+// Small books (<$15) concentrate into fewer T1 seats so leftover can cover hitch.
 function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
+  const book = tierBookParams(totalTradeableUsd, {
+    tier1Count: TIER1_COUNT,
+    tier1Pct: TIER1_PCT,
+    tier2Pct: TIER2_PCT,
+    tier2MinSlotUsd: TIER2_MIN_SLOT_USD,
+    tier2MaxSlots: TIER2_MAX_SLOTS,
+  });
+  currentTierBook = book;
+
   const scored = tokens
     .filter(t => !t.disabled && !t.frozen)   // frozen tokens never compete for capital
     .map(t => ({ symbol: t.symbol, score: calcTokenScore(t.symbol, gasCostEth, tradeEth) }))
@@ -443,38 +478,44 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
   const tier1 = [];
   if (reservedMain) tier1.push(reservedMain);
   for (const s of scored) {
-    if (tier1.length >= TIER1_COUNT) break;
+    if (tier1.length >= book.tier1Count) break;
     if (tier1.includes(s.symbol)) continue;
     tier1.push(s.symbol);
   }
 
   // Tier 2: how many slots can we afford?
-  const tier2Capital   = totalTradeableUsd * TIER2_PCT;
-  const maxTier2Slots  = Math.min(TIER2_MAX_SLOTS, Math.floor(tier2Capital / TIER2_MIN_SLOT_USD));
+  const tier2Capital   = totalTradeableUsd * book.tier2Pct;
+  const maxTier2Slots  = Math.min(book.tier2MaxSlots, Math.floor(tier2Capital / book.tier2MinSlotUsd));
   const tier2Candidates = scored.filter(s => !tier1.includes(s.symbol));
   const tier2 = tier2Candidates.slice(0, maxTier2Slots).map(s => s.symbol);
 
-  return { tier1, tier2, scored, reservedMain };
+  return { tier1, tier2, scored, reservedMain, book };
 }
 
 // How much ETH to deploy for a token given its tier and current capital
 function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
   const totalTradeableUsd = totalTradeableEth * ethUsd;
+  const book = currentTierBook || tierBookParams(totalTradeableUsd, {
+    tier1Count: TIER1_COUNT,
+    tier1Pct: TIER1_PCT,
+    tier2Pct: TIER2_PCT,
+    tier2MinSlotUsd: TIER2_MIN_SLOT_USD,
+    tier2MaxSlots: TIER2_MAX_SLOTS,
+  });
   if (tier1.includes(symbol)) {
-    const slotUsd = (totalTradeableUsd * TIER1_PCT) / TIER1_COUNT;
-    // At very low capital: use whatever is available rather than blocking entirely.
+    const slotUsd = (totalTradeableUsd * book.tier1Pct) / book.tier1Count;
     // At very low capital: use whatever is available rather than blocking entirely.
     // If slot < $0.50 we still allow it — gas check in executeBuy will catch truly tiny amounts.
     if (slotUsd < 0.50) return 0; // truly nothing — don't even try
-    return Math.min(totalTradeableEth * TIER1_PCT / TIER1_COUNT, totalTradeableEth * MAX_BUY_PCT);
+    return Math.min(totalTradeableEth * book.tier1Pct / book.tier1Count, totalTradeableEth * MAX_BUY_PCT);
   }
   if (tier2.includes(symbol)) {
-    const tier2Capital  = totalTradeableUsd * TIER2_PCT;
-    const slots         = Math.min(TIER2_MAX_SLOTS, Math.floor(tier2Capital / TIER2_MIN_SLOT_USD));
+    const tier2Capital  = totalTradeableUsd * book.tier2Pct;
+    const slots         = Math.min(book.tier2MaxSlots, Math.floor(tier2Capital / book.tier2MinSlotUsd));
     if (slots === 0) return 0; // no tier2 slots affordable yet
     const slotUsd = tier2Capital / slots;
     if (slotUsd < minPosUsd()) return 0;
-    return Math.min(totalTradeableEth * TIER2_PCT / slots, totalTradeableEth * MAX_BUY_PCT);
+    return Math.min(totalTradeableEth * book.tier2Pct / slots, totalTradeableEth * MAX_BUY_PCT);
   }
   return 0; // not in any tier — no new capital
 }
@@ -483,6 +524,13 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
 let currentTier1 = [];
 let currentTier2 = [];
 let currentScores = []; // [{ symbol, score }] sorted best first
+let currentTierBook = tierBookParams(Infinity, {
+  tier1Count: TIER1_COUNT,
+  tier1Pct: TIER1_PCT,
+  tier2Pct: TIER2_PCT,
+  tier2MinSlotUsd: TIER2_MIN_SLOT_USD,
+  tier2MaxSlots: TIER2_MAX_SLOTS,
+});
 const MAX_GAS_GWEI      = 50;      // pause ALL trades if gas > 50 gwei (spike protection)
 const MAX_GAS_ETH       = 0.002;
 const SLIPPAGE_GUARD    = 0.85;    // min 85% of expected output
@@ -4809,6 +4857,26 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // FIX: gwei must be fetched locally — the main-loop `gwei` is not in scope here
     const gwei     = await getCurrentGasGwei();
 
+    // Unified balance early — tier gate must die BEFORE hitch L1 fee RPC.
+    // Live Railway: SKI/DRB passed LOSE_ZERO every ~60s then "not in active tiers".
+    const { eth, weth, tradeableWithWeth } = bal;
+    const totalAvail = eth + weth - GAS_RESERVE - SELL_RESERVE;
+    if (totalAvail < MIN_ETH_TRADE) {
+      return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`);
+    }
+    const posUsd = totalAvail * ethUsd;
+    if (posUsd < minPosUsd()) {
+      return await skipBuy(reason, token.symbol, `🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`);
+    }
+
+    const tierEthEarly = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
+    const tierLabelEarly = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
+    // Cascade/operator may deploy outside tiers; hitch-cover still runs below for everyone.
+    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason);
+    if (tierEthEarly === 0 && !allowOutsideTiers) {
+      return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabelEarly}) — no new capital`);
+    }
+
     // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
     // sizes leftover so hitch can ride when covered; leftover+edge never block it.
     let buySkipHitch = false;
@@ -4845,31 +4913,15 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       return await skipBuy(reason, token.symbol, `⛽ ${token.symbol} gas spike — not sending`);
     }
 
-    // Unified balance: ETH + WETH
-    const { eth, weth, tradeableWithWeth } = bal;
-    const totalAvail = eth + weth - GAS_RESERVE - SELL_RESERVE;
-    if (totalAvail < MIN_ETH_TRADE) {
-      return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`);
-    }
-    const posUsd = totalAvail * ethUsd;
-    if (posUsd < minPosUsd()) {
-      return await skipBuy(reason, token.symbol, `🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`);
-    }
-
     const armStatus = getArmStatus(token.symbol, gasCost, totalAvail);
     const maxPct    = armStatus.armed ? getCascadePct(armStatus.net) : 0.30;
 
     // ── TIER-AWARE SIZING ────────────────────────────────────────────────────
     // Use the global tier assignments computed at the top of the main loop.
-    // Tier 1 (top 3 by score) gets 65% of capital split 3 ways.
-    // Tier 2 (next N by score) gets 35% split by slot count.
+    // Tier 1 gets the bulk of capital; small books concentrate into fewer seats.
     // Tokens outside both tiers get $0 new capital — moonshot holds only.
-    const tierEth   = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
-    const tierLabel = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
-
-    if (!isCascade && tierEth === 0 && !isManualOperatorBuy(reason)) {
-      return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabel}) — no new capital`);
-    }
+    const tierEth   = tierEthEarly;
+    const tierLabel = tierLabelEarly;
 
     const maxSpend  = Math.min(totalAvail * maxPct, forcedEth > 0 ? forcedEth : (tierEth > 0 ? tierEth * 1.2 : totalAvail * maxPct));
     const minSpend  = minPosUsd() / ethUsd;
@@ -5762,7 +5814,7 @@ async function processToken(cdp, token, bal) {
     }
     const entry    = token.entryPrice;
     const maxPeak  = getMaxPeak(token.symbol);
-    const minTrgh  = getMinTrough(token.symbol);
+    const minTrghRaw = getMinTrough(token.symbol);
     const peakCnt  = getPeakCount(token.symbol);
     const trghCnt  = getTroughCount(token.symbol);
     const arm      = getArmStatus(token.symbol, gasCost, bal.tradeableWithWeth);
@@ -5892,15 +5944,24 @@ async function processToken(cdp, token, bal) {
     const TROUGH_ENTRY_BAND = 0.035; // 3.5% — wider entry window catches bounces
     // FIX v18: atMinTrough requires price to NOT be in a rapid fall.
     // If still dropping fast (>1% in 5 ticks), let it reach its real bottom first.
+    // Inject mains: entry trough climbs to recent session low when 90d candle MIN
+    // is stale (live UNI buy@$3 while mark~$7 → zero fills / zero hitch).
+    const recentReadings = (history[token.symbol]?.readings || []).slice(-20).map(r => r.price);
+    const recentHigh     = recentReadings.length > 0 ? Math.max(...recentReadings) : price;
+    const recentLow      = recentReadings.length > 0 ? Math.min(...recentReadings) : price;
+    const injectMain     = isInjectMainPlayer(token.symbol) || !!token.injectMain;
+    const minTrgh        = entryTroughForBuy({
+      minTrough: minTrghRaw,
+      recentLow,
+      price,
+      preferRecent: injectMain,
+    }) ?? minTrghRaw;
     const atMinTrough     = minTrgh && price <= minTrgh * (1 + TROUGH_ENTRY_BAND) && !priceFallingFast;
 
     // Lower-low detector: if price ran up fast after we missed the trough,
     // expect a new lower trough when it comes back down (failed breakout pattern)
-    const recentReadings = (history[token.symbol]?.readings || []).slice(-20).map(r => r.price);
-    const recentHigh     = recentReadings.length > 0 ? Math.max(...recentReadings) : price;
-    const recentLow      = recentReadings.length > 0 ? Math.min(...recentReadings) : price;
     const fastRise       = recentHigh > 0 && ((recentHigh - recentLow) / recentLow) > 0.04; // 4%+ rapid swing
-    const failedBreakout = fastRise && price < recentHigh * 0.97 && price > minTrgh * 0.97; // came back down
+    const failedBreakout = fastRise && price < recentHigh * 0.97 && price > (minTrgh || 0) * 0.97; // came back down
     // Projected lower low: if fast rise failed, next trough likely below current MIN by ~30% of the swing
     const projectedLowerLow = failedBreakout && minTrgh
       ? minTrgh * (1 - (recentHigh - recentLow) / recentLow * 0.3)
@@ -5912,6 +5973,16 @@ async function processToken(cdp, token, bal) {
     const momentumEntry = ind.rsi !== null && ind.rsi <= RSI_OVERSOLD + 8
                        && ind.macd?.crossUp === true
                        && price <= (minTrgh || price) * 1.08; // within 8% of known trough
+
+    // Inject-main pullback: deep Uni books buy near recent low so hitch can land
+    // without waiting for a multi-week candle extreme.
+    const injectPullback = isInjectPullbackEntry({
+      isInjectMain: injectMain,
+      price,
+      recentLow,
+      recentReadings: recentReadings.length,
+      priceFallingFast,
+    });
 
     // ── CALENDAR MARKET BIAS ─────────────────────────────────────────────────
     // Monday: market often oversold from weekend — bias toward buying dips aggressively
@@ -5944,7 +6015,7 @@ async function processToken(cdp, token, bal) {
 
     // ── COMPOSITE BUY CONDITION ──────────────────────────────────────────────
     // Any ONE of these entry signals + armed + not maxed = buy
-    const entrySignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent;
+    const entrySignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent || injectPullback;
     const shouldBuy = !isCatalogFrozen(token) && entrySignal && arm.armed && !atMaxPosition && !shouldSell
                    && !smartMoneyBlocking
                    && bal.tradeableWithWeth >= MIN_ETH_TRADE
@@ -6303,8 +6374,10 @@ async function processToken(cdp, token, bal) {
       pa.lastBuyAlertPct = 100; // bought — reset sell alerts
       pa.lastSellAlertPct = 0;
       stalePriceRef[token.symbol] = { price, timestamp: Date.now() }; // seed stale tracker on buy
-      await executeBuy(cdp, token, bal, predBuy && !atMinTrough
+      await executeBuy(cdp, token, bal, predBuy && !atMinTrough && !injectPullback
         ? `🧠 PREDICTED TROUGH [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
+        : injectPullback && !atMinTrough
+          ? `💉 INJECT PULLBACK [${arm.priority}]`
         : `🎯 MIN TROUGH [${arm.priority}]${indConfirmed?"":" unconfirmed"}`, price);
     }
 
@@ -9541,11 +9614,24 @@ function bootstrapWavesFromCandles() {
     }
     if (needsTrough) {
       const isDupe = (arr, val) => arr.some(x => Math.abs(x - val) / val < 0.005);
-      if (!isDupe(ws.troughs, low90)) { ws.troughs.push(low90); changed = true; }
-      if (h.candles.days14?.low && !isDupe(ws.troughs, h.candles.days14.low)) {
-        ws.troughs.push(h.candles.days14.low); changed = true;
+      const injectMain = isInjectMainPlayer(token.symbol) || !!token.injectMain;
+      // Inject mains: prefer 14d low over 90d extreme so buy triggers are reachable.
+      // Live UNI seeded 90d min ~$3 while mark ~$7 → armed forever, never bought.
+      const lastPx = history[token.symbol]?.lastPrice;
+      const low14 = h.candles.days14?.low;
+      const prefer14 = injectMain && low14 && (!lastPx || (lastPx - low90) / lastPx > 0.18);
+      const primaryLow = prefer14 ? low14 : low90;
+      if (!isDupe(ws.troughs, primaryLow)) { ws.troughs.push(primaryLow); changed = true; }
+      if (prefer14) {
+        // still add a second distinct trough if 14d high-side mid exists
+        if (low14 && !isDupe(ws.troughs, low14)) { /* already primary */ }
+      } else if (low14 && !isDupe(ws.troughs, low14)) {
+        ws.troughs.push(low14); changed = true;
       }
       ws.troughs = ws.troughs.sort((a, b) => a - b).slice(-WAVE_COUNT);
+      if (prefer14) {
+        console.log(`   💉 ${token.symbol}: inject-main trough uses 14d low $${low14.toFixed(6)} (skipped stale 90d $${low90.toFixed(6)})`);
+      }
     }
 
     // Re-validate after adding candle data
@@ -10238,12 +10324,13 @@ async function main() {
       currentScores = tAssign.scored;
 
       // Log tier state every cycle (compact)
+      const book = tAssign.book || currentTierBook;
       const t1Str = currentTier1.join(" > ");
       const t2Str = currentTier2.join(" | ") || "none";
-      const tier1Usd = (bal.tradeableWithWeth * ethUsd * TIER1_PCT / TIER1_COUNT).toFixed(2);
+      const tier1Usd = (bal.tradeableWithWeth * ethUsd * book.tier1Pct / book.tier1Count).toFixed(2);
       const tier2Slots = currentTier2.length;
-      const tier2Usd = tier2Slots > 0 ? (bal.tradeableWithWeth * ethUsd * TIER2_PCT / tier2Slots).toFixed(2) : "0";
-      console.log(`🏆 T1[$${tier1Usd}/slot]: ${t1Str}`);
+      const tier2Usd = tier2Slots > 0 ? (bal.tradeableWithWeth * ethUsd * book.tier2Pct / tier2Slots).toFixed(2) : "0";
+      console.log(`🏆 T1[$${tier1Usd}/slot${book.smallBook ? " · SMALL BOOK" : ""}]: ${t1Str}`);
       console.log(`🥈 T2[$${tier2Usd}/slot x${tier2Slots}]: ${t2Str}`);
       if (tAssign.reservedMain) {
         console.log(`💉 Inject main reserved T1: ${tAssign.reservedMain} (UNI preferred among ${INJECT_MAIN_PLAYERS.join("/")})`);
@@ -10279,23 +10366,35 @@ async function main() {
       // If a token has an open position but is NOT in tier 1 or tier 2,
       // and its current value is above MOONSHOT_HOLD_USD, sell down to that floor.
       // This frees capital for the actual winning tokens while keeping a lottery bag.
+      // Unknown-cost dust also recycles here — boot recon clears invented basis, so
+      // entryPrice is null and the old `if (!token.entryPrice) continue` left bags stuck.
       for (const token of tokens) {
-        if (!token.entryPrice) continue; // no position
-        if (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol)) continue; // in a tier — leave it
         const price = history[token.symbol]?.lastPrice;
         if (!price) continue;
         const balance = getCachedBalance(token.symbol);
+        if (!(balance > 0.001)) continue;
+        const unknownBag = !!(token.unknownEntry || !hasUsableCostBasis(token));
+        const hasKnownPos = hasUsableCostBasis(token) && !!token.entryPrice;
+        if (!hasKnownPos && !unknownBag) continue;
+        if (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol)) continue; // in a tier — leave it
         const moonPriceGate = await gatePriceInsane(token, price, "sell", balance);
         if (!moonPriceGate.allow) continue;
         const posUsd  = balance * price;
-        if (posUsd <= MOONSHOT_HOLD_USD * 1.5) continue; // already at moonshot size
+        const recycleUnknown = shouldRecycleUnknownDust({
+          unknownEntry: unknownBag,
+          posUsd,
+          moonshotHoldUsd: MOONSHOT_HOLD_USD,
+        });
+        if (!recycleUnknown && posUsd <= MOONSHOT_HOLD_USD * 1.5) continue; // already at moonshot size
         // Sell enough to bring position down to MOONSHOT_HOLD_USD — never into piggy dust
         syncTokenPiggy(token, balance, price);
         const keepTokens  = Math.max(MOONSHOT_HOLD_USD / price, token.piggyReserve || 0);
         const sellTokens  = Math.max(balance - keepTokens, 0);
         const sellPct     = balance > 0 ? sellTokens / balance : 0;
         if (sellPct < 0.10) continue; // not worth a tx for < 10% sell
-        const moonReason = `🌙 MOONSHOT TRIM — not in active tiers`;
+        const moonReason = recycleUnknown
+          ? `🌙 DUST RECYCLE — unknown cost basis`
+          : `🌙 MOONSHOT TRIM — not in active tiers`;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
@@ -10308,7 +10407,7 @@ async function main() {
           symbol: token.symbol,
           reason: moonReason,
           sellPct,
-          entryEth: costBasisEth(token),
+          entryEth: costBasisEth(token), // 0 for unknown — leftover = proceeds − fees
           projectedProceedsEth: (balance * sellPct * price) / ethUsd,
           feePct: token.poolFeePct || 0.006,
           impactPct: PRICE_IMPACT_EST,
@@ -10321,15 +10420,15 @@ async function main() {
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
         if (!moonGate.allow) {
-          console.log(`🌙 MOONSHOT TRIM ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
+          console.log(`🌙 ${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
           continue;
         }
         const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
-        console.log(`🌙 MOONSHOT TRIM ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
+        console.log(`🌙 ${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
           const p = await executeSell(cdpClient, token, sellPct, moonReason, price, false);
           if (p > 0) {
-            await tg(`🌙 <b>MOONSHOT TRIM — ${token.symbol}</b>\nNot in top tiers — trimming to $${MOONSHOT_HOLD_USD} lottery bag\n💰 Freed ${p.toFixed(6)} ETH for tier redeployment\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
+            await tg(`🌙 <b>${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} — ${token.symbol}</b>\nNot in top tiers — trimming to $${MOONSHOT_HOLD_USD} lottery bag\n💰 Freed ${p.toFixed(6)} ETH for tier redeployment\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
             // No cascade — freed capital goes back to normal tier flow
           }
         } catch (e) { console.log(`⚠️ Moonshot trim ${token.symbol}: ${e.message}`); }
