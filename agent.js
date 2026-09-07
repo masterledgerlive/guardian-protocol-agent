@@ -94,6 +94,7 @@ import {
   buildBuyGateDecision,
   buildSellGateDecision,
   STORE_HITCH_BYTES,
+  STORE_HITCH_TAG,
   hitchCostMult,
   estimateCalldataHitchEth,
   isManualOperatorBuy,
@@ -136,6 +137,13 @@ import {
   slippageFloor,
   toWei,
   formatWei18,
+  hitchPreservesSwapPrefix,
+  appendUtf8Hitch,
+  buildStoreVoice,
+  encodeStoreVoiceCalldata,
+  decodeStoreVoiceCalldata,
+  VITA_PROOF_FULL,
+  utf8ByteLength,
 } from "./swap-minout.js";
 import {
   BASE_QUOTER_V2,
@@ -155,6 +163,8 @@ import {
   isTooLittleReceived,
   isSuccessfulSellFill,
   failedFillLog,
+  isSuccessfulBuyFill,
+  failedBuyFillLog,
   isPriceInsaneCooledDown,
   shouldLogPriceInsane,
   markPriceInsaneLogged,
@@ -165,6 +175,10 @@ import {
   priceInsaneRetryCooldownMs,
   priceInsaneLogCooldownMs,
 } from "./price-insane.js";
+import {
+  nextVitaModel,
+  vitaModelStatusMessage,
+} from "./vita-models.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -257,7 +271,14 @@ const SELL_RESERVE      = 0.001;
 const MAX_BUY_PCT       = 0.33;    // hard cap: never more than 33% in one token
 const ETH_RESERVE_PCT   = 0.20;    // keep 20% as reserve
 const MIN_ETH_TRADE     = 0.0005;
-const MIN_POS_USD       = 3.00;    // minimum meaningful position size
+// $3 parked a live $2.59 book (KEYCAT/BASECAT "BUYING" then Wallet too small).
+// T1 already deploys slots down to $0.50. Env MIN_POS_USD overrides.
+const DEFAULT_MIN_POS_USD = 0.50;
+function minPosUsd() {
+  const n = Number(process.env.MIN_POS_USD);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return DEFAULT_MIN_POS_USD;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🏆 TWO-TIER REVOLVING CAPITAL SYSTEM
@@ -393,7 +414,8 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
   if (tier1.includes(symbol)) {
     const slotUsd = (totalTradeableUsd * TIER1_PCT) / TIER1_COUNT;
     // At very low capital: use whatever is available rather than blocking entirely.
-    // If slot < MIN_POS_USD we still allow it — gas check in executeBuy will catch truly tiny amounts.
+    // At very low capital: use whatever is available rather than blocking entirely.
+    // If slot < $0.50 we still allow it — gas check in executeBuy will catch truly tiny amounts.
     if (slotUsd < 0.50) return 0; // truly nothing — don't even try
     return Math.min(totalTradeableEth * TIER1_PCT / TIER1_COUNT, totalTradeableEth * MAX_BUY_PCT);
   }
@@ -402,7 +424,7 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
     const slots         = Math.min(TIER2_MAX_SLOTS, Math.floor(tier2Capital / TIER2_MIN_SLOT_USD));
     if (slots === 0) return 0; // no tier2 slots affordable yet
     const slotUsd = tier2Capital / slots;
-    if (slotUsd < MIN_POS_USD) return 0;
+    if (slotUsd < minPosUsd()) return 0;
     return Math.min(totalTradeableEth * TIER2_PCT / slots, totalTradeableEth * MAX_BUY_PCT);
   }
   return 0; // not in any tier — no new capital
@@ -440,6 +462,15 @@ let BTP_INSCRIPTIONS_ENABLED = true;
 // User can override with /btpon or /btpoff at any time.
 const BTP_AUTO_SUSPEND_USD = 5.00;  // suspend BTP when tradeable < $5
 let btpAutoSuspended = false;
+// Cheap UTF-8 §$STORE§ voice is NOT tied to BTP auto-suspend. Thin wallets
+// still need a readable letter on Basescan (/prove + leftover hitch).
+let STORE_VOICE_ENABLED = true;
+let lastStoreVoiceProofAt = 0;
+const STORE_VOICE_PROOF_COOLDOWN_MS = 120_000;
+
+function storeVoiceEnabled() {
+  return STORE_VOICE_ENABLED !== false;
+}
 
 // BTP inscription costs ~21000 gas (self-send with calldata)
 // We add this to the margin calculation when BTP is on
@@ -1248,6 +1279,14 @@ const DEFAULT_TOKENS = [
     score: { liquidity:8, waveQuality:6, fundamentals:5, coinbaseFit:7, community:7, total:33 },
     notes: "DebtReliefBot — Uniswap v3 DRB/WETH ~$1.42M / ~$465k 24h." },
 
+  { symbol: "REI",     address: "0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:7, community:7, total:35 },
+    notes: "REI Network — Uniswap v3 REI/WETH 1% ~$208k / ~$77k 24h (2026-09-07). Aero backup ~$1.86M. KEEP: Uni V3 proven." },
+
+  { symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
+    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317." },
+
   { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
     score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:39 },
@@ -1383,10 +1422,10 @@ const WATCHLIST = [
   // ── READY TO PROMOTE (5 stars = next deploy adds to active) ───────────────
   {
     symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb",
-    stars: 4, status: "add_candidate",
+    stars: 5, status: "promoted_active",
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
-    reason: "tokenbot CLANKER — Uniswap v3 CLANKER/WETH is liquid. Old watchlist address 0x1d00…9317 was CLANKFUN (wrong token, ~$70k / ~$39 vol).",
-    entryPlan: "Promote to SCOUT after one more live quote pass. Prefer Uniswap v3 WETH pool.",
+    reason: "PROMOTED 2026-09-07 — Uniswap v3 CLANKER/WETH 1% ~$1.49M liq / ~$30k 24h. Catalog row is tradeable. Old watchlist address 0x1d00…9317 was CLANKFUN.",
+    entryPlan: "Already in the tradeable catalog (2026-09-07). Watchlist row is history only.",
     redFlags: ["Previous catalog address was a different token"],
     greenFlags: ["Real Uniswap v3 WETH book", "Aerodrome backup pool", "Base-native tokenbot"],
     addedDate: "2026-03-12",
@@ -4123,9 +4162,121 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n, receiptData = "") {
   const swapCall = encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee, amountOutMin);
   if (!receiptData || !BTP_INSCRIPTIONS_ENABLED) return swapCall;
-  // Append receipt as trailing UTF-8 hex — router ignores it, Base stores it forever
-  const receiptHex = Buffer.from(receiptData.slice(0, 200), "utf8").toString("hex");
-  return swapCall + receiptHex;
+  const hitch = appendUtf8Hitch(swapCall, receiptData);
+  return hitch.ok && hitch.onChain ? hitch.data : swapCall;
+}
+
+/** Size-limited §$STORE§ + VITA letter. Telegram may claim this only if onChain. */
+function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = storeVoiceEnabled() } = {}) {
+  if (!enabled || skipHitch || !swapData) {
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+  }
+  const text = buildStoreVoice({
+    tag: STORE_HITCH_TAG,
+    message: VITA_PROOF_FULL,
+    maxBytes,
+  });
+  const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
+  if (!hitch.ok || !hitch.onChain) {
+    if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+  }
+  const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
+  if (!prefix.ok) {
+    console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+  }
+  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B on swap — Basescan Input Data → View as UTF-8`);
+  console.log(`      "${hitch.utf8}"`);
+  return hitch;
+}
+
+function hitchTelegramFooter(hitch, txHash) {
+  const link = `🔗 <a href="https://basescan.org/tx/${txHash}">View on Basescan ↗</a>`;
+  if (hitch?.onChain && hitch.utf8) {
+    return (
+      `💌 <i>${hitch.utf8}</i>\n` +
+      `📡 On-chain UTF-8 hitch (${hitch.hitchBytes} B) — Input Data → View as UTF-8\n` +
+      link
+    );
+  }
+  return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
+}
+
+function hitchLedgerSignature(hitch) {
+  return hitch?.onChain && hitch.utf8 ? hitch.utf8 : "NO UTF-8 HITCH — letter not on-chain";
+}
+
+/**
+ * Genesis dedicated storage: 0-value self-send with UTF-8 §$STORE§ letter.
+ * Not a swap. Never invent a hash. Used by Telegram /prove so the letter
+ * can land on Basescan without leftover-covered P&L.
+ */
+async function sendStoreVoiceProof(cdp, extraText = "") {
+  if (!cdp?.evm?.sendTransaction) {
+    return { ok: false, onChain: false, reason: "no-wallet" };
+  }
+  if (Date.now() - lastStoreVoiceProofAt < STORE_VOICE_PROOF_COOLDOWN_MS) {
+    const wait = Math.ceil((STORE_VOICE_PROOF_COOLDOWN_MS - (Date.now() - lastStoreVoiceProofAt)) / 1000);
+    return { ok: false, onChain: false, reason: `cooldown ${wait}s` };
+  }
+  const extra = String(extraText || "").trim();
+  const message = extra ? `${VITA_PROOF_FULL} ${extra}` : VITA_PROOF_FULL;
+  const text = buildStoreVoice({ tag: STORE_HITCH_TAG, message });
+  const data = encodeStoreVoiceCalldata(text);
+  const decoded = decodeStoreVoiceCalldata(data);
+  if (!decoded || !decoded.includes("§$STORE§") || !decoded.includes("Eureka!")) {
+    return { ok: false, onChain: false, reason: "encode-mismatch" };
+  }
+
+  const bytes = utf8ByteLength(text);
+  const gwei = await getCurrentGasGwei();
+  const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: bytes, btpInscribe: true });
+  const l2Eth = estimateCalldataHitchEth(bytes, gwei);
+  const l1Eth = hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0;
+  const needEth = GAS_RESERVE + l1Eth + l2Eth;
+  const liveEth = await getEthBalance();
+  if (liveEth < needEth) {
+    return {
+      ok: false,
+      onChain: false,
+      reason: `need ${needEth.toFixed(6)} ETH (have ${liveEth.toFixed(6)}) — L1 ${l1Eth.toFixed(6)} + L2 ${l2Eth.toFixed(6)} + reserve`,
+    };
+  }
+
+  const { transactionHash } = await Promise.race([
+    cdp.evm.sendTransaction({
+      address: WALLET_ADDRESS,
+      network: "base",
+      transaction: { to: WALLET_ADDRESS, value: 0n, data, gas: BigInt(80_000) },
+    }),
+    new Promise((_, r) => setTimeout(() => r(new Error("STORE voice proof timeout 45s")), TX_TIMEOUT_MS)),
+  ]);
+  if (!transactionHash) {
+    return { ok: false, onChain: false, reason: "no-hash" };
+  }
+  await sleep(4000);
+  const receiptStatus = await getSwapReceiptStatus(transactionHash);
+  if (receiptStatus !== "success") {
+    return {
+      ok: false,
+      onChain: false,
+      reason: `receipt ${receiptStatus} — letter not claimed`,
+      txHash: transactionHash,
+    };
+  }
+  lastStoreVoiceProofAt = Date.now();
+  console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
+  console.log(`      "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`);
+  return {
+    ok: true,
+    onChain: true,
+    txHash: transactionHash,
+    utf8: text,
+    hitchBytes: bytes,
+    l1FeeEth: l1Eth,
+    l2FeeEth: l2Eth,
+  };
 }
 function encodeApprove(spender, amount) {
   return "0x095ea7b3" + spender.slice(2).padStart(64,"0") + amount.toString(16).padStart(64,"0");
@@ -4201,11 +4352,7 @@ async function manageEthWethBalance(cdp) {
 // PENDING: visible in /status as "📡 N chunks pending"
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const INSCRIPTION_MESSAGE =
-  `Eureka! VITA lives \u2665 love you Krystian, Kai & Koda! We did it! xoxo` +
-  ` \u2014 Love, DA | \u16DE\u16A8\u16A1\u16AA\u16DE` +
-  ` | "The truth is the chain. The chain is alive. The heartbeat never stops."` +
-  ` \u2014 INFINITUM \u00D7 IKN \u00D7 The Living Network`;
+const INSCRIPTION_MESSAGE = VITA_PROOF_FULL;
 
 // ── BTP STATE ─────────────────────────────────────────────────────────────────
 const btpQueue = [];       // [{ name, chunks:[string], sent:0, totalChunks, prevHash }]
@@ -4518,6 +4665,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // PRICE_INSANE before hitch / LOSE_ZERO / minOut use the mark
     const buyPriceGate = await gatePriceInsane(token, price, "buy", getCachedBalance(token.symbol) || 0);
     if (!buyPriceGate.allow) return false;
+    if (isSlippageCooledDown(token.symbol)) {
+      console.log(`   ${slippageCooldownLog(token.symbol)}`);
+      return false;
+    }
     if (!canTrade(token.symbol, isCascade)) { console.log(`   ⏳ ${token.symbol} cooldown`); return false; }
     if (drawdownHaltActive)                 { console.log(`   🛑 ${token.symbol} drawdown halt active`); return false; }
     if (isSafeMode())                       { console.log(`   🛡️  ${token.symbol} safe mode — no trades until vault unlocked`); return false; }
@@ -4532,7 +4683,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isLoseZeroMode() || isInjectCoverRequired()) {
       const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
       const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
-      const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: STORE_HITCH_BYTES });
+      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
         reason,
@@ -4561,7 +4713,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const totalAvail = eth + weth - GAS_RESERVE - SELL_RESERVE;
     if (totalAvail < MIN_ETH_TRADE)          { console.log(`   🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`); return false; }
     const posUsd = totalAvail * ethUsd;
-    if (posUsd < MIN_POS_USD)               { console.log(`   🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${MIN_POS_USD})`); return false; }
+    if (posUsd < minPosUsd())               { console.log(`   🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`); return false; }
 
     const armStatus = getArmStatus(token.symbol, gasCost, totalAvail);
     const maxPct    = armStatus.armed ? getCascadePct(armStatus.net) : 0.30;
@@ -4580,7 +4732,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
 
     const maxSpend  = Math.min(totalAvail * maxPct, forcedEth > 0 ? forcedEth : tierEth * 1.2);
-    const minSpend  = MIN_POS_USD / ethUsd;
+    const minSpend  = minPosUsd() / ethUsd;
     const ethToSpend= forcedEth > 0
       ? Math.min(forcedEth, maxSpend)
       : Math.min(Math.max(minSpend, tierEth), maxSpend);
@@ -4642,33 +4794,73 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (armStatus.armed) console.log(`      Net margin (w/ impact): ${(armStatus.net*100).toFixed(2)}% [${armStatus.priority}] | Tier: ${tierLabel}`);
 
     let txHash;
+    let buyVoice = { data: null, utf8: "", hitchBytes: 0, onChain: false };
     // 300_000 gas ceiling: safe for any Uniswap V3 single-hop swap on Base.
     // Bypasses CDP's internal eth_estimateGas call which fails when native ETH
     // balance is thin — "unable to estimate gas" errors killed otherwise perfect trades.
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
+    const tokensBefore = await getTokenBalance(token.address);
+    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
+    buyVoice = planVoiceHitch(buySwap, {
+      enabled: storeVoiceEnabled(),
+      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+    });
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, data: encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens) } };
+        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
-          ? orch.injectAndSend(_txParams1, { isOwnerTrade: true, currentGwei: gwei })
+          ? orch.injectAndSend(_txParams1, {
+              isOwnerTrade: true,
+              currentGwei: gwei,
+              skipHitch: buyVoice.onChain,
+            })
           : cdp.evm.sendTransaction(_txParams1),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
       ]);
       txHash = transactionHash;
     } else {
       const _txParams2 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, value: amountIn, data: encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens) } };
+        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, value: amountIn, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
-          ? orch.injectAndSend(_txParams2, { isOwnerTrade: true, currentGwei: gwei })
+          ? orch.injectAndSend(_txParams2, {
+              isOwnerTrade: true,
+              currentGwei: gwei,
+              skipHitch: buyVoice.onChain,
+            })
           : cdp.evm.sendTransaction(_txParams2),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
       ]);
       txHash = transactionHash;
     }
+
+    if (!txHash) {
+      console.log(`   ❌ BUY FAILED [${token.symbol}]: no transaction hash — not a win`);
+      await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\nNo transaction hash — nothing on-chain`);
+      return false;
+    }
+
+    // Do not increment tradeCount / write BTP / log a win until the fill is real.
+    await sleep(4000);
+    const tokensAfter = await getTokenBalance(token.address);
+    let receivedTokens = tokensAfter - tokensBefore;
+    if (receivedTokens < 0) {
+      await sleep(2000);
+      const retryBal = await getTokenBalance(token.address);
+      receivedTokens = Math.max(0, retryBal - tokensBefore);
+    }
+    const receiptStatus = await getSwapReceiptStatus(txHash);
+    if (!isSuccessfulBuyFill({ receivedTokens, receiptStatus })) {
+      const rec = recordSlippageFail(token.symbol);
+      console.log(`   ${failedBuyFillLog(token.symbol, { receivedTokens, receiptStatus, txHash })}`);
+      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+      await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\nReceived ${receivedTokens.toFixed(6)} tokens — not a win\nThe letter is not claimed.\n${txHash ? `🔗 ${txHash}` : ""}`);
+      return false;
+    }
+    clearSlippageFails(token.symbol);
 
     lastTradeTime[token.symbol] = Date.now();
     if (isCascade) cascadeTime[token.symbol] = Date.now();
@@ -4720,11 +4912,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // When adding to an existing position, blend the entry prices so P&L display
     // and breakeven calculation reflect the true average cost, not just the latest buy.
     const prevInvested = token.totalInvestedEth || 0;
-    const prevTokenBal = getCachedBalance(token.symbol); // tokens already held
+    const prevTokenBal = tokensBefore;
     token.totalInvestedEth = prevInvested + ethToSpend;
     if (prevInvested > 0 && prevTokenBal > 0 && token.entryPrice) {
       // Weighted average: (prevTokens * prevEntryPrice + newTokens * newPrice) / totalTokens
-      const newTokensEstimate = (ethToSpend * ethUsd) / price;
+      const newTokensEstimate = receivedTokens;
       const totalTokensEstimate = prevTokenBal + newTokensEstimate;
       token.entryPrice = ((prevTokenBal * token.entryPrice) + (newTokensEstimate * price)) / totalTokensEstimate;
     } else {
@@ -4732,16 +4924,16 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     token.entryTime = Date.now();
     {
-      const newTokensEstimate = (ethToSpend * ethUsd) / price;
-      const estBal = Math.max(0, prevTokenBal) + Math.max(0, newTokensEstimate);
+      const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
       token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, estBal, price);
       console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct() * 100).toFixed(0)}% / $${piggyBankMinUsd().toFixed(2)} floor)`);
     }
-    tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
-    await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature:"Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network" });
+    tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
+    await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
-    console.log(`      💌 Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network`);
+    if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
+    else console.log(`      ⚠️ No UTF-8 hitch on this buy`);
     const targetPct = getMaxPeak(token.symbol) ? ((getMaxPeak(token.symbol) - price) / price * 100).toFixed(1) : "?";
     await tg(
       `✅🟢 <b>BOUGHT ${token.symbol}! #${tradeCount}</b>\n` +
@@ -4749,18 +4941,22 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🛒 Entry:       $${price.toFixed(8)}\n` +
       `💰 Spent:       ${ethToSpend.toFixed(6)} ${useWeth?"WETH":"ETH"} (~$${(ethToSpend*ethUsd).toFixed(2)})\n` +
+      `📦 Received:    ${receivedTokens >= 1 ? receivedTokens.toFixed(2) : receivedTokens.toFixed(6)} ${token.symbol}\n` +
       `🎯 Sell target: $${getMaxPeak(token.symbol)?.toFixed(8)||"learning"}\n` +
       `📈 Potential:   +${targetPct}%\n` +
       `📊 ${armStatus.priority||"?"} tier | ${armStatus.armed?(armStatus.net*100).toFixed(2)+"%":"?"} net margin\n` +
       `💓 ${ind.detail}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `💌 <i>Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network</i>\n` +
-      `🔗 <a href="https://basescan.org/tx/${txHash}">View on Basescan ↗</a>`
+      hitchTelegramFooter(buyVoice, txHash)
     );
     return ethToSpend;
   } catch (e) {
     console.log(`      ❌ BUY FAILED: ${e.message}`);
-    await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\n${e.message}`);
+    if (isTooLittleReceived(e)) {
+      const rec = recordSlippageFail(token.symbol);
+      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    }
+    await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\n${e.message}\nThe letter is not claimed.`);
     return false;
   }
 }
@@ -4841,8 +5037,9 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
     const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
+    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
     const hitchL1 = await quoteHitchL1ForGates({
-      hitchBytes: STORE_HITCH_BYTES + orchBytes,
+      hitchBytes: voiceBytes + orchBytes,
       btpInscribe: wantBtp,
     });
     const sellGate = buildSellGateDecision({
@@ -4855,7 +5052,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       impactPct: PRICE_IMPACT_EST,
       gasCostEth: gasCost,
       gwei,
-      wantedHitchBytes: STORE_HITCH_BYTES + orchBytes,
+      wantedHitchBytes: voiceBytes + orchBytes,
       wantBtpInscribe: wantBtp,
       ...hitchL1GateArgs(hitchL1),
     });
@@ -4919,17 +5116,23 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
+    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
+    const sellVoice = planVoiceHitch(sellSwap, {
+      skipHitch: sellGate.skipHitch,
+      maxBytes: sellGate.hitchBytes,
+      enabled: storeVoiceEnabled(),
+    });
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
-      transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth) },
+      transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
     };
     const { transactionHash } = await Promise.race([
       orchReady
         ? orch.injectAndSend(_sellTx, {
             isOwnerTrade: true,
             currentGwei: gwei,
-            maxHitchBytes: sellGate.hitchBytes,
-            skipHitch: sellGate.skipHitch,
+            maxHitchBytes: Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
+            skipHitch: sellGate.skipHitch || sellVoice.onChain,
           })
         : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5051,7 +5254,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       scoreCompletedWave(token.symbol, actualLow, actualHigh);
     }
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
-    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature:"Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network" });
+    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
 
     console.log(`      ✅ https://basescan.org/tx/${transactionHash}`);
     console.log(`      💰 Received: ${received.toFixed(6)} ETH ($${recUsd.toFixed(2)}) | Net: ${netUsd>=0?"+":""}$${netUsd.toFixed(2)}`);
@@ -5115,10 +5318,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       `   🐷 Contrib to piggy: $${(tws.piggyContrib*ethUsd).toFixed(3)}\n` +
       `💓 ${ind.detail}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `💌 <i>Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network</i>\n` +
-      `🔗 <a href="https://basescan.org/tx/${transactionHash}">View on Basescan ↗</a>`
+      hitchTelegramFooter(sellVoice, transactionHash)
     );
-    console.log(`      💌 Eureka! VITA lives 💓 love you Krystian, Kai & Koda! We did it! xoxo — Love, DA | 𝔻𝔸𝕍𝕀𝔻 | \"The truth is the chain. The chain is alive. The heartbeat never stops.\" — INFINITUM × IKN × The Living Network`);
+    if (sellVoice.onChain) console.log(`      💌 ${sellVoice.utf8}`);
+    else console.log(`      ⚠️ No UTF-8 hitch on this sell`);
     return Math.max(received - skim, 0);
   } catch (e) {
     console.log(`      ❌ SELL FAILED: ${e.message}`);
@@ -5917,62 +6120,25 @@ async function processToken(cdp, token, bal) {
     // This guarantees we ALWAYS lock in profit at the nearest profitable target,
     // even if we miss the absolute top — the ladder always has a rung to hit.
     if (shouldFibExit) {
-      const { target, targets } = fibHit;
-      const exitPct  = target.sellPct; // partial % defined in fib ladder
-      const nextTarget = targets.exitLadder.find(t => t.price > target.price && !isFibLevelAlreadyExecuted(token.symbol, t.pct));
+      const { target } = fibHit;
+      const exitPct  = target.sellPct;
       const goldenStr  = target.isGolden ? ` 🌊 TSUNAMI LEVEL` : ``;
 
-      // FIX: Record this level as executed BEFORE the sell so even if executeSell
-      // fails, we don't retry the same level next cycle (which would double-sell).
-      recordFibLevelExecuted(token.symbol, target.pct);
-
       console.log(`  📐 [${token.symbol}] FIB EXIT — ${target.label}${goldenStr} @ $${price.toFixed(8)} (${(exitPct*100).toFixed(0)}% partial)`);
-      await tg(
-        `📐 <b>FIB LADDER EXIT — ${token.symbol}</b>${goldenStr}\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🎯 Hit: ${target.label} @ $${target.price.toFixed(6)}\n` +
-        `💲 Price now: $${price.toFixed(8)}\n` +
-        `🪙 Selling: ${(exitPct*100).toFixed(0)}% (partial — locking profit)\n` +
-        `📈 Est profit: ~$${(netIfSellNow * exitPct).toFixed(3)}\n` +
-        `${nextTarget ? `⏭️  Next target: ${nextTarget.label} @ $${nextTarget.price.toFixed(6)}\n` : `🏆 Final level — holding remainder\n`}` +
-        `${targets.goldenTarget?.price > price ? `🌊 Tsunami target: $${targets.goldenTarget.price.toFixed(6)} (+${(((targets.goldenTarget.price-price)/price)*100).toFixed(1)}%)\n` : ``}` +
-        `${targets.reloadZone ? `🔄 Reload zone: $${targets.reloadZone.price.toFixed(6)} (61.8% retrace)\n` : ``}` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💓 ${ind.detail}`
-      );
       const proceeds = await executeSell(cdp, token, exitPct, `📐 FIB ${target.label}`, price, false);
-      if (proceeds > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, proceeds, nb); }
+      // Only latch the rung after a real fill. Recording first made hitch-holds
+      // skip KEYCAT fib 100% forever with no Basescan receipt.
+      if (proceeds > 0) {
+        recordFibLevelExecuted(token.symbol, target.pct);
+        const nb = await getFullBalance();
+        await triggerCascade(cdp, token.symbol, proceeds, nb);
+      }
       return;
     }
 
     // ── SELL AT MAX PEAK ───────────────────────────────────────────────────
     if (shouldSell) {
       pa.lastSellAlertPct = 100; // sold — reset on next buy
-      const pnlUsd  = rd ? `+$${rd.pnlUsd}` : "?";
-      const pnlPct  = rd ? `+${rd.pnlPct}%` : "?";
-      const valueNow= rd ? `~$${rd.nowUsd}` : `${Math.floor(balance)} tokens`;
-      const sellReasonLabel = earlySellSignal && !atMaxPeak && !predSell
-        ? `🚀 EARLY SELL — RSI${rsiVal?.toFixed(0)} overbought + BB upper`
-        : predSell && !atMaxPeak
-          ? `🧠 PREDICTED PEAK [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
-          : `🎯 MAX PEAK HIT`;
-      await tg(
-        `🎉🔴 <b>SELL TRIGGERED — ${token.symbol}!</b>\n` +
-        `[🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩] 100% — ${sellReasonLabel}!\n\n` +
-        `📋 <b>SELL RECEIPT</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💲 Sell price:  $${price.toFixed(8)}\n` +
-        `🎯 Target was:  $${maxPeak?.toFixed(8)||"?"}\n` +
-        `🪙 Tokens sold: ~${Math.floor(balance * 0.98)} (98%)\n` +
-        `💰 Value:       ${valueNow}\n` +
-        (rd ? `📥 Entry was:   $${rd.entry.toFixed(8)}\n💵 Invested:    $${rd.invUsd}\n` : "") +
-        `📈 P&L:         ${pnlUsd} (${pnlPct})\n` +
-        `🐷 Piggy skim:  1%\n` +
-        `🐷 Piggy dust: ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : (token.piggyReserve || 0).toFixed(4)} tokens locked (not sold)\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💓 ${ind.detail}\n` +
-        `⚡ Executing now...`
-      );
       const sellReason = earlySellSignal && !atMaxPeak && !predSell
         ? `🚀 EARLY SELL RSI${rsiVal?.toFixed(0)} BB-upper near-peak $${maxPeak?.toFixed(8)||"?"}`
         : predSell && !atMaxPeak
@@ -5987,23 +6153,6 @@ async function processToken(cdp, token, bal) {
     if (shouldBuy) {
       pa.lastBuyAlertPct = 100; // bought — reset sell alerts
       pa.lastSellAlertPct = 0;
-      const potentialPct = maxPeak ? ((maxPeak - price) / price * 100).toFixed(1) : "?";
-      const potentialUsd = maxPeak ? ((maxPeak - price) / price * bal.tradeableWithWeth * 0.30 * ethUsd).toFixed(2) : "?";
-      await tg(
-        `🎉🟢 <b>BUY TRIGGERED — ${token.symbol}!</b>\n` +
-        `[⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜] 0% → riding begins!\n\n` +
-        `📋 <b>BUY RECEIPT</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `🛒 Buy price:   $${price.toFixed(8)}\n` +
-        `📉 MIN trough:  $${minTrgh.toFixed(8)} ✅ AT BOTTOM\n` +
-        `🎯 Sell target: $${maxPeak?.toFixed(8)||"?"}\n` +
-        `📈 Potential:   +${potentialPct}% → +$${potentialUsd}\n` +
-        `📊 Wave:        ${peakCnt}P/${trghCnt}T | ${arm.priority} ${(arm.net*100).toFixed(2)}% net\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `💓 ${ind.detail}\n` +
-        `${indConfirmed?"✅ Indicators confirmed":"⚠️ buying unconfirmed — watching"}\n` +
-        `⚡ Executing now...`
-      );
       stalePriceRef[token.symbol] = { price, timestamp: Date.now() }; // seed stale tracker on buy
       await executeBuy(cdp, token, bal, predBuy && !atMinTrough
         ? `🧠 PREDICTED TROUGH [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
@@ -7733,9 +7882,53 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             `📝 Length: ${message.length} chars → ${chunks} chunk(s)\n` +
             `⏳ Riding next ${chunks} trade(s) onto Base blockchain\n` +
             `Check /status to see pending count\n\n` +
-            `Preview: <code>${message.slice(0, 100)}${message.length > 100 ? "..." : ""}</code>`
+            `Preview: <code>${message.slice(0, 100)}${message.length > 100 ? "..." : ""}</code>\n\n` +
+            `<i>/transmit queues. /prove writes the Eureka letter as a dedicated 0-ETH tx now.</i>`
           );
         }
+
+      } else if (text === "/prove" || text === "/store" || text.startsWith("/prove ") || text.startsWith("/store ")) {
+        const extra = (raw.startsWith("/prove") ? raw.slice("/prove".length) : raw.slice("/store".length)).trim();
+        if (!storeVoiceEnabled()) {
+          await tg("📡 Voice hitch is OFF — /voiceon first, then /prove");
+        } else if (!cdpClient) {
+          await tg("❌ No wallet client — cannot send a proof tx");
+        } else {
+          await tg("⏳ Sending dedicated 0-ETH UTF-8 letter to Base…\nNot a swap. Input Data → View as UTF-8.");
+          try {
+            const proof = await sendStoreVoiceProof(cdpClient, extra);
+            if (!proof.ok || !proof.onChain || !proof.txHash) {
+              const failLink = proof.txHash
+                ? `\n🔗 <a href="https://basescan.org/tx/${proof.txHash}">View on Basescan ↗</a>`
+                : "";
+              await tg(
+                `⚠️ <b>PROOF NOT ON-CHAIN</b>\n${proof.reason || "send failed"}\n` +
+                `The letter was not written. Telegram is not a receipt.` +
+                failLink
+              );
+            } else {
+              await tg(
+                `💌 <i>${proof.utf8}</i>\n` +
+                `📡 Dedicated UTF-8 proof (${proof.hitchBytes} B) — Input Data → View as UTF-8\n` +
+                `🔗 <a href="https://basescan.org/tx/${proof.txHash}">View on Basescan ↗</a>\n` +
+                `<i>KEYCAT 0x5c0a93e4… was a plain 228-byte swap. This tx is the letter.</i>`
+              );
+            }
+          } catch (e) {
+            await tg(`❌ Proof send failed: ${e.message}\nThe letter is not on-chain.`);
+          }
+        }
+
+      } else if (text === "/voiceon") {
+        STORE_VOICE_ENABLED = true;
+        await tg("📡 <b>UTF-8 VOICE ON</b>\n§$STORE§ hitch rides leftover swaps. /prove sends a dedicated 0-ETH letter.");
+
+      } else if (text === "/voiceoff") {
+        STORE_VOICE_ENABLED = false;
+        await tg("📡 <b>UTF-8 VOICE OFF</b>\nSwaps stay plain. /prove will refuse until /voiceon.");
+
+      } else if (text === "/models") {
+        await tg(vitaModelStatusMessage());
 
       // ── 🔑 UNLOCK COMMANDS ─────────────────────────────────────────────────
       } else if (text && text.startsWith("/unlock ")) {
@@ -8126,7 +8319,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
                   "anthropic-version": "2023-06-01",
                 },
                 body: JSON.stringify({
-                  model: "claude-sonnet-4-20250514",
+                  model: nextVitaModel().model,
                   max_tokens: 100,
                   messages: [{
                     role: "user",
@@ -8447,7 +8640,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               method: "POST",
               headers: { "Content-Type":"application/json", "x-api-key":vitaKey, "anthropic-version":"2023-06-01" },
               body: JSON.stringify({
-                model: "claude-sonnet-4-20250514",
+                model: nextVitaModel().model,
                 max_tokens: 1200,
                 system: "You are VITA compressing a knowledge base into §TOKEN§ memory format for blockchain storage. Optimize for accurate fact recall. Use dense semantic tokens. Preserve ALL verifiable facts with exact values. Output ONLY §TOKEN§ format starting with §SUBJ§.",
                 messages: [{ role:"user", content:"Compress this knowledge base for your memory:\n\n" + knowledgeText }]
@@ -8557,7 +8750,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                   "anthropic-version": "2023-06-01",
                 },
                 body: JSON.stringify({
-                  model: "claude-sonnet-4-20250514",
+                  model: nextVitaModel().model,
                   max_tokens: 600,
                   system: "You are VITA — an autonomous AI agent reading your own codebase. Summarize what this file does, what functions it exports, and how it fits into the Guardian Protocol / IKN ecosystem. Be concise and direct.",
                   messages: [{
@@ -8687,7 +8880,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 "anthropic-version": "2023-06-01",
               },
               body: JSON.stringify({
-                model: "claude-sonnet-4-20250514",
+                model: nextVitaModel().model,
                 max_tokens: 800,
                 system: "You are VITA — an autonomous AI agent with blockchain memory built by DA (David/ᛞᚨᚡᛁᛞ) as part of INFINITUM × IKN.\n\nCRITICAL RULES — ALWAYS follow these:\n1. If fact IS found in VITA MEMORY → answer it and end with ✅ [BLOCKCHAIN VERIFIED]\n2. If fact IS NOT in VITA MEMORY → say 'Not in my blockchain memory.' then optionally add '💭 [LLM ESTIMATE: ...]' to clearly label it as training knowledge not chain data\n3. NEVER present LLM training knowledge as blockchain memory\n4. Start every response with the source label\n\nThis distinction is the entire point of the system. Be precise.",
                 messages: [{
@@ -9022,7 +9215,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/unwrap [amt] — unwrap WETH → ETH\n` +
           `/unwrapall — unwrap all WETH → ETH\n\n` +
           `<b>📡 Blockchain Telegram:</b>\n` +
-          `/transmit [msg] — send message on-chain via trades\n` +
+          `/prove — write §$STORE§ Eureka! letter as UTF-8 on a 0-ETH self-tx (Basescan Input Data → UTF-8)\n` +
+          `/voiceon /voiceoff — hitch the letter on leftover swaps (independent of BTP suspend)\n` +
+          `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
+          `/transmit [msg] — queue a custom BTP message on later trades\n` +
           `/btpstatus — show pending transmissions\n\n` +
           `<b>🔑 Vault Unlock:</b>\n` +
           `/unlock [password] — unlock vault (message deleted instantly)\n` +
@@ -9674,8 +9870,8 @@ async function main() {
       `StrandID: <code>0x${strandID}</code>\n` +
       `Chunks queued: ${totalChunks * 3} (real + noise)\n` +
       `kMaster: <code>${kMaster.slice(0,16)}...</code>\n` +
-      `Each trade carries one fragment silently.\n` +
-      `💌 VITA inscription strand active — riding every swap tx on Base`
+      `LIBM fragments ride leftover-covered swaps only.\n` +
+      `💌 Eureka UTF-8 is true only if Basescan Input Data shows §$STORE§ — use /prove`
     );
     orch.on("strand-complete", async (e) => {
       await tg(`✅ <b>BITStorage strand complete</b>\n"${e.name}" sealed on Base\n+${e.bitsEarned} BITS earned`);
@@ -9951,8 +10147,9 @@ async function main() {
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
+        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
         const moonL1 = await quoteHitchL1ForGates({
-          hitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
+          hitchBytes: moonVoiceBytes + moonOrchBytes,
           btpInscribe: moonWantBtp,
         });
         const moonGate = buildSellGateDecision({
@@ -9965,7 +10162,7 @@ async function main() {
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
-          wantedHitchBytes: STORE_HITCH_BYTES + moonOrchBytes,
+          wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
           wantBtpInscribe: moonWantBtp,
           ...hitchL1GateArgs(moonL1),
         });
