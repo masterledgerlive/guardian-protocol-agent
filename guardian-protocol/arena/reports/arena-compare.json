@@ -1,0 +1,624 @@
+{
+  "kind": "simulated_arena_compare",
+  "strategies": [
+    "FIFO-0.1",
+    "ADAPTIVE-0.1",
+    "COSTOPT-0.1",
+    "PRIORITY-0.1",
+    "REDOPT-0.1"
+  ],
+  "boards": {
+    "baseline": "FIFO-0.1",
+    "weights": {
+      "cost": 0.35,
+      "latency": 0.2,
+      "storage_overhead": 0.15,
+      "success": 0.3
+    },
+    "absolute": [
+      {
+        "strategy": "FIFO-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "REDOPT-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "COSTOPT-0.1",
+        "success": 1,
+        "cost": 0.0001158416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": 0.11178585010979833,
+        "composite": 0.9690491153437106,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "5343e996d94f1480b14aa052c65c5ddbd619ebb69f5e1880418bc34b3bba4f90",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "ADAPTIVE-0.1",
+        "success": 1,
+        "cost": 0.0001454208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": -0.11501232932170338,
+        "composite": 0.963897874306839,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "cba108570cd747023fb5a4efea2d756bfcf8d6858696ed14e9299b1fd9b92c64",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "PRIORITY-0.1",
+        "success": 1,
+        "cost": 0.0001308416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": -0.0032264792119048582,
+        "composite": 0.9238743641166112,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "0bae37d4ca902dcc23811f6a8a1e02e110bb3187a1571d1c4d5a4f17d5b47917",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      }
+    ],
+    "cheapest": [
+      {
+        "strategy": "COSTOPT-0.1",
+        "success": 1,
+        "cost": 0.0001158416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": 0.11178585010979833,
+        "composite": 0.9690491153437106,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "5343e996d94f1480b14aa052c65c5ddbd619ebb69f5e1880418bc34b3bba4f90",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "FIFO-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "REDOPT-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "PRIORITY-0.1",
+        "success": 1,
+        "cost": 0.0001308416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": -0.0032264792119048582,
+        "composite": 0.9238743641166112,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "0bae37d4ca902dcc23811f6a8a1e02e110bb3187a1571d1c4d5a4f17d5b47917",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "ADAPTIVE-0.1",
+        "success": 1,
+        "cost": 0.0001454208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": -0.11501232932170338,
+        "composite": 0.963897874306839,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "cba108570cd747023fb5a4efea2d756bfcf8d6858696ed14e9299b1fd9b92c64",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      }
+    ],
+    "fastest": [
+      {
+        "strategy": "FIFO-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "ADAPTIVE-0.1",
+        "success": 1,
+        "cost": 0.0001454208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": -0.11501232932170338,
+        "composite": 0.963897874306839,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "cba108570cd747023fb5a4efea2d756bfcf8d6858696ed14e9299b1fd9b92c64",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "COSTOPT-0.1",
+        "success": 1,
+        "cost": 0.0001158416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": 0.11178585010979833,
+        "composite": 0.9690491153437106,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "5343e996d94f1480b14aa052c65c5ddbd619ebb69f5e1880418bc34b3bba4f90",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "PRIORITY-0.1",
+        "success": 1,
+        "cost": 0.0001308416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": -0.0032264792119048582,
+        "composite": 0.9238743641166112,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "0bae37d4ca902dcc23811f6a8a1e02e110bb3187a1571d1c4d5a4f17d5b47917",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "REDOPT-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      }
+    ],
+    "smallest_overhead": [
+      {
+        "strategy": "FIFO-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "ADAPTIVE-0.1",
+        "success": 1,
+        "cost": 0.0001454208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": -0.11501232932170338,
+        "composite": 0.963897874306839,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "cba108570cd747023fb5a4efea2d756bfcf8d6858696ed14e9299b1fd9b92c64",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "REDOPT-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "COSTOPT-0.1",
+        "success": 1,
+        "cost": 0.0001158416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": 0.11178585010979833,
+        "composite": 0.9690491153437106,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "5343e996d94f1480b14aa052c65c5ddbd619ebb69f5e1880418bc34b3bba4f90",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "PRIORITY-0.1",
+        "success": 1,
+        "cost": 0.0001308416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": -0.0032264792119048582,
+        "composite": 0.9238743641166112,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "0bae37d4ca902dcc23811f6a8a1e02e110bb3187a1571d1c4d5a4f17d5b47917",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      }
+    ],
+    "most_improved": [
+      {
+        "strategy": "COSTOPT-0.1",
+        "success": 1,
+        "cost": 0.0001158416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": 0.11178585010979833,
+        "composite": 0.9690491153437106,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "5343e996d94f1480b14aa052c65c5ddbd619ebb69f5e1880418bc34b3bba4f90",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "FIFO-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "REDOPT-0.1",
+        "success": 1,
+        "cost": 0.0001304208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": 0,
+        "composite": 0.9999999999999999,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "PRIORITY-0.1",
+        "success": 1,
+        "cost": 0.0001308416,
+        "latency": 1,
+        "storage_overhead": 2,
+        "improvement_vs_baseline": -0.0032264792119048582,
+        "composite": 0.9238743641166112,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "0bae37d4ca902dcc23811f6a8a1e02e110bb3187a1571d1c4d5a4f17d5b47917",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      },
+      {
+        "strategy": "ADAPTIVE-0.1",
+        "success": 1,
+        "cost": 0.0001454208,
+        "latency": 1,
+        "storage_overhead": 1,
+        "improvement_vs_baseline": -0.11501232932170338,
+        "composite": 0.963897874306839,
+        "weights": {
+          "cost": 0.35,
+          "latency": 0.2,
+          "storage_overhead": 0.15,
+          "success": 0.3
+        },
+        "evidence": {
+          "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "output_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
+          "replay_hash": "cba108570cd747023fb5a4efea2d756bfcf8d6858696ed14e9299b1fd9b92c64",
+          "exact_match": true
+        },
+        "kind": "simulated_score"
+      }
+    ],
+    "kind": "simulated_leaderboard"
+  },
+  "pareto": [
+    {
+      "strategy": "COSTOPT-0.1",
+      "cost": 0.0001158416,
+      "latency": 1
+    }
+  ],
+  "reports": [
+    {
+      "strategy": "FIFO-0.1",
+      "exact_match": true,
+      "cost": 0.0001304208,
+      "latency": 1,
+      "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d"
+    },
+    {
+      "strategy": "ADAPTIVE-0.1",
+      "exact_match": true,
+      "cost": 0.0001454208,
+      "latency": 1,
+      "replay_hash": "cba108570cd747023fb5a4efea2d756bfcf8d6858696ed14e9299b1fd9b92c64"
+    },
+    {
+      "strategy": "COSTOPT-0.1",
+      "exact_match": true,
+      "cost": 0.0001158416,
+      "latency": 1,
+      "replay_hash": "5343e996d94f1480b14aa052c65c5ddbd619ebb69f5e1880418bc34b3bba4f90"
+    },
+    {
+      "strategy": "PRIORITY-0.1",
+      "exact_match": true,
+      "cost": 0.0001308416,
+      "latency": 1,
+      "replay_hash": "0bae37d4ca902dcc23811f6a8a1e02e110bb3187a1571d1c4d5a4f17d5b47917"
+    },
+    {
+      "strategy": "REDOPT-0.1",
+      "exact_match": true,
+      "cost": 0.0001304208,
+      "latency": 1,
+      "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070"
+    }
+  ]
+}

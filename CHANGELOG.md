@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added — Guardian L1 Arena Sprints 2–5 (sideline)
+
+`guardian-protocol/` advances from Sprint 1 instrument to a full Arena ladder without touching the live trader:
+
+- **Sprint 2:** dashboard + replay viewer + leaderboards/Pareto + submission validation + `arena:compare`
+- **Sprint 3:** ADAPTIVE / COSTOPT / PRIORITY / REDOPT strategies vs FIFO baseline
+- **Sprint 4:** failure/churn/bandwidth stress, multi-replica repair, `arena:stress`
+- **Sprint 5:** hitch/DA/storage adapter stubs with explicit no-root-trader boundary
+
+## Released — 2026-09-07 (main)
+
 ### Fixed — new majors live but not injection-ready (OHLC + capital)
 
 Railway @ `0930b8a` booted **24 active** including LINK/AAVE/UNI/VVV/ZORA/BNKR, then LINK/AAVE/UNI hit the 8s Dex seed timeout with no Binance fallback. Dead-wave −15 also kept no-history majors out of Tier 1/2 so hitch had nowhere to land.

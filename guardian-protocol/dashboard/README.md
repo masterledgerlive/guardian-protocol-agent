@@ -1,10 +1,17 @@
 # Dashboard (Sprint 2)
 
-Planned surfaces:
+```bash
+cd guardian-protocol
+npm run dashboard
+# → http://127.0.0.1:8787
+```
 
-- `system/` — preserved volume, queue, treasury, nodes, throughput
-- `arena/` / `leaderboard/` — scores vs baseline
-- `replay/` — lifecycle visualization
-- `benchmarks/` — ladder status
+Surfaces:
 
-Sprint 1 exposes JSON reports under `arena/reports/` instead of a UI.
+- `/` — system / strategies / leaderboard / reports / adapter stubs
+- `/api/system` — preserved volume, registry, treasury/storage snapshot
+- `/api/leaderboard` — absolute / cheapest / fastest / improved + Pareto
+- `/api/replay/:reportJson` — event list + inspect first event
+- `/api/strategies` · `/api/adapters` · `/api/reports`
+
+All numbers are **simulated** Arena evidence from `arena/reports/`.

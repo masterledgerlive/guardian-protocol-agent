@@ -1,5 +1,15 @@
-# Protocol adapters (Sprint 5+)
+# Protocol adapters (Sprint 5)
 
-Injection, storage, routing, verification, and payments adapters to real networks.
+Stub interfaces only:
 
-Sprint 1–4 remain simulation-only. Do not couple to root trading modules until adapters are explicitly designed.
+| Adapter | Role |
+|---|---|
+| `HitchInjectorAdapter` | Documents forbidden coupling to root trader until explicit design |
+| `DaLayerAdapter` | Placeholder for DA / compression-cost models |
+| `StorageNetworkAdapter` | Placeholder for Tier-2 swarm networks |
+
+```js
+import { listAdapterStubs } from "./adapters/index.js";
+```
+
+Sprint 1–4 remain simulation-only. Do **not** import root `agent.js`, hitch, or trading gates from here.

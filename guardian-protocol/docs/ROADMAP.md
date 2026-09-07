@@ -1,24 +1,24 @@
 # Roadmap
 
-## Sprint 1 — Scientific instrument ✅ (this package)
+## Sprint 1 — Scientific instrument ✅
 
 Canonical loader, hashing, chunker, state machine, FIFO scheduler, simulated nodes, cost/treasury, verification, replay, metrics, benchmark runner, JSON report.
 
-## Sprint 2 — Observability
+## Sprint 2 — Observability ✅
 
-Dashboard, replay viewer, strategy registry UI, comparison, leaderboard, submission validation.
+Dashboard (`dashboard/server.js` + public UI), replay viewer helpers, strategy registry listing, Arena compare, leaderboards, Pareto frontier, submission validation.
 
-## Sprint 3 — Competing strategies
+## Sprint 3 — Competing strategies ✅
 
-FIFO, adaptive batching, cost optimizer, priority scheduler, redundancy optimizer.
+FIFO · Adaptive batching · Cost optimizer · Priority scheduler · Redundancy optimizer — all registered and Arena-comparable on `0001-tiny`.
 
-## Sprint 4 — Stress & long-tail
+## Sprint 4 — Stress & long-tail ✅
 
-Failure simulation, node churn, bandwidth constraints, repair, retrieval demand, long-tail/short-tail modeling.
+Failure model (node drop, churn, bandwidth cap), multi-replica retrieve + repair, long/short-tail taxonomy, `run-stress` benchmark.
 
-## Sprint 5 — Real adapters
+## Sprint 5 — Real adapters ✅ (interfaces only)
 
-Adapters to live hitch/injector, DA layers, and storage networks—only after the simulator is trustworthy. Still must not silently rewrite production trading paths.
+Stub adapters for hitch/injector boundary, DA layer, and storage network. **Still must not import or rewrite production trading paths.** Live coupling remains an explicit later design step.
 
 ## Later — Dual-engine L1 (theory → design)
 

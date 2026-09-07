@@ -9,6 +9,7 @@ export function computeMetrics({
   encodedBytes,
   nodeSnapshot,
   eventCount,
+  repairCount = 0,
 }) {
   const stored = economics.stored_bytes ?? 0;
   const inputBytes = verification.input_bytes || 1;
@@ -26,6 +27,7 @@ export function computeMetrics({
     },
     secondary: {
       node_count: nodeSnapshot.node_count,
+      online_count: nodeSnapshot.online_count ?? nodeSnapshot.node_count,
       node_utilization:
         nodeSnapshot.total_capacity > 0
           ? 1 - nodeSnapshot.total_available / nodeSnapshot.total_capacity
@@ -34,6 +36,7 @@ export function computeMetrics({
       chunk_count: chunkCount,
       encoded_bytes: encodedBytes,
       event_count: eventCount,
+      repair_count: repairCount,
     },
     derived: {
       cost_per_GB: economics.simulated_cost / (inputBytes / 1e9 || 1),
@@ -43,7 +46,7 @@ export function computeMetrics({
         ? economics.simulated_cost / (inputBytes / 1e9 || 1)
         : null,
       retrieval_latency: timings.retrieval_time,
-      repair_cost: 0,
+      repair_cost: repairCount * (economics.proof_cost || 0),
       proof_overhead: economics.proof_cost,
       agent_improvement_delta: null,
     },

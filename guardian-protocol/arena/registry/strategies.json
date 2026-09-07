@@ -1,5 +1,5 @@
 {
-  "arena_version": "0.1.0",
+  "arena_version": "0.2.0",
   "baseline": "FIFO-0.1",
   "strategies": [
     {
@@ -10,6 +10,34 @@
       "module_dependencies": [],
       "status": "baseline",
       "benchmark_results": ["arena/reports/0001-FIFO-0.1.json"]
+    },
+    {
+      "strategy_id": "ADAPTIVE",
+      "strategy_version": "0.1",
+      "parent_strategy_id": "FIFO-0.1",
+      "path": "strategies/adaptive/index.js",
+      "status": "competitor"
+    },
+    {
+      "strategy_id": "COSTOPT",
+      "strategy_version": "0.1",
+      "parent_strategy_id": "FIFO-0.1",
+      "path": "strategies/cost-optimizer/index.js",
+      "status": "competitor"
+    },
+    {
+      "strategy_id": "PRIORITY",
+      "strategy_version": "0.1",
+      "parent_strategy_id": "FIFO-0.1",
+      "path": "strategies/priority/index.js",
+      "status": "competitor"
+    },
+    {
+      "strategy_id": "REDOPT",
+      "strategy_version": "0.1",
+      "parent_strategy_id": "FIFO-0.1",
+      "path": "strategies/redundancy-optimizer/index.js",
+      "status": "competitor"
     }
   ]
 }

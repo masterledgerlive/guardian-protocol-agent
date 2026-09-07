@@ -7,19 +7,23 @@
   "BENCHMARK_META": {
     "object_id": "benchmark-0001",
     "strategy": "FIFO-0.1",
-    "final_state": "ARCHIVED"
+    "final_state": "ARCHIVED",
+    "lane": "Batch",
+    "redundancy": 1
   },
   "INPUT": {
     "bytes": 263,
     "sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
-    "label": "buffer"
+    "label": "buffer",
+    "tail_class": "short-tail"
   },
   "PIPELINE": {
     "chunks": 2,
     "encoded_bytes": 263,
     "redundancy": 1,
     "merkle_root": "223050ed0ca45f9bae3ff2fb59cc9bfbf15bd0226efd37813047cd69d87c21de",
-    "placements": 2
+    "placements": 2,
+    "repairs": 0
   },
   "RESULT": {
     "reconstruction": "PASS",
@@ -44,8 +48,9 @@
   },
   "TRACE": {
     "events": 11,
-    "replay_hash": "e8a3a57f489f50212312039ebf1bd32a329c41c918d89450f6523c6704248d74"
+    "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d"
   },
+  "STRESS": null,
   "ASSUMPTIONS": [
     "FIFO ordering of a single object job (no multi-job reordering yet)",
     "fixed chunk_size=256",
@@ -77,11 +82,13 @@
     },
     "secondary": {
       "node_count": 3,
+      "online_count": 3,
       "node_utilization": 0.000008766666666715217,
       "redundancy": 1,
       "chunk_count": 2,
       "encoded_bytes": 263,
-      "event_count": 11
+      "event_count": 11,
+      "repair_count": 0
     },
     "derived": {
       "cost_per_GB": 495.896577946768,
@@ -104,6 +111,7 @@
   },
   "STORAGE": {
     "node_count": 3,
+    "online_count": 3,
     "total_capacity": 30000000,
     "total_available": 29999737,
     "nodes": [
@@ -112,21 +120,24 @@
         "capacity": 10000000,
         "available": 9999744,
         "fragments": 1,
-        "region": "sim-region-0"
+        "region": "sim-region-0",
+        "online": true
       },
       {
         "id": "node-1",
         "capacity": 10000000,
         "available": 9999993,
         "fragments": 1,
-        "region": "sim-region-1"
+        "region": "sim-region-1",
+        "online": true
       },
       {
         "id": "node-2",
         "capacity": 10000000,
         "available": 10000000,
         "fragments": 0,
-        "region": "sim-region-2"
+        "region": "sim-region-2",
+        "online": true
       }
     ]
   },
@@ -134,7 +145,7 @@
   "REPRODUCIBLE": true,
   "replay": {
     "event_count": 11,
-    "replay_hash": "e8a3a57f489f50212312039ebf1bd32a329c41c918d89450f6523c6704248d74",
+    "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
     "events": [
       {
         "event_id": "evt-000001",
@@ -147,7 +158,8 @@
         "reason_code": "INPUT_OK",
         "cryptographic_references": {
           "input_sha256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468"
-        }
+        },
+        "tail_class": "short-tail"
       },
       {
         "event_id": "evt-000002",
@@ -159,7 +171,9 @@
         "strategy_version": "0.1",
         "reason_code": "FIFO_FIXED_CHUNK_STATIC_RESERVE",
         "chunk_count": 2,
-        "chunk_size": 256
+        "chunk_size": 256,
+        "lane": "Batch",
+        "redundancy": 1
       },
       {
         "event_id": "evt-000003",
@@ -245,6 +259,7 @@
         "reason_code": "FRAGMENTS_ACK",
         "resource_state": {
           "node_count": 3,
+          "online_count": 3,
           "total_capacity": 30000000,
           "total_available": 29999737,
           "nodes": [
@@ -253,21 +268,24 @@
               "capacity": 10000000,
               "available": 9999744,
               "fragments": 1,
-              "region": "sim-region-0"
+              "region": "sim-region-0",
+              "online": true
             },
             {
               "id": "node-1",
               "capacity": 10000000,
               "available": 9999993,
               "fragments": 1,
-              "region": "sim-region-1"
+              "region": "sim-region-1",
+              "online": true
             },
             {
               "id": "node-2",
               "capacity": 10000000,
               "available": 10000000,
               "fragments": 0,
-              "region": "sim-region-2"
+              "region": "sim-region-2",
+              "online": true
             }
           ]
         }

@@ -1,3 +1,1 @@
-# Benchmark 0002 — Book
-
-Public-domain book corpus TBD. Not implemented in Sprint 1.
+Public-domain book corpus TBD. Sprint 2–4 tooling exists; larger corpora remain optional inputs for Arena agents.

@@ -1,3 +1,1 @@
-# Benchmark 0003 — Large Archive
-
-Mixed dataset + multi-node behavior. Sprint 4+.
+Mixed dataset + multi-node stress. Use `npm run arena:stress` for the node-drop / redundancy survival fixture. Larger archives remain optional.
