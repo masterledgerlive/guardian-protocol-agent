@@ -72,6 +72,7 @@ describe("RPC failover — 521 must not abort the list", () => {
     assert.equal(isRpcFailoverError({ message: "rpc timeout 6s" }), true);
     assert.equal(isRpcFailoverError({ message: "fetch failed" }), true);
     assert.equal(isRpcFailoverError({ shortMessage: "HTTP request failed." }), true);
+    assert.equal(isRpcFailoverError({ message: 'The contract function "balanceOf" returned no data ("0x").' }), true);
   });
 
   it("tries the next URL after a 521 and returns the later success", async () => {

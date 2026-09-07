@@ -92,7 +92,9 @@ export function isRpcFailoverError(err) {
     msg.includes("enotfound") ||
     msg.includes("econnrefused") ||
     msg.includes("network") ||
-    msg.includes("socket")
+    msg.includes("socket") ||
+    msg.includes("returned no data") ||
+    msg.includes("\"0x\"")
   );
 }
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Fixed — /buy went silent; account amounts were invented, not chain pings
+
+Live Railway after PR #24: Telegram `/buy TOSHI $1` queued, then `LOSE_ZERO: block buy TOSHI no clear edge` with **no Telegram skip**. Boot copied live Dex marks into `totalInvestedEth` ("UNKNOWN ENTRY"), so leftover ≈ −fees and KEYCAT/BASECAT held forever. `getTokenBalance` `catch { return 0 }` plus `/buy` live fetch dividing by `1e18` (not real decimals) printed false zeros. `/bank` dropped bags with `b < 1` (CLANKER) and mixed lottery dust with piggy. Telegram HTML `can't parse entities` ate `/bank` and pulse.
+
+- **Operator `/buy` is a test path.** Leftover+edge never block `MANUAL BUY (operator)`. Hitch Eureka if leftover covers 1× hitch; otherwise **plain swap**. Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply. After queue, Telegram always sends a Basescan receipt **or** the exact skip reason (`Nothing sent. No Basescan receipt`).
+- **Chain is the ledger.** RPC fail keeps the last successful ping — never silent 0. Token units use `decimals()`, not 1e18. `/bank` and pulse list every bag (including dust) from a live ping. Unknown bags show "unknown cost basis — chain balance is truth"; leftover for those sells is **proceeds − fees** (not a fake breakeven at the live mark).
+- Saved entries without a fill receipt / ledger buy are treated as unknown, so a restart cannot keep invented P&L.
+
+Does **not** weaken PRICE_INSANE, QuoterV2, piggy never-sell, minOut, auto LOSE_ZERO, frozen buy, or L1 oracle.
+
 ### Fixed — hitch was freezing profitable KEYCAT/BASECAT sells
 
 Live after PR #23: Telegram had the Eureka letter (`/prove` / hitch copy) but **no fills**. Logs: `LOSE_ZERO: hold sell KEYCAT hitch would wipe edge` every cycle. Moonshot allowed BASECAT (2× hitch), then `executeSell` re-gated and held. The 2× hitch floor was treating insertion cost as a veto on the wave.
