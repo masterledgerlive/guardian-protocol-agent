@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed — free locked CBBTC cash; keep majors closed; hunt profits only
+
+CBBTC stayed ARMED on live Railway while fractional bags locked most of the
+RISK book. Goal: free the cash, freeze the name, earn on liquid books only.
+
+- **CBBTC + AAVE FROZEN** — exits allowed, new buys forbidden.
+- **`forced-exit.js`** — `FORCE_EXIT_LOCKED_MAJORS` (default on) queues
+  `exitonly` + piggy unlock for stranded CBBTC/AAVE. **No cascade** — proceeds
+  stay ETH/WETH for profit hunting. Latch persisted so it does not loop.
+- Sell gate allows `FORCE EXIT LOCKED` even if underwater (recovery).
+- COST_EDGE + USD exits from prior work still refuse re-entry economics.
+
 ### Fixed — CBBTC-class entries where insert cost ate the bag (COST_EDGE)
 
 Live lesson: bot entered wrapped BTC / high unit-price majors where hitch +

@@ -148,6 +148,12 @@ import {
   SELLABLE_MIN_USD,
 } from "./cost-edge-gate.js";
 import {
+  queueForcedLockedExits,
+  markForcedExitExecuted,
+  forceExitLockedEnabled,
+  forceExitSymbols,
+} from "./forced-exit.js";
+import {
   projectAvenue,
   primeAvenues,
   pickCascadeFromPrimed,
@@ -1461,10 +1467,12 @@ const DEFAULT_TOKENS = [
     notes: "PROMOTED FROM WATCHLIST. Coinbase chose Morpho for their $1B+ lending product on Base. Real yield, real revenue, Coinbase-native. This is infrastructure." },
 
   { symbol: "CBBTC",   address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    frozen: true,
     injectMain: false,
     minBuyUsd: 25,
+    frozenReason: "LOCKED CLOSED — high unit-price stranded RISK cash. FORCE_EXIT frees bag; new buys forbidden.",
     score: { liquidity:9, waveQuality:8, fundamentals:10, coinbaseFit:10, community:8, total:45 },
-    notes: "DEFERRED inject-main on thin RISK. High unit-price stranded fractional bags (sellable>1 never fired). COST_EDGE + $25 min; re-promote when book clears high-unit floor." },
+    notes: "FROZEN. Was inject-main; fractional bags locked capital. COST_EDGE + forced exit. Do not reopen on thin books." },
 
   // ── TOP-100 MAJORS — Uniswap V3 WETH books on Base (factory-verified 2026-09-07) ──
   // Injection surface: deep Uni V3 pools so hitch-covered swaps can land on real majors.
@@ -1475,10 +1483,12 @@ const DEFAULT_TOKENS = [
     notes: "Chainlink — inject main. Uniswap v3 LINK/WETH 0.3% (factory) + LINK/USDC ~$137k / ~$141k 24h." },
 
   { symbol: "AAVE",    address: "0x63706e401c06ac8513145b7687A14804d17f814b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+    frozen: true,
     injectMain: false,
     minBuyUsd: 15,
+    frozenReason: "LOCKED CLOSED — high unit-price on thin RISK. Exits only.",
     score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:7, total:41 },
-    notes: "DEFERRED inject-main on thin RISK (high unit-price). COST_EDGE + $15 min. Uniswap v3 AAVE/WETH 0.3%." },
+    notes: "FROZEN with CBBTC. COST_EDGE + $15 min. Uniswap v3 AAVE/WETH 0.3%." },
 
   { symbol: "UNI",     address: "0xc3De830EA07524a0761646a6a4e4be0e114a3C83", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     injectMain: true,
@@ -2527,6 +2537,8 @@ let hitchInjectCount = 0;
 /** Realized USD P&L from hitch-bearing fills (prove milestone). */
 let hitchInjectProfitUsd = 0;
 let hitchProveAnnounced = false;
+/** One-shot latch for FORCE_EXIT_LOCKED majors (CBBTC/AAVE). */
+const forcedExitState = { done: {} };
 
 // ── BTP STRAND TRACKING — groups trades into 5-chunk strands ─────────────────
 // Every 5 trades = one complete strand. Chunk 5/5 shows combined math.
@@ -6197,7 +6209,10 @@ async function processToken(cdp, token, bal) {
         if (price > 0) { recordPrice(token.symbol, price); updateWaves(token.symbol, price); }
       } catch { /* silent — frozen tokens never crash main loop */ }
       const pending = manualCommands.some(c => c.symbol === token.symbol);
-      const held = (getCachedBalance(token.symbol) || 0) > 0.001;
+      const balUnits = getCachedBalance(token.symbol) || 0;
+      // USD-aware: CBBTC 0.00006 units is a real bag — never skip exits on unit count
+      const px = history[token.symbol]?.lastPrice || 0;
+      const held = balUnits > 0 && (hasSellableUsd(balUnits, px, BAG_DUST_USD) || balUnits > 0.001);
       if (!pending && !held) return; // no buys, no logs, no capital
     }
     // FIX: Skip dead-wave tokens that will never clear fees — stops them burning
@@ -6206,7 +6221,7 @@ async function processToken(cdp, token, bal) {
     if (!token.entryPrice && isDeadWaveSkipped(token.symbol)) {
       return; // silent skip — already logged when streak was hit
     }
-    const heldPosition = !!(token.entryPrice) || getCachedBalance(token.symbol) > 0.001;
+    const heldPosition = !!(token.entryPrice) || hasSellableUsd(getCachedBalance(token.symbol) || 0, history[token.symbol]?.lastPrice || 0, BAG_DUST_USD) || (getCachedBalance(token.symbol) || 0) > 0.001;
     const price = await getTokenPrice(token.address, heldPosition);
     if (!isValidUsdPrice(price)) {
       noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
@@ -6761,21 +6776,28 @@ async function processToken(cdp, token, bal) {
         }
       } else if (cmd.action === "exitonly") {
         // ── CLEAN EXIT — sells to WETH/ETH, NO cascade fires ─────────────────
-        // Use this when you want to hold cash or withdraw, not redeploy.
-        // Proceeds sit as ETH/WETH in wallet — bot will NOT auto-reinvest them.
+        // FORCE_EXIT_LOCKED: unlock piggy + free stranded CBBTC/AAVE cash.
         lastTradeTime[token.symbol] = 0;
-        const pct = cmd.pct || 0.98; // default: sell everything
-        await tg(`🚪 <b>CLEAN EXIT ${token.symbol} ${(pct*100).toFixed(0)}%</b>\nSelling to ETH — cascade suppressed\nProceeds will stay as ETH/WETH in wallet`);
-        const p = await executeSell(cdp, token, pct, `CLEAN EXIT ${(pct*100).toFixed(0)}%`, price, true);
+        const pct = cmd.unlockPiggy ? 1 : (cmd.pct || 0.98);
+        const reason = cmd.unlockPiggy || cmd.source === "FORCE_EXIT_LOCKED"
+          ? (cmd.reason || `${piggyUnlockReason(token.symbol)} — FORCE EXIT LOCKED (cash free, no cascade)`)
+          : `CLEAN EXIT ${(pct * 100).toFixed(0)}%`;
+        await tg(
+          `🚪 <b>${cmd.source === "FORCE_EXIT_LOCKED" ? "FORCE EXIT LOCKED" : "CLEAN EXIT"} ${token.symbol} ${(pct * 100).toFixed(0)}%</b>\n` +
+          `Selling to ETH — cascade suppressed\n` +
+          `Proceeds stay as ETH/WETH for profit hunting`
+        );
+        const p = await executeSell(cdp, token, pct, reason, price, true);
         if (p > 0) {
+          if (cmd.source === "FORCE_EXIT_LOCKED") markForcedExitExecuted(forcedExitState, token.symbol);
           const nb = await getFullBalance();
           const ethPrice2 = await getLiveEthPrice();
           await tg(
-            `✅ <b>CLEAN EXIT COMPLETE — ${token.symbol}</b>\n` +
-            `💰 Received: ${p.toFixed(6)} ETH (~$${(p*ethPrice2).toFixed(2)})\n` +
+            `✅ <b>EXIT COMPLETE — ${token.symbol}</b>\n` +
+            `💰 Received: ${p.toFixed(6)} ETH (~$${(p * ethPrice2).toFixed(2)})\n` +
             `🏦 Wallet ETH: ${nb.eth.toFixed(6)} | WETH: ${nb.weth.toFixed(6)}\n` +
-            `🚫 Cascade suppressed — funds held as ETH\n` +
-            `Tip: /unwrapall then /withdrawusd [amt] to send to Coinbase`
+            `🚫 Cascade suppressed — hunt profits on liquid books only\n` +
+            `${token.symbol} stays FROZEN (no re-buy)`
           );
           // DO NOT call triggerCascade — that's the whole point
         }
@@ -7151,6 +7173,9 @@ async function loadFromGitHub() {
     hitchInjectCount = pos.hitchInjectCount || 0;
     hitchInjectProfitUsd = pos.hitchInjectProfitUsd || 0;
     hitchProveAnnounced = !!pos.hitchProveAnnounced;
+    if (pos.forcedExitDone && typeof pos.forcedExitDone === "object") {
+      forcedExitState.done = { ...pos.forcedExitDone };
+    }
     predFund       = pos.predFund     || 0;
     predFundPnl    = pos.predFundPnl  || 0;
     predFundTrades = pos.predFundTrades || 0;
@@ -7274,6 +7299,7 @@ async function saveToGitHub() {
     positionsSha = await githubSave("positions.json", {
       lastSaved: new Date().toISOString(), piggyBank, totalSkimmed, tradeCount,
       hitchInjectCount, hitchInjectProfitUsd, hitchProveAnnounced,
+      forcedExitDone: forcedExitState.done || {},
       surfers: surfers,           // save active surfer state
       surferHistory: surferHistory.slice(-50), // last 50 retired surfers
       surferNameIdx,
@@ -10089,6 +10115,31 @@ function applyOperatorSellEnv() {
   return result;
 }
 
+/**
+ * Free stranded CBBTC/AAVE bags once — exitonly + piggy unlock, NO cascade.
+ * Keeps names frozen so capital returns to profit-hunting liquid books.
+ */
+function applyForcedLockedExits() {
+  if (!forceExitLockedEnabled()) return { queued: [], reason: "disabled" };
+  const balances = {};
+  for (const sym of forceExitSymbols()) {
+    balances[sym] = getCachedBalance(sym) || 0;
+  }
+  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState);
+  if (result.queued?.length) {
+    for (const q of result.queued) {
+      console.log(`🚪 FORCE EXIT LOCKED queued: ${q.symbol} bal=${q.balance} — cash free, no cascade, stays frozen`);
+      tg(
+        `🚪 <b>FORCE EXIT LOCKED — ${q.symbol}</b>\n` +
+        `Freeing stranded bag → ETH (piggy unlocked)\n` +
+        `Cascade OFF — then hunt profits only\n` +
+        `${q.symbol} remains FROZEN`
+      ).catch(() => {});
+    }
+  }
+  return result;
+}
+
 // ── CDP CLIENT ────────────────────────────────────────────────────────────────
 function createCdpClient() {
   return new CdpClient({
@@ -10278,6 +10329,7 @@ async function main() {
   await loadFromGitHub();
   applyOperatorBuyEnv();
   applyOperatorSellEnv();
+  // Balances may still be cold at boot — main loop re-queues after refresh.
 
   // ── 📚 IKN BOOT READER — arm Claude context from vita-registry.json ─────────
   // Reads the last N strands from chain index at startup.
@@ -10846,6 +10898,9 @@ async function main() {
 
       // Refresh all token balances in parallel once per cycle
       await refreshTokenBalances();
+
+      // Free stranded CBBTC/AAVE → ETH (no cascade). Names stay FROZEN.
+      applyForcedLockedExits();
 
       // ── v18: BTP AUTO-SUSPEND at low capital ────────────────────────────────
       const tradeableUsd = bal.tradeableWithWeth * ethUsd;

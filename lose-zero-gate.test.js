@@ -792,6 +792,16 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.equal(allowed.reason, "lossy-operator");
   });
 
+  it("FORCE EXIT LOCKED recovers stranded majors even when underwater", () => {
+    const d = evaluateSellGate({
+      ...toshiMoonshot,
+      reason: "PIGGY UNLOCK CBBTC — FORCE EXIT LOCKED (cash free, no cascade)",
+      env: {},
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.reason, "lossy-operator");
+  });
+
   it("HITCH_COST_MULT=1 lets a 1× leftover sell through (env override)", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = hitch * 1.5;

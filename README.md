@@ -80,6 +80,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Cascade min-entry / inject-all** (`cascade-rollover.js`): thin books (`<$12` tradeable) inject **all** capital into **one** seat sized to cover fees + hitch + a cascade seed. Cascade only fires when sell proceeds clear the next token’s min entry; dust recycle can feed that cascade while piggy stays locked. Thin wallets shrink sell-reserve so liquid ETH is not falsely reported as ~0 after a hard $2–3 park. Telegram **BALANCE LOW** only when the chain wallet is truly empty — if capital is in bags, it says recycle→cascade instead.
 - **Cascade gas floor**: never spend the last native ETH on a cascade hop. Deploy sizing leaves a continuity floor (scaled on thin books) so sell→cascade→exit always has Base gas; WETH is unwrapped before sell/cascade when native is low. Highest deploy without loss still refuses rather than cross the depletion threshold. Telegram `/injectprove` tracks successful hitch fills toward **20 + profit** before capital increases.
 - **COST_EDGE** (`cost-edge-gate.js`): refuse buys when hitch/round-trip cost already dominates the stake or near-term upside cannot clear break-even (practical Kelly / execution-cost). CBBTC/AAVE deferred from inject-mains on thin RISK; exits use **USD** not token-count. Telegram `/costedge` shows lessons learned.
+- **FORCE EXIT LOCKED** (`forced-exit.js`): CBBTC/AAVE are **frozen**. On boot/loop, stranded bags are sold `exitonly` (piggy unlocked, **no cascade**) so cash returns to ETH for profit hunting only. `FORCE_EXIT_LOCKED_MAJORS=no` disables.
 - **Avenue prime** (`avenue-prime.js`): every cycle projects round-trip cost per path and keeps the **2–3** best seats primed (1 on inject-all). Paths that cannot clear fees+hitch without losing are refused. Growing capital prefers max profit × hitch-code fit / cost; cascade picks the primed READY seat first so the next buy is already chosen.
 
 ### Two-Tier Capital System
@@ -101,7 +102,8 @@ Scores are computed live every cycle from real trade history. The best-performin
 Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (residual bag).
 
 **Active (tradeable):**
-AERO · BRETT · VIRTUAL · MORPHO · CBBTC · LINK · AAVE · **UNI** (inject main / T1 reserved) · DEGEN · AIXBT · TOSHI
+AERO · BRETT · VIRTUAL · MORPHO · **UNI** (inject main / T1 reserved) · LINK · DEGEN · AIXBT · TOSHI  
+❄️ FROZEN exits-only: CBBTC · AAVE · …
 KEYCAT · DOGINME · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
 
 **Inject main players (Tier-1 seat reserved for UNI first):**

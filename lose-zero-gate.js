@@ -577,7 +577,10 @@ export function isAllowLossyOperatorSell(env = process.env) {
 }
 
 export function canBypassSellLossGate(reason = "", env = process.env) {
-  return isManualOperatorSell(reason) && isAllowLossyOperatorSell(env);
+  if (isManualOperatorSell(reason) && isAllowLossyOperatorSell(env)) return true;
+  // Recovery: free stranded locked majors even if underwater — cash must return
+  if (/FORCE EXIT LOCKED/i.test(String(reason || ""))) return true;
+  return false;
 }
 
 export function isStopLossReason(reason = "") {
