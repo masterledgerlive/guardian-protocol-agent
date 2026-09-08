@@ -167,6 +167,12 @@ import {
   formatPrimedAvenues,
 } from "./avenue-prime.js";
 import {
+  planSuccessionInjections,
+  isInstantPeakSell,
+  isPrimedBottomEntry,
+  formatSuccessionPlan,
+} from "./second-inject.js";
+import {
   minBuyUsdForToken,
   operatorBuyBelowMin,
   applyWethDeadFreeze,
@@ -6068,15 +6074,8 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       return;
     }
     const freshBal = await getFullBalance();
-    const gasCost = await estimateGasCostEth();
+    const gasCost  = await estimateGasCostEth();
     const ethUsd  = await getLiveEthPrice();
-    const target  = await findCascadeTarget(soldSymbol, gasCost, proceeds);
-    if (!target) {
-      console.log(`  🌊 No cascade target near MIN trough — proceeds held`);
-      return;
-    }
-    const price  = history[target.symbol]?.lastPrice;
-    const arm    = getArmStatus(target.symbol, gasCost, proceeds);
     const gweiC  = await getCurrentGasGwei();
     let hitchCost = 0;
     try {
@@ -6085,36 +6084,121 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       const l2 = estimateCalldataHitchEth(vb, gweiC);
       hitchCost = (l1.ok ? (Number(l1.l1FeeEth) || 0) : 0) + l2;
     } catch { hitchCost = 0; }
-    const targetMin = effectiveMinEntryEth({
-      gasCostEth: gasCost,
-      hitchCostEth: hitchCost,
-      feePct: target.poolFeePct || 0.006,
-      ethUsd,
-      tokenMinBuyUsd: minBuyUsdForToken(target),
-      minPosUsd: minPosUsd(),
-    });
+
     const liquid = (freshBal.eth || 0) + (freshBal.weth || 0);
     const gasFloor = effectiveCascadeGasFloor(liquid, { gasReserveEth: GAS_RESERVE });
-    const deploy = cascadeDeployEth({
+
+    // Build succession candidates from primed READY seats (cost already projected).
+    // Second inject fires only when first portion is paid + surplus clears next min.
+    const candidates = [];
+    for (const a of currentPrimedAvenues || []) {
+      if (!a?.allow || !a.symbol) continue;
+      if (String(a.symbol).toUpperCase() === String(soldSymbol || "").toUpperCase()) continue;
+      const t = tokens.find((x) => x.symbol === a.symbol);
+      if (!t || isCatalogFrozen(t) || t.entryPrice) continue;
+      if (!canTrade(t.symbol, true)) continue;
+      const minE = Number(a.minEntryEth) > 0
+        ? Number(a.minEntryEth)
+        : effectiveMinEntryEth({
+            gasCostEth: gasCost,
+            hitchCostEth: hitchCost,
+            feePct: t.poolFeePct || 0.006,
+            ethUsd,
+            tokenMinBuyUsd: minBuyUsdForToken(t),
+            minPosUsd: minPosUsd(),
+          });
+      candidates.push({
+        symbol: a.symbol,
+        minEntryEth: minE,
+        readyNow: !!(a.readyNow || a.nearEntry),
+        allow: true,
+        outcomeScore: Number(a.outcomeScore) || 0,
+        netMargin: Number(a.netMargin) || MIN_NET_MARGIN,
+        token: t,
+      });
+    }
+
+    // Fallback cold scan if nothing primed — still one seat until paid+surplus READY.
+    if (!candidates.length) {
+      const target = await findCascadeTarget(soldSymbol, gasCost, proceeds);
+      if (!target) {
+        console.log(`  🌊 No cascade target near MIN trough — proceeds held`);
+        return;
+      }
+      const minE = effectiveMinEntryEth({
+        gasCostEth: gasCost,
+        hitchCostEth: hitchCost,
+        feePct: target.poolFeePct || 0.006,
+        ethUsd,
+        tokenMinBuyUsd: minBuyUsdForToken(target),
+        minPosUsd: minPosUsd(),
+      });
+      const arm = getArmStatus(target.symbol, gasCost, proceeds);
+      candidates.push({
+        symbol: target.symbol,
+        minEntryEth: minE,
+        readyNow: true,
+        allow: true,
+        outcomeScore: arm.net || 0,
+        netMargin: arm.net || MIN_NET_MARGIN,
+        token: target,
+      });
+    }
+
+    const plan = planSuccessionInjections({
       proceedsEth: proceeds,
-      targetMinEntryEth: targetMin,
-      netMargin: arm.net || MIN_NET_MARGIN,
-      gasFloorEth: gasFloor,
       liquidEth: liquid,
+      gasFloorEth: gasFloor,
+      candidates,
+      excludeSymbol: soldSymbol,
+      netProfitEth: null, // size/piggy runway gate; lose-zero already cleared the sell
     });
-    if (!(deploy > 0)) {
-      console.log(`  🌊 CASCADE held — proceeds ${proceeds.toFixed(6)} < min entry ${targetMin.toFixed(6)} for ${target.symbol} (or gas floor ${gasFloor.toFixed(6)} would deplete)`);
+    console.log(`  ${formatSuccessionPlan(plan)}`);
+    if (!plan.injections.length) {
+      console.log(`  🌊 CASCADE held — ${plan.reason}`);
       return;
     }
-    console.log(`  🌊 CASCADE ${soldSymbol} → ${target.symbol} | ${(arm.net*100).toFixed(2)}% net [${arm.priority}] | deploy ${deploy.toFixed(6)} (≥ min ${targetMin.toFixed(6)}, gas floor ${gasFloor.toFixed(6)})`);
-    await tg(
-      `🌊 <b>CASCADE: ${soldSymbol} → ${target.symbol}</b>\n\n` +
-      `💰 Deploying: ${deploy.toFixed(6)} ETH (min entry ${targetMin.toFixed(6)})\n` +
-      `⛽ Gas floor kept: ${gasFloor.toFixed(6)} ETH\n` +
-      `📊 Net margin: ${(arm.net*100).toFixed(2)}% [${arm.priority}]\n` +
-      `💲 At MIN trough: $${price?.toFixed(8)}\n⚡ Buying...`
-    );
-    await executeBuy(cdp, target, freshBal, `🌊 CASCADE from ${soldSymbol} [${arm.priority}]`, price, deploy, true);
+
+    for (const hop of plan.injections) {
+      const target = hop.token || candidates.find((c) => c.symbol === hop.symbol)?.token
+        || tokens.find((x) => x.symbol === hop.symbol);
+      if (!target) continue;
+      const gasOkHop = await ensureCascadeNativeGas(cdp, `cascade-${soldSymbol}-${hop.symbol}`);
+      if (!gasOkHop) {
+        console.log(`  🌊 CASCADE hop ${hop.seat} held — native gas below floor`);
+        break;
+      }
+      const balHop = await getFullBalance();
+      const price = history[target.symbol]?.lastPrice;
+      const arm = getArmStatus(target.symbol, gasCost, hop.deployEth);
+      const tag = hop.secondInject
+        ? `🔁 2ND INJECT from ${soldSymbol} → ${target.symbol}`
+        : `🌊 CASCADE ${soldSymbol} → ${target.symbol}`;
+      const minLabel = Number(hop.minEntryEth || candidates.find((c) => c.symbol === hop.symbol)?.minEntryEth || 0);
+      console.log(
+        `  ${tag} | seat ${hop.seat} | ${(arm.net * 100).toFixed(2)}% net [${arm.priority}] | ` +
+          `deploy ${hop.deployEth.toFixed(6)} (≥ min ${minLabel.toFixed(6)}, gas floor ${gasFloor.toFixed(6)})`
+      );
+      await tg(
+        `${hop.secondInject ? "🔁" : "🌊"} <b>${hop.secondInject ? "2ND INJECT" : "CASCADE"}: ${soldSymbol} → ${target.symbol}</b>\n\n` +
+          `💰 Deploying: ${hop.deployEth.toFixed(6)} ETH (seat ${hop.seat}/${plan.injections.length})\n` +
+          `⛽ Gas floor kept: ${gasFloor.toFixed(6)} ETH\n` +
+          `📊 Net margin: ${(arm.net * 100).toFixed(2)}% [${arm.priority}]\n` +
+          `💌 Hitch on buy when leftover covers (sell hitch already rode if paid)\n` +
+          `💲 At MIN trough: $${price?.toFixed(8)}\n⚡ Buying...`
+      );
+      await executeBuy(
+        cdp,
+        target,
+        balHop,
+        hop.secondInject
+          ? `🔁 2ND INJECT from ${soldSymbol} [${arm.priority}]`
+          : `🌊 CASCADE from ${soldSymbol} [${arm.priority}]`,
+        price,
+        hop.deployEth,
+        true,
+      );
+    }
   } catch (e) { console.log(`  ⚠️ Cascade error: ${e.message}`); }
 }
 
@@ -6482,7 +6566,21 @@ async function processToken(cdp, token, bal) {
 
     // Prediction-enhanced sell: fires at confirmed peak OR when cycle says peak is imminent
     const predSell  = pred.ready && pred.action === "pre-sell" && pred.confidence >= PRED_CONFIDENCE_SELL;
-    const shouldSell = (atMaxPeak || predSell || earlySellSignal || profitableSell) && sellableUsdOk && netIfSellNow > breakEvenBuffer;
+    // Instant peak: ride the wave, sell the moment the top prints with piggy-aligned profit
+    // (or last tick rolled over within 1% of max). Never sell underwater.
+    const recentTickDown = recentTks.length >= 2
+      && recentTks[recentTks.length - 1] < recentTks[recentTks.length - 2];
+    const instantPeakSell = isInstantPeakSell({
+      atMaxPeak,
+      price,
+      maxPeak,
+      recentTickDown,
+      netUsd: netIfSellNow,
+      breakEvenBuffer,
+      sellableUsdOk,
+    });
+    const shouldSell = (atMaxPeak || predSell || earlySellSignal || profitableSell || instantPeakSell)
+                    && sellableUsdOk && netIfSellNow > breakEvenBuffer;
 
     // ── WAVE ENTRY INTELLIGENCE v18 ─────────────────────────────────────────
     // minTrgh MUST be declared before stopLossPrice — PR #31 left a TDZ that
@@ -6536,6 +6634,19 @@ async function processToken(cdp, token, bal) {
       recentReadings: recentReadings.length,
       priceFallingFast,
     });
+    // Primed-avenue bottom: any cost-cleared READY seat can inject at the trough
+    // this cycle — more bottoms hit → more hitch surfaces → piggy math funded.
+    const primedRow = (currentPrimedAvenues || []).find(
+      (a) => a && String(a.symbol).toUpperCase() === String(token.symbol).toUpperCase()
+    );
+    const primedBottom = isPrimedBottomEntry({
+      primedReady: !!(primedRow?.readyNow || primedRow?.nearEntry),
+      primedAllow: !!primedRow?.allow,
+      price,
+      recentLow,
+      recentReadings: recentReadings.length,
+      priceFallingFast,
+    });
 
     // ── CALENDAR MARKET BIAS ─────────────────────────────────────────────────
     // Monday: market often oversold from weekend — bias toward buying dips aggressively
@@ -6570,12 +6681,12 @@ async function processToken(cdp, token, bal) {
     // Continuous no-loss cycles: need ≥ CYCLE_ALIGN_MIN (default 2) of trough /
     // momentum / prediction / pullback / leftover / smartMoney agreeing.
     // Operator Telegram /buy bypasses this (handled in manual cmd path).
-    const priceSignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent || injectPullback;
+    const priceSignal = atMinTrough || predBuy || momentumEntry || nearProjectedLow || troughImminent || injectPullback || primedBottom;
     const alignment = scoreEntryAlignment({
-      atMinTrough,
+      atMinTrough: atMinTrough || primedBottom,
       momentumEntry,
       predBuy,
-      injectPullback,
+      injectPullback: injectPullback || primedBottom,
       nearProjectedLow,
       troughImminent,
       leftoverCovers: !!(arm.armed && (arm.net || 0) > 0),
@@ -6939,11 +7050,13 @@ async function processToken(cdp, token, bal) {
     // ── SELL AT MAX PEAK ───────────────────────────────────────────────────
     if (shouldSell) {
       pa.lastSellAlertPct = 100; // sold — reset on next buy
-      const sellReason = earlySellSignal && !atMaxPeak && !predSell
+      const sellReason = earlySellSignal && !atMaxPeak && !predSell && !instantPeakSell
         ? `🚀 EARLY SELL RSI${rsiVal?.toFixed(0)} BB-upper near-peak $${maxPeak?.toFixed(8)||"?"}`
-        : predSell && !atMaxPeak
+        : predSell && !atMaxPeak && !instantPeakSell
           ? `🧠 PREDICTED PEAK [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
-          : `🎯 MAX PEAK $${maxPeak?.toFixed(8)||"?"}`;
+          : instantPeakSell && !atMaxPeak
+            ? `⚡ INSTANT PEAK $${maxPeak?.toFixed(8)||"?"} (tick-down, piggy-aligned profit)`
+            : `🎯 MAX PEAK $${maxPeak?.toFixed(8)||"?"}`;
       const proceeds = await executeSell(cdp, token, 0.98, sellReason, price, false);
       if (proceeds > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, proceeds, nb); }
       return;
@@ -6954,8 +7067,10 @@ async function processToken(cdp, token, bal) {
       pa.lastBuyAlertPct = 100; // bought — reset sell alerts
       pa.lastSellAlertPct = 0;
       stalePriceRef[token.symbol] = { price, timestamp: Date.now() }; // seed stale tracker on buy
-      await executeBuy(cdp, token, bal, predBuy && !atMinTrough && !injectPullback
+      await executeBuy(cdp, token, bal, predBuy && !atMinTrough && !injectPullback && !primedBottom
         ? `🧠 PREDICTED TROUGH [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
+        : primedBottom && !atMinTrough && !injectPullback
+          ? `🔁 PRIMED BOTTOM [${arm.priority}]`
         : injectPullback && !atMinTrough
           ? `💉 INJECT PULLBACK [${arm.priority}]`
         : `🎯 MIN TROUGH [${arm.priority}]${indConfirmed?"":" unconfirmed"}`, price);

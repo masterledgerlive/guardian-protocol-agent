@@ -83,6 +83,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **COST_EDGE** (`cost-edge-gate.js`): refuse buys when hitch/round-trip cost already dominates the stake or near-term upside cannot clear break-even (practical Kelly / execution-cost). On thin books (&lt;$15) with cheap hitch (&lt;2% of stake), near-term mult softens to **1.15×** (still never &lt;1×); CBBTC-class keeps **1.35×**. CBBTC/AAVE deferred from inject-mains on thin RISK; exits use **USD** not token-count. Telegram `/costedge` shows lessons learned. Research harness: `npm run sim:revenue`.
 - **FORCE EXIT LOCKED** (`forced-exit.js`): CBBTC/AAVE are **frozen**. On boot/loop, stranded bags are sold `exitonly` (piggy unlocked, **no cascade**) so cash returns to ETH for profit hunting only. `FORCE_EXIT_LOCKED_MAJORS=no` disables.
 - **Avenue prime** (`avenue-prime.js`): every cycle projects round-trip cost per path and keeps the **2–3** best seats primed (1 on inject-all). Paths that cannot clear fees+hitch without losing are refused. Growing capital prefers max profit × hitch-code fit / cost; cascade picks the primed READY seat first so the next buy is already chosen.
+- **Second inject / peak ride** (`second-inject.js`): after a profitable peak exit that paid the first inject portion (min entry + piggy skim runway) **and** surplus clears another primed READY seat without depleting the gas floor, cascade fires a **second injection** in the same succession. Instant peak sell when at max (or tick-down within 1% of peak) with piggy-aligned profit. Primed READY bottoms can inject near recent lows (not only catalog inject-mains). Hitch Eureka still rides buy and/or sell only when leftover covers.
 
 ### Two-Tier Capital System
 
@@ -131,6 +132,7 @@ USDT/EURC (stables — no wave amplitude) · cbETH (Uni V3 thin; mostly V4) · c
 ```
 agent.js              — Main trading loop + Telegram command handler
 avenue-prime.js       — Projected cost per avenue; prime top 2–3 cascade seats
+second-inject.js      — Paid first inject + surplus → 2nd READY inject; instant peak
 cascade-rollover.js   — Min entry, inject-all book, cascade deploy sizing
 inject-revenue.js     — Small-book tiers + inject pullback entry
 cost-edge-gate.js     — Hitch/RT % + adaptive thin-book near-term edge
