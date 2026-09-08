@@ -138,6 +138,16 @@ import {
   INJECT_PROVE_TARGET,
 } from "./cascade-rollover.js";
 import {
+  evaluateCostEdgeGate,
+  hasSellableUsd,
+  isDustBagUsd,
+  recordCostMistake,
+  summarizeCostMistakes,
+  costMistakeLog,
+  BAG_DUST_USD,
+  SELLABLE_MIN_USD,
+} from "./cost-edge-gate.js";
+import {
   projectAvenue,
   primeAvenues,
   pickCascadeFromPrimed,
@@ -378,7 +388,10 @@ const MOONSHOT_HOLD_USD  = 0.50;    // keep this much in non-tier tokens as lott
 
 // Injector main players — always compete for Tier 1 so hitch lands on real Uni books.
 // UNI is first: we route on Uniswap, so UNI itself is a core injection surface.
-const INJECT_MAIN_PLAYERS = ["UNI", "CBBTC", "LINK", "AAVE", "AERO", "MORPHO"];
+// CBBTC / AAVE deferred: high unit-price on thin RISK books stranded capital
+// (hitch looked covered vs far BTC peak; sellable>1 never fired on fractional bags).
+const INJECT_MAIN_PLAYERS = ["UNI", "LINK", "AERO", "MORPHO"];
+const INJECT_MAIN_MAJORS_DEFERRED = ["CBBTC", "AAVE"];
 
 function isInjectMainPlayer(symbol) {
   return INJECT_MAIN_PLAYERS.includes(String(symbol || "").toUpperCase());
@@ -544,8 +557,16 @@ function reconcileTiersWithPrime(tAssign, primed = []) {
     if (!scoredSyms.has(a.symbol)) continue;
     tier1.push(a.symbol);
   }
+  // Do NOT re-seat original T1 names that cost-edge / avenue refused — that
+  // is how CBBTC kept a reserved inject seat after projected costs said no.
+  const refused = new Set(
+    (Array.isArray(primed) ? primed : [])
+      .filter((a) => a && a.symbol && a.allow === false)
+      .map((a) => a.symbol),
+  );
   for (const s of tAssign.tier1 || []) {
     if (tier1.length >= book.tier1Count) break;
+    if (refused.has(s)) continue;
     if (!tier1.includes(s)) tier1.push(s);
   }
   const tier2 = [];
@@ -608,6 +629,7 @@ function buildPrimedAvenues({
         return lastPx > 0 && minT > 0 && lastPx <= minT * 1.015;
       })();
       const scored = (currentScores || []).find((s) => s.symbol === t.symbol);
+      const recentHigh = recentPx.length ? Math.max(...recentPx) : lastPx;
       return projectAvenue({
         symbol: t.symbol,
         tradeEth,
@@ -625,6 +647,9 @@ function buildPrimedAvenues({
         ethUsd,
         tokenMinBuyUsd: minBuyUsdForToken(t),
         minPosUsd: minPosUsd(),
+        price: lastPx,
+        recentHigh,
+        tradeableUsd,
       });
     });
   return primeAvenues(candidates, { topN });
@@ -1436,9 +1461,10 @@ const DEFAULT_TOKENS = [
     notes: "PROMOTED FROM WATCHLIST. Coinbase chose Morpho for their $1B+ lending product on Base. Real yield, real revenue, Coinbase-native. This is infrastructure." },
 
   { symbol: "CBBTC",   address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
-    injectMain: true,
+    injectMain: false,
+    minBuyUsd: 25,
     score: { liquidity:9, waveQuality:8, fundamentals:10, coinbaseFit:10, community:8, total:45 },
-    notes: "PROMOTED FROM WATCHLIST. Coinbase-issued BTC on Base — inject main (BTC market). Follows BTC cycles. Uniswap v3 cbBTC/WETH deep book." },
+    notes: "DEFERRED inject-main on thin RISK. High unit-price stranded fractional bags (sellable>1 never fired). COST_EDGE + $25 min; re-promote when book clears high-unit floor." },
 
   // ── TOP-100 MAJORS — Uniswap V3 WETH books on Base (factory-verified 2026-09-07) ──
   // Injection surface: deep Uni V3 pools so hitch-covered swaps can land on real majors.
@@ -1449,9 +1475,10 @@ const DEFAULT_TOKENS = [
     notes: "Chainlink — inject main. Uniswap v3 LINK/WETH 0.3% (factory) + LINK/USDC ~$137k / ~$141k 24h." },
 
   { symbol: "AAVE",    address: "0x63706e401c06ac8513145b7687A14804d17f814b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
-    injectMain: true,
+    injectMain: false,
+    minBuyUsd: 15,
     score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:7, total:41 },
-    notes: "Aave — inject main. Uniswap v3 AAVE/WETH 0.3% (factory) ~$134k / ~$48k 24h." },
+    notes: "DEFERRED inject-main on thin RISK (high unit-price). COST_EDGE + $15 min. Uniswap v3 AAVE/WETH 0.3%." },
 
   { symbol: "UNI",     address: "0xc3De830EA07524a0761646a6a4e4be0e114a3C83", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     injectMain: true,
@@ -5147,10 +5174,15 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
     // sizes leftover so hitch can ride when covered; leftover+edge never block it.
+    // CRITICAL: size hitch/% against the *actual* spend preview — not the full book
+    // (full-book understated hitch% and let CBBTC pennies look covered).
     let buySkipHitch = false;
+    const spendForGate = Math.min(
+      Math.max(previewForced > 0 ? previewForced : tierEthEarly, MIN_ETH_TRADE),
+      Math.max(totalAvail, MIN_ETH_TRADE),
+    );
     if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
-      const tradeEthEst = Math.max(Number(bal?.tradeableWithWeth) || 0, MIN_ETH_TRADE);
-      const armEarly    = getArmStatus(token.symbol, gasCost, tradeEthEst);
+      const armEarly    = getArmStatus(token.symbol, gasCost, spendForGate);
       const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
@@ -5161,7 +5193,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         feePct: token.poolFeePct || 0.006,
         impactPct: PRICE_IMPACT_EST,
         gasCostEth: gasCost,
-        tradeEth: tradeEthEst,
+        tradeEth: spendForGate,
         gwei,
         l1FeeEth: hitchL1.ok ? hitchL1.l1FeeEth : undefined,
         armed: !!armEarly.armed,
@@ -5205,6 +5237,31 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       : null;
     if (underFinal) {
       return await skipBuy(reason, token.symbol, underFinal);
+    }
+
+    // COST_EDGE — hitch/RT % of *this* fill + near-term upside must clear costs.
+    // Catches CBBTC-class: far peak leftover looked fine, insert already ate the bag.
+    {
+      const readings = (history[token.symbol]?.readings || []).slice(-20).map((r) => r.price).filter((p) => p > 0);
+      const recentHigh = readings.length ? Math.max(...readings) : price;
+      const tradeableUsdNow = (Number(bal?.tradeableWithWeth) || 0) * ethUsd;
+      const edge = evaluateCostEdgeGate({
+        symbol: token.symbol,
+        tradeEth: ethToSpend,
+        hitchCostEth: hitchCostEst,
+        gasCostEth: gasCost,
+        feePct: token.poolFeePct || 0.006,
+        impactPct: PRICE_IMPACT_EST,
+        price,
+        recentHigh,
+        ethUsd,
+        tradeableUsd: tradeableUsdNow,
+        isManualOperator: isManualOperatorBuy(reason),
+      });
+      if (!edge.allow) {
+        recordCostMistake({ ...edge, source: isCascade ? "cascade" : "buy" });
+        return await skipBuy(reason, token.symbol, edge.log || `COST_EDGE blocked ${token.symbol}`);
+      }
     }
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
@@ -5474,8 +5531,16 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
 
     const totalBal = await getTokenBalance(token.address);
-    if (totalBal < 0.01) {
-      console.log(`   ⚠️  ${token.symbol}: dust — clearing`);
+    if (!(totalBal > 0)) {
+      console.log(`   ⚠️  ${token.symbol}: zero balance — clearing ledger`);
+      token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+      token.piggyReserve = 0;
+      return null;
+    }
+    // Never treat fractional high-unit bags (CBBTC ~0.00006) as dust — that
+    // cleared a real $ bag without selling. Dust is USD-based.
+    if (isDustBagUsd(totalBal, price, BAG_DUST_USD) && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)) {
+      console.log(`   ⚠️  ${token.symbol}: dust $${(totalBal * price).toFixed(3)} — clearing ledger`);
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
       token.piggyReserve = 0;
       return null;
@@ -5735,6 +5800,16 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
     await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
     recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd, symbol: token.symbol });
+    if (netUsd < 0) {
+      recordCostMistake({
+        symbol: token.symbol,
+        code: "realized_loss",
+        reason: `sell net $${netUsd.toFixed(2)} — learn: avoid entries where insert/wait dominates`,
+        tradeUsd: recUsd,
+        netUsd,
+        source: "sell",
+      });
+    }
 
     console.log(`      ✅ https://basescan.org/tx/${transactionHash}`);
     console.log(`      💰 Received: ${received.toFixed(6)} ETH ($${recUsd.toFixed(2)}) | Net: ${netUsd>=0?"+":""}$${netUsd.toFixed(2)}`);
@@ -5965,7 +6040,7 @@ async function runRippleEngine(cdp, allTokens, bal, ethUsd) {
     for (const token of allTokens) {
       if (!token.entryPrice) continue;
       const balance = getCachedBalance(token.symbol);
-      if (balance < 1) continue;
+      if (!hasSellableUsd(balance, price, SELLABLE_MIN_USD)) continue;
       const price = history[token.symbol]?.lastPrice;
       if (!price) continue;
       const ref = stalePriceRef[token.symbol];
@@ -6265,10 +6340,11 @@ async function processToken(cdp, token, bal) {
     const decliningFromOverbought = ind.rsi !== null && ind.rsi < 55
                                  && ind.macd?.crossDown === true;
     const nearActualPeak = maxPeak && price >= maxPeak * 0.940;
+    const sellableUsdOk = hasSellableUsd(sellable, price, SELLABLE_MIN_USD);
     const profitableSell = entry && pnlPctNow >= 0.015 && decliningFromOverbought
                         && nearActualPeak
                         && netIfSellNow > breakEvenBuffer * 2
-                        && sellable > 1;
+                        && sellableUsdOk;
 
     // ── FIBONACCI TAKE-PROFIT LADDER ────────────────────────────────────────
     // FIX: checkFibTargetHit now filters out already-executed levels via fibLevelsExecuted.
@@ -6288,11 +6364,11 @@ async function processToken(cdp, token, bal) {
       && bbData   !== null && price >= bbData.upper * 0.998
       && nearPeak
       && netIfSellNow > breakEvenBuffer * 2
-      && sellable > 1;
+      && sellableUsdOk;
 
     // Prediction-enhanced sell: fires at confirmed peak OR when cycle says peak is imminent
     const predSell  = pred.ready && pred.action === "pre-sell" && pred.confidence >= PRED_CONFIDENCE_SELL;
-    const shouldSell = (atMaxPeak || predSell || earlySellSignal || profitableSell) && sellable > 1 && netIfSellNow > breakEvenBuffer;
+    const shouldSell = (atMaxPeak || predSell || earlySellSignal || profitableSell) && sellableUsdOk && netIfSellNow > breakEvenBuffer;
 
     // ── WAVE ENTRY INTELLIGENCE v18 ─────────────────────────────────────────
     // minTrgh MUST be declared before stopLossPrice — PR #31 left a TDZ that
@@ -6317,7 +6393,7 @@ async function processToken(cdp, token, bal) {
     const stopLossPrice= minTrgh ? minTrgh * (1 - STOP_LOSS_PCT) : null;
     const stopLossHit  = entry && stopLossPrice && price < stopLossPrice;
     // Fibonacci partial exit: fires independently from shouldSell — it's a scale-out, not a full exit
-    const shouldFibExit = fibHit && !shouldSell && !stopLossHit && sellable > 1 && netIfSellNow > 0;
+    const shouldFibExit = fibHit && !shouldSell && !stopLossHit && sellableUsdOk && netIfSellNow > 0;
 
     const atMinTrough     = minTrgh && price <= minTrgh * (1 + TROUGH_ENTRY_BAND) && !priceFallingFast;
 
@@ -6767,7 +6843,7 @@ async function processToken(cdp, token, bal) {
     // ── STALE POSITION DETECTION ────────────────────────────────────────────
     // Track price movement. If a held position hasn't moved in STALE_WINDOW_MS,
     // sell a slice and cascade into the best-armed token to unlock capital.
-    if (entry && balance > 1) {
+    if (entry && hasSellableUsd(balance, price, SELLABLE_MIN_USD)) {
       const now = Date.now();
       const ref = stalePriceRef[token.symbol];
       if (!ref) {
@@ -7571,6 +7647,18 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           `⛽ Cascade gas floor: ${gf.toFixed(6)} ETH (never deplete)\n` +
           `${prove.ready ? "✅ Capital may increase" : "⏳ Hold capital size until prove + profit"}`
         );
+      } else if (text === "/costedge" || text === "/mistakes") {
+        const sum = summarizeCostMistakes(costMistakeLog);
+        const recent = costMistakeLog.slice(-8).map((r) =>
+          `${r.symbol} [${r.code}] $${(r.tradeUsd || 0).toFixed(2)} — ${(r.reason || "").slice(0, 80)}`
+        ).join("\n") || "none yet";
+        await tg(
+          `🧠 <b>COST-EDGE LESSONS</b>\n` +
+          `${sum.message}\n\n` +
+          `Deferred inject-mains: ${INJECT_MAIN_MAJORS_DEFERRED.join(", ")}\n` +
+          `Active inject-mains: ${INJECT_MAIN_PLAYERS.join(", ")}\n\n` +
+          `<b>Recent refusals / lessons</b>\n${recent}`
+        );
       } else if (text === "/turbo") {
         // Turbo mode: already the new default — confirm current settings
         await tg(
@@ -7653,7 +7741,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         for (const t of tokens) {
           const p = history[t.symbol]?.lastPrice;
           const b = getCachedBalance(t.symbol);
-          if (!p || b < 1) continue;
+          if (!p || !hasSellableUsd(b, p, BAG_DUST_USD)) continue;
           anyRiding = true;
           const maxP = getMaxPeak(t.symbol);
           const minT = getMinTrough(t.symbol);
@@ -7685,7 +7773,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         for (const t of tokens) {
           const p = history[t.symbol]?.lastPrice;
           const b = getCachedBalance(t.symbol);
-          if (!p || b < 1) continue;
+          if (!p || !hasSellableUsd(b, p, BAG_DUST_USD)) continue;
           anyHolding = true;
           const maxP = getMaxPeak(t.symbol);
           const minT = getMinTrough(t.symbol);
@@ -9864,6 +9952,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
           `/cycles — no-loss succession streaks + per-token min buys\n` +
           `/injectprove — hitch injection count toward 20 + profit (capital gate)\n` +
+          `/costedge — COST_EDGE refusals + CBBTC-class lessons learned\n` +
           `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +

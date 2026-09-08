@@ -19,6 +19,10 @@ import {
   DEFAULT_HITCH_COST_MULT,
   hitchCostMult,
 } from "./lose-zero-gate.js";
+import {
+  evaluateCostEdgeGate,
+  MAX_ROUND_TRIP_COST_PCT,
+} from "./cost-edge-gate.js";
 
 export const PRIMED_TOP_N = 3;
 export const PRIMED_MIN_N = 2;
@@ -99,6 +103,9 @@ export function projectAvenue({
   cascadeSeedUsd = CASCADE_SEED_USD,
   hitchMult,
   l1FeePerByteEth = 0,
+  price = 0,
+  recentHigh = 0,
+  tradeableUsd = 0,
   env = process.env,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
@@ -137,6 +144,20 @@ export function projectAvenue({
   });
   const hitchBytesFit = Math.min(wanted, bytesFit === Number.MAX_SAFE_INTEGER ? wanted : bytesFit);
 
+  const costEdge = evaluateCostEdgeGate({
+    symbol: sym,
+    tradeEth: trade,
+    hitchCostEth,
+    gasCostEth,
+    feePct,
+    impactPct,
+    price,
+    recentHigh,
+    ethUsd,
+    tradeableUsd: tradeableUsd || trade * (Number(ethUsd) || 0),
+    maxRoundTripPct: MAX_ROUND_TRIP_COST_PCT,
+  });
+
   let allow = true;
   let refuseReason = null;
   if (!(trade > 0)) {
@@ -155,7 +176,10 @@ export function projectAvenue({
     // Would cost more than any projected leftover — refuse (lose-zero)
     allow = false;
     refuseReason = "projected costs wipe leftover (would lose)";
-  } else if (costs.costEth >= trade * 0.95) {
+  } else if (!costEdge.allow) {
+    allow = false;
+    refuseReason = costEdge.reason;
+  } else if (costs.costPct > MAX_ROUND_TRIP_COST_PCT) {
     allow = false;
     refuseReason = "round-trip cost dominates stake";
   }

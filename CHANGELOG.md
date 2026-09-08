@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Fixed — CBBTC-class entries where insert cost ate the bag (COST_EDGE)
+
+Live lesson: bot entered wrapped BTC / high unit-price majors where hitch +
+round-trip already dominated a tiny RISK stake. LOSE_ZERO leftover vs a far
+BTC peak looked “covered,” then fractional bags (`≪ 1` unit) never hit
+`sellable > 1` — capital sat underwater waiting forever while spending limit
+collapsed.
+
+Algorithms (practical Kelly / break-even execution cost):
+
+- **`cost-edge-gate.js`** — refuse when hitch &gt; 8% of stake, full RT &gt; 22%,
+  or near-term upside (recent high) &lt; 1.35× required break-even move.
+  High-unit symbols need ≥$25/$15 and are blocked on thin books (&lt;2× floor).
+- **LOSE_ZERO sizes against actual spend**, not the full tradeable book.
+- **Avenue prime** uses the same COST_EDGE refuse (replaced the useless 95% RT cap).
+- **USD exit thresholds** — fib / wave / stale / ripple / dust use bag USD, not
+  token count &gt; 1 (CBBTC ~0.00006 units is a real $ bag).
+- **CBBTC / AAVE deferred** from inject-mains; min buys $25 / $15; T1 no longer
+  re-seats avenue-refused names.
+- **Mistake log** — refusals + realized losses via `/costedge` for forward learning.
+
 ### Added — cascade gas floor: never deplete moves mid-cascade
 
 Cascade was sizing the highest deploy without loss on leftover/hitch math, but could still spend the last native ETH so the next sell or cascade hop had nothing left for Base gas (WETH cannot pay gas). Thin inject-all books were the worst case: 100% deploy → stranded.
