@@ -42,31 +42,75 @@ export function piggyUnlockReason(symbol = "") {
   return sym ? `${PIGGY_UNLOCK_PREFIX} ${sym}` : PIGGY_UNLOCK_PREFIX;
 }
 
-/**
- * `PIGGY_BANK_PCT` — fraction in (0, 1). Also accepts `2` as 2%.
- * Invalid / missing → 2%.
- */
-export function piggyBankPct(env = process.env) {
-  const raw = env?.PIGGY_BANK_PCT;
-  if (raw == null || String(raw).trim() === "") return DEFAULT_PIGGY_BANK_PCT;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 0) return DEFAULT_PIGGY_BANK_PCT;
+/** Parse `0.08` / `8` / `8%` style percents into a fraction in [0, 0.5]. */
+export function parsePiggyPctValue(raw, fallback = DEFAULT_PIGGY_BANK_PCT) {
+  if (raw == null || String(raw).trim() === "") return fallback;
+  let s = String(raw).trim();
+  if (s.endsWith("%")) s = s.slice(0, -1).trim();
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return fallback;
   if (n === 0) return 0;
   if (n > 0 && n < 1) return n;
   if (n >= 1 && n <= 50) return n / 100;
-  return DEFAULT_PIGGY_BANK_PCT;
+  return fallback;
+}
+
+/**
+ * `PIGGY_BANK_PCT` — fraction in (0, 1). Also accepts `2` as 2%.
+ * Invalid / missing → 2%.
+ *
+ * Per-token override order (highest wins):
+ *   1. `opts.piggyBankPct` from the catalog row
+ *   2. env `PIGGY_BANK_PCT_<SYMBOL>` (e.g. `PIGGY_BANK_PCT_LINK=8`)
+ *   3. global `PIGGY_BANK_PCT`
+ */
+export function piggyBankPct(env = process.env, opts = {}) {
+  if (opts?.piggyBankPct != null && opts.piggyBankPct !== "") {
+    return parsePiggyPctValue(opts.piggyBankPct, DEFAULT_PIGGY_BANK_PCT);
+  }
+  const sym = String(opts?.symbol || "").trim().toUpperCase();
+  if (sym) {
+    const key = `PIGGY_BANK_PCT_${sym}`;
+    if (env?.[key] != null && String(env[key]).trim() !== "") {
+      return parsePiggyPctValue(env[key], DEFAULT_PIGGY_BANK_PCT);
+    }
+  }
+  return parsePiggyPctValue(env?.PIGGY_BANK_PCT, DEFAULT_PIGGY_BANK_PCT);
 }
 
 /**
  * `PIGGY_BANK_MIN_USD` — USD floor converted to token units via live price.
  * Invalid / missing → $0.05. `0` disables the floor.
+ * Per-token: catalog `piggyBankMinUsd` or env `PIGGY_BANK_MIN_USD_<SYMBOL>`.
  */
-export function piggyBankMinUsd(env = process.env) {
+export function piggyBankMinUsd(env = process.env, opts = {}) {
+  if (opts?.piggyBankMinUsd != null && opts.piggyBankMinUsd !== "") {
+    const n = Number(opts.piggyBankMinUsd);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  const sym = String(opts?.symbol || "").trim().toUpperCase();
+  if (sym) {
+    const key = `PIGGY_BANK_MIN_USD_${sym}`;
+    if (env?.[key] != null && String(env[key]).trim() !== "") {
+      const n = Number(env[key]);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+  }
   const raw = env?.PIGGY_BANK_MIN_USD;
   if (raw == null || String(raw).trim() === "") return DEFAULT_PIGGY_BANK_MIN_USD;
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return DEFAULT_PIGGY_BANK_MIN_USD;
   return n;
+}
+
+/** Bundle catalog + symbol opts for piggy helpers. */
+export function piggyOptsFromToken(token = {}, extra = {}) {
+  return {
+    symbol: token?.symbol,
+    piggyBankPct: token?.piggyBankPct,
+    piggyBankMinUsd: token?.piggyBankMinUsd,
+    ...extra,
+  };
 }
 
 export function sanitizePiggyReserve(value) {
@@ -77,13 +121,14 @@ export function sanitizePiggyReserve(value) {
 /**
  * Target reserve from *current* balance (not the persisted high-water mark).
  * max(pct × balance, minUsd / price), never more than balance.
+ * Pass `opts` (`symbol` / catalog pct) for per-token leave-behind (LINK = 8%).
  */
-export function computePiggyTarget(balance, priceUsd, env = process.env) {
+export function computePiggyTarget(balance, priceUsd, env = process.env, opts = {}) {
   const bal = Math.max(0, Number(balance) || 0);
   if (bal <= 0) return 0;
-  const fromPct = bal * piggyBankPct(env);
+  const fromPct = bal * piggyBankPct(env, opts);
   const price = Number(priceUsd);
-  const minUsd = piggyBankMinUsd(env);
+  const minUsd = piggyBankMinUsd(env, opts);
   const fromUsd = Number.isFinite(price) && price > 0 && minUsd > 0
     ? minUsd / price
     : 0;
@@ -94,11 +139,11 @@ export function computePiggyTarget(balance, priceUsd, env = process.env) {
  * Floor-up ratchet. Never auto-decreases. Capped at current balance so a
  * persisted reserve cannot exceed what the wallet still holds.
  */
-export function ratchetPiggyReserve(existingReserve, balance, priceUsd, env = process.env) {
+export function ratchetPiggyReserve(existingReserve, balance, priceUsd, env = process.env, opts = {}) {
   const existing = sanitizePiggyReserve(existingReserve);
   const bal = Math.max(0, Number(balance) || 0);
   if (bal <= 0) return existing > 0 ? 0 : 0;
-  const target = computePiggyTarget(bal, priceUsd, env);
+  const target = computePiggyTarget(bal, priceUsd, env, opts);
   return Math.min(bal, Math.max(existing, target));
 }
 
@@ -136,11 +181,20 @@ export function applyPiggyToSell({
   priceUsd,
   reason = "",
   env = process.env,
+  symbol,
+  piggyBankPct: catalogPct,
+  piggyBankMinUsd: catalogMinUsd,
+  token,
 } = {}) {
+  const opts = piggyOptsFromToken(token || {}, {
+    symbol: symbol || token?.symbol,
+    piggyBankPct: catalogPct ?? token?.piggyBankPct,
+    piggyBankMinUsd: catalogMinUsd ?? token?.piggyBankMinUsd,
+  });
   const bal = Math.max(0, Number(balance) || 0);
   const pct = Math.max(0, Math.min(1, Number(sellPct) || 0));
   const unlock = isPiggyUnlock(reason);
-  const reserve = ratchetPiggyReserve(piggyReserve, bal, priceUsd, env);
+  const reserve = ratchetPiggyReserve(piggyReserve, bal, priceUsd, env, opts);
   const sellable = computeSellable(bal, reserve, { unlock });
   const tokensToSell = sellable * pct;
   const remainingBalance = Math.max(0, bal - tokensToSell);
@@ -154,6 +208,8 @@ export function applyPiggyToSell({
     remainingReserve,
     blocked: tokensToSell <= 0,
     soldAll: remainingBalance <= 1e-12,
+    piggyPct: piggyBankPct(env, opts),
+    piggyMinUsd: piggyBankMinUsd(env, opts),
   };
 }
 

@@ -189,6 +189,7 @@ import {
   piggyUnlockReason,
   piggyBankPct,
   piggyBankMinUsd,
+  piggyOptsFromToken,
   costBasisForSoldFraction,
   previewPiggySellNetUsd,
   buildTokenPiggyLedger,
@@ -404,10 +405,11 @@ const TIER2_MAX_SLOTS    = 6;       // never more than 6 tier-2 slots regardless
 const MOONSHOT_HOLD_USD  = 0.50;    // keep this much in non-tier tokens as lottery bag
 
 // Injector main players — always compete for Tier 1 so hitch lands on real Uni books.
-// UNI is first: we route on Uniswap, so UNI itself is a core injection surface.
-// CBBTC / AAVE deferred: high unit-price on thin RISK books stranded capital
-// (hitch looked covered vs far BTC peak; sellable>1 never fired on fractional bags).
-const INJECT_MAIN_PLAYERS = ["UNI", "LINK", "AERO", "MORPHO"];
+// LINK first (Game favorite + oracle infra). VVV/ZORA/BNKR join as top-100 Uni V3
+// injection surfaces. UNI stays core (we route on Uniswap). AERO/MORPHO keep Base depth.
+// CBBTC / AAVE deferred: high unit-price on thin RISK books stranded capital.
+const INJECT_MAIN_PLAYERS = ["LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO"];
+const INJECT_MAIN_FAVORITE = "LINK";
 const INJECT_MAIN_MAJORS_DEFERRED = ["CBBTC", "AAVE"];
 
 function isInjectMainPlayer(symbol) {
@@ -484,10 +486,14 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
   if (totalTrades < 2 && (token?.score?.liquidity || 0) >= 8) {
     score += 12;
   }
-  // Main inject players (UNI first) always get a hard floor so they are not starved
+  // Main inject players always get a hard floor so they are not starved
   // by meme books that already have wave history.
   if (isInjectMainPlayer(symbol) || token?.injectMain) {
     score += 28;
+  }
+  // Game favorite — Chainlink gets an extra nudge so piggy + inject seat fire more often.
+  if (String(symbol || "").toUpperCase() === INJECT_MAIN_FAVORITE) {
+    score += 8;
   }
 
   // Near-entry boost — prefer inject mains that can buy THIS cycle (recent pullback)
@@ -522,7 +528,7 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
 
 // Compute tier assignments for all tokens — returns { tier1: [syms], tier2: [syms] }
 // Called once per main loop cycle. Scores all tokens, picks top N for each tier.
-// Reserves at least one Tier-1 seat for an inject main (prefer UNI) when present.
+// Reserves at least one Tier-1 seat for an inject main (prefer LINK) when present.
 // Small books (<$15) concentrate into fewer T1 seats so leftover can cover hitch.
 function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
   const baseBook = tierBookParams(totalTradeableUsd, {
@@ -543,8 +549,8 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
 
   const bySym = new Map(scored.map(s => [s.symbol, s.score]));
   const activeMains = INJECT_MAIN_PLAYERS.filter(s => bySym.has(s));
-  // Prefer UNI on books that can clear min entry. Inject-all with sub-min
-  // liquid must NOT hard-reserve UNI — that is how $0.71 seats stayed PRIMED:none.
+  // Prefer LINK (favorite) then UNI when the book can clear min entry.
+  // Inject-all with sub-min liquid must NOT hard-reserve a dead seat.
   let reservedMain = null;
   const reserveOk = injectReserveViable({
     tradeableUsd: totalTradeableUsd,
@@ -552,7 +558,8 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
     injectAll: !!book.injectAll,
   });
   if (reserveOk) {
-    if (activeMains.includes("UNI")) reservedMain = "UNI";
+    if (activeMains.includes(INJECT_MAIN_FAVORITE)) reservedMain = INJECT_MAIN_FAVORITE;
+    else if (activeMains.includes("UNI")) reservedMain = "UNI";
     else if (activeMains.length) {
       reservedMain = activeMains.slice().sort((a, b) => (bySym.get(b) || 0) - (bySym.get(a) || 0))[0];
     }
@@ -813,10 +820,12 @@ function calcLotteryKeep(balance) {
 // Persistent per-token dust (piggy-bank.js). Floors up on buys; never auto-shrinks.
 // Sells go through applyPiggyToSell — lottery keep is display-only now.
 function syncTokenPiggy(token, balance, priceUsd) {
-  token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, balance, priceUsd);
+  const opts = piggyOptsFromToken(token);
+  token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, balance, priceUsd, process.env, opts);
   const prior = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
   prior.dustReserve = token.piggyReserve;
   prior.dustUsd = (Number(priceUsd) > 0) ? token.piggyReserve * Number(priceUsd) : (prior.dustUsd || 0);
+  prior.piggyPct = piggyBankPct(process.env, opts);
   tokenPiggyLedgers[token.symbol] = prior;
   return token.piggyReserve;
 }
@@ -1515,8 +1524,10 @@ const DEFAULT_TOKENS = [
 
   { symbol: "LINK",    address: "0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     injectMain: true,
+    piggyBankPct: 0.08,
+    piggyBankMinUsd: 0.10,
     score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:8, total:42 },
-    notes: "Chainlink — inject main. Uniswap v3 LINK/WETH 0.3% (factory) + LINK/USDC ~$137k / ~$141k 24h." },
+    notes: "Chainlink — FAVORITE inject main. 8% piggy leave-behind (vs 2% default) + $0.10 floor. Uni v3 LINK/WETH 0.3%." },
 
   { symbol: "AAVE",    address: "0x63706e401c06ac8513145b7687A14804d17f814b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     frozen: true,
@@ -1621,8 +1632,9 @@ const DEFAULT_TOKENS = [
     notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317." },
 
   { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    injectMain: true,
     score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:39 },
-    notes: "Venice Token — UNFROZEN 2026-09-07. Uniswap v3 VVV/WETH 1% (factory deepest) + VVV/USDC 0.3% ~$285k / ~$432k. Aero backup. KEEP: Uni V3 proven." },
+    notes: "Venice Token — inject main. Uni v3 VVV/WETH 1% + VVV/USDC 0.3% deep. Top-100-class hitch surface." },
 
   { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
@@ -1670,12 +1682,14 @@ const DEFAULT_TOKENS = [
     notes: "Mochi. FROZEN." },
 
   { symbol: "ZORA",    address: "0x1111111111166b7FE7bd91427724B487980aFc69", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    injectMain: true,
     score: { liquidity:9, waveQuality:7, fundamentals:8, coinbaseFit:9, community:9, total:42 },
-    notes: "Zora platform token — UNFROZEN 2026-09-07 for Uni V3 injection surface. Uniswap v3 ZORA/WETH 1% (factory deepest) + ZORA/USDC ~$95k / ~$128k." },
+    notes: "Zora — inject main. Creator-economy major with deep Uni V3 ZORA/WETH 1% + USDC books." },
 
   { symbol: "BNKR",    address: "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    injectMain: true,
     score: { liquidity:8, waveQuality:7, fundamentals:8, coinbaseFit:8, community:8, total:39 },
-    notes: "BankrCoin — UNFROZEN 2026-09-07. Uniswap v3 BNKR/WETH 1% ~$1.83M / ~$252k 24h. Deep injection book." },
+    notes: "BankrCoin — inject main. Uni v3 BNKR/WETH 1% ~$1.83M / ~$252k — deep hitch book." },
 
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -5509,7 +5523,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     {
       const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
       syncTokenPiggy(token, estBal, price);
-      console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct() * 100).toFixed(0)}% / $${piggyBankMinUsd().toFixed(2)} floor)`);
+      const opts = piggyOptsFromToken(token);
+      console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct(process.env, opts) * 100).toFixed(0)}% / $${piggyBankMinUsd(process.env, opts).toFixed(2)} floor)`);
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
@@ -5593,7 +5608,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // Piggy-only dust stays on-chain — keep the reserve high-water mark and
     // clear invented cost basis only (never wipe the pile while units remain).
     if (isDustBagUsd(totalBal, price, BAG_DUST_USD) && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)) {
-      const reserve = ratchetPiggyReserve(token.piggyReserve, totalBal, price);
+      const reserve = ratchetPiggyReserve(token.piggyReserve, totalBal, price, process.env, piggyOptsFromToken(token));
       token.piggyReserve = reserve;
       const row = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
       row.dustReserve = reserve;
@@ -5619,6 +5634,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       piggyReserve: token.piggyReserve,
       priceUsd: price,
       reason,
+      token,
     });
     token.piggyReserve = piggy.reserve;
     if (piggy.blocked) {
@@ -7973,7 +7989,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           `Total skimmed: ${totalSkimmed.toFixed(6)} ETH\n` +
           `0.33% per pool per profitable sell\n\n` +
           `🐷 <b>Per-token nested piggy</b> (dust + eth + ai)\n` +
-          `   ${(piggyBankPct()*100).toFixed(0)}% of bag + $${piggyBankMinUsd().toFixed(2)} floor\n` +
+          `   Default ${(piggyBankPct()*100).toFixed(0)}% + $${piggyBankMinUsd().toFixed(2)} floor\n` +
+          `   LINK favorite: ${(piggyBankPct(process.env, { symbol: "LINK", piggyBankPct: tokens.find(t=>t.symbol==="LINK")?.piggyBankPct }) * 100).toFixed(0)}% leave-behind\n` +
           (nestedLines || "   none yet") +
           (tokens.some(t => (t.piggyReserve || 0) > 0) ? "\n   /piggyunlock SYMBOL to release dust" : "")
         );
@@ -10028,7 +10045,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         msg += `💰 Tradeable: $${(bal2.tradeableWithWeth * ethPrice2).toFixed(2)}\n\n`;
         msg += `<b>🥇 TIER 1 — $${t1Usd2}/slot (65% capital, top 3)</b>\n`;
         if (ta2.reservedMain) {
-          msg += `💉 Inject main seat: <b>${ta2.reservedMain}</b> (UNI preferred)\n`;
+          msg += `💉 Inject main seat: <b>${ta2.reservedMain}</b> (${INJECT_MAIN_FAVORITE} preferred)\n`;
         }
         for (const sym of ta2.tier1) {
           const sc = ta2.scored.find(s => s.symbol === sym);
@@ -10683,11 +10700,57 @@ async function main() {
       tradeCount,
       piggyBank,
       drawdownHaltActive,
-      positions: tokens.filter(t => t.entryPrice).map(t => ({
+      injectMains: INJECT_MAIN_PLAYERS.slice(),
+      favorite: INJECT_MAIN_FAVORITE,
+      haltNewEntries: String(process.env.HALT_NEW_ENTRIES || "").toLowerCase() === "yes",
+      positions: tokens.filter(t => t.entryPrice || (t.piggyReserve || 0) > 0).map(t => ({
         symbol: t.symbol,
+        address: t.address,
         entryPrice: t.entryPrice,
         entryTime: t.entryTime,
+        piggyReserve: t.piggyReserve || 0,
+        piggyPct: piggyBankPct(process.env, piggyOptsFromToken(t)),
+        injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
+        frozen: !!t.frozen,
+        basescanToken: `https://basescan.org/token/${t.address}?a=${WALLET_ADDRESS}`,
       })),
+      tokenPiggyLedgers,
+      queueManual: (cmd) => {
+        if (!cmd || typeof cmd !== "object") return { ok: false, error: "bad command" };
+        const symbol = String(cmd.symbol || "").toUpperCase();
+        const action = String(cmd.action || "").toLowerCase();
+        const allowed = new Set(["buy", "sell", "sellhalf", "piggyunlock", "exitonly", "status"]);
+        if (!allowed.has(action)) return { ok: false, error: "action not allowed" };
+        if (action === "status") return { ok: true, queued: false, note: "use /arena/api/snapshot" };
+        if (!symbol || !tokens.find(t => t.symbol === symbol)) {
+          return { ok: false, error: `unknown symbol ${symbol || "?"}` };
+        }
+        if (action === "buy") {
+          if (manualCommands.find(c => c.symbol === symbol && c.action === "buy")) {
+            return { ok: false, error: `BUY ${symbol} already queued` };
+          }
+          manualCommands.push({ symbol, action: "buy", usd: Number(cmd.usd) || 0 });
+          return { ok: true, queued: true, command: { symbol, action: "buy", usd: Number(cmd.usd) || 0 } };
+        }
+        if (action === "sellhalf") {
+          manualCommands.push({ symbol, action: "sellhalf" });
+          return { ok: true, queued: true, command: { symbol, action: "sellhalf" } };
+        }
+        if (action === "sell") {
+          manualCommands.push({ symbol, action: "sell", pct: cmd.pct != null ? Number(cmd.pct) : undefined });
+          return { ok: true, queued: true, command: { symbol, action: "sell", pct: cmd.pct } };
+        }
+        if (action === "piggyunlock") {
+          manualCommands.push({ symbol, action: "piggyunlock" });
+          return { ok: true, queued: true, command: { symbol, action: "piggyunlock" } };
+        }
+        if (action === "exitonly") {
+          manualCommands.push({ symbol, action: "exitonly", pct: Number(cmd.pct) || 0.98 });
+          return { ok: true, queued: true, command: { symbol, action: "exitonly", pct: Number(cmd.pct) || 0.98 } };
+        }
+        return { ok: false, error: "unhandled" };
+      },
+      getManualQueue: () => manualCommands.map(c => ({ ...c })),
     });
   }
   updateWebhookState(); // initial inject
@@ -11088,7 +11151,7 @@ async function main() {
       console.log(`🏆 T1[$${tier1Usd}/slot${book.smallBook ? ` · ${book.injectAll ? "INJECT-ALL" : "SMALL BOOK"}` : ""}]: ${t1Str}`);
       console.log(`🥈 T2[$${tier2Usd}/slot x${tier2Slots}]: ${t2Str}`);
       if (tAssign.reservedMain) {
-        console.log(`💉 Inject main reserved T1: ${tAssign.reservedMain} (UNI preferred among ${INJECT_MAIN_PLAYERS.join("/")})`);
+        console.log(`💉 Inject main reserved T1: ${tAssign.reservedMain} (${INJECT_MAIN_FAVORITE} preferred among ${INJECT_MAIN_PLAYERS.join("/")})`);
       }
 
       // ── CONTINUOUS BALANCE RECONCILIATION (Hummingbot pattern) ──────────────
@@ -11217,6 +11280,7 @@ async function main() {
           piggyReserve: token.piggyReserve,
           priceUsd: price,
           reason: moonReason,
+          token,
         });
         if (moonPiggy.blocked || !(moonPiggy.tokensToSell > 0)) continue;
         const moonSoldFrac = sellFractionAfterPiggy({

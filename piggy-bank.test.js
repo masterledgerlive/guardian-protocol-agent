@@ -44,6 +44,15 @@ describe("piggy config defaults", () => {
     assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "0" }), 0);
   });
 
+  it("honors per-symbol env and catalog overrides (LINK favorite 8%)", () => {
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2", PIGGY_BANK_PCT_LINK: "8" }, { symbol: "LINK" }), 0.08);
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2" }, { symbol: "LINK", piggyBankPct: 0.08 }), 0.08);
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2", PIGGY_BANK_PCT_LINK: "8" }, { symbol: "UNI" }), 0.02);
+    assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0.05", PIGGY_BANK_MIN_USD_LINK: "0.10" }, { symbol: "LINK" }), 0.10);
+    const target = computePiggyTarget(100, 1, { PIGGY_BANK_PCT: "2", PIGGY_BANK_MIN_USD: "0" }, { symbol: "LINK", piggyBankPct: 0.08 });
+    assert.equal(target, 8);
+  });
+
   it("honors PIGGY_BANK_MIN_USD including 0 to disable the floor", () => {
     assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0.10" }), 0.10);
     assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0" }), 0);

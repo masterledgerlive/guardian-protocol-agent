@@ -229,11 +229,18 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     assert.ok(src.includes("score?.liquidity"), "inject boost uses catalog liquidity");
   });
 
-  it("reserves UNI as a Tier-1 inject main player", () => {
-    assert.ok(src.includes('INJECT_MAIN_PLAYERS = ["UNI"'), "UNI is first inject main");
-    assert.ok(src.includes("injectMain: true"), "UNI row marked injectMain");
+  it("reserves LINK as favorite Tier-1 inject main (UNI still in roster)", () => {
+    assert.ok(src.includes('INJECT_MAIN_PLAYERS = ["LINK"'), "LINK is first inject main");
+    assert.ok(src.includes('INJECT_MAIN_FAVORITE = "LINK"'), "LINK favorite constant");
+    assert.ok(src.includes("injectMain: true"), "injectMain flags present");
     assert.ok(src.includes("reservedMain"), "tier assign reserves inject main seat");
-    assert.ok(src.includes('if (activeMains.includes("UNI")) reservedMain = "UNI"'), "UNI preferred for T1 seat");
+    assert.ok(src.includes("INJECT_MAIN_FAVORITE"), "favorite used for T1 seat");
+    assert.ok(src.includes('"VVV"') && src.includes('"ZORA"') && src.includes('"BNKR"'), "new hitch majors in inject list");
+    const link = src.indexOf('symbol: "LINK"');
+    assert.ok(link >= 0);
+    const linkRow = src.slice(link, src.indexOf("{ symbol:", link + 1));
+    assert.ok(linkRow.includes("injectMain: true"));
+    assert.ok(linkRow.includes("piggyBankPct: 0.08"), "LINK 8% piggy leave-behind");
     const uni = src.indexOf('symbol: "UNI"');
     assert.ok(uni >= 0);
     const row = src.slice(uni, src.indexOf("{ symbol:", uni + 1));

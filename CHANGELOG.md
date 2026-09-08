@@ -2,7 +2,23 @@
 
 ## Unreleased
 
+### Added — Guardian Arena ledger board + LINK-first inject piggy
+
+Game asked for a readable ledger board, practice sims, and stronger Chainlink
+leave-behind — plus more top-crypto hitch surfaces like LINK.
+
+- **`/arena` HTML** (`public/arena.html` via `vita-webhook.js`) — public
+  learning board: how liquid vs bags vs piggy work, live snapshot + queue
+  buttons (auth), practice Arena sim (no live money), Basescan deep links.
+- **LINK favorite** — Tier-1 reserve prefers LINK; +8 score nudge; catalog
+  `piggyBankPct: 0.08` / `$0.10` floor so more dust stays behind and trades
+  around the pile. Env overrides: `PIGGY_BANK_PCT_LINK`, `PIGGY_BANK_MIN_USD_LINK`.
+- **Inject mains** — `LINK, UNI, VVV, ZORA, BNKR, AERO, MORPHO` (VVV/ZORA/BNKR
+  promoted as deep Uni V3 hitch books already on the catalog).
+- Per-token piggy helpers in `piggy-bank.js` (`piggyOptsFromToken`).
+
 ### Fixed — piggy ledger math so dust stays behind and succession can fire
+
 
 Piggy already sized sells as `balance − reserve`, but peak gates and post-fill
 ledger PnL still charged **100% of entry** against the piggy-capped slice.

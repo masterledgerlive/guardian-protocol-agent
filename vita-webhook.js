@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🌐 VITA WEBHOOK — HTTP endpoint so Claude can pull memory directly
+// 🌐 VITA WEBHOOK — HTTP endpoint so Claude / Arena UI can pull memory
 // ───────────────────────────────────────────────────────────────────────────────
 // Runs a tiny HTTP server alongside the trading bot.
-// Claude (or any authorized caller) can hit these endpoints:
 //
+//   GET  /arena               — Guardian Arena HTML (public learning board)
+//   GET  /arena/api/snapshot  — live ledger snapshot (auth)
+//   POST /arena/api/queue     — queue Telegram-equivalent commands (auth)
 //   GET  /vita/context        — latest compressed memory for new session start
 //   GET  /vita/registry       — full filing registry (all sessions)
 //   GET  /vita/read?f=FILE    — read any GitHub file VITA has access to
@@ -11,16 +13,18 @@
 //   POST /vita/save           — trigger vitasave programmatically
 //
 // Auth: VITA_WEBHOOK_SECRET header must match env var
-// All responses: JSON + compressed §TOKEN§ format where applicable
-//
-// Railway exposes this on a public URL automatically.
-// Add to Railway: VITA_WEBHOOK_SECRET = any strong secret you choose
+// Arena HTML is public; live APIs still require the secret.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { createServer } from "http";
+import { readFile } from "fs/promises";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 
 const PORT   = process.env.VITA_WEBHOOK_PORT || 3000;
 const SECRET = process.env.VITA_WEBHOOK_SECRET;
+const ROOT   = dirname(fileURLToPath(import.meta.url));
+const ARENA_HTML = join(ROOT, "public", "arena.html");
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 function isAuthorized(req) {
@@ -36,6 +40,22 @@ function json(res, data, status = 200) {
 
 function err(res, msg, status = 400) {
   json(res, { error: msg }, status);
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      try {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on("error", reject);
+  });
 }
 
 // ── Handler — injected with live bot state by agent.js ────────────────────────
@@ -58,6 +78,41 @@ export function handleWebhookListenError(err, port = PORT) {
   return "error";
 }
 
+async function serveArenaHtml(res) {
+  try {
+    const html = await readFile(ARENA_HTML, "utf8");
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
+    res.end(html);
+  } catch (e) {
+    err(res, "arena html missing: " + e.message, 500);
+  }
+}
+
+function snapshotPayload() {
+  if (!botState) return null;
+  return {
+    ok: true,
+    running: true,
+    walletAddress: botState.walletAddress || null,
+    trades: botState.tradeCount || 0,
+    piggy: botState.piggyBank || 0,
+    drawdown: botState.drawdownHaltActive || false,
+    favorite: botState.favorite || "LINK",
+    injectMains: botState.injectMains || [],
+    haltNewEntries: !!botState.haltNewEntries,
+    positions: botState.positions || [],
+    queue: typeof botState.getManualQueue === "function" ? botState.getManualQueue() : [],
+    timestamp: new Date().toISOString(),
+    help: {
+      seeToken: "Open basescanToken links — Basescan overview can hide majors like UNI/LINK",
+      telegram: ["/status", "/bank", "/piggy", "/tiers", "/buy LINK 2", "/sellhalf UNI"],
+    },
+  };
+}
+
 // ── Server ────────────────────────────────────────────────────────────────────
 export function startVitaWebhook() {
   if (!SECRET) {
@@ -73,14 +128,42 @@ export function startVitaWebhook() {
   const server = createServer(async (req, res) => {
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Headers", "x-vita-secret, authorization");
+    res.setHeader("Access-Control-Allow-Headers", "x-vita-secret, authorization, content-type");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
-    if (!isAuthorized(req)) return err(res, "unauthorized", 401);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
     const url = new URL(req.url, "http://localhost");
     const path = url.pathname;
 
     try {
+      // ── Public Arena HTML ───────────────────────────────────────────────────
+      if ((path === "/arena" || path === "/arena/" || path === "/") && req.method === "GET") {
+        return serveArenaHtml(res);
+      }
+
+      if (path === "/arena/api/snapshot" && req.method === "GET") {
+        if (!isAuthorized(req)) return err(res, "unauthorized — set x-vita-secret", 401);
+        const snap = snapshotPayload();
+        if (!snap) return err(res, "bot not ready");
+        return json(res, snap);
+      }
+
+      if (path === "/arena/api/queue" && req.method === "POST") {
+        if (!isAuthorized(req)) return err(res, "unauthorized — set x-vita-secret", 401);
+        if (!botState?.queueManual) return err(res, "bot not ready");
+        const body = await readBody(req);
+        const result = botState.queueManual(body);
+        return json(res, { ...result, queue: botState.getManualQueue?.() || [] }, result.ok ? 200 : 400);
+      }
+
+      // Everything under /vita/* still requires auth
+      if (!isAuthorized(req)) return err(res, "unauthorized", 401);
+
       // ── GET /vita/context — compressed memory for new Claude session ────────
       if (path === "/vita/context" && req.method === "GET") {
         if (!botState?.githubGet) return err(res, "bot not ready");
@@ -94,7 +177,6 @@ export function startVitaWebhook() {
         const entries  = Object.entries(registry);
         const recent   = entries.slice(-3).reverse();
 
-        // Build a clean context packet for starting a new Claude conversation
         const context  = [
           "═══ VITA MEMORY CONTEXT — paste this to start any new session ═══",
           "Generated: " + new Date().toISOString(),
@@ -130,7 +212,6 @@ export function startVitaWebhook() {
         const filename = url.searchParams.get("f");
         if (!filename) return err(res, "missing ?f=filename");
 
-        // Security: only allow known files
         const allowed = [
           "agent.js","vault-loader.js","vault-unlock.js","keystore.js",
           "memory-engine.js","vita-memory.js","log-formatter.js","encryptkey.js",
@@ -156,6 +237,8 @@ export function startVitaWebhook() {
           piggy:      botState.piggyBank  || 0,
           drawdown:   botState.drawdownHaltActive || false,
           positions:  botState.positions  || [],
+          favorite:   botState.favorite || "LINK",
+          injectMains: botState.injectMains || [],
           timestamp:  new Date().toISOString(),
         });
 
@@ -180,6 +263,8 @@ export function startVitaWebhook() {
   server.listen(PORT, () => {
     webhookBound = true;
     console.log("🌐 VITA webhook listening on port " + PORT);
+    console.log("   /arena          — Guardian Arena ledger game (public HTML)");
+    console.log("   /arena/api/*    — live snapshot + command queue (auth)");
     console.log("   /vita/context  — memory context for new Claude session");
     console.log("   /vita/registry — full filing registry");
     console.log("   /vita/read     — read GitHub files");
