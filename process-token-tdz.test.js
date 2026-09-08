@@ -144,12 +144,20 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes('address: "0xc0634090F2Fe6C6D75e61Be2b949464aBb498973"'), "KTA Base address");
     assert.match(src, /symbol: "TIBBIR"[\s\S]*?frozen: true/);
     assert.ok(!/\bsymbol: "(BSTONK|FLOCK|HYDX)"/.test(src), "do not add BSTONK/FLOCK/HYDX");
-    for (const sym of ["BASECAT", "DRB", "REI", "CLANKER", "LINK", "AAVE", "UNI", "VVV", "ZORA", "BNKR"]) {
+    for (const sym of ["BASECAT", "DRB", "REI", "CLANKER", "LINK", "UNI", "VVV", "ZORA", "BNKR"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
       assert.ok(base >= 0, `${sym} must remain in catalog`);
       const next = src.indexOf("{ symbol:", base + 1);
       const row = src.slice(base, next > 0 ? next : base + 400);
       assert.ok(!row.includes("frozen: true"), `${sym} must stay tradeable`);
+    }
+    // CBBTC/AAVE stay catalogued but FROZEN — fractional bags locked the RISK book.
+    for (const sym of ["CBBTC", "AAVE"]) {
+      const base = src.indexOf(`symbol: "${sym}"`);
+      assert.ok(base >= 0, `${sym} must remain in catalog`);
+      const next = src.indexOf("{ symbol:", base + 1);
+      const row = src.slice(base, next > 0 ? next : base + 500);
+      assert.ok(row.includes("frozen: true"), `${sym} must stay frozen (locked majors)`);
     }
   });
 

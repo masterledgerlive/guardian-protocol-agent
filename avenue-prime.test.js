@@ -101,11 +101,35 @@ describe("avenue-prime: refuse lose-money paths", () => {
       hitchBytesWanted: 40,
       minPosUsd: 0.5,
       tokenMinBuyUsd: 0,
+      price: 7,
+      recentHigh: 8.5, // ~21% near-term room clears RT break-even
+      tradeableUsd: 80,
     });
     assert.equal(a.allow, true);
     assert.ok(a.outcomeScore > 0);
     assert.ok(a.hitchBytesFit >= 10);
     assert.equal(a.readyNow, true);
+  });
+
+  it("refuses CBBTC when near-term upside cannot clear insert costs", () => {
+    const a = projectAvenue({
+      symbol: "CBBTC",
+      tradeEth: 0.0005,
+      gasCostEth: 0.00003,
+      hitchCostEth: 0.00008,
+      feePct: 0.006,
+      netMargin: 0.2,
+      armed: true,
+      nearEntry: true,
+      ethUsd: 2500,
+      price: 95000,
+      recentHigh: 95100,
+      tradeableUsd: 6,
+      minPosUsd: 0.5,
+      tokenMinBuyUsd: 0,
+    });
+    assert.equal(a.allow, false);
+    assert.ok(a.refuseReason);
   });
 });
 
@@ -122,6 +146,9 @@ describe("avenue-prime: top 2–3 ranking", () => {
       minPosUsd: 0.5,
       tokenMinBuyUsd: 0,
       hitchBytesWanted: 40,
+      price: 1,
+      recentHigh: 1.2,
+      tradeableUsd: 100,
     };
     const { primed, best } = primeAvenues(
       [
