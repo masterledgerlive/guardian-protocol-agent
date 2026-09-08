@@ -125,6 +125,15 @@ import {
   shouldRecycleUnknownDust,
 } from "./inject-revenue.js";
 import {
+  effectiveMinEntryEth,
+  injectAllBookParams,
+  cascadeDeployEth,
+  liquidBalanceStatus,
+  shouldRecycleForCascadeFuel,
+  belowMinEntrySkip,
+  effectiveSellReserve,
+} from "./cascade-rollover.js";
+import {
   minBuyUsdForToken,
   operatorBuyBelowMin,
   applyWethDeadFreeze,
@@ -466,13 +475,15 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
 // Reserves at least one Tier-1 seat for an inject main (prefer UNI) when present.
 // Small books (<$15) concentrate into fewer T1 seats so leftover can cover hitch.
 function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
-  const book = tierBookParams(totalTradeableUsd, {
+  const baseBook = tierBookParams(totalTradeableUsd, {
     tier1Count: TIER1_COUNT,
     tier1Pct: TIER1_PCT,
     tier2Pct: TIER2_PCT,
     tier2MinSlotUsd: TIER2_MIN_SLOT_USD,
     tier2MaxSlots: TIER2_MAX_SLOTS,
   });
+  // Thin liquid: inject ALL into one seat so fees+hitch+cascade seed clear.
+  const book = injectAllBookParams(totalTradeableUsd, baseBook);
   currentTierBook = book;
 
   const scored = tokens
@@ -521,7 +532,9 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
     // At very low capital: use whatever is available rather than blocking entirely.
     // If slot < $0.50 we still allow it — gas check in executeBuy will catch truly tiny amounts.
     if (slotUsd < 0.50) return 0; // truly nothing — don't even try
-    return Math.min(totalTradeableEth * book.tier1Pct / book.tier1Count, totalTradeableEth * MAX_BUY_PCT);
+    // Inject-all: deploy nearly the whole book into the one seat (keep gas headroom).
+    const capPct = book.injectAll ? 0.95 : MAX_BUY_PCT;
+    return Math.min(totalTradeableEth * book.tier1Pct / book.tier1Count, totalTradeableEth * capPct);
   }
   if (tier2.includes(symbol)) {
     const tier2Capital  = totalTradeableUsd * book.tier2Pct;
@@ -4128,11 +4141,13 @@ async function getFullBalance() {
     console.log(`⚠️  Boot wallet WETH read failed: ${e.message} — keeping last ping ${weth}`);
   }
   const total = eth + weth;
-  // Reserve = max of percentage reserve OR hard minimums + piggy
-  const reserved   = Math.max(total * ETH_RESERVE_PCT, GAS_RESERVE + SELL_RESERVE + piggyBank);
-  const tradeable  = Math.max(eth - GAS_RESERVE - SELL_RESERVE, 0); // ETH minus gas costs
+  // Reserve = max of percentage reserve OR hard minimums + piggy.
+  // Thin books shrink sell reserve so ~0.002 ETH liquid is not reported as 0.000485.
+  const sellR = effectiveSellReserve(total, SELL_RESERVE);
+  const reserved   = Math.max(total * ETH_RESERVE_PCT, GAS_RESERVE + sellR + piggyBank);
+  const tradeable  = Math.max(eth - GAS_RESERVE - sellR, 0); // ETH minus gas costs
   const tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
-  return { eth, weth, total, tradeable, tradeableWithWeth };
+  return { eth, weth, total, tradeable, tradeableWithWeth, sellReserve: sellR };
 }
 
 // Wraps ETH → WETH when WETH needed for a swap
@@ -4893,7 +4908,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Unified balance early — tier gate must die BEFORE hitch L1 fee RPC.
     // Live Railway: SKI/DRB passed LOSE_ZERO every ~60s then "not in active tiers".
     const { eth, weth, tradeableWithWeth } = bal;
-    const totalAvail = eth + weth - GAS_RESERVE - SELL_RESERVE;
+    const sellR = Number.isFinite(bal?.sellReserve)
+      ? bal.sellReserve
+      : effectiveSellReserve(eth + weth, SELL_RESERVE);
+    const totalAvail = eth + weth - GAS_RESERVE - sellR;
     if (totalAvail < MIN_ETH_TRADE) {
       return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`);
     }
@@ -4908,6 +4926,38 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const allowOutsideTiers = isCascade || isManualOperatorBuy(reason);
     if (tierEthEarly === 0 && !allowOutsideTiers) {
       return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabelEarly}) — no new capital`);
+    }
+
+    // Min entry = fees + gas + hitch + cascade seed. Refuse fragment buys that strand the book.
+    let hitchCostEst = 0;
+    try {
+      const voiceBytesEarly = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const hitchL1Early = await quoteHitchL1ForGates({ hitchBytes: voiceBytesEarly });
+      const l2Hitch = estimateCalldataHitchEth(voiceBytesEarly, gwei);
+      hitchCostEst = (hitchL1Early.ok ? (Number(hitchL1Early.l1FeeEth) || 0) : 0) + l2Hitch;
+    } catch { hitchCostEst = 0; }
+    const minEntry = effectiveMinEntryEth({
+      gasCostEth: gasCost,
+      hitchCostEth: hitchCostEst,
+      feePct: token.poolFeePct || 0.006,
+      ethUsd,
+      tokenMinBuyUsd: minBuyUsdForToken(token),
+      minPosUsd: minPosUsd(),
+    });
+    // Preview size before LOSE_ZERO so we can deny undersized auto/cascade early.
+    const previewForced = forcedEth > 0 ? forcedEth : tierEthEarly;
+    if (!isManualOperatorBuy(reason)) {
+      const spendPreview = Math.min(Math.max(previewForced, minPosUsd() / ethUsd), Math.max(totalAvail, 0));
+      const under = belowMinEntrySkip({
+        symbol: token.symbol,
+        ethToSpend: spendPreview,
+        minEntry,
+        ethUsd,
+      });
+      // Inject-all: if the whole book is still under min entry, skip rather than fragment.
+      if (under && spendPreview + 1e-12 < minEntry) {
+        return await skipBuy(reason, token.symbol, under);
+      }
     }
 
     // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
@@ -4958,9 +5008,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const maxSpend  = Math.min(totalAvail * maxPct, forcedEth > 0 ? forcedEth : (tierEth > 0 ? tierEth * 1.2 : totalAvail * maxPct));
     const minSpend  = minPosUsd() / ethUsd;
+    // Prefer at least minEntry so the fill can cascade; inject-all uses nearly full book.
+    const injectAll = !!(currentTierBook?.injectAll);
+    const floorSpend = injectAll ? Math.max(minSpend, minEntry) : minSpend;
     const ethToSpend= forcedEth > 0
       ? Math.min(forcedEth, Math.max(totalAvail, 0))
-      : Math.min(Math.max(minSpend, tierEth), maxSpend);
+      : Math.min(Math.max(floorSpend, tierEth), maxSpend);
+
+    const underFinal = !isManualOperatorBuy(reason)
+      ? belowMinEntrySkip({ symbol: token.symbol, ethToSpend, minEntry, ethUsd })
+      : null;
+    if (underFinal) {
+      return await skipBuy(reason, token.symbol, underFinal);
+    }
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
 
@@ -5592,6 +5652,7 @@ async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
 async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
   try {
     const gasCost = await estimateGasCostEth();
+    const ethUsd  = await getLiveEthPrice();
     const target  = await findCascadeTarget(soldSymbol, gasCost, proceeds);
     if (!target) {
       console.log(`  🌊 No cascade target near MIN trough — proceeds held`);
@@ -5599,11 +5660,35 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
     }
     const price  = history[target.symbol]?.lastPrice;
     const arm    = getArmStatus(target.symbol, gasCost, proceeds);
-    const deploy = proceeds * getCascadePct(arm.net || MIN_NET_MARGIN);
-    console.log(`  🌊 CASCADE ${soldSymbol} → ${target.symbol} | ${(arm.net*100).toFixed(2)}% net [${arm.priority}]`);
+    const gweiC  = await getCurrentGasGwei();
+    let hitchCost = 0;
+    try {
+      const vb = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const l1 = await quoteHitchL1ForGates({ hitchBytes: vb });
+      const l2 = estimateCalldataHitchEth(vb, gweiC);
+      hitchCost = (l1.ok ? (Number(l1.l1FeeEth) || 0) : 0) + l2;
+    } catch { hitchCost = 0; }
+    const targetMin = effectiveMinEntryEth({
+      gasCostEth: gasCost,
+      hitchCostEth: hitchCost,
+      feePct: target.poolFeePct || 0.006,
+      ethUsd,
+      tokenMinBuyUsd: minBuyUsdForToken(target),
+      minPosUsd: minPosUsd(),
+    });
+    const deploy = cascadeDeployEth({
+      proceedsEth: proceeds,
+      targetMinEntryEth: targetMin,
+      netMargin: arm.net || MIN_NET_MARGIN,
+    });
+    if (!(deploy > 0)) {
+      console.log(`  🌊 CASCADE held — proceeds ${proceeds.toFixed(6)} < min entry ${targetMin.toFixed(6)} for ${target.symbol}`);
+      return;
+    }
+    console.log(`  🌊 CASCADE ${soldSymbol} → ${target.symbol} | ${(arm.net*100).toFixed(2)}% net [${arm.priority}] | deploy ${deploy.toFixed(6)} (≥ min ${targetMin.toFixed(6)})`);
     await tg(
       `🌊 <b>CASCADE: ${soldSymbol} → ${target.symbol}</b>\n\n` +
-      `💰 Deploying: ${deploy.toFixed(6)} ETH\n` +
+      `💰 Deploying: ${deploy.toFixed(6)} ETH (min entry ${targetMin.toFixed(6)})\n` +
       `📊 Net margin: ${(arm.net*100).toFixed(2)}% [${arm.priority}]\n` +
       `💲 At MIN trough: $${price?.toFixed(8)}\n⚡ Buying...`
     );
@@ -10362,10 +10447,44 @@ async function main() {
         }
       }
 
-      // Low ETH warning (but WETH may cover it)
-      if (bal.eth < 0.002 && bal.weth < 0.002) {
-        console.log(`⚠️  Both ETH and WETH low — please top up`);
-        await tg(`⚠️ <b>BALANCE LOW</b>\nETH: ${bal.eth.toFixed(6)} | WETH: ${bal.weth.toFixed(6)}\nPlease top up wallet`);
+      // Low liquid warning — distinguish empty wallet vs capital sitting in bags.
+      // Live Railway fired BALANCE LOW while ~$ bags were deployed and tradeable
+      // looked like 0.000485 only because sell-reserve ate the thin book.
+      {
+        let deployedTokenUsd = 0;
+        for (const t of tokens) {
+          const p = history[t.symbol]?.lastPrice;
+          const b = getCachedBalance(t.symbol);
+          if (isValidUsdPrice(p) && b > 0.001) deployedTokenUsd += b * p;
+        }
+        const minEntryGuess = effectiveMinEntryEth({
+          gasCostEth: await estimateGasCostEth().catch(() => 0.0001),
+          hitchCostEth: 0,
+          feePct: 0.006,
+          ethUsd,
+          minPosUsd: minPosUsd(),
+        });
+        const liq = liquidBalanceStatus({
+          eth: bal.eth,
+          weth: bal.weth,
+          tradeableWithWeth: bal.tradeableWithWeth,
+          ethUsd,
+          deployedTokenUsd,
+          minEntryEth: minEntryGuess,
+        });
+        if (liq.action === "top_up") {
+          console.log(`⚠️  ${liq.message}`);
+          await tg(`⚠️ <b>BALANCE LOW</b>\nETH: ${bal.eth.toFixed(6)} | WETH: ${bal.weth.toFixed(6)}\nBags: $${liq.bagsUsd.toFixed(2)}\nPlease top up wallet`);
+        } else if (liq.action === "recycle_cascade") {
+          console.log(`♻️  ${liq.message}`);
+          // Throttle Telegram — once per 10 min
+          if (!global._lastLiquidThinTg || Date.now() - global._lastLiquidThinTg > 600_000) {
+            global._lastLiquidThinTg = Date.now();
+            await tg(`♻️ <b>LIQUID THIN — CAPITAL IN BAGS</b>\nTradeable: $${liq.tradeableUsd.toFixed(2)} | Bags: $${liq.bagsUsd.toFixed(2)}\nRecycling dust → cascade (not a top-up). Piggy dust stays locked.`);
+          }
+        } else if (liq.action === "wait_or_top_up" && bal.eth < 0.002 && bal.weth < 0.002) {
+          console.log(`⚠️  ${liq.message}`);
+        }
       }
 
       // Refresh all token balances in parallel once per cycle
@@ -10406,7 +10525,7 @@ async function main() {
       const tier1Usd = (bal.tradeableWithWeth * ethUsd * book.tier1Pct / book.tier1Count).toFixed(2);
       const tier2Slots = currentTier2.length;
       const tier2Usd = tier2Slots > 0 ? (bal.tradeableWithWeth * ethUsd * book.tier2Pct / tier2Slots).toFixed(2) : "0";
-      console.log(`🏆 T1[$${tier1Usd}/slot${book.smallBook ? " · SMALL BOOK" : ""}]: ${t1Str}`);
+      console.log(`🏆 T1[$${tier1Usd}/slot${book.smallBook ? ` · ${book.injectAll ? "INJECT-ALL" : "SMALL BOOK"}` : ""}]: ${t1Str}`);
       console.log(`🥈 T2[$${tier2Usd}/slot x${tier2Slots}]: ${t2Str}`);
       if (tAssign.reservedMain) {
         console.log(`💉 Inject main reserved T1: ${tAssign.reservedMain} (UNI preferred among ${INJECT_MAIN_PLAYERS.join("/")})`);
@@ -10438,12 +10557,27 @@ async function main() {
         }
       }
 
-      // ── MOONSHOT SELL-DOWN — positions outside active tiers ──────────────
-      // If a token has an open position but is NOT in tier 1 or tier 2,
-      // and its current value is above MOONSHOT_HOLD_USD, sell down to that floor.
-      // This frees capital for the actual winning tokens while keeping a lottery bag.
+      // ── MOONSHOT SELL-DOWN / DUST RECYCLE — free capital for inject→cascade ─
       // Unknown-cost dust also recycles here — boot recon clears invented basis, so
       // entryPrice is null and the old `if (!token.entryPrice) continue` left bags stuck.
+      // When liquid is starved, lower the recycle floor so KEYCAT-sized bags ($0.28)
+      // can fuel the next cascade instead of sitting forever.
+      {
+        let deployedForStarve = 0;
+        for (const t of tokens) {
+          const p = history[t.symbol]?.lastPrice;
+          const b = getCachedBalance(t.symbol);
+          if (isValidUsdPrice(p) && b > 0.001) deployedForStarve += b * p;
+        }
+        const starveStatus = liquidBalanceStatus({
+          eth: bal.eth,
+          weth: bal.weth,
+          tradeableWithWeth: bal.tradeableWithWeth,
+          ethUsd,
+          deployedTokenUsd: deployedForStarve,
+        });
+        const liquidStarved = !!starveStatus.liquidStarved;
+
       for (const token of tokens) {
         const price = history[token.symbol]?.lastPrice;
         if (!price) continue;
@@ -10456,7 +10590,12 @@ async function main() {
         const moonPriceGate = await gatePriceInsane(token, price, "sell", balance);
         if (!moonPriceGate.allow) continue;
         const posUsd  = balance * price;
-        const recycleUnknown = shouldRecycleUnknownDust({
+        const recycleUnknown = shouldRecycleForCascadeFuel({
+          unknownEntry: unknownBag,
+          posUsd,
+          liquidStarved,
+          moonshotHoldUsd: MOONSHOT_HOLD_USD,
+        }) || shouldRecycleUnknownDust({
           unknownEntry: unknownBag,
           posUsd,
           moonshotHoldUsd: MOONSHOT_HOLD_USD,
@@ -10468,6 +10607,10 @@ async function main() {
         const sellTokens  = Math.max(balance - keepTokens, 0);
         const sellPct     = balance > 0 ? sellTokens / balance : 0;
         if (sellPct < 0.10) continue; // not worth a tx for < 10% sell
+        // When liquid-starved unknown dust: sell more of sellable (still leave piggy)
+        const starveSellPct = (recycleUnknown && liquidStarved && unknownBag)
+          ? Math.max(sellPct, Math.min(0.9, computeSellable(balance, token.piggyReserve) / Math.max(balance, 1e-12)))
+          : sellPct;
         const moonReason = recycleUnknown
           ? `🌙 DUST RECYCLE — unknown cost basis`
           : `🌙 MOONSHOT TRIM — not in active tiers`;
@@ -10482,9 +10625,9 @@ async function main() {
         const moonGate = buildSellGateDecision({
           symbol: token.symbol,
           reason: moonReason,
-          sellPct,
+          sellPct: starveSellPct,
           entryEth: costBasisEth(token), // 0 for unknown — leftover = proceeds − fees
-          projectedProceedsEth: (balance * sellPct * price) / ethUsd,
+          projectedProceedsEth: (balance * starveSellPct * price) / ethUsd,
           feePct: token.poolFeePct || 0.006,
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
@@ -10500,14 +10643,19 @@ async function main() {
           continue;
         }
         const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
-        console.log(`🌙 ${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: $${posUsd.toFixed(2)} → keeping $${MOONSHOT_HOLD_USD} lottery bag (${(sellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
+        console.log(`🌙 ${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
-          const p = await executeSell(cdpClient, token, sellPct, moonReason, price, false);
+          const p = await executeSell(cdpClient, token, starveSellPct, moonReason, price, false);
           if (p > 0) {
-            await tg(`🌙 <b>${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} — ${token.symbol}</b>\nNot in top tiers — trimming to $${MOONSHOT_HOLD_USD} lottery bag\n💰 Freed ${p.toFixed(6)} ETH for tier redeployment\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
-            // No cascade — freed capital goes back to normal tier flow
+            await tg(`🌙 <b>${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} — ${token.symbol}</b>\nFreed ${p.toFixed(6)} ETH for cascade redeploy\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
+            // Continuous cascade: redeploy freed capital into a near-low when min entry clears
+            const freshBal = await getFullBalance();
+            cachedBal = freshBal;
+            Object.assign(bal, freshBal);
+            await triggerCascade(cdpClient, token.symbol, p, freshBal);
           }
         } catch (e) { console.log(`⚠️ Moonshot trim ${token.symbol}: ${e.message}`); }
+      }
       }
 
       // ── BATCH PRICE PREFETCH — DexScreener first, GT in chunks of 10 ────────

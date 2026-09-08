@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed — BALANCE LOW false alarm; fragment buys strand cascade (min-entry inject-all)
+
+Live Railway `industrious-tranquility` / `guardian-protocol-agent` @ `0bad3c9` (2026-09-08):
+
+- Chain ETH+WETH on `0x50e1…7915` = **0.001985** — bot tradeable **0.000485** matched chain after a hard `SELL_RESERVE=0.001` ate the thin book.
+- Four small buys then **Insufficient ETH+WETH** / Telegram **BALANCE LOW** while capital sat in unknown-cost bags (KEYCAT ~$0.28 etc.) that never recycled hard enough to cascade.
+- Capital was updating from chain correctly — liquid was truly thin; the bug was **reserve math + fragmented entries**, not a stale RPC zero.
+
+Changes (still LOSE_ZERO / 2× hitch sell / piggy never-sell / Eureka on leftover):
+
+- **`cascade-rollover.js`** — min entry covers round-trip gas + fees + hitch + cascade seed; inject-all book (`<$12`) = **1 seat @ 100%**; cascade deploy only when proceeds ≥ next min entry; liquid-vs-bags status (recycle≠top-up).
+- **Thin-book sell reserve** — shrink `SELL_RESERVE` under 0.01 ETH so ~$5 liquid reports real tradeable (~0.0012) instead of 0.000485.
+- **Dust recycle → cascade** — when liquid starved, lower unknown-dust floor; after a profitable recycle/trim, `triggerCascade` into a near-low (piggy dust stays locked).
+
 ### Fixed — `/buy XCN $1` never filled: `minTrgh` TDZ + dead WETH book
 
 Live Railway after PR #31 (`946cc30`): Telegram queued `/buy XCN $1`, then every `processToken(XCN)` crashed with `Cannot access 'minTrgh' before initialization`. `stopLossPrice` used `minTrgh` before `entryTroughForBuy` declared it — so **no token** could finish processToken (manual buys never reached `cmd.action === "buy"`).
