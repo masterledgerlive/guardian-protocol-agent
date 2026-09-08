@@ -189,6 +189,11 @@ import {
   piggyUnlockReason,
   piggyBankPct,
   piggyBankMinUsd,
+  costBasisForSoldFraction,
+  previewPiggySellNetUsd,
+  buildTokenPiggyLedger,
+  creditTokenPiggyPools,
+  piggyCoInvestMarkUsd,
 } from "./piggy-bank.js";
 import {
   decodeErc20Balance,
@@ -809,6 +814,10 @@ function calcLotteryKeep(balance) {
 // Sells go through applyPiggyToSell — lottery keep is display-only now.
 function syncTokenPiggy(token, balance, priceUsd) {
   token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, balance, priceUsd);
+  const prior = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
+  prior.dustReserve = token.piggyReserve;
+  prior.dustUsd = (Number(priceUsd) > 0) ? token.piggyReserve * Number(priceUsd) : (prior.dustUsd || 0);
+  tokenPiggyLedgers[token.symbol] = prior;
   return token.piggyReserve;
 }
 // 1% skim split equally three ways per profitable sell:
@@ -833,6 +842,9 @@ const PRED_FUND_COOLDOWN   = 90_000; // 90s cooldown per token
 // Co-invest proceeds return to piggy on exit (never to main pool).
 const PIGGY_COINVEST_PCT   = 0.10;   // deploy 10% of piggy per co-invest
 const PIGGY_COINVEST_MIN   = 0.00005;// min piggy ETH needed to co-invest
+// Piggy stays locked for AI / succession unless explicitly enabled.
+// Paper co-invest was spending the skim pool before Phase-3 agent piggies.
+const PIGGY_COINVEST_ENABLED = String(process.env.PIGGY_COINVEST || "no").toLowerCase() === "yes";
 
 // ── STALE POSITION CASCADE ────────────────────────────────────────────────────
 // Philosophy: We should already be exiting on profit and re-entering at the
@@ -2584,6 +2596,9 @@ let piggyCoPnl     = 0;    // cumulative ETH P&L from co-invest trades
 // ── AGENTIC CAPITAL state ─────────────────────────────────────────────────────
 let agentCapital   = 0;
 let agentPnl       = 0;
+// Nested piggy ledgers per inject seat: dust + ETH contrib + agent share.
+// Dust never auto-spends; agentShare funds future AI piggy banks per token.
+const tokenPiggyLedgers = {}; // { [symbol]: { dustReserve, dustUsd, ethContrib, agentShare } }
 
 // ── STALE CASCADE state ───────────────────────────────────────────────────────
 const stalePriceRef  = {};  // { [symbol]: { price, timestamp } } — price snapshot for stale detection
@@ -5493,7 +5508,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     token.unknownEntry = false;
     {
       const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
-      token.piggyReserve = ratchetPiggyReserve(token.piggyReserve, estBal, price);
+      syncTokenPiggy(token, estBal, price);
       console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct() * 100).toFixed(0)}% / $${piggyBankMinUsd().toFixed(2)} floor)`);
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
@@ -5575,10 +5590,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     // Never treat fractional high-unit bags (CBBTC ~0.00006) as dust — that
     // cleared a real $ bag without selling. Dust is USD-based.
+    // Piggy-only dust stays on-chain — keep the reserve high-water mark and
+    // clear invented cost basis only (never wipe the pile while units remain).
     if (isDustBagUsd(totalBal, price, BAG_DUST_USD) && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)) {
-      console.log(`   ⚠️  ${token.symbol}: dust $${(totalBal * price).toFixed(3)} — clearing ledger`);
-      token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
-      token.piggyReserve = 0;
+      const reserve = ratchetPiggyReserve(token.piggyReserve, totalBal, price);
+      token.piggyReserve = reserve;
+      const row = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
+      row.dustReserve = reserve;
+      row.dustUsd = totalBal * price;
+      tokenPiggyLedgers[token.symbol] = row;
+      if (token.entryPrice || token.totalInvestedEth) {
+        console.log(`   🐷 ${token.symbol}: piggy-only dust $${(totalBal * price).toFixed(3)} — keeping ${reserve >= 1 ? reserve.toFixed(2) : reserve.toFixed(4)} locked, clearing cost basis`);
+        token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+      } else {
+        console.log(`   🐷 ${token.symbol}: piggy dust $${(totalBal * price).toFixed(3)} locked — PIGGY UNLOCK to release`);
+      }
       return null;
     }
 
@@ -5604,7 +5630,9 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const procEth        = (piggy.tokensToSell * price) / ethUsd;
     const posValueUsd    = procEth * ethUsd;
     const soldFrac       = sellFractionAfterPiggy({ balance: totalBal, tokensToSell: piggy.tokensToSell });
-    const expectedProfit = procEth - (token.totalInvestedEth * soldFrac || 0);
+    const investedBefore = token.totalInvestedEth || 0;
+    const entryEthSold   = costBasisForSoldFraction(investedBefore, soldFrac);
+    const expectedProfit = procEth - entryEthSold;
     // Skip gas check entirely for dust positions (<$0.50) — just clear them out at peak
     const isDust = posValueUsd < 0.50;
     if (!isProtective && !isDust && gasCost > 0.15 * expectedProfit && expectedProfit > 0) {
@@ -5739,7 +5767,9 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       received = Math.max(0, (wRetry - wBefore) + (eRetry - eBefore));
     }
     const recUsd   = received * ethUsd;
-    const invUsd   = (token.totalInvestedEth || 0) * sellPct * ethUsd;
+    // Ledger PnL must use piggy-aligned soldFrac — requested sellPct overstates
+    // entry cost and can flip a real win into a fake wipeout (skim/succession).
+    const invUsd   = entryEthSold * ethUsd;
     const netUsd   = recUsd - invUsd;
 
     const receiptStatus = await getSwapReceiptStatus(transactionHash);
@@ -5818,16 +5848,30 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       predFund     += skimPred;
       agentCapital += skimAgent;
       totalSkimmed += skim;
+      tokenPiggyLedgers[token.symbol] = creditTokenPiggyPools(
+        tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({
+          symbol: token.symbol,
+          dustReserve: piggy.remainingReserve,
+          dustUsd: piggy.remainingReserve * price,
+        }),
+        { ethContrib: skimLottery, agentShare: skimAgent, symbol: token.symbol },
+      );
     }
 
     token.piggyReserve = piggy.remainingReserve;
+    {
+      const pxDust = price > 0 ? piggy.remainingReserve * price : 0;
+      const prior = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
+      prior.dustReserve = piggy.remainingReserve;
+      prior.dustUsd = pxDust;
+      tokenPiggyLedgers[token.symbol] = prior;
+    }
     if (piggy.soldAll) {
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
       token.piggyReserve = 0;
       clearFibLevels(token.symbol); // FIX: reset fib memory so next position starts fresh
     } else {
-      const soldFrac = totalBal > 0 ? piggy.tokensToSell / totalBal : sellPct;
-      token.totalInvestedEth = (token.totalInvestedEth || 0) * (1 - soldFrac);
+      token.totalInvestedEth = investedBefore * (1 - soldFrac);
     }
 
     // Score the wave prediction that just completed
@@ -5837,7 +5881,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       scoreCompletedWave(token.symbol, actualLow, actualHigh);
     }
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
-    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
+    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, soldFrac, piggyDustLeft:piggy.remainingReserve, piggyUnlock:piggy.unlock, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
     recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd, symbol: token.symbol });
     if (netUsd < 0) {
       recordCostMistake({
@@ -5867,7 +5911,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const medal = getMedal(pnlPctNum);
     if (winner) {
       ws.wins++;
-      ws.totalPnlEth += (received - (token.totalInvestedEth || 0) * sellPct);
+      ws.totalPnlEth += (received - entryEthSold);
       if (pnlPctNum > ws.biggestWavePct) {
         ws.biggestWavePct = pnlPctNum;
         ws.biggestWaveUsd = netUsd;
@@ -6367,12 +6411,24 @@ async function processToken(cdp, token, bal) {
     // atMaxPeak: tightened to 0.5% tolerance — 1% was selling mid-wave.
     // If we consistently miss peaks by >0.5%, raise WAVE_MIN_MOVE instead.
     const atMaxPeak    = maxPeak && price >= maxPeak * 0.995;
-    const feesOnSell   = (balance * price * (token.poolFeePct || 0.006));
-    const piggyOnSell  = (balance * price * PIGGY_SKIM_PCT);
-    const netIfSellNow = entry
-      ? sellable * price - (token.totalInvestedEth || 0) * ethUsd - feesOnSell - piggyOnSell
-      : 1;
-    const breakEvenBuffer = entry ? (token.totalInvestedEth || 0) * ethUsd * PROFIT_ERROR_BUFFER : 0;
+    // Peak / early / fib gates: charge only the sellable slice of entry + fees.
+    // Leaving piggy dust behind must leave that cost behind too — otherwise
+    // succession never fires even when math + profits are met.
+    const sellPreview  = entry
+      ? previewPiggySellNetUsd({
+          balance,
+          sellable,
+          investedEth: token.totalInvestedEth || 0,
+          priceUsd: price,
+          ethUsd,
+          feePct: token.poolFeePct || 0.006,
+          skimPct: PIGGY_SKIM_PCT,
+        })
+      : { netUsd: 1, soldFrac: 1 };
+    const netIfSellNow = sellPreview.netUsd;
+    const breakEvenBuffer = entry
+      ? costBasisForSoldFraction(token.totalInvestedEth || 0, sellPreview.soldFrac) * ethUsd * PROFIT_ERROR_BUFFER
+      : 0;
 
     // profitableSell: only fires when NEAR the peak AND MACD turning.
     // FIX: Previous version fired at any MACD crossdown (happens during consolidation),
@@ -7032,8 +7088,9 @@ async function runPredFundTick(cdp, token, price, ethUsd, pred, ind) {
       console.log(`  🧠✅ PRED FUND ENTRY [${sym}] ${allocEth.toFixed(6)} ETH @ $${price.toFixed(8)} | conf:${pred.confidence}% | fund left: ${predFund.toFixed(6)} ETH`);
     }
 
-    // Piggy co-invest entry — fires alongside pred fund entry
-    if (canEnter && piggyBank >= PIGGY_COINVEST_MIN) {
+    // Piggy co-invest entry — opt-in only. Default keeps ETH piggy locked for
+    // future AI piggy banks per inject seat (PIGGY_COINVEST=yes to enable).
+    if (canEnter && PIGGY_COINVEST_ENABLED && piggyBank >= PIGGY_COINVEST_MIN) {
       const allocEth     = Math.min(piggyBank * PIGGY_COINVEST_PCT, piggyBank);
       const netEth       = allocEth * (1 - (token.poolFeePct || 0.006));
       const tokensBought = (netEth * ethUsd) / price;
@@ -7219,6 +7276,11 @@ async function loadFromGitHub() {
         if (p?.entryPrice) piggyCoPos[sym] = p;
       }
     }
+    if (pos.tokenPiggyLedgers && typeof pos.tokenPiggyLedgers === "object") {
+      for (const [sym, row] of Object.entries(pos.tokenPiggyLedgers)) {
+        tokenPiggyLedgers[sym] = buildTokenPiggyLedger({ symbol: sym, ...row });
+      }
+    }
     if (pos.waveStats) {
       for (const [sym, s] of Object.entries(pos.waveStats)) {
         waveStats[sym] = s;
@@ -7337,6 +7399,14 @@ async function saveToGitHub() {
       piggyCoPositions:  piggyCoPos,
       waveStats,
       piggyReserves: Object.fromEntries(tokens.map(t => [t.symbol, t.piggyReserve || 0])),
+      tokenPiggyLedgers: Object.fromEntries(tokens.map(t => {
+        const row = tokenPiggyLedgers[t.symbol] || buildTokenPiggyLedger({
+          symbol: t.symbol,
+          dustReserve: t.piggyReserve || 0,
+        });
+        row.dustReserve = t.piggyReserve || row.dustReserve || 0;
+        return [t.symbol, row];
+      })),
       entries:    Object.fromEntries(tokens.map(t => [t.symbol, t.entryPrice       || null])),
       invested:   Object.fromEntries(tokens.map(t => [t.symbol, t.totalInvestedEth || 0])),
       entryTimes: Object.fromEntries(tokens.map(t => [t.symbol, t.entryTime        || null])),
@@ -7857,34 +7927,55 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const pct     = Math.min((piggyBank/0.5)*100, 100);
         const pfUsd   = predFund   * ethUsd;
         const agUsd   = agentCapital * ethUsd;
-        const pcOpen  = Object.entries(piggyCoPos).map(([s,p]) => `${s}: +$${((((p.tokens*0)||0)*ethUsd-(p.ethIn||0)*ethUsd)).toFixed(3)}`).join(", ") || "none";
+        const pcOpen  = Object.entries(piggyCoPos).map(([s, p]) => {
+          const px = history[s]?.lastPrice || 0;
+          const u = piggyCoInvestMarkUsd({
+            tokens: p.tokens,
+            priceUsd: px,
+            ethIn: p.ethIn,
+            ethUsd,
+          });
+          return `${s}: ${u >= 0 ? "+" : ""}$${u.toFixed(3)}`;
+        }).join(", ") || "none";
         const pfOpen  = Object.keys(predFundPos).join(", ") || "none";
+        const nestedLines = tokens
+          .filter(t => {
+            const row = tokenPiggyLedgers[t.symbol];
+            return (t.piggyReserve || 0) > 0 || (row?.ethContrib || 0) > 0 || (row?.agentShare || 0) > 0;
+          })
+          .map(t => {
+            const px = history[t.symbol]?.lastPrice || 0;
+            const dust = t.piggyReserve || 0;
+            const u = px > 0 ? ` ~$${(dust * px).toFixed(3)}` : "";
+            const row = tokenPiggyLedgers[t.symbol] || {};
+            const ethC = row.ethContrib ? ` eth+${Number(row.ethContrib).toFixed(6)}` : "";
+            const agC = row.agentShare ? ` ai+${Number(row.agentShare).toFixed(6)}` : "";
+            return `   ${t.symbol}: ${dust >= 1 ? dust.toFixed(2) : dust.toFixed(4)}${u}${ethC}${agC}`;
+          })
+          .join("\n");
         await tg(
           `🐷🧠🤖 <b>THE THREE POOLS</b>\n` +
           `━━━━━━━━━━━━━━━━━━━━\n\n` +
           `🐷 <b>Piggy Bank</b> (locked savings)\n` +
           `   ${piggyBank.toFixed(6)} ETH = $${(piggyBank*ethUsd).toFixed(2)}\n` +
           `   Goal: 0.5 ETH (${pct.toFixed(1)}%)\n` +
+          `   Co-invest: ${PIGGY_COINVEST_ENABLED ? "ON" : "OFF (AI reserve)"}\n` +
           `   Co-invest PnL: ${piggyCoPnl>=0?"+":""}$${(piggyCoPnl*ethUsd).toFixed(3)}\n` +
           `   Co-invest open: ${pcOpen}\n\n` +
           `🧠 <b>Prediction Fund</b> (self-trading)\n` +
           `   ${predFund.toFixed(6)} ETH = $${pfUsd.toFixed(3)}\n` +
           `   ${predFundTrades} trades | PnL: ${predFundPnl>=0?"+":""}$${(predFundPnl*ethUsd).toFixed(3)}\n` +
           `   Open: ${pfOpen}\n\n` +
-          `🤖 <b>Agentic Capital</b> (research layer)\n` +
+          `🤖 <b>Agentic Capital</b> (AI piggy banks)\n` +
           `   ${agentCapital.toFixed(6)} ETH = $${agUsd.toFixed(3)}\n` +
-          `   Accumulating — Phase 3 not yet active\n\n` +
+          `   Accumulating per inject seat — spend when revenue proves out\n\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `Total skimmed: ${totalSkimmed.toFixed(6)} ETH\n` +
           `0.33% per pool per profitable sell\n\n` +
-          `🐷 <b>Per-token dust</b> (never auto-sold)\n` +
+          `🐷 <b>Per-token nested piggy</b> (dust + eth + ai)\n` +
           `   ${(piggyBankPct()*100).toFixed(0)}% of bag + $${piggyBankMinUsd().toFixed(2)} floor\n` +
-          tokens.filter(t => (t.piggyReserve || 0) > 0).map(t => {
-            const px = history[t.symbol]?.lastPrice || 0;
-            const u = px > 0 ? ` ~$${(t.piggyReserve * px).toFixed(3)}` : "";
-            return `   ${t.symbol}: ${t.piggyReserve >= 1 ? t.piggyReserve.toFixed(2) : t.piggyReserve.toFixed(4)}${u}`;
-          }).join("\n") +
-          (tokens.some(t => (t.piggyReserve || 0) > 0) ? "\n   /piggyunlock SYMBOL to release" : "   none yet")
+          (nestedLines || "   none yet") +
+          (tokens.some(t => (t.piggyReserve || 0) > 0) ? "\n   /piggyunlock SYMBOL to release dust" : "")
         );
       } else if (text === "/trades") {
         const recent = tradeLog.slice(-5).map(t=>`${t.type} ${t.symbol} $${parseFloat(t.price).toFixed(8)} score:${t.indScore||"?"} ${t.timestamp?.slice(11,19)||""}`).join("\n");
@@ -11096,7 +11187,7 @@ async function main() {
           liquidStarved,
           recycleFuel,
           moonshotHoldUsd: MOONSHOT_HOLD_USD,
-          piggyMinUsd: 0.05,
+          piggyMinUsd: piggyBankMinUsd(),
         });
         const keepTokens  = Math.max(keepUsd > 0 ? keepUsd / price : 0, token.piggyReserve || 0);
         const sellTokens  = Math.max(balance - keepTokens, 0);

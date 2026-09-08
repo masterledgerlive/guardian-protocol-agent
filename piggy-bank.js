@@ -17,6 +17,13 @@
  * (capped only at remaining on-chain units). Unlock is the only path that
  * may shrink or clear the pile.
  *
+ * Ledger rule: peak gates and post-fill PnL must charge only the sold fraction
+ * of entry cost (`previewPiggySellNetUsd` / `costBasisForSoldFraction`). Leaving
+ * dust behind leaves that cost behind — otherwise succession math fails.
+ *
+ * Nested ledgers (`buildTokenPiggyLedger`): dust + ETH contrib + agent share
+ * per inject seat. Agent share funds future AI piggy banks; dust stays locked.
+ *
  * This does not replace the ETH skim `piggyBank` in positions.json — that is
  * a different pool. This module is token-unit dust on each bag.
  */
@@ -169,4 +176,99 @@ export function loadPiggyReserve(token, positionsMap) {
   const sym = token?.symbol;
   const fromPos = sym ? sanitizePiggyReserve(positionsMap?.[sym]) : 0;
   return Math.max(fromToken, fromPos);
+}
+
+/**
+ * Cost basis for tokens actually sold after piggy.
+ * Dust left behind keeps its slice of entry — charging 100% cost against a
+ * piggy-capped sell flips real profits into fake losses on the ledger.
+ */
+export function costBasisForSoldFraction(totalInvestedEth, soldFrac) {
+  const inv = Math.max(0, Number(totalInvestedEth) || 0);
+  const f = Math.max(0, Math.min(1, Number(soldFrac) || 0));
+  return inv * f;
+}
+
+/**
+ * Preview net USD when selling `sellable` and leaving the piggy pile untouched.
+ * Peak / fib / early-sell gates must use this so succession math matches
+ * executeSell (soldFrac × entry, fees/skim on sold proceeds only).
+ */
+export function previewPiggySellNetUsd({
+  balance,
+  sellable,
+  investedEth = 0,
+  priceUsd,
+  ethUsd,
+  feePct = 0.006,
+  skimPct = 0.01,
+} = {}) {
+  const bal = Math.max(0, Number(balance) || 0);
+  const sell = Math.max(0, Number(sellable) || 0);
+  const px = Number(priceUsd);
+  const eth = Number(ethUsd);
+  if (!(bal > 0) || !(sell > 0) || !(px > 0) || !(eth > 0)) {
+    return {
+      soldFrac: 0,
+      proceedsUsd: 0,
+      costUsd: 0,
+      feesUsd: 0,
+      skimUsd: 0,
+      netUsd: 0,
+    };
+  }
+  const soldFrac = Math.min(1, sell / bal);
+  const proceedsUsd = sell * px;
+  const costUsd = costBasisForSoldFraction(investedEth, soldFrac) * eth;
+  const feesUsd = proceedsUsd * Math.max(0, Number(feePct) || 0);
+  const skimUsd = proceedsUsd * Math.max(0, Number(skimPct) || 0);
+  return {
+    soldFrac,
+    proceedsUsd,
+    costUsd,
+    feesUsd,
+    skimUsd,
+    netUsd: proceedsUsd - costUsd - feesUsd - skimUsd,
+  };
+}
+
+/**
+ * Nested per-token piggy ledger — dust on each inject seat, plus ETH/agent
+ * shares skimmed from that token's profitable exits. AI piggy banks later
+ * draw from agentShare; dust stays untouched unless explicit unlock.
+ */
+export function buildTokenPiggyLedger({
+  symbol = "",
+  dustReserve = 0,
+  dustUsd = 0,
+  ethContrib = 0,
+  agentShare = 0,
+} = {}) {
+  return {
+    symbol: String(symbol || "").trim().toUpperCase(),
+    dustReserve: sanitizePiggyReserve(dustReserve),
+    dustUsd: Math.max(0, Number(dustUsd) || 0),
+    ethContrib: Math.max(0, Number(ethContrib) || 0),
+    agentShare: Math.max(0, Number(agentShare) || 0),
+  };
+}
+
+/** Credit ETH piggy / agent slices onto a per-token nested ledger row. */
+export function creditTokenPiggyPools(ledger, { ethContrib = 0, agentShare = 0, symbol } = {}) {
+  const base = ledger && typeof ledger === "object"
+    ? { ...ledger }
+    : buildTokenPiggyLedger({ symbol });
+  if (symbol && !base.symbol) base.symbol = String(symbol).trim().toUpperCase();
+  base.ethContrib = Math.max(0, (Number(base.ethContrib) || 0) + Math.max(0, Number(ethContrib) || 0));
+  base.agentShare = Math.max(0, (Number(base.agentShare) || 0) + Math.max(0, Number(agentShare) || 0));
+  base.dustReserve = sanitizePiggyReserve(base.dustReserve);
+  base.dustUsd = Math.max(0, Number(base.dustUsd) || 0);
+  return base;
+}
+
+/** Unrealized co-invest mark (tokens × price − ethIn × ethUsd). */
+export function piggyCoInvestMarkUsd({ tokens = 0, priceUsd = 0, ethIn = 0, ethUsd = 0 } = {}) {
+  const mark = Math.max(0, Number(tokens) || 0) * Math.max(0, Number(priceUsd) || 0);
+  const cost = Math.max(0, Number(ethIn) || 0) * Math.max(0, Number(ethUsd) || 0);
+  return mark - cost;
 }

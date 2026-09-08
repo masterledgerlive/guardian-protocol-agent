@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Fixed — piggy ledger math so dust stays behind and succession can fire
+
+Piggy already sized sells as `balance − reserve`, but peak gates and post-fill
+ledger PnL still charged **100% of entry** against the piggy-capped slice.
+That understated profit, starved the 1% skim / agent pools, and blocked
+automatic sales even when math + profits were met. `/piggy` co-invest mark
+also used `tokens*0` (always a fake loss).
+
+- **Ledger / skim / succession** — `executeSell` uses `soldFrac` /
+  `costBasisForSoldFraction` for invested USD, net PnL, wave stats, and
+  ledger rows (`soldFrac`, `piggyDustLeft`).
+- **Peak / fib / early-sell gates** — `previewPiggySellNetUsd` so fees, skim,
+  and cost basis match the sellable bag; ride until peak turn still leaves
+  dust untouched.
+- **Piggy-only dust** — no longer wipe `piggyReserve` when the bag is below
+  dust USD; keep the high-water mark on-chain until `/piggyunlock`.
+- **Nested per-token piggy ledger** — `tokenPiggyLedgers` tracks dust + ETH
+  contrib + agent share per inject seat (persisted). AI spend later draws
+  from agent share once revenue proves out.
+- **ETH piggy co-invest** — off by default (`PIGGY_COINVEST=yes` to enable)
+  so the skim pool stays locked for AI piggy banks.
+- **Inject fuel** — uses `piggyBankMinUsd()` instead of a hardcoded $0.05.
+- `/piggy` shows real co-invest marks and nested dust/eth/ai lines.
+
+Does **not** weaken LOSE_ZERO, PRICE_INSANE, QuoterV2, minOut, frozen buy,
+or the never-sell dust ratchet.
+
 ### Fixed — inject capital velocity snowball (live $0.71 / $7 bags)
 
 Live Railway 2026-09-08: **Tradeable $0.71**, **~$7 in bags** (LINK ~$4.35 @ −1%,
