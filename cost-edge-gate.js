@@ -21,6 +21,10 @@
 export const MAX_HITCH_COST_PCT = 0.08;       // hitch alone ≤ 8% of trade
 export const MAX_ROUND_TRIP_COST_PCT = 0.22;  // full RT ≤ 22% of stake (was 95%!)
 export const MIN_NEAR_TERM_EDGE_MULT = 1.35;  // need ≥1.35× costs in near-term room
+/** Thin books + cheap hitch: 1.15× BE (still never < 1×). Research 2026-09-08. */
+export const THIN_BOOK_NEAR_TERM_MULT = 1.15;
+export const THIN_BOOK_EDGE_USD = 15;
+export const CHEAP_HITCH_PCT = 0.02;
 export const HIGH_UNIT_MIN_BUY_USD = 25;      // CBBTC-class floor on small books
 export const BAG_DUST_USD = 0.08;             // USD dust — never clear ledger below this without sell
 export const SELLABLE_MIN_USD = 0.12;         // exit paths use USD, not token count > 1
@@ -37,6 +41,36 @@ export const costMistakeLog = [];
 export function isHighUnitPriceSymbol(symbol) {
   const s = String(symbol || "").toUpperCase();
   return HIGH_UNIT_PRICE_SYMBOLS.includes(s) || s === "CBBTC";
+}
+
+/**
+ * Adaptive near-term edge mult.
+ * Thin books (<$15) with cheap hitch (<2% of stake): demand 1.15× break-even
+ * instead of 1.35× so gas-dominated seats can still fill when hitch is nearly
+ * free. High-unit majors keep the strict 1.35×. Never returns < 1.
+ */
+export function adaptiveNearTermEdgeMult({
+  tradeableUsd = Infinity,
+  hitchPct = 0,
+  symbol = "",
+  baseMult = MIN_NEAR_TERM_EDGE_MULT,
+  thinMult = THIN_BOOK_NEAR_TERM_MULT,
+  thinUsd = THIN_BOOK_EDGE_USD,
+  cheapHitchPct = CHEAP_HITCH_PCT,
+} = {}) {
+  const base = Number(baseMult);
+  const safeBase = Number.isFinite(base) && base >= 1 ? base : MIN_NEAR_TERM_EDGE_MULT;
+  if (isHighUnitPriceSymbol(symbol)) return safeBase;
+  const usd = Number(tradeableUsd);
+  const hp = Number(hitchPct);
+  const thin = Number.isFinite(usd) && usd > 0 && usd < thinUsd;
+  const cheap = Number.isFinite(hp) && hp >= 0 && hp < cheapHitchPct;
+  if (thin && cheap) {
+    const t = Number(thinMult);
+    const thinSafe = Number.isFinite(t) && t >= 1 ? t : THIN_BOOK_NEAR_TERM_MULT;
+    return Math.min(safeBase, thinSafe);
+  }
+  return safeBase;
 }
 
 /**
@@ -126,6 +160,8 @@ export function evaluateCostEdgeGate({
   tradeableUsd = 0,
   highUnitMinBuyUsd = HIGH_UNIT_MIN_BUY_USD,
   isManualOperator = false,
+  /** When false, use nearTermEdgeMult as-is (A/B baseline). Default adapts thin+cheap. */
+  adaptiveNearTerm = true,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const fr = costFractions({ tradeEth, hitchCostEth, gasCostEth, feePct, impactPct });
@@ -136,6 +172,17 @@ export function evaluateCostEdgeGate({
   const nearUpside = nearTermUpsidePct({ price, recentHigh });
   const tradeUsd = fr.tradeEth * (Number(ethUsd) || 0);
   const highUnit = isHighUnitPriceSymbol(sym);
+  // Caller may pass an explicit mult; otherwise adapt for thin+cheap-hitch books.
+  const edgeMult = adaptiveNearTerm
+    ? adaptiveNearTermEdgeMult({
+        tradeableUsd,
+        hitchPct: fr.hitchPct,
+        symbol: sym,
+        baseMult: nearTermEdgeMult,
+      })
+    : (Number.isFinite(Number(nearTermEdgeMult)) && Number(nearTermEdgeMult) >= 1
+        ? Number(nearTermEdgeMult)
+        : MIN_NEAR_TERM_EDGE_MULT);
 
   let allow = true;
   let reason = "ok";
@@ -155,10 +202,10 @@ export function evaluateCostEdgeGate({
     allow = false;
     code = "rt_pct";
     reason = `round-trip ${(fr.roundTripPct * 100).toFixed(1)}% of stake > max ${(maxRoundTripPct * 100).toFixed(0)}%`;
-  } else if (!(nearUpside + 1e-12 >= needMove * nearTermEdgeMult)) {
+  } else if (!(nearUpside + 1e-12 >= needMove * edgeMult)) {
     allow = false;
     code = "near_term";
-    reason = `near-term upside ${(nearUpside * 100).toFixed(2)}% < ${(nearTermEdgeMult).toFixed(2)}× required ${(needMove * 100).toFixed(2)}% — would wait forever on a far peak`;
+    reason = `near-term upside ${(nearUpside * 100).toFixed(2)}% < ${(edgeMult).toFixed(2)}× required ${(needMove * 100).toFixed(2)}% — would wait forever on a far peak`;
   } else if (highUnit && tradeUsd > 0 && tradeUsd + 1e-9 < highUnitMinBuyUsd && !isManualOperator) {
     allow = false;
     code = "high_unit_floor";
@@ -184,6 +231,7 @@ export function evaluateCostEdgeGate({
     roundTripPct: fr.roundTripPct,
     requiredMovePct: needMove,
     nearTermUpsidePct: nearUpside,
+    nearTermEdgeMult: edgeMult,
     tradeEth: fr.tradeEth,
     tradeUsd,
     highUnit,

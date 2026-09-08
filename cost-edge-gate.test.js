@@ -160,3 +160,36 @@ describe("cost-edge-gate: caps exported", () => {
     assert.ok(HIGH_UNIT_MIN_BUY_USD >= 15);
   });
 });
+
+describe("cost-edge-gate: adaptive thin-book near-term mult", () => {
+  it("softens 1.35→1.15 on $2.24 + cheap hitch and allows 5% upside", () => {
+    const d = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 2.24 / 2481,
+      hitchCostEth: 8e-9,
+      gasCostEth: 0.00001,
+      price: 14,
+      recentHigh: 14 * 1.05,
+      ethUsd: 2481,
+      tradeableUsd: 2.24,
+    });
+    assert.equal(d.allow, true);
+    assert.ok(d.nearTermEdgeMult <= 1.15 + 1e-9);
+  });
+
+  it("baseline flag keeps 1.35 and refuses the same 5% upside", () => {
+    const d = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 2.24 / 2481,
+      hitchCostEth: 8e-9,
+      gasCostEth: 0.00001,
+      price: 14,
+      recentHigh: 14 * 1.05,
+      ethUsd: 2481,
+      tradeableUsd: 2.24,
+      adaptiveNearTerm: false,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.code, "near_term");
+  });
+});
