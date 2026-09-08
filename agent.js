@@ -132,6 +132,10 @@ import {
   shouldRecycleForCascadeFuel,
   belowMinEntrySkip,
   effectiveSellReserve,
+  effectiveCascadeGasFloor,
+  unwrapForCascadeGas,
+  injectProveStatus,
+  INJECT_PROVE_TARGET,
 } from "./cascade-rollover.js";
 import {
   projectAvenue,
@@ -2491,6 +2495,11 @@ let cascadeTime    = {}; // separate grace timer for cascade targets
 let piggyBank      = 0;
 let totalSkimmed   = 0;
 let tradeCount     = 0;
+/** Successful on-chain hitch injections (buy or sell with §$STORE§ mined). */
+let hitchInjectCount = 0;
+/** Realized USD P&L from hitch-bearing fills (prove milestone). */
+let hitchInjectProfitUsd = 0;
+let hitchProveAnnounced = false;
 
 // ── BTP STRAND TRACKING — groups trades into 5-chunk strands ─────────────────
 // Every 5 trades = one complete strand. Chunk 5/5 shows combined math.
@@ -4253,11 +4262,14 @@ async function getFullBalance() {
   const total = eth + weth;
   // Reserve = max of percentage reserve OR hard minimums + piggy.
   // Thin books shrink sell reserve so ~0.002 ETH liquid is not reported as 0.000485.
+  // Cascade gas floor (native continuity) replaces plain GAS_RESERVE in the hard floor
+  // so inject-all / cascade never spend the last moves' fuel.
   const sellR = effectiveSellReserve(total, SELL_RESERVE);
-  const reserved   = Math.max(total * ETH_RESERVE_PCT, GAS_RESERVE + sellR + piggyBank);
-  const tradeable  = Math.max(eth - GAS_RESERVE - sellR, 0); // ETH minus gas costs
+  const gasFloor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
+  const reserved   = Math.max(total * ETH_RESERVE_PCT, gasFloor + sellR + piggyBank);
+  const tradeable  = Math.max(eth - gasFloor - sellR, 0); // ETH minus gas continuity + sell cushion
   const tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
-  return { eth, weth, total, tradeable, tradeableWithWeth, sellReserve: sellR };
+  return { eth, weth, total, tradeable, tradeableWithWeth, sellReserve: sellR, gasFloor };
 }
 
 // Wraps ETH → WETH when WETH needed for a swap
@@ -4638,6 +4650,66 @@ async function manageEthWethBalance(cdp) {
       }
     }
   } catch (e) { /* non-blocking — balance management is best-effort */ }
+}
+
+/**
+ * Cascade continuity: unwrap WETH → native ETH before a sell or cascade buy
+ * so we never cross the depletion threshold (no gas left for the next N moves).
+ * Returns true when native ETH is at/above the floor after best-effort unwrap.
+ */
+async function ensureCascadeNativeGas(cdp, label = "move") {
+  try {
+    const eth = await getEthBalance();
+    const weth = await getWethBalance();
+    const floor = effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
+    const need = unwrapForCascadeGas({
+      nativeEth: eth,
+      weth,
+      floorEth: floor,
+      keepWethMin: 0,
+    });
+    if (need > 0) {
+      console.log(`   ⛽ CASCADE GAS [${label}]: native ${eth.toFixed(6)} < floor ${floor.toFixed(6)} — unwrap ${need.toFixed(6)} WETH`);
+      const ok = await unwrapEth(cdp, need);
+      if (!ok) {
+        // Fallback to withdraw path used by manageEthWethBalance
+        await unwrapWeth(cdp, need);
+      }
+    }
+    const after = await getEthBalance();
+    if (after + 1e-12 < Math.min(floor, GAS_RESERVE)) {
+      console.log(`   🛑 CASCADE GAS [${label}]: still below reserve (${after.toFixed(6)}) — cannot fund next moves`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.log(`   ⚠️  CASCADE GAS [${label}] check failed: ${e.message}`);
+    return false;
+  }
+}
+
+/** Record a mined hitch injection toward the 20-prove capital milestone. */
+function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?" } = {}) {
+  if (!onChain) return null;
+  hitchInjectCount++;
+  const pnl = Number(netUsd) || 0;
+  if (pnl !== 0) hitchInjectProfitUsd += pnl;
+  const status = injectProveStatus({
+    successfulInjections: hitchInjectCount,
+    netProfitUsd: hitchInjectProfitUsd,
+    target: INJECT_PROVE_TARGET,
+  });
+  console.log(`   💉 HITCH PROVE ${status.count}/${status.target} · $${status.netProfitUsd.toFixed(2)} [${symbol}]`);
+  if (status.ready && !hitchProveAnnounced) {
+    hitchProveAnnounced = true;
+    tg(
+      `✅ <b>INJECT PROVE MET</b>\n` +
+      `${status.count}/${status.target} successful hitch injections\n` +
+      `Net hitch P&amp;L: $${status.netProfitUsd.toFixed(2)}\n` +
+      `Capital may increase — cascade gas floor still enforced.`
+    ).catch(() => {});
+  }
+  return status;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -5021,9 +5093,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const sellR = Number.isFinite(bal?.sellReserve)
       ? bal.sellReserve
       : effectiveSellReserve(eth + weth, SELL_RESERVE);
-    const totalAvail = eth + weth - GAS_RESERVE - sellR;
+    const gasFloor = Number.isFinite(bal?.gasFloor)
+      ? bal.gasFloor
+      : effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
+    const totalAvail = eth + weth - gasFloor - sellR;
     if (totalAvail < MIN_ETH_TRADE) {
-      return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)}`);
+      return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)} (gas floor ${gasFloor.toFixed(6)})`);
     }
     const posUsd = totalAvail * ethUsd;
     if (posUsd < minPosUsd()) {
@@ -5135,14 +5210,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const amountIn  = parseEther(ethToSpend.toFixed(18));
 
     // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
-    // wrap ETH → WETH if we need more WETH than available
+    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor
     let useWeth = weth >= ethToSpend;
-    if (!useWeth && weth > 0 && eth - GAS_RESERVE >= ethToSpend) {
+    if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
       // Have enough ETH to cover — use ETH directly (no wrap needed)
       useWeth = false;
-    } else if (!useWeth && weth > 0 && eth + weth - GAS_RESERVE >= ethToSpend) {
-      // Need to wrap some ETH to top up WETH
+    } else if (!useWeth && weth > 0 && eth + weth - gasFloor >= ethToSpend) {
+      // Need to wrap some ETH to top up WETH — leave cascade gas floor native
       const wrapAmount = ethToSpend - weth + 0.0001;
+      const maxWrap = Math.max(0, eth - gasFloor);
+      if (wrapAmount > maxWrap + 1e-12) {
+        return await skipBuy(reason, token.symbol, `🛑 Wrap would breach cascade gas floor ${gasFloor.toFixed(6)}`);
+      }
       const wrapped = await wrapEth(cdp, wrapAmount);
       if (wrapped) useWeth = true;
       else useWeth = false; // fall back to direct ETH if wrap fails
@@ -5326,6 +5405,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
+    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
     if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
@@ -5378,12 +5458,15 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     // ── FIX v18: Hard live ETH gate — never attempt a tx we can't pay gas for ──
     // Even a sell costs gas. If native ETH < GAS_RESERVE we cannot send ANY tx.
-    // Previous code relied on cached bal which could be stale. This live check
-    // prevents "Insufficient balance" errors and wasted RPC calls.
-    const liveNativeEth = await getEthBalance();
+    // Cascade path: unwrap WETH first so sell→cascade never dies mid-chain.
+    let liveNativeEth = await getEthBalance();
     if (liveNativeEth < GAS_RESERVE) {
-      console.log(`   🛑 SELL BLOCKED [${token.symbol}]: native ETH ${liveNativeEth.toFixed(6)} < gas reserve ${GAS_RESERVE} — no gas`);
-      return null;
+      const topped = await ensureCascadeNativeGas(cdp, `sell-${token.symbol}`);
+      liveNativeEth = await getEthBalance();
+      if (!topped || liveNativeEth < GAS_RESERVE) {
+        console.log(`   🛑 SELL BLOCKED [${token.symbol}]: native ETH ${liveNativeEth.toFixed(6)} < gas reserve ${GAS_RESERVE} — no gas`);
+        return null;
+      }
     }
     if (!isValidUsdPrice(price)) {
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: no live USD quote — refusing to size from $0`);
@@ -5651,6 +5734,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
     await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
+    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd, symbol: token.symbol });
 
     console.log(`      ✅ https://basescan.org/tx/${transactionHash}`);
     console.log(`      💰 Received: ${received.toFixed(6)} ETH ($${recUsd.toFixed(2)}) | Net: ${netUsd>=0?"+":""}$${netUsd.toFixed(2)}`);
@@ -5803,6 +5887,13 @@ async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
 
 async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
   try {
+    // Never start a cascade hop without native gas for this buy + the next exit.
+    const gasOk = await ensureCascadeNativeGas(cdp, `cascade-${soldSymbol}`);
+    if (!gasOk) {
+      console.log(`  🌊 CASCADE held — native gas below floor after unwrap attempt`);
+      return;
+    }
+    const freshBal = await getFullBalance();
     const gasCost = await estimateGasCostEth();
     const ethUsd  = await getLiveEthPrice();
     const target  = await findCascadeTarget(soldSymbol, gasCost, proceeds);
@@ -5828,23 +5919,28 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       tokenMinBuyUsd: minBuyUsdForToken(target),
       minPosUsd: minPosUsd(),
     });
+    const liquid = (freshBal.eth || 0) + (freshBal.weth || 0);
+    const gasFloor = effectiveCascadeGasFloor(liquid, { gasReserveEth: GAS_RESERVE });
     const deploy = cascadeDeployEth({
       proceedsEth: proceeds,
       targetMinEntryEth: targetMin,
       netMargin: arm.net || MIN_NET_MARGIN,
+      gasFloorEth: gasFloor,
+      liquidEth: liquid,
     });
     if (!(deploy > 0)) {
-      console.log(`  🌊 CASCADE held — proceeds ${proceeds.toFixed(6)} < min entry ${targetMin.toFixed(6)} for ${target.symbol}`);
+      console.log(`  🌊 CASCADE held — proceeds ${proceeds.toFixed(6)} < min entry ${targetMin.toFixed(6)} for ${target.symbol} (or gas floor ${gasFloor.toFixed(6)} would deplete)`);
       return;
     }
-    console.log(`  🌊 CASCADE ${soldSymbol} → ${target.symbol} | ${(arm.net*100).toFixed(2)}% net [${arm.priority}] | deploy ${deploy.toFixed(6)} (≥ min ${targetMin.toFixed(6)})`);
+    console.log(`  🌊 CASCADE ${soldSymbol} → ${target.symbol} | ${(arm.net*100).toFixed(2)}% net [${arm.priority}] | deploy ${deploy.toFixed(6)} (≥ min ${targetMin.toFixed(6)}, gas floor ${gasFloor.toFixed(6)})`);
     await tg(
       `🌊 <b>CASCADE: ${soldSymbol} → ${target.symbol}</b>\n\n` +
       `💰 Deploying: ${deploy.toFixed(6)} ETH (min entry ${targetMin.toFixed(6)})\n` +
+      `⛽ Gas floor kept: ${gasFloor.toFixed(6)} ETH\n` +
       `📊 Net margin: ${(arm.net*100).toFixed(2)}% [${arm.priority}]\n` +
       `💲 At MIN trough: $${price?.toFixed(8)}\n⚡ Buying...`
     );
-    await executeBuy(cdp, target, bal, `🌊 CASCADE from ${soldSymbol} [${arm.priority}]`, price, deploy, true);
+    await executeBuy(cdp, target, freshBal, `🌊 CASCADE from ${soldSymbol} [${arm.priority}]`, price, deploy, true);
   } catch (e) { console.log(`  ⚠️ Cascade error: ${e.message}`); }
 }
 
@@ -6976,6 +7072,9 @@ async function loadFromGitHub() {
     }
     totalSkimmed   = pos.totalSkimmed || 0;
     tradeCount     = pos.tradeCount   || 0;
+    hitchInjectCount = pos.hitchInjectCount || 0;
+    hitchInjectProfitUsd = pos.hitchInjectProfitUsd || 0;
+    hitchProveAnnounced = !!pos.hitchProveAnnounced;
     predFund       = pos.predFund     || 0;
     predFundPnl    = pos.predFundPnl  || 0;
     predFundTrades = pos.predFundTrades || 0;
@@ -7098,6 +7197,7 @@ async function saveToGitHub() {
     }
     positionsSha = await githubSave("positions.json", {
       lastSaved: new Date().toISOString(), piggyBank, totalSkimmed, tradeCount,
+      hitchInjectCount, hitchInjectProfitUsd, hitchProveAnnounced,
       surfers: surfers,           // save active surfer state
       surferHistory: surferHistory.slice(-50), // last 50 retired surfers
       surferNameIdx,
@@ -7455,6 +7555,21 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           `Piggy + Eureka hitch ride leftover-covered fills only.\n\n` +
           `<b>Cycles</b>\n${report}\n\n` +
           `<b>Live min buys (WETH books)</b>\n${liveMins || "none"}`
+        );
+      } else if (text === "/injectprove" || text === "/proveinject") {
+        const prove = injectProveStatus({
+          successfulInjections: hitchInjectCount,
+          netProfitUsd: hitchInjectProfitUsd,
+          target: INJECT_PROVE_TARGET,
+        });
+        const gf = effectiveCascadeGasFloor((bal.eth || 0) + (bal.weth || 0), { gasReserveEth: GAS_RESERVE });
+        await tg(
+          `💉 <b>INJECT PROVE</b>\n` +
+          `${prove.message}\n\n` +
+          `Hitch fills: ${prove.count}/${prove.target} (${prove.remaining} to go)\n` +
+          `Hitch P&amp;L: $${prove.netProfitUsd.toFixed(2)}\n` +
+          `⛽ Cascade gas floor: ${gf.toFixed(6)} ETH (never deplete)\n` +
+          `${prove.ready ? "✅ Capital may increase" : "⏳ Hold capital size until prove + profit"}`
         );
       } else if (text === "/turbo") {
         // Turbo mode: already the new default — confirm current settings
@@ -9748,6 +9863,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `<b>📱 Manual Trade Commands:</b>\n` +
           `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
           `/cycles — no-loss succession streaks + per-token min buys\n` +
+          `/injectprove — hitch injection count toward 20 + profit (capital gate)\n` +
           `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +
