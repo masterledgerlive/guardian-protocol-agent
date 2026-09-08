@@ -6,6 +6,12 @@
  * triggers sat at 90d candle lows (UNI buy@$3.17 while mark~$7) → zero fills.
  * Meanwhile SKI/DRB passed LOSE_ZERO every minute then "not in active tiers".
  * Dragnet scans burn RPC; inject never lands; revenue stays flat.
+ *
+ * Live Railway (2026-09-08): tradeable ~$0.71, bags ~$7 (LINK ~$4.35 / MORPHO
+ * ~$1.98). INJECT-ALL reserved UNI with a sub-min seat → PRIMED none every
+ * cycle. Moonshot allowed MORPHO then executeSell held — sellPct vs piggy
+ * tokensToSell mismatch made leftover flip ≤ 0. Snowball needs capital
+ * velocity: free profitable bags, never reserve a dead seat, then inject.
  */
 
 export const SMALL_BOOK_USD = 15;
@@ -15,6 +21,12 @@ export const SMALL_TIER2_PCT = 0.15;
 export const SMALL_TIER2_MIN_SLOT_USD = 1.5;
 export const INJECT_PULLBACK_BAND = 0.025; // buy within 2.5% of recent low
 export const STALE_TROUGH_GAP = 0.18; // 90d min >18% below mark → ignore for entry
+/** Known bags this large can fuel inject when liquid is starved. */
+export const INJECT_FUEL_MIN_USD = 0.75;
+/** Velocity names that historically compounded on thin Base books. */
+export const INJECT_VELOCITY_SYMBOLS = Object.freeze([
+  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT",
+]);
 
 /**
  * Pick tier sizing for the current book. Tiny wallets concentrate so each
@@ -119,4 +131,85 @@ export function shouldRecycleUnknownDust({
   if (!(usd >= minUsd)) return false;
   // Trim anything above lottery floor; tiny dust stays as piggy.
   return usd > Number(moonshotHoldUsd) * 1.2;
+}
+
+/**
+ * Actual bag fraction sold after piggy. LOSE_ZERO entrySlice must use this —
+ * not the requested sellPct — or leftover flips from allow → hold.
+ */
+export function sellFractionAfterPiggy({ balance, tokensToSell } = {}) {
+  const bal = Number(balance);
+  const sold = Number(tokensToSell);
+  if (!(bal > 0) || !(sold > 0)) return 0;
+  return Math.min(1, sold / bal);
+}
+
+/**
+ * Known-cost bags stuck outside the inject seat while liquid is starved.
+ * Still never sells at a loss — caller runs LOSE_ZERO on piggy-aligned size.
+ */
+export function shouldRecycleKnownForInjectFuel({
+  knownEntry = false,
+  posUsd = 0,
+  liquidStarved = false,
+  injectAll = false,
+  moonshotHoldUsd = 0.5,
+  minUsd = INJECT_FUEL_MIN_USD,
+} = {}) {
+  if (!knownEntry || !liquidStarved) return false;
+  const usd = Number(posUsd);
+  if (!(usd >= Number(minUsd))) return false;
+  if (injectAll) return usd >= Number(minUsd);
+  return usd > Number(moonshotHoldUsd) * 1.5;
+}
+
+/**
+ * Hard-reserve UNI only when the seat can clear min entry. Sub-min inject-all
+ * books that reserve UNI with $0.71 get PRIMED:none forever.
+ */
+export function injectReserveViable({
+  tradeableUsd = 0,
+  minEntryUsd = 0,
+  injectAll = false,
+} = {}) {
+  const t = Number(tradeableUsd);
+  if (!(t > 0)) return false;
+  const need = Number(minEntryUsd);
+  if (Number.isFinite(need) && need > 0 && t + 1e-9 < need) return false;
+  // Inject-all with a sub-$2 book cannot pay RT+hitch+seed — don't fake a seat.
+  if (injectAll && t < 2) return false;
+  return true;
+}
+
+/**
+ * When liquid-starved, keep only piggy dust — not the $0.50 lottery floor —
+ * so a green bag frees a cascade-sized stake.
+ */
+export function injectFuelKeepUsd({
+  liquidStarved = false,
+  recycleFuel = false,
+  moonshotHoldUsd = 0.5,
+  piggyMinUsd = 0.05,
+} = {}) {
+  if (liquidStarved && recycleFuel) {
+    return Math.max(0, Number(piggyMinUsd) || 0);
+  }
+  return Math.max(0, Number(moonshotHoldUsd) || 0);
+}
+
+/** Score nudge for names that historically snowballed on thin books. */
+export function injectVelocityScoreBoost({
+  symbol,
+  injectAll = false,
+  liquidStarved = false,
+} = {}) {
+  if (!injectAll && !liquidStarved) return 0;
+  const s = String(symbol || "").toUpperCase();
+  if (!INJECT_VELOCITY_SYMBOLS.includes(s)) return 0;
+  return injectAll ? 12 : 6;
+}
+
+/** Largest bags first so one recycle can clear min entry. */
+export function sortRecycleCandidatesByUsd(candidates = []) {
+  return [...candidates].sort((a, b) => (Number(b?.posUsd) || 0) - (Number(a?.posUsd) || 0));
 }
