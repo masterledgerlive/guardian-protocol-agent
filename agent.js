@@ -6052,9 +6052,9 @@ async function runRippleEngine(cdp, allTokens, bal, ethUsd) {
     for (const token of allTokens) {
       if (!token.entryPrice) continue;
       const balance = getCachedBalance(token.symbol);
-      if (!hasSellableUsd(balance, price, SELLABLE_MIN_USD)) continue;
       const price = history[token.symbol]?.lastPrice;
       if (!price) continue;
+      if (!hasSellableUsd(balance, price, SELLABLE_MIN_USD)) continue;
       const ref = stalePriceRef[token.symbol];
       if (!ref) continue;
       const elapsed = now - ref.timestamp;
@@ -10451,7 +10451,9 @@ async function main() {
       if (!token) continue;
 
       let price = history[symbol]?.lastPrice || netPositions[symbol]?.lastBuyPrice || getCachedPrice(token.address);
-      if (!isValidUsdPrice(price) && bal > 0.001) {
+      // Fractional high-unit bags (CBBTC ~0.00006) must still get a live quote —
+      // never gate the refresh on token-count > 0.001.
+      if (!isValidUsdPrice(price) && bal > 0) {
         const live = await getTokenPrice(token.address, true);
         if (isValidUsdPrice(live)) {
           price = live;
@@ -10463,9 +10465,9 @@ async function main() {
       const valueUsd = hasQuote ? bal * price : null;
       const net      = netPositions[symbol];
 
-      // Catch ANY holding — use raw balance OR USD value
-      // bal > 1 catches micro-priced meme tokens with millions of units
-      const hasRealHolding = bal > 1 || (valueUsd !== null && valueUsd > 0.05);
+      // Catch ANY holding — use raw balance OR USD value.
+      // bal > 1 catches micro-priced meme tokens; USD gate catches CBBTC/AAVE fractions.
+      const hasRealHolding = bal > 1 || (valueUsd !== null && valueUsd > BAG_DUST_USD) || hasSellableUsd(bal, price, BAG_DUST_USD);
 
       if (hasRealHolding) {
         found++;
