@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added — cascade gas floor: never deplete moves mid-cascade
+
+Cascade was sizing the highest deploy without loss on leftover/hitch math, but could still spend the last native ETH so the next sell or cascade hop had nothing left for Base gas (WETH cannot pay gas). Thin inject-all books were the worst case: 100% deploy → stranded.
+
+- **`cascadeGasFloorEth` / `effectiveCascadeGasFloor`** — keep fuel for the next N moves (default 3); thin books scale the floor toward `GAS_RESERVE` so ~$5 liquid can still cascade.
+- **`cascadeDeployEth` gas ceiling** — highest deploy without loss still leaves the floor in liquid; refuse the hop rather than cross the depletion threshold.
+- **`ensureCascadeNativeGas`** — unwrap WETH→ETH before sell (when under reserve) and before every cascade buy.
+- **Buy/wrap path** — tradeable and wrap sizing subtract the cascade gas floor, not only `GAS_RESERVE`.
+- **Inject prove milestone** — count successful on-chain hitch fills toward **20** with net profit; Telegram `/injectprove`; capital may increase only after prove + profit. Persisted on `positions.json`.
+
 ### Added — avenue priming: projected costs + top 2–3 cascade seats
 
 Cascade used to cold-scan for a near-trough target only *after* a sell. Thin books often picked paths that could not clear fees+hitch without losing; rich books still waited on a full loop before the next inject seat was chosen.
