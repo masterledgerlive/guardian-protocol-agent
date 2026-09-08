@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added — avenue priming: projected costs + top 2–3 cascade seats
+
+Cascade used to cold-scan for a near-trough target only *after* a sell. Thin books often picked paths that could not clear fees+hitch without losing; rich books still waited on a full loop before the next inject seat was chosen.
+
+- **`avenue-prime.js`** — every cycle projects round-trip cost (fees + gas + hitch + impact) per avenue vs this book’s spend size. Refuses paths where projected leftover ≤ 0 or spend &lt; min entry (lose-zero). Ranks the rest by expected net × hitch-code fit / cost.
+- **Top 2–3 primed seats** (1 on inject-all, 2 on small book, 3 otherwise) re-seat T1/T2 and feed `findCascadeTarget` first — choice is ready before the cascade fires; READY/near-entry seats execute without a long wait.
+- Growing capital prefers the path that makes the most **and** fits the most Eureka/code bytes for the least cost, then rolls into the next primed seat.
+
 ### Added — Guardian L1 Arena Sprints 2–5 (sideline)
 
 `guardian-protocol/` advances from Sprint 1 instrument to a full Arena ladder without touching the live trader:
