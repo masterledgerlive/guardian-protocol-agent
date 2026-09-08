@@ -141,6 +141,14 @@ import {
   formatPrimedAvenues,
 } from "./avenue-prime.js";
 import {
+  shouldRecycleSlowMajorForCascade,
+  refuseSlowMajorNewBuy,
+  isSlowMajor,
+  turnoverBias,
+  formatWrapperAvenueGuide,
+  SLOW_MAJOR_KEEP_USD,
+} from "./capital-fit.js";
+import {
   minBuyUsdForToken,
   operatorBuyBelowMin,
   applyWethDeadFreeze,
@@ -451,9 +459,10 @@ function calcTokenScore(symbol, gasCostEth, tradeEth) {
     score += 12;
   }
   // Main inject players (UNI first) always get a hard floor so they are not starved
-  // by meme books that already have wave history.
+  // by meme books that already have wave history. Slow majors (CBBTC/AAVE) get a
+  // lighter floor — avenue-prime + capital-fit refuse them on thin RISK books.
   if (isInjectMainPlayer(symbol) || token?.injectMain) {
-    score += 28;
+    score += isSlowMajor(symbol) ? 10 : 28;
   }
 
   // Near-entry boost — prefer inject mains that can buy THIS cycle (recent pullback)
@@ -499,12 +508,26 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
     .sort((a, b) => b.score - a.score);
 
   const bySym = new Map(scored.map(s => [s.symbol, s.score]));
-  const activeMains = INJECT_MAIN_PLAYERS.filter(s => bySym.has(s));
-  // Prefer UNI, else best-scoring inject main
+  // Thin RISK book: demote slow majors (CBBTC/AAVE) so they do not steal T1
+  if (Number.isFinite(totalTradeableUsd) && totalTradeableUsd > 0 && totalTradeableUsd < 40) {
+    for (const s of scored) {
+      if (isSlowMajor(s.symbol)) {
+        s.score = Math.max(0, s.score - 35);
+        bySym.set(s.symbol, s.score);
+      }
+    }
+    scored.sort((a, b) => b.score - a.score);
+  }
+  // Prefer UNI, else best-scoring *fast* inject main on thin books
   let reservedMain = null;
-  if (activeMains.includes("UNI")) reservedMain = "UNI";
-  else if (activeMains.length) {
-    reservedMain = activeMains.slice().sort((a, b) => (bySym.get(b) || 0) - (bySym.get(a) || 0))[0];
+  const mainsForReserve = INJECT_MAIN_PLAYERS.filter((s) => {
+    if (!bySym.has(s)) return false;
+    if (isSlowMajor(s) && !(totalTradeableUsd >= 40)) return false;
+    return true;
+  });
+  if (mainsForReserve.includes("UNI")) reservedMain = "UNI";
+  else if (mainsForReserve.length) {
+    reservedMain = mainsForReserve.slice().sort((a, b) => (bySym.get(b) || 0) - (bySym.get(a) || 0))[0];
   }
 
   const tier1 = [];
@@ -619,6 +642,7 @@ function buildPrimedAvenues({
         gwei,
         hitchBytesWanted: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
         ethUsd,
+        tradeableUsd,
         tokenMinBuyUsd: minBuyUsdForToken(t),
         minPosUsd: minPosUsd(),
       });
@@ -5028,6 +5052,13 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const posUsd = totalAvail * ethUsd;
     if (posUsd < minPosUsd()) {
       return await skipBuy(reason, token.symbol, `🛑 Wallet too small: $${posUsd.toFixed(2)} (need $${minPosUsd()})`);
+    }
+
+    // Slow majors (CBBTC/AAVE): refuse NEW buys on thin RISK books — lock capital for weeks of BTC-speed margin.
+    // Operator /buy may still force a test; cascade should prefer primed fast aisles.
+    if (!isManualOperatorBuy(reason)) {
+      const slowBuy = refuseSlowMajorNewBuy({ symbol: token.symbol, tradeableUsd: posUsd });
+      if (slowBuy) return await skipBuy(reason, token.symbol, slowBuy);
     }
 
     const tierEthEarly = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
@@ -10697,6 +10728,12 @@ async function main() {
       currentTier1 = tAssign.tier1;
       currentTier2 = tAssign.tier2;
       console.log(formatPrimedAvenues(primeBoard));
+      if (!global._lastWrapperGuideLog || Date.now() - global._lastWrapperGuideLog > 3_600_000) {
+        global._lastWrapperGuideLog = Date.now();
+        const g = formatWrapperAvenueGuide();
+        console.log(`🪙 ${g.activeLine}`);
+        console.log(`🪙 ${g.tip}`);
+      }
 
       // Log tier state every cycle (compact)
       const book = tAssign.book || currentTierBook;
@@ -10766,10 +10803,25 @@ async function main() {
         const unknownBag = !!(token.unknownEntry || !hasUsableCostBasis(token));
         const hasKnownPos = hasUsableCostBasis(token) && !!token.entryPrice;
         if (!hasKnownPos && !unknownBag) continue;
-        if (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol)) continue; // in a tier — leave it
+        const posUsd  = balance * price;
+        const hasFasterPrimed = (currentPrimedAvenues || []).some(
+          (a) => a.allow && a.symbol !== token.symbol && !isSlowMajor(a.symbol)
+        );
+        const recycleSlow = shouldRecycleSlowMajorForCascade({
+          symbol: token.symbol,
+          posUsd,
+          tradeableUsd: bal.tradeableWithWeth * ethUsd,
+          hasFasterPrimed,
+        });
+        // Slow majors (e.g. $4.78 CBBTC) may sit in T1 — still recycle into faster primed aisles.
+        if (
+          !recycleSlow &&
+          (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol))
+        ) {
+          continue; // in a productive tier — leave it
+        }
         const moonPriceGate = await gatePriceInsane(token, price, "sell", balance);
         if (!moonPriceGate.allow) continue;
-        const posUsd  = balance * price;
         const recycleUnknown = shouldRecycleForCascadeFuel({
           unknownEntry: unknownBag,
           posUsd,
@@ -10780,10 +10832,11 @@ async function main() {
           posUsd,
           moonshotHoldUsd: MOONSHOT_HOLD_USD,
         });
-        if (!recycleUnknown && posUsd <= MOONSHOT_HOLD_USD * 1.5) continue; // already at moonshot size
-        // Sell enough to bring position down to MOONSHOT_HOLD_USD — never into piggy dust
+        if (!recycleUnknown && !recycleSlow && posUsd <= MOONSHOT_HOLD_USD * 1.5) continue; // already at moonshot size
+        // Sell enough to bring position down to keep floor — never into piggy dust
         syncTokenPiggy(token, balance, price);
-        const keepTokens  = Math.max(MOONSHOT_HOLD_USD / price, token.piggyReserve || 0);
+        const keepUsd = recycleSlow ? SLOW_MAJOR_KEEP_USD : MOONSHOT_HOLD_USD;
+        const keepTokens  = Math.max(keepUsd / price, token.piggyReserve || 0);
         const sellTokens  = Math.max(balance - keepTokens, 0);
         const sellPct     = balance > 0 ? sellTokens / balance : 0;
         if (sellPct < 0.10) continue; // not worth a tx for < 10% sell
@@ -10791,7 +10844,9 @@ async function main() {
         const starveSellPct = (recycleUnknown && liquidStarved && unknownBag)
           ? Math.max(sellPct, Math.min(0.9, computeSellable(balance, token.piggyReserve) / Math.max(balance, 1e-12)))
           : sellPct;
-        const moonReason = recycleUnknown
+        const moonReason = recycleSlow
+          ? `🌙 SLOW-MAJOR RECYCLE — unlock ${token.symbol} into fast primed cascade`
+          : recycleUnknown
           ? `🌙 DUST RECYCLE — unknown cost basis`
           : `🌙 MOONSHOT TRIM — not in active tiers`;
         const moonGwei = await getCurrentGasGwei();
@@ -10819,15 +10874,16 @@ async function main() {
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
         if (!moonGate.allow) {
-          console.log(`🌙 ${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
+          console.log(`🌙 ${recycleSlow ? "SLOW-MAJOR RECYCLE" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
           continue;
         }
         const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
-        console.log(`🌙 ${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
+        console.log(`🌙 ${recycleSlow ? "SLOW-MAJOR RECYCLE" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
           const p = await executeSell(cdpClient, token, starveSellPct, moonReason, price, false);
           if (p > 0) {
-            await tg(`🌙 <b>${recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM"} — ${token.symbol}</b>\nFreed ${p.toFixed(6)} ETH for cascade redeploy\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
+            const tag = recycleSlow ? "SLOW-MAJOR RECYCLE" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+            await tg(`🌙 <b>${tag} — ${token.symbol}</b>\nFreed ${p.toFixed(6)} ETH for cascade redeploy\nScore: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`);
             // Continuous cascade: redeploy freed capital into a near-low when min entry clears
             const freshBal = await getFullBalance();
             cachedBal = freshBal;
