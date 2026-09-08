@@ -39,6 +39,19 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(stop > minDecl, "stopLossPrice must not TDZ on minTrgh");
   });
 
+  it("STOP LOSS uses shouldArmStopLoss and never cascades after fill", () => {
+    assert.ok(src.includes("shouldArmStopLoss"), "must import shouldArmStopLoss");
+    assert.ok(fn.includes("shouldArmStopLoss"), "processToken must arm via helper");
+    const stopBlock = fn.indexOf("// ── STOP LOSS");
+    assert.ok(stopBlock >= 0, "STOP LOSS block must exist");
+    const nextSection = fn.indexOf("// ── FIBONACCI PARTIAL EXIT", stopBlock);
+    assert.ok(nextSection > stopBlock, "fib section follows stop loss");
+    const block = fn.slice(stopBlock, nextSection);
+    assert.ok(block.includes("executeSell"), "stop loss still sells when green");
+    assert.ok(!block.includes("triggerCascade"), "no cascade after stop-loss (ledger loss path)");
+    assert.ok(!block.includes("Emergency exit"), "no Telegram spam before fill");
+  });
+
   it("does not touch lines before const lines is declared", () => {
     const decl = fn.search(/\bconst lines\b/);
     const firstPush = fn.search(/\blines\.push\b/);

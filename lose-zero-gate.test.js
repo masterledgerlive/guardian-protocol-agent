@@ -59,6 +59,8 @@ import {
   DEFAULT_HITCH_COST_MULT,
   hitchCostMult,
   isMoonshotTrimReason,
+  isStopLossReason,
+  shouldArmStopLoss,
 } from "./lose-zero-gate.js";
 
 describe("env flags", () => {
@@ -720,6 +722,54 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.equal(d.sellNow, false);
     assert.match(d.log, /hold sell TOSHI leftover after fees/);
     assert.ok(d.leftover <= 0 || d.leftover <= d.hitchCoverEth);
+  });
+
+  it("STOP LOSS holds when leftover after fees ≤ 0 — no loss bypass", () => {
+    assert.equal(isStopLossReason("STOP LOSS"), true);
+    const d = evaluateSellGate({
+      ...toshiMoonshot,
+      reason: "STOP LOSS",
+      symbol: "DEGEN",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.sellNow, false);
+    assert.match(d.log, /hold sell DEGEN leftover after fees/);
+    assert.match(d.log, /STOP LOSS floor held/);
+  });
+
+  it("STOP LOSS allows plain sale when leftover after fees is green", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.2;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      reason: "STOP LOSS",
+      symbol: "DEGEN",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.log, /plain|allow sell DEGEN/);
+  });
+
+  it("shouldArmStopLoss requires trusted cost — skips unknown/frozen", () => {
+    assert.equal(shouldArmStopLoss({
+      price: 0.009, stopLossPrice: 0.01, hasTrustedCostBasis: true,
+    }), true);
+    assert.equal(shouldArmStopLoss({
+      price: 0.009, stopLossPrice: 0.01, hasTrustedCostBasis: true, unknownEntry: true,
+    }), false);
+    assert.equal(shouldArmStopLoss({
+      price: 0.009, stopLossPrice: 0.01, hasTrustedCostBasis: true, frozen: true,
+    }), false);
+    assert.equal(shouldArmStopLoss({
+      price: 0.009, stopLossPrice: 0.01, hasTrustedCostBasis: false,
+    }), false);
+    assert.equal(shouldArmStopLoss({
+      price: 0.011, stopLossPrice: 0.01, hasTrustedCostBasis: true,
+    }), false);
   });
 
   it("sell allowed plain when leftover covers 1× hitch but not 2×", () => {

@@ -587,6 +587,26 @@ export function isStopLossReason(reason = "") {
   return String(reason || "").toUpperCase().startsWith("STOP LOSS");
 }
 
+/**
+ * Arm a stop-loss exit only on trusted, unfrozen bags with a real floor.
+ * Unknown-cost / frozen / piggy dust used display marks as "entry" and fired
+ * STOP LOSS spam with no fill — historical ledger's biggest loss bucket.
+ * Peak/plain sells remain the money path (ledger ~70% WR / +$324).
+ */
+export function shouldArmStopLoss({
+  price,
+  stopLossPrice,
+  hasTrustedCostBasis = false,
+  unknownEntry = false,
+  frozen = false,
+} = {}) {
+  if (unknownEntry || frozen || !hasTrustedCostBasis) return false;
+  const p = Number(price);
+  const floor = Number(stopLossPrice);
+  if (!Number.isFinite(p) || !Number.isFinite(floor) || floor <= 0) return false;
+  return p < floor;
+}
+
 export function isMoonshotTrimReason(reason = "") {
   return String(reason || "").toUpperCase().includes("MOONSHOT TRIM");
 }
@@ -793,7 +813,9 @@ export function sizeHitchForSell({
  * Hold unless leftover after fees covers N× hitch (default 2). Buys stay 1×.
  * Once the floor is met, the caller must sell immediately — do not wait past it.
  * Only exception: reason starts with `MANUAL SELL (operator)` AND
- * ALLOW_LOSSY_OPERATOR_SELL=yes. Stop-loss still exits (hitch skipped).
+ * ALLOW_LOSSY_OPERATOR_SELL=yes, or FORCE EXIT LOCKED recovery.
+ * STOP LOSS is NOT a loss bypass — underwater floors hold; green floors
+ * take a plain sale (hitch skipped) so we lock what is still profitable.
  */
 export function evaluateSellGate({
   projectedProceedsEth = 0,
@@ -929,20 +951,11 @@ export function evaluateSellGate({
     });
   }
 
-  if (isStopLossReason(reason)) {
-    return pack(true, "stop-loss", {
-      hitchBytes: 0,
-      btpInscribe: false,
-      skipHitch: true,
-      injectCostEth: 0,
-      hitchCoverEth: 0,
-      log: `LOSE_ZERO: allow sell ${symbol} STOP LOSS hitch skipped`,
-    });
-  }
-
   // Trade itself loses after fees (piggy dust already reserved in executeSell).
   // Hitch is optional: never hold a profitable wave hostage to insertion cost.
+  // STOP LOSS included — emergency floor is not permission to sell underwater.
   if (leftover <= 0) {
+    const stopNote = isStopLossReason(reason) ? " (STOP LOSS floor held)" : "";
     return pack(false, "trade would lose after fees", {
       hitchBytes: 0,
       btpInscribe: false,
@@ -952,7 +965,7 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: false,
-      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money`,
+      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money${stopNote}`,
     });
   }
 

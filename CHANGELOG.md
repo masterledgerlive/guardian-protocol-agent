@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed — STOP LOSS no longer sells underwater (ledger loss hole)
+
+Live Railway armed STOP LOSS on unknown-cost / frozen dust (STONKEX, BLUECHIP)
+and the sell gate **bypassed** lose-zero for any `STOP LOSS` reason — historical
+ledger's largest loss bucket (−$24.75) plus stop→cascade redeploys. Peak/plain
+exits are the earning path (~70% WR / +$324 on bot-state).
+
+- **`evaluateSellGate`** — STOP LOSS follows leftover math: hold when ≤ 0;
+  plain/hitch sale when green. Only operator lossy + FORCE EXIT LOCKED bypass.
+- **`shouldArmStopLoss`** — requires trusted cost basis; skips unknownEntry /
+  frozen catalog so display marks cannot fake a floor.
+- **`processToken`** — no cascade after stop-loss; Telegram only on a real fill
+  (no more "Emergency exit..." spam with piggy-dust no-ops).
+
 ### Added — second inject after paid peak exit; ride-wave instant peak; primed bottoms
 
 Not enough fills: bottoms missed, cascade stopped at one hop, peaks waited on
