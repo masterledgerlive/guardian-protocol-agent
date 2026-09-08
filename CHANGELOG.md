@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Research — revenue / hitch ingest sims; adaptive thin-book COST_EDGE
+
+Live Railway (~$2.24 inject-all LINK, UNI ~$4.7 underwater, hitch nearly free):
+primary blocker is **near_term COST_EDGE 1.35×** on gas-dominated seats + capital
+locked in bags — not hitch insert cost. Hitch L1 is ~0 today.
+
+- **`revenue-sim.js`** — theories T1–T5: COST_EDGE sweeps, seat fragmentation,
+  unknown-cost recycle, hitch budget, capital ladder $5→$100. `npm run sim:revenue`.
+  Simulator **calculates** profitability; never assumes it. Lose-zero invariant:
+  never sell/insert when leftover after fees ≤ 0.
+- **Adaptive near-term mult** — thin books (&lt;$15) with hitch &lt;2% of stake use
+  **1.15×** break-even instead of 1.35×. Still refuse upside &lt; required move.
+  CBBTC-class keeps 1.35×. Unlocks fills on squeeze days without reopening majors.
+- **`revenue-sim.test.js`** — A/B adaptive vs baseline on live $2.24 assumptions.
+
 ### Fixed — free locked CBBTC cash; keep majors closed; hunt profits only
 
 CBBTC stayed ARMED on live Railway while fractional bags locked most of the
