@@ -12,8 +12,16 @@ import {
   isInjectPullbackEntry,
   nearEntryScoreBoost,
   shouldRecycleUnknownDust,
+  shouldRecycleKnownForInjectFuel,
+  sellFractionAfterPiggy,
+  injectReserveViable,
+  injectFuelKeepUsd,
+  injectVelocityScoreBoost,
+  sortRecycleCandidatesByUsd,
   SMALL_BOOK_USD,
+  INJECT_FUEL_MIN_USD,
 } from "./inject-revenue.js";
+import { leftoverAfterFeesEth } from "./lose-zero-gate.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(root, "agent.js"), "utf8");
@@ -100,6 +108,106 @@ describe("inject-revenue: unknown dust recycle", () => {
   });
 });
 
+describe("inject-revenue: capital velocity snowball", () => {
+  it("aligns sell fraction after piggy so leftover cannot flip allow→hold", () => {
+    // Live MORPHO bug: request 75% but piggy sells ~73.5% while entrySlice used 75%
+    const bal = 0.824;
+    const tokensToSell = bal * 0.98 * 0.75; // sellable * pct
+    const frac = sellFractionAfterPiggy({ balance: bal, tokensToSell });
+    assert.ok(Math.abs(frac - tokensToSell / bal) < 1e-12);
+    const entryEth = 0.0008;
+    const proceedsRight = (tokensToSell * 2.4) / 2478;
+    const wrong = leftoverAfterFeesEth({
+      projectedProceedsEth: proceedsRight,
+      entryEth,
+      sellPct: 0.75,
+      feePct: 0.006,
+      gasCostEth: 0.00001,
+      impactPct: 0.002,
+    });
+    const right = leftoverAfterFeesEth({
+      projectedProceedsEth: proceedsRight,
+      entryEth,
+      sellPct: frac,
+      feePct: 0.006,
+      gasCostEth: 0.00001,
+      impactPct: 0.002,
+    });
+    assert.ok(right > wrong, "piggy-aligned sellPct must not overstate entry cost");
+    assert.equal(sellFractionAfterPiggy({ balance: 0, tokensToSell: 1 }), 0);
+  });
+
+  it("recycles known bags when liquid-starved inject-all", () => {
+    assert.equal(
+      shouldRecycleKnownForInjectFuel({
+        knownEntry: true,
+        posUsd: 1.98,
+        liquidStarved: true,
+        injectAll: true,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldRecycleKnownForInjectFuel({
+        knownEntry: true,
+        posUsd: 0.4,
+        liquidStarved: true,
+        injectAll: true,
+        minUsd: INJECT_FUEL_MIN_USD,
+      }),
+      false,
+    );
+    assert.equal(
+      shouldRecycleKnownForInjectFuel({
+        knownEntry: true,
+        posUsd: 4.35,
+        liquidStarved: false,
+        injectAll: true,
+      }),
+      false,
+    );
+    assert.equal(
+      shouldRecycleKnownForInjectFuel({
+        knownEntry: false,
+        posUsd: 4,
+        liquidStarved: true,
+        injectAll: true,
+      }),
+      false,
+    );
+  });
+
+  it("refuses UNI hard-reserve on sub-min inject-all books", () => {
+    assert.equal(injectReserveViable({ tradeableUsd: 0.71, minEntryUsd: 2, injectAll: true }), false);
+    assert.equal(injectReserveViable({ tradeableUsd: 5, minEntryUsd: 2, injectAll: true }), true);
+    assert.equal(injectReserveViable({ tradeableUsd: 20, minEntryUsd: 0, injectAll: false }), true);
+  });
+
+  it("shrinks keep floor when recycling inject fuel", () => {
+    assert.equal(
+      injectFuelKeepUsd({ liquidStarved: true, recycleFuel: true, moonshotHoldUsd: 0.5, piggyMinUsd: 0.05 }),
+      0.05,
+    );
+    assert.equal(
+      injectFuelKeepUsd({ liquidStarved: false, recycleFuel: true, moonshotHoldUsd: 0.5 }),
+      0.5,
+    );
+  });
+
+  it("boosts velocity names on inject-all and sorts largest bags first", () => {
+    assert.ok(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: true }) >
+      injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
+    assert.equal(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: false, liquidStarved: false }), 0);
+    const sorted = sortRecycleCandidatesByUsd([
+      { posUsd: 1.98, symbol: "MORPHO" },
+      { posUsd: 4.35, symbol: "LINK" },
+      { posUsd: 0.14, symbol: "TOSHI" },
+    ]);
+    assert.equal(sorted[0].symbol, "LINK");
+    assert.equal(sorted[2].symbol, "TOSHI");
+  });
+});
+
 describe("inject-revenue: wired into agent.js", () => {
   it("imports helpers and gates tiers before hitch fee on auto buys", () => {
     assert.ok(src.includes('from "./inject-revenue.js"'));
@@ -117,5 +225,13 @@ describe("inject-revenue: wired into agent.js", () => {
   it("moonshot / dust recycle covers unknownEntry bags", () => {
     assert.ok(src.includes("shouldRecycleUnknownDust"));
     assert.ok(src.includes("unknownEntry") && src.includes("MOONSHOT"));
+  });
+
+  it("wires inject fuel recycle + piggy-aligned sell gate", () => {
+    assert.ok(src.includes("shouldRecycleKnownForInjectFuel"));
+    assert.ok(src.includes("sellFractionAfterPiggy"));
+    assert.ok(src.includes("injectReserveViable"));
+    assert.ok(src.includes("INJECT FUEL"));
+    assert.ok(src.includes("sortRecycleCandidatesByUsd"));
   });
 });

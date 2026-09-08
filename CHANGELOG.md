@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Fixed — inject capital velocity snowball (live $0.71 / $7 bags)
+
+Live Railway 2026-09-08: **Tradeable $0.71**, **~$7 in bags** (LINK ~$4.35 @ −1%,
+MORPHO ~$1.98 flat), `PRIMED: none` every cycle, T1 `INJECT-ALL: UNI` with a
+sub-min seat. Moonshot logged allow on MORPHO then `executeSell` held —
+`sellPct` entry slice vs piggy `tokensToSell` mismatch flipped leftover ≤ 0.
+Historical ledger (Mar): 70% WR / +$324 — strategy works when capital moves;
+now it was frozen.
+
+Snowball path (still never sell/hitch when leftover after fees ≤ 0):
+
+- **Piggy-aligned sell gate** — `sellFractionAfterPiggy` so entry cost matches
+  tokens actually sold in moonshot + `executeSell`.
+- **Known-bag inject fuel** — when liquid-starved inject-all, recycle LINK/MORPHO-
+  sized known bags (largest first) if leftover > 0; keep piggy only (not $0.50
+  lottery) so one green exit clears cascade min entry.
+- **No dead UNI reserve** — skip hard UNI T1 when tradeable &lt; min / &lt;$2 inject-all;
+  seat best scorer instead (velocity boost for DEGEN/AERO/BRETT/…).
+- Underwater bags (LINK −1%) still hold until a profitable plain sale — lose-zero.
+
 ### Research — revenue / hitch ingest sims; adaptive thin-book COST_EDGE
 
 Live Railway (~$2.24 inject-all LINK, UNI ~$4.7 underwater, hitch nearly free):
