@@ -11,8 +11,52 @@
 - **Sprint 4:** failure/churn/bandwidth stress, multi-replica repair, `arena:stress`
 - **Sprint 5:** hitch/DA/storage adapter stubs with explicit no-root-trader boundary
 
-## Released — 2026-09-07 (main)
+### Fixed — BALANCE LOW false alarm; fragment buys strand cascade (min-entry inject-all)
 
+Live Railway `industrious-tranquility` / `guardian-protocol-agent` @ `0bad3c9` (2026-09-08):
+
+- Chain ETH+WETH on `0x50e1…7915` = **0.001985** — bot tradeable **0.000485** matched chain after a hard `SELL_RESERVE=0.001` ate the thin book.
+- Four small buys then **Insufficient ETH+WETH** / Telegram **BALANCE LOW** while capital sat in unknown-cost bags (KEYCAT ~$0.28 etc.) that never recycled hard enough to cascade.
+- Capital was updating from chain correctly — liquid was truly thin; the bug was **reserve math + fragmented entries**, not a stale RPC zero.
+
+Changes (still LOSE_ZERO / 2× hitch sell / piggy never-sell / Eureka on leftover):
+
+- **`cascade-rollover.js`** — min entry covers round-trip gas + fees + hitch + cascade seed; inject-all book (`<$12`) = **1 seat @ 100%**; cascade deploy only when proceeds ≥ next min entry; liquid-vs-bags status (recycle≠top-up).
+- **Thin-book sell reserve** — shrink `SELL_RESERVE` under 0.01 ETH so ~$5 liquid reports real tradeable (~0.0012) instead of 0.000485.
+- **Dust recycle → cascade** — when liquid starved, lower unknown-dust floor; after a profitable recycle/trim, `triggerCascade` into a near-low (piggy dust stays locked).
+
+### Fixed — `/buy XCN $1` never filled: `minTrgh` TDZ + dead WETH book
+
+Live Railway after PR #31 (`946cc30`): Telegram queued `/buy XCN $1`, then every `processToken(XCN)` crashed with `Cannot access 'minTrgh' before initialization`. `stopLossPrice` used `minTrgh` before `entryTroughForBuy` declared it — so **no token** could finish processToken (manual buys never reached `cmd.action === "buy"`).
+
+Also: Uni V3 **XCN/WETH ~$212** while **XCN/USDC ~$173k** is the real book. Bot is WETH `exactInputSingle` only — a $1 XCN smoke would slip/fail even after the TDZ fix.
+
+Changes (still LOSE_ZERO / 2× hitch sell / piggy never-sell / Eureka on leftover):
+
+- **TDZ fix** — compute `minTrgh` (inject pullback trough) **before** `stopLossPrice`.
+- **Freeze XCN** for new buys; keep wave OHLC via DexScreener/Gecko + **Binance allowlist** (same Onyxcoin asset).
+- **Per-token min buy USD** (`token-mins.js`) — Telegram `/buy` and operator path refuse below the book floor (`TOKEN_MIN_BUY_USD_JSON` override).
+- **Multi-source wave seed** — rank + merge GT/DS/(Binance) candles; log multi-source coverage.
+- **No-loss cycle align gate** — auto buys need ≥`CYCLE_ALIGN_MIN` (default **2**) of trough/momentum/pred/pullback/leftover/smartMoney. Telegram `/cycles` shows succession streaks + live mins.
+
+### Fixed — dragnet burns cycles; inject mains never buy; revenue flat
+
+Live Railway `industrious-tranquility` / `guardian-protocol-agent` @ `9833348` (2026-09-07):
+
+- Tradeable ~**0.0024 ETH (~$6)** → T1 reserved **UNI > CBBTC > LINK** at ~$1.30/slot, **T2=none**.
+- UNI/LINK/CBBTC **ARMED** on 90d candle MINs (UNI buy trigger ~$3.17 while mark ~$7) → **zero fills, zero hitch**.
+- SKI/DRB passed `LOSE_ZERO: leftover covers inject` every ~60s then `not in active tiers (OUT)` — hitch L1 fee RPC for nothing.
+- Unknown-cost dust bags never moonshot-trimmed (`if (!entryPrice) continue`) → capital stuck, no recycle into inject trades.
+- Historical `bot-state` ledger (Mar): **+$324 net / 70% WR** on larger book — cascade churn and AIXBT stop-outs were the main leaks; current live issue is **no trades at all**.
+
+Changes (still LOSE_ZERO / 2× hitch sell floor / never lose to insert):
+
+- **Small-book tiers** (`<$15`): 2 T1 seats @ 85%, cheaper T2 floor so leftover-covered swaps can hitch.
+- **Inject pullback entry** + entry-trough climb to recent low when 90d MIN is stale; candle seed prefers 14d low for inject mains.
+- **Tier gate before hitch L1 fee** so OUT tokens die without oracle spam.
+- **Dust recycle** for unknown-cost bags above lottery floor (plain sale if hitch not covered).
+
+## Released — 2026-09-07 (main)
 ### Fixed — new majors live but not injection-ready (OHLC + capital)
 
 Railway @ `0930b8a` booted **24 active** including LINK/AAVE/UNI/VVV/ZORA/BNKR, then LINK/AAVE/UNI hit the 8s Dex seed timeout with no Binance fallback. Dead-wave −15 also kept no-history majors out of Tier 1/2 so hitch had nowhere to land.

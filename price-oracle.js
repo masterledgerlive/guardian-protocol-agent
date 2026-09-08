@@ -406,12 +406,14 @@ export const BINANCE_OHLC_ALLOWLIST = new Set([
   "AERO", "BRETT", "VIRTUAL", "DEGEN", "TOSHI", "MORPHO", "AIXBT", "ZORA", "WELL",
   // Top-100 majors on Base — same CEX asset as the Uni V3 catalog contracts
   "LINK", "AAVE", "UNI",
+  // Onyxcoin — same CEX asset; Base WETH book is dead but we still want wave OHLC
+  "XCN",
 ]);
 
 export const BINANCE_OHLC_DENYLIST = new Set([
   "LUNA", "KITE", "GAME", "HIGHER", "MIGGLES", "MOCHI", "KEYCAT", "DOGINME",
   "SKI", "MOG", "BASE", "TYBG", "BNKR", "BENJI", "ROOST", "TALENT", "TOBY",
-  "SIMBA", "CRASH", "BRIUN", "NORMIE", "OGGY", "FREN", "PRIME", "XCN", "SEAM",
+  "SIMBA", "CRASH", "BRIUN", "NORMIE", "OGGY", "FREN", "PRIME", "SEAM",
   "CBBTC", "BASECAT", "DRB", "VVV", "TIBBIR", "STONKEX", "BLUECHIP", "VELVET", "KTA",
   "CLANKER", "REI", "FAI",
 ]);

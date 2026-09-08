@@ -72,11 +72,12 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Stop loss**: 3% below MIN trough floor — emergency exit
 - **Drawdown breaker**: portfolio down 60% from peak = buys halted
 - **Gas spike guard**: Base gas > 50 gwei = all trades paused
-- **Lose-zero gate** (opt-in Railway flags): block **auto / cascade / ripple** buys unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge. **Operator Telegram `/buy`** is an explicit test: leftover+edge never block; hitch if leftover covers, otherwise a **plain swap**. Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply. After queue, Telegram always sends a Basescan receipt or the exact skip reason. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee` (predeploy `0x420000000000000000000000000000000000000F`) with L2 calldata-gas fallback. The hitch is **UTF-8 in the swap calldata** (Basescan Input Data → View as UTF-8), independent of BTP auto-suspend. Telegram `/prove` writes the same letter on a dedicated 0-ETH self-tx when there is no leftover swap. Telegram only claims the letter when those bytes are actually on the tx.
+- **Lose-zero gate** (opt-in Railway flags): block **auto / cascade / ripple** buys unless leftover covers a short `§$STORE§` hitch (1×) and there is a clear edge. **Operator Telegram `/buy`** is an explicit test: leftover+edge never block; hitch if leftover covers, otherwise a **plain swap**. Frozen / PRICE_INSANE / insufficient ETH / fill honesty / **per-token min buy USD** still apply. Auto buys also need ≥`CYCLE_ALIGN_MIN` (default **2**) aligned entry vars (trough / momentum / pred / pullback / leftover / smartMoney) so continuous no-loss cycles compound without chasing a single signal. After queue, Telegram always sends a Basescan receipt or the exact skip reason. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee` (predeploy `0x420000000000000000000000000000000000000F`) with L2 calldata-gas fallback. The hitch is **UTF-8 in the swap calldata** (Basescan Input Data → View as UTF-8), independent of BTP auto-suspend. Telegram `/prove` writes the same letter on a dedicated 0-ETH self-tx when there is no leftover swap. Telegram only claims the letter when those bytes are actually on the tx.
 - **Sell floor (always on)**: sell when leftover after fair exit + fees is profitable. Hitch Eureka on the way out only if leftover also covers `HITCH_COST_MULT` × hitch (default **2×**). If leftover covers the wave but not hitch, **plain sale** (letter skipped) so we still lock profit. Hold only when leftover after fees is ≤ 0 (the trade itself would lose). Piggy dust is never sold. Only exception for a losing sell: `MANUAL SELL (operator)` + `ALLOW_LOSSY_OPERATOR_SELL=yes`
 - **PRICE_INSANE** (always on, before hitch / minOut): refuse buy/sell if the USD mark vs independent DexScreener/Gecko (or last sane / ETH-normalized WETH-USDC pool) is outside **0.01×–100×**, or implied bag ≫ RISK start. Independent quotes use Uniswap/Aerodrome WETH or USDC only — a Pancake TOSHI/VIRTUAL ghost at $69729 is never the reference. After a refuse, skip re-attempt / re-log for a few minutes (still refuse).
 - **Slippage cooldown**: after 3 consecutive `Too little received` / 0-ETH fills on a symbol, skip that name for 30 minutes so the retry loop does not burn gas.
 - **Piggy-bank dust**: every token bag keeps a growing never-sell reserve (`PIGGY_BANK_PCT` default **2%** of units, plus `PIGGY_BANK_MIN_USD` default **$0.05**). Wave / moonshot / cascade / `/sell` / sellhalf / fib / stale / stop-loss compute `sellable = balance − piggyReserve` and leave the pile. Reserve floors up on buys and never auto-shrinks. Dust is sold only on an explicit unlock (`PIGGY UNLOCK` reason or Telegram `/piggyunlock SYMBOL`). Persisted on `tokens.json` (`piggyReserve`) and `positions.json` (`piggyReserves`) so restarts keep the pile. This is per-token dust — not the ETH skim `/piggy` pool.
+- **Cascade min-entry / inject-all** (`cascade-rollover.js`): thin books (`<$12` tradeable) inject **all** capital into **one** seat sized to cover fees + hitch + a cascade seed. Cascade only fires when sell proceeds clear the next token’s min entry; dust recycle can feed that cascade while piggy stays locked. Thin wallets shrink sell-reserve so liquid ETH is not falsely reported as ~0 after a hard $2–3 park. Telegram **BALANCE LOW** only when the chain wallet is truly empty — if capital is in bags, it says recycle→cascade instead.
 
 ### Two-Tier Capital System
 
@@ -84,8 +85,8 @@ Capital is dynamically allocated based on live token performance scores:
 
 | Tier | Allocation | Slots | Criteria |
 |------|-----------|-------|----------|
-| Tier 1 | 65% of capital | Top 3 tokens | Highest score: win rate + P&L + margin + volume |
-| Tier 2 | 35% of capital | Next N tokens | Score above floor, slot size ≥ $4 |
+| Tier 1 | 65% of capital (100% when inject-all) | Top 3 (or **1** when <$12) | Highest score: win rate + P&L + margin + volume |
+| Tier 2 | 35% of capital (0% when inject-all) | Next N tokens | Score above floor, slot size ≥ $4 |
 | Moonshot | $0.50 hold | Remainder | Lottery bag — no new capital |
 
 Scores are computed live every cycle from real trade history. The best-performing tokens always get the most capital. Slots expand automatically as capital grows.
@@ -98,13 +99,13 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · CBBTC · LINK · AAVE · **UNI** (inject main / T1 reserved) · DEGEN · AIXBT · TOSHI
-KEYCAT · DOGINME · XCN · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
+KEYCAT · DOGINME · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
 
 **Inject main players (Tier-1 seat reserved for UNI first):**
 UNI · CBBTC · LINK · AAVE · AERO · MORPHO
 
 **Frozen (no new capital):**
-SEAM · MOG · BASE · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
+SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
 TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
 CRASH · BRIUN · NORMIE · OGGY · FREN
 
@@ -189,6 +190,8 @@ ALLOW_LOSSY_OPERATOR_BUY  ← legacy alias; operator /buy already bypasses lefto
 ALLOW_LOSSY_OPERATOR_SELL ← yes = allow MANUAL SELL (operator) even when leftover would not cover 2× hitch (default no)
 PIGGY_BANK_PCT            ← per-token never-sell dust as a fraction (0.02) or percent (2). Default 2% of current units.
 PIGGY_BANK_MIN_USD        ← USD floor converted to token units via live price (default $0.05). Set 0 to disable. Reserve = max(pct × balance, minUsd / price) and never auto-shrinks.
+CYCLE_ALIGN_MIN           ← auto buys need this many aligned entry vars (default 2, max 4). Telegram `/cycles` reports succession streaks.
+TOKEN_MIN_BUY_USD_JSON    ← optional `{"TOSHI":1,"UNI":0.5}` overrides for per-token Telegram/operator min buy floors.
 BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
 OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Leftover+edge do not block; hitch if leftover covers, else plain. Frozen catalog names are never queued.
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
@@ -228,7 +231,8 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 /surf            current riding positions
 /tiers           live tier leaderboard + scores
 /waves           arm status all tokens
-/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator test path; leftover+edge never block; hitch-or-plain; Telegram skip reason or Basescan receipt
+/buy SYMBOL [usd]  manual buy (e.g. /buy TOSHI $3) — operator test path; leftover+edge never block; hitch-or-plain; per-token min USD; Telegram skip reason or Basescan receipt
+/cycles            no-loss succession streaks + live per-token min buys (alias /succession)
                    Frozen catalog names are blocked (exits/sells still allowed)
                    Railway: OPERATOR_BUY=TOSHI:3 queues the same command once at boot
 /sell SYMBOL [pct|all]  manual sell (e.g. /sell TOSHI, /sell TOSHI 50, /sell TOSHI all)
