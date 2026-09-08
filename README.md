@@ -77,6 +77,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **PRICE_INSANE** (always on, before hitch / minOut): refuse buy/sell if the USD mark vs independent DexScreener/Gecko (or last sane / ETH-normalized WETH-USDC pool) is outside **0.01×–100×**, or implied bag ≫ RISK start. Independent quotes use Uniswap/Aerodrome WETH or USDC only — a Pancake TOSHI/VIRTUAL ghost at $69729 is never the reference. After a refuse, skip re-attempt / re-log for a few minutes (still refuse).
 - **Slippage cooldown**: after 3 consecutive `Too little received` / 0-ETH fills on a symbol, skip that name for 30 minutes so the retry loop does not burn gas.
 - **Piggy-bank dust**: every token bag keeps a growing never-sell reserve (`PIGGY_BANK_PCT` default **2%** of units, plus `PIGGY_BANK_MIN_USD` default **$0.05**). Wave / moonshot / cascade / `/sell` / sellhalf / fib / stale / stop-loss compute `sellable = balance − piggyReserve` and leave the pile. Reserve floors up on buys and never auto-shrinks. Dust is sold only on an explicit unlock (`PIGGY UNLOCK` reason or Telegram `/piggyunlock SYMBOL`). Persisted on `tokens.json` (`piggyReserve`) and `positions.json` (`piggyReserves`) so restarts keep the pile. This is per-token dust — not the ETH skim `/piggy` pool.
+- **Cascade min-entry / inject-all** (`cascade-rollover.js`): thin books (`<$12` tradeable) inject **all** capital into **one** seat sized to cover fees + hitch + a cascade seed. Cascade only fires when sell proceeds clear the next token’s min entry; dust recycle can feed that cascade while piggy stays locked. Thin wallets shrink sell-reserve so liquid ETH is not falsely reported as ~0 after a hard $2–3 park. Telegram **BALANCE LOW** only when the chain wallet is truly empty — if capital is in bags, it says recycle→cascade instead.
 
 ### Two-Tier Capital System
 
@@ -84,8 +85,8 @@ Capital is dynamically allocated based on live token performance scores:
 
 | Tier | Allocation | Slots | Criteria |
 |------|-----------|-------|----------|
-| Tier 1 | 65% of capital | Top 3 tokens | Highest score: win rate + P&L + margin + volume |
-| Tier 2 | 35% of capital | Next N tokens | Score above floor, slot size ≥ $4 |
+| Tier 1 | 65% of capital (100% when inject-all) | Top 3 (or **1** when <$12) | Highest score: win rate + P&L + margin + volume |
+| Tier 2 | 35% of capital (0% when inject-all) | Next N tokens | Score above floor, slot size ≥ $4 |
 | Moonshot | $0.50 hold | Remainder | Lottery bag — no new capital |
 
 Scores are computed live every cycle from real trade history. The best-performing tokens always get the most capital. Slots expand automatically as capital grows.
