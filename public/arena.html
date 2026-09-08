@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guardian Arena — Ledger Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c;
+      --muted: #3d5a4c;
+      --lime: #b6f25c;
+      --lime-deep: #6fad12;
+      --sand: #e7f2e2;
+      --panel: rgba(255, 255, 255, 0.72);
+      --line: rgba(16, 35, 28, 0.14);
+      --warn: #c45d16;
+      --ok: #1f7a45;
+      --link: #1a6bff;
+      --display: "Syne", sans-serif;
+      --body: "Source Serif 4", Georgia, serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--body);
+      background:
+        radial-gradient(900px 420px at 12% -8%, rgba(182, 242, 92, 0.55), transparent 60%),
+        radial-gradient(700px 380px at 100% 0%, rgba(26, 107, 255, 0.18), transparent 55%),
+        linear-gradient(160deg, #f4fbf0 0%, #d9ebe0 48%, #cfe0f5 100%);
+      min-height: 100vh;
+    }
+    .hero {
+      min-height: 88vh;
+      padding: clamp(1.25rem, 4vw, 3rem);
+      display: grid;
+      align-content: end;
+      gap: 1rem;
+      background:
+        linear-gradient(180deg, transparent 20%, rgba(244, 251, 240, 0.92) 78%),
+        repeating-linear-gradient(90deg, transparent 0 28px, rgba(16,35,28,0.04) 28px 29px),
+        repeating-linear-gradient(0deg, transparent 0 28px, rgba(16,35,28,0.035) 28px 29px);
+    }
+    .brand {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(2.6rem, 9vw, 5.4rem);
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      max-width: 12ch;
+      margin: 0;
+    }
+    .brand em {
+      font-style: normal;
+      color: var(--lime-deep);
+      background: linear-gradient(90deg, var(--lime), #7ad0ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .lede {
+      max-width: 36rem;
+      font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+      color: var(--muted);
+      margin: 0;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.4rem; }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--ink);
+      background: var(--lime);
+      color: var(--ink);
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.92rem;
+      padding: 0.7rem 1rem;
+      border-radius: 0.55rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    button:hover, .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+    button.ghost, .btn.ghost { background: var(--panel); }
+    button.warn { background: #ffd2a8; }
+    main {
+      padding: 0 clamp(1.25rem, 4vw, 3rem) 3rem;
+      display: grid;
+      gap: 1.25rem;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 1.15rem 1.25rem 1.35rem;
+      backdrop-filter: blur(8px);
+      animation: rise 520ms ease both;
+    }
+    section:nth-child(2) { animation-delay: 60ms; }
+    section:nth-child(3) { animation-delay: 120ms; }
+    section:nth-child(4) { animation-delay: 180ms; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
+    h2 {
+      font-family: var(--display);
+      margin: 0 0 0.55rem;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+    p, li { color: var(--muted); line-height: 1.45; }
+    .grid-2 {
+      display: grid;
+      gap: 0.85rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .stat {
+      border: 1px dashed var(--line);
+      border-radius: 0.75rem;
+      padding: 0.8rem 0.9rem;
+      background: rgba(255,255,255,0.55);
+    }
+    .stat b {
+      display: block;
+      font-family: var(--mono);
+      font-size: 1.2rem;
+      color: var(--ink);
+      margin-top: 0.2rem;
+    }
+    .stat span { font-family: var(--display); font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.78rem; }
+    th, td { text-align: left; padding: 0.45rem 0.3rem; border-bottom: 1px solid var(--line); }
+    th { font-family: var(--display); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    a { color: var(--link); }
+    .mono { font-family: var(--mono); font-size: 0.82rem; }
+    label { display: block; font-family: var(--display); font-size: 0.8rem; margin: 0.55rem 0 0.25rem; }
+    input, select {
+      width: 100%;
+      max-width: 28rem;
+      border: 1px solid var(--ink);
+      border-radius: 0.45rem;
+      padding: 0.55rem 0.65rem;
+      font-family: var(--mono);
+      background: #fff;
+    }
+    pre {
+      margin: 0.6rem 0 0;
+      padding: 0.8rem;
+      background: #10231c;
+      color: #d8f5c8;
+      border-radius: 0.6rem;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      max-height: 280px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      margin-right: 0.25rem;
+    }
+    .pill.fav { background: var(--lime); border-color: var(--ink); }
+    .hint { font-size: 0.9rem; }
+    footer { padding: 0 1.5rem 2.5rem; color: var(--muted); font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <p class="pill fav">Guardian Protocol · live Base ledger</p>
+    <h1 class="brand">Guardian <em>Arena</em></h1>
+    <p class="lede">
+      Your money is not “gone” when ETH looks small — it is usually parked in token bags on the same wallet.
+      This board teaches the ledger, runs practice sims, and queues the same moves Telegram uses.
+    </p>
+    <div class="cta-row">
+      <button type="button" id="btnRefresh">Refresh live ledger</button>
+      <a class="btn ghost" href="https://basescan.org/address/0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915" target="_blank" rel="noreferrer">Open wallet on Basescan</a>
+      <a class="btn ghost" href="https://basescan.org/token/0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196?a=0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915" target="_blank" rel="noreferrer">See my LINK</a>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1 · How the ledger works</h2>
+      <div class="grid-2">
+        <div class="stat"><span>Liquid</span><b>ETH + WETH</b><p class="hint">Pays gas and new buys. Shrinks when the bot injects into a token.</p></div>
+        <div class="stat"><span>Bags</span><b>Token holdings</b><p class="hint">Still yours on-chain. Basescan’s main list sometimes hides majors like UNI.</p></div>
+        <div class="stat"><span>Piggy dust</span><b>Leave-behind</b><p class="hint">Default 2%. <strong>LINK keeps 8%</strong> so Chainlink piles grow faster and trade around the pile.</p></div>
+        <div class="stat"><span>Hitch</span><b>§$STORE§ code</b><p class="hint">Tiny UTF-8 letter hitchhiked on a swap when leftover can pay — never at a loss.</p></div>
+      </div>
+      <p class="hint" style="margin-top:0.9rem">
+        Rule of thumb: if Basescan shows ~$4 ETH+tokens but Multichain says ~$7–9, open the <em>token contract page</em> for UNI/LINK — that is the truth.
+      </p>
+    </section>
+
+    <section>
+      <h2>2 · Live ledger snapshot</h2>
+      <p class="hint">Paste your Railway <code>VITA_WEBHOOK_SECRET</code> once (stored only in this browser). Then refresh.</p>
+      <label for="secret">VITA webhook secret</label>
+      <input id="secret" type="password" placeholder="x-vita-secret value" autocomplete="off" />
+      <div class="cta-row" style="margin-top:0.75rem">
+        <button type="button" id="btnSaveSecret">Save secret</button>
+        <button type="button" class="ghost" id="btnClearSecret">Clear</button>
+      </div>
+      <div class="grid-2" id="liveStats" style="margin-top:0.9rem">
+        <div class="stat"><span>Wallet</span><b id="liveWallet">—</b></div>
+        <div class="stat"><span>Trades</span><b id="liveTrades">—</b></div>
+        <div class="stat"><span>ETH piggy</span><b id="livePiggy">—</b></div>
+        <div class="stat"><span>Favorite</span><b id="liveFav">LINK</b></div>
+      </div>
+      <div style="overflow:auto; margin-top:0.8rem">
+        <table>
+          <thead><tr><th>Token</th><th>Piggy %</th><th>Reserve</th><th>Inject</th><th>On-chain</th></tr></thead>
+          <tbody id="posBody"><tr><td colspan="5">Connect secret + refresh to load live bags.</td></tr></tbody>
+        </table>
+      </div>
+      <pre id="rawSnap">{}</pre>
+    </section>
+
+    <section>
+      <h2>3 · Practice Arena (safe sim)</h2>
+      <p class="hint">No live money. Models inject-all into LINK vs UNI with hitch + piggy leave-behind — like a mini game round.</p>
+      <div class="grid-2">
+        <div>
+          <label for="simCash">Starting liquid USD</label>
+          <input id="simCash" type="number" value="8" min="1" step="0.5" />
+          <label for="simSeat">Seat</label>
+          <select id="simSeat">
+            <option value="LINK">LINK (8% piggy · favorite)</option>
+            <option value="UNI">UNI (2% piggy)</option>
+            <option value="VVV">VVV (2% piggy · new inject)</option>
+            <option value="ZORA">ZORA (2% piggy · new inject)</option>
+            <option value="BNKR">BNKR (2% piggy · new inject)</option>
+          </select>
+          <label for="simMove">Assumed move after buy</label>
+          <select id="simMove">
+            <option value="0.03">+3% (thin win)</option>
+            <option value="0.06" selected>+6% (clean wave)</option>
+            <option value="-0.02">−2% (hold / no sell)</option>
+          </select>
+          <div class="cta-row" style="margin-top:0.8rem">
+            <button type="button" id="btnSim">Run round</button>
+          </div>
+        </div>
+        <div>
+          <pre id="simOut">Press Run round…</pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4 · Operator buttons (queue live bot)</h2>
+      <p class="hint">These enqueue the same commands Telegram uses. Require secret. Prefer read-only first.</p>
+      <div class="cta-row">
+        <button type="button" class="ghost" data-cmd='{"action":"status"}'>Ping snapshot</button>
+        <button type="button" data-cmd='{"action":"buy","symbol":"LINK","usd":2}'>Queue buy LINK ~$2</button>
+        <button type="button" class="ghost" data-cmd='{"action":"sellhalf","symbol":"LINK"}'>Queue sell half LINK</button>
+        <button type="button" class="ghost" data-cmd='{"action":"sellhalf","symbol":"UNI"}'>Queue sell half UNI</button>
+        <button type="button" class="warn" data-cmd='{"action":"piggyunlock","symbol":"LINK"}'>Unlock LINK piggy dust</button>
+      </div>
+      <p class="hint">Telegram cheatsheet:</p>
+      <p class="mono">/status · /bank · /piggy · /tiers · /cycles · /buy LINK 2 · /sellhalf UNI · /piggyunlock LINK · /prove</p>
+      <pre id="cmdOut">No command yet.</pre>
+    </section>
+
+    <section>
+      <h2>5 · Inject roster (code hitch surfaces)</h2>
+      <p class="hint">
+        Favorites &amp; new majors the bot prefers for UTF-8 hitch injection on Uniswap V3 Base.
+        LINK first; VVV / ZORA / BNKR promoted as LINK-like deep Uni books.
+      </p>
+      <p>
+        <span class="pill fav">LINK</span>
+        <span class="pill">UNI</span>
+        <span class="pill">VVV</span>
+        <span class="pill">ZORA</span>
+        <span class="pill">BNKR</span>
+        <span class="pill">AERO</span>
+        <span class="pill">MORPHO</span>
+      </p>
+      <ul>
+        <li><strong>LINK</strong> — oracle infra, 8% piggy leave-behind, Tier-1 reserved when liquid allows.</li>
+        <li><strong>VVV / ZORA / BNKR</strong> — already tradeable; now inject-mains so hitch code can land on deeper books.</li>
+        <li><strong>UNI</strong> — still core (we swap on Uniswap), but no longer steals the seat from LINK.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    Practice sims are labeled estimates. Live buttons talk to your Railway bot via VITA webhook.
+    Never paste seed phrases here.
+  </footer>
+
+  <script>
+    const KEY = "guardian_vita_secret";
+    const secretEl = document.getElementById("secret");
+    secretEl.value = localStorage.getItem(KEY) || "";
+
+    document.getElementById("btnSaveSecret").onclick = () => {
+      localStorage.setItem(KEY, secretEl.value.trim());
+      flash(document.getElementById("cmdOut"), "Secret saved in this browser only.");
+    };
+    document.getElementById("btnClearSecret").onclick = () => {
+      localStorage.removeItem(KEY);
+      secretEl.value = "";
+    };
+
+    function headers() {
+      const s = (localStorage.getItem(KEY) || secretEl.value || "").trim();
+      return s ? { "x-vita-secret": s, "content-type": "application/json" } : { "content-type": "application/json" };
+    }
+
+    function flash(el, text) { el.textContent = text; }
+
+    async function refresh() {
+      try {
+        const res = await fetch("/arena/api/snapshot", { headers: headers() });
+        const data = await res.json();
+        document.getElementById("rawSnap").textContent = JSON.stringify(data, null, 2);
+        if (!res.ok) {
+          flash(document.getElementById("cmdOut"), data.error || "Snapshot failed — check secret.");
+          return;
+        }
+        document.getElementById("liveWallet").textContent = shortAddr(data.walletAddress);
+        document.getElementById("liveTrades").textContent = String(data.trades ?? 0);
+        document.getElementById("livePiggy").textContent = Number(data.piggy || 0).toFixed(6) + " ETH";
+        document.getElementById("liveFav").textContent = data.favorite || "LINK";
+        const body = document.getElementById("posBody");
+        const rows = (data.positions || []).filter(p => !p.frozen);
+        if (!rows.length) {
+          body.innerHTML = "<tr><td colspan=5>No open bags in snapshot.</td></tr>";
+        } else {
+          body.innerHTML = rows.map(p => `
+            <tr>
+              <td>${p.symbol}${p.injectMain ? ' <span class="pill fav">inject</span>' : ""}</td>
+              <td>${((p.piggyPct || 0) * 100).toFixed(0)}%</td>
+              <td>${fmtNum(p.piggyReserve)}</td>
+              <td>${p.injectMain ? "yes" : "—"}</td>
+              <td><a href="${p.basescanToken}" target="_blank" rel="noreferrer">token page</a></td>
+            </tr>`).join("");
+        }
+      } catch (e) {
+        flash(document.getElementById("cmdOut"), String(e.message || e));
+      }
+    }
+
+    function shortAddr(a) {
+      if (!a) return "—";
+      return a.slice(0, 6) + "…" + a.slice(-4);
+    }
+    function fmtNum(n) {
+      const x = Number(n) || 0;
+      return x >= 1 ? x.toFixed(2) : x.toFixed(4);
+    }
+
+    document.getElementById("btnRefresh").onclick = refresh;
+
+    document.getElementById("btnSim").onclick = () => {
+      const cash = Math.max(0.5, Number(document.getElementById("simCash").value) || 8);
+      const seat = document.getElementById("simSeat").value;
+      const move = Number(document.getElementById("simMove").value);
+      const piggyPct = seat === "LINK" ? 0.08 : 0.02;
+      const feeRound = 0.012; // pool + impact rough
+      const hitchUsd = 0.35;
+      const gasUsd = 0.05;
+      const deploy = Math.max(0, cash - gasUsd - hitchUsd);
+      const afterFees = deploy * (1 - feeRound);
+      const piggyLock = afterFees * piggyPct;
+      const tradeableBag = afterFees - piggyLock;
+      const afterMove = tradeableBag * (1 + move);
+      const sellFees = afterMove * (feeRound / 2);
+      const canSell = move > 0;
+      const proceeds = canSell ? Math.max(0, afterMove - sellFees) : 0;
+      const endLiquid = canSell ? (cash - deploy + proceeds) : (cash - deploy);
+      const endBags = canSell ? piggyLock * (1 + Math.max(0, move)) : afterFees * (1 + move);
+      const lines = [
+        `Arena round · ${seat}`,
+        `start liquid     $${cash.toFixed(2)}`,
+        `deploy to seat   $${deploy.toFixed(2)} (gas $${gasUsd} + hitch budget $${hitchUsd})`,
+        `after buy fees   $${afterFees.toFixed(2)}`,
+        `piggy locked     $${piggyLock.toFixed(2)} (${(piggyPct*100).toFixed(0)}%)`,
+        `wave move        ${(move*100).toFixed(1)}%`,
+        canSell
+          ? `sell proceeds    $${proceeds.toFixed(2)} · piggy stays behind`
+          : `hold             no sell (lose-zero) · bag marked $${endBags.toFixed(2)}`,
+        `end liquid       $${endLiquid.toFixed(2)}`,
+        `end bags/piggy   $${endBags.toFixed(2)}`,
+        `end total        $${(endLiquid + endBags).toFixed(2)}`,
+        "",
+        "Label: simulated practice — not a live trade promise.",
+      ];
+      document.getElementById("simOut").textContent = lines.join("\n");
+    };
+
+    document.querySelectorAll("[data-cmd]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const cmd = JSON.parse(btn.getAttribute("data-cmd"));
+        if (cmd.action === "status") {
+          await refresh();
+          flash(document.getElementById("cmdOut"), "Snapshot refreshed.");
+          return;
+        }
+        try {
+          const res = await fetch("/arena/api/queue", {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify(cmd),
+          });
+          const data = await res.json();
+          flash(document.getElementById("cmdOut"), JSON.stringify(data, null, 2));
+        } catch (e) {
+          flash(document.getElementById("cmdOut"), String(e.message || e));
+        }
+      });
+    });
+  </script>
+</body>
+</html>

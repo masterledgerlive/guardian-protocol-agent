@@ -160,6 +160,7 @@ encryptkey.js         — One-time key encryption + inscription tool
 - **Alerts**: Telegram Bot API
 - **Price data**: GeckoTerminal + DexScreener (batch prefetch every cycle)
 - **Wallet**: `0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915`
+- **Arena board**: `https://guardian-protocol-agent-production.up.railway.app/arena` — learn the ledger, practice sims, queue bot moves (needs `VITA_WEBHOOK_SECRET` for live buttons). LINK is the favorite inject main with **8%** piggy leave-behind.
 
 ---
 

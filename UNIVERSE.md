@@ -75,6 +75,12 @@ Boot showed **24 active** but LINK/AAVE/UNI Dex OHLC timed out at 8s. Fix: Binan
 
 Diagnosed **~$6 tradeable**, T1 on UNI/CBBTC/LINK that never hit buy triggers (stale 90d MINs), SKI/DRB LOSE_ZERO→OUT spam, unknown-cost dust stuck. Fix path: small-book capital concentration, inject-main pullback entry, tier-before-hitch, dust recycle. Still never sell/insert at a loss.
 
+### Follow-up — Arena board + LINK-first piggy (2026-09-08)
+
+- Prefer **LINK** for reserved inject seat; **8%** LINK piggy leave-behind.
+- Promote **VVV / ZORA / BNKR** to inject-mains (already Uni V3 KEEP).
+- Live learning UI: Railway service `/arena` (VITA webhook).
+
 ---
 
 ## Prior scout notes (2026-09-07 morning)
