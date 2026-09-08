@@ -57,6 +57,7 @@ Changes (still LOSE_ZERO / 2× hitch sell floor / never lose to insert):
 - **Dust recycle** for unknown-cost bags above lottery floor (plain sale if hitch not covered).
 
 ## Released — 2026-09-07 (main)
+
 ### Fixed — new majors live but not injection-ready (OHLC + capital)
 
 Railway @ `0930b8a` booted **24 active** including LINK/AAVE/UNI/VVV/ZORA/BNKR, then LINK/AAVE/UNI hit the 8s Dex seed timeout with no Binance fallback. Dead-wave −15 also kept no-history majors out of Tier 1/2 so hitch had nowhere to land.
