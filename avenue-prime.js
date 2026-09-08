@@ -19,6 +19,10 @@ import {
   DEFAULT_HITCH_COST_MULT,
   hitchCostMult,
 } from "./lose-zero-gate.js";
+import {
+  turnoverBias,
+  refuseSlowMajorNewBuy,
+} from "./capital-fit.js";
 
 export const PRIMED_TOP_N = 3;
 export const PRIMED_MIN_N = 2;
@@ -94,6 +98,7 @@ export function projectAvenue({
   gwei = 0,
   hitchBytesWanted = STORE_HITCH_BYTES,
   ethUsd = 0,
+  tradeableUsd = null,
   tokenMinBuyUsd = 0,
   minPosUsd = 0.5,
   cascadeSeedUsd = CASCADE_SEED_USD,
@@ -105,6 +110,9 @@ export function projectAvenue({
   const trade = Math.max(0, Number(tradeEth) || 0);
   const net = Number(netMargin) || 0;
   const minNm = Number(minNetMargin) || 0;
+  const bookUsd = Number.isFinite(Number(tradeableUsd))
+    ? Number(tradeableUsd)
+    : (Number(ethUsd) > 0 ? trade * Number(ethUsd) : 0);
   const costs = projectRoundTripCostEth({
     tradeEth: trade,
     gasCostEth,
@@ -139,7 +147,11 @@ export function projectAvenue({
 
   let allow = true;
   let refuseReason = null;
-  if (!(trade > 0)) {
+  const slowRefuse = refuseSlowMajorNewBuy({ symbol: sym, tradeableUsd: bookUsd });
+  if (slowRefuse) {
+    allow = false;
+    refuseReason = slowRefuse;
+  } else if (!(trade > 0)) {
     allow = false;
     refuseReason = "no trade size";
   } else if (minEntry > 0 && trade + 1e-12 < minEntry) {
@@ -167,7 +179,9 @@ export function projectAvenue({
   const costEff = costs.costEth > 0 ? expectedNetEth / costs.costEth : expectedNetEth;
   const px = Number(ethUsd) || 0;
   const expectedNetUsd = expectedNetEth * px;
-  // Growing capital: most profit × most code / least cost wins.
+  const speed = turnoverBias({ symbol: sym, tradeableUsd: bookUsd, injectMain });
+  // Growing capital: most profit × most code / least cost × speed wins.
+  // Hitch message size (codeFit) is first-class — bigger leftover → more bytes → higher score.
   const outcomeScore = allow
     ? Math.max(
         0,
@@ -175,7 +189,8 @@ export function projectAvenue({
           (1 + codeFit) *
           Math.max(0.05, costEff) *
           readyBoost *
-          (injectMain ? 1.25 : 1)
+          speed *
+          (injectMain ? 1.15 : 1)
       )
     : -1;
 
@@ -194,6 +209,7 @@ export function projectAvenue({
     hitchBytesFit,
     codeFit,
     costEff,
+    turnoverBias: speed,
     readyNow: allow && (nearEntry || armed),
     nearEntry: !!nearEntry,
     injectMain: !!injectMain,
@@ -201,6 +217,7 @@ export function projectAvenue({
     netMargin: net,
     tokenScore: Number(tokenScore) || 0,
     outcomeScore,
+    tradeableUsd: bookUsd,
   };
 }
 

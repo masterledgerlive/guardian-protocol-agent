@@ -21,10 +21,12 @@ Bot = **Uniswap V3 only**. Many CoinMarketCap top-100 names have **no** liquid B
 
 | Sym | Address | Best Uni V3 | Fee | DS liq / 24h | Action |
 |---|---|---|---:|---:|---|
-| CBBTC | `0xcbB7…33Bf` | WETH (also USDC) | 3000 (catalog) | $8–12M / multi-M | **Already active** |
-| LINK | `0x88Fb…e196` | WETH deepest on-chain | **3000** | USDC ~$137k / $141k | **ADDED tradeable** |
-| AAVE | `0x6370…814b` | WETH | **3000** | ~$134k / $48k | **ADDED tradeable** |
-| UNI | `0xc3De…3C83` | WETH | **10000** | ~$105k / $48k | **ADDED tradeable** |
+| CBBTC | `0xcbB7…33Bf` | WETH (also USDC) | 3000 (catalog) | $8–12M / multi-M | **Active** — but **slow at RISK**; recycle &lt;~$25 bags into UNI/LINK/AERO until book ≳ $40 |
+| WBTC | thin vs cbBTC | — | — | — | **SKIP** — use CBBTC |
+| CBETH | V3 thin / V4 | — | — | — | **Watchlist only** |
+| LINK | `0x88Fb…e196` | WETH deepest on-chain | **3000** | USDC ~$137k / $141k | **Fast RISK aisle** |
+| AAVE | `0x6370…814b` | WETH | **3000** | ~$134k / $48k | **Active** — high unit; same thin-book lock risk as CBBTC |
+| UNI | `0xc3De…3C83` | WETH | **10000** | ~$105k / $48k | **Preferred inject / cascade** |
 | VVV | `0xacfE…21bf` | WETH 1% deepest + USDC 0.3% | **10000** | USDC ~$285k / $432k | **UNFROZEN** — Uni V3 proven |
 | ZORA | `0x1111…Fc69` | WETH 1% deepest + USDC | **10000** | USDC ~$95k / $128k | **UNFROZEN** — injection surface |
 | BNKR | `0x22aF…F3b` | WETH 1% | **10000** | ~$1.83M / $252k | **UNFROZEN** — deep Uni book |

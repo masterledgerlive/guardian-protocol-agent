@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added — capital-fit: recycle thin CBBTC into fast primed aisles
+
+~$4–10 RISK books that park in **CBBTC** (or AAVE) wait on BTC-speed margins while fees+hitch eat absolute $. Prebuilt path math now:
+
+- Catalog of wrappers/majors (`capital-fit.js`): **active** CBBTC · AAVE · UNI · LINK · AERO · MORPHO · VVV · ZORA · BNKR; **skip/watch** WBTC→CBBTC, CBETH.
+- **Refuse new CBBTC/AAVE buys** until book ≳ **$40**; raise Telegram min buys (CBBTC $15 / AAVE $12).
+- **Recycle** existing thin slow-major bags (e.g. $4.78 CBBTC) into already-primed fast seats (UNI/LINK/AERO) when those seats exist — even if the bag sat in T1.
+- Avenue prime ranks by expected net × hitch-code fit / cost × **turnover bias** so message size + speed pick the cascade path.
+
 ### Added — avenue priming: projected costs + top 2–3 cascade seats
 
 Cascade used to cold-scan for a near-trough target only *after* a sell. Thin books often picked paths that could not clear fees+hitch without losing; rich books still waited on a full loop before the next inject seat was chosen.

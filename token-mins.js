@@ -14,11 +14,12 @@ export const DEFAULT_MIN_BUY_USD = 0.50;
 
 /** Floor by symbol when catalog / env do not set one. */
 export const TOKEN_MIN_BUY_USD = Object.freeze({
-  // Inject mains — deep Uni V3 WETH books; $0.50 smoke is fine
+  // Inject mains — deep Uni V3 WETH books; $0.50 smoke is fine for mid-unit
   UNI: 0.50,
-  CBBTC: 0.75,
+  // CBBTC needs larger stake for productive BTC margins at RISK — discourage $4–5 locks
+  CBBTC: 15,
   LINK: 0.50,
-  AAVE: 0.75,
+  AAVE: 12,
   AERO: 0.50,
   MORPHO: 0.50,
   // Liquid Base memes / keep books
