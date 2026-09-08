@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added — second inject after paid peak exit; ride-wave instant peak; primed bottoms
+
+Not enough fills: bottoms missed, cascade stopped at one hop, peaks waited on
+full RSI/MACD stacks. Goal: hit troughs → inject (hitch when leftover covers) →
+ride → sell at peak with piggy-aligned profit → if that exit paid the first
+inject portion **and** surplus clears another primed READY seat, fire a
+**second injection** same succession. Never sell/insert when leftover ≤ 0.
+
+- **`second-inject.js`** — `planSuccessionInjections` / `canSecondInject`: first
+  min-entry × piggy buffer paid + next READY + gas floor → seat 2. Hitch
+  preferred on both buy and sell when leftover covers (existing LOSE_ZERO).
+- **`triggerCascade`** — deploys up to 2 primed READY seats from one profitable
+  exit (`🔁 2ND INJECT` Telegram).
+- **Instant peak sell** — at max peak, or tick-down within 1% of peak, when
+  piggy-aligned net clears break-even buffer (still never underwater).
+- **Primed bottom entry** — any cost-cleared READY avenue can inject near its
+  recent low (not only catalog inject-mains), so more bottoms convert each cycle.
+
+Does **not** weaken LOSE_ZERO, PRICE_INSANE, QuoterV2, minOut, frozen buy,
+2× hitch sell floor, or piggy never-sell dust.
+
 ### Added — Guardian Arena ledger board + LINK-first inject piggy
 
 Game asked for a readable ledger board, practice sims, and stronger Chainlink
