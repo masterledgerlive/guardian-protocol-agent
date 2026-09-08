@@ -19,6 +19,11 @@ import {
   applyPiggyToSell,
   parsePiggyUnlockCommand,
   loadPiggyReserve,
+  costBasisForSoldFraction,
+  previewPiggySellNetUsd,
+  buildTokenPiggyLedger,
+  creditTokenPiggyPools,
+  piggyCoInvestMarkUsd,
 } from "./piggy-bank.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -216,6 +221,55 @@ describe("reserve grows with buys and never auto-shrinks", () => {
   });
 });
 
+describe("ledger math leaves dust cost behind", () => {
+  it("soldFrac cost basis is proportional — not full entry", () => {
+    assert.equal(costBasisForSoldFraction(1.0, 0.98), 0.98);
+    assert.equal(costBasisForSoldFraction(1.0, 1), 1);
+    assert.equal(costBasisForSoldFraction(1.0, 0), 0);
+  });
+
+  it("peak preview charges only sellable cost/fees so profits still clear", () => {
+    // 1000 tokens, 2% piggy locked, entry 1 ETH, ETH=$2000, price=$2.10
+    // Full-bag cost would look worse; sellable-only must stay green.
+    const bal = 1000;
+    const sellable = 980;
+    const investedEth = 1;
+    const priceUsd = 2.10;
+    const ethUsd = 2000;
+    const wrongFullCost = sellable * priceUsd - investedEth * ethUsd; // charges 100% entry
+    const preview = previewPiggySellNetUsd({
+      balance: bal,
+      sellable,
+      investedEth,
+      priceUsd,
+      ethUsd,
+      feePct: 0.006,
+      skimPct: 0.01,
+    });
+    assert.equal(preview.soldFrac, 0.98);
+    assert.ok(preview.netUsd > 0, "piggy-aligned net should be profitable");
+    assert.ok(wrongFullCost < preview.netUsd, "full-entry charge understates profit");
+    assert.equal(preview.costUsd, 0.98 * ethUsd);
+  });
+
+  it("nested per-token piggy ledger accumulates eth + agent shares", () => {
+    const row = buildTokenPiggyLedger({ symbol: "toshi", dustReserve: 20, dustUsd: 0.05 });
+    assert.equal(row.symbol, "TOSHI");
+    assert.equal(row.dustReserve, 20);
+    const credited = creditTokenPiggyPools(row, { ethContrib: 0.001, agentShare: 0.0005 });
+    assert.equal(credited.ethContrib, 0.001);
+    assert.equal(credited.agentShare, 0.0005);
+    const again = creditTokenPiggyPools(credited, { ethContrib: 0.001, agentShare: 0.0005 });
+    assert.equal(again.ethContrib, 0.002);
+    assert.equal(again.agentShare, 0.001);
+  });
+
+  it("co-invest mark uses tokens×price, not tokens×0", () => {
+    assert.equal(piggyCoInvestMarkUsd({ tokens: 100, priceUsd: 0.05, ethIn: 0.001, ethUsd: 2000 }), 3);
+    assert.equal(piggyCoInvestMarkUsd({ tokens: 100, priceUsd: 0, ethIn: 0.001, ethUsd: 2000 }), -2);
+  });
+});
+
 describe("agent.js wires piggy into every sell path", () => {
   const src = readFileSync(join(root, "agent.js"), "utf8");
 
@@ -228,9 +282,19 @@ describe("agent.js wires piggy into every sell path", () => {
     assert.ok(body.includes("applyPiggyToSell"), "executeSell must call applyPiggyToSell");
     assert.ok(body.includes("buildSellGateDecision"), "hitch sell floor must stay after piggy sizing");
     assert.ok(body.includes("piggy.tokensToSell"), "sell size must be piggy-capped tokens");
+    assert.ok(body.includes("costBasisForSoldFraction") || body.includes("entryEthSold"), "PnL must use piggy soldFrac");
+    assert.ok(body.includes("soldFrac"), "ledger must record piggy-aligned soldFrac");
     assert.ok(body.includes("toWei"), "minOut amount-in must use real decimals");
     assert.ok(body.includes("sanitizeAmountOutMinimum"), "minOut sanity must stay after piggy sizing");
     assert.ok(body.includes("gatePriceInsane") || body.includes("evaluatePriceInsane"), "PRICE_INSANE must run before piggy uses the mark");
+  });
+
+  it("peak gates use previewPiggySellNetUsd so dust cost stays behind", () => {
+    assert.ok(src.includes("previewPiggySellNetUsd"), "processToken must preview piggy-aligned net");
+    assert.ok(src.includes("PIGGY_COINVEST_ENABLED"), "co-invest must be gated for AI reserve");
+    assert.ok(src.includes("tokenPiggyLedgers"), "nested per-token piggy ledger required");
+    assert.ok(src.includes("piggyCoInvestMarkUsd"), "/piggy must mark co-invest with tokens×price");
+    assert.ok(!src.includes("p.tokens*0"), "must not zero co-invest mark");
   });
 
   it("does not skip hitch / minOut / freeze gates", () => {
@@ -269,6 +333,6 @@ describe("agent.js wires piggy into every sell path", () => {
     const buyFn = src.indexOf("async function executeBuy(");
     const nextFn = src.indexOf("\nasync function ", buyFn + 1);
     const body = src.slice(buyFn, nextFn > 0 ? nextFn : buyFn + 4000);
-    assert.ok(body.includes("ratchetPiggyReserve"), "buy path must floor-up piggy");
+    assert.ok(body.includes("syncTokenPiggy") || body.includes("ratchetPiggyReserve"), "buy path must floor-up piggy");
   });
 });
