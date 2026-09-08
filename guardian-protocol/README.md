@@ -18,19 +18,28 @@ Outputs land in:
 - `arena/reports/` — JSON benchmark reports
 - `benchmarks/0001-tiny/` — tiny canonical object + last run artifacts
 
-## What exists (Sprint 1)
+## What exists (Sprints 1–5)
 
-Working **event-driven simulator**:
+Working **event-driven simulator + Arena**:
 
 1. Canonical input loader + SHA-256
 2. Fixed-size chunker
 3. Dual-lane-aware injection state machine
-4. FIFO + fixed chunk + static reserve baseline
-5. Simulated DePIN storage nodes
-6. Cost + treasury models (labeled assumptions)
+4. Strategies: FIFO · Adaptive · CostOpt · Priority · RedOpt
+5. Simulated DePIN storage nodes (online/offline, repair)
+6. Cost + treasury + failure/stress models (labeled assumptions)
 7. Bit-for-bit integrity verifier
-8. Replay log + metrics engine
-9. Benchmark runner → JSON report
+8. Replay log + viewer helpers + metrics engine
+9. Benchmark runners → JSON reports + Arena compare + stress
+10. Observability dashboard (`npm run dashboard`)
+11. Submission validation + leaderboards / Pareto
+12. Protocol adapter **stubs** (no root trader imports)
+
+```bash
+npm run arena:compare
+npm run arena:stress
+npm run dashboard
+```
 
 ## Navigation for agents & humans
 

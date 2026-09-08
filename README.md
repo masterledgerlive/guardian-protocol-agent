@@ -78,6 +78,7 @@ Guardian uses a wave detection engine built on confirmed price peaks and troughs
 - **Slippage cooldown**: after 3 consecutive `Too little received` / 0-ETH fills on a symbol, skip that name for 30 minutes so the retry loop does not burn gas.
 - **Piggy-bank dust**: every token bag keeps a growing never-sell reserve (`PIGGY_BANK_PCT` default **2%** of units, plus `PIGGY_BANK_MIN_USD` default **$0.05**). Wave / moonshot / cascade / `/sell` / sellhalf / fib / stale / stop-loss compute `sellable = balance − piggyReserve` and leave the pile. Reserve floors up on buys and never auto-shrinks. Dust is sold only on an explicit unlock (`PIGGY UNLOCK` reason or Telegram `/piggyunlock SYMBOL`). Persisted on `tokens.json` (`piggyReserve`) and `positions.json` (`piggyReserves`) so restarts keep the pile. This is per-token dust — not the ETH skim `/piggy` pool.
 - **Cascade min-entry / inject-all** (`cascade-rollover.js`): thin books (`<$12` tradeable) inject **all** capital into **one** seat sized to cover fees + hitch + a cascade seed. Cascade only fires when sell proceeds clear the next token’s min entry; dust recycle can feed that cascade while piggy stays locked. Thin wallets shrink sell-reserve so liquid ETH is not falsely reported as ~0 after a hard $2–3 park. Telegram **BALANCE LOW** only when the chain wallet is truly empty — if capital is in bags, it says recycle→cascade instead.
+- **Avenue prime** (`avenue-prime.js`): every cycle projects round-trip cost per path and keeps the **2–3** best seats primed (1 on inject-all). Paths that cannot clear fees+hitch without losing are refused. Growing capital prefers max profit × hitch-code fit / cost; cascade picks the primed READY seat first so the next buy is already chosen.
 
 ### Two-Tier Capital System
 
@@ -124,6 +125,9 @@ USDT/EURC (stables — no wave amplitude) · cbETH (Uni V3 thin; mostly V4) · c
 
 ```
 agent.js              — Main trading loop + Telegram command handler
+avenue-prime.js       — Projected cost per avenue; prime top 2–3 cascade seats
+cascade-rollover.js   — Min entry, inject-all book, cascade deploy sizing
+inject-revenue.js     — Small-book tiers + inject pullback entry
 price-insane.js       — PRICE_INSANE mark gate + Base QuoterV2 + slippage / refuse backoff
 vita-models.js        — VITA Anthropic model cycle (Railway VITA_MODELS)
 price-oracle.js       — DexScreener/Gecko quotes; Uni/Aero WETH-USDC only (no ghost pairs)

@@ -10,5 +10,5 @@ This monorepo hosts **two related but separate tracks**:
 The injector is a **transitional technology baseline** (Trickle hitch, dual lanes, L1 fee awareness, strand assembly). The L1 package targets a **Hyperliquid-inspired Agentic Memory Network**: [MemoryBFT + DataCore + dual-block AgenticEVM](./guardian-protocol/docs/HYPERLIQUID_BLUEPRINT.md), with [0x](https://0x.org) for value routing and [Arbitrum](https://arbitrum.io) for compression-cost models — without merging runtimes or treating messaging bridges as the architecture.
 
 ```bash
-cd guardian-protocol && npm test && npm run benchmark
+cd guardian-protocol && npm test && npm run benchmark && npm run arena:compare && npm run arena:stress
 ```

@@ -1,5 +1,9 @@
 # Scoring (Sprint 2+)
 
-Pareto-first. Configurable weighted score only with visible weights.
+`leaderboard.js` scores Arena reports vs the FIFO baseline with visible weights:
 
-See `docs/AGENT_ARENA.md`.
+- absolute composite
+- cheapest / fastest / smallest overhead / most improved
+- Pareto frontier on cost × latency (successful runs only)
+
+Evidence fields (hashes, exact_match) travel with every score row.

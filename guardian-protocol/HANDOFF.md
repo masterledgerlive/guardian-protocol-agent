@@ -1,6 +1,6 @@
 # HANDOFF — Agentic Memory Layer-1 / Guardian Protocol
 
-**Status:** Foundational research / simulation specification v0.1.2  
+**Status:** Foundational research / simulation specification v0.2.0  
 **Audience:** Human developers, autonomous coding agents, researchers  
 **Relation to live trader:** This tree is a **sideline**. Do not modify root `agent.js`, hitch/injector, or trading gates from here.
 

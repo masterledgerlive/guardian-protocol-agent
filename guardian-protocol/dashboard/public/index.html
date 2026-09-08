@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guardian Arena — Observability</title>
+  <style>
+    :root {
+      --bg0: #0f1419;
+      --bg1: #1a2332;
+      --ink: #e8eef7;
+      --muted: #8b9bb4;
+      --accent: #3d9cf0;
+      --ok: #3ecf8e;
+      --line: rgba(232, 238, 247, 0.12);
+      --display: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--display);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1e3a5f 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #143528 0%, transparent 50%),
+        linear-gradient(165deg, var(--bg0), var(--bg1));
+    }
+    header {
+      padding: 2rem 1.5rem 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.02em;
+    }
+    header p { margin: 0.4rem 0 0; color: var(--muted); max-width: 42rem; }
+    main {
+      display: grid;
+      gap: 1rem;
+      padding: 1.25rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    section {
+      background: rgba(15, 20, 25, 0.55);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+      backdrop-filter: blur(8px);
+    }
+    section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+    pre, code { font-family: var(--mono); font-size: 0.78rem; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 320px;
+      overflow: auto;
+      color: var(--ink);
+    }
+    .pill {
+      display: inline-block;
+      margin: 0.15rem 0.25rem 0.15rem 0;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .ok { color: var(--ok); }
+    footer {
+      padding: 1rem 1.5rem 2rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Guardian Arena</h1>
+    <p>Sprint 2 observability — simulated reports only. Never production measurements.</p>
+  </header>
+  <main>
+    <section>
+      <h2>System</h2>
+      <div id="system">Loading…</div>
+    </section>
+    <section>
+      <h2>Strategies</h2>
+      <div id="strategies"></div>
+    </section>
+    <section>
+      <h2>Leaderboard</h2>
+      <pre id="leaderboard"></pre>
+    </section>
+    <section>
+      <h2>Reports</h2>
+      <pre id="reports"></pre>
+    </section>
+    <section>
+      <h2>Adapters (Sprint 5 stubs)</h2>
+      <pre id="adapters"></pre>
+    </section>
+  </main>
+  <footer>kind=simulated · reconstruction evidence lives in arena/reports/</footer>
+  <script>
+    async function load() {
+      const [system, strategies, leaderboard, reports, adapters] = await Promise.all([
+        fetch("/api/system").then((r) => r.json()),
+        fetch("/api/strategies").then((r) => r.json()),
+        fetch("/api/leaderboard").then((r) => r.json()),
+        fetch("/api/reports").then((r) => r.json()),
+        fetch("/api/adapters").then((r) => r.json()),
+      ]);
+      document.getElementById("system").innerHTML =
+        `<span class="ok">reports ${system.report_count}</span>` +
+        `<div class="pill">preserved ${system.preserved_objects}</div>` +
+        (system.strategies_registered || []).map((s) => `<span class="pill">${s}</span>`).join("");
+      document.getElementById("strategies").innerHTML =
+        (strategies.strategies || []).map((s) => `<span class="pill">${s}</span>`).join("") || "none";
+      document.getElementById("leaderboard").textContent = JSON.stringify(leaderboard.boards?.absolute?.slice(0, 8) ?? [], null, 2);
+      document.getElementById("reports").textContent = JSON.stringify(reports, null, 2);
+      document.getElementById("adapters").textContent = JSON.stringify(adapters.adapters, null, 2);
+    }
+    load().catch((e) => {
+      document.getElementById("system").textContent = String(e);
+    });
+  </script>
+</body>
+</html>

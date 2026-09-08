@@ -134,6 +134,13 @@ import {
   effectiveSellReserve,
 } from "./cascade-rollover.js";
 import {
+  projectAvenue,
+  primeAvenues,
+  pickCascadeFromPrimed,
+  primedSeatCount,
+  formatPrimedAvenues,
+} from "./avenue-prime.js";
+import {
   minBuyUsdForToken,
   operatorBuyBelowMin,
   applyWethDeadFreeze,
@@ -517,6 +524,108 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
   return { tier1, tier2, scored, reservedMain, book };
 }
 
+/**
+ * Re-seat T1/T2 from cost-projected primed avenues.
+ * Thin books take the single best primed seat; larger books take top 2–3.
+ * Never promotes a refused (would-lose) avenue into capital seats.
+ */
+function reconcileTiersWithPrime(tAssign, primed = []) {
+  const book = tAssign?.book || currentTierBook;
+  const allowed = (Array.isArray(primed) ? primed : []).filter((a) => a && a.allow && a.symbol);
+  if (!allowed.length || !tAssign) return tAssign;
+  const scoredSyms = new Set((tAssign.scored || []).map((s) => s.symbol));
+  const tier1 = [];
+  for (const a of allowed) {
+    if (tier1.length >= book.tier1Count) break;
+    if (!scoredSyms.has(a.symbol)) continue;
+    tier1.push(a.symbol);
+  }
+  for (const s of tAssign.tier1 || []) {
+    if (tier1.length >= book.tier1Count) break;
+    if (!tier1.includes(s)) tier1.push(s);
+  }
+  const tier2 = [];
+  for (const a of allowed) {
+    if (tier2.length >= (tAssign.tier2?.length || book.tier2MaxSlots || 0)) break;
+    if (tier1.includes(a.symbol)) continue;
+    if (!scoredSyms.has(a.symbol)) continue;
+    tier2.push(a.symbol);
+  }
+  for (const s of tAssign.tier2 || []) {
+    if (tier1.includes(s) || tier2.includes(s)) continue;
+    // Keep original T2 fill after primed extras
+    if (tier2.length >= Math.max(tAssign.tier2.length, book.tier2MaxSlots || 0)) break;
+    tier2.push(s);
+  }
+  return {
+    ...tAssign,
+    tier1,
+    tier2,
+    reservedMain: tier1.find((s) => isInjectMainPlayer(s)) || tAssign.reservedMain,
+    primedSymbols: allowed.map((a) => a.symbol),
+  };
+}
+
+/**
+ * Build cost-projected avenue board for this cycle's spend size.
+ * Refuses paths that cannot clear fees+hitch without losing; ranks the rest
+ * by expected net × hitch-code fit / cost so cascade already has seats primed.
+ */
+function buildPrimedAvenues({
+  gasCostEth,
+  tradeEth,
+  ethUsd,
+  hitchCostEth = 0,
+  gwei = 0,
+  tradeableUsd = 0,
+  book = null,
+} = {}) {
+  const b = book || currentTierBook;
+  const topN = primedSeatCount(tradeableUsd, {
+    injectAll: !!b?.injectAll,
+    smallBook: !!b?.smallBook,
+  });
+  const candidates = tokens
+    .filter((t) => !t.disabled && !t.frozen)
+    .map((t) => {
+      const arm = getArmStatus(t.symbol, gasCostEth, tradeEth);
+      const readings = history[t.symbol]?.readings || [];
+      const recentPx = readings.slice(-20).map((r) => r.price).filter((p) => p > 0);
+      const recentLow = recentPx.length ? Math.min(...recentPx) : history[t.symbol]?.lastPrice;
+      const lastPx = history[t.symbol]?.lastPrice;
+      const nearEntry = isInjectPullbackEntry({
+        isInjectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
+        price: lastPx,
+        recentLow,
+        recentReadings: recentPx.length,
+        priceFallingFast: false,
+      }) || (() => {
+        const minT = getMinTrough(t.symbol);
+        return lastPx > 0 && minT > 0 && lastPx <= minT * 1.015;
+      })();
+      const scored = (currentScores || []).find((s) => s.symbol === t.symbol);
+      return projectAvenue({
+        symbol: t.symbol,
+        tradeEth,
+        gasCostEth,
+        hitchCostEth,
+        feePct: t.poolFeePct || 0.006,
+        netMargin: arm.net || 0,
+        minNetMargin: t.minNetMargin || MIN_NET_MARGIN,
+        armed: !!arm.armed,
+        nearEntry,
+        injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
+        tokenScore: scored?.score || 0,
+        gwei,
+        hitchBytesWanted: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+        ethUsd,
+        tokenMinBuyUsd: minBuyUsdForToken(t),
+        minPosUsd: minPosUsd(),
+      });
+    });
+  return primeAvenues(candidates, { topN });
+}
+
 // How much ETH to deploy for a token given its tier and current capital
 function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
   const totalTradeableUsd = totalTradeableEth * ethUsd;
@@ -551,6 +660,7 @@ function calcTierSlotEth(symbol, tier1, tier2, totalTradeableEth, ethUsd) {
 let currentTier1 = [];
 let currentTier2 = [];
 let currentScores = []; // [{ symbol, score }] sorted best first
+let currentPrimedAvenues = []; // top 2–3 cost-projected cascade seats
 let currentTierBook = tierBookParams(Infinity, {
   tier1Count: TIER1_COUNT,
   tier1Pct: TIER1_PCT,
@@ -5629,7 +5739,49 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 // 🌊 CASCADE — now with cascade grace timer to bypass normal cooldown
 // ═══════════════════════════════════════════════════════════════════════════════
 async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
+  const exclude = String(excludeSymbol || "").toUpperCase();
+
+  // 1) Primed seats first — cost already projected; execute when ready (no long wait)
+  for (const a of currentPrimedAvenues || []) {
+    if (!a?.allow || a.symbol === exclude) continue;
+    const t = tokens.find((x) => x.symbol === a.symbol);
+    if (!t || isCatalogFrozen(t) || t.entryPrice) continue;
+    if (!canTrade(t.symbol, true)) continue;
+    if (a.readyNow || a.nearEntry) {
+      console.log(
+        `  🎯 CASCADE primed → ${t.symbol} | outcome ${a.outcomeScore.toFixed(2)} | ` +
+          `net~$${a.expectedNetUsd.toFixed(3)} | code ${a.hitchBytesFit}B`
+      );
+      return t;
+    }
+  }
+
+  // 2) Among primed (armed but not yet READY), pick nearest trough with best net
   let best = null, bestNet = -1;
+  for (const a of currentPrimedAvenues || []) {
+    if (!a?.allow || a.symbol === exclude) continue;
+    const t = tokens.find((x) => x.symbol === a.symbol);
+    if (!t || isCatalogFrozen(t) || t.entryPrice) continue;
+    if (!canTrade(t.symbol, true)) continue;
+    const arm = getArmStatus(t.symbol, gasCost, tradeEth);
+    if (!arm.armed) continue;
+    const price = history[t.symbol]?.lastPrice;
+    const minT = getMinTrough(t.symbol);
+    if (!price || !minT) continue;
+    const nearLow = price <= minT * 1.015;
+    if (!nearLow) continue;
+    const ind = getIndicatorScore(t.symbol);
+    const score = (arm.net || 0) + (a.outcomeScore || 0) * 0.001 + (ind.score >= 2 ? 0.01 : 0);
+    if (score > bestNet) { bestNet = score; best = t; }
+  }
+  if (best) {
+    console.log(`  🎯 CASCADE primed-near → ${best.symbol}`);
+    return best;
+  }
+
+  // 3) Cold scan fallback (legacy) — still skip frozen / occupied
+  best = null;
+  bestNet = -1;
   for (const t of tokens) {
     if (t.symbol === excludeSymbol) continue;
     if (isCatalogFrozen(t)) continue; // frozen names: exits only, never a cascade target
@@ -10513,10 +10665,38 @@ async function main() {
       // Scores every token, assigns tier 1 (top 3) and tier 2 (next N by score).
       // Only tokens in a tier receive new capital. Others: moonshot hold or skip.
       const gasCostForTier = await estimateGasCostEth();
-      const tAssign = computeTierAssignments(gasCostForTier, bal.tradeableWithWeth, bal.tradeableWithWeth * ethUsd);
+      let tAssign = computeTierAssignments(gasCostForTier, bal.tradeableWithWeth, bal.tradeableWithWeth * ethUsd);
       currentTier1  = tAssign.tier1;
       currentTier2  = tAssign.tier2;
       currentScores = tAssign.scored;
+      currentTierBook = tAssign.book || currentTierBook;
+
+      // ── 🎯 AVENUE PRIME — project costs, keep 2–3 best seats ready for cascade ─
+      // Thin books refuse paths that would lose after fees+hitch. Growing books
+      // prefer max profit × hitch-code fit / cost. Cascade uses this board first.
+      let hitchCostForPrime = 0;
+      let gweiForPrime = 0;
+      try {
+        gweiForPrime = await getCurrentGasGwei();
+        const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
+        const l2Hitch = estimateCalldataHitchEth(voiceBytes, gweiForPrime);
+        hitchCostForPrime = (hitchL1.ok ? (Number(hitchL1.l1FeeEth) || 0) : 0) + l2Hitch;
+      } catch { hitchCostForPrime = 0; }
+      const primeBoard = buildPrimedAvenues({
+        gasCostEth: gasCostForTier,
+        tradeEth: bal.tradeableWithWeth,
+        ethUsd,
+        hitchCostEth: hitchCostForPrime,
+        gwei: gweiForPrime,
+        tradeableUsd: bal.tradeableWithWeth * ethUsd,
+        book: currentTierBook,
+      });
+      currentPrimedAvenues = primeBoard.primed || [];
+      tAssign = reconcileTiersWithPrime(tAssign, currentPrimedAvenues);
+      currentTier1 = tAssign.tier1;
+      currentTier2 = tAssign.tier2;
+      console.log(formatPrimedAvenues(primeBoard));
 
       // Log tier state every cycle (compact)
       const book = tAssign.book || currentTierBook;

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added — avenue priming: projected costs + top 2–3 cascade seats
+
+Cascade used to cold-scan for a near-trough target only *after* a sell. Thin books often picked paths that could not clear fees+hitch without losing; rich books still waited on a full loop before the next inject seat was chosen.
+
+- **`avenue-prime.js`** — every cycle projects round-trip cost (fees + gas + hitch + impact) per avenue vs this book’s spend size. Refuses paths where projected leftover ≤ 0 or spend &lt; min entry (lose-zero). Ranks the rest by expected net × hitch-code fit / cost.
+- **Top 2–3 primed seats** (1 on inject-all, 2 on small book, 3 otherwise) re-seat T1/T2 and feed `findCascadeTarget` first — choice is ready before the cascade fires; READY/near-entry seats execute without a long wait.
+- Growing capital prefers the path that makes the most **and** fits the most Eureka/code bytes for the least cost, then rolls into the next primed seat.
+
+### Added — Guardian L1 Arena Sprints 2–5 (sideline)
+
+`guardian-protocol/` advances from Sprint 1 instrument to a full Arena ladder without touching the live trader:
+
+- **Sprint 2:** dashboard + replay viewer + leaderboards/Pareto + submission validation + `arena:compare`
+- **Sprint 3:** ADAPTIVE / COSTOPT / PRIORITY / REDOPT strategies vs FIFO baseline
+- **Sprint 4:** failure/churn/bandwidth stress, multi-replica repair, `arena:stress`
+- **Sprint 5:** hitch/DA/storage adapter stubs with explicit no-root-trader boundary
+
 ### Fixed — BALANCE LOW false alarm; fragment buys strand cascade (min-entry inject-all)
 
 Live Railway `industrious-tranquility` / `guardian-protocol-agent` @ `0bad3c9` (2026-09-08):
@@ -46,6 +63,8 @@ Changes (still LOSE_ZERO / 2× hitch sell floor / never lose to insert):
 - **Inject pullback entry** + entry-trough climb to recent low when 90d MIN is stale; candle seed prefers 14d low for inject mains.
 - **Tier gate before hitch L1 fee** so OUT tokens die without oracle spam.
 - **Dust recycle** for unknown-cost bags above lottery floor (plain sale if hitch not covered).
+
+## Released — 2026-09-07 (main)
 
 ### Fixed — new majors live but not injection-ready (OHLC + capital)
 

@@ -1,0 +1,272 @@
+/**
+ * Avenue priming — projected costs per path, keep the 2–3 best ready for cascade.
+ *
+ * Goal: before a sell frees capital, the next avenues are already ranked by
+ * expected outcome vs cost. Thin books refuse paths that cannot clear fees+hitch
+ * without losing money. As capital grows, the path that makes the most *and*
+ * can fit the most hitch code for the least cost wins, then cascades into the
+ * next primed seat without a long cold search.
+ */
+
+import {
+  effectiveMinEntryEth,
+  CASCADE_SEED_USD,
+  DEFAULT_IMPACT_PCT,
+} from "./cascade-rollover.js";
+import {
+  CALLDATA_GAS_PER_NONZERO_BYTE,
+  STORE_HITCH_BYTES,
+  DEFAULT_HITCH_COST_MULT,
+  hitchCostMult,
+} from "./lose-zero-gate.js";
+
+export const PRIMED_TOP_N = 3;
+export const PRIMED_MIN_N = 2;
+
+/**
+ * Round-trip cost projection in ETH for a given spend size.
+ * Includes buy+sell pool fees, impact, gas both ways, and hitch insert.
+ */
+export function projectRoundTripCostEth({
+  tradeEth = 0,
+  gasCostEth = 0,
+  hitchCostEth = 0,
+  feePct = 0.006,
+  impactPct = DEFAULT_IMPACT_PCT,
+} = {}) {
+  const trade = Math.max(0, Number(tradeEth) || 0);
+  const gas = Math.max(0, Number(gasCostEth) || 0);
+  const hitch = Math.max(0, Number(hitchCostEth) || 0);
+  const fee = Math.max(0, Number(feePct) || 0);
+  const impact = Math.max(0, Number(impactPct) || 0);
+  const feeEth = trade * fee * 2;
+  const impactEth = trade * impact;
+  const gasEth = gas * 2;
+  const costEth = feeEth + impactEth + gasEth + hitch;
+  const costPct = trade > 0 ? costEth / trade : Number.POSITIVE_INFINITY;
+  return {
+    costEth,
+    costPct,
+    feeEth,
+    impactEth,
+    gasEth,
+    hitchEth: hitch,
+  };
+}
+
+/** How many hitch bytes leftover can pay for (L2 calldata + optional L1/byte). */
+export function hitchBytesAffordable({
+  leftoverEth = 0,
+  gwei = 0,
+  hitchCostMult: mult = DEFAULT_HITCH_COST_MULT,
+  l1FeePerByteEth = 0,
+  providerFeeEth = 0,
+} = {}) {
+  const leftover = Number(leftoverEth);
+  const m = Number.isFinite(Number(mult)) && Number(mult) > 0 ? Number(mult) : DEFAULT_HITCH_COST_MULT;
+  if (!Number.isFinite(leftover) || leftover <= 0) return 0;
+  const budget = leftover / m - Math.max(0, Number(providerFeeEth) || 0);
+  if (!(budget > 0)) return 0;
+  const g = Number(gwei);
+  const l2 = Number.isFinite(g) && g > 0 ? CALLDATA_GAS_PER_NONZERO_BYTE * g * 1e-9 : 0;
+  const l1 = Math.max(0, Number(l1FeePerByteEth) || 0);
+  const perByte = l2 + l1;
+  if (!(perByte > 0)) return Number.MAX_SAFE_INTEGER;
+  return Math.max(0, Math.floor(budget / perByte));
+}
+
+/**
+ * Project one avenue. `allow=false` when spend cannot clear costs / would lose.
+ */
+export function projectAvenue({
+  symbol,
+  tradeEth = 0,
+  gasCostEth = 0,
+  hitchCostEth = 0,
+  feePct = 0.006,
+  impactPct = DEFAULT_IMPACT_PCT,
+  netMargin = 0,
+  minNetMargin = 0.025,
+  armed = false,
+  nearEntry = false,
+  injectMain = false,
+  tokenScore = 0,
+  gwei = 0,
+  hitchBytesWanted = STORE_HITCH_BYTES,
+  ethUsd = 0,
+  tokenMinBuyUsd = 0,
+  minPosUsd = 0.5,
+  cascadeSeedUsd = CASCADE_SEED_USD,
+  hitchMult,
+  l1FeePerByteEth = 0,
+  env = process.env,
+} = {}) {
+  const sym = String(symbol || "?").toUpperCase();
+  const trade = Math.max(0, Number(tradeEth) || 0);
+  const net = Number(netMargin) || 0;
+  const minNm = Number(minNetMargin) || 0;
+  const costs = projectRoundTripCostEth({
+    tradeEth: trade,
+    gasCostEth,
+    hitchCostEth,
+    feePct,
+    impactPct,
+  });
+  const minEntry = effectiveMinEntryEth({
+    gasCostEth,
+    hitchCostEth,
+    feePct,
+    impactPct,
+    ethUsd,
+    tokenMinBuyUsd,
+    minPosUsd,
+    cascadeSeedUsd,
+  });
+
+  const expectedGrossEth = trade * Math.max(0, net);
+  // Net after explicit hitch (arm.net already strips fees/gas; still subtract hitch insert)
+  const expectedNetEth = expectedGrossEth - Math.max(0, Number(hitchCostEth) || 0);
+  const leftoverAfterCostEth = expectedNetEth;
+  const mult = hitchMult != null ? hitchMult : hitchCostMult(env);
+  const wanted = Math.max(1, Math.floor(Number(hitchBytesWanted) || STORE_HITCH_BYTES));
+  const bytesFit = hitchBytesAffordable({
+    leftoverEth: Math.max(0, leftoverAfterCostEth),
+    gwei,
+    hitchCostMult: mult,
+    l1FeePerByteEth,
+  });
+  const hitchBytesFit = Math.min(wanted, bytesFit === Number.MAX_SAFE_INTEGER ? wanted : bytesFit);
+
+  let allow = true;
+  let refuseReason = null;
+  if (!(trade > 0)) {
+    allow = false;
+    refuseReason = "no trade size";
+  } else if (minEntry > 0 && trade + 1e-12 < minEntry) {
+    allow = false;
+    refuseReason = "below min entry (fees+hitch+cascade seed)";
+  } else if (!armed && !nearEntry) {
+    allow = false;
+    refuseReason = "not armed / not near entry";
+  } else if (net > 0 && net < minNm && !nearEntry) {
+    allow = false;
+    refuseReason = "net margin below floor";
+  } else if (!(expectedNetEth > 0)) {
+    // Would cost more than any projected leftover — refuse (lose-zero)
+    allow = false;
+    refuseReason = "projected costs wipe leftover (would lose)";
+  } else if (costs.costEth >= trade * 0.95) {
+    allow = false;
+    refuseReason = "round-trip cost dominates stake";
+  }
+
+  const readyNow = !!(nearEntry || (armed && nearEntry !== false && net >= minNm));
+  // Prefer ready near-entry; still score armed waves so cascade has a bench.
+  const readyBoost = nearEntry ? 1.6 : armed ? 1.15 : 1;
+  const codeFit = hitchBytesFit / wanted; // 0..1 how much Eureka/code fits
+  const costEff = costs.costEth > 0 ? expectedNetEth / costs.costEth : expectedNetEth;
+  const px = Number(ethUsd) || 0;
+  const expectedNetUsd = expectedNetEth * px;
+  // Growing capital: most profit × most code / least cost wins.
+  const outcomeScore = allow
+    ? Math.max(
+        0,
+        (expectedNetUsd + Math.max(0, Number(tokenScore) || 0) * 0.01) *
+          (1 + codeFit) *
+          Math.max(0.05, costEff) *
+          readyBoost *
+          (injectMain ? 1.25 : 1)
+      )
+    : -1;
+
+  return {
+    symbol: sym,
+    allow,
+    refuseReason,
+    tradeEth: trade,
+    minEntryEth: minEntry,
+    projectedCostEth: costs.costEth,
+    projectedCostPct: costs.costPct,
+    expectedNetEth,
+    expectedNetUsd,
+    leftoverAfterCostEth,
+    hitchBytesWanted: wanted,
+    hitchBytesFit,
+    codeFit,
+    costEff,
+    readyNow: allow && (nearEntry || armed),
+    nearEntry: !!nearEntry,
+    injectMain: !!injectMain,
+    armed: !!armed,
+    netMargin: net,
+    tokenScore: Number(tokenScore) || 0,
+    outcomeScore,
+  };
+}
+
+/**
+ * Rank candidates and keep the top 2–3 allowed avenues primed for cascade.
+ */
+export function primeAvenues(candidates = [], { topN = PRIMED_TOP_N, minN = PRIMED_MIN_N } = {}) {
+  const n = Math.max(minN, Math.min(PRIMED_TOP_N, Math.floor(Number(topN) || PRIMED_TOP_N)));
+  const projected = (Array.isArray(candidates) ? candidates : []).map((c) =>
+    c && typeof c.outcomeScore === "number" && c.symbol ? c : projectAvenue(c)
+  );
+  const allowed = projected.filter((a) => a.allow).sort((a, b) => b.outcomeScore - a.outcomeScore);
+  const refused = projected.filter((a) => !a.allow);
+  const primed = allowed.slice(0, n);
+  return {
+    primed,
+    refused,
+    best: primed[0] || null,
+    next: primed[1] || null,
+    topN: n,
+    kind: "avenue_prime",
+  };
+}
+
+/**
+ * Pick the next cascade target from a primed list (already cost-checked).
+ * Prefer readyNow seats; otherwise best outcomeScore that clears exclude.
+ */
+export function pickCascadeFromPrimed(primed = [], { excludeSymbol = null, requireReady = false } = {}) {
+  const exclude = excludeSymbol ? String(excludeSymbol).toUpperCase() : null;
+  const list = (Array.isArray(primed) ? primed : []).filter(
+    (a) => a && a.allow && a.symbol && a.symbol !== exclude
+  );
+  if (!list.length) return null;
+  const ready = list.filter((a) => a.readyNow);
+  const pool = requireReady ? ready : ready.length ? ready : list;
+  if (!pool.length) return null;
+  return pool.slice().sort((a, b) => b.outcomeScore - a.outcomeScore)[0];
+}
+
+/**
+ * How many seats to prime for this book size.
+ * Thin / inject-all → 1–2; normal → 3; rich → still 3 (focus).
+ */
+export function primedSeatCount(tradeableUsd, { injectAll = false, smallBook = false } = {}) {
+  const usd = Number(tradeableUsd);
+  if (injectAll || (Number.isFinite(usd) && usd > 0 && usd < 12)) return 1;
+  if (smallBook || (Number.isFinite(usd) && usd < 15)) return 2;
+  return PRIMED_TOP_N;
+}
+
+/** Compact log line for the main loop. */
+export function formatPrimedAvenues(primeResult) {
+  const list = primeResult?.primed || [];
+  if (!list.length) return "🎯 PRIMED: none (all avenues refuse cost / not ready)";
+  return (
+    "🎯 PRIMED: " +
+    list
+      .map(
+        (a, i) =>
+          `${i + 1}.${a.symbol}` +
+          `(net~$${a.expectedNetUsd.toFixed(2)}` +
+          ` cost${(a.projectedCostPct * 100).toFixed(1)}%` +
+          ` code${a.hitchBytesFit}B` +
+          `${a.readyNow ? " READY" : ""})`
+      )
+      .join(" › ")
+  );
+}

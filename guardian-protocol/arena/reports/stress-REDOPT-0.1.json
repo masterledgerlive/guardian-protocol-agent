@@ -1,0 +1,386 @@
+{
+  "BENCHMARK": "stress-0001",
+  "BENCHMARK_VERSION": "0.1.0",
+  "STRATEGY": "REDOPT-0.1",
+  "GENERATED_AT_KIND": "simulated_clock",
+  "INPUT_FILE_SHA256": "c25fb7cfb7aa56e2a7e05dfaec243a5eaa448ebd1bbfa0dd642be8a483eb2fb8",
+  "BENCHMARK_META": {
+    "object_id": "stress-0001",
+    "strategy": "REDOPT-0.1",
+    "final_state": "ARCHIVED",
+    "lane": "Batch",
+    "redundancy": 3
+  },
+  "INPUT": {
+    "bytes": 2048,
+    "sha256": "c25fb7cfb7aa56e2a7e05dfaec243a5eaa448ebd1bbfa0dd642be8a483eb2fb8",
+    "label": "buffer",
+    "tail_class": "long-tail"
+  },
+  "PIPELINE": {
+    "chunks": 8,
+    "encoded_bytes": 2048,
+    "redundancy": 3,
+    "merkle_root": "cb3edda593833f0aa1d28f7b9ef3eaf6bc8b0819344dd64d0614a4417bf8d8e8",
+    "placements": 24,
+    "repairs": 0
+  },
+  "RESULT": {
+    "reconstruction": "PASS",
+    "output_sha256": "c25fb7cfb7aa56e2a7e05dfaec243a5eaa448ebd1bbfa0dd642be8a483eb2fb8",
+    "exact_match": true
+  },
+  "ECONOMICS": {
+    "simulated_cost": 0.00022983040000000001,
+    "storage_cost": 0.0000030720000000000004,
+    "compute_cost": 0.00008,
+    "bandwidth_cost": 0.000006144000000000001,
+    "proof_cost": 0.00004,
+    "transaction_cost": 0.0001,
+    "node_reward": 6.144e-7,
+    "kind": "simulated"
+  },
+  "PERFORMANCE": {
+    "injection_time": 18,
+    "retrieval_time": 1,
+    "reconstruction_time": 1,
+    "kind": "simulated_wall_ms_or_counter"
+  },
+  "TRACE": {
+    "events": 12,
+    "replay_hash": "faae794b123e74f436dab3f6a8197d386b533a186e992620a2cbab7c85c15b88"
+  },
+  "STRESS": {
+    "label": "simulated-stress-drop-v0.1",
+    "drop_node_ids": [
+      "node-0"
+    ],
+    "bandwidth_cap_bytes": null,
+    "churn_every_n_stores": 0,
+    "reliability_floor": 0,
+    "events": [],
+    "kind": "simulated"
+  },
+  "ASSUMPTIONS": [
+    "objects > 1024B treated as long-tail → redundancy=3",
+    "short-tail redundancy=1",
+    "identity encoding",
+    "all costs hypothetical",
+    "cost_model=hypothetical-sprint1-v0.1",
+    "cost.transaction_fee=0.0001",
+    "cost.bandwidth_price_per_byte=1e-9",
+    "cost.compute_price_per_chunk=0.00001",
+    "cost.storage_price_per_byte=5e-10",
+    "cost.node_reward_per_byte=1e-10",
+    "cost.redundancy=1",
+    "cost.chunk_size=256",
+    "cost.proof_price_per_chunk=0.000005",
+    "kind=simulated"
+  ],
+  "METRICS": {
+    "primary": {
+      "reconstruction_success": true,
+      "bit_for_bit_equality": true,
+      "cost": 0.00022983040000000001,
+      "throughput_bytes_per_unit_time": 113.77777777777777,
+      "latency_retrieval": 1,
+      "storage_overhead": 3,
+      "verification_cost": 0.00004,
+      "proof_overhead": 0.00004
+    },
+    "secondary": {
+      "node_count": 5,
+      "online_count": 4,
+      "node_utilization": 0.000024576000000053888,
+      "redundancy": 3,
+      "chunk_count": 8,
+      "encoded_bytes": 2048,
+      "event_count": 12,
+      "repair_count": 0
+    },
+    "derived": {
+      "cost_per_GB": 112.221875,
+      "effective_storage_ratio": 3,
+      "reconstruction_success_rate": 1,
+      "cost_per_verified_GB": 112.221875,
+      "retrieval_latency": 1,
+      "repair_cost": 0,
+      "proof_overhead": 0.00004,
+      "agent_improvement_delta": null
+    }
+  },
+  "TREASURY": {
+    "balance": 9.9997701696,
+    "available": 8.99979315264,
+    "spent": 0.00022983040000000001,
+    "reserve_ratio": 0.1,
+    "deferred_count": 0,
+    "treasury_health": 0.9000000000000001
+  },
+  "STORAGE": {
+    "node_count": 5,
+    "online_count": 4,
+    "total_capacity": 250000000,
+    "total_available": 249993856,
+    "nodes": [
+      {
+        "id": "node-0",
+        "capacity": 50000000,
+        "available": 50000000,
+        "fragments": 0,
+        "region": "sim-region-0",
+        "online": false
+      },
+      {
+        "id": "node-1",
+        "capacity": 50000000,
+        "available": 49998464,
+        "fragments": 6,
+        "region": "sim-region-1",
+        "online": true
+      },
+      {
+        "id": "node-2",
+        "capacity": 50000000,
+        "available": 49998464,
+        "fragments": 6,
+        "region": "sim-region-2",
+        "online": true
+      },
+      {
+        "id": "node-3",
+        "capacity": 50000000,
+        "available": 49998464,
+        "fragments": 6,
+        "region": "sim-region-0",
+        "online": true
+      },
+      {
+        "id": "node-4",
+        "capacity": 50000000,
+        "available": 49998464,
+        "fragments": 6,
+        "region": "sim-region-1",
+        "online": true
+      }
+    ]
+  },
+  "STATUS": "REPRODUCIBLE",
+  "REPRODUCIBLE": true,
+  "replay": {
+    "event_count": 12,
+    "replay_hash": "faae794b123e74f436dab3f6a8197d386b533a186e992620a2cbab7c85c15b88",
+    "events": [
+      {
+        "event_id": "evt-000001",
+        "timestamp": 1,
+        "object_id": "stress-0001",
+        "previous_state": null,
+        "new_state": "RECEIVED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "STRESS_DROP",
+        "resource_state": {
+          "offline": "node-0"
+        }
+      },
+      {
+        "event_id": "evt-000002",
+        "timestamp": 3,
+        "object_id": "stress-0001",
+        "previous_state": "RECEIVED",
+        "new_state": "VALIDATED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "INPUT_OK",
+        "cryptographic_references": {
+          "input_sha256": "c25fb7cfb7aa56e2a7e05dfaec243a5eaa448ebd1bbfa0dd642be8a483eb2fb8"
+        },
+        "tail_class": "long-tail"
+      },
+      {
+        "event_id": "evt-000003",
+        "timestamp": 5,
+        "object_id": "stress-0001",
+        "previous_state": "VALIDATED",
+        "new_state": "CHUNKED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "REDOPT_LONG_TAIL",
+        "chunk_count": 8,
+        "chunk_size": 256,
+        "lane": "Batch",
+        "redundancy": 3
+      },
+      {
+        "event_id": "evt-000004",
+        "timestamp": 7,
+        "object_id": "stress-0001",
+        "previous_state": "CHUNKED",
+        "new_state": "ENCODED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "IDENTITY_ENCODE",
+        "cryptographic_references": {
+          "merkle_root": "cb3edda593833f0aa1d28f7b9ef3eaf6bc8b0819344dd64d0614a4417bf8d8e8"
+        }
+      },
+      {
+        "event_id": "evt-000005",
+        "timestamp": 9,
+        "object_id": "stress-0001",
+        "previous_state": "ENCODED",
+        "new_state": "COST_ESTIMATED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "COST_MODEL",
+        "estimated_cost": 0.00022983040000000001
+      },
+      {
+        "event_id": "evt-000006",
+        "timestamp": 11,
+        "object_id": "stress-0001",
+        "previous_state": "COST_ESTIMATED",
+        "new_state": "TREASURY_CHECK",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "RESERVE_CHECK",
+        "resource_state": {
+          "balance": 10,
+          "available": 9,
+          "spent": 0,
+          "reserve_ratio": 0.1,
+          "deferred_count": 0,
+          "treasury_health": 0.9
+        },
+        "estimated_cost": 0.00022983040000000001
+      },
+      {
+        "event_id": "evt-000007",
+        "timestamp": 13,
+        "object_id": "stress-0001",
+        "previous_state": "TREASURY_CHECK",
+        "new_state": "SCHEDULED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "LANE_BATCH",
+        "actual_cost": 0.00022983040000000001,
+        "resource_state": {
+          "balance": 9.9997701696,
+          "available": 8.99979315264,
+          "spent": 0.00022983040000000001,
+          "reserve_ratio": 0.1,
+          "deferred_count": 0,
+          "treasury_health": 0.9000000000000001
+        }
+      },
+      {
+        "event_id": "evt-000008",
+        "timestamp": 15,
+        "object_id": "stress-0001",
+        "previous_state": "SCHEDULED",
+        "new_state": "INJECTED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "SWARM_WRITE",
+        "placements": 24
+      },
+      {
+        "event_id": "evt-000009",
+        "timestamp": 17,
+        "object_id": "stress-0001",
+        "previous_state": "INJECTED",
+        "new_state": "STORED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "FRAGMENTS_ACK",
+        "resource_state": {
+          "node_count": 5,
+          "online_count": 4,
+          "total_capacity": 250000000,
+          "total_available": 249993856,
+          "nodes": [
+            {
+              "id": "node-0",
+              "capacity": 50000000,
+              "available": 50000000,
+              "fragments": 0,
+              "region": "sim-region-0",
+              "online": false
+            },
+            {
+              "id": "node-1",
+              "capacity": 50000000,
+              "available": 49998464,
+              "fragments": 6,
+              "region": "sim-region-1",
+              "online": true
+            },
+            {
+              "id": "node-2",
+              "capacity": 50000000,
+              "available": 49998464,
+              "fragments": 6,
+              "region": "sim-region-2",
+              "online": true
+            },
+            {
+              "id": "node-3",
+              "capacity": 50000000,
+              "available": 49998464,
+              "fragments": 6,
+              "region": "sim-region-0",
+              "online": true
+            },
+            {
+              "id": "node-4",
+              "capacity": 50000000,
+              "available": 49998464,
+              "fragments": 6,
+              "region": "sim-region-1",
+              "online": true
+            }
+          ]
+        }
+      },
+      {
+        "event_id": "evt-000010",
+        "timestamp": 24,
+        "object_id": "stress-0001",
+        "previous_state": "STORED",
+        "new_state": "VERIFIED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "BIT_EXACT",
+        "cryptographic_references": {
+          "input_sha256": "c25fb7cfb7aa56e2a7e05dfaec243a5eaa448ebd1bbfa0dd642be8a483eb2fb8",
+          "output_sha256": "c25fb7cfb7aa56e2a7e05dfaec243a5eaa448ebd1bbfa0dd642be8a483eb2fb8",
+          "merkle_root": "cb3edda593833f0aa1d28f7b9ef3eaf6bc8b0819344dd64d0614a4417bf8d8e8"
+        }
+      },
+      {
+        "event_id": "evt-000011",
+        "timestamp": 26,
+        "object_id": "stress-0001",
+        "previous_state": "VERIFIED",
+        "new_state": "INDEXED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "MANIFEST_INDEX",
+        "cryptographic_references": {
+          "merkle_root": "cb3edda593833f0aa1d28f7b9ef3eaf6bc8b0819344dd64d0614a4417bf8d8e8"
+        }
+      },
+      {
+        "event_id": "evt-000012",
+        "timestamp": 28,
+        "object_id": "stress-0001",
+        "previous_state": "INDEXED",
+        "new_state": "ARCHIVED",
+        "strategy_id": "REDOPT",
+        "strategy_version": "0.1",
+        "reason_code": "COMPLETE"
+      }
+    ]
+  }
+}

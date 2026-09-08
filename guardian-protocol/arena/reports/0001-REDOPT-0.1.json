@@ -1,12 +1,12 @@
 {
   "BENCHMARK": "0001",
   "BENCHMARK_VERSION": "0.1.0",
-  "STRATEGY": "FIFO-0.1",
+  "STRATEGY": "REDOPT-0.1",
   "GENERATED_AT_KIND": "simulated_clock",
   "INPUT_FILE_SHA256": "ab4311db4613283e218848fcd4f981995212b06f643b263ee5b44be0ea6eb468",
   "BENCHMARK_META": {
     "object_id": "benchmark-0001",
-    "strategy": "FIFO-0.1",
+    "strategy": "REDOPT-0.1",
     "final_state": "ARCHIVED",
     "lane": "Batch",
     "redundancy": 1
@@ -48,16 +48,14 @@
   },
   "TRACE": {
     "events": 11,
-    "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d"
+    "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070"
   },
   "STRESS": null,
   "ASSUMPTIONS": [
-    "FIFO ordering of a single object job (no multi-job reordering yet)",
-    "fixed chunk_size=256",
-    "static redundancy=1",
-    "identity encoding (no compression)",
-    "round-robin single-node placement per chunk",
-    "all costs are hypothetical (CostModel assumptions)",
+    "objects > 1024B treated as long-tail → redundancy=3",
+    "short-tail redundancy=1",
+    "identity encoding",
+    "all costs hypothetical",
     "cost_model=hypothetical-sprint1-v0.1",
     "cost.transaction_fee=0.0001",
     "cost.bandwidth_price_per_byte=1e-9",
@@ -145,7 +143,7 @@
   "REPRODUCIBLE": true,
   "replay": {
     "event_count": 11,
-    "replay_hash": "30ad789ef23ea8e5c8616ef6a4176b86d2ab16a46f06a16199b135cd84f0ca7d",
+    "replay_hash": "08476350f4117a6145013b5dcbdc85826553317b755911703736e00e3a84c070",
     "events": [
       {
         "event_id": "evt-000001",
@@ -153,7 +151,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "RECEIVED",
         "new_state": "VALIDATED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "INPUT_OK",
         "cryptographic_references": {
@@ -167,9 +165,9 @@
         "object_id": "benchmark-0001",
         "previous_state": "VALIDATED",
         "new_state": "CHUNKED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
-        "reason_code": "FIFO_FIXED_CHUNK_STATIC_RESERVE",
+        "reason_code": "REDOPT_SHORT_TAIL",
         "chunk_count": 2,
         "chunk_size": 256,
         "lane": "Batch",
@@ -181,7 +179,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "CHUNKED",
         "new_state": "ENCODED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "IDENTITY_ENCODE",
         "cryptographic_references": {
@@ -194,7 +192,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "ENCODED",
         "new_state": "COST_ESTIMATED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "COST_MODEL",
         "estimated_cost": 0.0001304208
@@ -205,7 +203,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "COST_ESTIMATED",
         "new_state": "TREASURY_CHECK",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "RESERVE_CHECK",
         "resource_state": {
@@ -224,7 +222,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "TREASURY_CHECK",
         "new_state": "SCHEDULED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "LANE_BATCH",
         "actual_cost": 0.0001304208,
@@ -243,7 +241,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "SCHEDULED",
         "new_state": "INJECTED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "SWARM_WRITE",
         "placements": 2
@@ -254,7 +252,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "INJECTED",
         "new_state": "STORED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "FRAGMENTS_ACK",
         "resource_state": {
@@ -296,7 +294,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "STORED",
         "new_state": "VERIFIED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "BIT_EXACT",
         "cryptographic_references": {
@@ -311,7 +309,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "VERIFIED",
         "new_state": "INDEXED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "MANIFEST_INDEX",
         "cryptographic_references": {
@@ -324,7 +322,7 @@
         "object_id": "benchmark-0001",
         "previous_state": "INDEXED",
         "new_state": "ARCHIVED",
-        "strategy_id": "FIFO",
+        "strategy_id": "REDOPT",
         "strategy_version": "0.1",
         "reason_code": "COMPLETE"
       }
