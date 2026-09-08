@@ -96,6 +96,7 @@ import {
   frozenBuySkipLog,
   buildBuyGateDecision,
   buildSellGateDecision,
+  shouldArmStopLoss,
   STORE_HITCH_BYTES,
   STORE_HITCH_TAG,
   hitchCostMult,
@@ -6603,7 +6604,13 @@ async function processToken(cdp, token, bal) {
     }) ?? minTrghRaw;
     // Stop loss check — must be declared BEFORE shouldFibExit which references it
     const stopLossPrice= minTrgh ? minTrgh * (1 - STOP_LOSS_PCT) : null;
-    const stopLossHit  = entry && stopLossPrice && price < stopLossPrice;
+    const stopLossHit  = shouldArmStopLoss({
+      price,
+      stopLossPrice,
+      hasTrustedCostBasis: hasUsableCostBasis(token) && !!entry,
+      unknownEntry: !!token.unknownEntry,
+      frozen: isCatalogFrozen(token),
+    });
     // Fibonacci partial exit: fires independently from shouldSell — it's a scale-out, not a full exit
     const shouldFibExit = fibHit && !shouldSell && !stopLossHit && sellableUsdOk && netIfSellNow > 0;
 
@@ -7016,11 +7023,21 @@ async function processToken(cdp, token, bal) {
     }
 
     // ── STOP LOSS ──────────────────────────────────────────────────────────
+    // Lose-zero: underwater floors HOLD (gate blocks leftover ≤ 0). Green floors
+    // take a plain sale. Never cascade after stop-loss — ledger shows stop→cascade
+    // redeployed into more losses; peak/plain is the earning path.
     if (stopLossHit) {
       console.log(`  🛑 ${token.symbol} STOP LOSS @ $${price.toFixed(8)} < $${stopLossPrice.toFixed(8)}`);
-      await tg(`🛑 <b>${token.symbol} STOP LOSS</b>\nPrice $${price.toFixed(8)} below floor $${stopLossPrice.toFixed(8)}\nEmergency exit...`);
       const p = await executeSell(cdp, token, 0.98, `STOP LOSS`, price, true);
-      if (p > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb); }
+      if (p > 0) {
+        await tg(
+          `🛑 <b>${token.symbol} STOP LOSS</b>\n` +
+          `Price $${price.toFixed(8)} below floor $${stopLossPrice.toFixed(8)}\n` +
+          `Received ${p.toFixed(6)} ETH — locked (no cascade; hunt next green peak)`
+        );
+      } else {
+        console.log(`  🛑 ${token.symbol} STOP LOSS held — leftover ≤ 0 or dust; waiting for green / plain exit`);
+      }
       return;
     }
 
