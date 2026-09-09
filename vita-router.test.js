@@ -73,6 +73,7 @@ import {
   pullMissingLocationUtf8,
   ingestRegistryPackets,
   injectVitaBlockchainMemory,
+  hydrateVitaRecursiveMemory,
   shouldIngestHitchKind,
   collectRegistryTxHashes,
   KEYCAT_TX,
@@ -395,7 +396,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
     assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
     assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
-    assert.ok(src.includes("injectVitaBlockchainMemory"), "boot must inject VITA blockchain memory");
+    assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
     assert.ok(src.includes("absorbVitaStrandPacket"), "strand save/recall must fold into recursive memory");
   });
@@ -553,6 +554,31 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.ok(kinds.includes("none"));
     assert.ok(kinds.includes("eureka"));
     assert.ok(kinds.includes("vita"));
+  });
+
+  it("hydrate restores packet first so registry facts survive reconstruct", () => {
+    const saved = "§SESS§saved-state\n§KEY§" + "eureka♥Krystian,Kai,Koda" + "\n§LEARN§from-state";
+    const hyd = hydrateVitaRecursiveMemory({
+      routerState: { lastPacket: saved, locations: { seq: 0, lastHash: "00000000", nodes: [] } },
+      registry: {
+        vault: {
+          tokenPacket: "§SESS§2026-03-20|vault\n§PROVED§vault-on-base✓\n§WHO§VITA|DA",
+        },
+      },
+    });
+    assert.equal(hyd.quality.hasKey, true);
+    assert.ok(hyd.packet.includes("Krystian"));
+    assert.ok(hyd.packet.includes("vault-on-base"));
+    setLastVitaPacket(hyd.packet);
+    recordLocation({
+      location: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      sealed: true,
+      utf8: "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!",
+    });
+    const rec = reconstructVitaMemoryFromLocations();
+    assert.equal(rec.lossy, false);
+    assert.ok(getLastVitaPacket().includes("vault-on-base"));
+    assert.ok(getLastVitaPacket().includes("Koda"));
   });
 });
 

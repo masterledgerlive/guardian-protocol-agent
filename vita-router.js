@@ -185,13 +185,16 @@ export function ingestSealedUtf8(utf8) {
 
 /**
  * Rebuild §TOKEN§ from sealed location payloads (full utf8, not 80-char previews).
- * Hitch still carries squashed §LOC§; this is the no-loss recall path.
+ * Stems from the current packet when KEY is present so registry facts are not wiped.
  */
 export function reconstructVitaMemoryFromLocations(nodes) {
   const sealed = (nodes || serializeLocationDepository().nodes || []).filter(
     (n) => n.sealed && n.utf8,
   );
-  let packed = packVitaFields(buildGenesisFields());
+  const stem = lastVitaPacket && !vitaQuality(lastVitaPacket).lossy
+    ? lastVitaPacket
+    : packVitaFields(buildGenesisFields());
+  let packed = stem;
   for (const n of sealed) {
     const kind = detectHitchKind(n.utf8);
     if (kind.vita) {
@@ -208,6 +211,14 @@ export function reconstructVitaMemoryFromLocations(nodes) {
     quality: vitaQuality(packed),
     lossy: vitaQuality(packed).lossy,
   };
+}
+
+/** Squashed §LOC§ into the recursive packet — hitch carries density, not every hash. */
+export function stampLocIntoPacket() {
+  const loc = encodeLocToken();
+  const refined = refineVitaPacket(ensureGenesisMemory(), { LOC: loc });
+  lastVitaPacket = refined.packed;
+  return lastVitaPacket;
 }
 
 /**

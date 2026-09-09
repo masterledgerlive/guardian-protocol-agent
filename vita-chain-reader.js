@@ -21,6 +21,8 @@ import {
   ingestSealedUtf8,
   reconstructVitaMemoryFromLocations,
   ensureGenesisMemory,
+  restoreVitaRouterState,
+  stampLocIntoPacket,
 } from "./vita-router.js";
 import {
   getLocationDepository,
@@ -235,6 +237,20 @@ export function collectRegistryTxHashes(registry) {
   return [...new Set(hashes.map((h) => h.toLowerCase()))];
 }
 
+/** Restore saved packet, then fold registry on top — never the reverse (that wipes). */
+export function hydrateVitaRecursiveMemory({ routerState = null, registry = null } = {}) {
+  if (routerState) restoreVitaRouterState(routerState);
+  else ensureGenesisMemory();
+  const folded = ingestRegistryPackets(registry);
+  reconstructVitaMemoryFromLocations();
+  stampLocIntoPacket();
+  return {
+    registryPackets: folded.ingested,
+    quality: vitaQuality(getLastVitaPacket()),
+    packet: getLastVitaPacket(),
+  };
+}
+
 /** Fold registry §TOKEN§ packets into recursive memory (no RPC). KEY is never dropped. */
 export function ingestRegistryPackets(registry) {
   ensureGenesisMemory();
@@ -277,6 +293,7 @@ export async function injectVitaBlockchainMemory({
     }
   }
   const rec = reconstructVitaMemoryFromLocations();
+  stampLocIntoPacket();
   const packet = getLastVitaPacket();
   return {
     kind: "vita-chain-inject",

@@ -7973,17 +7973,16 @@ async function loadFromGitHub() {
     if (vf?.content) {
       lastVitaRegistryBlob = vf.content;
       setVitaRegistry(vf.content);
-      const folded = ingestRegistryPackets(vf.content);
-      console.log(`   💓 vita-registry.json: folded ${folded.ingested} §TOKEN§ packet(s) · KEY=${folded.quality?.hasKey ? "yes" : "LOSS"}`);
+      console.log("   💓 vita-registry.json: blob armed for recursive inject");
     }
   } catch { /* non-critical */ }
 
   // ── Load VITA memory index ──────────────────────────────────────────────────
   try {
     const vf = await githubGet("vita-memory.json");
-    if (vf?.content) {
-      setVitaRegistry(vf.content?.index || []);
-      console.log(`   🌟 vita-memory.json: loaded ${vf.content.index?.length || 0} VITA sessions`);
+    if (Array.isArray(vf?.content?.index) && vf.content.index.length) {
+      setVitaRegistry(vf.content.index);
+      console.log(`   🌟 vita-memory.json: loaded ${vf.content.index.length} VITA sessions`);
     }
   } catch { /* non-critical */ }
 
@@ -7997,6 +7996,10 @@ async function loadFromGitHub() {
     }
   } catch { /* non-critical */ }
   ensureGenesisMemory();
+  if (lastVitaRegistryBlob) {
+    const folded = ingestRegistryPackets(lastVitaRegistryBlob);
+    console.log(`   💓 registry folded after restore: ${folded.ingested} packet(s) · KEY=${folded.quality?.hasKey ? "yes" : "LOSS"}`);
+  }
 
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
