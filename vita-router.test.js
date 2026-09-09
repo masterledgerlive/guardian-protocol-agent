@@ -455,6 +455,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
+    assert.ok(src.includes("HTML console /vita"), "Telegram help must point at the HTML console");
     assert.ok(src.includes("absorbVitaStrandPacket"), "strand save/recall must fold into recursive memory");
   });
 });

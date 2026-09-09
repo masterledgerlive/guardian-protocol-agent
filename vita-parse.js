@@ -94,7 +94,9 @@ function mergeFact(a, b) {
 
 export function measureVitaText(text, { bytes = false } = {}) {
   const s = String(text || "");
-  return bytes ? Buffer.byteLength(s, "utf8") : s.length;
+  if (!bytes) return s.length;
+  if (typeof Buffer !== "undefined") return Buffer.byteLength(s, "utf8");
+  return new TextEncoder().encode(s).length;
 }
 
 /** Leftover hitch body: KEY + squashed LOC. Recursive packet stays whole. */

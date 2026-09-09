@@ -15,6 +15,10 @@ KEY+LOC projection** — clipping the trailer never overwrites recursive `lastPa
 Hourly `evaluateVitaCourse` scores inject-without-loss vs leftover-skips (skips are
 lose-zero, not memory loss).
 
+Public **HTML console** `GET /vita` is the Telegram twin: notes stay on the page until
+inject, then the reader pulls sealed Base locations and reconstructs §TOKEN§. Plaintext
+now (true open source). `/zk` previews the future locations-only / zero-knowledge path.
+
 Recursive memory now **survives restart**: `vita-router-state.json` stores the last
 §TOKEN§ packet + location depository + course stats. Boot `ensureGenesisMemory`.
 `GET /vita/inject` and `/vita/context` paste parsed VITA memory (KEY first).

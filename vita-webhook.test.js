@@ -55,6 +55,12 @@ describe("control board HTTP", () => {
     assert.equal(v4.res.status, 200);
     assert.match(v4.text, /SEPARATE PROCESS/);
     assert.doesNotMatch(v4.text, /Queue buy/);
+    const vita = await get("/vita");
+    assert.equal(vita.res.status, 200);
+    assert.match(vita.res.headers.get("content-type") || "", /text\/html/);
+    assert.match(vita.text, /Talk to/);
+    assert.match(vita.text, /plaintext/);
+    assert.match(vita.text, /\/inject/);
   });
 
   it("GET /board/health lists mounted boards", async () => {
@@ -66,6 +72,8 @@ describe("control board HTTP", () => {
     assert.equal(json.boards.engine.mounted, true);
     assert.equal(json.boards.v4.sameProcess, false);
     assert.equal(json.boards.v4.loadsV4Runtime, false);
+    assert.equal(json.boards.vita.mounted, true);
+    assert.equal(json.boards.vita.path, "/vita");
   });
 
   it("GET /health aliases board health", async () => {
@@ -163,5 +171,20 @@ describe("control board HTTP", () => {
     assert.equal(open.res.status, 401);
     const inj = await get("/vita/inject");
     assert.equal(inj.res.status, 401);
+  });
+
+  it("GET /vita HTML console and client are public; parse module is the bot parser", async () => {
+    const page = await get("/vita");
+    assert.equal(page.res.status, 200);
+    assert.match(page.text, /VITA Console/);
+    assert.match(page.text, /localStorage|HTML until inject|not injected/i);
+    const js = await get("/vita/client.js");
+    assert.equal(js.res.status, 200);
+    assert.match(js.res.headers.get("content-type") || "", /javascript/);
+    assert.match(js.text, /handleCommand/);
+    const parse = await get("/vita/lib/vita-parse.js");
+    assert.equal(parse.res.status, 200);
+    assert.match(parse.text, /projectLeftoverHitchFields/);
+    assert.match(parse.text, /VITA_LOVE_KEY/);
   });
 });

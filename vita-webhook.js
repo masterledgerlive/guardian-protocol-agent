@@ -18,6 +18,9 @@
 //   GET  /engine              — Guardian Engine HTML (wave / surfer / hitch board)
 //   GET  /engine/api/snapshot — live engine waves + costs + piggy lights (auth)
 //   POST /engine/api/queue    — ride / trick / message / surfer commands (auth)
+//   GET  /vita                — VITA HTML console (Telegram twin, public)
+//   GET  /vita/client.js      — browser console client
+//   GET  /vita/lib/vita-parse.js — same §TOKEN§ parser as the bot
 //   GET  /vita/context        — latest compressed memory for new session start
 //   GET  /vita/registry       — full filing registry (all sessions)
 //   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
@@ -68,6 +71,9 @@ const ARENA_HTML = join(ROOT, "public", "arena.html");
 const ENGINE_HTML = join(ROOT, "public", "engine.html");
 const BOARD_HTML = join(ROOT, "public", "board.html");
 const V4_HTML = join(ROOT, "public", "v4.html");
+const VITA_HTML = join(ROOT, "public", "vita.html");
+const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
+const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 function isAuthorized(req) {
@@ -160,17 +166,21 @@ export function handleWebhookListenError(err, port = listenPort()) {
   return "error";
 }
 
-async function servePublicHtml(res, filePath, label) {
+async function servePublicFile(res, filePath, contentType, label) {
   try {
-    const html = await readFile(filePath, "utf8");
+    const body = await readFile(filePath, "utf8");
     res.writeHead(200, {
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": contentType,
       "Cache-Control": "no-store",
     });
-    res.end(html);
+    res.end(body);
   } catch (e) {
-    err(res, `${label} html missing: ` + e.message, 500);
+    err(res, `${label} missing: ` + e.message, 500);
   }
+}
+
+async function servePublicHtml(res, filePath, label) {
+  return servePublicFile(res, filePath, "text/html; charset=utf-8", label + " html");
 }
 
 function snapshotPayload() {
@@ -288,6 +298,15 @@ async function handleVitaRequest(req, res) {
     if ((path === "/v4" || path === "/v4/") && req.method === "GET") {
       return servePublicHtml(res, V4_HTML, "v4");
     }
+    if ((path === "/vita" || path === "/vita/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_HTML, "vita");
+    }
+    if (path === "/vita/client.js" && req.method === "GET") {
+      return servePublicFile(res, VITA_CLIENT_JS, "text/javascript; charset=utf-8", "vita client");
+    }
+    if (path === "/vita/lib/vita-parse.js" && req.method === "GET") {
+      return servePublicFile(res, VITA_PARSE_JS, "text/javascript; charset=utf-8", "vita parse");
+    }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {
       return json(res, healthPayload());
@@ -374,7 +393,7 @@ async function handleVitaRequest(req, res) {
       }, result.ok ? 200 : 400);
     }
 
-    // Everything under /vita/* still requires auth
+    // Public HTML/JS for the VITA console. JSON /vita/router etc. still require auth.
     if (!isAuthorized(req)) return err(res, "unauthorized", 401);
 
     // ── GET /vita/router — secondary hitch switch + loc squash (no bot required)
@@ -528,6 +547,7 @@ export function startVitaWebhook() {
     console.log("   /arena          — Guardian Arena ledger game (public HTML)");
     console.log("   /engine         — Guardian Engine wave / surfer / hitch board");
     console.log("   /v4             — V4 offshoot docs (separate process — does not start V4)");
+    console.log("   /vita           — VITA HTML console (Telegram twin, public)");
     console.log("   /arena/api/*    — live snapshot + command queue (auth)");
     console.log("   /engine/api/*   — engine waves + ride/trick/message queue (auth)");
     console.log("   /vita/context  — memory context for new Claude session");

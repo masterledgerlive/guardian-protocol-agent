@@ -64,6 +64,7 @@ export const BOARD_PATHS = Object.freeze({
   v4Page: "/v4",
   arena: "/arena",
   engine: "/engine",
+  vita: "/vita",
 });
 
 export const LOSE_ZERO_INVARIANTS = Object.freeze({
@@ -632,6 +633,13 @@ export function boardHealth({
         loadsV4Runtime: false,
         running: !!v4s.running,
         start: v4s.start,
+      },
+      vita: {
+        path: BOARD_PATHS.vita,
+        mounted: true,
+        kind: "vita-html-console",
+        public: true,
+        note: "Telegram twin — local memory until inject; reader pulls Base locations",
       },
       l1_arena: {
         path: "guardian-protocol dashboard :8787",

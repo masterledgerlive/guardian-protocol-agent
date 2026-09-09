@@ -10826,6 +10826,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
           `/vitacourse — hourly memory/inject scorecard\n` +
           `/vitapull 0xHASH — re-read hitch UTF-8 from Base into §TOKEN§ memory\n` +
+          `HTML console /vita — same commands, local memory until the reader pulls locations\n` +
           `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
           `/transmit [msg] — queue a custom BTP message on later trades\n` +
           `/btpstatus — show pending transmissions\n\n` +

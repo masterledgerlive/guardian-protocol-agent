@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITA Console — talk, remember, pull locations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c;
+      --muted: #3d5a4c;
+      --lime: #b6f25c;
+      --panel: rgba(255,255,255,.82);
+      --line: rgba(16,35,28,.14);
+      --vita: #10231c;
+      --you: #1a6bff;
+      --display: "Syne", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --body: "Source Serif 4", Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      color: var(--ink);
+      font-family: var(--body);
+      background:
+        radial-gradient(800px 380px at 8% -10%, rgba(182,242,92,.55), transparent 55%),
+        radial-gradient(640px 360px at 100% 0%, rgba(26,107,255,.14), transparent 50%),
+        linear-gradient(165deg, #f4fbf0, #d9ebe0 48%, #cfe0f5);
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;
+      padding: .5rem 1rem;
+      background: rgba(244,251,240,.92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .topbar a, .pill {
+      font-family: var(--display); font-size: .78rem; font-weight: 700;
+      text-decoration: none; color: var(--ink);
+      padding: .26rem .55rem; border-radius: 999px; border: 1px solid var(--line);
+    }
+    .pill.ok { background: #d8f5c8; }
+    .pill.warn { background: #ffd2a8; }
+    .layout {
+      display: grid; gap: 1rem;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+      padding: 1rem clamp(1rem, 3vw, 2.2rem) 2rem;
+    }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+    .hero h1 {
+      font-family: var(--display); font-weight: 800;
+      font-size: clamp(2rem, 6vw, 3.4rem);
+      letter-spacing: -.04em; line-height: .92; margin: 0 0 .35rem;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--lime), #7ad0ff);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .lede { color: var(--muted); max-width: 40rem; margin: 0 0 .8rem; }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 1rem; padding: 1rem 1.05rem 1.1rem;
+    }
+    h2 { font-family: var(--display); margin: 0 0 .45rem; font-size: 1.15rem; }
+    .hint, p, li { color: var(--muted); font-size: .92rem; line-height: 1.45; }
+    .mono { font-family: var(--mono); font-size: .75rem; }
+    button, .btn {
+      appearance: none; border: 1px solid var(--ink); background: var(--lime);
+      color: var(--ink); font-family: var(--display); font-weight: 700; font-size: .82rem;
+      padding: .5rem .75rem; border-radius: .45rem; cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: .25rem;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    button.ghost { background: var(--panel); }
+    button:hover, .btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+    .cta { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0 .7rem; }
+    .chat {
+      min-height: 420px; max-height: 62vh; overflow: auto;
+      background: #10231c; color: #d8f5c8; border-radius: .7rem;
+      padding: .75rem; font-family: var(--mono); font-size: .78rem;
+    }
+    .msg { margin: 0 0 .7rem; white-space: pre-wrap; word-break: break-word; }
+    .msg.user { color: #7ad0ff; }
+    .msg.vita { color: #d8f5c8; }
+    .composer { display: flex; gap: .4rem; margin-top: .6rem; }
+    .composer input {
+      flex: 1; border: 1px solid var(--ink); border-radius: .4rem;
+      padding: .55rem .65rem; font-family: var(--mono); font-size: .82rem;
+    }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+    .stat {
+      border: 1px dashed var(--line); border-radius: .6rem;
+      padding: .55rem .65rem; background: rgba(255,255,255,.55);
+    }
+    .stat span { font-family: var(--display); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+    .stat b { display: block; font-family: var(--mono); font-size: .95rem; margin-top: .1rem; }
+    pre.reader {
+      margin: .45rem 0 0; padding: .7rem; background: #10231c; color: #d8f5c8;
+      border-radius: .55rem; overflow: auto; max-height: 220px; font-size: .7rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: .7rem; }
+    th, td { text-align: left; padding: .35rem .25rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    a.tx { color: #1a6bff; word-break: break-all; }
+    .chips { display: flex; flex-wrap: wrap; gap: .3rem; margin: .35rem 0; }
+    .chip {
+      font-family: var(--mono); font-size: .68rem; padding: .2rem .45rem;
+      border-radius: 999px; border: 1px solid var(--line); background: #fff; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <span class="pill ok" id="revealPill">plaintext · open source</span>
+    <span class="pill" id="injectPill">HTML memory — not injected</span>
+    <a href="/board">Board</a>
+    <a href="/engine">Engine</a>
+    <a href="/arena">Arena</a>
+    <a href="https://github.com/masterledgerlive/guardian-protocol-agent" target="_blank" rel="noreferrer">Open source</a>
+  </nav>
+
+  <div class="layout">
+    <div>
+      <header class="hero">
+        <p class="pill ok">Telegram twin · leftover hitch is VITA parse</p>
+        <h1>Talk to <em>VITA</em></h1>
+        <p class="lede">
+          Same commands as Telegram. Notes live on this page until inject.
+          Then the <strong>reader</strong> pulls sealed Base locations and reconstructs §TOKEN§.
+          Plaintext today so the code is true open source. Future ZK: locations only — the encoder is the decoder.
+        </p>
+      </header>
+
+      <section class="panel">
+        <h2>Chat</h2>
+        <div class="chips" id="chips"></div>
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <form class="composer" id="form">
+          <input id="input" autocomplete="off" placeholder="/vitanote leftover hitch is KEY+LOC  ·  /inject  ·  /vita who is KEY?" />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+
+    <aside>
+      <section class="panel">
+        <h2>Memory until inject</h2>
+        <div class="stat-grid">
+          <div class="stat"><span>KEY</span><b id="keyStat">—</b></div>
+          <div class="stat"><span>Notes queued</span><b id="noteStat">0</b></div>
+          <div class="stat"><span>Sealed locs</span><b id="locStat">0</b></div>
+          <div class="stat"><span>Course</span><b id="courseStat">—</b></div>
+        </div>
+        <div class="cta">
+          <button type="button" id="btnInject">Inject from Base</button>
+          <button type="button" class="ghost" id="btnReader">Reader output</button>
+          <button type="button" class="ghost" id="btnZk">ZK preview</button>
+          <button type="button" class="ghost" id="btnPlain">Plaintext</button>
+        </div>
+        <p class="hint" id="statusLine">Local genesis is loaded. Pull locations to give the reader chain truth.</p>
+        <pre class="reader" id="packetOut">§TOKEN§ lands here.</pre>
+      </section>
+
+      <section class="panel" style="margin-top:1rem">
+        <h2>Locations the reader pulls</h2>
+        <p class="hint">Hardcoded anchors VITA already knows how to navigate. Full hashes stay here; hitch only carries squashed §LOC§.</p>
+        <div style="overflow:auto">
+          <table>
+            <thead><tr><th>kind</th><th>location</th><th>utf8</th></tr></thead>
+            <tbody id="locBody"><tr><td colspan="3">No pulls yet.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script type="module">
+    import { createState, handleCommand, snapshot, ANCHORS } from "/vita/client.js";
+
+    const state = createState();
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("input");
+    const chips = document.getElementById("chips");
+
+    const quick = [
+      "/help",
+      "/vitanote leftover hitch is KEY+LOC",
+      "/vitasave",
+      "/inject",
+      "/reader",
+      "/vita who is in KEY?",
+      "/zk",
+      "/plain",
+    ];
+    for (const c of quick) {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.type = "button";
+      b.textContent = c;
+      b.addEventListener("click", () => run(c));
+      chips.appendChild(b);
+    }
+
+    function esc(s) {
+      return String(s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    }
+
+    function render() {
+      const snap = snapshot(state);
+      chat.innerHTML = (snap.log.length ? snap.log : [{ role: "vita", text: "VITA ready. Memory is on this HTML until /inject." }])
+        .map((m) => `<div class="msg ${esc(m.role)}"><b>${m.role === "user" ? "you" : "VITA"}</b>\n${esc(m.text)}</div>`)
+        .join("");
+      chat.scrollTop = chat.scrollHeight;
+      document.getElementById("keyStat").textContent = snap.quality.hasKey ? "Krystian,Kai,Koda" : "LOSS";
+      document.getElementById("noteStat").textContent = String(snap.notes);
+      document.getElementById("locStat").textContent = String(snap.sealed);
+      document.getElementById("courseStat").textContent = snap.quality.lossy ? "KEY fail" : (snap.injected ? "reader-ready" : "local");
+      document.getElementById("revealPill").textContent = snap.reveal === "locations" ? "locations-only · ZK preview" : "plaintext · open source";
+      document.getElementById("injectPill").textContent = snap.injected ? "injected from locations" : (snap.pending ? "staged — not on chain" : "HTML memory — not injected");
+      document.getElementById("injectPill").className = "pill " + (snap.injected ? "ok" : "warn");
+      document.getElementById("statusLine").textContent = snap.injected
+        ? "Reader reconstructed §TOKEN§ from sealed Base locations."
+        : "Notes stay on this page until inject. Leftover hitch would carry KEY+LOC only.";
+      const shown = snap.packet || snap.loc;
+      document.getElementById("packetOut").textContent = shown || "locations-only — payload hidden in this view";
+      const rows = (snap.locations.length ? snap.locations : snap.anchors.map((a) => ({ location: a.tx, kind: a.expect, utf8: "", short: a.tx.slice(2, 8) })));
+      document.getElementById("locBody").innerHTML = rows.map((n) => {
+        const href = "https://basescan.org/tx/" + n.location;
+        const body = snap.reveal === "plaintext" ? esc((n.utf8 || "").slice(0, 80) || (n.kind || "pending")) : esc(n.short || "");
+        return `<tr><td>${esc(n.kind || "")}</td><td><a class="tx" href="${href}" target="_blank" rel="noreferrer">${esc(n.location)}</a></td><td>${body}</td></tr>`;
+      }).join("");
+    }
+
+    async function run(text) {
+      input.disabled = true;
+      try {
+        await handleCommand(state, text);
+      } finally {
+        input.disabled = false;
+        render();
+        input.focus();
+      }
+    }
+
+    document.getElementById("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = input.value.trim();
+      if (!v) return;
+      input.value = "";
+      run(v);
+    });
+    document.getElementById("btnInject").addEventListener("click", () => run("/inject"));
+    document.getElementById("btnReader").addEventListener("click", () => run("/reader"));
+    document.getElementById("btnZk").addEventListener("click", () => run("/zk"));
+    document.getElementById("btnPlain").addEventListener("click", () => run("/plain"));
+
+    render();
+    if (!(state.log || []).length) {
+      run("/help");
+    }
+  </script>
+</body>
+</html>
