@@ -315,7 +315,7 @@ async function handleVitaRequest(req, res) {
     }
     if (path === "/vita/leftover" && req.method === "GET") {
       try {
-        const scan = await getCachedLeftoverScan({ limit: 40 });
+        const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3 });
         return json(res, { ok: true, ...publicLeftoverScanView(scan) });
       } catch (e) {
         return err(res, "leftover scan failed: " + (e.message || e), 502);

@@ -4692,7 +4692,7 @@ function absorbVitaStrandPacket(entry) {
   }
 }
 
-/** Leftover hitch budget = dense VITA §TOKEN§ trailer (KEY+LOC+LEARN), not the Eureka letter. */
+/** Leftover hitch budget = dense VITA §TOKEN§ trailer (KEY+LOC), not the Eureka letter. */
 function leftoverVoiceHitchBytes() {
   const cap = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
   try {
@@ -9493,7 +9493,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       } else if (text === "/vitacourse") {
         try {
-          const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
           ingestLeftoverScan(leftoverScan);
           await tg(formatCourseMessage(evaluateVitaCourse({ leftoverKinds: leftoverScan.counts })));
         } catch (e) {
@@ -9503,7 +9503,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text === "/vitascan") {
         await tg("⛓️ Scanning leftover hitch trailers on Base…");
         try {
-          const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
           const folded = ingestLeftoverScan(leftoverScan);
           const course = evaluateVitaCourse({ leftoverKinds: leftoverScan.counts });
           await tg(
@@ -11231,7 +11231,7 @@ async function main() {
   }
 
   try {
-    const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+    const leftoverScan = await scanAddressLeftoverHitches({ limit: 120, maxPages: 4 });
     const folded = ingestLeftoverScan(leftoverScan);
     console.log(
       "🔀 VITA leftover scan: eureka=" + leftoverScan.counts.eureka +
@@ -12380,7 +12380,7 @@ async function main() {
         let leftoverKinds;
         if (shouldTickHourlyCourse()) {
           try {
-            const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+            const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
             ingestLeftoverScan(leftoverScan);
             leftoverKinds = leftoverScan.counts;
           } catch { leftoverKinds = undefined; }

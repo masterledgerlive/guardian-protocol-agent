@@ -15,7 +15,7 @@ import {
   decodeStoreVoiceCalldata,
   decodeTrailingUtf8,
 } from "./swap-minout.js";
-import { detectHitchKind, vitaQuality } from "./vita-parse.js";
+import { detectHitchKind, refineVitaPacket, vitaQuality } from "./vita-parse.js";
 import {
   getLastVitaPacket,
   ingestSealedUtf8,
@@ -23,11 +23,13 @@ import {
   ensureGenesisMemory,
   restoreVitaRouterState,
   stampLocIntoPacket,
+  setLastVitaPacket,
 } from "./vita-router.js";
 import {
   getLocationDepository,
   ingestLocationFromChain,
 } from "./vita-locations.js";
+import { recordLeftoverKinds } from "./vita-course.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const KEYCAT_HEX = String(KEYCAT_PLAIN_SWAP || "").toLowerCase();
@@ -49,6 +51,7 @@ export const GUARDIAN_WALLET = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
 export const UNISWAP_V3_ROUTER = "0x2626664c2603336e57b271c5c0b26f421741e481";
 export const EXACT_INPUT_SELECTOR = "04e45aaf";
 export const EXACT_INPUT_BYTES = 228;
+export const BLOCKSCOUT_TX_PAGE = "https://base.blockscout.com/api/v2/addresses/";
 
 export function shouldIngestHitchKind(kind) {
   const k = typeof kind === "string" ? kind : kind?.kind;
@@ -126,16 +129,40 @@ export function classifyLeftoverHitch(data) {
   return { class: "trailer-other", leftover: true, ...read };
 }
 
-export async function fetchRecentWalletTransactions(address = GUARDIAN_WALLET, { limit = 50 } = {}) {
-  const url = "https://base.blockscout.com/api/v2/addresses/" + address + "/transactions";
-  const res = await fetch(url, {
-    headers: { "User-Agent": "vita-chain-reader" },
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!res.ok) throw new Error("wallet tx list HTTP " + res.status);
-  const data = await res.json();
-  const items = Array.isArray(data?.items) ? data.items : [];
-  return items.slice(0, Math.max(1, Math.floor(Number(limit) || 50))).map((t) => {
+export function blockscoutTxListUrl(address = GUARDIAN_WALLET, nextPageParams = null) {
+  const params = new URLSearchParams();
+  if (nextPageParams && typeof nextPageParams === "object") {
+    for (const [k, v] of Object.entries(nextPageParams)) {
+      if (v != null && v !== "") params.set(k, String(v));
+    }
+  }
+  const q = params.toString();
+  return BLOCKSCOUT_TX_PAGE + address + "/transactions" + (q ? "?" + q : "");
+}
+
+export async function fetchRecentWalletTransactions(address = GUARDIAN_WALLET, {
+  limit = 50,
+  maxPages = 6,
+  fetchImpl = fetch,
+} = {}) {
+  const want = Math.max(1, Math.floor(Number(limit) || 50));
+  const pages = Math.max(1, Math.floor(Number(maxPages) || 6));
+  const items = [];
+  let next = null;
+  for (let page = 0; page < pages && items.length < want; page++) {
+    const url = blockscoutTxListUrl(address, next);
+    const res = await fetchImpl(url, {
+      headers: { "User-Agent": "vita-chain-reader" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error("wallet tx list HTTP " + res.status);
+    const data = await res.json();
+    const batch = Array.isArray(data?.items) ? data.items : [];
+    items.push(...batch);
+    next = data?.next_page_params || null;
+    if (!next || batch.length === 0) break;
+  }
+  return items.slice(0, want).map((t) => {
     const to = t.to && typeof t.to === "object" ? t.to.hash : t.to;
     return {
       hash: t.hash,
@@ -153,9 +180,10 @@ export async function fetchRecentWalletTransactions(address = GUARDIAN_WALLET, {
 export async function scanAddressLeftoverHitches({
   address = GUARDIAN_WALLET,
   limit = 50,
+  maxPages = 6,
   fetchTxs = fetchRecentWalletTransactions,
 } = {}) {
-  const txs = await fetchTxs(address, { limit });
+  const txs = await fetchTxs(address, { limit, maxPages });
   const rows = [];
   const counts = { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 };
   for (const tx of txs) {
@@ -232,6 +260,8 @@ export function publicLeftoverScanView(scan) {
 /** Fold scanned leftover hitch UTF-8 into recursive memory. Skip LIBM. */
 export function ingestLeftoverScan(scan) {
   ensureGenesisMemory();
+  const counts = scan?.counts || scan?.leftoverKinds || null;
+  recordLeftoverKinds(counts);
   let ingested = 0;
   for (const row of scan?.rows || []) {
     if (!TX_HASH_RE.test(String(row.hash || ""))) continue;
@@ -245,12 +275,23 @@ export function ingestLeftoverScan(scan) {
     if (r.ok) ingested += 1;
   }
   reconstructVitaMemoryFromLocations();
+  const eureka = Number(counts?.eureka || 0);
+  const vita = Number(counts?.vita || 0);
+  const still = Boolean(scan?.leftoverStillEureka) || (eureka > 0 && vita === 0);
+  const refined = refineVitaPacket(getLastVitaPacket(), {
+    LEARN: "leftover-scan eureka=" + eureka + " vita=" + vita + " stillEureka=" + (still ? "1" : "0"),
+    NEXT: vita > 0
+      ? "leftover=VITA-KEY+LOC;/prove=Eureka"
+      : "next leftover hitch=KEY+LOC;/prove=Eureka",
+  });
+  if (refined.fields.KEY) setLastVitaPacket(refined.packed);
   stampLocIntoPacket();
   return {
     ingested,
     quality: vitaQuality(getLastVitaPacket()),
     packet: getLastVitaPacket(),
-    leftoverStillEureka: Boolean(scan?.leftoverStillEureka),
+    leftoverStillEureka: still,
+    leftoverKinds: counts,
   };
 }
 

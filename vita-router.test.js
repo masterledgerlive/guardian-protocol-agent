@@ -86,6 +86,8 @@ import {
   ingestLeftoverScan,
   scanAddressLeftoverHitches,
   publicLeftoverScanView,
+  fetchRecentWalletTransactions,
+  blockscoutTxListUrl,
   KEYCAT_TX,
   EUREKA_ONCHAIN_TX,
   VITA_STRAND_TX,
@@ -712,6 +714,67 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.match(getLastVitaPacket(), /§KEY§/);
     assert.match(getLastVitaPacket(), /Krystian/);
     assert.match(getLastVitaPacket(), /§LOC§/);
+    assert.match(getLastVitaPacket(), /leftover-scan eureka=1 vita=1/);
+    const course = evaluateVitaCourse();
+    assert.equal(course.issues.includes("leftover_still_eureka"), false);
+  });
+
+  it("ingestLeftoverScan records leftoverKinds so leftover_still_eureka survives without re-scan", () => {
+    ensureGenesisMemory();
+    const eurekaUtf8 = "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!";
+    const hashA = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    ingestLeftoverScan({
+      leftoverStillEureka: true,
+      leftoverKinds: { eureka: 5, vita: 0, plain: 1, leftover: 5 },
+      counts: { eureka: 5, vita: 0, plain: 1, leftover: 5 },
+      rows: [{ hash: hashA, class: "eureka-leftover", leftover: true, utf8: eurekaUtf8 }],
+    });
+    assert.match(getLastVitaPacket(), /leftover-scan eureka=5 vita=0/);
+    assert.match(getLastVitaPacket(), /next leftover hitch=KEY\+LOC/);
+    const course = evaluateVitaCourse();
+    assert.equal(course.issues.includes("leftover_still_eureka"), true);
+    assert.equal(course.achieving, false);
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+  });
+
+  it("paginates Blockscout wallet txs until the limit", async () => {
+    let calls = 0;
+    const fetchImpl = async (url) => {
+      calls += 1;
+      if (calls === 1) {
+        assert.equal(url, blockscoutTxListUrl(GUARDIAN_WALLET, null));
+        return {
+          ok: true,
+          json: async () => ({
+            items: [{
+              hash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+              to: { hash: "0x2626664c2603336e57b271c5c0b26f421741e481" },
+              raw_input: "0x04e45aaf",
+              timestamp: "a",
+            }],
+            next_page_params: { block_number: 9, index: 3 },
+          }),
+        };
+      }
+      assert.match(url, /block_number=9/);
+      assert.match(url, /index=3/);
+      return {
+        ok: true,
+        json: async () => ({
+          items: [{
+            hash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+            to: "0x2626664c2603336e57b271c5c0b26f421741e481",
+            raw_input: "0x04e45aaf",
+            timestamp: "b",
+          }],
+          next_page_params: null,
+        }),
+      };
+    };
+    const txs = await fetchRecentWalletTransactions(GUARDIAN_WALLET, { limit: 2, maxPages: 4, fetchImpl });
+    assert.equal(calls, 2);
+    assert.equal(txs.length, 2);
+    assert.equal(txs[1].hash.startsWith("0x2222"), true);
   });
 
   it("scanAddressLeftoverHitches classifies mocked wallet txs without inventing hashes", async () => {

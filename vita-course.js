@@ -208,6 +208,21 @@ export function recordHitchAttempt({ skippedLeftover = false, realizedLossUsd = 
   return getCourseStats();
 }
 
+/** Confirmed leftover hitch kinds from a Base wallet scan. */
+export function recordLeftoverKinds(kinds) {
+  if (kinds && typeof kinds === "object") {
+    courseStats.leftoverKinds = {
+      eureka: Number(kinds.eureka) || 0,
+      vita: Number(kinds.vita) || 0,
+      plain: Number(kinds.plain) || 0,
+      libm: Number(kinds.libm) || 0,
+      other: Number(kinds.other) || 0,
+      leftover: Number(kinds.leftover) || 0,
+    };
+  }
+  return getCourseStats();
+}
+
 /** Confirmed on-chain hitch — does not increment attempts (already counted at plan). */
 export function recordHitchSealed({ realizedLossUsd = 0 } = {}) {
   courseStats.sealed += 1;
