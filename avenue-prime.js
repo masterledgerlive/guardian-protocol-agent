@@ -277,11 +277,13 @@ export function cascadeBottomBand({
   nearEntry = false,
   priorityMargin = 0.05,
 } = {}) {
-  if (primedReady || nearEntry) return CASCADE_BOTTOM_BAND_PRIMED;
   const net = Number(netMargin) || 0;
-  if (net >= Number(priorityMargin) || net >= 0.05) return CASCADE_BOTTOM_BAND_PRIORITY;
-  if (net >= 0.03) return CASCADE_BOTTOM_BAND_STANDARD;
-  return CASCADE_BOTTOM_BAND_BASE;
+  let band = CASCADE_BOTTOM_BAND_BASE;
+  if (net >= Number(priorityMargin) || net >= 0.05) band = CASCADE_BOTTOM_BAND_PRIORITY;
+  else if (net >= 0.03) band = CASCADE_BOTTOM_BAND_STANDARD;
+  // Primed/near-entry never *narrows* the band — take the wider of net vs primed floor.
+  if (primedReady || nearEntry) band = Math.max(band, CASCADE_BOTTOM_BAND_PRIMED);
+  return band;
 }
 
 /**

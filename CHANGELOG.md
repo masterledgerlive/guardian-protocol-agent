@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed — cascade bottom band + cold-scan bypass (Bugbot on #54)
+
+1. **Primed band could narrow high-net seats** — `cascadeBottomBand` returned
+   4.5% whenever primed/near-entry, so a cost-checked high-net seat ~5% above
+   trough was refused while the same cold print was allowed. Now takes the
+   wider of net-based vs primed floor.
+2. **Mid-range primed readyNow blocked cold bottoms** — `triggerCascade` kept
+   armed-but-not-near seats, skipped the cold scan, then re-added them after
+   ranking emptied. Only in-band bottoms enter the pool; empty → cold
+   `findCascadeTarget` (never re-add mid-range primed).
+
 ### Fixed — cascade into lowest primed bottoms; ETH only for fees/gas
 
 Peak exits were settling full proceeds as WETH and often **holding** until a
