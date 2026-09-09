@@ -32,6 +32,8 @@ describe("readLiveParamSnapshot", () => {
     assert.equal(snap.hitchCostMult, 3);
     assert.equal(snap.piggyBankPct, 0.05);
     assert.equal(snap.piggyBankMinUsd, 0.15);
+    assert.equal(snap.piggyLinkPct, 0.08);
+    assert.equal(snap.piggyLinkMinUsd, 0.25);
     assert.equal(snap.costEdge.alwaysOn, true);
     assert.equal(snap.peakRide.histPeakTouchIsSell, false);
     assert.equal(snap.loseZeroRules.neverSellUnderwater, true);
@@ -74,6 +76,38 @@ describe("runArenaLearnSim", () => {
     assert.equal(r.invariants.piggyNeverSell, true);
     assert.equal(r.invariants.noInventedPnl, true);
     assert.match(r.label, /not a live trade/);
+  });
+
+  it("does not recycle buy gas as leftover cash and charges hitch when leftover covers", () => {
+    const r = runArenaLearnSim({
+      cash: 8,
+      seat: "UNI",
+      movePct: 0.06,
+      piggyPct: 0.05,
+      loseZero: true,
+      costEdge: false,
+      hitchUsd: 0.35,
+      gasUsd: 0.05,
+      hitchCostMult: 2,
+    });
+    assert.equal(r.sold, true);
+    assert.equal(r.hitchOnSell, true);
+    assert.equal(r.gasSpent, 0.05);
+    assert.equal(r.hitchChargedUsd, 0.35);
+    assert.ok(Math.abs(r.endLiquid - r.proceeds) < 1e-9);
+    const hold = runArenaLearnSim({
+      cash: 8,
+      seat: "LINK",
+      movePct: -0.02,
+      piggyPct: 0.08,
+      loseZero: true,
+      costEdge: false,
+      hitchUsd: 0.35,
+      gasUsd: 0.05,
+    });
+    assert.equal(hold.sold, false);
+    assert.equal(hold.hitchChargedUsd, 0);
+    assert.ok(Math.abs(hold.endLiquid - 0.35) < 1e-9);
   });
 
   it("does not invent a fill when COST_EDGE refuses", () => {
@@ -142,6 +176,8 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(d.botPiggy.grokProUsdPerMonth, 60);
     assert.equal(d.botPiggy.provenRevenue, null);
     assert.equal(d.botPiggy.grokProUnlocked, false);
+    assert.ok(Array.isArray(d.engine.waves[0].series));
+    assert.ok(d.engine.waves[0].series.length >= 8);
     assert.equal(d.invariants.neverSellUnderwater, true);
     assert.deepEqual(d.invariants, LOSE_ZERO_INVARIANTS);
   });
@@ -160,6 +196,8 @@ describe("runBoardSim", () => {
     assert.equal(b.botPiggy.kind, "demo|example");
     assert.equal(b.botPiggy.provenRevenue, null);
     assert.equal(b.botPiggy.grokNowUsdPerMonth, 20);
+    assert.equal(b.arena.startLiquid, 8);
+    assert.equal(b.storage.funds.tradeable_usd, 8);
   });
 });
 

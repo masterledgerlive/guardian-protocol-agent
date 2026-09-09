@@ -42,6 +42,7 @@ import {
   modelBotUsagePiggy,
   readLiveParamSnapshot,
   runBoardSim,
+  boardWaveTile,
   v4BoardStatus,
 } from "./board-control.js";
 
@@ -76,11 +77,49 @@ function err(res, msg, status = 400) {
   json(res, { error: msg }, status);
 }
 
-function readBody(req) {
+/** Public POST /board/api/sim shares this process with the live injector — cap bodies. */
+const MAX_JSON_BODY_BYTES = 16 * 1024;
+
+function payloadTooLargeError() {
+  const e = new Error("payload too large");
+  e.code = "PAYLOAD_TOO_LARGE";
+  return e;
+}
+
+function httpStatusForError(e) {
+  if (e?.code === "PAYLOAD_TOO_LARGE") return 413;
+  return 500;
+}
+
+function readBody(req, { maxBytes = MAX_JSON_BODY_BYTES } = {}) {
   return new Promise((resolve, reject) => {
+    const declared = Number(req.headers["content-length"]);
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      req.resume();
+      reject(payloadTooLargeError());
+      return;
+    }
     const chunks = [];
-    req.on("data", (c) => chunks.push(c));
+    let size = 0;
+    let done = false;
+    const fail = (e) => {
+      if (done) return;
+      done = true;
+      reject(e);
+    };
+    req.on("data", (c) => {
+      if (done) return;
+      size += c.length;
+      if (size > maxBytes) {
+        req.resume();
+        fail(payloadTooLargeError());
+        return;
+      }
+      chunks.push(c);
+    });
     req.on("end", () => {
+      if (done) return;
+      done = true;
       try {
         const raw = Buffer.concat(chunks).toString("utf8");
         resolve(raw ? JSON.parse(raw) : {});
@@ -88,7 +127,7 @@ function readBody(req) {
         reject(e);
       }
     });
-    req.on("error", reject);
+    req.on("error", fail);
   });
 }
 
@@ -199,15 +238,7 @@ function boardSnapshotPayload(authorized) {
       hitchProveNote:
         "Bot-internal hitch prove counter (toward 20 + profit). Not Grok P&L. Not invented fills.",
       modules: engine?.modules,
-      waves: (engine?.waves || []).map((w) => ({
-        symbol: w.symbol,
-        price: w.price,
-        phase: w.phase,
-        holding: w.holding,
-        piggyPct: w.piggyPct,
-        leftoverUsd: w.leftoverUsd,
-        lights: { lit: w.lights?.lit, total: w.lights?.total, messagePaid: w.lights?.messagePaid },
-      })),
+      waves: (engine?.waves || []).map(boardWaveTile),
     },
     arena: arena || null,
     v4: { deferred: true, page: "/v4", sameProcessAsV3: false, startableFromThisWebhook: false },
@@ -424,7 +455,7 @@ async function handleVitaRequest(req, res) {
 
   } catch (e) {
     console.log("⚠️  VITA webhook error: " + e.message);
-    err(res, e.message, 500);
+    err(res, e.message, httpStatusForError(e));
   }
 }
 
@@ -432,7 +463,7 @@ export function createVitaServer() {
   return createServer((req, res) => {
     handleVitaRequest(req, res).catch((e) => {
       console.log("⚠️  VITA webhook error: " + e.message);
-      try { err(res, e.message, 500); } catch { /* headers already sent */ }
+      try { err(res, e.message, httpStatusForError(e)); } catch { /* headers already sent */ }
     });
   });
 }

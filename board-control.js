@@ -128,6 +128,39 @@ export function parseDefaultTokensFromAgentSource(src) {
   return rows;
 }
 
+/** Catalog piggy for a symbol (LINK 8% / $0.25). Env overrides still win via piggy-bank.js. */
+export function catalogPiggyForSymbol(symbol, env = process.env, agentSrc = null) {
+  const sym = String(symbol || "").toUpperCase();
+  try {
+    const src = agentSrc != null ? agentSrc : fs.readFileSync(AGENT_JS, "utf8");
+    const row = parseDefaultTokensFromAgentSource(src).find((t) => t.symbol === sym);
+    if (row) {
+      return {
+        piggyPct: piggyBankPct(env, { symbol: sym, piggyBankPct: row.piggyBankPct }),
+        piggyMinUsd: piggyBankMinUsd(env, { symbol: sym, piggyBankMinUsd: row.piggyBankMinUsd }),
+      };
+    }
+  } catch { /* catalog optional */ }
+  return {
+    piggyPct: piggyBankPct(env, { symbol: sym }),
+    piggyMinUsd: piggyBankMinUsd(env, { symbol: sym }),
+  };
+}
+
+/** Compact wave tile for the hub canvas (keeps engine series). */
+export function boardWaveTile(w = {}) {
+  return {
+    symbol: w.symbol,
+    price: w.price,
+    phase: w.phase,
+    holding: w.holding,
+    piggyPct: w.piggyPct,
+    leftoverUsd: w.leftoverUsd,
+    series: Array.isArray(w.series) ? w.series : [],
+    lights: { lit: w.lights?.lit, total: w.lights?.total, messagePaid: w.lights?.messagePaid },
+  };
+}
+
 export function listV3InjectSurfaces({ env = process.env, agentSrc = null } = {}) {
   const src = agentSrc != null ? agentSrc : fs.readFileSync(AGENT_JS, "utf8");
   const rows = parseDefaultTokensFromAgentSource(src);
@@ -252,6 +285,7 @@ export function modelBotUsagePiggy({
  * Read-only live knobs. Does not write env. Sim overrides belong in POST /board/api/sim.
  */
 export function readLiveParamSnapshot(env = process.env) {
+  const linkPiggy = catalogPiggyForSymbol("LINK", env);
   return {
     kind: "live-snapshot|read-only",
     writable: false,
@@ -264,7 +298,8 @@ export function readLiveParamSnapshot(env = process.env) {
     piggyBankPct: piggyBankPct(env),
     piggyBankMinUsd: piggyBankMinUsd(env),
     piggyEarningsBufferPct: piggyEarningsBufferPct(env),
-    piggyLinkPct: piggyBankPct(env, { symbol: "LINK" }),
+    piggyLinkPct: linkPiggy.piggyPct,
+    piggyLinkMinUsd: linkPiggy.piggyMinUsd,
     defaults: {
       piggyBankPct: DEFAULT_PIGGY_BANK_PCT,
       piggyBankMinUsd: DEFAULT_PIGGY_BANK_MIN_USD,
@@ -464,20 +499,25 @@ export function runArenaLearnSim({
   const proceeds = canSell ? Math.max(0, afterMove - sellFees) : 0;
   const hitchCover = canSell && proceeds + 1e-12 >= hitchBudget * mult;
   const hitchOnSell = hitchCover;
-  const endLiquid = canSell ? (start - deploy + proceeds) : (start - deploy);
+  // 2× is a leftover-cover cushion; the insert itself is 1× hitchBudget.
+  const hitchChargedUsd = hitchOnSell ? hitchBudget : 0;
+  const hitchReserve = Math.max(0, start - deploy - gas);
+  const endLiquid = canSell
+    ? Math.max(0, hitchReserve + proceeds - hitchChargedUsd)
+    : hitchReserve;
   const endBags = canSell ? piggyLock * (1 + Math.max(0, move)) : afterFees * (1 + move);
   const endTotal = endLiquid + endBags;
 
   const lines = [
     `Arena round · ${sym}`,
     `start liquid     $${start.toFixed(2)}`,
-    `deploy to seat   $${deploy.toFixed(2)} (gas $${gas.toFixed(2)} + hitch budget $${hitchBudget.toFixed(2)})`,
+    `deploy to seat   $${deploy.toFixed(2)} (gas $${gas.toFixed(2)} spent · hitch reserve $${hitchBudget.toFixed(2)})`,
     `after buy fees   $${afterFees.toFixed(2)}`,
     `piggy locked     $${piggyLock.toFixed(2)} (${(pct * 100).toFixed(0)}% · floor $${floorUsd.toFixed(2)} · never sold)`,
     `wave move        ${(move * 100).toFixed(1)}%`,
     canSell
-      ? `sell proceeds    $${proceeds.toFixed(2)} · hitch ${hitchOnSell ? `on (${mult}× covered)` : "skipped (leftover thin)"} · piggy stays`
-      : `hold             no sell (lose-zero) · bag marked $${endBags.toFixed(2)}`,
+      ? `sell proceeds    $${proceeds.toFixed(2)} · hitch ${hitchOnSell ? `on (${mult}× covered, charged $${hitchChargedUsd.toFixed(2)})` : "skipped (leftover thin)"} · piggy stays`
+      : `hold             no sell (lose-zero) · bag marked $${endBags.toFixed(2)} · hitch reserve $${hitchReserve.toFixed(2)} · gas spent`,
     `end liquid       $${endLiquid.toFixed(2)}`,
     `end bags/piggy   $${endBags.toFixed(2)}`,
     `end total        $${endTotal.toFixed(2)}  (labeled sim, not live P&L)`,
@@ -498,6 +538,9 @@ export function runArenaLearnSim({
     dustFloorUsd: floorUsd,
     hitchCostMult: mult,
     hitchOnSell,
+    hitchChargedUsd,
+    gasSpent: gas,
+    proceeds: canSell ? proceeds : 0,
     sold: canSell,
     loseZeroHeld: !canSell,
     movePct: move,
@@ -529,12 +572,13 @@ export function runStorageLoopSim(live = {}) {
 }
 
 export function runBoardSim(opts = {}) {
-  const arena = runArenaLearnSim(opts);
+  const cashUsd = Math.max(0.5, Number(opts.cash) || 8);
+  const arena = runArenaLearnSim({ ...opts, cash: cashUsd });
   const storage = runStorageLoopSim({
-    tradeableUsd: Number(opts.cash) || LIVE_ASSUMPTIONS.tradeableUsd,
+    tradeableUsd: cashUsd,
   });
   const capacity = leftoverHitchCapacity({
-    tradeableUsd: Number(opts.cash) || LIVE_ASSUMPTIONS.tradeableUsd,
+    tradeableUsd: cashUsd,
   });
   const botPiggy = modelBotUsagePiggy({
     hitchTagUsd: capacity.hitchTagUsd,
@@ -630,14 +674,7 @@ export function demoBoardSnapshot(env = process.env) {
       favorite: engine.favorite,
       hitchProve: engine.hitchProve,
       modules: engine.modules,
-      waves: engine.waves.map((w) => ({
-        symbol: w.symbol,
-        price: w.price,
-        phase: w.phase,
-        holding: w.holding,
-        piggyPct: w.piggyPct,
-        lights: { lit: w.lights?.lit, total: w.lights?.total, messagePaid: w.lights?.messagePaid },
-      })),
+      waves: engine.waves.map(boardWaveTile),
     },
     v4: { deferred: true, page: "/v4", sameProcessAsV3: false, startableFromThisWebhook: false },
     invariants: { ...LOSE_ZERO_INVARIANTS },

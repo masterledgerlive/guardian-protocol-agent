@@ -132,6 +132,17 @@ describe("control board HTTP", () => {
     assert.equal(json.botPiggy.kind, "demo|example");
     assert.equal(json.v4.deferred, true);
     assert.equal(json.v4.sameProcessAsV3, false);
+    assert.ok(Array.isArray(json.engine.waves[0].series));
+    assert.ok(json.engine.waves[0].series.length >= 8);
+  });
+
+  it("POST /board/api/sim rejects oversized bodies", async () => {
+    const res = await fetch(base + "/board/api/sim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pad: "x".repeat(20_000) }),
+    });
+    assert.equal(res.status, 413);
   });
 
   it("live queue still requires auth", async () => {
