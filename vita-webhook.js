@@ -23,6 +23,7 @@
 //   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
 //   GET  /vita/locations     — squashed location depository
 //   GET  /vita/course        — hourly inject-without-loss scorecard
+//   GET  /vita/inject       — recursive §TOKEN§ memory for session start
 //   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
@@ -48,7 +49,7 @@ import {
   boardWaveTile,
   v4BoardStatus,
 } from "./board-control.js";
-import { vitaRouterStatus } from "./vita-router.js";
+import { vitaRouterStatus, buildVitaInjectContext } from "./vita-router.js";
 import { locDepositoryStatus } from "./vita-locations.js";
 import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
 
@@ -385,24 +386,25 @@ async function handleVitaRequest(req, res) {
       const course = evaluateVitaCourse();
       return json(res, { ok: true, ...course, telegram: formatCourseMessage(course) });
 
+    } else if (path === "/vita/inject" && req.method === "GET") {
+      return json(res, { ok: true, ...buildVitaInjectContext() });
+
     // ── GET /vita/context — compressed memory for new Claude session ────────
     } else if (path === "/vita/context" && req.method === "GET") {
-      if (!botState?.githubGet) return err(res, "bot not ready");
-
+      const inject = buildVitaInjectContext();
       let registry = {};
-      try {
-        const rf = await botState.githubGet("vita-registry.json");
-        if (rf?.content) registry = rf.content;
-      } catch {}
+      if (botState?.githubGet) {
+        try {
+          const rf = await botState.githubGet("vita-registry.json");
+          if (rf?.content) registry = rf.content;
+        } catch {}
+      }
 
       const entries  = Object.entries(registry);
       const recent   = entries.slice(-3).reverse();
 
       const context  = [
-        "═══ VITA MEMORY CONTEXT — paste this to start any new session ═══",
-        "Generated: " + new Date().toISOString(),
-        "Wallet: " + (botState.walletAddress || "unknown"),
-        "Repo: " + (process.env.GITHUB_REPO || "unknown"),
+        inject.context,
         "",
         "RECENT SESSIONS (" + recent.length + " of " + entries.length + " total):",
         ...recent.map(([key, val]) =>
@@ -417,6 +419,7 @@ async function handleVitaRequest(req, res) {
       json(res, {
         ok: true,
         sessionCount: entries.length,
+        inject,
         context,
         registry: Object.fromEntries(recent),
       });
@@ -441,6 +444,7 @@ async function handleVitaRequest(req, res) {
         "engine-board.js","peak-ride.js","second-inject.js","piggy-bank.js",
         "board-control.js","BOARD.md",
         "vita-parse.js","vita-locations.js","vita-router.js","vita-course.js",
+        "vita-router-state.json",
       ];
       if (!allowed.includes(filename)) return err(res, "file not in allowed list");
 
@@ -524,6 +528,7 @@ export function startVitaWebhook() {
     console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
     console.log("   /vita/locations — squashed location depository");
     console.log("   /vita/course   — hourly inject-without-loss scorecard");
+    console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/read     — read GitHub files");
     console.log("   /vita/status   — live bot status");
   });

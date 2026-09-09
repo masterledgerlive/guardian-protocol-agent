@@ -303,9 +303,20 @@ import {
   planSecondaryHitch,
   parseHitchTrailer,
   setHitchModeOverride,
+  serializeVitaRouterState,
+  restoreVitaRouterState,
+  ensureGenesisMemory,
 } from "./vita-router.js";
 import { recordLocation } from "./vita-locations.js";
-import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
+import {
+  evaluateVitaCourse,
+  formatCourseMessage,
+  recordHitchAttempt,
+  recordHitchSealed,
+  tickHourlyCourse,
+  serializeCourseStats,
+  restoreCourseStats,
+} from "./vita-course.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -4667,8 +4678,10 @@ function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = store
   }
   const planned = planSecondaryHitch({ skipHitch, maxBytes });
   if (!planned.utf8) {
+    recordHitchAttempt({ skippedLeftover: /leftover|skipHitch/i.test(String(planned.reason || "")) });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved };
   }
+  recordHitchAttempt({});
   const hitch = appendUtf8Hitch(swapData, planned.utf8, { maxBytes });
   if (!hitch.ok || !hitch.onChain) {
     if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
@@ -4878,6 +4891,7 @@ function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?", txHas
       symbol,
       hitchKind: kind,
     });
+    recordHitchSealed({ realizedLossUsd: Number(netUsd) || 0 });
   }
   hitchInjectCount++;
   const pnl = Number(netUsd) || 0;
@@ -7936,6 +7950,17 @@ async function loadFromGitHub() {
     }
   } catch { /* non-critical */ }
 
+  // ── Load VITA secondary-router recursive memory (packet + loc squash) ────
+  try {
+    const rf = await githubGet("vita-router-state.json");
+    if (rf?.content) {
+      restoreVitaRouterState(rf.content);
+      restoreCourseStats(rf.content.course);
+      console.log(`   🔀 vita-router-state.json: packet ${String(rf.content.lastPacket || "").length} chars · loc ${rf.content.locations?.sealedCount ?? "?"}`);
+    }
+  } catch { /* non-critical */ }
+  ensureGenesisMemory();
+
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
   const pcOpen      = Object.keys(piggyCoPos).length;
@@ -8013,6 +8038,12 @@ async function saveToGitHub() {
     try { await githubSave("memory-registry.json", serializeRegistry(), null); } catch {}
     // Save VITA registry
     try { await githubSave("vita-registry.json", serializeVitaRegistry(), null); } catch {}
+    try {
+      await githubSave("vita-router-state.json", {
+        ...serializeVitaRouterState(),
+        course: serializeCourseStats(),
+      }, null);
+    } catch {}
     // NOTE v18: VITA registry and memory are saved to GitHub only (chain already has them).
     // BTP calldata is ONLY for: trade receipts + VITA family message filler.
     // No full state dumps into calldata — that was causing kbit bloat.
@@ -12207,6 +12238,19 @@ async function main() {
       }
       if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         await saveToGitHub();
+      }
+
+      // ── VITA hourly course — refine memory, restore KEY if lost, switch mode
+      try {
+        const hour = tickHourlyCourse();
+        if (hour.ticked) {
+          console.log("🔀 VITA COURSE " + hour.course.score + "/100 achieving=" + hour.course.achieving + " applied=" + (hour.applied || []).join(",") );
+          if (!hour.course.achieving || hour.applied?.length) {
+            await tg(hour.telegram);
+          }
+        }
+      } catch (courseErr) {
+        console.log("⚠️  VITA course tick (non-critical): " + courseErr.message);
       }
 
       // ── IKN INTEGRITY AGENT — runs every 6 hours ───────────────────────────

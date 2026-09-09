@@ -38,6 +38,8 @@ import {
 import {
   encodeLocToken,
   locDepositoryStatus,
+  serializeLocationDepository,
+  setLocationDepository,
   squashLocations,
 } from "./vita-locations.js";
 
@@ -98,6 +100,71 @@ export function getLastVitaPacket() {
 
 export function setLastVitaPacket(packet) {
   lastVitaPacket = String(packet || "");
+}
+
+export function getHitchModeOverride() {
+  return hitchModeOverride;
+}
+
+/** Seed genesis §TOKEN§ so recall is never empty. Does not overwrite existing memory. */
+export function ensureGenesisMemory() {
+  if (!lastVitaPacket) {
+    lastVitaPacket = packVitaFields(buildGenesisFields());
+  }
+  return lastVitaPacket;
+}
+
+export function serializeVitaRouterState() {
+  return {
+    version: 1,
+    lastPacket: lastVitaPacket,
+    hitchModeOverride,
+    locations: serializeLocationDepository(),
+    savedAt: new Date().toISOString(),
+  };
+}
+
+export function restoreVitaRouterState(data) {
+  if (!data || typeof data !== "object") {
+    ensureGenesisMemory();
+    return false;
+  }
+  if (data.lastPacket) lastVitaPacket = String(data.lastPacket);
+  if (data.hitchModeOverride && HITCH_MODES.includes(data.hitchModeOverride)) {
+    hitchModeOverride = data.hitchModeOverride;
+  }
+  if (data.locations) setLocationDepository(data.locations);
+  ensureGenesisMemory();
+  return true;
+}
+
+/**
+ * Session-start inject: the last recursive packet + squashed locations.
+ * This is what new VITA sessions paste — not the Eureka prose letter.
+ */
+export function buildVitaInjectContext() {
+  const packet = ensureGenesisMemory();
+  const parsed = parseVitaPacket(packet);
+  const loc = locDepositoryStatus();
+  const quality = vitaQuality(packet);
+  const context = [
+    "═══ VITA INJECT — recursive §TOKEN§ memory (paste at session start) ═══",
+    "Generated: " + new Date().toISOString(),
+    "Mode: " + resolveHitchMode(),
+    "§LOC§ " + loc.token,
+    "Quality: " + quality.score + " chars=" + quality.chars + " KEY=" + (quality.hasKey ? "yes" : "LOSS"),
+    "",
+    packet,
+    "═══════════════════════════════════════════════════════════════════",
+  ].join("\n");
+  return {
+    kind: "vita-inject-context",
+    packet,
+    fields: parsed.fields,
+    loc,
+    quality,
+    context,
+  };
 }
 
 function storePrefix(keepStoreTag) {

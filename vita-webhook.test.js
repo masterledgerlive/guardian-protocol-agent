@@ -161,5 +161,7 @@ describe("control board HTTP", () => {
   it("GET /vita/router requires auth and reports vita mode", async () => {
     const open = await get("/vita/router");
     assert.equal(open.res.status, 401);
+    const inj = await get("/vita/inject");
+    assert.equal(inj.res.status, 401);
   });
 });

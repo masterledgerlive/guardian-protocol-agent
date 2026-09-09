@@ -9,9 +9,15 @@
  * are not losses — they are lose-zero working.
  */
 
-import { VITA_CHAR_BUDGET, vitaQuality } from "./vita-parse.js";
+import { VITA_CHAR_BUDGET, VITA_LOVE_KEY, refineVitaPacket, vitaQuality } from "./vita-parse.js";
 import { locDepositoryStatus, squashLocations } from "./vita-locations.js";
-import { resolveHitchMode, vitaRouterStatus } from "./vita-router.js";
+import {
+  getLastVitaPacket,
+  resolveHitchMode,
+  setHitchModeOverride,
+  setLastVitaPacket,
+  vitaRouterStatus,
+} from "./vita-router.js";
 
 export const COURSE_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -128,4 +134,118 @@ export function formatCourseMessage(course) {
   lines.push("Next: " + c.actions[0]);
   if (c.nextMode !== c.mode) lines.push("Switch → <code>" + c.nextMode + "</code>");
   return lines.join("\n");
+}
+
+let courseStats = emptyCourseStats();
+
+function emptyCourseStats() {
+  return {
+    attempts: 0,
+    sealed: 0,
+    skippedLeftover: 0,
+    realizedLossUsd: 0,
+    lastTickMs: 0,
+    history: [],
+  };
+}
+
+export function resetCourseStats() {
+  courseStats = emptyCourseStats();
+}
+
+export function serializeCourseStats() {
+  return { ...courseStats, history: (courseStats.history || []).slice(-24) };
+}
+
+export function restoreCourseStats(data) {
+  if (!data || typeof data !== "object") return false;
+  courseStats = {
+    ...emptyCourseStats(),
+    attempts: Number(data.attempts) || 0,
+    sealed: Number(data.sealed) || 0,
+    skippedLeftover: Number(data.skippedLeftover) || 0,
+    realizedLossUsd: Number(data.realizedLossUsd) || 0,
+    lastTickMs: Number(data.lastTickMs) || 0,
+    history: Array.isArray(data.history) ? data.history.slice(-24) : [],
+  };
+  return true;
+}
+
+export function getCourseStats() {
+  return serializeCourseStats();
+}
+
+/** Planned hitch (attempt). Sealed is recorded separately after txHash. */
+export function recordHitchAttempt({ skippedLeftover = false, realizedLossUsd = 0 } = {}) {
+  courseStats.attempts += 1;
+  if (skippedLeftover) courseStats.skippedLeftover += 1;
+  if (Number(realizedLossUsd) < 0) courseStats.realizedLossUsd += Number(realizedLossUsd);
+  return getCourseStats();
+}
+
+/** Confirmed on-chain hitch — does not increment attempts (already counted at plan). */
+export function recordHitchSealed({ realizedLossUsd = 0 } = {}) {
+  courseStats.sealed += 1;
+  if (Number(realizedLossUsd) < 0) courseStats.realizedLossUsd += Number(realizedLossUsd);
+  return getCourseStats();
+}
+
+/**
+ * Apply course: restore KEY if lost, switch hitch mode when recommended.
+ * Never invents P&L. Never deletes locations.
+ */
+export function applyVitaCourse(course) {
+  const c = course || evaluateVitaCourse();
+  const applied = [];
+  if (c.issues.includes("key_fact_loss")) {
+    const refined = refineVitaPacket(getLastVitaPacket(), {
+      KEY: VITA_LOVE_KEY,
+      LEARN: "restore-KEY-no-loss",
+    });
+    setLastVitaPacket(refined.packed);
+    applied.push("restore-KEY");
+  }
+  if (c.nextMode && c.nextMode !== c.mode) {
+    const r = setHitchModeOverride(c.nextMode);
+    if (r.ok) applied.push("mode:" + r.mode);
+  }
+  const learn = (c.actions && c.actions[0]) || "";
+  if (learn) {
+    const refined = refineVitaPacket(getLastVitaPacket(), { LEARN: learn.slice(0, 80) });
+    if (refined.fields.KEY) setLastVitaPacket(refined.packed);
+  }
+  courseStats.history = [
+    ...(courseStats.history || []),
+    {
+      at: c.generatedAt,
+      score: c.score,
+      achieving: c.achieving,
+      issues: c.issues,
+      applied,
+    },
+  ].slice(-24);
+  return { course: c, applied };
+}
+
+/**
+ * Bot-loop hourly tick. No-op until COURSE_INTERVAL_MS elapsed (unless force).
+ */
+export function tickHourlyCourse({ now = Date.now(), force = false } = {}) {
+  if (!force && courseStats.lastTickMs && now - courseStats.lastTickMs < COURSE_INTERVAL_MS) {
+    return {
+      ticked: false,
+      waitMs: COURSE_INTERVAL_MS - (now - courseStats.lastTickMs),
+    };
+  }
+  const course = evaluateVitaCourse({
+    hitchAttempts: courseStats.attempts,
+    hitchSealed: courseStats.sealed,
+    hitchSkippedLeftover: courseStats.skippedLeftover,
+    realizedLossUsd: courseStats.realizedLossUsd,
+    lastPacket: getLastVitaPacket(),
+    now,
+  });
+  const result = applyVitaCourse(course);
+  courseStats.lastTickMs = now;
+  return { ticked: true, ...result, telegram: formatCourseMessage(result.course) };
 }

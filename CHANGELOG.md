@@ -13,6 +13,11 @@ Locations (tx hashes / node ids) stay append-only; hitch only carries a squashed
 `§LOC§` token (count + root + tip + last-6 shorts). Hourly `evaluateVitaCourse`
 scores inject-without-loss vs leftover-skips (skips are lose-zero, not memory loss).
 
+Recursive memory now **survives restart**: `vita-router-state.json` stores the last
+§TOKEN§ packet + location depository + course stats. Boot `ensureGenesisMemory`.
+`GET /vita/inject` and `/vita/context` paste parsed VITA memory (KEY first).
+The live loop `tickHourlyCourse` every hour restores KEY if lost and can switch mode.
+
 - `vita-parse.js` — §TOKEN§ parse / refine / 2000-char clip (KEY+LOC first)
 - `vita-locations.js` — append-only depository + squash
 - `vita-router.js` — eureka | vita | hat | auto pipeline switch

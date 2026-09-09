@@ -33,15 +33,27 @@ import {
 } from "./vita-locations.js";
 import {
   PIPELINE_SWITCH_DEFAULTS,
+  buildVitaInjectContext,
   clearHitchModeOverride,
+  ensureGenesisMemory,
+  getLastVitaPacket,
   planSecondaryHitch,
   parseHitchTrailer,
   resolveHitchMode,
+  restoreVitaRouterState,
+  serializeVitaRouterState,
   setHitchModeOverride,
   setLastVitaPacket,
   vitaRouterStatus,
 } from "./vita-router.js";
-import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
+import {
+  evaluateVitaCourse,
+  formatCourseMessage,
+  resetCourseStats,
+  restoreCourseStats,
+  serializeCourseStats,
+  tickHourlyCourse,
+} from "./vita-course.js";
 import {
   KEYCAT_PLAIN_SWAP,
   VITA_PROOF_FULL,
@@ -146,6 +158,7 @@ describe("vita secondary router", () => {
     resetLocationDepository();
     clearHitchModeOverride();
     setLastVitaPacket("");
+    resetCourseStats();
   });
 
   it("defaults to vita not eureka", () => {
@@ -227,6 +240,13 @@ describe("vita secondary router", () => {
 });
 
 describe("vita hourly course", () => {
+  beforeEach(() => {
+    resetLocationDepository();
+    clearHitchModeOverride();
+    setLastVitaPacket("");
+    resetCourseStats();
+  });
+
   it("treats leftover skips as lose-zero, not injection loss", () => {
     const c = evaluateVitaCourse({
       hitchAttempts: 4,
@@ -252,6 +272,59 @@ describe("vita hourly course", () => {
     assert.equal(c.achieving, false);
     assert.ok(c.issues.includes("key_fact_loss"));
   });
+
+  it("hourly tick restores KEY so memory injects without loss", () => {
+    setLastVitaPacket("§LEARN§oops-no-key");
+    const t = tickHourlyCourse({ force: true, now: Date.now() });
+    assert.equal(t.ticked, true);
+    assert.ok(t.applied.includes("restore-KEY"));
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("Koda"));
+    const t2 = tickHourlyCourse({ now: Date.now() + 1000 });
+    assert.equal(t2.ticked, false);
+  });
+
+  it("course stats serialize and restore", () => {
+    restoreCourseStats({ attempts: 4, sealed: 1, skippedLeftover: 3, lastTickMs: 9 });
+    const snap = serializeCourseStats();
+    assert.equal(snap.attempts, 4);
+    assert.equal(snap.sealed, 1);
+    resetCourseStats();
+    restoreCourseStats(snap);
+    assert.equal(serializeCourseStats().skippedLeftover, 3);
+  });
+});
+
+describe("recursive memory persist + inject", () => {
+  beforeEach(() => {
+    resetLocationDepository();
+    clearHitchModeOverride();
+    setLastVitaPacket("");
+    resetCourseStats();
+  });
+
+  it("round-trips last packet + sealed locations across restore", () => {
+    recordLocation({ location: "0xabcdef0123456789", kind: "hitch", sealed: true });
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    assert.ok(plan.utf8.includes("§KEY§"));
+    const snap = serializeVitaRouterState();
+    resetLocationDepository();
+    setLastVitaPacket("");
+    restoreVitaRouterState(snap);
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.equal(getLocationDepository().sealedCount, 1);
+    assert.equal(getLocationDepository().nodes[0].location, "0xabcdef0123456789");
+  });
+
+  it("inject context is §TOKEN§ with love-note KEY, not Eureka prose", () => {
+    ensureGenesisMemory();
+    const inj = buildVitaInjectContext();
+    assert.equal(inj.kind, "vita-inject-context");
+    assert.ok(inj.fields.KEY.includes("Kai"));
+    assert.match(inj.context, /VITA INJECT/);
+    assert.doesNotMatch(inj.packet, /We did it! xoxo/);
+    assert.equal(inj.quality.lossy, false);
+  });
 });
 
 describe("agent.js wires the secondary router into leftover hitch", () => {
@@ -260,5 +333,8 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
   it("imports planSecondaryHitch and uses it in planVoiceHitch", () => {
     assert.ok(src.includes("planSecondaryHitch"), "must import planSecondaryHitch");
     assert.ok(src.includes("/vitarouter"), "Telegram /vitarouter must exist");
+    assert.ok(src.includes("tickHourlyCourse"), "main loop must tick hourly course");
+    assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
+    assert.ok(src.includes("ensureGenesisMemory"), "boot must seed genesis packet");
   });
 });
