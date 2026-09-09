@@ -56,6 +56,7 @@ export const PIPELINE_SWITCH_DEFAULTS = Object.freeze({
 
 let lastVitaPacket = "";
 let hitchModeOverride = null;
+let leftoverReadyHitch = "";
 
 export function pipelineSwitches(env = process.env, extra = {}) {
   const mode = resolveHitchMode(env, extra);
@@ -99,6 +100,52 @@ export function getLastVitaPacket() {
   return lastVitaPacket;
 }
 
+export function getLeftoverReadyHitch() {
+  return leftoverReadyHitch;
+}
+
+export function setLeftoverReadyHitch(utf8) {
+  leftoverReadyHitch = String(utf8 || "");
+  return leftoverReadyHitch;
+}
+
+export function clearLeftoverReadyHitch() {
+  leftoverReadyHitch = "";
+}
+
+/**
+ * Snapshot the leftover KEY+LOC trailer without mutating recursive lastPacket.
+ * Hourly course / leftover ingest freeze this so the next covered swap hitches
+ * the course-corrected parse, not Eureka prose.
+ */
+export function freezeLeftoverReadyHitch(opts = {}) {
+  const prev = lastVitaPacket;
+  try {
+    const plan = planSecondaryHitch({
+      leftoverEth: 1,
+      hitchCostEth: 0,
+      skipHitch: false,
+      useFrozen: false,
+      ...opts,
+    });
+    leftoverReadyHitch = plan.utf8 || "";
+    return plan;
+  } finally {
+    lastVitaPacket = prev;
+  }
+}
+
+function frozenHitchUsable(cap) {
+  const frozen = leftoverReadyHitch;
+  if (!frozen) return "";
+  const kind = detectHitchKind(frozen);
+  if (!kind.vita || !frozen.includes("Krystian") || !frozen.includes("Koda")) return "";
+  const liveLoc = encodeLocToken();
+  if (!frozen.includes(liveLoc)) return "";
+  if (cap != null && utf8ByteLength(frozen) > cap) return "";
+  return frozen;
+}
+
 /**
  * Hitch byte cost of the current VITA packet without mutating recursive memory.
  * Leftover gates should use this (not the Eureka love-note length) when mode is vita.
@@ -139,6 +186,7 @@ export function serializeVitaRouterState() {
     version: 1,
     lastPacket: lastVitaPacket,
     hitchModeOverride,
+    leftoverReadyHitch,
     locations: serializeLocationDepository(),
     savedAt: new Date().toISOString(),
   };
@@ -153,6 +201,7 @@ export function restoreVitaRouterState(data) {
   if (data.hitchModeOverride && HITCH_MODES.includes(data.hitchModeOverride)) {
     hitchModeOverride = data.hitchModeOverride;
   }
+  if (typeof data.leftoverReadyHitch === "string") leftoverReadyHitch = data.leftoverReadyHitch;
   if (data.locations) setLocationDepository(data.locations);
   if (!lastVitaPacket || vitaQuality(lastVitaPacket).lossy) {
     reconstructVitaMemoryFromLocations();
@@ -303,6 +352,7 @@ export function planSecondaryHitch({
   mode,
   hatPacket = "",
   extraFields = {},
+  useFrozen = true,
   env = process.env,
 } = {}) {
   const switches = pipelineSwitches(env, {
@@ -354,6 +404,10 @@ export function planSecondaryHitch({
   // vita (default) — and auto when hat wasn't ready
   if (cap != null && cap > 0 && cap < utf8ByteLength(STORE_VOICE_TAG)) {
     return emptyPlan("maxBytes<store-tag", switches);
+  }
+  if (useFrozen !== false) {
+    const frozen = frozenHitchUsable(cap);
+    if (frozen) return hitchPlan("vita", frozen, switches);
   }
   const utf8 = clipUtf8(vitaBody({ maxBytes: cap, extraFields, switches }), cap);
   return hitchPlan("vita", utf8, switches);
@@ -413,6 +467,8 @@ export function vitaRouterStatus(env = process.env) {
     lastKind: detectHitchKind(lastVitaPacket).kind,
     quality,
     loc,
+    leftoverReadyHitch: leftoverReadyHitch || null,
+    leftoverReadyHitchBytes: leftoverReadyHitch ? utf8ByteLength(leftoverReadyHitch) : 0,
     note:
       "Leftover swap hitch defaults to VITA §TOKEN§. /prove still writes the Eureka love note. Love note lives in §KEY§. Locations squash into §LOC§.",
     loseZero: {

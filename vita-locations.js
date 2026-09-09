@@ -148,16 +148,21 @@ export function hitchShort(s, n = LOC_HITCH_SHORT) {
   return hex.slice(0, width);
 }
 
-export function encodeLocToken(depot) {
+/** Compact hitch body (no §LOC§ wrapper). Full hashes stay in the depository. */
+export function encodeLocToken(depot, { hitch = true } = {}) {
   const d = depot || squashLocations();
   if (!d.n) return "n=0|t=0000";
-  // Hitch token is recall pointers only — kinds/pending stay in the depository.
-  return [
+  // Hitch token is recall pointers only — kinds/pending/Δ stay in the depository.
+  // Leftover trailer is n|tip|root so leftover can cover as sealed count grows.
+  const parts = [
     "n=" + d.n,
     "t=" + hitchShort(d.tip),
     "r=" + hitchShort(d.root),
-    "Δ=" + (d.delta || []).map((x) => hitchShort(x)).join(","),
-  ].join("|");
+  ];
+  if (hitch === false && (d.delta || []).length) {
+    parts.push("Δ=" + (d.delta || []).map((x) => hitchShort(x)).join(","));
+  }
+  return parts.join("|");
 }
 
 export function parseLocToken(token) {
@@ -232,6 +237,6 @@ export function locDepositoryStatus() {
     token: "§LOC§" + token,
     tokenChars: token.length,
     squashWindow: LOC_SQUASH_DELTA,
-    note: "Hitch carries squashed §LOC§ (4-hex shorts); full locations stay append-only in registry.",
+    note: "Hitch §LOC§ is n|t=|r= (4-hex). Δ window stays in the append-only depository.",
   };
 }

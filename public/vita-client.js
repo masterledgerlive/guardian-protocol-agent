@@ -38,12 +38,10 @@ function hitchShort(s, n = 4) {
 function locToken(nodes) {
   const sealed = (nodes || []).filter((n) => n.sealed && n.location);
   if (!sealed.length) return "n=0|t=0000";
-  const delta = sealed.slice(-6).map((n) => hitchShort(n.location));
   return [
     "n=" + sealed.length,
     "t=" + hitchShort(sealed[sealed.length - 1].location),
     "r=" + hitchShort(sealed[0].location),
-    "Δ=" + delta.join(","),
   ].join("|");
 }
 

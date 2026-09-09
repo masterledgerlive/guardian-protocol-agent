@@ -143,6 +143,26 @@ describe("guardian-v4 swap + eureka hitch", () => {
     assert.ok(r.data.toLowerCase().startsWith(enc.data.toLowerCase()));
     assert.doesNotMatch(r.utf8, /We did it! xoxo/);
   });
+
+  it("leftover hitch defaults to VITA parse, not Eureka letter", () => {
+    const enc = encodeV4ExactInSwap({
+      tokenIn: NATIVE_ETH,
+      tokenOut: "0x23a2847d772803f9efc64b4277b782b06296fe51",
+      fee: 10000,
+      amountIn: 10n ** 15n,
+    });
+    const r = hitchSwapIfCovered({
+      swapData: enc.data,
+      leftoverEth: 1,
+      hitchCostEth: 0.0001,
+    });
+    assert.equal(r.onChain, true);
+    assert.ok(r.utf8.includes("§KEY§"));
+    assert.ok(r.utf8.includes("Krystian"));
+    assert.doesNotMatch(r.utf8, /We did it! xoxo/);
+    assert.doesNotMatch(r.utf8, /Eureka!/);
+    assert.ok(r.data.toLowerCase().startsWith(enc.data.toLowerCase()));
+  });
 });
 
 describe("guardian-v4 inject ranking", () => {

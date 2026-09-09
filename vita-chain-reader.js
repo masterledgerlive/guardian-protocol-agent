@@ -24,6 +24,7 @@ import {
   restoreVitaRouterState,
   stampLocIntoPacket,
   setLastVitaPacket,
+  freezeLeftoverReadyHitch,
 } from "./vita-router.js";
 import {
   getLocationDepository,
@@ -318,6 +319,7 @@ export function ingestLeftoverScan(scan) {
   });
   if (refined.fields.KEY) setLastVitaPacket(refined.packed);
   stampLocIntoPacket();
+  freezeLeftoverReadyHitch();
   return {
     ingested,
     quality: vitaQuality(getLastVitaPacket()),

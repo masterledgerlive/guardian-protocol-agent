@@ -20,6 +20,7 @@ import {
   setHitchModeOverride,
   setLastVitaPacket,
   stampLocIntoPacket,
+  freezeLeftoverReadyHitch,
   vitaRouterStatus,
 } from "./vita-router.js";
 
@@ -310,6 +311,8 @@ export function applyVitaCourse(course) {
     const refined = refineVitaPacket(getLastVitaPacket(), { LEARN: learn.slice(0, 80) });
     if (refined.fields.KEY) setLastVitaPacket(refined.packed);
   }
+  const frozen = freezeLeftoverReadyHitch();
+  if (frozen.utf8) applied.push("freeze-leftover-hitch");
   courseStats.history = [
     ...(courseStats.history || []),
     {

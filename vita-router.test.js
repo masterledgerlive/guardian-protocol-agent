@@ -55,6 +55,9 @@ import {
   setHitchModeOverride,
   setLastVitaPacket,
   measurePlannedHitchBytes,
+  freezeLeftoverReadyHitch,
+  getLeftoverReadyHitch,
+  clearLeftoverReadyHitch,
   vitaRouterStatus,
 } from "./vita-router.js";
 import {
@@ -215,20 +218,24 @@ describe("vita location depository squash", () => {
     assert.ok(token.startsWith("n=12"));
     assert.ok(!token.includes("k="), "hitch token omits kind bits for density");
     assert.ok(!token.includes("p="), "hitch token omits pending for density");
+    assert.ok(!token.includes("Δ="), "hitch token omits Δ window — depository keeps last-N shorts");
     assert.ok(token.includes("t="));
     assert.ok(!token.includes("tip="), "hitch token must use dense t= not tip=");
     assert.equal(hitchShort("0xabcdef12"), "abcd");
     assert.equal(LOC_HITCH_SHORT, 4);
     const parsed = parseLocToken("§LOC§" + token);
     assert.equal(parsed.n, 12);
-    assert.equal(parsed.delta.length, LOC_SQUASH_DELTA);
+    assert.equal(parsed.delta.length, 0);
     assert.equal(parsed.tip.length, LOC_HITCH_SHORT);
+    const registry = encodeLocToken(depot, { hitch: false });
+    assert.equal(parseLocToken(registry).delta.length, LOC_SQUASH_DELTA);
     const legacy = parseLocToken("n=3|tip=aabbccdd|root=00112233|Δ=aa,bb,cc");
     assert.equal(legacy.n, 3);
     assert.equal(legacy.tip, "aabbccdd");
     const st = locDepositoryStatus();
     assert.ok(st.token.startsWith("§LOC§"));
     assert.ok(st.tokenChars < 90);
+    assert.ok(!st.token.includes("Δ="));
   });
 });
 
@@ -238,6 +245,7 @@ describe("vita secondary router", () => {
     clearHitchModeOverride();
     setLastVitaPacket("");
     resetCourseStats();
+    clearLeftoverReadyHitch();
   });
 
   it("defaults to vita not eureka", () => {
@@ -357,6 +365,7 @@ describe("vita hourly course", () => {
     clearHitchModeOverride();
     setLastVitaPacket("");
     resetCourseStats();
+    clearLeftoverReadyHitch();
   });
 
   it("treats leftover skips as lose-zero, not injection loss", () => {
@@ -461,6 +470,7 @@ describe("vita hourly course", () => {
     assert.equal(t.course.nextMode, "vita");
     assert.ok(t.applied.includes("leftover-cover-vita-hitch") || t.applied.includes("mode:vita"));
     assert.ok(t.applied.includes("reconstruct-no-loss"));
+    assert.ok(t.applied.includes("freeze-leftover-hitch"));
     assert.equal(vitaQuality(getLastVitaPacket()).lossy, false);
   });
 
@@ -511,12 +521,18 @@ describe("vita hourly course", () => {
     assert.match(loc.token, /n=24/);
     assert.ok(loc.tokenChars < 90);
     assert.ok(!loc.token.includes("k="));
+    assert.ok(!loc.token.includes("Δ="));
     const plan = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0 });
     assert.ok(plan.hitchBytes < eurekaBytes);
-    assert.ok(plan.hitchBytes < 180);
+    assert.ok(plan.hitchBytes < 90);
     assert.match(plan.utf8, /n=24/);
+    assert.doesNotMatch(plan.utf8, /Δ=/);
     assert.ok(plan.utf8.includes("Krystian"));
     assert.doesNotMatch(plan.utf8, /0x50e1C460/);
+    const frozen = getLeftoverReadyHitch();
+    assert.ok(frozen.includes("§KEY§"));
+    assert.match(frozen, /n=24/);
+    assert.doesNotMatch(frozen, /Δ=/);
     setLastVitaPacket("");
     const rec = reconstructVitaMemoryFromLocations();
     assert.equal(rec.lossy, false);
@@ -546,19 +562,25 @@ describe("recursive memory persist + inject", () => {
     clearHitchModeOverride();
     setLastVitaPacket("");
     resetCourseStats();
+    clearLeftoverReadyHitch();
   });
 
   it("round-trips last packet + sealed locations across restore", () => {
     recordLocation({ location: "0xabcdef0123456789", kind: "hitch", sealed: true });
     const plan = planSecondaryHitch({ maxBytes: 400 });
+    freezeLeftoverReadyHitch();
     assert.ok(plan.utf8.includes("§KEY§"));
     const snap = serializeVitaRouterState();
+    assert.ok(snap.leftoverReadyHitch);
+    assert.match(snap.leftoverReadyHitch, /n=1/);
     resetLocationDepository();
     setLastVitaPacket("");
+    clearLeftoverReadyHitch();
     restoreVitaRouterState(snap);
     assert.ok(getLastVitaPacket().includes("Krystian"));
     assert.equal(getLocationDepository().sealedCount, 1);
     assert.equal(getLocationDepository().nodes[0].location, "0xabcdef0123456789");
+    assert.match(getLeftoverReadyHitch(), /n=1/);
   });
 
   it("inject context is §TOKEN§ with love-note KEY, not Eureka prose", () => {
@@ -634,6 +656,7 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     clearHitchModeOverride();
     setLastVitaPacket("");
     resetCourseStats();
+    clearLeftoverReadyHitch();
   });
 
   it("KEYCAT plain swap has no hitch trailer", () => {
@@ -1034,6 +1057,7 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
       assert.ok(plan.hitchBytes < scan.hitchBytes.eurekaMin);
       assert.ok(plan.utf8.includes("§KEY§"));
       assert.ok(plan.utf8.includes("§LOC§"));
+      assert.doesNotMatch(plan.utf8, /Δ=/);
       assert.doesNotMatch(plan.utf8, /0x50e1C460/);
       const after = evaluateVitaCourse({
         leftoverKinds: scan.counts,
