@@ -30,7 +30,7 @@ Public JSON: `GET /board/api/inject` (catalog parsed from `agent.js` as text —
 | **Tradeable hitch surfaces** | Every catalog name that is not `frozen` / `disabled`. Hitch Eureka only when leftover covers; otherwise plain swap. |
 | **Inject mains** | `LINK` (favorite) `UNI` `VVV` `ZORA` `BNKR` `AERO` `MORPHO` — prefer leftover-covered inject. |
 | **Deferred majors** | `CBBTC` `AAVE` — frozen, not inject seats. |
-| **Leftover / hitch capacity** | Same lose-zero math as production. Labeled **estimated** unless a live snapshot is authorized. |
+| **Leftover / hitch capacity** | Same lose-zero math as production. Demo = labeled assumptions. Authorized snapshot uses leftover from **holding** waves (price vs entry) — still estimated, never `hitchProve` P&L. |
 | **Piggy leave-behind** | Default **5% / $0.15**; LINK **8% / $0.25**. Dust never sells except `/piggyunlock`. |
 | **Earn sim** | Per-main “Sim SYMBOL” + Run sim round. Negative wave = hold. Hitch only if leftover covers. |
 | **Operator live (gated)** | Queue buy ~$2, sell half, piggy unlock, hitch prove on the selected inject main. |

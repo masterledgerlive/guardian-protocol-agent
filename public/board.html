@@ -200,7 +200,7 @@
 
     <section id="hitch">
       <h2>2 · Leftover / hitch capacity</h2>
-      <p class="hint">Same lose-zero hitch math as production. Numbers are <strong>labeled estimates</strong> unless a live snapshot is authorized — not invented P&amp;L.</p>
+      <p class="hint">Same lose-zero hitch math as production. Demo uses labeled assumptions. Authorized live snapshot uses leftover from <strong>holding</strong> waves (price vs entry) — still estimated, not invented P&amp;L.</p>
       <div class="grid-2" id="capStats"></div>
       <pre id="capOut">Capacity lands here.</pre>
     </section>
@@ -454,13 +454,15 @@
 
     function renderCapacity(cap) {
       document.getElementById("capStats").innerHTML = [
-        ["Kind", cap?.kind || "estimated"],
+        ["Kind", cap?.source === "live-holding-waves" ? "LIVE leftover (est. from holdings)" : (cap?.kind || "estimated")],
         ["Eureka leftover cover", cap?.eurekaOk ? "YES (labeled est.)" : "NO — plain swap"],
         ["Leftover USD (est.)", money(cap?.leftoverUsd)],
         ["Hitch tag USD", money(cap?.hitchTagUsd)],
         ["Max hitch bytes", String(cap?.maxHitchBytes ?? "—")],
       ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
       document.getElementById("capOut").textContent = JSON.stringify({
+        kind: cap?.kind,
+        source: cap?.source,
         label: cap?.label,
         leftoverEth: cap?.leftoverEth,
         leftoverUsd: cap?.leftoverUsd,
@@ -500,10 +502,11 @@
         ]);
         renderKnobs(params);
         renderInject(inj);
-        renderCapacity(inj.capacity || snap.capacity);
-        renderBotPiggy(inj.botPiggy || snap.botPiggy);
+        const live = !!(headers()["x-vita-secret"] && snap.demo === false);
+        renderCapacity((live && snap.capacity) ? snap.capacity : (inj.capacity || snap.capacity));
+        renderBotPiggy((live && snap.botPiggy) ? snap.botPiggy : (inj.botPiggy || snap.botPiggy));
         renderWaves(snap.engine);
-        setMode(!!(headers()["x-vita-secret"] && snap.demo === false));
+        setMode(live);
       } catch (e) {
         document.getElementById("simOut").textContent = String(e.message || e);
       }

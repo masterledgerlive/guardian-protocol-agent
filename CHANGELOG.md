@@ -10,7 +10,7 @@ Arena (`/arena`, PR #42), Engine (`/engine`, PR #47), V4 offshoot (PR #46), Stor
 - **`GET /board/health`** (alias `/health`) — which boards are mounted. V4 listed as a **separate process** (`loadsV4Runtime: false`).
 - Public **`/board/api/params`**, **`/board/api/snapshot`**, **`/board/api/inject`**, **`/board/api/v4`**, **`POST /board/api/sim`** — sim is V3 practice only; inject API lists catalog hitch seats + leftover capacity + bot piggy. No unauthenticated env mutate, no spend.
 - Hub modules **do not import** `guardian-v4/` (swap encoder / agent / config stay in the offshoot process).
-- Bugbot follow-up: 16 KiB cap on public `POST /board/api/sim` bodies; LINK piggy knobs use catalog 8% / $0.25; earn sim spends buy gas and hitch instead of recycling them as leftover cash; storage loop uses the same cash as the arena round; wave tiles keep engine `series`.
+- Bugbot follow-up: 16 KiB cap on public `POST /board/api/sim` bodies; LINK piggy knobs use catalog 8% / $0.25; earn sim spends buy gas and hitch instead of recycling them as leftover cash; storage loop uses the same cash as the arena round; wave tiles keep engine `series`. Catalog LINK dust floor ($0.25) applies when sim omits `dustFloorUsd`. Authorized leftover/hitch panel uses holding-wave leftover (not the 2% demo assumption).
 - **`BOARD.md`** — operator on-ramp; V3 inject surfaces + bot-usage piggy; points stale “2% piggy” / L1-vs-live Arena / V4-CLI-only confusion at the hub.
 
 ### Fixed — plug fee/gas leaks so thin books never bleed ($10→$6)
