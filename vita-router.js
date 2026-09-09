@@ -134,8 +134,61 @@ export function restoreVitaRouterState(data) {
     hitchModeOverride = data.hitchModeOverride;
   }
   if (data.locations) setLocationDepository(data.locations);
+  if (!lastVitaPacket || vitaQuality(lastVitaPacket).lossy) {
+    reconstructVitaMemoryFromLocations();
+  }
   ensureGenesisMemory();
   return true;
+}
+
+/**
+ * Chain is source of truth: parse a sealed hitch trailer into recursive memory.
+ * Eureka prove hitches fold into §KEY§ so the love note is not lost.
+ */
+export function ingestSealedUtf8(utf8) {
+  const kind = detectHitchKind(utf8);
+  if (kind.vita) {
+    const parsed = parseVitaPacket(utf8);
+    const refined = refineVitaPacket(lastVitaPacket || packVitaFields(buildGenesisFields()), parsed.fields);
+    lastVitaPacket = refined.packed;
+    return { ok: true, kind: "vita", chars: refined.chars, quality: vitaQuality(lastVitaPacket) };
+  }
+  if (kind.eureka) {
+    const refined = refineVitaPacket(ensureGenesisMemory(), {
+      KEY: VITA_LOVE_KEY,
+      LEARN: "ingested-eureka-prove",
+    });
+    lastVitaPacket = refined.packed;
+    return { ok: true, kind: "eureka", quality: vitaQuality(lastVitaPacket) };
+  }
+  return { ok: false, kind: kind.kind };
+}
+
+/**
+ * Rebuild §TOKEN§ from sealed location payloads (full utf8, not 80-char previews).
+ * Hitch still carries squashed §LOC§; this is the no-loss recall path.
+ */
+export function reconstructVitaMemoryFromLocations(nodes) {
+  const sealed = (nodes || serializeLocationDepository().nodes || []).filter(
+    (n) => n.sealed && n.utf8,
+  );
+  let packed = packVitaFields(buildGenesisFields());
+  for (const n of sealed) {
+    const kind = detectHitchKind(n.utf8);
+    if (kind.vita) {
+      packed = refineVitaPacket(packed, parseVitaPacket(n.utf8).fields).packed;
+    } else if (kind.eureka) {
+      packed = refineVitaPacket(packed, { KEY: VITA_LOVE_KEY, LEARN: "loc-eureka" }).packed;
+    }
+  }
+  lastVitaPacket = packed;
+  return {
+    kind: "vita-reconstruct",
+    packed,
+    nodesUsed: sealed.length,
+    quality: vitaQuality(packed),
+    lossy: vitaQuality(packed).lossy,
+  };
 }
 
 /**
@@ -143,6 +196,9 @@ export function restoreVitaRouterState(data) {
  * This is what new VITA sessions paste — not the Eureka prose letter.
  */
 export function buildVitaInjectContext() {
+  if (!lastVitaPacket || vitaQuality(lastVitaPacket).lossy) {
+    reconstructVitaMemoryFromLocations();
+  }
   const packet = ensureGenesisMemory();
   const parsed = parseVitaPacket(packet);
   const loc = locDepositoryStatus();

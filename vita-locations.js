@@ -84,6 +84,7 @@ export function recordLocation({
     location: location || null,
     locationShort: location ? shortLoc(location) : null,
     sealed: sealedOk,
+    utf8: String(utf8 || "").slice(0, 4096),
     utf8Preview: String(utf8 || "").slice(0, 80),
     hitchKind: hitchKind || null,
     symbol: symbol || null,

@@ -17,6 +17,10 @@ Recursive memory now **survives restart**: `vita-router-state.json` stores the l
 §TOKEN§ packet + location depository + course stats. Boot `ensureGenesisMemory`.
 `GET /vita/inject` and `/vita/context` paste parsed VITA memory (KEY first).
 The live loop `tickHourlyCourse` every hour restores KEY if lost and can switch mode.
+Sealed locations store **full hitch utf8** (not an 80-char preview). Recall
+`reconstructVitaMemoryFromLocations` rebuilds §TOKEN§ from those payloads so KEY
+cannot be lost. `ingestSealedUtf8` folds chain trailers (vita or Eureka prove) into
+the recursive packet. V4 leftover hitch uses the same secondary router.
 
 - `vita-parse.js` — §TOKEN§ parse / refine / 2000-char clip (KEY+LOC first)
 - `vita-locations.js` — append-only depository + squash

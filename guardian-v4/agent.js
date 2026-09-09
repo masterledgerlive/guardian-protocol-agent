@@ -8,7 +8,7 @@
  *       GUARDIAN_V4_PRIVATE_KEY=...   (live only; do NOT reuse V3 hot wallet casually)
  *
  * Goal: inject capital on Base Uni V4 avenues (DOT, Polkadot-base, majors, popular
- * V4 names) and hitch the Eureka love note on leftover-covered swaps — never as
+ * V4 names) and hitch VITA §TOKEN§ on leftover-covered swaps — never as
  * a data-only scribble when a real trade can carry it.
  */
 
@@ -39,6 +39,7 @@ import {
   hitchSwapIfCovered,
   utf8ByteLength,
 } from "./swap-v4.js";
+import { planSecondaryHitch, ingestSealedUtf8 } from "../vita-router.js";
 
 ensureStateDir();
 const releaseLock = acquireLock();
@@ -82,17 +83,16 @@ function buildDemoInject(token, { tradeEth = 0.002 } = {}) {
     amountIn,
     amountOutMinimum: 0n,
   });
-  const voice = buildStoreVoice({ message: VITA_PROOF_FULL });
-  const hitchCost = estimateHitchCostEth(utf8ByteLength(voice));
-  // Simulate leftover covering hitch (thin-book inject sizing goal).
+  const planned = planSecondaryHitch({ maxBytes: 400 });
+  const hitchCost = estimateHitchCostEth(planned.hitchBytes || utf8ByteLength(planned.utf8));
   const leftoverEth = hitchCost * 1.25;
   const hitched = hitchSwapIfCovered({
     swapData: encoded.data,
     leftoverEth,
     hitchCostEth: hitchCost,
-    message: VITA_PROOF_FULL,
+    utf8: planned.utf8,
   });
-  return { encoded, hitched, hitchCost, leftoverEth, voice, tradeEth };
+  return { encoded, hitched, hitchCost, leftoverEth, voice: planned.utf8, tradeEth };
 }
 
 function printAvenueBoard() {
@@ -135,8 +135,8 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
     });
     if (demo.hitched.onChain) {
       hitchInjectCount += 1;
-      // Paper PnL placeholder — live fills replace this.
       hitchInjectProfitUsd += MIN_NET_MARGIN * (demo.tradeEth * 2500) * 0.05;
+      if (demo.hitched.utf8) ingestSealedUtf8(demo.hitched.utf8);
     }
     log(
       `  inject ${token.symbol}: to=${demo.encoded.to.slice(0, 10)}… value=${demo.encoded.value} ` +

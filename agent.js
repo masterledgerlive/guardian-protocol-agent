@@ -306,6 +306,7 @@ import {
   serializeVitaRouterState,
   restoreVitaRouterState,
   ensureGenesisMemory,
+  ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation } from "./vita-locations.js";
 import {
@@ -4780,6 +4781,7 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
     utf8: text,
     hitchKind: "eureka",
   });
+  ingestSealedUtf8(text);
   console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
   console.log(`      "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`);
   return {
@@ -4892,6 +4894,7 @@ function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?", txHas
       hitchKind: kind,
     });
     recordHitchSealed({ realizedLossUsd: Number(netUsd) || 0 });
+    ingestSealedUtf8(utf8);
   }
   hitchInjectCount++;
   const pnl = Number(netUsd) || 0;

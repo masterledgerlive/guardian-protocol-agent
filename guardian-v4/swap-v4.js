@@ -319,8 +319,9 @@ export function hitchSwapIfCovered({
   hitchCostEth,
   message = VITA_PROOF_FULL,
   tag = STORE_VOICE_TAG,
+  utf8 = null,
 } = {}) {
-  const voice = buildStoreVoice({ tag, message });
+  const voice = utf8 != null && utf8 !== "" ? String(utf8) : buildStoreVoice({ tag, message });
   if (!encodingDoesNotLoseMoney({ leftoverEth, hitchCostEth })) {
     return {
       data: swapData,

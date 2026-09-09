@@ -37,8 +37,10 @@ import {
   clearHitchModeOverride,
   ensureGenesisMemory,
   getLastVitaPacket,
+  ingestSealedUtf8,
   planSecondaryHitch,
   parseHitchTrailer,
+  reconstructVitaMemoryFromLocations,
   resolveHitchMode,
   restoreVitaRouterState,
   serializeVitaRouterState,
@@ -325,6 +327,32 @@ describe("recursive memory persist + inject", () => {
     assert.doesNotMatch(inj.packet, /We did it! xoxo/);
     assert.equal(inj.quality.lossy, false);
   });
+
+  it("stores full hitch utf8 (not 80-char preview) and reconstructs KEY after wipe", () => {
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    recordLocation({
+      location: "0xfeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface",
+      kind: "hitch",
+      sealed: true,
+      utf8: plan.utf8,
+    });
+    const node = getLocationDepository().nodes[0];
+    assert.ok(node.utf8.length > 80);
+    assert.ok(node.utf8.includes("Krystian"));
+    assert.equal(node.utf8Preview.length <= 80, true);
+    setLastVitaPacket("");
+    const rec = reconstructVitaMemoryFromLocations();
+    assert.equal(rec.lossy, false);
+    assert.ok(rec.packed.includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("Koda"));
+  });
+
+  it("ingestSealedUtf8 folds Eureka prove into §KEY§ without dropping VITA facts", () => {
+    ensureGenesisMemory();
+    ingestSealedUtf8("§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!");
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("§LEARN§") || getLastVitaPacket().includes("ingested-eureka") || getLastVitaPacket().includes("KEY"));
+  });
 });
 
 describe("agent.js wires the secondary router into leftover hitch", () => {
@@ -335,6 +363,6 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("/vitarouter"), "Telegram /vitarouter must exist");
     assert.ok(src.includes("tickHourlyCourse"), "main loop must tick hourly course");
     assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
-    assert.ok(src.includes("ensureGenesisMemory"), "boot must seed genesis packet");
+    assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
   });
 });

@@ -124,6 +124,25 @@ describe("guardian-v4 swap + eureka hitch", () => {
     assert.equal(r.skipped, true);
     assert.equal(r.data, enc.data);
   });
+
+  it("utf8 override hitches VITA §TOKEN§ without overwriting swap prefix", () => {
+    const enc = encodeV4ExactInSwap({
+      tokenIn: NATIVE_ETH,
+      tokenOut: "0x23a2847d772803f9efc64b4277b782b06296fe51",
+      fee: 10000,
+      amountIn: 10n ** 15n,
+    });
+    const r = hitchSwapIfCovered({
+      swapData: enc.data,
+      leftoverEth: 1,
+      hitchCostEth: 0.0001,
+      utf8: "§$STORE§\n§KEY§eureka♥Krystian,Kai,Koda",
+    });
+    assert.equal(r.onChain, true);
+    assert.ok(r.utf8.includes("§KEY§"));
+    assert.ok(r.data.toLowerCase().startsWith(enc.data.toLowerCase()));
+    assert.doesNotMatch(r.utf8, /We did it! xoxo/);
+  });
 });
 
 describe("guardian-v4 inject ranking", () => {
