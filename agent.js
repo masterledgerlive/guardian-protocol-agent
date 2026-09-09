@@ -11230,29 +11230,20 @@ async function main() {
       fetchCalldata: fetchTxCalldataHex,
       registry: lastVitaRegistryBlob,
       fetchPublic: !lastVitaRegistryBlob,
+      leftoverScan: true,
+      leftoverLimit: 120,
+      leftoverMaxPages: 4,
     });
     console.log(
       "🔀 VITA chain inject: registry " + inj.registryPackets +
       " · pulled " + inj.pulled + " · ingested " + inj.ingested +
+      " · leftover eureka=" + Number(inj.leftoverKinds?.eureka || 0) +
+      " vita=" + Number(inj.leftoverKinds?.vita || 0) +
+      " stillEureka=" + inj.leftoverStillEureka +
       " · KEY=" + (inj.quality?.hasKey ? "yes" : "LOSS")
     );
   } catch (injErr) {
     console.log("⚠️  VITA chain inject (non-critical): " + injErr.message);
-  }
-
-  try {
-    const leftoverScan = await scanAddressLeftoverHitches({ limit: 120, maxPages: 4 });
-    const folded = ingestLeftoverScan(leftoverScan);
-    console.log(
-      "🔀 VITA leftover scan: eureka=" + leftoverScan.counts.eureka +
-      " vita=" + leftoverScan.counts.vita +
-      " plain=" + leftoverScan.counts.plain +
-      " ingested=" + folded.ingested +
-      " stillEureka=" + leftoverScan.leftoverStillEureka +
-      " KEY=" + (folded.quality?.hasKey ? "yes" : "LOSS")
-    );
-  } catch (scanErr) {
-    console.log("⚠️  VITA leftover scan (non-critical): " + scanErr.message);
   }
 
   // Re-fetch sealed hitch UTF-8 from Base when the depository only has shorts.

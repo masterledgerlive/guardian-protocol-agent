@@ -578,6 +578,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
     assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
     assert.ok(src.includes("scanAddressLeftoverHitches"), "boot/hourly must scan leftover hitch kinds");
+    assert.ok(src.includes("leftoverScan: true"), "boot inject must fold leftover hitch memory");
     assert.ok(src.includes("ingestLeftoverScan"), "Eureka leftover fills must fold into recursive memory");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
@@ -716,6 +717,7 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
       },
       hashes: [EUREKA_ONCHAIN_TX],
       maxPulls: 3,
+      leftoverScan: false,
     });
     assert.ok(inj.registryPackets >= 1);
     assert.equal(inj.quality.hasKey, true);
@@ -728,6 +730,7 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
       hashes: [KEYCAT_TX, EUREKA_ONCHAIN_TX, VITA_STRAND_TX],
       maxPulls: 3,
       fetchPublic: false,
+      leftoverScan: false,
     });
     assert.equal(inj.pulled, 3);
     assert.equal(inj.ingested, 2);
@@ -740,6 +743,37 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.ok(kinds.includes("none"));
     assert.ok(kinds.includes("eureka"));
     assert.ok(kinds.includes("vita"));
+  });
+
+  it("injectVitaBlockchainMemory folds leftover hitch history without KEY loss", async () => {
+    const leftoverHash = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+    const eurekaUtf8 = "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!";
+    const plan = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, maxBytes: 280 });
+    const vitaHex = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, plan.utf8);
+    const inj = await injectVitaBlockchainMemory({
+      leftoverScan: true,
+      leftoverLimit: 8,
+      fetchCalldata: async () => vitaHex.data,
+      fetchLeftoverScan: async () => ({
+        counts: { eureka: 1, vita: 0, leftover: 1 },
+        leftoverStillEureka: true,
+        leftoverKinds: { eureka: 1, vita: 0, leftover: 1 },
+        rows: [{ hash: leftoverHash, class: "eureka-leftover", leftover: true, utf8: eurekaUtf8 }],
+      }),
+      hashes: [],
+      maxPulls: 0,
+      fetchPublic: false,
+      registry: null,
+    });
+    assert.equal(inj.leftoverStillEureka, true);
+    assert.equal(inj.leftoverKinds.eureka, 1);
+    assert.equal(inj.leftoverKinds.vita, 0);
+    assert.ok(getLocationDepository().nodes.some((n) => n.location === leftoverHash));
+    assert.equal(inj.quality.hasKey, true);
+    assert.equal(inj.quality.lossy, false);
+    assert.ok(inj.packet.includes("Krystian"));
+    assert.ok(inj.packet.includes("0x50e1C460"));
+    assert.match(locDepositoryStatus().token, /n=1/);
   });
 
   it("classifyLeftoverHitch: KEYCAT is plain, Eureka leftover is eureka, VITA leftover is vita", () => {

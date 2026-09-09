@@ -517,7 +517,7 @@ export function ingestRegistryPackets(registry) {
 
 /**
  * Inject VITA blockchain memory: registry packets + known Base anchors +
- * recent strand txHashes. Does not invent hashes. Does not ingest LIBM/binary.
+ * leftover Uniswap hitch trailers. Does not invent hashes. Does not ingest LIBM/binary.
  */
 export async function injectVitaBlockchainMemory({
   fetchCalldata = fetchTxCalldataHex,
@@ -525,6 +525,10 @@ export async function injectVitaBlockchainMemory({
   hashes = [],
   maxPulls = MAX_BOOT_CHAIN_PULLS,
   fetchPublic = false,
+  leftoverScan = true,
+  leftoverLimit = 80,
+  leftoverMaxPages = 3,
+  fetchLeftoverScan = scanAddressLeftoverHitches,
 } = {}) {
   ensureGenesisMemory();
   let reg = registry;
@@ -549,6 +553,23 @@ export async function injectVitaBlockchainMemory({
       results.push({ ok: false, txHash: h, error: e.message });
     }
   }
+  let leftover = null;
+  if (leftoverScan) {
+    try {
+      leftover = await fetchLeftoverScan({
+        address: GUARDIAN_WALLET,
+        limit: leftoverLimit,
+        maxPages: leftoverMaxPages,
+      });
+      ingestLeftoverScan(leftover);
+    } catch (e) {
+      leftover = {
+        error: e.message || String(e),
+        leftoverStillEureka: null,
+        counts: null,
+      };
+    }
+  }
   const rec = reconstructVitaMemoryFromLocations();
   stampLocIntoPacket();
   const packet = getLastVitaPacket();
@@ -558,6 +579,9 @@ export async function injectVitaBlockchainMemory({
     pulled: results.length,
     ingested: results.filter((r) => r.ingested).length,
     results,
+    leftover,
+    leftoverStillEureka: leftover?.leftoverStillEureka ?? null,
+    leftoverKinds: leftover?.counts || leftover?.leftoverKinds || null,
     packet,
     quality: vitaQuality(packet),
     reconstructed: rec,
