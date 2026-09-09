@@ -61,6 +61,11 @@ import {
   isMoonshotTrimReason,
   isStopLossReason,
   shouldArmStopLoss,
+  investedEthWithCosts,
+  unknownCostMinLeftoverEth,
+  netUsdAfterSkim,
+  netAfterSkimEth,
+  UNKNOWN_COST_GAS_EDGE_MULT,
 } from "./lose-zero-gate.js";
 
 describe("env flags", () => {
@@ -983,3 +988,97 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
   });
 });
 
+describe("never-lose fee/gas leak plugs", () => {
+  it("investedEthWithCosts adds buy gas and hitch when on-chain", () => {
+    assert.equal(investedEthWithCosts({ ethSpent: 0.01, gasCostEth: 0.0001 }), 0.0101);
+    assert.equal(
+      investedEthWithCosts({ ethSpent: 0.01, gasCostEth: 0.0001, hitchCostEth: 0.00005, hitchOnChain: true }),
+      0.01015,
+    );
+    assert.equal(
+      investedEthWithCosts({ ethSpent: 0.01, gasCostEth: 0.0001, hitchCostEth: 0.00005, hitchOnChain: false }),
+      0.0101,
+    );
+  });
+
+  it("unknown-cost sells hold when leftover cannot clear gas edge", () => {
+    const gas = 0.0002;
+    // proceeds barely clear fee+impact+gas → leftover << 2× gas
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.00025,
+      entryEth: 0, // unknown
+      sellPct: 1,
+      feePct: 0.006,
+      gasCostEth: gas,
+      impactPct: 0.003,
+      gwei: 0.05,
+      symbol: "DUST",
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+      unknownEntry: true,
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /unknown cost|lose money|leftover/);
+    assert.ok(unknownCostMinLeftoverEth(gas) === gas * UNKNOWN_COST_GAS_EDGE_MULT);
+  });
+
+  it("unknown-cost sells allow only when leftover clears 2× gas edge", () => {
+    const gas = 0.00002;
+    const fees = 0.01 * 0.006 + 0.01 * 0.003 + gas; // fee+impact+gas on 0.01 proceeds
+    const need = gas * UNKNOWN_COST_GAS_EDGE_MULT;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01,
+      entryEth: 0,
+      sellPct: 1,
+      feePct: 0.006,
+      gasCostEth: gas,
+      impactPct: 0.003,
+      gwei: 0.05,
+      symbol: "KEYCAT",
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+      unknownEntry: true,
+    });
+    // leftover = 0.01 - fees; should exceed 2× gas on this size
+    assert.ok(0.01 - fees > need);
+    assert.equal(d.allow, true);
+  });
+
+  it("oracle fallback forces plain sale (never hitch without live L1)", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.02,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0.006,
+      gasCostEth: 0.00005,
+      impactPct: 0.003,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      hitchFeeSource: "fallback",
+      symbol: "AERO",
+      reason: "MAX PEAK",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.log, /L1 fee unknown|plain/);
+  });
+
+  it("net after skim never lists a wiped edge as profit", () => {
+    const wiped = netUsdAfterSkim({
+      receivedEth: 0.01005,
+      investedEth: 0.01,
+      skimEth: 0.0002, // skim > edge
+      ethUsd: 2500,
+      trustedCostBasis: true,
+    });
+    assert.ok(wiped.netUsd < 0 || wiped.netUsd === 0 || wiped.redeployableEth < 0.01);
+    const unknown = netUsdAfterSkim({
+      receivedEth: 0.01,
+      investedEth: 0,
+      skimEth: 0,
+      ethUsd: 2500,
+      trustedCostBasis: false,
+    });
+    assert.equal(unknown.netUsd, 0);
+    assert.equal(unknown.unknownCost, true);
+    assert.equal(netAfterSkimEth(0.01, 0.0001), 0.0099);
+  });
+});

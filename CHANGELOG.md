@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Fixed — plug fee/gas leaks so thin books never bleed ($10→$6)
+
+Live RISK book was listing “wins” while liquid fell. Leaks:
+
+1. **Round-trip impact charged once** in COST_EDGE / avenue / min-entry while
+   `calcNetMargin` used ×2 — entries understated break-even.
+2. **Buy gas (+ hitch) omitted from cost basis** — break-even sells still left
+   the wallet down by gas.
+3. **Unknown-cost recycle** treated `entryEth=0` leftover as green and listed
+   full proceeds as net profit → fake skim + cascade.
+4. **L1 oracle soft-fail → L1=0** — Eureka could hitch undercovered; now plain
+   sale (buy + sell) when oracle fallback is marked.
+5. **Skim after thin edge** — listed net ignored skim; skim now skipped if it
+   would wipe the edge, and listed PnL is post-skim.
+
+- Shared `DEFAULT_IMPACT_PCT` (0.3%) on both legs for RT math
+- `investedEthWithCosts` / `netUsdAfterSkim` / unknown gas-edge floor
+- Still never sell/insert when leftover ≤ 0
+
 ### Added — Storage Token system loop + crypto-event hard-push (Sprint 6)
 
 End-to-end simulation of the storage-token vision: sparse inject across all

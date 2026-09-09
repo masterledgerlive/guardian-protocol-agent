@@ -297,3 +297,19 @@ describe("cascade-rollover: wired into agent.js", () => {
     assert.ok(agentSrc.includes("ensureCascadeNativeGas"));
   });
 });
+
+describe("cascade-rollover: impact both legs", () => {
+  it("minEntryEth uses impact on both legs", () => {
+    const one = minEntryEth({
+      gasCostEth: 0.0001,
+      hitchCostEth: 0,
+      feePct: 0.01,
+      impactPct: 0.003,
+      cascadeSeedEth: 0,
+      buffer: 1,
+    });
+    // denom = 1 - 2*0.01 - 2*0.003 = 0.974; raw = 0.0002 / 0.974
+    const expect = (2 * 0.0001) / (1 - 0.02 - 0.006);
+    assert.ok(Math.abs(one - expect) < 1e-12);
+  });
+});

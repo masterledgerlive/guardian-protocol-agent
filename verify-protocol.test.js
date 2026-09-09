@@ -154,11 +154,11 @@ describe("verification: buys are not hallucinated", () => {
     const fill = body.indexOf("isSuccessfulBuyFill");
     const tradeCount = body.indexOf("tradeCount++");
     const btp = body.indexOf("BTP STRAND RECEIPT");
-    const telegram = body.indexOf("BOUGHT");
+    const telegram = body.indexOf("formatBuyReceiptHtml");
     assert.ok(fill >= 0, "must call isSuccessfulBuyFill");
     assert.ok(tradeCount > fill, "tradeCount only after fill");
     assert.ok(btp > fill, "BTP only after fill");
-    assert.ok(telegram > fill, "BOUGHT telegram only after fill");
+    assert.ok(telegram > fill, "buy receipt telegram only after fill");
     assert.ok(body.includes("getTokenBalance"), "must measure token delta");
     assert.ok(body.includes("getSwapReceiptStatus"), "must read receipt");
     assert.ok(body.includes("hitchTelegramFooter"), "must not print Eureka unless hitch is on the tx");
@@ -267,7 +267,7 @@ describe("verification: operator /buy is honest and chain is the ledger", () => 
     assert.ok(src.includes("async function skipBuy"));
     const buyFn = src.indexOf("async function executeBuy(");
     const body = src.slice(buyFn, src.indexOf("\nasync function executeSell", buyFn));
-    assert.ok(body.indexOf("isSuccessfulBuyFill") < body.indexOf("BOUGHT"));
+    assert.ok(body.indexOf("isSuccessfulBuyFill") < body.indexOf("formatBuyReceiptHtml"));
   });
 
   it("does not invent invested ETH from a live mark", () => {

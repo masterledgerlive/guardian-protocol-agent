@@ -43,7 +43,7 @@ export const INJECT_PROVE_TARGET = 20;
 /**
  * Round-trip floor in ETH so a fill can exit, hitch, and still leave cascade seed.
  *
- * tradeEth * (1 - 2*fee - impact) - 2*gas - hitch >= seed
+ * tradeEth * (1 - 2*fee - 2*impact) - 2*gas - hitch >= seed
  * tradeEth >= (2*gas + hitch + seed) / (1 - costPct) * buffer
  */
 export function minEntryEth({
@@ -59,7 +59,8 @@ export function minEntryEth({
   const seed = Math.max(0, Number(cascadeSeedEth) || 0);
   const fee = Math.max(0, Number(feePct) || 0);
   const impact = Math.max(0, Number(impactPct) || 0);
-  const costPct = 2 * fee + impact;
+  // Impact hits both legs — single-sided understated the floor and stranded RT.
+  const costPct = 2 * fee + 2 * impact;
   const denom = 1 - costPct;
   if (!(denom > 0.5)) {
     // Pathological fee book — refuse tiny probes

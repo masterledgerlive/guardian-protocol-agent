@@ -88,8 +88,10 @@ export function costFractions({
   const gas = Math.max(0, Number(gasCostEth) || 0);
   const fee = Math.max(0, Number(feePct) || 0);
   const impact = Math.max(0, Number(impactPct) || 0);
+  // Both legs: buy + sell. Charging impact once understated RT and let thin
+  // books arm seats that bleed after the exit (live $10→$6 leak).
   const feeEth = trade * fee * 2;
-  const impactEth = trade * impact;
+  const impactEth = trade * impact * 2;
   const gasEth = gas * 2;
   const rtEth = feeEth + impactEth + gasEth + hitch;
   return {
