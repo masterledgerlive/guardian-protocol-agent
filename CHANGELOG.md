@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added — HAT × wave: cost-paid bits, confirm seal, exit up without crash
+
+One bit was only the genesis proof. Wave leftover + earnings now size the next
+HAT chunk (transmission error cushion so we actually send). Sell floor hard-codes
+`mult × hitch_cost(bytes) + error_buffer`. Cursor resumes at last **confirmed**
+bit; unsealed drafts do not advance. After on-chain confirm + location seal,
+`evaluateConfirmedSendExit` may sell on the way up — no peak crash required —
+still never when leftover/fees are red.
+
+- **`hat-wave-inject.js`** — size / sell-target / cursor / confirm / exit-up
+- Still never hitch when leftover ≤ 0; never claim sent without `txHash` seal
+
 ### Added — VITA HAT: 1-bit encoded site preservation (Railway-style insert)
 
 Start of append-only vita memory for the live site (`public/*.html`: arena,

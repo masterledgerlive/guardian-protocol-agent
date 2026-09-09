@@ -8,9 +8,11 @@
  *
  * RULES:
  *   - Always write, never delete. Linear nodal chain (prevHash → thisHash).
- *   - First node is a ONE-BIT test (proof the inject path works).
+ *   - Genesis may be ONE BIT (proof); wave rides size UP when leftover+earnings
+ *     cover transmission + error cushion (see hat-wave-inject.js).
  *   - Short-term (ST) rides the message hitch; long-term (LT) plans the full site.
  *   - Payload is encoded (hex bit-pack), not plain HTML — proof of hardcoded insert.
+ *   - Reader trusts sealed tx locations only — confirm before claiming sent.
  *
  * RAILWAY INSERT (easy, like VAULT_*):
  *   HAT_ROOT_TX        — genesis bit node tx hash (or local node id until inscribed)
@@ -60,6 +62,8 @@ let hatNodes = [];
 let hatStrandId = null;
 let hatContentHash = null;
 let lastHatHash = "00000000";
+/** Total bits in the active preserve stream (for cursor remainingBits). */
+let hatTotalBits = 0;
 
 /**
  * @typedef {object} HatNode
@@ -84,6 +88,7 @@ export function getHatRegistry() {
     nodes: hatNodes.slice(), // copy — callers cannot mutate chain by reference splice
     neverDelete: true,
     linear: true,
+    totalBits: hatTotalBits,
   };
 }
 
@@ -92,12 +97,35 @@ export function setHatRegistry(data) {
   hatStrandId = data.strandId || null;
   hatContentHash = data.contentHash || null;
   lastHatHash = data.lastHash || "00000000";
+  hatTotalBits = Number(data.totalBits) || 0;
   // Append-only restore: replace only when empty or explicit bootstrap
   hatNodes = Array.isArray(data.nodes) ? data.nodes.slice() : [];
 }
 
 export function serializeHatRegistry() {
   return getHatRegistry();
+}
+
+/** Highest bit index covered by BIT/CHUNK nodes (planned or sealed). */
+export function coveredBitCount(nodes = hatNodes) {
+  let covered = 0;
+  for (const n of nodes || []) {
+    if (n.kind !== "BIT" && n.kind !== "CHUNK") continue;
+    const end = (Number(n.meta?.bitOffset) || 0) + (Number(n.meta?.bitCount) || 0);
+    if (end > covered) covered = end;
+  }
+  return covered;
+}
+
+/** Bits confirmed on sealed (txHash) BIT/CHUNK nodes only. */
+export function confirmedBitCount(nodes = hatNodes) {
+  let covered = 0;
+  for (const n of nodes || []) {
+    if ((n.kind !== "BIT" && n.kind !== "CHUNK") || !n.txHash) continue;
+    const end = (Number(n.meta?.bitOffset) || 0) + (Number(n.meta?.bitCount) || 0);
+    if (end > covered) covered = end;
+  }
+  return covered;
 }
 
 /** Refuse deletion — vita memory grows; nodes are permanent. */
@@ -257,6 +285,7 @@ export function mintOneBitTest({ bits, contentHash, strandId, files }) {
   }
   hatStrandId = strandId || "HAT-" + randomBytes(4).toString("hex");
   hatContentHash = contentHash;
+  hatTotalBits = bits?.length || 0;
   lastHatHash = "00000000";
 
   const encoded = encodeBitSlice(bits, 0, 1);
@@ -452,6 +481,33 @@ export function loadSiteFiles(paths = DEFAULT_SITE_PATHS, root = __dirname) {
 }
 
 /**
+ * Append a planned (unsealed) node from a wave ride draft.
+ * Cursor does not advance until sealHatNodeLocation / confirmHatWaveSend.
+ */
+export function appendHatNodeDraft(draft) {
+  if (!draft?.packet || !draft?.hash) {
+    throw new Error("invalid HAT draft");
+  }
+  const node = {
+    seq: hatNodes.length,
+    kind: draft.kind || "CHUNK",
+    date: new Date().toISOString().slice(0, 10),
+    prevHash: draft.prevHash || lastHatHash,
+    hash: draft.hash,
+    packet: draft.packet,
+    encoding: draft.encoding || "hat-bitpack-v1",
+    meta: { ...(draft.meta || {}), confirmed: false },
+    txHash: null,
+    nodeId: draft.nodeId || ("HAT-" + String(hatNodes.length).padStart(4, "0") + "-" + draft.hash),
+    savedAt: new Date().toISOString(),
+    confirmed: false,
+  };
+  hatNodes.push(node);
+  lastHatHash = node.hash;
+  return node;
+}
+
+/**
  * Full preserve bootstrap: load site → hash → 1-bit genesis → ST+LT plan.
  * Does not touch the chain; returns packets ready to hitch / Railway-insert.
  */
@@ -466,6 +522,7 @@ export function bootstrapHatPreservation({
     hatStrandId = null;
     hatContentHash = null;
     lastHatHash = "00000000";
+    hatTotalBits = 0;
   }
   const files = loadSiteFiles(paths, root);
   const blob = buildCanonicalSiteBlob(files);

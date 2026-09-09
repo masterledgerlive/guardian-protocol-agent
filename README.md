@@ -154,6 +154,7 @@ keystore.js           — Personal double-encrypted key manager
 log-formatter.js      — Structured human-readable log output
 bitstorage-orchestrator.js  — BITStorage / ShadowWeave strand injection
 vita-hat.js           — Append-only encoded site preservation (1-bit genesis + ST/LT)
+hat-wave-inject.js    — Wave-paid HAT sizing, confirm seal, exit-up without crash
 encryptkey.js         — One-time key encryption + inscription tool
 ```
 

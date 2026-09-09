@@ -164,10 +164,16 @@ export function reportInjectCapacity(live = {}) {
         messages_at_letter_hitch: letterPlan.minMessages,
         messages_at_live_leftover: livePlan.minMessages,
         horizons_by_budget: letterPlan.budgets,
-        reader:
-          "node vita-hat.js → artifacts/hat-preserve-plan.json → reader.locations[]",
-      };
-    })(),
+          reader:
+            "node vita-hat.js → artifacts/hat-preserve-plan.json → reader.locations[]",
+          wave: {
+            note: "Payload grows with leftover+earnings after transmission error buffer; 1-bit is genesis min only",
+            module: "hat-wave-inject.js",
+            confirm_before_claim_sent: true,
+            exit_up_after_seal: true,
+          },
+        };
+      })(),
     lose_zero: {
       never_hitch_when_leftover_nonpositive: true,
       never_sell_underwater_to_insert_storage: true,

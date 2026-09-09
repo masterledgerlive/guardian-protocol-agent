@@ -28,6 +28,8 @@ describe("storage-inject-capacity", () => {
     assert.ok(r.vita_hat.site_bytes > 80_000);
     assert.ok(r.vita_hat.messages_at_letter_hitch > 100);
     assert.ok(r.vita_hat.railway_env.includes("HAT_ROOT_TX"));
+    assert.equal(r.vita_hat.wave.confirm_before_claim_sent, true);
+    assert.equal(r.vita_hat.wave.exit_up_after_seal, true);
     assert.ok(r.horizons.site_arena_engine_cycles == null || r.horizons.site_arena_engine_cycles >= 1);
   });
 });
