@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Fixed — cascade into lowest primed bottoms; ETH only for fees/gas
+
+Peak exits were settling full proceeds as WETH and often **holding** until a
+token sat within ~1% of MIN trough. Capital bounced sell→ETH→wait instead of
+rolling into the next best bottom that avenue math already projected would go up.
+
+- **`rankCascadeBottoms` / `scoreCascadeBottom`** (`avenue-prime.js`) — pick the
+  lowest % above trough among primed/armed seats with projected net upside;
+  wider band for high-% / READY opportunities so cascade does not idle.
+- **`triggerCascade` / `findCascadeTarget`** — always redeploy into ranked
+  bottoms (primed first, cold scan fallback); Telegram notes gas floor kept for
+  fees/costs only.
+- **`cascadeDeployEth` + `getCascadePct`** — fee-fuel mode: deploy ~90–100% of
+  safe proceeds (gas floor still never crossed); less idle ETH after a paid exit.
+- **`planSuccessionInjections` / `canSecondInject`** — second hop allowed for
+  primed **near-bottom** seats (not only strict READY); succession sorts by
+  lowest trough distance.
+- Ripple targets use the same bottom-band math.
+
+Still never sells/inserts when leftover ≤ 0; stop-loss and `/exit` still do not
+cascade.
+
 ### Added — Control Board hub (`/board`) so humans and bots stop hunting files
 
 Arena (`/arena`, PR #42), Engine (`/engine`, PR #47), V4 offshoot (PR #46), Storage Token loop (PR #50), and fee/gas plug (PR #51) left HTML + docs on three URLs plus `guardian-protocol/` and `guardian-v4/README.md`.
