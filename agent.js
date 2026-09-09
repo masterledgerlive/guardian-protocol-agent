@@ -169,6 +169,10 @@ import {
   pickCascadeFromPrimed,
   primedSeatCount,
   formatPrimedAvenues,
+  rankCascadeBottoms,
+  scoreCascadeBottom,
+  isCascadeBottomEligible,
+  pctAboveTrough,
 } from "./avenue-prime.js";
 import {
   planSuccessionInjections,
@@ -726,6 +730,17 @@ function buildPrimedAvenues({
         recentHigh,
         tradeableUsd,
       });
+    })
+    .map((a) => {
+      // Attach live trough distance so cascade ranks lowest bottoms + projected upside
+      const minT = getMinTrough(a.symbol);
+      const px = history[a.symbol]?.lastPrice || a.price;
+      return {
+        ...a,
+        price: px,
+        minTrough: minT,
+        pctAboveTrough: pctAboveTrough(px, minT),
+      };
     });
   return primeAvenues(candidates, { topN });
 }
@@ -4294,9 +4309,11 @@ function getArmStatus(symbol, gasCostEth, tradeEth) {
 }
 
 function getCascadePct(netMargin) {
-  if (netMargin >= PRIORITY_MARGIN) return 0.70;
-  if (netMargin >= 0.030)           return 0.50;
-  return 0.30;
+  // Fee-fuel mode: keep ETH only for gas/costs; redeploy the rest into bottoms.
+  // cascadeDeployEth / gas floor still caps so we never strand native gas.
+  if (netMargin >= PRIORITY_MARGIN) return 0.95;
+  if (netMargin >= 0.030)           return 0.90;
+  return 0.80;
 }
 
 // Dead wave skip tracker — tokens that NEVER clear fees waste a full cycle each loop
@@ -6234,64 +6251,74 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
   const exclude = String(excludeSymbol || "").toUpperCase();
 
-  // 1) Primed seats first — cost already projected; execute when ready (no long wait)
+  // Build scored bottoms from primed seats first (cost already projected).
+  const primedRows = [];
   for (const a of currentPrimedAvenues || []) {
     if (!a?.allow || a.symbol === exclude) continue;
     const t = tokens.find((x) => x.symbol === a.symbol);
     if (!t || isCatalogFrozen(t) || t.entryPrice) continue;
     if (!canTrade(t.symbol, true)) continue;
-    if (a.readyNow || a.nearEntry) {
-      console.log(
-        `  🎯 CASCADE primed → ${t.symbol} | outcome ${a.outcomeScore.toFixed(2)} | ` +
-          `net~$${a.expectedNetUsd.toFixed(3)} | code ${a.hitchBytesFit}B`
-      );
-      return t;
-    }
+    const price = history[t.symbol]?.lastPrice || a.price;
+    const minT = a.minTrough || getMinTrough(t.symbol);
+    primedRows.push({
+      symbol: t.symbol,
+      token: t,
+      allow: true,
+      price,
+      minTrough: minT,
+      netMargin: Number(a.netMargin) || 0,
+      outcomeScore: Number(a.outcomeScore) || 0,
+      readyNow: !!(a.readyNow || a.nearEntry),
+      nearEntry: !!a.nearEntry,
+      primedReady: !!(a.readyNow || a.nearEntry),
+    });
+  }
+  const rankedPrimed = rankCascadeBottoms(primedRows, { excludeSymbol: exclude });
+  if (rankedPrimed.length) {
+    const best = rankedPrimed[0];
+    console.log(
+      `  🎯 CASCADE primed-bottom → ${best.symbol} | ` +
+        `+${((best.pctAboveTrough || 0) * 100).toFixed(2)}% above trough | ` +
+        `net~${((best.netMargin || 0) * 100).toFixed(2)}% | score ${best.cascadeBottomScore.toFixed(2)}`
+    );
+    return best.token;
   }
 
-  // 2) Among primed (armed but not yet READY), pick nearest trough with best net
-  let best = null, bestNet = -1;
-  for (const a of currentPrimedAvenues || []) {
-    if (!a?.allow || a.symbol === exclude) continue;
-    const t = tokens.find((x) => x.symbol === a.symbol);
-    if (!t || isCatalogFrozen(t) || t.entryPrice) continue;
+  // Cold scan — armed seats inside cascade band, lowest % above trough wins
+  const coldRows = [];
+  for (const t of tokens) {
+    if (String(t.symbol).toUpperCase() === exclude) continue;
+    if (isCatalogFrozen(t)) continue;
     if (!canTrade(t.symbol, true)) continue;
+    if (t.entryPrice) continue;
     const arm = getArmStatus(t.symbol, gasCost, tradeEth);
     if (!arm.armed) continue;
     const price = history[t.symbol]?.lastPrice;
     const minT = getMinTrough(t.symbol);
     if (!price || !minT) continue;
-    const nearLow = price <= minT * 1.015;
-    if (!nearLow) continue;
     const ind = getIndicatorScore(t.symbol);
-    const score = (arm.net || 0) + (a.outcomeScore || 0) * 0.001 + (ind.score >= 2 ? 0.01 : 0);
-    if (score > bestNet) { bestNet = score; best = t; }
+    coldRows.push({
+      symbol: t.symbol,
+      token: t,
+      allow: true,
+      price,
+      minTrough: minT,
+      netMargin: arm.net || 0,
+      outcomeScore: (arm.net || 0) * 100 + (ind.score >= 2 ? 10 : 0),
+      readyNow: false,
+      nearEntry: false,
+      primedReady: false,
+    });
   }
-  if (best) {
-    console.log(`  🎯 CASCADE primed-near → ${best.symbol}`);
-    return best;
+  const rankedCold = rankCascadeBottoms(coldRows, { excludeSymbol: exclude });
+  if (rankedCold.length) {
+    console.log(
+      `  🎯 CASCADE cold-bottom → ${rankedCold[0].symbol} | ` +
+        `+${((rankedCold[0].pctAboveTrough || 0) * 100).toFixed(2)}% above trough`
+    );
+    return rankedCold[0].token;
   }
-
-  // 3) Cold scan fallback (legacy) — still skip frozen / occupied
-  best = null;
-  bestNet = -1;
-  for (const t of tokens) {
-    if (t.symbol === excludeSymbol) continue;
-    if (isCatalogFrozen(t)) continue; // frozen names: exits only, never a cascade target
-    if (!canTrade(t.symbol, true)) continue; // uses cascade grace timer
-    if (t.entryPrice) continue;
-    const arm   = getArmStatus(t.symbol, gasCost, tradeEth);
-    if (!arm.armed) continue;
-    const price = history[t.symbol]?.lastPrice;
-    const minT  = getMinTrough(t.symbol);
-    if (!price || !minT) continue;
-    const nearLow = price <= minT * 1.01;
-    // Bonus: prioritize indicator-confirmed troughs
-    const ind   = getIndicatorScore(t.symbol);
-    const score = arm.net + (ind.score >= 2 ? 0.01 : 0); // small boost for confirmed
-    if (nearLow && score > bestNet) { bestNet = score; best = t; }
-  }
-  return best;
+  return null;
 }
 
 async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
@@ -6317,15 +6344,17 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
     const liquid = (freshBal.eth || 0) + (freshBal.weth || 0);
     const gasFloor = effectiveCascadeGasFloor(liquid, { gasReserveEth: GAS_RESERVE });
 
-    // Build succession candidates from primed READY seats (cost already projected).
-    // Second inject fires only when first portion is paid + surplus clears next min.
-    const candidates = [];
+    // Rank primed + cold bottoms by lowest % above trough + projected upside.
+    // ETH is fee/gas fuel only — redeploy into the next best bottoms, do not park.
+    const rawCandidates = [];
     for (const a of currentPrimedAvenues || []) {
       if (!a?.allow || !a.symbol) continue;
       if (String(a.symbol).toUpperCase() === String(soldSymbol || "").toUpperCase()) continue;
       const t = tokens.find((x) => x.symbol === a.symbol);
       if (!t || isCatalogFrozen(t) || t.entryPrice) continue;
       if (!canTrade(t.symbol, true)) continue;
+      const price = history[t.symbol]?.lastPrice || a.price;
+      const minT = a.minTrough || getMinTrough(t.symbol);
       const minE = Number(a.minEntryEth) > 0
         ? Number(a.minEntryEth)
         : effectiveMinEntryEth({
@@ -6336,24 +6365,49 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
             tokenMinBuyUsd: minBuyUsdForToken(t),
             minPosUsd: minPosUsd(),
           });
-      candidates.push({
+      const nearEntry = !!a.nearEntry;
+      const readyNow = !!(a.readyNow || nearEntry);
+      const eligible = isCascadeBottomEligible({
+        price,
+        minTrough: minT,
+        netMargin: Number(a.netMargin) || 0,
+        primedReady: readyNow,
+        nearEntry,
+      });
+      if (!eligible && !readyNow) continue;
+      rawCandidates.push({
         symbol: a.symbol,
         minEntryEth: minE,
-        readyNow: !!(a.readyNow || a.nearEntry),
+        readyNow,
+        nearEntry,
+        nearBottom: eligible,
         allow: true,
         outcomeScore: Number(a.outcomeScore) || 0,
         netMargin: Number(a.netMargin) || MIN_NET_MARGIN,
+        price,
+        minTrough: minT,
+        pctAboveTrough: pctAboveTrough(price, minT),
+        cascadeBottomScore: scoreCascadeBottom({
+          price,
+          minTrough: minT,
+          netMargin: Number(a.netMargin) || 0,
+          outcomeScore: Number(a.outcomeScore) || 0,
+          primedReady: readyNow,
+          nearEntry,
+        }),
         token: t,
       });
     }
 
-    // Fallback cold scan if nothing primed — still one seat until paid+surplus READY.
-    if (!candidates.length) {
+    // Cold-scan bottoms if primed list is empty / none eligible
+    if (!rawCandidates.length) {
       const target = await findCascadeTarget(soldSymbol, gasCost, proceeds);
       if (!target) {
-        console.log(`  🌊 No cascade target near MIN trough — proceeds held`);
+        console.log(`  🌊 No cascade bottom in band — keeping gas floor only (no primed upside)`);
         return;
       }
+      const price = history[target.symbol]?.lastPrice;
+      const minT = getMinTrough(target.symbol);
       const minE = effectiveMinEntryEth({
         gasCostEth: gasCost,
         hitchCostEth: hitchCost,
@@ -6363,15 +6417,38 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
         minPosUsd: minPosUsd(),
       });
       const arm = getArmStatus(target.symbol, gasCost, proceeds);
-      candidates.push({
+      rawCandidates.push({
         symbol: target.symbol,
         minEntryEth: minE,
         readyNow: true,
+        nearBottom: true,
         allow: true,
         outcomeScore: arm.net || 0,
         netMargin: arm.net || MIN_NET_MARGIN,
+        price,
+        minTrough: minT,
+        pctAboveTrough: pctAboveTrough(price, minT),
+        cascadeBottomScore: scoreCascadeBottom({
+          price,
+          minTrough: minT,
+          netMargin: arm.net || 0,
+          outcomeScore: arm.net || 0,
+          primedReady: true,
+          nearEntry: true,
+        }),
         token: target,
       });
+    }
+
+    // Prefer lowest bottoms first for succession
+    const candidates = rankCascadeBottoms(rawCandidates, { excludeSymbol: soldSymbol });
+    if (!candidates.length) {
+      // Fall back to raw primed READY even if band math missed (nearEntry already true)
+      candidates.push(...rawCandidates.filter((c) => c.readyNow || c.nearBottom));
+    }
+    if (!candidates.length) {
+      console.log(`  🌊 No cascade target — proceeds held as fee fuel only`);
+      return;
     }
 
     const plan = planSuccessionInjections({
@@ -6400,21 +6477,25 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       const balHop = await getFullBalance();
       const price = history[target.symbol]?.lastPrice;
       const arm = getArmStatus(target.symbol, gasCost, hop.deployEth);
+      const seatMeta = candidates.find((c) => c.symbol === hop.symbol);
+      const abovePct = seatMeta?.pctAboveTrough;
       const tag = hop.secondInject
         ? `🔁 2ND INJECT from ${soldSymbol} → ${target.symbol}`
         : `🌊 CASCADE ${soldSymbol} → ${target.symbol}`;
-      const minLabel = Number(hop.minEntryEth || candidates.find((c) => c.symbol === hop.symbol)?.minEntryEth || 0);
+      const minLabel = Number(hop.minEntryEth || seatMeta?.minEntryEth || 0);
       console.log(
         `  ${tag} | seat ${hop.seat} | ${(arm.net * 100).toFixed(2)}% net [${arm.priority}] | ` +
-          `deploy ${hop.deployEth.toFixed(6)} (≥ min ${minLabel.toFixed(6)}, gas floor ${gasFloor.toFixed(6)})`
+          `deploy ${hop.deployEth.toFixed(6)} (≥ min ${minLabel.toFixed(6)}, gas floor ${gasFloor.toFixed(6)})` +
+          (abovePct != null ? ` | +${(abovePct * 100).toFixed(2)}% above trough` : "")
       );
       await tg(
         `${hop.secondInject ? "🔁" : "🌊"} <b>${hop.secondInject ? "2ND INJECT" : "CASCADE"}: ${soldSymbol} → ${target.symbol}</b>\n\n` +
           `💰 Deploying: ${hop.deployEth.toFixed(6)} ETH (seat ${hop.seat}/${plan.injections.length})\n` +
-          `⛽ Gas floor kept: ${gasFloor.toFixed(6)} ETH\n` +
+          `⛽ Gas floor kept: ${gasFloor.toFixed(6)} ETH (fees/costs only)\n` +
           `📊 Net margin: ${(arm.net * 100).toFixed(2)}% [${arm.priority}]\n` +
+          (abovePct != null ? `📉 Above trough: +${(abovePct * 100).toFixed(2)}%\n` : "") +
           `💌 Hitch on buy when leftover covers (sell hitch already rode if paid)\n` +
-          `💲 At MIN trough: $${price?.toFixed(8)}\n⚡ Buying...`
+          `💲 At bottom zone: $${price?.toFixed(8)}\n⚡ Buying...`
       );
       await executeBuy(
         cdp,
@@ -6471,8 +6552,8 @@ async function runRippleEngine(cdp, allTokens, bal, ethUsd) {
     if (staleSources.length === 0) return;
 
     // ── Step 2: Find active target waves ready to break ───────────────────────
-    // A ripple target must be: armed, near min trough OR showing kahuna signal,
-    // not currently held (we're redeploying stale capital, not averaging up)
+    // Prefer lowest % above trough with projected upside (same math as cascade).
+    // Kahuna flood still overrides when intensity is high.
     const rippleTargets = [];
     for (const t of allTokens) {
       if (isCatalogFrozen(t)) continue; // frozen names: never a ripple buy target
@@ -6482,17 +6563,39 @@ async function runRippleEngine(cdp, allTokens, bal, ethUsd) {
       const price = history[t.symbol]?.lastPrice;
       const minT  = getMinTrough(t.symbol);
       if (!price || !minT) continue;
-      const nearLow = price <= minT * 1.015; // within 1.5% of min trough
       const ind     = getIndicatorScore(t.symbol);
       const kahuna  = getKahunaSignal(t.symbol);
       const isKahuna = kahuna.kahunaActive && kahuna.intensity >= RIPPLE_KAHUNA_THRESH;
-      // Score: net margin + indicator bonus + kahuna boost
-      const score = arm.net
+      const nearLow = isCascadeBottomEligible({
+        price,
+        minTrough: minT,
+        netMargin: arm.net || 0,
+        primedReady: false,
+        nearEntry: false,
+      });
+      const bottomScore = scoreCascadeBottom({
+        price,
+        minTrough: minT,
+        netMargin: arm.net || 0,
+        outcomeScore: (arm.net || 0) * 100 + (ind.score >= 2 ? 10 : 0),
+      });
+      // Score: bottom closeness + net margin + indicator bonus + kahuna boost
+      const score = (bottomScore >= 0 ? bottomScore : 0)
+        + (arm.net || 0)
         + (ind.score >= 2 ? 0.02 : 0)
         + (ind.score >= 3 ? 0.02 : 0)
         + (isKahuna ? 0.10 : 0);
       if (nearLow || isKahuna) {
-        rippleTargets.push({ token: t, price, arm, ind, kahuna, score, isKahuna });
+        rippleTargets.push({
+          token: t,
+          price,
+          arm,
+          ind,
+          kahuna,
+          score,
+          isKahuna,
+          pctAboveTrough: pctAboveTrough(price, minT),
+        });
       }
     }
     if (rippleTargets.length === 0) return;

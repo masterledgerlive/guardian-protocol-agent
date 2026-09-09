@@ -9,7 +9,8 @@
  * Rules:
  *   1. Minimum entry covers buy+sell gas, pool fees, hitch, and a cascade seed.
  *   2. Thin books inject ALL tradeable into ONE seat (not split T1/T2).
- *   3. Cascade deploys only after a profitable exit, sized ≥ next min entry.
+ *   3. Cascade deploys after a profitable exit into the next lowest primed
+ *      bottoms (projected upside); ETH retained is the gas/fee floor only.
  *   4. Piggy dust is never part of deployable proceeds.
  *   5. Liquid-thin + bags deployed ≠ empty wallet — recycle, don't panic top-up.
  *   6. Cascade never spends the native-gas floor — highest deploy without loss
@@ -235,11 +236,12 @@ export function cascadeDeployEth({
 
   let pct = Number(deployPct);
   if (!Number.isFinite(pct) || pct <= 0) {
+    // Fee-fuel mode: park only the gas floor in ETH; redeploy the rest into
+    // the next lowest primed bottom. maxSafe already leaves the floor.
     const net = Number(netMargin) || 0;
-    if (net >= 0.05) pct = 1;
-    else if (net >= 0.03) pct = 0.85;
-    else if (net >= 0.015) pct = 0.7;
-    else pct = 0.55;
+    if (net >= 0.03) pct = 1;
+    else if (net >= 0.015) pct = 0.95;
+    else pct = 0.9;
   }
   pct = Math.min(1, Math.max(0, pct));
   let deploy = proceeds * pct;

@@ -60,6 +60,7 @@ export function canSecondInject({
   gasFloorEth = 0,
   firstDeployEth = 0,
   nextReady = false,
+  nextNearBottom = false,
   nextAllow = false,
   netProfitEth = null,
   piggyBufferPct = PIGGY_MATH_BUFFER_PCT,
@@ -76,8 +77,9 @@ export function canSecondInject({
   if (!nextAllow) {
     return { allow: false, reason: "next avenue refused (would lose)", paid, deployEth: 0 };
   }
-  if (!nextReady) {
-    return { allow: false, reason: "next avenue not READY (requirements)", paid, deployEth: 0 };
+  // READY or primed near-bottom with projected upside — do not park surplus as ETH.
+  if (!nextReady && !nextNearBottom) {
+    return { allow: false, reason: "next avenue not READY / not near bottom", paid, deployEth: 0 };
   }
   const secondMin = Math.max(0, Number(secondMinEntryEth) || 0);
   if (!(secondMin > 0)) {
@@ -148,9 +150,16 @@ export function planSuccessionInjections({
     .filter((c) => c && c.allow !== false && c.symbol && String(c.symbol).toUpperCase() !== exclude)
     .slice()
     .sort((a, b) => {
-      const rA = a.readyNow ? 1 : 0;
-      const rB = b.readyNow ? 1 : 0;
+      // Prefer READY, then lowest % above trough (direct into bottoms), then score
+      const rA = a.readyNow || a.nearBottom ? 1 : 0;
+      const rB = b.readyNow || b.nearBottom ? 1 : 0;
       if (rB !== rA) return rB - rA;
+      const pA = Number.isFinite(Number(a.pctAboveTrough)) ? Number(a.pctAboveTrough) : 99;
+      const pB = Number.isFinite(Number(b.pctAboveTrough)) ? Number(b.pctAboveTrough) : 99;
+      if (pA !== pB) return pA - pB;
+      const sA = Number(a.cascadeBottomScore) || 0;
+      const sB = Number(b.cascadeBottomScore) || 0;
+      if (sB !== sA) return sB - sA;
       return (Number(b.outcomeScore) || 0) - (Number(a.outcomeScore) || 0);
     });
 
@@ -164,11 +173,11 @@ export function planSuccessionInjections({
     const seat = pool.shift();
     const minE = Math.max(0, Number(seat.minEntryEth) || 0);
     if (i === 0) {
-      // Look-ahead: if a READY second seat can be funded after first is paid,
-      // reserve its min entry so the first hop does not eat the whole book.
+      // Look-ahead: if a READY / near-bottom second seat can be funded after first
+      // is paid, reserve its min entry so the first hop does not eat the whole book.
       let secondReserve = 0;
       if (maxN >= 2) {
-        const peek = pool.find((c) => c && c.readyNow && c.allow !== false);
+        const peek = pool.find((c) => c && (c.readyNow || c.nearBottom) && c.allow !== false);
         if (peek) {
           const paidCheck = firstInjectPaid({
             proceedsEth: remainingProceeds,
@@ -213,7 +222,7 @@ export function planSuccessionInjections({
       continue;
     }
 
-    // Second inject — only if first paid + READY requirements
+    // Second inject — first paid + READY or primed near-bottom (projected upside)
     const firstMin = Math.max(
       0,
       Number(injections[0]?.minEntryEth) || Number(injections[0]?.deployEth) || 0,
@@ -226,6 +235,7 @@ export function planSuccessionInjections({
       gasFloorEth: floor,
       firstDeployEth: injections[0].deployEth,
       nextReady: !!seat.readyNow,
+      nextNearBottom: !!seat.nearBottom,
       nextAllow: seat.allow !== false,
       netProfitEth,
       piggyBufferPct,
@@ -238,7 +248,8 @@ export function planSuccessionInjections({
       symbol: String(seat.symbol).toUpperCase(),
       deployEth: gate.deployEth,
       seat: 2,
-      readyNow: true,
+      readyNow: !!seat.readyNow,
+      nearBottom: !!seat.nearBottom,
       hitchPreferred: true,
       secondInject: true,
     });

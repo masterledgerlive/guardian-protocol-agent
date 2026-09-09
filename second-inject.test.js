@@ -58,7 +58,7 @@ describe("second-inject: second gate", () => {
     assert.ok(gate.deployEth >= 0.002);
   });
 
-  it("holds when next avenue is not READY", () => {
+  it("holds when next avenue is not READY and not near bottom", () => {
     const gate = canSecondInject({
       proceedsEth: 0.006,
       firstMinEntryEth: 0.002,
@@ -67,11 +67,29 @@ describe("second-inject: second gate", () => {
       gasFloorEth: 0.001,
       firstDeployEth: 0.0025,
       nextReady: false,
+      nextNearBottom: false,
       nextAllow: true,
       netProfitEth: 0.001,
     });
     assert.equal(gate.allow, false);
-    assert.match(gate.reason, /READY|requirements/i);
+    assert.match(gate.reason, /READY|near bottom/i);
+  });
+
+  it("fires second inject when next is near-bottom even if not READY", () => {
+    const gate = canSecondInject({
+      proceedsEth: 0.006,
+      firstMinEntryEth: 0.002,
+      secondMinEntryEth: 0.002,
+      liquidEth: 0.008,
+      gasFloorEth: 0.001,
+      firstDeployEth: 0.0025,
+      nextReady: false,
+      nextNearBottom: true,
+      nextAllow: true,
+      netProfitEth: 0.001,
+    });
+    assert.equal(gate.allow, true);
+    assert.ok(gate.deployEth >= 0.002);
   });
 
   it("holds when surplus would deplete gas floor", () => {
@@ -133,7 +151,7 @@ describe("second-inject: succession plan", () => {
     assert.match(formatSuccessionPlan(plan), /2ND/);
   });
 
-  it("stops at first inject when second not READY", () => {
+  it("stops at first inject when second not READY and not near bottom", () => {
     const plan = planSuccessionInjections({
       proceedsEth: 0.007,
       liquidEth: 0.009,
@@ -152,6 +170,7 @@ describe("second-inject: succession plan", () => {
           symbol: "DEGEN",
           minEntryEth: 0.002,
           readyNow: false,
+          nearBottom: false,
           allow: true,
           outcomeScore: 60,
           netMargin: 0.04,
@@ -160,6 +179,71 @@ describe("second-inject: succession plan", () => {
     });
     assert.equal(plan.injections.length, 1);
     assert.equal(plan.secondFired, false);
+  });
+
+  it("plans second inject into lower near-bottom when READY absent", () => {
+    const plan = planSuccessionInjections({
+      proceedsEth: 0.007,
+      liquidEth: 0.009,
+      gasFloorEth: 0.001,
+      netProfitEth: 0.0015,
+      candidates: [
+        {
+          symbol: "UNI",
+          minEntryEth: 0.002,
+          readyNow: true,
+          allow: true,
+          outcomeScore: 90,
+          netMargin: 0.05,
+          pctAboveTrough: 0.01,
+        },
+        {
+          symbol: "LINK",
+          minEntryEth: 0.002,
+          readyNow: false,
+          nearBottom: true,
+          allow: true,
+          outcomeScore: 80,
+          netMargin: 0.045,
+          pctAboveTrough: 0.02,
+        },
+      ],
+    });
+    assert.equal(plan.injections.length, MAX_SUCCESSION_INJECTS);
+    assert.equal(plan.secondFired, true);
+    assert.equal(plan.injections[1].symbol, "LINK");
+  });
+
+  it("prefers lowest pct-above-trough when ranking succession seats", () => {
+    const plan = planSuccessionInjections({
+      proceedsEth: 0.004,
+      liquidEth: 0.006,
+      gasFloorEth: 0.001,
+      netProfitEth: 0.001,
+      candidates: [
+        {
+          symbol: "HIGH",
+          minEntryEth: 0.002,
+          readyNow: true,
+          nearBottom: true,
+          allow: true,
+          outcomeScore: 99,
+          netMargin: 0.06,
+          pctAboveTrough: 0.04,
+        },
+        {
+          symbol: "LOW",
+          minEntryEth: 0.002,
+          readyNow: true,
+          nearBottom: true,
+          allow: true,
+          outcomeScore: 50,
+          netMargin: 0.04,
+          pctAboveTrough: 0.005,
+        },
+      ],
+    });
+    assert.equal(plan.injections[0].symbol, "LOW");
   });
 });
 

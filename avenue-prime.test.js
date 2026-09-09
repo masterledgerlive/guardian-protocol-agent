@@ -14,6 +14,11 @@ import {
   pickCascadeFromPrimed,
   primedSeatCount,
   formatPrimedAvenues,
+  rankCascadeBottoms,
+  scoreCascadeBottom,
+  isCascadeBottomEligible,
+  pctAboveTrough,
+  cascadeBottomBand,
   PRIMED_TOP_N,
 } from "./avenue-prime.js";
 
@@ -192,13 +197,89 @@ describe("avenue-prime: top 2–3 ranking", () => {
   });
 });
 
+describe("avenue-prime: cascade bottom ranking", () => {
+  it("scores lowest % above trough highest when nets are similar", () => {
+    const low = scoreCascadeBottom({
+      price: 1.01,
+      minTrough: 1,
+      netMargin: 0.04,
+      outcomeScore: 50,
+    });
+    const high = scoreCascadeBottom({
+      price: 1.04,
+      minTrough: 1,
+      netMargin: 0.04,
+      outcomeScore: 50,
+    });
+    assert.ok(low > high);
+    assert.ok(pctAboveTrough(1.01, 1) < pctAboveTrough(1.04, 1));
+  });
+
+  it("widens band for high projected net / primed READY", () => {
+    assert.ok(cascadeBottomBand({ netMargin: 0.06 }) > cascadeBottomBand({ netMargin: 0.02 }));
+    assert.equal(
+      isCascadeBottomEligible({
+        price: 1.05,
+        minTrough: 1,
+        netMargin: 0.06,
+      }),
+      true,
+    );
+    assert.equal(
+      isCascadeBottomEligible({
+        price: 1.05,
+        minTrough: 1,
+        netMargin: 0.02,
+      }),
+      false,
+    );
+    assert.equal(
+      isCascadeBottomEligible({
+        price: 1.04,
+        minTrough: 1,
+        netMargin: 0.03,
+        primedReady: true,
+      }),
+      true,
+    );
+  });
+
+  it("ranks primed bottoms by closeness then projected upside", () => {
+    const ranked = rankCascadeBottoms([
+      {
+        symbol: "FAR",
+        allow: true,
+        price: 1.04,
+        minTrough: 1,
+        netMargin: 0.06,
+        outcomeScore: 90,
+        readyNow: true,
+      },
+      {
+        symbol: "NEAR",
+        allow: true,
+        price: 1.005,
+        minTrough: 1,
+        netMargin: 0.04,
+        outcomeScore: 40,
+        readyNow: true,
+      },
+    ]);
+    assert.equal(ranked[0].symbol, "NEAR");
+    const picked = pickCascadeFromPrimed(ranked, { excludeSymbol: "SOLD" });
+    assert.equal(picked.symbol, "NEAR");
+  });
+});
+
 describe("avenue-prime: wired into agent.js", () => {
   it("imports and uses primed cascade selection", () => {
     assert.ok(agentSrc.includes('from "./avenue-prime.js"'));
     assert.ok(agentSrc.includes("primeAvenues"));
     assert.ok(agentSrc.includes("pickCascadeFromPrimed"));
+    assert.ok(agentSrc.includes("rankCascadeBottoms"));
     assert.ok(agentSrc.includes("currentPrimedAvenues"));
     assert.ok(agentSrc.includes("formatPrimedAvenues"));
+    assert.ok(agentSrc.includes("isCascadeBottomEligible"));
   });
 });
 

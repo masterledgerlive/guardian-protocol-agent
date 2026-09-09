@@ -251,8 +251,139 @@ export function primeAvenues(candidates = [], { topN = PRIMED_TOP_N, minN = PRIM
 }
 
 /**
+ * How far price sits above the confirmed MIN trough (0 = at bottom).
+ * null when math cannot score the seat.
+ */
+export function pctAboveTrough(price, minTrough) {
+  const px = Number(price);
+  const lo = Number(minTrough);
+  if (!(px > 0) || !(lo > 0)) return null;
+  return Math.max(0, (px - lo) / lo);
+}
+
+/**
+ * Cascade entry band above trough — wider when the projected net is large /
+ * the seat is already primed READY. High-% primed opportunities should not
+ * wait for a perfect 1% print while proceeds park as ETH.
+ */
+export const CASCADE_BOTTOM_BAND_BASE = 0.025; // 2.5%
+export const CASCADE_BOTTOM_BAND_STANDARD = 0.04; // 4%
+export const CASCADE_BOTTOM_BAND_PRIORITY = 0.055; // 5.5%
+export const CASCADE_BOTTOM_BAND_PRIMED = 0.045; // 4.5% primed READY / near-entry
+
+export function cascadeBottomBand({
+  netMargin = 0,
+  primedReady = false,
+  nearEntry = false,
+  priorityMargin = 0.05,
+} = {}) {
+  if (primedReady || nearEntry) return CASCADE_BOTTOM_BAND_PRIMED;
+  const net = Number(netMargin) || 0;
+  if (net >= Number(priorityMargin) || net >= 0.05) return CASCADE_BOTTOM_BAND_PRIORITY;
+  if (net >= 0.03) return CASCADE_BOTTOM_BAND_STANDARD;
+  return CASCADE_BOTTOM_BAND_BASE;
+}
+
+/**
+ * Eligible cascade bottom: within band of MIN trough, or already primed near-entry.
+ * ETH is fee/gas fuel only — we score bottoms so capital redeploys instead of waiting.
+ */
+export function isCascadeBottomEligible({
+  price = 0,
+  minTrough = 0,
+  netMargin = 0,
+  primedReady = false,
+  nearEntry = false,
+  priorityMargin = 0.05,
+  maxBand = null,
+} = {}) {
+  if (nearEntry && (primedReady || (Number(netMargin) || 0) > 0)) return true;
+  const pct = pctAboveTrough(price, minTrough);
+  if (pct == null) return false;
+  const band =
+    maxBand != null && Number.isFinite(Number(maxBand))
+      ? Math.max(0, Number(maxBand))
+      : cascadeBottomBand({ netMargin, primedReady, nearEntry, priorityMargin });
+  return pct <= band + 1e-12;
+}
+
+/**
+ * Rank score: lowest % above trough wins, then highest projected net / outcome.
+ * Primed READY seats get a small boost so cost-checked avenues beat cold scans.
+ */
+export function scoreCascadeBottom({
+  price = 0,
+  minTrough = 0,
+  netMargin = 0,
+  outcomeScore = 0,
+  primedReady = false,
+  nearEntry = false,
+  priorityMargin = 0.05,
+} = {}) {
+  if (
+    !isCascadeBottomEligible({
+      price,
+      minTrough,
+      netMargin,
+      primedReady,
+      nearEntry,
+      priorityMargin,
+    })
+  ) {
+    return -1;
+  }
+  const pct = pctAboveTrough(price, minTrough);
+  // Invert distance-to-bottom (0% above → ~1.0; far → smaller).
+  // Primed near-entry without a live print still outranks idle ETH parking.
+  const closeness =
+    pct == null
+      ? primedReady || nearEntry
+        ? 0.85
+        : 0
+      : 1 / (1 + pct * 40);
+  const net = Math.max(0, Number(netMargin) || 0);
+  const outcome = Math.max(0, Number(outcomeScore) || 0);
+  const readyBoost = primedReady || nearEntry ? 1.25 : 1;
+  // Primary: closest bottom; secondary: projected upside math already set on the avenue
+  return (closeness * 10 + net * 8 + outcome * 0.002) * readyBoost;
+}
+
+/**
+ * Rank cascade candidates: direct into next-best lowest bottoms with upside.
+ * Each item: { symbol, price, minTrough, netMargin, outcomeScore, readyNow, nearEntry, allow }.
+ */
+export function rankCascadeBottoms(candidates = [], { excludeSymbol = null, requireReady = false } = {}) {
+  const exclude = excludeSymbol ? String(excludeSymbol).toUpperCase() : null;
+  const scored = (Array.isArray(candidates) ? candidates : [])
+    .filter((a) => a && a.allow !== false && a.symbol && String(a.symbol).toUpperCase() !== exclude)
+    .map((a) => {
+      const score = scoreCascadeBottom({
+        price: a.price,
+        minTrough: a.minTrough,
+        netMargin: a.netMargin,
+        outcomeScore: a.outcomeScore,
+        primedReady: !!(a.readyNow || a.primedReady),
+        nearEntry: !!a.nearEntry,
+      });
+      return { ...a, cascadeBottomScore: score, pctAboveTrough: pctAboveTrough(a.price, a.minTrough) };
+    })
+    .filter((a) => a.cascadeBottomScore >= 0);
+  const ready = scored.filter((a) => a.readyNow || a.primedReady || a.nearEntry);
+  const pool = requireReady ? ready : scored;
+  return pool.slice().sort((a, b) => {
+    // Lowest % above trough first among similar scores; else higher cascadeBottomScore
+    const s = (b.cascadeBottomScore || 0) - (a.cascadeBottomScore || 0);
+    if (Math.abs(s) > 1e-9) return s;
+    const pA = a.pctAboveTrough == null ? 99 : a.pctAboveTrough;
+    const pB = b.pctAboveTrough == null ? 99 : b.pctAboveTrough;
+    if (pA !== pB) return pA - pB;
+    return (Number(b.netMargin) || 0) - (Number(a.netMargin) || 0);
+  });
+}
+
+/**
  * Pick the next cascade target from a primed list (already cost-checked).
- * Prefer readyNow seats; otherwise best outcomeScore that clears exclude.
+ * Prefer lowest-% bottoms with projected upside; fall back to outcomeScore.
  */
 export function pickCascadeFromPrimed(primed = [], { excludeSymbol = null, requireReady = false } = {}) {
   const exclude = excludeSymbol ? String(excludeSymbol).toUpperCase() : null;
@@ -260,6 +391,12 @@ export function pickCascadeFromPrimed(primed = [], { excludeSymbol = null, requi
     (a) => a && a.allow && a.symbol && a.symbol !== exclude
   );
   if (!list.length) return null;
+  // When price/trough are present, rank by lowest bottom + projected net
+  const withBottom = list.filter((a) => Number(a.price) > 0 && Number(a.minTrough) > 0);
+  if (withBottom.length) {
+    const ranked = rankCascadeBottoms(withBottom, { excludeSymbol, requireReady });
+    if (ranked.length) return ranked[0];
+  }
   const ready = list.filter((a) => a.readyNow);
   const pool = requireReady ? ready : ready.length ? ready : list;
   if (!pool.length) return null;
