@@ -813,6 +813,27 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.match(d.log, /sell now/);
   });
 
+  it("piggy earnings buffer skips hitch so message cannot wipe listed gains", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 0.05 });
+    const leftover = hitch * 2 + 0.0001; // would cover 2× hitch alone
+    const proceeds = 0.01 + leftover;
+    const d = evaluateSellGate({
+      projectedProceedsEth: proceeds,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      piggyEarningsBufferEth: leftover, // entire leftover reserved for piggy earnings
+      reason: "🎯 MAX PEAK",
+      symbol: "LINK",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.log, /plain|piggy earnings/i);
+  });
+
   it("sizes extra hitch down so inject_cost × 2 ≤ leftover (skip extra rather than sell at a loss)", () => {
     const store = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = store * 2 + 1e-12; // covers 2× STORE, not a 10KB chunk

@@ -17,8 +17,8 @@ import {
 /** Max injects from one profitable exit (first + second). */
 export const MAX_SUCCESSION_INJECTS = 2;
 
-/** Default piggy/skim buffer fraction of first min-entry (covers 1% skim × overhead). */
-export const PIGGY_MATH_BUFFER_PCT = 0.04;
+/** Default piggy/skim buffer fraction of first min-entry (covers 5% dust + skim runway). */
+export const PIGGY_MATH_BUFFER_PCT = 0.08;
 
 /**
  * Has the first inject portion been paid with room for piggy math?

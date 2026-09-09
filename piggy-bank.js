@@ -7,10 +7,14 @@
  * (reason prefix `PIGGY UNLOCK` or Telegram `/piggyunlock SYMBOL`).
  *
  * Sizing hypothesis (sane defaults, env-overridable):
- *   PIGGY_BANK_PCT      = 2% of current token units (matches the old lottery %).
- *   PIGGY_BANK_MIN_USD  = $0.05 floor so a tiny bag still leaves a real pile
- *                         if 2% would be dust-of-dust. No min-token-count floor
- *                         (1 TOSHI is worthless; 1 CBBTC would trap the bag).
+ *   PIGGY_BANK_PCT      = 5% of current token units (was 2% — too thin; real
+ *                         seats must leave a compounding pile, not dust-of-dust).
+ *   PIGGY_BANK_MIN_USD  = $0.15 floor on bags that can afford it. Crumbs below
+ *                         the floor use pct only so we do not 100%-lock $0.02
+ *                         bags and "list money" with sellable = 0 forever.
+ *   PIGGY_EARNINGS_BUFFER_PCT = 5% of proceeds that must remain after fees +
+ *                         skim + hitch message — math must never list a gain
+ *                         that evaporates once Eureka bytes ride the fill.
  *
  * Ratchet: reserve floors up when balance grows. It never auto-decreases.
  * After a partial sell the persisted reserve stays at the high-water mark
@@ -20,6 +24,8 @@
  * Ledger rule: peak gates and post-fill PnL must charge only the sold fraction
  * of entry cost (`previewPiggySellNetUsd` / `costBasisForSoldFraction`). Leaving
  * dust behind leaves that cost behind — otherwise succession math fails.
+ * Earnings-with-message use `earningsUsd` (net − hitch) and refuse hitch when
+ * that figure cannot clear the piggy earnings buffer.
  *
  * Nested ledgers (`buildTokenPiggyLedger`): dust + ETH contrib + agent share
  * per inject seat. Agent share funds future AI piggy banks; dust stays locked.
@@ -29,8 +35,10 @@
  */
 
 export const PIGGY_UNLOCK_PREFIX = "PIGGY UNLOCK";
-export const DEFAULT_PIGGY_BANK_PCT = 0.02;
-export const DEFAULT_PIGGY_BANK_MIN_USD = 0.05;
+export const DEFAULT_PIGGY_BANK_PCT = 0.05;
+export const DEFAULT_PIGGY_BANK_MIN_USD = 0.15;
+/** Fraction of proceeds that must remain as true earnings after fees/skim/hitch. */
+export const DEFAULT_PIGGY_EARNINGS_BUFFER_PCT = 0.05;
 
 /** True iff reason starts with `PIGGY UNLOCK` (case-insensitive). */
 export function isPiggyUnlock(reason = "") {
@@ -121,6 +129,8 @@ export function sanitizePiggyReserve(value) {
 /**
  * Target reserve from *current* balance (not the persisted high-water mark).
  * max(pct × balance, minUsd / price), never more than balance.
+ * USD floor only applies when bag USD ≥ min — otherwise crumbs would be
+ * 100% locked (live Railway: $0.01–$0.02 bags listed forever, sellable 0).
  * Pass `opts` (`symbol` / catalog pct) for per-token leave-behind (LINK = 8%).
  */
 export function computePiggyTarget(balance, priceUsd, env = process.env, opts = {}) {
@@ -129,10 +139,50 @@ export function computePiggyTarget(balance, priceUsd, env = process.env, opts = 
   const fromPct = bal * piggyBankPct(env, opts);
   const price = Number(priceUsd);
   const minUsd = piggyBankMinUsd(env, opts);
-  const fromUsd = Number.isFinite(price) && price > 0 && minUsd > 0
+  const bagUsd = Number.isFinite(price) && price > 0 ? bal * price : 0;
+  const fromUsd = bagUsd + 1e-12 >= minUsd && minUsd > 0 && Number.isFinite(price) && price > 0
     ? minUsd / price
     : 0;
   return Math.min(bal, Math.max(fromPct, fromUsd));
+}
+
+/**
+ * `PIGGY_EARNINGS_BUFFER_PCT` — fraction of proceeds that must remain after
+ * fees + skim + hitch message. Env override; invalid → 5%.
+ */
+export function piggyEarningsBufferPct(env = process.env, opts = {}) {
+  if (opts?.piggyEarningsBufferPct != null && opts.piggyEarningsBufferPct !== "") {
+    return parsePiggyPctValue(opts.piggyEarningsBufferPct, DEFAULT_PIGGY_EARNINGS_BUFFER_PCT);
+  }
+  return parsePiggyPctValue(env?.PIGGY_EARNINGS_BUFFER_PCT, DEFAULT_PIGGY_EARNINGS_BUFFER_PCT);
+}
+
+/**
+ * True earnings after piggy-aligned net and optional hitch message cost.
+ * `gains` is only true when earnings clear the piggy buffer — never list a
+ * "WAVE COMPLETE" gain that the message would wipe.
+ */
+export function piggyEarningsAfterMessage({
+  netUsd = 0,
+  hitchCostUsd = 0,
+  proceedsUsd = 0,
+  bufferPct = DEFAULT_PIGGY_EARNINGS_BUFFER_PCT,
+} = {}) {
+  const net = Number(netUsd) || 0;
+  const hitch = Math.max(0, Number(hitchCostUsd) || 0);
+  const proceeds = Math.max(0, Number(proceedsUsd) || 0);
+  const buf = Math.max(0, Number(bufferPct) || 0);
+  const earningsUsd = net - hitch;
+  const needUsd = proceeds * buf;
+  const gains = earningsUsd + 1e-12 > needUsd && earningsUsd > 0;
+  return {
+    earningsUsd,
+    hitchCostUsd: hitch,
+    needUsd,
+    bufferPct: buf,
+    gains,
+    neverLose: gains,
+  };
 }
 
 /**
@@ -249,6 +299,10 @@ export function costBasisForSoldFraction(totalInvestedEth, soldFrac) {
  * Preview net USD when selling `sellable` and leaving the piggy pile untouched.
  * Peak / fib / early-sell gates must use this so succession math matches
  * executeSell (soldFrac × entry, fees/skim on sold proceeds only).
+ *
+ * Pass `hitchCostUsd` when a message may ride the fill — `earningsUsd` /
+ * `gains` then require the piggy earnings buffer so we never list money
+ * that the hitch would erase.
  */
 export function previewPiggySellNetUsd({
   balance,
@@ -258,6 +312,8 @@ export function previewPiggySellNetUsd({
   ethUsd,
   feePct = 0.006,
   skimPct = 0.01,
+  hitchCostUsd = 0,
+  earningsBufferPct = DEFAULT_PIGGY_EARNINGS_BUFFER_PCT,
 } = {}) {
   const bal = Math.max(0, Number(balance) || 0);
   const sell = Math.max(0, Number(sellable) || 0);
@@ -271,6 +327,10 @@ export function previewPiggySellNetUsd({
       feesUsd: 0,
       skimUsd: 0,
       netUsd: 0,
+      hitchCostUsd: 0,
+      earningsUsd: 0,
+      earningsNeedUsd: 0,
+      gains: false,
     };
   }
   const soldFrac = Math.min(1, sell / bal);
@@ -278,13 +338,24 @@ export function previewPiggySellNetUsd({
   const costUsd = costBasisForSoldFraction(investedEth, soldFrac) * eth;
   const feesUsd = proceedsUsd * Math.max(0, Number(feePct) || 0);
   const skimUsd = proceedsUsd * Math.max(0, Number(skimPct) || 0);
+  const netUsd = proceedsUsd - costUsd - feesUsd - skimUsd;
+  const earn = piggyEarningsAfterMessage({
+    netUsd,
+    hitchCostUsd,
+    proceedsUsd,
+    bufferPct: earningsBufferPct,
+  });
   return {
     soldFrac,
     proceedsUsd,
     costUsd,
     feesUsd,
     skimUsd,
-    netUsd: proceedsUsd - costUsd - feesUsd - skimUsd,
+    netUsd,
+    hitchCostUsd: earn.hitchCostUsd,
+    earningsUsd: earn.earningsUsd,
+    earningsNeedUsd: earn.needUsd,
+    gains: earn.gains,
   };
 }
 

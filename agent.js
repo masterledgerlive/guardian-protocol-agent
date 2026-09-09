@@ -213,6 +213,8 @@ import {
   piggyOptsFromToken,
   costBasisForSoldFraction,
   previewPiggySellNetUsd,
+  piggyEarningsBufferPct,
+  piggyEarningsAfterMessage,
   buildTokenPiggyLedger,
   creditTokenPiggyPools,
   piggyCoInvestMarkUsd,
@@ -1546,9 +1548,9 @@ const DEFAULT_TOKENS = [
   { symbol: "LINK",    address: "0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     injectMain: true,
     piggyBankPct: 0.08,
-    piggyBankMinUsd: 0.10,
+    piggyBankMinUsd: 0.25,
     score: { liquidity:8, waveQuality:7, fundamentals:10, coinbaseFit:9, community:8, total:42 },
-    notes: "Chainlink — FAVORITE inject main. 8% piggy leave-behind (vs 2% default) + $0.10 floor. Uni v3 LINK/WETH 0.3%." },
+    notes: "Chainlink — FAVORITE inject main. 8% piggy leave-behind (vs 5% default) + $0.25 floor. Uni v3 LINK/WETH 0.3%." },
 
   { symbol: "AAVE",    address: "0x63706e401c06ac8513145b7687A14804d17f814b", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     frozen: true,
@@ -5710,6 +5712,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       gwei,
       wantedHitchBytes: voiceBytes + orchBytes,
       wantBtpInscribe: wantBtp,
+      piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
       ...hitchL1GateArgs(hitchL1),
     });
     logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
@@ -5816,6 +5819,18 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // entry cost and can flip a real win into a fake wipeout (skim/succession).
     const invUsd   = entryEthSold * ethUsd;
     const netUsd   = recUsd - invUsd;
+    // True earnings after hitch message — never list WAVE COMPLETE gains the letter wiped.
+    const hitchCostEth = sellVoice?.onChain
+      ? Math.max(0, Number(sellGate.injectCostEth) || 0)
+      : 0;
+    const earn = piggyEarningsAfterMessage({
+      netUsd,
+      hitchCostUsd: hitchCostEth * ethUsd,
+      proceedsUsd: recUsd,
+      bufferPct: sellVoice?.onChain ? piggyEarningsBufferPct() : 0,
+    });
+    const earningsUsd = earn.earningsUsd;
+    const winner = received > 0 && (sellVoice?.onChain ? earn.gains : netUsd >= 0);
 
     const receiptStatus = await getSwapReceiptStatus(transactionHash);
     if (!isSuccessfulSellFill({ received, receiptStatus })) {
@@ -5835,7 +5850,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       try {
         const entryP   = token.entryPrice || price;
         const pnlPct   = entryP > 0 ? ((price - entryP) / entryP * 100).toFixed(2) : "?";
-        const win      = received > 0 && netUsd >= 0;
+        const win      = winner;
         const chunkPos = (strandTrades.length % STRAND_SIZE) + 1;
         const gasCostE = await estimateGasCostEth();
 
@@ -5926,28 +5941,28 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       scoreCompletedWave(token.symbol, actualLow, actualHigh);
     }
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
-    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, soldFrac, piggyDustLeft:piggy.remainingReserve, piggyUnlock:piggy.unlock, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
-    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd, symbol: token.symbol });
-    if (netUsd < 0) {
+    await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, earningsUsd, hitchCostUsd: hitchCostEth * ethUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, soldFrac, piggyDustLeft:piggy.remainingReserve, piggyUnlock:piggy.unlock, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
+    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol });
+    if (earningsUsd < 0 || netUsd < 0) {
       recordCostMistake({
         symbol: token.symbol,
         code: "realized_loss",
-        reason: `sell net $${netUsd.toFixed(2)} — learn: avoid entries where insert/wait dominates`,
+        reason: `sell earnings $${earningsUsd.toFixed(2)} (net $${netUsd.toFixed(2)}) — learn: avoid entries where insert/wait dominates`,
         tradeUsd: recUsd,
-        netUsd,
+        netUsd: earningsUsd,
         source: "sell",
       });
     }
 
     console.log(`      ✅ https://basescan.org/tx/${transactionHash}`);
-    console.log(`      💰 Received: ${received.toFixed(6)} ETH ($${recUsd.toFixed(2)}) | Net: ${netUsd>=0?"+":""}$${netUsd.toFixed(2)}`);
+    console.log(`      💰 Received: ${received.toFixed(6)} ETH ($${recUsd.toFixed(2)}) | Net: ${netUsd>=0?"+":""}$${netUsd.toFixed(2)} | Earn${sellVoice.onChain?" after msg":""}: ${earningsUsd>=0?"+":""}$${earningsUsd.toFixed(2)}`);
 
-    const pnlPct  = invUsd > 0 ? ((netUsd / invUsd) * 100).toFixed(1) : "?";
-    const pnlPctNum = invUsd > 0 ? (netUsd / invUsd) * 100 : 0;
-    const winner  = received > 0 && netUsd >= 0;
+    const pnlPct  = invUsd > 0 ? ((earningsUsd / invUsd) * 100).toFixed(1) : "?";
+    const pnlPctNum = invUsd > 0 ? (earningsUsd / invUsd) * 100 : 0;
+    // winner already set from piggy earnings-after-message (never list wiped gains)
     // No-loss succession streak — continuous cycles compound piggy + Eureka hitch
     try {
-      const streak = successionTracker.recordCycleResult(token.symbol, netUsd);
+      const streak = successionTracker.recordCycleResult(token.symbol, earningsUsd);
       console.log(`   🔁 ${token.symbol} succession: streak ${streak.streak} (best ${streak.best}) · ${streak.totalWins}W/${streak.totalLosses}L`);
     } catch { /* never crash sell path */ }
 
@@ -5993,7 +6008,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       `💲 Exit:     $${price.toFixed(8)}\n` +
       `💰 Got:      ${received.toFixed(6)} ETH (~$${recUsd.toFixed(2)})\n` +
       `📥 In:       ~$${invUsd.toFixed(2)} | ⏱️ Held: ${holdStr}\n` +
-      `${winner?"📈":"📉"} P&L:      ${netUsd>=0?"+":""}$${netUsd.toFixed(2)} (${netUsd>=0?"+":""}${pnlPct}%) ${medal.emoji}\n` +
+      `${winner?"📈":"📉"} P&L:      ${netUsd>=0?"+":""}$${netUsd.toFixed(2)} (${netUsd>=0?"+":""}${invUsd>0?((netUsd/invUsd)*100).toFixed(1):"?"}%)${medal.emoji}\n` +
+      `${sellVoice.onChain ? `💌 After msg: ${earningsUsd>=0?"+":""}$${earningsUsd.toFixed(2)} (buffer $${earn.needUsd.toFixed(3)})\n` : ""}` +
       `🐷 Piggy dust: ${piggy.remainingReserve >= 1 ? piggy.remainingReserve.toFixed(2) : piggy.remainingReserve.toFixed(4)} ${token.symbol}${piggy.unlock ? " (unlocked)" : " locked"}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `🐷 Piggy:  +${skimLottery.toFixed(6)} ETH → $${(piggyBank*ethUsd).toFixed(3)} locked\n` +
@@ -11725,6 +11741,7 @@ async function main() {
           gwei: moonGwei,
           wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
           wantBtpInscribe: moonWantBtp,
+          piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
           ...hitchL1GateArgs(moonL1),
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
