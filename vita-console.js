@@ -150,6 +150,7 @@ export function ingestConsoleLeftoverScan(state, scan) {
     counts: scan?.counts || scan?.leftoverKinds || null,
     leftoverStillEureka: Boolean(scan?.leftoverStillEureka),
     vitaLeftoverPresent: Boolean(scan?.vitaLeftoverPresent),
+    hitchBytes: scan?.hitchBytes || scan?.leftoverHitchBytes || null,
   };
   return ingested;
 }
@@ -158,7 +159,7 @@ function plannedHitch(state) {
   const loc = locToken(state);
   const refined = refineVitaPacket(state.packet, { LOC: loc });
   const hitchFields = projectLeftoverHitchFields(refined.fields);
-  return STORE_TAG + " " + packVitaFields(hitchFields);
+  return STORE_TAG + " " + packVitaFields(hitchFields, { dense: true });
 }
 
 function courseScore(state) {

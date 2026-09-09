@@ -14,6 +14,7 @@ import { locDepositoryStatus, squashLocations } from "./vita-locations.js";
 import {
   ensureGenesisMemory,
   getLastVitaPacket,
+  measurePlannedHitchBytes,
   resolveHitchMode,
   setHitchModeOverride,
   setLastVitaPacket,
@@ -32,6 +33,7 @@ export function evaluateVitaCourse({
   lastPacket,
   realizedLossUsd = 0,
   leftoverKinds,
+  leftoverHitchBytes,
   env = process.env,
   now = Date.now(),
 } = {}) {
@@ -40,9 +42,16 @@ export function evaluateVitaCourse({
   const pending = pendingLocations != null ? Number(pendingLocations) : loc.pending;
   const packet = lastPacket === undefined ? getLastVitaPacket() : lastPacket;
   const kinds = leftoverKinds === undefined ? courseStats.leftoverKinds : leftoverKinds;
+  const hitchSizes = leftoverHitchBytes === undefined ? courseStats.leftoverHitchBytes : leftoverHitchBytes;
   const quality = parseQuality || (packet ? vitaQuality(packet) : null);
   const mode = resolveHitchMode(env);
   const squash = squashLocations();
+  let plannedHitchBytes = 0;
+  try {
+    plannedHitchBytes = measurePlannedHitchBytes({ leftoverEth: 1, hitchCostEth: 0 });
+  } catch { plannedHitchBytes = 0; }
+  const eurekaMin = Number(hitchSizes?.eurekaMin) || 0;
+  const leftoverWouldCover = plannedHitchBytes > 0 && eurekaMin > 0 && plannedHitchBytes <= eurekaMin;
 
   const issues = [];
   const actions = [];
@@ -81,7 +90,11 @@ export function evaluateVitaCourse({
     Number(kinds.vita || 0) === 0
   ) {
     issues.push("leftover_still_eureka");
-    actions.push("next leftover-covered swap must hitch KEY+LOC; /prove keeps Eureka");
+    actions.push(
+      leftoverWouldCover
+        ? "names-only KEY+LOC (" + plannedHitchBytes + "B) fits leftover that already covered Eureka (" + eurekaMin + "B); next leftover-covered swap must hitch it; /prove keeps Eureka"
+        : "next leftover-covered swap must hitch names-only KEY+LOC; /prove keeps Eureka",
+    );
   }
 
   const injectRate = hitchAttempts > 0 ? hitchSealed / hitchAttempts : null;
@@ -122,6 +135,9 @@ export function evaluateVitaCourse({
       skippedLeftover: hitchSkippedLeftover,
       rate: injectRate,
       leftoverKinds: kinds || null,
+      leftoverHitchBytes: hitchSizes || null,
+      plannedHitchBytes,
+      leftoverWouldCover,
       note: "leftover skips are lose-zero, not injection loss",
     },
     memory: {
@@ -153,6 +169,15 @@ export function formatCourseMessage(course) {
       " plain=" + Number(c.inject.leftoverKinds.plain || 0),
     );
   }
+  if (c.inject.plannedHitchBytes) {
+    lines.push(
+      "Hitch plan " + c.inject.plannedHitchBytes + "B" +
+      (c.inject.leftoverHitchBytes?.eurekaMin
+        ? " · leftover Eureka min " + c.inject.leftoverHitchBytes.eurekaMin + "B"
+        : "") +
+      (c.inject.leftoverWouldCover ? " · leftover would cover names-only KEY+LOC" : ""),
+    );
+  }
   if (c.issues.length) lines.push("Issues: " + c.issues.join(", "));
   lines.push("Next: " + c.actions[0]);
   if (c.nextMode !== c.mode) lines.push("Switch → <code>" + c.nextMode + "</code>");
@@ -169,6 +194,7 @@ function emptyCourseStats() {
     realizedLossUsd: 0,
     lastTickMs: 0,
     leftoverKinds: null,
+    leftoverHitchBytes: null,
     history: [],
   };
 }
@@ -191,6 +217,7 @@ export function restoreCourseStats(data) {
     realizedLossUsd: Number(data.realizedLossUsd) || 0,
     lastTickMs: Number(data.lastTickMs) || 0,
     leftoverKinds: data.leftoverKinds && typeof data.leftoverKinds === "object" ? data.leftoverKinds : null,
+    leftoverHitchBytes: data.leftoverHitchBytes && typeof data.leftoverHitchBytes === "object" ? data.leftoverHitchBytes : null,
     history: Array.isArray(data.history) ? data.history.slice(-24) : [],
   };
   return true;
@@ -218,6 +245,20 @@ export function recordLeftoverKinds(kinds) {
       libm: Number(kinds.libm) || 0,
       other: Number(kinds.other) || 0,
       leftover: Number(kinds.leftover) || 0,
+    };
+  }
+  return getCourseStats();
+}
+
+/** Leftover hitch UTF-8 sizes from a Base wallet scan. */
+export function recordLeftoverHitchBytes(stats) {
+  if (stats && typeof stats === "object") {
+    courseStats.leftoverHitchBytes = {
+      eurekaMin: Number(stats.eurekaMin) || 0,
+      eurekaMax: Number(stats.eurekaMax) || 0,
+      eurekaCount: Number(stats.eurekaCount) || 0,
+      vitaMin: Number(stats.vitaMin) || 0,
+      vitaCount: Number(stats.vitaCount) || 0,
     };
   }
   return getCourseStats();
@@ -274,7 +315,7 @@ export function shouldTickHourlyCourse(now = Date.now()) {
 /**
  * Bot-loop hourly tick. No-op until COURSE_INTERVAL_MS elapsed (unless force).
  */
-export function tickHourlyCourse({ now = Date.now(), force = false, leftoverKinds } = {}) {
+export function tickHourlyCourse({ now = Date.now(), force = false, leftoverKinds, leftoverHitchBytes } = {}) {
   if (!force && !shouldTickHourlyCourse(now)) {
     return {
       ticked: false,
@@ -285,6 +326,9 @@ export function tickHourlyCourse({ now = Date.now(), force = false, leftoverKind
   if (leftoverKinds && typeof leftoverKinds === "object") {
     courseStats.leftoverKinds = leftoverKinds;
   }
+  if (leftoverHitchBytes && typeof leftoverHitchBytes === "object") {
+    courseStats.leftoverHitchBytes = leftoverHitchBytes;
+  }
   const course = evaluateVitaCourse({
     hitchAttempts: courseStats.attempts,
     hitchSealed: courseStats.sealed,
@@ -292,6 +336,7 @@ export function tickHourlyCourse({ now = Date.now(), force = false, leftoverKind
     realizedLossUsd: courseStats.realizedLossUsd,
     lastPacket: getLastVitaPacket(),
     leftoverKinds: leftoverKinds === undefined ? courseStats.leftoverKinds : leftoverKinds,
+    leftoverHitchBytes: leftoverHitchBytes === undefined ? courseStats.leftoverHitchBytes : leftoverHitchBytes,
     now,
   });
   const result = applyVitaCourse(course);

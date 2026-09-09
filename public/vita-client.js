@@ -86,7 +86,7 @@ export function persist(state) {
 
 function plannedHitch(state) {
   const refined = refineVitaPacket(state.packet, { LOC: locToken(state.nodes) });
-  return STORE_TAG + " " + packVitaFields(projectLeftoverHitchFields(refined.fields));
+  return STORE_TAG + " " + packVitaFields(projectLeftoverHitchFields(refined.fields), { dense: true });
 }
 
 function hexToUtf8(hex) {
@@ -261,6 +261,7 @@ export async function handleCommand(state, raw) {
           counts: scan.counts,
           leftoverStillEureka: Boolean(scan.leftoverStillEureka),
           vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
+          hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
         };
         persist(state);
       } catch { /* course still scores KEY/loc without chain scan */ }
@@ -277,7 +278,10 @@ export async function handleCommand(state, raw) {
       " · " + (state.injected ? "reader-ready" : "HTML-local until inject") +
       (state.leftoverScan
         ? "\nLeftover eureka=" + Number(state.leftoverScan.counts?.eureka || 0) +
-          " vita=" + Number(state.leftoverScan.counts?.vita || 0)
+          " vita=" + Number(state.leftoverScan.counts?.vita || 0) +
+          (state.leftoverScan.hitchBytes?.eurekaMin
+            ? " · Eureka min " + state.leftoverScan.hitchBytes.eurekaMin + "B"
+            : "")
         : "") +
       (issues.length ? "\nIssues: " + issues.join(", ") : ""),
     );
@@ -300,6 +304,7 @@ export async function handleCommand(state, raw) {
         counts: scan.counts,
         leftoverStillEureka: Boolean(scan.leftoverStillEureka),
         vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
+        hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
       };
       persist(state);
       return say(

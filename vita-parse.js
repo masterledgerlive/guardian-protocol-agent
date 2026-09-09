@@ -72,14 +72,14 @@ export function parseVitaPacket(text) {
   };
 }
 
-export function packVitaFields(fields, { order = TOKEN_ORDER } = {}) {
+export function packVitaFields(fields, { order = TOKEN_ORDER, dense = false } = {}) {
   const parts = [];
   for (const key of order) {
     const val = fields[key];
     if (val == null || val === "") continue;
     parts.push("§" + key + "§" + String(val).trim());
   }
-  return parts.join("\n");
+  return parts.join(dense ? "" : "\n");
 }
 
 function mergeFact(a, b) {
@@ -117,10 +117,23 @@ export function measureVitaText(text, { bytes = false } = {}) {
   return new TextEncoder().encode(s).length;
 }
 
-/** Leftover hitch body: KEY + squashed LOC. Recursive packet stays whole. */
+/** Leftover hitch KEY — love-note names only. Wallet/KEYCAT stay in lastPacket. */
+export function projectLeftoverHitchKey(key) {
+  const src = String(key || "").trim();
+  if (
+    src.includes("Krystian") &&
+    src.includes("Kai") &&
+    src.includes("Koda")
+  ) {
+    return VITA_KEY_NAMES;
+  }
+  return mergeFact(VITA_KEY_NAMES, src);
+}
+
+/** Leftover hitch body: dense KEY + squashed LOC. Recursive packet stays whole. */
 export function projectLeftoverHitchFields(fields) {
   const src = fields?.fields || fields || {};
-  const keep = { KEY: src.KEY || VITA_LOVE_KEY };
+  const keep = { KEY: projectLeftoverHitchKey(src.KEY) };
   if (src.LOC) keep.LOC = src.LOC;
   return keep;
 }
@@ -133,8 +146,9 @@ export function clipVitaPacket(fields, maxChars = VITA_CHAR_BUDGET, opts = {}) {
   const useBytes = opts.byteBudget != null;
   const cap = Math.max(0, Math.floor(Number(useBytes ? opts.byteBudget : maxChars) || 0));
   const measure = (s) => measureVitaText(s, { bytes: useBytes });
+  const pack = (keep) => packVitaFields(keep, { dense: Boolean(opts.dense) });
   const keep = { ...fields };
-  let packed = packVitaFields(keep);
+  let packed = pack(keep);
   if (measure(packed) <= cap) return { fields: keep, packed, clipped: false };
 
   const dropOrder = [...TOKEN_HITCH_PRIORITY].reverse().filter((k) => k !== "KEY" && k !== "LOC");
@@ -142,20 +156,20 @@ export function clipVitaPacket(fields, maxChars = VITA_CHAR_BUDGET, opts = {}) {
     if (measure(packed) <= cap) break;
     if (keep[key] == null) continue;
     delete keep[key];
-    packed = packVitaFields(keep);
+    packed = pack(keep);
   }
 
   if (measure(packed) > cap && keep.LEARN) {
     keep.LEARN = clipToMeasure(keep.LEARN, Math.max(24, cap - 80), measure);
-    packed = packVitaFields(keep);
+    packed = pack(keep);
   }
   if (measure(packed) > cap && keep.KEY) {
     keep.KEY = clipKeyPreservingNames(keep.KEY, Math.max(VITA_KEY_NAMES.length, Math.floor(cap * 0.45)), measure);
-    packed = packVitaFields(keep);
+    packed = pack(keep);
   }
   if (measure(packed) > cap && keep.LOC) {
     keep.LOC = clipToMeasure(keep.LOC, Math.max(24, Math.floor(cap * 0.4)), measure);
-    packed = packVitaFields(keep);
+    packed = pack(keep);
   }
   if (measure(packed) > cap) {
     packed = clipToMeasure(packed, cap, measure);

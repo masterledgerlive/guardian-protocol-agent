@@ -419,11 +419,14 @@ async function handleVitaRequest(req, res) {
 
     } else if (path === "/vita/course" && req.method === "GET") {
       let leftoverKinds;
+      let leftoverHitchBytes;
       try {
-        leftoverKinds = (await getCachedLeftoverScan({ limit: 80, maxPages: 3 })).counts;
-      } catch { leftoverKinds = undefined; }
+        const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3 });
+        leftoverKinds = scan.counts;
+        leftoverHitchBytes = scan.hitchBytes || scan.leftoverHitchBytes;
+      } catch { leftoverKinds = undefined; leftoverHitchBytes = undefined; }
       const course = leftoverKinds
-        ? evaluateVitaCourse({ leftoverKinds })
+        ? evaluateVitaCourse({ leftoverKinds, leftoverHitchBytes })
         : evaluateVitaCourse();
       return json(res, { ok: true, ...course, telegram: formatCourseMessage(course) });
 

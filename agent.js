@@ -9495,7 +9495,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         try {
           const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
           ingestLeftoverScan(leftoverScan);
-          await tg(formatCourseMessage(evaluateVitaCourse({ leftoverKinds: leftoverScan.counts })));
+          await tg(formatCourseMessage(evaluateVitaCourse({
+            leftoverKinds: leftoverScan.counts,
+            leftoverHitchBytes: leftoverScan.hitchBytes,
+          })));
         } catch (e) {
           await tg(formatCourseMessage(evaluateVitaCourse()) + "\n⚠️ leftover scan: " + e.message);
         }
@@ -9505,13 +9508,20 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         try {
           const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
           const folded = ingestLeftoverScan(leftoverScan);
-          const course = evaluateVitaCourse({ leftoverKinds: leftoverScan.counts });
+          const course = evaluateVitaCourse({
+            leftoverKinds: leftoverScan.counts,
+            leftoverHitchBytes: leftoverScan.hitchBytes,
+          });
           await tg(
             "⛓️ <b>LEFTOVER SCAN</b>\n" +
             "eureka=" + leftoverScan.counts.eureka +
             " vita=" + leftoverScan.counts.vita +
             " plain=" + leftoverScan.counts.plain +
             " libm=" + leftoverScan.counts.libm + "\n" +
+            (leftoverScan.hitchBytes?.eurekaMin
+              ? "Eureka hitch min " + leftoverScan.hitchBytes.eurekaMin + "B · planned VITA " +
+                (course.inject.plannedHitchBytes || "?") + "B\n"
+              : "") +
             "ingested " + folded.ingested + " · KEY=" + (folded.quality?.hasKey ? "yes" : "LOSS") + "\n" +
             (leftoverScan.vitaLeftoverPresent
               ? "VITA leftover hitch is on chain."
@@ -12378,15 +12388,17 @@ async function main() {
       // ── VITA hourly course — refine memory, restore KEY if lost, switch mode
       try {
         let leftoverKinds;
+        let leftoverHitchBytes;
         if (shouldTickHourlyCourse()) {
           try {
             const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
             ingestLeftoverScan(leftoverScan);
             leftoverKinds = leftoverScan.counts;
-          } catch { leftoverKinds = undefined; }
+            leftoverHitchBytes = leftoverScan.hitchBytes;
+          } catch { leftoverKinds = undefined; leftoverHitchBytes = undefined; }
         }
         const hour = leftoverKinds
-          ? tickHourlyCourse({ leftoverKinds })
+          ? tickHourlyCourse({ leftoverKinds, leftoverHitchBytes })
           : tickHourlyCourse();
         if (hour.ticked) {
           console.log("🔀 VITA COURSE " + hour.course.score + "/100 achieving=" + hour.course.achieving + " applied=" + (hour.applied || []).join(",") );

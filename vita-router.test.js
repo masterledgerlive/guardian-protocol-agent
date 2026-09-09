@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   VITA_CHAR_BUDGET,
   VITA_LOVE_KEY,
+  VITA_KEY_NAMES,
   buildGenesisPacket,
   clipVitaPacket,
   detectHitchKind,
@@ -84,6 +85,7 @@ import {
   shouldIngestHitchKind,
   collectRegistryTxHashes,
   classifyLeftoverHitch,
+  leftoverHitchByteStats,
   ingestLeftoverScan,
   scanAddressLeftoverHitches,
   publicLeftoverScanView,
@@ -166,6 +168,8 @@ describe("vita-parse §TOKEN§", () => {
     const fat = buildGenesisPacket({ LEARN: "y".repeat(400), ARCH: "drop-from-hitch" });
     const projected = projectLeftoverHitchFields(parseVitaPacket(fat).fields);
     assert.equal(projected.ARCH, undefined);
+    assert.equal(projected.KEY, VITA_KEY_NAMES);
+    assert.equal(projected.KEY.includes("wallet="), false);
     assert.ok(projected.KEY.includes("Krystian"));
     assert.ok(projected.LOC);
     const clipped = clipVitaPacket(projected, 120, { byteBudget: 120 });
@@ -276,6 +280,10 @@ describe("vita secondary router", () => {
     assert.equal(plan.utf8.includes("§ARCH§"), false);
     assert.ok(plan.hitchBytes <= 280);
     assert.ok(plan.hitchBytes < eurekaBytes, `vita hitch ${plan.hitchBytes} must be < eureka ${eurekaBytes}`);
+    assert.ok(plan.hitchBytes < 180, "leftover KEY is names-only so leftover can cover");
+    assert.doesNotMatch(plan.utf8, /0x50e1C460/);
+    assert.doesNotMatch(plan.utf8, /\n/, "leftover hitch packs KEY+LOC without newlines");
+    assert.ok(getLastVitaPacket().includes("0x50e1C460"));
     assert.ok(getLastVitaPacket().includes("keep-arch-in-state"));
     assert.ok(getLastVitaPacket().includes("hour2-ok"));
     assert.ok(getLastVitaPacket().includes("vault-on-base"));
@@ -402,10 +410,15 @@ describe("vita hourly course", () => {
     const still = evaluateVitaCourse({
       lastPacket: buildGenesisPacket(),
       leftoverKinds: { eureka: 40, vita: 0, plain: 1, libm: 2 },
+      leftoverHitchBytes: { eurekaMin: 229, eurekaCount: 40 },
     });
     assert.equal(still.issues.includes("leftover_still_eureka"), true);
     assert.equal(still.achieving, false);
+    assert.equal(still.inject.leftoverWouldCover, true);
+    assert.ok(still.inject.plannedHitchBytes > 0);
+    assert.ok(still.inject.plannedHitchBytes <= 229);
     assert.match(formatCourseMessage(still), /eureka=40/);
+    assert.match(formatCourseMessage(still), /leftover would cover names-only KEY\+LOC/);
     const done = evaluateVitaCourse({
       lastPacket: buildGenesisPacket(),
       leftoverKinds: { eureka: 40, vita: 1, plain: 1 },
@@ -483,14 +496,20 @@ describe("recursive memory persist + inject", () => {
       utf8: plan.utf8,
     });
     const node = getLocationDepository().nodes[0];
-    assert.ok(node.utf8.length > 80);
+    assert.equal(node.utf8, plan.utf8);
+    assert.ok(node.utf8.length > 0);
     assert.ok(node.utf8.includes("Krystian"));
+    assert.equal(node.utf8Preview, plan.utf8.slice(0, 80));
     assert.equal(node.utf8Preview.length <= 80, true);
     setLastVitaPacket("");
     const rec = reconstructVitaMemoryFromLocations();
     assert.equal(rec.lossy, false);
     assert.ok(rec.packed.includes("Krystian"));
     assert.ok(getLastVitaPacket().includes("Koda"));
+    assert.ok(
+      getLastVitaPacket().includes("0x50e1C460"),
+      "genesis stem restores full KEY after names-only leftover hitch",
+    );
   });
 
   it("ingestSealedUtf8 folds Eureka prove into §KEY§ without dropping VITA facts", () => {
@@ -689,6 +708,7 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     const eureka = classifyLeftoverHitch(eurekaHex.data);
     assert.equal(eureka.class, "eureka-leftover");
     assert.equal(eureka.leftover, true);
+    assert.ok(eureka.hitchBytes > 0);
     const hitch = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, maxBytes: 280 });
     const vitaHex = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, hitch.utf8);
     assert.equal(vitaHex.ok, true);
@@ -696,6 +716,14 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.equal(vita.class, "vita-leftover");
     assert.match(vita.utf8, /§KEY§/);
     assert.match(vita.utf8, /§LOC§/);
+    assert.ok(vita.hitchBytes > 0);
+    assert.ok(vita.hitchBytes < eureka.hitchBytes, "names-only KEY+LOC must be denser than Eureka leftover");
+    const stats = leftoverHitchByteStats([
+      { class: "eureka-leftover", hitchBytes: eureka.hitchBytes },
+      { class: "vita-leftover", hitchBytes: vita.hitchBytes },
+    ]);
+    assert.equal(stats.eurekaMin, eureka.hitchBytes);
+    assert.equal(stats.vitaMin, vita.hitchBytes);
   });
 
   it("ingestLeftoverScan folds Eureka leftover into recursive memory without claiming leftover VITA", () => {
@@ -826,6 +854,10 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     const view = publicLeftoverScanView(scan);
     assert.equal(view.rows.some((r) => r.hash.includes("1111") && r.class === "eureka-leftover"), true);
     assert.equal(view.rows.every((r) => r.utf8 === undefined), true);
+    assert.equal(typeof view.rows.find((r) => r.class === "vita-leftover")?.hitchBytes, "number");
+    assert.ok(scan.hitchBytes.vitaMin > 0);
+    assert.ok(scan.hitchBytes.eurekaMin > 0);
+    assert.ok(scan.hitchBytes.vitaMin < scan.hitchBytes.eurekaMin);
   });
 
   it("publicLeftoverScanView keeps leftover hashes for the reader (not a 24-row clip)", () => {
@@ -857,9 +889,17 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     const hasKnown = scan.counts.eureka > 0 || scan.counts.vita > 0 || scan.counts.plain > 0;
     assert.equal(hasKnown, true);
     if (scan.counts.vita === 0 && scan.counts.eureka > 0) {
-      const course = evaluateVitaCourse({ lastPacket: getLastVitaPacket() || buildGenesisPacket(), leftoverKinds: scan.counts });
+      const course = evaluateVitaCourse({
+        lastPacket: getLastVitaPacket() || buildGenesisPacket(),
+        leftoverKinds: scan.counts,
+        leftoverHitchBytes: scan.hitchBytes,
+      });
       assert.equal(course.issues.includes("leftover_still_eureka"), true);
       assert.equal(course.achieving, false);
+      assert.ok(scan.hitchBytes.eurekaMin > 0);
+      if (course.inject.plannedHitchBytes && scan.hitchBytes.eurekaMin) {
+        assert.equal(course.inject.leftoverWouldCover, course.inject.plannedHitchBytes <= scan.hitchBytes.eurekaMin);
+      }
     }
   });
 

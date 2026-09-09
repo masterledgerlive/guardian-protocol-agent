@@ -285,7 +285,7 @@ function vitaBody({ maxBytes, extraFields = {}, switches }) {
     ? Math.max(0, Math.floor(Number(maxBytes)) - prefixBytes)
     : VITA_CHAR_BUDGET;
   const hitchFields = projectLeftoverHitchFields(refined.fields);
-  const clipped = clipVitaPacket(hitchFields, bodyBudget, { byteBudget: bodyBudget });
+  const clipped = clipVitaPacket(hitchFields, bodyBudget, { byteBudget: bodyBudget, dense: true });
   return prefix + clipped.packed;
 }
 

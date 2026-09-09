@@ -15,7 +15,7 @@ import {
   decodeStoreVoiceCalldata,
   decodeTrailingUtf8,
 } from "./swap-minout.js";
-import { detectHitchKind, refineVitaPacket, vitaQuality } from "./vita-parse.js";
+import { detectHitchKind, refineVitaPacket, vitaQuality, measureVitaText } from "./vita-parse.js";
 import {
   getLastVitaPacket,
   ingestSealedUtf8,
@@ -29,7 +29,7 @@ import {
   getLocationDepository,
   ingestLocationFromChain,
 } from "./vita-locations.js";
-import { recordLeftoverKinds } from "./vita-course.js";
+import { recordLeftoverKinds, recordLeftoverHitchBytes } from "./vita-course.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const KEYCAT_HEX = String(KEYCAT_PLAIN_SWAP || "").toLowerCase();
@@ -106,27 +106,51 @@ export function readHitchUtf8FromCalldata(data) {
   return { utf8: "", kind: detectHitchKind(""), source: "no-hitch" };
 }
 
+function hitchUtf8Bytes(utf8) {
+  const s = String(utf8 || "");
+  return s ? measureVitaText(s, { bytes: true }) : 0;
+}
+
 /** Classify a Uniswap V3 leftover hitch trailer. Never invents a hash. */
 export function classifyLeftoverHitch(data) {
   const raw = String(data || "");
   const read = readHitchUtf8FromCalldata(raw);
+  const hitchBytes = hitchUtf8Bytes(read.utf8);
   if (!looksLikeHexCalldata(raw)) {
-    return { class: "not-hex", leftover: false, ...read };
+    return { class: "not-hex", leftover: false, hitchBytes, ...read };
   }
   const hex = raw.toLowerCase();
   const body = hex.slice(2);
   if (!body.startsWith(EXACT_INPUT_SELECTOR)) {
-    return { class: "not-v3", leftover: false, ...read };
+    return { class: "not-v3", leftover: false, hitchBytes, ...read };
   }
   const bytes = body.length / 2;
   if (bytes <= EXACT_INPUT_BYTES) {
-    return { class: "plain-228", leftover: false, ...read };
+    return { class: "plain-228", leftover: false, hitchBytes, ...read };
   }
-  if (read.kind.vita) return { class: "vita-leftover", leftover: true, ...read };
-  if (read.kind.eureka) return { class: "eureka-leftover", leftover: true, ...read };
-  if (read.kind.hat) return { class: "hat-leftover", leftover: true, ...read };
-  if (/LIBM/i.test(read.utf8 || "")) return { class: "libm", leftover: true, ...read };
-  return { class: "trailer-other", leftover: true, ...read };
+  if (read.kind.vita) return { class: "vita-leftover", leftover: true, hitchBytes, ...read };
+  if (read.kind.eureka) return { class: "eureka-leftover", leftover: true, hitchBytes, ...read };
+  if (read.kind.hat) return { class: "hat-leftover", leftover: true, hitchBytes, ...read };
+  if (/LIBM/i.test(read.utf8 || "")) return { class: "libm", leftover: true, hitchBytes, ...read };
+  return { class: "trailer-other", leftover: true, hitchBytes, ...read };
+}
+
+/** Hitch UTF-8 sizes from leftover scan rows (Eureka vs VITA). */
+export function leftoverHitchByteStats(rows) {
+  const pick = (cls) =>
+    (rows || [])
+      .filter((r) => r.class === cls)
+      .map((r) => Number(r.hitchBytes) || 0)
+      .filter((n) => n > 0);
+  const eureka = pick("eureka-leftover");
+  const vita = pick("vita-leftover");
+  return {
+    eurekaMin: eureka.length ? Math.min(...eureka) : 0,
+    eurekaMax: eureka.length ? Math.max(...eureka) : 0,
+    eurekaCount: eureka.length,
+    vitaMin: vita.length ? Math.min(...vita) : 0,
+    vitaCount: vita.length,
+  };
 }
 
 export function blockscoutTxListUrl(address = GUARDIAN_WALLET, nextPageParams = null) {
@@ -199,6 +223,7 @@ export async function scanAddressLeftoverHitches({
       leftover: cls.leftover,
       kind: cls.kind?.kind || cls.class,
       utf8: cls.utf8 || "",
+      hitchBytes: cls.hitchBytes || 0,
       timestamp: tx.timestamp,
     };
     rows.push(row);
@@ -209,11 +234,14 @@ export async function scanAddressLeftoverHitches({
     else counts.other += 1;
     if (cls.leftover) counts.leftover += 1;
   }
+  const hitchBytes = leftoverHitchByteStats(rows);
   return {
     kind: "vita-leftover-scan",
     address,
     scanned: rows.length,
     counts,
+    hitchBytes,
+    leftoverHitchBytes: hitchBytes,
     rows,
     leftoverKinds: counts,
     leftoverStillEureka: counts.eureka > 0 && counts.vita === 0,
@@ -245,6 +273,8 @@ export function publicLeftoverScanView(scan) {
     leftoverKinds: s.counts || s.leftoverKinds || null,
     leftoverStillEureka: Boolean(s.leftoverStillEureka),
     vitaLeftoverPresent: Boolean(s.vitaLeftoverPresent),
+    hitchBytes: s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows),
+    leftoverHitchBytes: s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows),
     rows: (s.rows || [])
       .filter((r) => r.leftover || r.class === "plain-228")
       .slice(0, 80)
@@ -252,6 +282,7 @@ export function publicLeftoverScanView(scan) {
         hash: r.hash,
         class: r.class,
         leftover: Boolean(r.leftover),
+        hitchBytes: Number(r.hitchBytes) || 0,
         timestamp: r.timestamp || null,
       })),
   };
@@ -262,6 +293,7 @@ export function ingestLeftoverScan(scan) {
   ensureGenesisMemory();
   const counts = scan?.counts || scan?.leftoverKinds || null;
   recordLeftoverKinds(counts);
+  recordLeftoverHitchBytes(scan?.hitchBytes || scan?.leftoverHitchBytes || leftoverHitchByteStats(scan?.rows));
   let ingested = 0;
   for (const row of scan?.rows || []) {
     if (!TX_HASH_RE.test(String(row.hash || ""))) continue;

@@ -198,5 +198,9 @@ describe("control board HTTP", () => {
     assert.equal(Array.isArray(json.rows), true);
     assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
     assert.ok(json.rows.length <= 80);
+    assert.equal(typeof json.hitchBytes, "object");
+    if (json.counts.eureka > 0) {
+      assert.ok(json.hitchBytes.eurekaMin > 0);
+    }
   });
 });
