@@ -102,8 +102,10 @@ function locToken(state) {
 
 function stampLoc(state) {
   const loc = locToken(state);
-  const refined = refineVitaPacket(state.packet, { LOC: loc });
-  state.packet = refined.packed;
+  const fields = parseVitaPacket(state.packet).fields;
+  fields.LOC = loc;
+  if (!fields.KEY) fields.KEY = VITA_LOVE_KEY;
+  state.packet = packVitaFields(fields);
   return loc;
 }
 

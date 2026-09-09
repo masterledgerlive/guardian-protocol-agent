@@ -174,7 +174,10 @@ function ingestUtf8(state, hash, utf8, kind, source) {
     state.packet = refineVitaPacket(state.packet, { KEY: VITA_LOVE_KEY, LEARN: "ingested-eureka-prove" }).packed;
   }
   const loc = locToken(state.nodes);
-  state.packet = refineVitaPacket(state.packet, { LOC: loc }).packed;
+  const fields = parseVitaPacket(state.packet).fields;
+  fields.LOC = loc;
+  if (!fields.KEY) fields.KEY = VITA_LOVE_KEY;
+  state.packet = packVitaFields(fields);
   return hash.slice(0, 10) + "… " + kind + " ingested · KEY=" + (vitaQuality(state.packet).hasKey ? "yes" : "LOSS");
 }
 

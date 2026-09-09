@@ -64,6 +64,7 @@ describe("vita HTML console", () => {
     const reader = await handleVitaConsole(state, "/reader");
     assert.match(reader.text, /READER/);
     assert.match(reader.text, /Krystian/);
+    assert.doesNotMatch(state.packet, /n=0\|t=0000\|n=/);
   });
 
   it("ZK preview hides plaintext but keeps KEY internally", async () => {
