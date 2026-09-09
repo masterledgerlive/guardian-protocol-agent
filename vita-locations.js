@@ -138,10 +138,16 @@ export function squashLocations(nodes = locNodes, { maxDelta = LOC_SQUASH_DELTA 
   };
 }
 
-/** Compact hitch body (no §LOC§ wrapper). Full node list stays in the registry. */
+/** Compact hitch body (no §LOC§ wrapper). Full hashes stay in the depository. */
+function hitchShort(s, n = 6) {
+  const hex = String(s || "").replace(/^0x/i, "").toLowerCase();
+  if (!hex) return "0".repeat(n);
+  return hex.slice(0, n);
+}
+
 export function encodeLocToken(depot) {
   const d = depot || squashLocations();
-  if (!d.n) return "n=0|tip=00000000";
+  if (!d.n) return "n=0|tip=000000";
   const kindBits = Object.entries(d.kinds || {})
     .map(([k, v]) => {
       const code = k === "hat" ? "H" : k === "prove" ? "p" : "t";
@@ -150,9 +156,9 @@ export function encodeLocToken(depot) {
     .join(",");
   const parts = [
     "n=" + d.n,
-    "tip=" + d.tip,
-    "root=" + d.root,
-    "Δ=" + (d.delta || []).join(","),
+    "tip=" + hitchShort(d.tip),
+    "root=" + hitchShort(d.root),
+    "Δ=" + (d.delta || []).map((x) => hitchShort(x)).join(","),
   ];
   if (kindBits) parts.push("k=" + kindBits);
   if (d.pending) parts.push("p=" + d.pending);

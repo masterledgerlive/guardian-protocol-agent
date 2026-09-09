@@ -310,7 +310,7 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation } from "./vita-locations.js";
-import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex } from "./vita-chain-reader.js";
+import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory } from "./vita-chain-reader.js";
 import {
   evaluateVitaCourse,
   formatCourseMessage,
@@ -7791,6 +7791,8 @@ async function githubSave(path, content, sha, retries = 3) {
   return null;
 }
 
+let lastVitaRegistryBlob = null;
+
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
   const tf = await githubGet("tokens.json");
@@ -7969,8 +7971,10 @@ async function loadFromGitHub() {
   try {
     const vf = await githubGet("vita-registry.json");
     if (vf?.content) {
+      lastVitaRegistryBlob = vf.content;
       setVitaRegistry(vf.content);
-      console.log(`   💓 vita-registry.json: loaded ${vf.content.registry?.length || 0} VITA strands`);
+      const folded = ingestRegistryPackets(vf.content);
+      console.log(`   💓 vita-registry.json: folded ${folded.ingested} §TOKEN§ packet(s) · KEY=${folded.quality?.hasKey ? "yes" : "LOSS"}`);
     }
   } catch { /* non-critical */ }
 
@@ -11174,6 +11178,20 @@ async function main() {
     }
   } catch (iknErr) {
     console.log("⚠️  IKN boot reader error (non-critical): " + iknErr.message);
+  }
+
+  try {
+    const inj = await injectVitaBlockchainMemory({
+      fetchCalldata: fetchTxCalldataHex,
+      registry: lastVitaRegistryBlob,
+    });
+    console.log(
+      "🔀 VITA chain inject: registry " + inj.registryPackets +
+      " · pulled " + inj.pulled + " · ingested " + inj.ingested +
+      " · KEY=" + (inj.quality?.hasKey ? "yes" : "LOSS")
+    );
+  } catch (injErr) {
+    console.log("⚠️  VITA chain inject (non-critical): " + injErr.message);
   }
 
   // Re-fetch sealed hitch UTF-8 from Base when the depository only has shorts.

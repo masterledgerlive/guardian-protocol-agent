@@ -20,6 +20,7 @@ import {
   getLastVitaPacket,
   ingestSealedUtf8,
   reconstructVitaMemoryFromLocations,
+  ensureGenesisMemory,
 } from "./vita-router.js";
 import {
   getLocationDepository,
@@ -28,6 +29,25 @@ import {
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const KEYCAT_HEX = String(KEYCAT_PLAIN_SWAP || "").toLowerCase();
+
+/** Live Base anchors — fetched and parsed this session. Never invent hashes. */
+export const KEYCAT_TX = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
+export const EUREKA_ONCHAIN_TX = "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73";
+export const VITA_STRAND_TX = "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db";
+
+export const KNOWN_CHAIN_ANCHORS = Object.freeze([
+  { tx: KEYCAT_TX, expect: "none", note: "KEYCAT plain 228-byte swap — no hitch" },
+  { tx: EUREKA_ONCHAIN_TX, expect: "eureka", note: "Eureka love note on Base" },
+  { tx: VITA_STRAND_TX, expect: "vita", note: "VITA §TOKEN§ strand chunk on Base" },
+]);
+
+export const INGESTIBLE_HITCH_KINDS = Object.freeze(["vita", "eureka", "hat", "tag"]);
+export const MAX_BOOT_CHAIN_PULLS = 12;
+
+export function shouldIngestHitchKind(kind) {
+  const k = typeof kind === "string" ? kind : kind?.kind;
+  return INGESTIBLE_HITCH_KINDS.includes(k);
+}
 
 function looksLikeHexCalldata(data) {
   const s = String(data || "").trim();
@@ -130,11 +150,11 @@ export async function pullLocationFromChain(txHash, fetchCalldata = fetchTxCalld
   if (!data) return { ok: false, error: "no calldata", txHash: hash };
 
   const read = readHitchUtf8FromCalldata(data);
-  if (!read.utf8) {
+  if (!read.utf8 || !shouldIngestHitchKind(read.kind)) {
     return {
       ok: true,
       txHash: hash,
-      utf8: "",
+      utf8: shouldIngestHitchKind(read.kind) ? read.utf8 : "",
       kind: read.kind.kind,
       source: read.source,
       ingested: false,
@@ -172,4 +192,101 @@ export async function pullMissingLocationUtf8(fetchCalldata = fetchTxCalldataHex
     }
   }
   return { pulled: results.length, results };
+}
+
+const TX_HASH_PICK = /0x[0-9a-fA-F]{64}/g;
+
+export function walkVitaRegistryEntries(registry) {
+  if (!registry) return [];
+  const entries = [];
+  const push = (v) => {
+    if (v && typeof v === "object" && (v.tokenPacket || v.txHashes || v.chunks || v.encryptedContent)) {
+      entries.push(v);
+    }
+  };
+  if (Array.isArray(registry)) registry.forEach(push);
+  else if (typeof registry === "object") {
+    if (Array.isArray(registry.registry)) registry.registry.forEach(push);
+    if (Array.isArray(registry.strands)) registry.strands.forEach(push);
+    if (Array.isArray(registry._ikn?.strands)) registry._ikn.strands.forEach(push);
+    for (const v of Object.values(registry)) push(v);
+  }
+  const seen = new Set();
+  return entries.filter((e) => {
+    const key = (e.strandId || e.label || e.tokenPacket || "").slice(0, 80) + "|" + JSON.stringify(e.txHashes || []).slice(0, 80);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function collectRegistryTxHashes(registry) {
+  const hashes = [];
+  for (const e of walkVitaRegistryEntries(registry)) {
+    for (const h of e.txHashes || []) {
+      if (TX_HASH_RE.test(String(h))) hashes.push(String(h));
+    }
+    for (const c of e.chunks || []) {
+      if (c?.txHash && TX_HASH_RE.test(String(c.txHash))) hashes.push(String(c.txHash));
+    }
+    const blob = String(e.tokenPacket || "");
+    for (const m of blob.match(TX_HASH_PICK) || []) hashes.push(m);
+  }
+  return [...new Set(hashes.map((h) => h.toLowerCase()))];
+}
+
+/** Fold registry §TOKEN§ packets into recursive memory (no RPC). KEY is never dropped. */
+export function ingestRegistryPackets(registry) {
+  ensureGenesisMemory();
+  let n = 0;
+  for (const e of walkVitaRegistryEntries(registry)) {
+    const packet = String(e.tokenPacket || e.encryptedContent || "");
+    if (!packet) continue;
+    const r = ingestSealedUtf8(packet);
+    if (r.ok) n += 1;
+  }
+  return { ingested: n, quality: vitaQuality(getLastVitaPacket()), packet: getLastVitaPacket() };
+}
+
+/**
+ * Inject VITA blockchain memory: registry packets + known Base anchors +
+ * recent strand txHashes. Does not invent hashes. Does not ingest LIBM/binary.
+ */
+export async function injectVitaBlockchainMemory({
+  fetchCalldata = fetchTxCalldataHex,
+  registry = null,
+  hashes = [],
+  maxPulls = MAX_BOOT_CHAIN_PULLS,
+} = {}) {
+  ensureGenesisMemory();
+  const fromRegistry = ingestRegistryPackets(registry);
+  const want = [
+    ...KNOWN_CHAIN_ANCHORS.map((a) => a.tx),
+    ...collectRegistryTxHashes(registry),
+    ...(hashes || []),
+  ].filter((h) => TX_HASH_RE.test(h));
+  const unique = [...new Set(want.map((h) => h.toLowerCase()))];
+  const cap = Math.max(0, Math.floor(Number(maxPulls) || 0));
+  const toPull = unique.slice(0, cap);
+  const results = [];
+  for (const h of toPull) {
+    try {
+      results.push(await pullLocationFromChain(h, fetchCalldata));
+    } catch (e) {
+      results.push({ ok: false, txHash: h, error: e.message });
+    }
+  }
+  const rec = reconstructVitaMemoryFromLocations();
+  const packet = getLastVitaPacket();
+  return {
+    kind: "vita-chain-inject",
+    registryPackets: fromRegistry.ingested,
+    pulled: results.length,
+    ingested: results.filter((r) => r.ingested).length,
+    results,
+    packet,
+    quality: vitaQuality(packet),
+    reconstructed: rec,
+    loc: getLocationDepository(),
+  };
 }

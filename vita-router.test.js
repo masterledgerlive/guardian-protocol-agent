@@ -71,6 +71,13 @@ import {
   readHitchUtf8FromCalldata,
   pullLocationFromChain,
   pullMissingLocationUtf8,
+  ingestRegistryPackets,
+  injectVitaBlockchainMemory,
+  shouldIngestHitchKind,
+  collectRegistryTxHashes,
+  KEYCAT_TX,
+  EUREKA_ONCHAIN_TX,
+  VITA_STRAND_TX,
 } from "./vita-chain-reader.js";
 import { prependVitaBootContext } from "./ikn-boot-reader.js";
 import { vitaCompress, vitaCompressLocal, vitaSplit } from "./vita-memory.js";
@@ -388,7 +395,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
     assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
     assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
-    assert.ok(src.includes("pullMissingLocationUtf8"), "boot must re-read hitch utf8 from Base");
+    assert.ok(src.includes("injectVitaBlockchainMemory"), "boot must inject VITA blockchain memory");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
     assert.ok(src.includes("absorbVitaStrandPacket"), "strand save/recall must fold into recursive memory");
   });
@@ -473,6 +480,79 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.equal(r.created, true);
     assert.equal(r.node.sealed, true);
     assert.ok(r.node.utf8.includes("Krystian"));
+  });
+
+  it("does not ingest unknown binary LIBM trailers into recursive memory", async () => {
+    const hash = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    const junk = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, "LIBM" + "\0".repeat(40));
+    const result = await pullLocationFromChain(hash, async () => junk.data);
+    assert.equal(result.ok, true);
+    assert.equal(result.ingested, false);
+    assert.equal(shouldIngestHitchKind("unknown"), false);
+    assert.equal(getLocationDepository().sealedCount, 0);
+    assert.ok(getLastVitaPacket().includes("Krystian") || getLastVitaPacket() === "");
+  });
+
+  it("folds registry §TOKEN§ packets into recursive memory without dropping KEY", () => {
+    setLastVitaPacket("");
+    const folded = ingestRegistryPackets({
+      "2026-03-20-vault": {
+        strandId: "VITA-0001",
+        tokenPacket: "§SESS§2026-03-20|vault\n§WHO§VITA|DA\n§PROVED§vault-on-base✓",
+        txHashes: ["0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"],
+      },
+    });
+    assert.equal(folded.ingested, 1);
+    assert.equal(folded.quality.hasKey, true);
+    assert.ok(folded.packet.includes("Krystian"));
+    assert.ok(folded.packet.includes("vault-on-base"));
+    const hashes = collectRegistryTxHashes({
+      "2026-03-20-vault": {
+        txHashes: ["0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"],
+      },
+    });
+    assert.ok(hashes.includes(VITA_STRAND_TX));
+  });
+
+  it("injectVitaBlockchainMemory pulls mocked vita hitch and keeps KEY", async () => {
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    const hitch = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, plan.utf8);
+    const inj = await injectVitaBlockchainMemory({
+      fetchCalldata: async (hash) => {
+        if (hash.toLowerCase() === KEYCAT_TX) return KEYCAT_PLAIN_SWAP;
+        return hitch.data;
+      },
+      registry: {
+        demo: {
+          tokenPacket: "§SESS§inject-test|chain\n§LEARN§registry-packet",
+          txHashes: [EUREKA_ONCHAIN_TX],
+        },
+      },
+      hashes: [EUREKA_ONCHAIN_TX],
+      maxPulls: 3,
+    });
+    assert.ok(inj.registryPackets >= 1);
+    assert.equal(inj.quality.hasKey, true);
+    assert.ok(inj.packet.includes("Koda"));
+    assert.ok(inj.packet.includes("Krystian"));
+  });
+
+  it("injects live Base Eureka letter + VITA strand without KEY loss", async () => {
+    const inj = await injectVitaBlockchainMemory({
+      hashes: [KEYCAT_TX, EUREKA_ONCHAIN_TX, VITA_STRAND_TX],
+      maxPulls: 3,
+    });
+    assert.equal(inj.pulled, 3);
+    assert.equal(inj.ingested, 2);
+    assert.equal(inj.quality.hasKey, true);
+    assert.equal(inj.quality.lossy, false);
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("Kai"));
+    assert.ok(getLastVitaPacket().includes("Koda"));
+    const kinds = inj.results.map((r) => r.kind);
+    assert.ok(kinds.includes("none"));
+    assert.ok(kinds.includes("eureka"));
+    assert.ok(kinds.includes("vita"));
   });
 });
 
