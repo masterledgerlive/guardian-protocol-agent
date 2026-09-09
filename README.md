@@ -19,7 +19,8 @@ Guardian is the first live deployment of the **IKN (Infinite Knowledge Network)*
 
 | Place | What it is |
 |---|---|
-| **This repo** (`masterledgerlive/guardian-protocol-agent`) | Uniswap bot, vault, Telegram, UTF-8 `§$STORE§` hitch, `/prove` |
+| **This repo** (`masterledgerlive/guardian-protocol-agent`) | Uniswap **V3** bot, vault, Telegram, UTF-8 `§$STORE§` hitch, `/prove` |
+| **`guardian-v4/`** | Separate **Uniswap V4** inject offshoot (DOT + popular V4 avenues). `npm run start:v4` — does not freeze V3. See `guardian-v4/README.md` |
 | **Railway `industrious-tranquility` → `guardian-protocol-agent`** | Production. Auto-deploys GitHub **`main`**. Domain `guardian-protocol-agent-production.up.railway.app` |
 | **`masterledgerlive/StorageToken`** | Hitch / `$STORE` notes + a storage service. The agent-genesis brief landed here. **Not** the trader |
 | **Railway `industrious-tranquility` → `StorageToken`** | That storage service, sitting next to Guardian. Ideas belong here in this bot, not a second trader |
