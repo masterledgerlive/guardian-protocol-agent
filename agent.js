@@ -307,7 +307,13 @@ import { processIKNEntry }             from "./ikn-queue-processor.js";
 import { runIntegrityCheck, enforceSource } from "./ikn-integrity-agent.js";
 
 // ── BITStorage / ShadowWeave — Mempool Orchestrator ──────────────────────────
-import { MempoolOrchestrator, LANE } from "./bitstorage-orchestrator.js";
+import {
+  buildExitInjectReceiptBundle,
+  formatHatExitInjectReceiptHtml,
+  buildSpacedChainProof,
+  sealedPictureLocations,
+} from "./hat-exit-receipt.js";
+import { getHatRegistry } from "./vita-hat.js";
 const orch = new MempoolOrchestrator({
   cdpClient:     null, // set in main() after cdpClient is created
   walletAddress: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
@@ -4689,6 +4695,52 @@ function hitchTelegramFooter(hitch, txHash) {
   return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
 }
 
+/**
+ * Exit inject receipt when hitch landed + chain receipt succeeded.
+ * Includes spaced-location count for HAT picture assembly when registry has seals.
+ */
+function buildHatExitReceiptForSell({
+  transactionHash,
+  receiptStatus,
+  sellVoice,
+} = {}) {
+  const hitchOnChain = !!sellVoice?.onChain;
+  const bundle = buildExitInjectReceiptBundle({
+    txHash: transactionHash,
+    receiptStatus,
+    hitchOnChain,
+    hitchBytes: sellVoice?.hitchBytes || 0,
+    utf8: sellVoice?.utf8 || "",
+    registry: getHatRegistry(),
+    pictureLabel: "HAT picture / smile stream",
+  });
+  // Always show inject confirm/deny on exit when we attempted hitch
+  if (!hitchOnChain && receiptStatus === "success") {
+    return formatHatExitInjectReceiptHtml({
+      confirm: {
+        injected: false,
+        reason: "exit leftover too thin or hitch skipped — plain sale (no inject)",
+        txHash: transactionHash,
+      },
+    });
+  }
+  // Enrich with live spaced proof from any sealed HAT nodes
+  const locs = sealedPictureLocations();
+  if (locs.length > 0) {
+    const spaced = buildSpacedChainProof({
+      locations: locs,
+      totalBits: getHatRegistry().totalBits || 0,
+    });
+    return formatHatExitInjectReceiptHtml({
+      confirm: bundle.confirm,
+      spacedProof: spaced,
+      pictureLabel: "HAT picture / smile stream",
+      thisLocationSeq: locs.find((l) => l.location === transactionHash)?.seq ?? null,
+    });
+  }
+  return bundle.html;
+}
+
 function hitchLedgerSignature(hitch) {
   return hitch?.onChain && hitch.utf8 ? hitch.utf8 : "NO UTF-8 HITCH — letter not on-chain";
 }
@@ -6229,6 +6281,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       surfReport,
       indDetail: ind.detail,
       hitchFooter: hitchTelegramFooter(sellVoice, transactionHash),
+      hatInjectReceipt: buildHatExitReceiptForSell({
+        transactionHash,
+        receiptStatus,
+        sellVoice,
+      }),
       waveBar,
     }));
     if (sellVoice.onChain) console.log(`      💌 ${sellVoice.utf8}`);

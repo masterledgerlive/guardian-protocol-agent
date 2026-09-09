@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added — Exit inject receipt + spaced-chain image proof
+
+When an exit can inject, the sell Telegram receipt now includes a **HAT EXIT
+INJECT RECEIPT**: confirm only after chain receipt success, and prove how many
+**spaced blockchain locations** (distinct txs / blocks) assemble the picture.
+
+- `hat-exit-receipt.js` — confirm gate, spaced proof, Telegram formatter
+- Smile demo seals +3 blocks apart × 8 locations → full 8×8 image
+- `formatSellReceiptHtml(..., hatInjectReceipt)` wired from `executeSell`
+
 ### Added — HAT smile demo: 8×8×8-bit picture → locations → reader
 
 Quick proof before huge HTML: encode a slow-rez smile, seal chunk locations,

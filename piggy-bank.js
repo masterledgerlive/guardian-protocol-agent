@@ -341,6 +341,7 @@ export function formatSellReceiptHtml({
   surfReport = "",
   indDetail = "",
   hitchFooter = "",
+  hatInjectReceipt = "",
   waveBar = "",
 } = {}) {
   const sym = String(symbol || "?");
@@ -382,6 +383,9 @@ export function formatSellReceiptHtml({
   if (indDetail) lines.push(`💓 ${indDetail}`);
   lines.push(`━━━━━━━━━━━━━━━━━━━━`);
   if (hitchFooter) lines.push(String(hitchFooter).trimEnd());
+  if (hatInjectReceipt) {
+    lines.push(`━━━━━━━━━━━━━━━━━━━━`, String(hatInjectReceipt).trimEnd());
+  }
   return lines.join("\n");
 }
 
