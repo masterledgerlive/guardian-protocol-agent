@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guardian Engine — Wave · Surfer · Hitch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c;
+      --muted: #3d5a4c;
+      --lime: #b6f25c;
+      --lime-deep: #6fad12;
+      --sand: #e7f2e2;
+      --panel: rgba(255, 255, 255, 0.78);
+      --line: rgba(16, 35, 28, 0.14);
+      --warn: #c45d16;
+      --ok: #1f7a45;
+      --link: #1a6bff;
+      --wave: #2a8f9a;
+      --ride: #d4a017;
+      --display: "Syne", sans-serif;
+      --body: "Source Serif 4", Georgia, serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--body);
+      background:
+        radial-gradient(900px 420px at 8% -10%, rgba(182, 242, 92, 0.5), transparent 58%),
+        radial-gradient(720px 400px at 100% 0%, rgba(42, 143, 154, 0.2), transparent 55%),
+        linear-gradient(165deg, #f4fbf0 0%, #d9ebe0 45%, #cfe8f0 100%);
+      min-height: 100vh;
+    }
+    .hero {
+      min-height: 72vh;
+      padding: clamp(1.2rem, 4vw, 2.8rem);
+      display: grid;
+      align-content: end;
+      gap: 0.85rem;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, transparent 15%, rgba(244, 251, 240, 0.9) 78%),
+        repeating-linear-gradient(90deg, transparent 0 26px, rgba(16,35,28,0.035) 26px 27px);
+    }
+    .hero-wave {
+      position: absolute;
+      inset: 8% 0 28%;
+      width: 100%;
+      height: 55%;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .brand {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(2.4rem, 8vw, 4.8rem);
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      max-width: 14ch;
+      margin: 0;
+      position: relative;
+    }
+    .brand em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--lime), #5ec8d4);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .lede {
+      max-width: 34rem;
+      font-size: clamp(1.02rem, 2.2vw, 1.2rem);
+      color: var(--muted);
+      margin: 0;
+      position: relative;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.3rem; position: relative; }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--ink);
+      background: var(--lime);
+      color: var(--ink);
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 0.65rem 0.95rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    button:hover, .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: 2px 2px 0 var(--ink); }
+    button.ghost, .btn.ghost { background: var(--panel); }
+    button.warn { background: #ffd2a8; }
+    button.ride { background: #ffe08a; }
+    button.trick { background: #ffc4a8; }
+    main {
+      padding: 0 clamp(1.2rem, 4vw, 2.8rem) 3rem;
+      display: grid;
+      gap: 1.1rem;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      padding: 1.05rem 1.15rem 1.25rem;
+      backdrop-filter: blur(8px);
+      animation: rise 520ms ease both;
+    }
+    section:nth-child(2) { animation-delay: 50ms; }
+    section:nth-child(3) { animation-delay: 100ms; }
+    section:nth-child(4) { animation-delay: 150ms; }
+    section:nth-child(5) { animation-delay: 200ms; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes pulse-lit {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(111, 173, 18, 0.35); }
+      50% { box-shadow: 0 0 0 6px rgba(111, 173, 18, 0); }
+    }
+    h2 {
+      font-family: var(--display);
+      margin: 0 0 0.5rem;
+      font-size: 1.28rem;
+      letter-spacing: -0.02em;
+    }
+    p, li { color: var(--muted); line-height: 1.45; }
+    .hint { font-size: 0.9rem; }
+    .mono { font-family: var(--mono); font-size: 0.8rem; }
+    .hw-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.55rem;
+    }
+    .hw {
+      border: 1px solid var(--line);
+      border-radius: 0.65rem;
+      padding: 0.65rem 0.7rem;
+      background: rgba(255,255,255,0.55);
+      min-height: 4.2rem;
+    }
+    .hw.lit {
+      border-color: var(--ink);
+      background: linear-gradient(160deg, rgba(182,242,92,0.55), rgba(255,255,255,0.7));
+      animation: pulse-lit 2.4s ease infinite;
+    }
+    .hw b {
+      display: block;
+      font-family: var(--display);
+      font-size: 0.82rem;
+      margin-bottom: 0.2rem;
+    }
+    .hw span { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+    .wave-grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+    .wave-tile {
+      border: 1px dashed var(--line);
+      border-radius: 0.75rem;
+      padding: 0.7rem;
+      background: rgba(255,255,255,0.55);
+      cursor: pointer;
+      transition: border-color 160ms ease, transform 160ms ease;
+    }
+    .wave-tile:hover, .wave-tile.active {
+      border-style: solid;
+      border-color: var(--ink);
+      transform: translateY(-1px);
+    }
+    .wave-tile header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+      font-family: var(--display);
+      font-weight: 700;
+    }
+    .wave-tile canvas {
+      width: 100%;
+      height: 88px;
+      display: block;
+      border-radius: 0.4rem;
+      background: linear-gradient(180deg, rgba(42,143,154,0.08), transparent);
+    }
+    .phase {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--wave);
+    }
+    .phase.PEAK, .phase.TRICK { color: var(--warn); }
+    .phase.RIDING, .phase.INJECT { color: var(--ok); }
+    .lights {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.55rem;
+    }
+    .light {
+      width: 0.72rem;
+      height: 0.72rem;
+      border-radius: 50%;
+      border: 1px solid var(--ink);
+      background: #d7e2d8;
+      position: relative;
+    }
+    .light.on {
+      background: var(--lime);
+      animation: pulse-lit 1.8s ease infinite;
+    }
+    .light[title]::after { content: none; }
+    label { display: block; font-family: var(--display); font-size: 0.78rem; margin: 0.5rem 0 0.2rem; }
+    input, select {
+      width: 100%;
+      max-width: 28rem;
+      border: 1px solid var(--ink);
+      border-radius: 0.45rem;
+      padding: 0.5rem 0.6rem;
+      font-family: var(--mono);
+      background: #fff;
+    }
+    .ops {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr);
+    }
+    @media (max-width: 800px) {
+      .ops { grid-template-columns: 1fr; }
+    }
+    .option {
+      border: 1px solid var(--line);
+      border-radius: 0.7rem;
+      padding: 0.7rem 0.8rem;
+      margin-bottom: 0.45rem;
+      background: rgba(255,255,255,0.6);
+      display: grid;
+      gap: 0.35rem;
+    }
+    .option.selected { border-color: var(--ink); background: rgba(182,242,92,0.25); }
+    .option header {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .cost { font-family: var(--mono); font-size: 0.78rem; }
+    .dance {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      margin: 0.4rem 0 0.7rem;
+      flex-wrap: wrap;
+    }
+    .dance i {
+      font-style: normal;
+      padding: 0.2rem 0.45rem;
+      border: 1px solid var(--line);
+      border-radius: 0.35rem;
+      background: #fff;
+    }
+    .dance i.now {
+      background: var(--lime);
+      border-color: var(--ink);
+    }
+    pre {
+      margin: 0.55rem 0 0;
+      padding: 0.75rem;
+      background: #10231c;
+      color: #d8f5c8;
+      border-radius: 0.55rem;
+      overflow: auto;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      max-height: 220px;
+    }
+    .stat-row {
+      display: grid;
+      gap: 0.55rem;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      margin-bottom: 0.7rem;
+    }
+    .stat {
+      border: 1px dashed var(--line);
+      border-radius: 0.65rem;
+      padding: 0.55rem 0.65rem;
+      background: rgba(255,255,255,0.55);
+    }
+    .stat span { font-family: var(--display); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat b { display: block; font-family: var(--mono); font-size: 1.05rem; margin-top: 0.15rem; }
+    footer { padding: 0 1.4rem 2.4rem; color: var(--muted); font-size: 0.85rem; }
+    .surfer-dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--ride);
+      border: 1.5px solid var(--ink);
+      transform: translate(-50%, -50%);
+      transition: left 420ms ease, top 420ms ease;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <canvas class="hero-wave" id="heroWave" aria-hidden="true"></canvas>
+    <h1 class="brand">Guardian <em>Engine</em></h1>
+    <p class="lede">
+      Open hardware for the wave dance — paddle in, ride up, trick out, reload when the set comes down.
+      See costs, hitch payment lights, and every option humans or agent bots can press.
+    </p>
+    <div class="cta-row">
+      <button type="button" id="btnRefresh">Refresh engine</button>
+      <a class="btn ghost" href="/arena">Arena ledger</a>
+      <a class="btn ghost" href="https://github.com/masterledgerlive/guardian-protocol-agent" target="_blank" rel="noreferrer">Open source</a>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1 · Hardware strip</h2>
+      <p class="hint">Lit modules are live equations from this repo. Dim = available but not on this process.</p>
+      <div class="hw-strip" id="hwStrip"></div>
+    </section>
+
+    <section>
+      <h2>2 · Waveforms</h2>
+      <p class="hint">Each tile is a token set. Surfer marker rides the series. Click to fine-tune and fire buttons.</p>
+      <div class="stat-row" id="topStats"></div>
+      <div class="wave-grid" id="waveGrid"></div>
+    </section>
+
+    <section>
+      <h2>3 · Selected ride</h2>
+      <div class="ops">
+        <div>
+          <div id="selectedMeta"></div>
+          <div class="dance" id="danceSteps"></div>
+          <label for="handEntry">Fine-tune entry</label>
+          <input id="handEntry" type="number" step="any" placeholder="pred entry" />
+          <label for="handExit">Fine-tune target / trick</label>
+          <input id="handExit" type="number" step="any" placeholder="pred exit" />
+          <label for="tradeUsd">Stake USD</label>
+          <input id="tradeUsd" type="number" value="2" min="0.5" step="0.5" />
+          <div class="cta-row" style="margin-top:0.7rem">
+            <button type="button" class="ghost" id="btnApplyTune">Apply tune</button>
+          </div>
+          <h2 style="margin-top:1rem;font-size:1.05rem">Piggy payment lights</h2>
+          <p class="hint">Early wipeout is OK when <strong>Message paid</strong> is lit — fees + hitch covered. Later lights = inject / skim / agent runway.</p>
+          <div class="lights" id="piggyLights" aria-label="payment lights"></div>
+          <div id="lightLegend" class="hint mono" style="margin-top:0.45rem"></div>
+        </div>
+        <div>
+          <h2 style="font-size:1.05rem">Options at press time</h2>
+          <div id="optionList"></div>
+          <div class="cta-row">
+            <button type="button" class="ride" id="btnFire">Activate selected</button>
+            <button type="button" class="trick" id="btnTrickQuick">Quick trick out</button>
+            <button type="button" class="ghost" id="btnRideQuick">Quick ride wave</button>
+          </div>
+          <pre id="cmdOut">Pick an option — costs update when you refresh or change stake.</pre>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4 · Connect live bot</h2>
+      <p class="hint">Paste Railway <code>VITA_WEBHOOK_SECRET</code> to queue real ride / trick / message commands. Without it, this board runs in demo mode so you can still learn the dance.</p>
+      <label for="secret">VITA webhook secret</label>
+      <input id="secret" type="password" placeholder="x-vita-secret value" autocomplete="off" />
+      <div class="cta-row" style="margin-top:0.65rem">
+        <button type="button" id="btnSaveSecret">Save secret</button>
+        <button type="button" class="ghost" id="btnClearSecret">Clear</button>
+        <button type="button" class="ghost" id="btnDemo">Force demo</button>
+      </div>
+      <pre id="rawSnap">{}</pre>
+    </section>
+  </main>
+
+  <footer>
+    Equations: peak-ride · lose-zero hitch cover · piggy leave-behind · first-inject paid · cost-edge.
+    Demo never spends money. Live buttons talk to the Railway injector via VITA webhook.
+  </footer>
+
+  <script>
+    const KEY = "guardian_vita_secret";
+    const secretEl = document.getElementById("secret");
+    secretEl.value = localStorage.getItem(KEY) || "";
+
+    let snap = null;
+    let selected = null;
+    let selectedOptionId = "ride";
+    let handEntry = null;
+    let handExit = null;
+    let forceDemo = !secretEl.value;
+
+    const DANCE = ["PADDLE", "INJECT", "RIDING", "PEAK", "TRICK", "RELOAD"];
+
+    function money(n) {
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "—";
+      return (x < 0 ? "-$" : "$") + Math.abs(x).toFixed(x >= 10 ? 2 : 3);
+    }
+
+    function headers() {
+      const s = secretEl.value.trim();
+      return s ? { "x-vita-secret": s, "content-type": "application/json" } : { "content-type": "application/json" };
+    }
+
+    function flash(el, msg) {
+      el.textContent = msg;
+    }
+
+    // ── Demo snapshot (mirrors engine-board.js shapes) ──────────────────────
+    function demoSnap() {
+      const now = Date.now();
+      const mk = (base, amp, n, phase) => Array.from({ length: n }, (_, i) => {
+        const t = i / n;
+        return base * (1 + amp * Math.sin(t * Math.PI * 2 + phase) + amp * 0.15 * Math.sin(t * 11 + phase));
+      });
+      const hitchCostUsd = 0.18, feesUsd = 0.12, ethUsd = 3200;
+      const tokens = [
+        { symbol: "LINK", base: 14.2, amp: 0.035, piggyPct: 0.08, holding: true, phase: 0.4 },
+        { symbol: "UNI", base: 8.1, amp: 0.04, piggyPct: 0.02, holding: false, phase: 1.2 },
+        { symbol: "AERO", base: 1.05, amp: 0.06, piggyPct: 0.02, holding: true, phase: 2.1 },
+        { symbol: "DEGEN", base: 0.0062, amp: 0.08, piggyPct: 0.02, holding: false, phase: 0.8 },
+        { symbol: "VVV", base: 2.4, amp: 0.05, piggyPct: 0.02, holding: false, phase: 1.7 },
+      ];
+      function phaseOf(w) {
+        if (!w.holding) return w.price <= w.predEntry * 1.02
+          ? { phase: "PADDLE", label: "Paddle in" }
+          : { phase: "RELOAD", label: "Wait for set" };
+        if (w.price >= w.rideHigh * 0.985 && w.price < w.rideHigh * 0.999)
+          return { phase: "PEAK", label: "Peak zone — trick armed" };
+        if (w.price >= w.entry) return { phase: "RIDING", label: "Riding up" };
+        return { phase: "INJECT", label: "Injected — settle" };
+      }
+      function lights(leftover) {
+        const levels = [
+          { id: "fees", label: "Fees", paid: leftover >= feesUsd, needUsd: feesUsd },
+          { id: "message", label: "Message paid", paid: leftover >= feesUsd + hitchCostUsd, needUsd: feesUsd + hitchCostUsd },
+          { id: "cushion", label: "Sell cushion 2×", paid: leftover >= feesUsd + hitchCostUsd * 2, needUsd: feesUsd + hitchCostUsd * 2 },
+          { id: "inject", label: "First inject", paid: leftover >= 2.2, needUsd: 2.2 },
+          { id: "skim", label: "Piggy skim", paid: leftover >= 2.3, needUsd: 0.04 },
+          { id: "agent", label: "Agent share", paid: leftover >= 2.35, needUsd: 0.02 },
+        ];
+        return { levels, messagePaid: levels[1].paid, wipeoutSafe: levels[1].paid };
+      }
+      function options(holding, leftover) {
+        const trade = Number(document.getElementById("tradeUsd").value) || 2;
+        const buyCover = leftover >= hitchCostUsd;
+        const sellCover = leftover >= hitchCostUsd * 2;
+        const feesCover = leftover >= feesUsd;
+        return { options: [
+          { id: "ride", label: "Ride wave", blurb: "Rider + hitch when leftover covers", costUsd: trade + feesUsd + (buyCover ? hitchCostUsd : 0), hitch: buyCover ? "on" : "skip", enabled: !holding, payload: { action: "ride", hitchMode: buyCover ? "hitch" : "plain" } },
+          { id: "rider", label: "Rider only", blurb: "Plain swap", costUsd: trade + feesUsd, hitch: "off", enabled: !holding, payload: { action: "rider", hitchMode: "plain" } },
+          { id: "message", label: "Message only", blurb: "Dedicated §$STORE§ proof", costUsd: hitchCostUsd + feesUsd * 0.35, hitch: "prove", enabled: true, payload: { action: "message" } },
+          { id: "both", label: "Both ends", blurb: "Hitch entry + exit cushion", costUsd: trade + feesUsd + hitchCostUsd * 3, hitch: "entry+exit", enabled: !holding, payload: { action: "both", hitchMode: "both" } },
+          { id: "trickout", label: "Trick out", blurb: feesCover ? (sellCover ? "Exit with message" : "Exit plain — message unpaid") : "Hold — would lose", costUsd: feesUsd + (sellCover ? hitchCostUsd * 2 : 0), hitch: sellCover ? "on" : "skip", enabled: holding && feesCover, payload: { action: "trickout", hitchMode: sellCover ? "hitch" : "plain" } },
+        ], leftoverUsd: leftover, hitchCostUsd, feesUsd };
+      }
+      return {
+        ok: true, demo: true, ethUsd, hitchCostUsd, feesUsd,
+        hitchProve: { count: 7, target: 20, profitUsd: 1.42 },
+        favorite: "LINK",
+        modules: [
+          { id: "wave", label: "Wave engine", lit: true },
+          { id: "peak", label: "Peak ride", lit: true },
+          { id: "hitch", label: "Hitch message", lit: true },
+          { id: "cost", label: "Cost edge", lit: true },
+          { id: "piggy", label: "Piggy banks", lit: true },
+          { id: "surfer", label: "Surfer pool", lit: true },
+          { id: "v4", label: "V4 offshoot", lit: false, note: "npm run start:v4" },
+        ],
+        surfers: [
+          { name: "KAHUNA", status: "RIDING", symbol: "LINK", usdAlloc: 4, pnlUsd: 0.22 },
+          { name: "PIPELINE", status: "WAITING", symbol: "UNI", usdAlloc: 3, pnlUsd: 0 },
+        ],
+        waves: tokens.map((t) => {
+          const series = mk(t.base, t.amp, 48, t.phase);
+          const price = series[series.length - 1];
+          const trough = Math.min(...series.slice(-24));
+          const peak = Math.max(...series.slice(-24));
+          const entry = t.holding ? trough * 1.01 : null;
+          const rideHigh = t.holding ? Math.max(entry, ...series.slice(-12)) : 0;
+          const predEntry = trough * 0.998;
+          const predExit = peak * 0.995;
+          const leftoverUsd = t.holding ? Math.max(0, (price - entry) / entry * 4 - feesUsd) : 2.5;
+          const w = { symbol: t.symbol, price, series, trough, peak, entry, rideHigh, predEntry, predExit, piggyPct: t.piggyPct, holding: t.holding, leftoverUsd };
+          w.phase = phaseOf(w);
+          w.lights = lights(leftoverUsd);
+          w.options = options(t.holding, leftoverUsd);
+          return w;
+        }),
+        timestamp: new Date(now).toISOString(),
+      };
+    }
+
+    function drawWave(canvas, series, markers = {}) {
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth || 280;
+      const h = canvas.clientHeight || 88;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const arr = (series || []).map(Number).filter((p) => p > 0);
+      if (arr.length < 2) return;
+      const min = Math.min(...arr);
+      const max = Math.max(...arr);
+      const span = max - min || 1;
+      const pad = 6;
+      ctx.beginPath();
+      arr.forEach((p, i) => {
+        const x = pad + (i / (arr.length - 1)) * (w - pad * 2);
+        const y = pad + (1 - (p - min) / span) * (h - pad * 2);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = "#2a8f9a";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const fill = ctx.createLinearGradient(0, 0, 0, h);
+      fill.addColorStop(0, "rgba(42,143,154,0.22)");
+      fill.addColorStop(1, "rgba(42,143,154,0)");
+      ctx.lineTo(w - pad, h - pad);
+      ctx.lineTo(pad, h - pad);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+
+      function mark(price, color) {
+        if (!(price > 0)) return;
+        const y = pad + (1 - (price - min) / span) * (h - pad * 2);
+        ctx.strokeStyle = color;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(w - pad, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      mark(markers.predEntry, "#6fad12");
+      mark(markers.predExit, "#c45d16");
+      mark(markers.entry, "#10231c");
+
+      const last = arr[arr.length - 1];
+      const sx = pad + (w - pad * 2);
+      const sy = pad + (1 - (last - min) / span) * (h - pad * 2);
+      ctx.fillStyle = "#d4a017";
+      ctx.strokeStyle = "#10231c";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawHeroWave() {
+      const c = document.getElementById("heroWave");
+      const ctx = c.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const w = c.clientWidth || window.innerWidth;
+      const h = c.clientHeight || 220;
+      c.width = w * dpr;
+      c.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      let t0 = 0;
+      function frame(ts) {
+        t0 = ts * 0.001;
+        ctx.clearRect(0, 0, w, h);
+        for (let layer = 0; layer < 3; layer++) {
+          ctx.beginPath();
+          for (let x = 0; x <= w; x += 4) {
+            const y = h * 0.55
+              + Math.sin(x * 0.012 + t0 * (1.1 + layer * 0.2) + layer) * (18 - layer * 4)
+              + Math.sin(x * 0.004 + t0 * 0.7) * 10;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = `rgba(42,143,154,${0.35 - layer * 0.08})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        const sx = (w * 0.55 + Math.sin(t0 * 0.9) * w * 0.2);
+        const sy = h * 0.55 + Math.sin(sx * 0.012 + t0 * 1.1) * 18 - 8;
+        ctx.fillStyle = "#d4a017";
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#10231c";
+        ctx.stroke();
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function renderHardware(modules) {
+      const el = document.getElementById("hwStrip");
+      el.innerHTML = (modules || []).map((m) => `
+        <div class="hw ${m.lit ? "lit" : ""}">
+          <b>${m.label}</b>
+          <span>${m.lit ? "LIVE" : (m.note || "standby")}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderTopStats(s) {
+      const el = document.getElementById("topStats");
+      const mode = s.demo ? "DEMO" : "LIVE";
+      el.innerHTML = `
+        <div class="stat"><span>Mode</span><b>${mode}</b></div>
+        <div class="stat"><span>Favorite</span><b>${s.favorite || "LINK"}</b></div>
+        <div class="stat"><span>Hitch prove</span><b>${s.hitchProve?.count ?? 0}/${s.hitchProve?.target ?? 20}</b></div>
+        <div class="stat"><span>Surfers</span><b>${(s.surfers || []).length}</b></div>
+        <div class="stat"><span>Hitch cost</span><b>${money(s.hitchCostUsd)}</b></div>
+      `;
+    }
+
+    function renderWaves(waves) {
+      const grid = document.getElementById("waveGrid");
+      grid.innerHTML = "";
+      (waves || []).forEach((w) => {
+        const tile = document.createElement("div");
+        tile.className = "wave-tile" + (selected?.symbol === w.symbol ? " active" : "");
+        tile.innerHTML = `
+          <header>
+            <span>${w.symbol}${w.holding ? " · bag" : ""}</span>
+            <span class="phase ${w.phase?.phase || ""}">${w.phase?.label || w.phase?.phase || "—"}</span>
+          </header>
+          <canvas height="88"></canvas>
+          <div class="mono">${money(w.price)} · piggy ${(Number(w.piggyPct || 0) * 100).toFixed(0)}%</div>
+        `;
+        tile.onclick = () => { selected = w; selectedOptionId = w.holding ? "trickout" : "ride"; renderAll(); };
+        grid.appendChild(tile);
+        drawWave(tile.querySelector("canvas"), w.series, {
+          predEntry: w.predEntry,
+          predExit: w.predExit,
+          entry: w.entry,
+        });
+      });
+    }
+
+    function rebuildOptions(w) {
+      if (!w || !snap) return w?.options;
+      const trade = Number(document.getElementById("tradeUsd").value) || 2;
+      const hitch = Number(snap.hitchCostUsd) || 0.18;
+      const fees = Number(snap.feesUsd) || 0.12;
+      const leftover = Number(w.leftoverUsd ?? (w.holding ? 0.4 : 2.5));
+      const buyCover = leftover >= hitch;
+      const sellCover = leftover >= hitch * 2;
+      const feesCover = leftover >= fees;
+      return {
+        leftoverUsd: leftover,
+        hitchCostUsd: hitch,
+        feesUsd: fees,
+        options: [
+          { id: "ride", label: "Ride wave", blurb: "Rider + hitch when leftover covers", costUsd: trade + fees + (buyCover ? hitch : 0), hitch: buyCover ? "on" : "skip", enabled: !w.holding, payload: { action: "ride", symbol: w.symbol, usd: trade, hitchMode: buyCover ? "hitch" : "plain" } },
+          { id: "rider", label: "Rider only", blurb: "Plain swap — no message", costUsd: trade + fees, hitch: "off", enabled: !w.holding, payload: { action: "rider", symbol: w.symbol, usd: trade, hitchMode: "plain" } },
+          { id: "message", label: "Message only", blurb: "Dedicated §$STORE§ proof tx", costUsd: hitch + fees * 0.35, hitch: "prove", enabled: true, payload: { action: "message", symbol: w.symbol } },
+          { id: "both", label: "Both ends", blurb: "Hitch on entry + exit cushion plan", costUsd: trade + fees + hitch * 3, hitch: "entry+exit", enabled: !w.holding, payload: { action: "both", symbol: w.symbol, usd: trade, hitchMode: "both" } },
+          { id: "trickout", label: "Trick out", blurb: feesCover ? (sellCover ? "Exit with message — cushion paid" : "Exit plain — message unpaid if early wipeout") : "Blocked — leftover ≤ fees", costUsd: fees + (sellCover ? hitch * 2 : 0), hitch: sellCover ? "on" : "skip", enabled: !!w.holding && feesCover, payload: { action: "trickout", symbol: w.symbol, hitchMode: sellCover ? "hitch" : "plain" } },
+        ],
+      };
+    }
+
+    function renderSelected() {
+      const meta = document.getElementById("selectedMeta");
+      const dance = document.getElementById("danceSteps");
+      const lightsEl = document.getElementById("piggyLights");
+      const legend = document.getElementById("lightLegend");
+      const optsEl = document.getElementById("optionList");
+      if (!selected) {
+        meta.innerHTML = "<p class='hint'>Select a waveform tile.</p>";
+        return;
+      }
+      const w = selected;
+      const entryShow = handEntry ?? w.predEntry;
+      const exitShow = handExit ?? w.predExit;
+      document.getElementById("handEntry").value = entryShow ?? "";
+      document.getElementById("handExit").value = exitShow ?? "";
+
+      meta.innerHTML = `
+        <div class="stat-row">
+          <div class="stat"><span>Token</span><b>${w.symbol}</b></div>
+          <div class="stat"><span>Price</span><b>${money(w.price)}</b></div>
+          <div class="stat"><span>Entry / ride high</span><b>${w.entry ? money(w.entry) : "—"} / ${w.rideHigh ? money(w.rideHigh) : "—"}</b></div>
+          <div class="stat"><span>Pred entry → exit</span><b>${money(w.predEntry)} → ${money(w.predExit)}</b></div>
+        </div>
+        <p class="hint">${w.phase?.label || ""} · leftover ${money(w.leftoverUsd)} · tune ${money(entryShow)} → ${money(exitShow)}</p>
+      `;
+
+      const nowPhase = w.phase?.phase || "PADDLE";
+      dance.innerHTML = DANCE.map((p) => `<i class="${p === nowPhase ? "now" : ""}">${p}</i>`).join("<span>→</span>");
+
+      const lights = w.lights?.levels || [];
+      lightsEl.innerHTML = lights.map((l) =>
+        `<div class="light ${l.paid ? "on" : ""}" title="${l.label}: need ${money(l.needUsd)}"></div>`
+      ).join("");
+      legend.textContent = lights.map((l) => `${l.paid ? "●" : "○"} ${l.label}`).join(" · ");
+
+      const board = rebuildOptions(w);
+      w.options = board;
+      optsEl.innerHTML = "";
+      (board.options || []).forEach((o) => {
+        const div = document.createElement("div");
+        div.className = "option" + (o.id === selectedOptionId ? " selected" : "");
+        div.innerHTML = `
+          <header><span>${o.label}</span><span class="cost">${money(o.costUsd)}</span></header>
+          <p class="hint" style="margin:0">${o.blurb}</p>
+          <span class="mono">hitch: ${o.hitch} · ${o.enabled ? "ready" : "disabled"}</span>
+        `;
+        div.onclick = () => { if (o.enabled) { selectedOptionId = o.id; renderSelected(); } };
+        optsEl.appendChild(div);
+      });
+    }
+
+    function renderAll() {
+      if (!snap) return;
+      renderHardware(snap.modules);
+      renderTopStats(snap);
+      renderWaves(snap.waves);
+      if (!selected && snap.waves?.length) selected = snap.waves[0];
+      if (selected) {
+        selected = snap.waves.find((w) => w.symbol === selected.symbol) || selected;
+      }
+      renderSelected();
+      document.getElementById("rawSnap").textContent = JSON.stringify({
+        demo: !!snap.demo,
+        timestamp: snap.timestamp,
+        favorite: snap.favorite,
+        hitchProve: snap.hitchProve,
+        surfers: snap.surfers,
+        waves: (snap.waves || []).map((w) => ({
+          symbol: w.symbol, phase: w.phase?.phase, price: w.price, holding: w.holding,
+        })),
+      }, null, 2);
+    }
+
+    async function loadSnap() {
+      if (forceDemo || !secretEl.value.trim()) {
+        snap = demoSnap();
+        renderAll();
+        flash(document.getElementById("cmdOut"), snap.demo ? "Demo engine loaded — equations live, no money moves." : "Loaded.");
+        return;
+      }
+      try {
+        const res = await fetch("/engine/api/snapshot", { headers: headers() });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || res.statusText);
+        }
+        snap = await res.json();
+        forceDemo = false;
+        renderAll();
+        flash(document.getElementById("cmdOut"), "Live engine snapshot OK.");
+      } catch (e) {
+        snap = demoSnap();
+        renderAll();
+        flash(document.getElementById("cmdOut"), "Live snapshot failed (" + e.message + ") — showing demo.");
+      }
+    }
+
+    async function fire(payload) {
+      const out = document.getElementById("cmdOut");
+      if (!payload) return flash(out, "No payload.");
+      if (snap?.demo || forceDemo || !secretEl.value.trim()) {
+        return flash(out, JSON.stringify({
+          demoQueued: true,
+          note: "Demo mode — would queue on live bot",
+          payload,
+          messagePaidHint: selected?.lights?.messagePaid,
+        }, null, 2));
+      }
+      try {
+        const res = await fetch("/engine/api/queue", {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        flash(out, JSON.stringify(data, null, 2));
+      } catch (e) {
+        flash(out, "Queue failed: " + e.message);
+      }
+    }
+
+    document.getElementById("btnSaveSecret").onclick = () => {
+      localStorage.setItem(KEY, secretEl.value.trim());
+      forceDemo = !secretEl.value.trim();
+      flash(document.getElementById("cmdOut"), "Secret saved in this browser.");
+    };
+    document.getElementById("btnClearSecret").onclick = () => {
+      localStorage.removeItem(KEY);
+      secretEl.value = "";
+      forceDemo = true;
+    };
+    document.getElementById("btnDemo").onclick = () => { forceDemo = true; loadSnap(); };
+    document.getElementById("btnRefresh").onclick = () => loadSnap();
+    document.getElementById("btnApplyTune").onclick = () => {
+      handEntry = Number(document.getElementById("handEntry").value) || null;
+      handExit = Number(document.getElementById("handExit").value) || null;
+      renderSelected();
+      flash(document.getElementById("cmdOut"), "Targets tuned locally (skew ±8% of pred on live queue).");
+    };
+    document.getElementById("tradeUsd").onchange = () => renderSelected();
+    document.getElementById("btnFire").onclick = () => {
+      const board = rebuildOptions(selected);
+      const opt = board?.options?.find((o) => o.id === selectedOptionId);
+      if (!opt?.enabled) return flash(document.getElementById("cmdOut"), "Option disabled.");
+      const payload = { ...opt.payload };
+      if (handEntry) payload.handEntry = handEntry;
+      if (handExit) payload.handExit = handExit;
+      fire(payload);
+    };
+    document.getElementById("btnTrickQuick").onclick = () => {
+      selectedOptionId = "trickout";
+      renderSelected();
+      const board = rebuildOptions(selected);
+      const opt = board?.options?.find((o) => o.id === "trickout");
+      fire(opt?.payload);
+    };
+    document.getElementById("btnRideQuick").onclick = () => {
+      selectedOptionId = "ride";
+      renderSelected();
+      const board = rebuildOptions(selected);
+      const opt = board?.options?.find((o) => o.id === "ride");
+      fire(opt?.payload);
+    };
+
+    drawHeroWave();
+    loadSnap();
+    window.addEventListener("resize", () => { if (snap) renderWaves(snap.waves); });
+  </script>
+</body>
+</html>

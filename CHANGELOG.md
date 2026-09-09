@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added — Guardian Engine board (wave dance / surfer / hitch lights)
+
+Easy operator + agentic UI so humans and AI bots see the same open equations:
+
+- **`/engine`** (`public/engine.html` via `vita-webhook.js`) — waveforms for inject tokens, paddle→ride→peak→trick→reload dance, fine-tune entry/exit, ride / rider / message / both-ends / trick-out buttons with **press-time costs**, piggy payment lights (fees → message paid → 2× cushion → first inject → skim → agent).
+- **`engine-board.js`** — shared phase / options / piggy-light math (peak-ride + hitch cover + first-inject paid).
+- Live queue aliases: `ride`, `rider`, `both`, `trickout`, `message`/`prove`, `sendsurfer`, `surferout` → existing buy / exitonly / prove / surfer paths.
+- Demo mode without secret; Arena links to Engine.
+
 ### Fixed — peak-ride protocol: sell the MADE top, not hist-max touch / mid-range pred
 
 Ledger (bot-state, 419 sells / +$324): peak exits earn, but three holes left upside

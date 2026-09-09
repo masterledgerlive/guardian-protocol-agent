@@ -164,6 +164,7 @@ encryptkey.js         — One-time key encryption + inscription tool
 - **Price data**: GeckoTerminal + DexScreener (batch prefetch every cycle)
 - **Wallet**: `0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915`
 - **Arena board**: `https://guardian-protocol-agent-production.up.railway.app/arena` — learn the ledger, practice sims, queue bot moves (needs `VITA_WEBHOOK_SECRET` for live buttons). LINK is the favorite inject main with **8%** piggy leave-behind.
+- **Engine board**: `https://guardian-protocol-agent-production.up.railway.app/engine` — open hardware view of the wave dance (waveforms, surfer phases, hitch/piggy payment lights, ride / trick-out / message options with costs). Demo mode works without a secret; live queue needs `VITA_WEBHOOK_SECRET`.
 
 ---
 
