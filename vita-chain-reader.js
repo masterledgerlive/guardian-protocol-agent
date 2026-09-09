@@ -45,6 +45,10 @@ export const KNOWN_CHAIN_ANCHORS = Object.freeze([
 
 export const INGESTIBLE_HITCH_KINDS = Object.freeze(["vita", "eureka", "hat", "tag"]);
 export const MAX_BOOT_CHAIN_PULLS = 64;
+export const GUARDIAN_WALLET = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+export const UNISWAP_V3_ROUTER = "0x2626664c2603336e57b271c5c0b26f421741e481";
+export const EXACT_INPUT_SELECTOR = "04e45aaf";
+export const EXACT_INPUT_BYTES = 228;
 
 export function shouldIngestHitchKind(kind) {
   const k = typeof kind === "string" ? kind : kind?.kind;
@@ -97,6 +101,157 @@ export function readHitchUtf8FromCalldata(data) {
     return { utf8: embedded, kind: detectHitchKind(embedded), source: "utf8" };
   }
   return { utf8: "", kind: detectHitchKind(""), source: "no-hitch" };
+}
+
+/** Classify a Uniswap V3 leftover hitch trailer. Never invents a hash. */
+export function classifyLeftoverHitch(data) {
+  const raw = String(data || "");
+  const read = readHitchUtf8FromCalldata(raw);
+  if (!looksLikeHexCalldata(raw)) {
+    return { class: "not-hex", leftover: false, ...read };
+  }
+  const hex = raw.toLowerCase();
+  const body = hex.slice(2);
+  if (!body.startsWith(EXACT_INPUT_SELECTOR)) {
+    return { class: "not-v3", leftover: false, ...read };
+  }
+  const bytes = body.length / 2;
+  if (bytes <= EXACT_INPUT_BYTES) {
+    return { class: "plain-228", leftover: false, ...read };
+  }
+  if (read.kind.vita) return { class: "vita-leftover", leftover: true, ...read };
+  if (read.kind.eureka) return { class: "eureka-leftover", leftover: true, ...read };
+  if (read.kind.hat) return { class: "hat-leftover", leftover: true, ...read };
+  if (/LIBM/i.test(read.utf8 || "")) return { class: "libm", leftover: true, ...read };
+  return { class: "trailer-other", leftover: true, ...read };
+}
+
+export async function fetchRecentWalletTransactions(address = GUARDIAN_WALLET, { limit = 50 } = {}) {
+  const url = "https://base.blockscout.com/api/v2/addresses/" + address + "/transactions";
+  const res = await fetch(url, {
+    headers: { "User-Agent": "vita-chain-reader" },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error("wallet tx list HTTP " + res.status);
+  const data = await res.json();
+  const items = Array.isArray(data?.items) ? data.items : [];
+  return items.slice(0, Math.max(1, Math.floor(Number(limit) || 50))).map((t) => {
+    const to = t.to && typeof t.to === "object" ? t.to.hash : t.to;
+    return {
+      hash: t.hash,
+      to: String(to || "").toLowerCase(),
+      input: t.raw_input || t.input || "",
+      timestamp: t.timestamp || null,
+    };
+  });
+}
+
+/**
+ * Scan recent Uniswap leftover hitches for this wallet.
+ * Production on main still hitches Eureka prose; this branch hitches KEY+LOC.
+ */
+export async function scanAddressLeftoverHitches({
+  address = GUARDIAN_WALLET,
+  limit = 50,
+  fetchTxs = fetchRecentWalletTransactions,
+} = {}) {
+  const txs = await fetchTxs(address, { limit });
+  const rows = [];
+  const counts = { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 };
+  for (const tx of txs) {
+    if (String(tx.to || "").toLowerCase() !== UNISWAP_V3_ROUTER) {
+      rows.push({ hash: tx.hash, class: "not-router", timestamp: tx.timestamp });
+      counts.other += 1;
+      continue;
+    }
+    const cls = classifyLeftoverHitch(tx.input);
+    const row = {
+      hash: tx.hash,
+      class: cls.class,
+      leftover: cls.leftover,
+      kind: cls.kind?.kind || cls.class,
+      utf8: cls.utf8 || "",
+      timestamp: tx.timestamp,
+    };
+    rows.push(row);
+    if (cls.class === "eureka-leftover") counts.eureka += 1;
+    else if (cls.class === "vita-leftover") counts.vita += 1;
+    else if (cls.class === "plain-228") counts.plain += 1;
+    else if (cls.class === "libm") counts.libm += 1;
+    else counts.other += 1;
+    if (cls.leftover) counts.leftover += 1;
+  }
+  return {
+    kind: "vita-leftover-scan",
+    address,
+    scanned: rows.length,
+    counts,
+    rows,
+    leftoverKinds: counts,
+    leftoverStillEureka: counts.eureka > 0 && counts.vita === 0,
+    vitaLeftoverPresent: counts.vita > 0,
+  };
+}
+
+const LEFTOVER_SCAN_TTL_MS = 60_000;
+let leftoverScanCache = { at: 0, scan: null };
+
+export async function getCachedLeftoverScan(opts = {}) {
+  const now = Date.now();
+  if (!opts.force && leftoverScanCache.scan && now - leftoverScanCache.at < LEFTOVER_SCAN_TTL_MS) {
+    return leftoverScanCache.scan;
+  }
+  const scan = await scanAddressLeftoverHitches(opts);
+  leftoverScanCache = { at: now, scan };
+  return scan;
+}
+
+/** Public reader view — hashes + class, no hitch utf8 (HTML pulls locations itself). */
+export function publicLeftoverScanView(scan) {
+  const s = scan || {};
+  return {
+    kind: s.kind || "vita-leftover-scan",
+    address: s.address || GUARDIAN_WALLET,
+    scanned: s.scanned || 0,
+    counts: s.counts || s.leftoverKinds || { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 },
+    leftoverKinds: s.counts || s.leftoverKinds || null,
+    leftoverStillEureka: Boolean(s.leftoverStillEureka),
+    vitaLeftoverPresent: Boolean(s.vitaLeftoverPresent),
+    rows: (s.rows || [])
+      .filter((r) => r.leftover || r.class === "plain-228")
+      .slice(0, 24)
+      .map((r) => ({
+        hash: r.hash,
+        class: r.class,
+        leftover: Boolean(r.leftover),
+        timestamp: r.timestamp || null,
+      })),
+  };
+}
+
+/** Fold scanned leftover hitch UTF-8 into recursive memory. Skip LIBM. */
+export function ingestLeftoverScan(scan) {
+  ensureGenesisMemory();
+  let ingested = 0;
+  for (const row of scan?.rows || []) {
+    if (!TX_HASH_RE.test(String(row.hash || ""))) continue;
+    if (!row.utf8 || row.class === "libm") continue;
+    if (row.class !== "vita-leftover" && row.class !== "eureka-leftover" && row.class !== "hat-leftover") {
+      continue;
+    }
+    const hitchKind = row.class === "eureka-leftover" ? "eureka" : row.class === "hat-leftover" ? "hat" : "vita";
+    ingestLocationFromChain(row.hash, row.utf8, hitchKind);
+    const r = ingestSealedUtf8(row.utf8);
+    if (r.ok) ingested += 1;
+  }
+  reconstructVitaMemoryFromLocations();
+  stampLocIntoPacket();
+  return {
+    ingested,
+    quality: vitaQuality(getLastVitaPacket()),
+    packet: getLastVitaPacket(),
+    leftoverStillEureka: Boolean(scan?.leftoverStillEureka),
+  };
 }
 
 export async function fetchTxCalldataHex(txHash) {

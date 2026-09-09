@@ -61,6 +61,7 @@ export function createState() {
     nodes: [],
     pendingInject: null,
     injected: false,
+    leftoverScan: null,
     mode: "vita",
     reveal: "plaintext",
     log: [],
@@ -75,6 +76,7 @@ export function persist(state) {
       nodes: state.nodes,
       pendingInject: state.pendingInject,
       injected: state.injected,
+      leftoverScan: state.leftoverScan || null,
       mode: state.mode,
       reveal: state.reveal,
       log: (state.log || []).slice(-40),
@@ -199,6 +201,7 @@ function helpText() {
     "/vitasave         fold notes into §TOKEN§ — still not on chain",
     "/inject           pull known Base locations → reader reconstructs",
     "/vitapull 0xHASH  pull one hitch from Base",
+    "/vitascan         leftover hitch eureka vs VITA (reader pulls locations)",
     "/reader           show reconstructed packet from locations",
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/zk  locations-only preview (future ZK path)",
@@ -247,11 +250,54 @@ export async function handleCommand(state, raw) {
     const q = vitaQuality(state.packet);
     const sealed = state.nodes.filter((n) => n.utf8).length;
     const score = Math.min(100, Math.round((50 + q.score) / 2) + Math.min(20, sealed));
+    const issues = [];
+    if (q.lossy) issues.push("key_fact_loss");
+    if (state.leftoverScan?.leftoverStillEureka) issues.push("leftover_still_eureka");
     return say(
-      "COURSE " + score + "/100 · " + (q.lossy ? "KEY LOSS" : "achieving") +
+      "COURSE " + score + "/100 · " + (issues.length ? "correct" : "achieving") +
       "\nSealed " + sealed + " · notes " + state.notes.length +
-      " · " + (state.injected ? "reader-ready" : "HTML-local until inject"),
+      " · " + (state.injected ? "reader-ready" : "HTML-local until inject") +
+      (state.leftoverScan
+        ? "\nLeftover eureka=" + Number(state.leftoverScan.counts?.eureka || 0) +
+          " vita=" + Number(state.leftoverScan.counts?.vita || 0)
+        : "") +
+      (issues.length ? "\nIssues: " + issues.join(", ") : ""),
     );
+  }
+  if (low === "/vitascan") {
+    try {
+      const res = await fetch("/vita/leftover");
+      const scan = await res.json();
+      if (!scan?.ok && !scan?.counts) throw new Error(scan?.error || "scan failed");
+      const lines = [];
+      for (const row of scan.rows || []) {
+        if (!TX_RE.test(row.hash) || !row.leftover) continue;
+        try {
+          const hex = await fetchTxHex(row.hash);
+          const read = readHitchFromHex(hex);
+          lines.push(ingestUtf8(state, row.hash, read.utf8, read.kind.kind, read.source));
+        } catch (e) {
+          lines.push(row.hash.slice(0, 10) + "… " + (e.message || e));
+        }
+      }
+      state.leftoverScan = {
+        counts: scan.counts,
+        leftoverStillEureka: Boolean(scan.leftoverStillEureka),
+        vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
+      };
+      persist(state);
+      return say(
+        "LEFTOVER SCAN eureka=" + Number(scan.counts?.eureka || 0) +
+        " vita=" + Number(scan.counts?.vita || 0) +
+        " plain=" + Number(scan.counts?.plain || 0) +
+        "\n" + (scan.vitaLeftoverPresent
+          ? "VITA leftover hitch is on chain."
+          : "No leftover-covered VITA hitch yet — still Eureka prose.") +
+        (lines.length ? "\n" + lines.join("\n") : ""),
+      );
+    } catch (e) {
+      return say("leftover scan failed: " + (e.message || e));
+    }
   }
   if (low.startsWith("/vitanote ")) {
     const note = input.slice(10).trim();
@@ -350,6 +396,7 @@ export function snapshot(state) {
     notes: state.notes.length,
     sealed: sealed.length,
     loc: locToken(state.nodes),
+    leftoverScan: state.leftoverScan || null,
     quality: q,
     hitch: state.reveal === "plaintext" ? plannedHitch(state) : null,
     packet: state.reveal === "plaintext" ? state.packet : null,

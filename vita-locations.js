@@ -151,21 +151,13 @@ export function hitchShort(s, n = LOC_HITCH_SHORT) {
 export function encodeLocToken(depot) {
   const d = depot || squashLocations();
   if (!d.n) return "n=0|t=0000";
-  const kindBits = Object.entries(d.kinds || {})
-    .map(([k, v]) => {
-      const code = k === "hat" ? "H" : k === "prove" ? "p" : "h";
-      return code + v;
-    })
-    .join(",");
-  const parts = [
+  // Hitch token is recall pointers only — kinds/pending stay in the depository.
+  return [
     "n=" + d.n,
     "t=" + hitchShort(d.tip),
     "r=" + hitchShort(d.root),
     "Δ=" + (d.delta || []).map((x) => hitchShort(x)).join(","),
-  ];
-  if (kindBits) parts.push("k=" + kindBits);
-  if (d.pending) parts.push("p=" + d.pending);
-  return parts.join("|");
+  ].join("|");
 }
 
 export function parseLocToken(token) {

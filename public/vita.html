@@ -191,6 +191,7 @@
       "/vitanote leftover hitch is KEY+LOC",
       "/vitasave",
       "/inject",
+      "/vitascan",
       "/reader",
       "/vita who is in KEY?",
       "/zk",
@@ -218,7 +219,11 @@
       document.getElementById("keyStat").textContent = snap.quality.hasKey ? "Krystian,Kai,Koda" : "LOSS";
       document.getElementById("noteStat").textContent = String(snap.notes);
       document.getElementById("locStat").textContent = String(snap.sealed);
-      document.getElementById("courseStat").textContent = snap.quality.lossy ? "KEY fail" : (snap.injected ? "reader-ready" : "local");
+      document.getElementById("courseStat").textContent = snap.quality.lossy
+        ? "KEY fail"
+        : (snap.leftoverScan?.leftoverStillEureka
+          ? "eureka leftover"
+          : (snap.injected ? "reader-ready" : "local"));
       document.getElementById("revealPill").textContent = snap.reveal === "locations" ? "locations-only · ZK preview" : "plaintext · open source";
       document.getElementById("injectPill").textContent = snap.injected ? "injected from locations" : (snap.pending ? "staged — not on chain" : "HTML memory — not injected");
       document.getElementById("injectPill").className = "pill " + (snap.injected ? "ok" : "warn");

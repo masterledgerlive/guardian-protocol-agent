@@ -13,7 +13,7 @@ import {
   redactConsoleView,
 } from "./vita-console.js";
 import { KEYCAT_PLAIN_SWAP, appendUtf8Hitch } from "./swap-minout.js";
-import { planSecondaryHitch, setLastVitaPacket, clearHitchModeOverride } from "./vita-router.js";
+import { planSecondaryHitch, setLastVitaPacket, getLastVitaPacket, clearHitchModeOverride } from "./vita-router.js";
 import { resetLocationDepository } from "./vita-locations.js";
 import { VITA_LOVE_KEY } from "./vita-parse.js";
 
@@ -67,6 +67,31 @@ describe("vita HTML console", () => {
     assert.doesNotMatch(state.packet, /n=0\|t=0000\|n=/);
   });
 
+  it("vitascan folds leftover UTF-8 into HTML memory without touching bot lastPacket", async () => {
+    resetLocationDepository();
+    clearHitchModeOverride();
+    setLastVitaPacket("§SESS§bot-packet\n§KEY§" + VITA_LOVE_KEY);
+    const botBefore = "§SESS§bot-packet\n§KEY§" + VITA_LOVE_KEY;
+    const hash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const eureka = "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!";
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/vitascan", {
+      fetchLeftoverScan: async () => ({
+        counts: { eureka: 1, vita: 0, plain: 0, libm: 0, other: 0, leftover: 1 },
+        leftoverStillEureka: true,
+        vitaLeftoverPresent: false,
+        rows: [{ hash, class: "eureka-leftover", leftover: true, utf8: eureka }],
+      }),
+    });
+    assert.match(r.text, /leftover_still_eureka|still Eureka/i);
+    assert.equal(state.leftoverScan.leftoverStillEureka, true);
+    assert.equal(state.nodes.some((n) => n.location === hash), true);
+    assert.ok(state.packet.includes("Krystian"));
+    assert.equal(getLastVitaPacket(), botBefore);
+    const course = await handleVitaConsole(state, "/vitacourse");
+    assert.match(course.text, /leftover_still_eureka/);
+  });
+
   it("ZK preview hides plaintext but keeps KEY internally", async () => {
     const state = createVitaConsole();
     await handleVitaConsole(state, "/vitanote secret-fact-xyz");
@@ -94,5 +119,7 @@ describe("vita HTML artifacts", () => {
     assert.match(client, /localStorage/);
     assert.match(client, /handleCommand/);
     assert.match(client, /KEYCAT_TX/);
+    assert.match(client, /vitascan/);
+    assert.match(html, /vitascan/);
   });
 });

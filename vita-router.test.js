@@ -82,9 +82,14 @@ import {
   fetchPublicVitaRegistry,
   shouldIngestHitchKind,
   collectRegistryTxHashes,
+  classifyLeftoverHitch,
+  ingestLeftoverScan,
+  scanAddressLeftoverHitches,
+  publicLeftoverScanView,
   KEYCAT_TX,
   EUREKA_ONCHAIN_TX,
   VITA_STRAND_TX,
+  GUARDIAN_WALLET,
 } from "./vita-chain-reader.js";
 import { prependVitaBootContext } from "./ikn-boot-reader.js";
 import { vitaCompress, vitaCompressLocal, vitaSplit } from "./vita-memory.js";
@@ -186,6 +191,8 @@ describe("vita location depository squash", () => {
     const token = encodeLocToken(depot);
     assert.ok(token.length < 90, "squashed token should be hitch-sized, got " + token.length);
     assert.ok(token.startsWith("n=12"));
+    assert.ok(!token.includes("k="), "hitch token omits kind bits for density");
+    assert.ok(!token.includes("p="), "hitch token omits pending for density");
     assert.ok(token.includes("t="));
     assert.ok(!token.includes("tip="), "hitch token must use dense t= not tip=");
     assert.equal(hitchShort("0xabcdef12"), "abcd");
@@ -374,6 +381,40 @@ describe("vita hourly course", () => {
     assert.ok(getLastVitaPacket().includes("Koda"));
   });
 
+  it("leftover_still_eureka fails achieving until a leftover VITA hitch exists", () => {
+    const still = evaluateVitaCourse({
+      lastPacket: buildGenesisPacket(),
+      leftoverKinds: { eureka: 40, vita: 0, plain: 1, libm: 2 },
+    });
+    assert.equal(still.issues.includes("leftover_still_eureka"), true);
+    assert.equal(still.achieving, false);
+    assert.match(formatCourseMessage(still), /eureka=40/);
+    const done = evaluateVitaCourse({
+      lastPacket: buildGenesisPacket(),
+      leftoverKinds: { eureka: 40, vita: 1, plain: 1 },
+    });
+    assert.equal(done.issues.includes("leftover_still_eureka"), false);
+    assert.equal(done.achieving, true);
+  });
+
+  it("hourly tick persists leftoverKinds so later course still fails leftover_still_eureka", () => {
+    ensureGenesisMemory();
+    const t = tickHourlyCourse({
+      force: true,
+      leftoverKinds: { eureka: 12, vita: 0, plain: 1 },
+    });
+    assert.equal(t.ticked, true);
+    assert.equal(t.course.achieving, false);
+    assert.ok(t.course.issues.includes("leftover_still_eureka"));
+    const snap = serializeCourseStats();
+    assert.equal(snap.leftoverKinds.eureka, 12);
+    resetCourseStats();
+    restoreCourseStats(snap);
+    const later = evaluateVitaCourse();
+    assert.equal(later.issues.includes("leftover_still_eureka"), true);
+    assert.equal(later.achieving, false);
+  });
+
   it("course stats serialize and restore", () => {
     restoreCourseStats({ attempts: 4, sealed: 1, skippedLeftover: 3, lastTickMs: 9 });
     const snap = serializeCourseStats();
@@ -453,6 +494,9 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
     assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
     assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
+    assert.ok(src.includes("scanAddressLeftoverHitches"), "boot/hourly must scan leftover hitch kinds");
+    assert.ok(src.includes("ingestLeftoverScan"), "Eureka leftover fills must fold into recursive memory");
+    assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
     assert.ok(src.includes("HTML console /vita"), "Telegram help must point at the HTML console");
@@ -613,6 +657,112 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.ok(kinds.includes("none"));
     assert.ok(kinds.includes("eureka"));
     assert.ok(kinds.includes("vita"));
+  });
+
+  it("classifyLeftoverHitch: KEYCAT is plain, Eureka leftover is eureka, VITA leftover is vita", () => {
+    const plain = classifyLeftoverHitch(KEYCAT_PLAIN_SWAP);
+    assert.equal(plain.class, "plain-228");
+    assert.equal(plain.leftover, false);
+    assert.equal(plain.utf8, "");
+    const eurekaHex = appendUtf8Hitch(
+      KEYCAT_PLAIN_SWAP,
+      "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!",
+    );
+    assert.equal(eurekaHex.ok, true);
+    const eureka = classifyLeftoverHitch(eurekaHex.data);
+    assert.equal(eureka.class, "eureka-leftover");
+    assert.equal(eureka.leftover, true);
+    const hitch = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, maxBytes: 280 });
+    const vitaHex = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, hitch.utf8);
+    assert.equal(vitaHex.ok, true);
+    const vita = classifyLeftoverHitch(vitaHex.data);
+    assert.equal(vita.class, "vita-leftover");
+    assert.match(vita.utf8, /§KEY§/);
+    assert.match(vita.utf8, /§LOC§/);
+  });
+
+  it("ingestLeftoverScan folds Eureka leftover into recursive memory without claiming leftover VITA", () => {
+    ensureGenesisMemory();
+    const eurekaHex = appendUtf8Hitch(
+      KEYCAT_PLAIN_SWAP,
+      "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!",
+    );
+    const hitch = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, maxBytes: 280 });
+    const vitaHex = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, hitch.utf8);
+    const eurekaUtf8 = readHitchUtf8FromCalldata(eurekaHex.data).utf8;
+    const vitaUtf8 = readHitchUtf8FromCalldata(vitaHex.data).utf8;
+    const hashA = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const hashB = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    const hashC = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+    const scan = {
+      leftoverKinds: { eureka: 1, vita: 1, plain: 1, libm: 0, other: 0, leftover: 2 },
+      leftoverStillEureka: false,
+      vitaLeftoverPresent: true,
+      rows: [
+        { hash: hashA, class: "eureka-leftover", leftover: true, utf8: eurekaUtf8 },
+        { hash: hashB, class: "vita-leftover", leftover: true, utf8: vitaUtf8 },
+        { hash: hashC, class: "plain-228", leftover: false, utf8: "" },
+      ],
+    };
+    ingestLeftoverScan(scan);
+    const loc = getLocationDepository();
+    assert.equal(loc.nodes.some((n) => n.location === hashA), true);
+    assert.equal(loc.nodes.some((n) => n.location === hashB), true);
+    assert.equal(loc.nodes.some((n) => n.location === hashC), false);
+    assert.match(getLastVitaPacket(), /§KEY§/);
+    assert.match(getLastVitaPacket(), /Krystian/);
+    assert.match(getLastVitaPacket(), /§LOC§/);
+  });
+
+  it("scanAddressLeftoverHitches classifies mocked wallet txs without inventing hashes", async () => {
+    const hitch = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, maxBytes: 280 });
+    const vitaHex = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, hitch.utf8);
+    const eurekaHex = appendUtf8Hitch(
+      KEYCAT_PLAIN_SWAP,
+      "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!",
+    );
+    const scan = await scanAddressLeftoverHitches({
+      fetchTxs: async () => [
+        {
+          hash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+          to: "0x2626664c2603336e57b271c5c0b26f421741e481",
+          input: eurekaHex.data,
+        },
+        {
+          hash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+          to: "0x2626664c2603336e57b271c5c0b26f421741e481",
+          input: vitaHex.data,
+        },
+        {
+          hash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+          to: "0x2626664c2603336e57b271c5c0b26f421741e481",
+          input: KEYCAT_PLAIN_SWAP,
+        },
+      ],
+    });
+    assert.equal(scan.counts.eureka, 1);
+    assert.equal(scan.counts.vita, 1);
+    assert.equal(scan.counts.plain, 1);
+    assert.equal(scan.vitaLeftoverPresent, true);
+    assert.equal(scan.leftoverStillEureka, false);
+    const view = publicLeftoverScanView(scan);
+    assert.equal(view.rows.some((r) => r.hash.includes("1111") && r.class === "eureka-leftover"), true);
+    assert.equal(view.rows.every((r) => r.utf8 === undefined), true);
+  });
+
+  it("live Base: leftover scan reports leftoverKinds without inventing a VITA hitch", { timeout: 25000 }, async () => {
+    const scan = await scanAddressLeftoverHitches({ address: GUARDIAN_WALLET, limit: 40 });
+    assert.ok(Array.isArray(scan.rows));
+    assert.ok(scan.rows.length > 0, "wallet has recent txs");
+    assert.equal(typeof scan.counts.eureka, "number");
+    assert.equal(typeof scan.counts.vita, "number");
+    const hasKnown = scan.counts.eureka > 0 || scan.counts.vita > 0 || scan.counts.plain > 0;
+    assert.equal(hasKnown, true);
+    if (scan.counts.vita === 0 && scan.counts.eureka > 0) {
+      const course = evaluateVitaCourse({ lastPacket: getLastVitaPacket() || buildGenesisPacket(), leftoverKinds: scan.counts });
+      assert.equal(course.issues.includes("leftover_still_eureka"), true);
+      assert.equal(course.achieving, false);
+    }
   });
 
   it("folds public bot-state registry packets without dropping KEY", async () => {

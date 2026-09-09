@@ -276,7 +276,7 @@ function vitaBody({ maxBytes, extraFields = {}, switches }) {
   };
   const prev = lastVitaPacket || packVitaFields(buildGenesisFields({ LOC: loc }));
   const refined = refineVitaPacket(prev, next, { maxChars: VITA_CHAR_BUDGET });
-  // Recursive memory stays whole. Hitch is a dense KEY+LOC+LEARN projection so
+  // Recursive memory stays whole. Hitch is a dense KEY+LOC projection so
   // leftover can cover — clipping the trailer must not wipe lastPacket.
   lastVitaPacket = refined.packed;
   const prefix = storePrefix(switches.keepStoreTag);

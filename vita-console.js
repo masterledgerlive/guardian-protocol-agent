@@ -29,6 +29,7 @@ import {
   VITA_STRAND_TX,
   fetchTxCalldataHex,
   readHitchUtf8FromCalldata,
+  scanAddressLeftoverHitches,
   shouldIngestHitchKind,
 } from "./vita-chain-reader.js";
 
@@ -40,6 +41,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/vitarouter",
   "/vitamode",
   "/vitacourse",
+  "/vitascan",
   "/vitapull",
   "/vitanote",
   "/vitaqueue",
@@ -73,6 +75,7 @@ export function createVitaConsole(extra = {}) {
     mode: extra.mode || "vita",
     reveal: extra.reveal === "locations" ? "locations" : "plaintext",
     stats: extra.stats || emptyStats(),
+    leftoverScan: extra.leftoverScan || null,
     log: Array.isArray(extra.log) ? extra.log.slice() : [],
   };
 }
@@ -109,6 +112,48 @@ function stampLoc(state) {
   return loc;
 }
 
+/** Fold leftover hitch UTF-8 into HTML-console memory. Does not touch bot lastPacket. */
+export function ingestConsoleLeftoverScan(state, scan) {
+  let ingested = 0;
+  for (const row of scan?.rows || []) {
+    if (!row?.utf8) continue;
+    if (row.class !== "vita-leftover" && row.class !== "eureka-leftover" && row.class !== "hat-leftover") {
+      continue;
+    }
+    const loc = String(row.hash || "").toLowerCase();
+    if (!TX_HASH_RE.test(row.hash || "")) continue;
+    const existing = (state.nodes || []).find((n) => String(n.location || "").toLowerCase() === loc);
+    if (existing) {
+      existing.utf8 = row.utf8;
+      existing.sealed = true;
+      existing.hitchKind = row.class.replace("-leftover", "");
+    } else {
+      state.nodes.push({
+        location: row.hash,
+        locationShort: hitchShort(row.hash),
+        sealed: true,
+        utf8: row.utf8,
+        hitchKind: row.class.replace("-leftover", ""),
+        kind: row.class === "eureka-leftover" ? "prove" : "hitch",
+      });
+    }
+    const kind = detectHitchKind(row.utf8);
+    if (kind.vita) {
+      state.packet = refineVitaPacket(state.packet, parseVitaPacket(row.utf8).fields).packed;
+    } else if (kind.eureka) {
+      state.packet = refineVitaPacket(state.packet, { KEY: VITA_LOVE_KEY, LEARN: "loc-eureka" }).packed;
+    }
+    ingested += 1;
+  }
+  stampLoc(state);
+  state.leftoverScan = {
+    counts: scan?.counts || scan?.leftoverKinds || null,
+    leftoverStillEureka: Boolean(scan?.leftoverStillEureka),
+    vitaLeftoverPresent: Boolean(scan?.vitaLeftoverPresent),
+  };
+  return ingested;
+}
+
 function plannedHitch(state) {
   const loc = locToken(state);
   const refined = refineVitaPacket(state.packet, { LOC: loc });
@@ -124,17 +169,22 @@ function courseScore(state) {
   if (state.injected) score += 5;
   if (quality.lossy) score = Math.min(score, 40);
   score = Math.max(0, Math.min(100, score));
+  const issues = [
+    ...(quality.lossy ? ["key_fact_loss"] : []),
+    ...(state.leftoverScan?.leftoverStillEureka ? ["leftover_still_eureka"] : []),
+  ];
   return {
     kind: "vita-html-course",
     score,
-    achieving: score >= 55 && !quality.lossy,
+    achieving: score >= 55 && !issues.includes("key_fact_loss") && !issues.includes("leftover_still_eureka"),
     mode: state.mode,
     quality,
     sealed,
     pendingNotes: state.notes.length,
     pendingInject: Boolean(state.pendingInject),
     injected: state.injected,
-    issues: quality.lossy ? ["key_fact_loss"] : [],
+    leftoverScan: state.leftoverScan || null,
+    issues,
   };
 }
 
@@ -241,9 +291,10 @@ function helpText() {
     "/vitasave — fold notes into §TOKEN§, stage leftover hitch (pending inject)",
     "/inject — pull known Base locations and reconstruct",
     "/vitapull 0xHASH — pull one hitch from Base",
+    "/vitascan — leftover hitch eureka vs VITA on recent Uniswap swaps",
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
-    "/vitarouter /vitamode /vitacourse /vitamemory /vitarecall /vitalearn",
+    "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/zk — locations-only preview (future ZK path)",
     "/plain — plaintext open source (default)",
   ].join("\n");
@@ -253,7 +304,7 @@ function pushLog(state, role, text) {
   state.log = [...(state.log || []), { role, text: String(text || ""), at: new Date().toISOString() }].slice(-80);
 }
 
-export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetchTxCalldataHex } = {}) {
+export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetchTxCalldataHex, fetchLeftoverScan = scanAddressLeftoverHitches } = {}) {
   const raw = String(rawInput || "").trim();
   const text = raw.toLowerCase();
   pushLog(state, "user", raw);
@@ -287,8 +338,33 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
       "VITA COURSE " + c.score + "/100 · " + (c.achieving ? "achieving" : "correct") +
       "\nSealed locs " + c.sealed + " · notes " + c.pendingNotes +
       " · inject " + (c.injected ? "reader-ready" : "pending on HTML") +
+      (c.leftoverScan
+        ? "\nLeftover eureka=" + Number(c.leftoverScan.counts?.eureka || 0) +
+          " vita=" + Number(c.leftoverScan.counts?.vita || 0)
+        : "") +
       (c.issues.length ? "\nIssues: " + c.issues.join(", ") : ""),
     );
+  }
+
+  if (text === "/vitascan") {
+    try {
+      const scan = await fetchLeftoverScan({ limit: 40 });
+      const ingested = ingestConsoleLeftoverScan(state, scan);
+      const c = courseScore(state);
+      return reply(
+        "LEFTOVER SCAN eureka=" + Number(scan.counts?.eureka || 0) +
+        " vita=" + Number(scan.counts?.vita || 0) +
+        " plain=" + Number(scan.counts?.plain || 0) +
+        "\ningested " + ingested + " into HTML memory (not bot lastPacket)" +
+        "\n" + (scan.vitaLeftoverPresent
+          ? "VITA leftover hitch is on chain."
+          : "No leftover-covered VITA hitch yet — still Eureka prose.") +
+        "\nCOURSE " + c.score + "/100 · " + (c.achieving ? "achieving" : "correct") +
+        (c.issues.length ? "\nIssues: " + c.issues.join(", ") : ""),
+      );
+    } catch (e) {
+      return reply("leftover scan failed: " + (e.message || e));
+    }
   }
 
   if (text.startsWith("/vitanote ")) {

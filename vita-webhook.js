@@ -25,6 +25,7 @@
 //   GET  /vita/registry       — full filing registry (all sessions)
 //   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
 //   GET  /vita/locations     — squashed location depository
+//   GET  /vita/leftover     — public leftover hitch scan (hashes + class, no utf8)
 //   GET  /vita/course        — hourly inject-without-loss scorecard
 //   GET  /vita/inject       — recursive §TOKEN§ memory for session start
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
@@ -33,7 +34,7 @@
 //   POST /vita/save           — trigger vitasave programmatically
 //
 // Auth: VITA_WEBHOOK_SECRET header must match env var
-// Public HTML + /board/health + demo/sim APIs do not require the secret.
+// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover do not require the secret.
 // Live queue / vita/* still require the secret. No unauthenticated mutate of env.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -56,7 +57,12 @@ import {
 import { vitaRouterStatus, buildVitaInjectContext } from "./vita-router.js";
 import { locDepositoryStatus } from "./vita-locations.js";
 import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
-import { fetchTxCalldataHex, pullLocationFromChain } from "./vita-chain-reader.js";
+import {
+  fetchTxCalldataHex,
+  getCachedLeftoverScan,
+  publicLeftoverScanView,
+  pullLocationFromChain,
+} from "./vita-chain-reader.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -307,6 +313,14 @@ async function handleVitaRequest(req, res) {
     if (path === "/vita/lib/vita-parse.js" && req.method === "GET") {
       return servePublicFile(res, VITA_PARSE_JS, "text/javascript; charset=utf-8", "vita parse");
     }
+    if (path === "/vita/leftover" && req.method === "GET") {
+      try {
+        const scan = await getCachedLeftoverScan({ limit: 40 });
+        return json(res, { ok: true, ...publicLeftoverScanView(scan) });
+      } catch (e) {
+        return err(res, "leftover scan failed: " + (e.message || e), 502);
+      }
+    }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {
       return json(res, healthPayload());
@@ -554,6 +568,7 @@ export function startVitaWebhook() {
     console.log("   /vita/registry — full filing registry");
     console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
     console.log("   /vita/locations — squashed location depository");
+    console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/course   — hourly inject-without-loss scorecard");
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/read     — read GitHub files");

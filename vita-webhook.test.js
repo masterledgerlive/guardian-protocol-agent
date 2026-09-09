@@ -187,4 +187,15 @@ describe("control board HTTP", () => {
     assert.match(parse.text, /projectLeftoverHitchFields/);
     assert.match(parse.text, /VITA_LOVE_KEY/);
   });
+
+  it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
+    const { res, json } = await get("/vita/leftover");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.kind, "vita-leftover-scan");
+    assert.equal(typeof json.counts.eureka, "number");
+    assert.equal(typeof json.counts.vita, "number");
+    assert.equal(Array.isArray(json.rows), true);
+    assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
+  });
 });

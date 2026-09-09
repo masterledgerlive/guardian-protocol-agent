@@ -310,13 +310,14 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation } from "./vita-locations.js";
-import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory } from "./vita-chain-reader.js";
+import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   evaluateVitaCourse,
   formatCourseMessage,
   recordHitchAttempt,
   recordHitchSealed,
   tickHourlyCourse,
+  shouldTickHourlyCourse,
   serializeCourseStats,
   restoreCourseStats,
 } from "./vita-course.js";
@@ -8416,7 +8417,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         await tg(
           `🔁 <b>NO-LOSS SUCCESSION</b>\n` +
           `Align gate: ≥${align} of trough/momentum/pred/pullback/leftover/smartMoney\n` +
-          `Piggy + Eureka hitch ride leftover-covered fills only.\n\n` +
+          `Piggy + VITA hitch ride leftover-covered fills only.\n\n` +
           `<b>Cycles</b>\n${report}\n\n` +
           `<b>Live min buys (WETH books)</b>\n${liveMins || "none"}`
         );
@@ -9491,7 +9492,35 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         await tg(formatRouterMessage());
 
       } else if (text === "/vitacourse") {
-        await tg(formatCourseMessage(evaluateVitaCourse()));
+        try {
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+          ingestLeftoverScan(leftoverScan);
+          await tg(formatCourseMessage(evaluateVitaCourse({ leftoverKinds: leftoverScan.counts })));
+        } catch (e) {
+          await tg(formatCourseMessage(evaluateVitaCourse()) + "\n⚠️ leftover scan: " + e.message);
+        }
+
+      } else if (text === "/vitascan") {
+        await tg("⛓️ Scanning leftover hitch trailers on Base…");
+        try {
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+          const folded = ingestLeftoverScan(leftoverScan);
+          const course = evaluateVitaCourse({ leftoverKinds: leftoverScan.counts });
+          await tg(
+            "⛓️ <b>LEFTOVER SCAN</b>\n" +
+            "eureka=" + leftoverScan.counts.eureka +
+            " vita=" + leftoverScan.counts.vita +
+            " plain=" + leftoverScan.counts.plain +
+            " libm=" + leftoverScan.counts.libm + "\n" +
+            "ingested " + folded.ingested + " · KEY=" + (folded.quality?.hasKey ? "yes" : "LOSS") + "\n" +
+            (leftoverScan.vitaLeftoverPresent
+              ? "VITA leftover hitch is on chain."
+              : "No leftover-covered VITA hitch yet — still Eureka prose. /prove keeps the letter.") +
+            "\n" + formatCourseMessage(course)
+          );
+        } catch (e) {
+          await tg("❌ leftover scan failed: " + e.message);
+        }
 
       } else if (text && text.startsWith("/vitamode ")) {
         const mode = raw.slice("/vitamode ".length).trim().toLowerCase();
@@ -10825,6 +10854,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitarouter — secondary hitch router (vita|eureka|hat|auto)\n` +
           `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
           `/vitacourse — hourly memory/inject scorecard\n` +
+          `/vitascan — leftover hitch kinds on recent Uniswap swaps\n` +
           `/vitapull 0xHASH — re-read hitch UTF-8 from Base into §TOKEN§ memory\n` +
           `HTML console /vita — same commands, local memory until the reader pulls locations\n` +
           `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
@@ -10860,6 +10890,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitarecall — show recent memory context\n` +
           `/vitarouter — hitch payload switch + location squash\n` +
           `/vitacourse — hourly inject-without-loss scorecard\n` +
+          `/vitascan — leftover hitch eureka vs VITA on Base\n` +
           `/vitapull 0xHASH — inject sealed hitch from Base without KEY loss\n\n` +
           `/remember [text] — save cliff note, rides next trade\n` +
           `/savesession — inscribe full session summary on Base\n` +
@@ -11197,6 +11228,21 @@ async function main() {
     );
   } catch (injErr) {
     console.log("⚠️  VITA chain inject (non-critical): " + injErr.message);
+  }
+
+  try {
+    const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+    const folded = ingestLeftoverScan(leftoverScan);
+    console.log(
+      "🔀 VITA leftover scan: eureka=" + leftoverScan.counts.eureka +
+      " vita=" + leftoverScan.counts.vita +
+      " plain=" + leftoverScan.counts.plain +
+      " ingested=" + folded.ingested +
+      " stillEureka=" + leftoverScan.leftoverStillEureka +
+      " KEY=" + (folded.quality?.hasKey ? "yes" : "LOSS")
+    );
+  } catch (scanErr) {
+    console.log("⚠️  VITA leftover scan (non-critical): " + scanErr.message);
   }
 
   // Re-fetch sealed hitch UTF-8 from Base when the depository only has shorts.
@@ -12239,7 +12285,7 @@ async function main() {
           console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
           continue;
         }
-        const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
+        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : `${hitchCostMult()}× hitch covered`;
         const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
@@ -12331,7 +12377,17 @@ async function main() {
 
       // ── VITA hourly course — refine memory, restore KEY if lost, switch mode
       try {
-        const hour = tickHourlyCourse();
+        let leftoverKinds;
+        if (shouldTickHourlyCourse()) {
+          try {
+            const leftoverScan = await scanAddressLeftoverHitches({ limit: 40 });
+            ingestLeftoverScan(leftoverScan);
+            leftoverKinds = leftoverScan.counts;
+          } catch { leftoverKinds = undefined; }
+        }
+        const hour = leftoverKinds
+          ? tickHourlyCourse({ leftoverKinds })
+          : tickHourlyCourse();
         if (hour.ticked) {
           console.log("🔀 VITA COURSE " + hour.course.score + "/100 achieving=" + hour.course.achieving + " applied=" + (hour.applied || []).join(",") );
           if (!hour.course.achieving || hour.applied?.length) {
