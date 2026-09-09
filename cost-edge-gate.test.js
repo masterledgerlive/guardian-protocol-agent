@@ -193,3 +193,27 @@ describe("cost-edge-gate: adaptive thin-book near-term mult", () => {
     assert.equal(d.code, "near_term");
   });
 });
+
+describe("cost-edge-gate: round-trip impact ×2", () => {
+  it("impact is charged on both legs (never understate RT)", () => {
+    const fr = costFractions({
+      tradeEth: 1,
+      hitchCostEth: 0,
+      gasCostEth: 0,
+      feePct: 0.01,
+      impactPct: 0.003,
+    });
+    // fee×2 + impact×2 = 0.02 + 0.006
+    assert.ok(Math.abs(fr.roundTripEth - 0.026) < 1e-12);
+  });
+});
+
+describe("cost-edge-gate: agent never-lose wiring", () => {
+  it("buys add gas/hitch to cost basis; sells pass unknownEntry; L1 fallback skips hitch", () => {
+    assert.ok(agentSrc.includes("investedEthWithCosts"));
+    assert.ok(agentSrc.includes("unknownEntry:"));
+    assert.ok(agentSrc.includes('hitchFeeSource: "fallback"'));
+    assert.ok(agentSrc.includes("netUsdAfterSkim"));
+    assert.ok(agentSrc.includes("DEFAULT_IMPACT_PCT"));
+  });
+});

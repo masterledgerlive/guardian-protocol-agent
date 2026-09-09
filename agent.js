@@ -117,6 +117,8 @@ import {
   manualSellReason,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
+  investedEthWithCosts,
+  netUsdAfterSkim,
 } from "./lose-zero-gate.js";
 import {
   tierBookParams,
@@ -143,6 +145,7 @@ import {
   unwrapForCascadeGas,
   injectProveStatus,
   INJECT_PROVE_TARGET,
+  DEFAULT_IMPACT_PCT,
 } from "./cascade-rollover.js";
 import {
   evaluateCostEdgeGate,
@@ -814,7 +817,7 @@ const PRIORITY_MARGIN      = 0.020;  // was 5.0% — 2% is now PRIORITY
 const WAVE_MIN_MOVE        = 0.004;  // was 0.8% — detect smaller waves (0.4% move = new wave)
 const WAVE_COUNT           = 8;      // track up to 8 peaks/troughs
 const STOP_LOSS_PCT        = 0.03;   // 3% below MIN trough → emergency exit (tighter)
-const PRICE_IMPACT_EST     = 0.002;  // 0.2% price impact estimate (more accurate for small trades)
+const PRICE_IMPACT_EST     = DEFAULT_IMPACT_PCT;  // 0.3% per leg — match cascade / COST_EDGE RT math
 const PROFIT_ERROR_BUFFER  = 0.002;  // 0.2% error buffer — must clear this above breakeven to sell
 
 // ── HEARTBEAT INDICATORS ──────────────────────────────────────────────────────
@@ -2160,7 +2163,8 @@ async function quoteHitchL1ForGates({ hitchBytes = STORE_HITCH_BYTES, btpInscrib
 }
 
 function hitchL1GateArgs(quote) {
-  if (!quote?.ok) return {};
+  // Oracle soft-fail: mark fallback so sell gate skips Eureka (never undercover L1).
+  if (!quote?.ok) return { hitchFeeSource: "fallback" };
   return {
     l1FeeEth: quote.l1FeeEth,
     reservedL1FeeEth: quote.reservedL1FeeEth,
@@ -5317,6 +5321,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
+      // Never hitch on buy when L1 oracle is down — undercover insert bleeds the book.
+      if (!hitchL1.ok) {
+        buySkipHitch = true;
+        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
+      }
       if (!decision.allow) {
         return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");
       }
@@ -5553,12 +5562,17 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       } catch(e) { console.log("⚠️ BTP strand error: " + e.message); }
     }
 
-    // ── Cost basis tracking: weighted average entry price ─────────────────────
-    // When adding to an existing position, blend the entry prices so P&L display
-    // and breakeven calculation reflect the true average cost, not just the latest buy.
+    // Cost basis = swap notional + buy gas + hitch (when it rode). Omitting gas
+    // made "break-even" sells still bleed the RISK book ($10→$6 leak).
     const prevInvested = costBasisEth(token);
     const prevTokenBal = tokensBefore;
-    token.totalInvestedEth = prevInvested + ethToSpend;
+    const fillCostEth = investedEthWithCosts({
+      ethSpent: ethToSpend,
+      gasCostEth: gasCost,
+      hitchCostEth: hitchCostEst,
+      hitchOnChain: !!buyVoice?.onChain,
+    });
+    token.totalInvestedEth = prevInvested + fillCostEth;
     if (prevInvested > 0 && prevTokenBal > 0 && hasUsableCostBasis(token)) {
       // Weighted average: (prevTokens * prevEntryPrice + newTokens * newPrice) / totalTokens
       const newTokensEstimate = receivedTokens;
@@ -5800,6 +5814,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       hitchBytes: voiceBytes + orchBytes,
       btpInscribe: wantBtp,
     });
+    const sellTrustedBasis = hasUsableCostBasis(token) && costBasisEth(token) > 0;
     const sellGate = buildSellGateDecision({
       symbol: token.symbol,
       reason,
@@ -5813,6 +5828,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       wantedHitchBytes: voiceBytes + orchBytes,
       wantBtpInscribe: wantBtp,
       piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
+      unknownEntry: !sellTrustedBasis,
       ...hitchL1GateArgs(hitchL1),
     });
     logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
@@ -5917,20 +5933,27 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const recUsd   = received * ethUsd;
     // Ledger PnL must use piggy-aligned soldFrac — requested sellPct overstates
     // entry cost and can flip a real win into a fake wipeout (skim/succession).
-    const invUsd   = entryEthSold * ethUsd;
-    const netUsd   = recUsd - invUsd;
+    // Unknown cost (entryEth=0) must NEVER list full proceeds as a win — that
+    // fake green skim+cascade is how the RISK book bled $10→$6.
+    const trustedBasis = hasUsableCostBasis(token) && entryEthSold > 0;
+    const invUsd   = trustedBasis ? entryEthSold * ethUsd : 0;
+    // Provisional pre-skim net (fill already nets sell gas); skim applied below.
+    let netUsd   = trustedBasis ? (recUsd - invUsd) : 0;
     // True earnings after hitch message — never list WAVE COMPLETE gains the letter wiped.
     const hitchCostEth = sellVoice?.onChain
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
       : 0;
-    const earn = piggyEarningsAfterMessage({
+    let earn = piggyEarningsAfterMessage({
       netUsd,
       hitchCostUsd: hitchCostEth * ethUsd,
       proceedsUsd: recUsd,
       bufferPct: sellVoice?.onChain ? piggyEarningsBufferPct() : 0,
     });
-    const earningsUsd = earn.earningsUsd;
-    const winner = received > 0 && (sellVoice?.onChain ? earn.gains : netUsd >= 0);
+    let earningsUsd = trustedBasis ? earn.earningsUsd : 0;
+    let winner = trustedBasis && received > 0 && (sellVoice?.onChain ? earn.gains : netUsd >= 0);
+    if (!trustedBasis) {
+      console.log(`   ⚠️  ${token.symbol}: unknown cost basis — not listing proceeds as earnings (chain recycle only)`);
+    }
 
     const receiptStatus = await getSwapReceiptStatus(transactionHash);
     if (!isSuccessfulSellFill({ received, receiptStatus })) {
@@ -5999,24 +6022,48 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
 
     let skim = 0, skimLottery = 0, skimPred = 0, skimAgent = 0;
-    if (received > 0 && netUsd > 0) {
+    // Skim only trusted profits — unknown-cost "wins" were inventing skim from entry=0.
+    if (trustedBasis && received > 0 && netUsd > 0) {
       skim        = received * PIGGY_SKIM_PCT;
       skimLottery = skim * SKIM_LOTTERY_SHARE;
       skimPred    = skim * SKIM_PRED_SHARE;
       skimAgent   = skim * SKIM_AGENT_SHARE;
-      piggyBank    += skimLottery;
-      predFund     += skimPred;
-      agentCapital += skimAgent;
-      totalSkimmed += skim;
-      tokenPiggyLedgers[token.symbol] = creditTokenPiggyPools(
-        tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({
-          symbol: token.symbol,
-          dustReserve: piggy.remainingReserve,
-          dustUsd: piggy.remainingReserve * price,
-          savedEarningsUsd: priorSaved,
-        }),
-        { ethContrib: skimLottery, agentShare: skimAgent, symbol: token.symbol },
-      );
+      // If skim would wipe the edge, skip skim so redeployable stays green.
+      const after = netUsdAfterSkim({
+        receivedEth: received,
+        investedEth: entryEthSold,
+        skimEth: skim,
+        ethUsd,
+        trustedCostBasis: true,
+      });
+      if (!(after.netUsd > 0)) {
+        console.log(`   🐷 skim skipped — would wipe edge (net after skim $${after.netUsd.toFixed(4)})`);
+        skim = 0; skimLottery = 0; skimPred = 0; skimAgent = 0;
+      } else {
+        piggyBank    += skimLottery;
+        predFund     += skimPred;
+        agentCapital += skimAgent;
+        totalSkimmed += skim;
+        // Recompute listed PnL after skim so Telegram matches redeployable ETH.
+        netUsd = after.netUsd;
+        earn = piggyEarningsAfterMessage({
+          netUsd,
+          hitchCostUsd: hitchCostEth * ethUsd,
+          proceedsUsd: Math.max(0, received - skim) * ethUsd,
+          bufferPct: sellVoice?.onChain ? piggyEarningsBufferPct() : 0,
+        });
+        earningsUsd = earn.earningsUsd;
+        winner = received > 0 && (sellVoice?.onChain ? earn.gains : netUsd >= 0);
+        tokenPiggyLedgers[token.symbol] = creditTokenPiggyPools(
+          tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({
+            symbol: token.symbol,
+            dustReserve: piggy.remainingReserve,
+            dustUsd: piggy.remainingReserve * price,
+            savedEarningsUsd: priorSaved,
+          }),
+          { ethContrib: skimLottery, agentShare: skimAgent, symbol: token.symbol },
+        );
+      }
     }
 
     // Actual bank after fill — bear min of real earnings (never invent money).
@@ -11904,7 +11951,7 @@ async function main() {
           symbol: token.symbol,
           reason: moonReason,
           sellPct: moonSoldFrac,
-          entryEth: costBasisEth(token), // 0 for unknown — leftover = proceeds − fees
+          entryEth: costBasisEth(token), // 0 for unknown — demand gas-edge leftover
           projectedProceedsEth: (moonPiggy.tokensToSell * price) / ethUsd,
           feePct: token.poolFeePct || 0.006,
           impactPct: PRICE_IMPACT_EST,
@@ -11913,6 +11960,7 @@ async function main() {
           wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
           wantBtpInscribe: moonWantBtp,
           piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
+          unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
           ...hitchL1GateArgs(moonL1),
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);

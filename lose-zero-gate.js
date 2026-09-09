@@ -27,6 +27,12 @@ export const STORE_HITCH_BYTES = 10;               // UTF-8 length of §$STORE§
 export const CALLDATA_GAS_PER_NONZERO_BYTE = 16;   // EIP-2028
 export const BTP_INSCRIBE_GAS_UNITS = 50_000;      // separate BTP self-send inscription tx
 export const DEFAULT_HITCH_COST_MULT = 2;          // sells reserve 2× hitch; buys stay 1×
+/**
+ * Unknown-cost bags (entryEth=0) used to look "green" on leftover = proceeds − fees
+ * alone, then recycle as fake wins while the RISK book bled ($10→$6). Require leftover
+ * to clear this multiple of sell gas before auto-recycle / dust sells fire.
+ */
+export const UNKNOWN_COST_GAS_EDGE_MULT = 2;
 
 function hasLiveL1Fee(v) {
   return v !== undefined && v !== null && Number.isFinite(Number(v)) && Number(v) >= 0;
@@ -666,6 +672,67 @@ export function sellFeesEth({
 }
 
 /**
+ * Full cost basis for a fill: swap notional + buy gas + hitch insert (when it rode).
+ * Omitting gas/hitch made break-even sells still bleed the wallet.
+ */
+export function investedEthWithCosts({
+  ethSpent = 0,
+  gasCostEth = 0,
+  hitchCostEth = 0,
+  hitchOnChain = false,
+} = {}) {
+  const spent = Math.max(0, Number(ethSpent) || 0);
+  const gas = Math.max(0, Number(gasCostEth) || 0);
+  const hitch = hitchOnChain ? Math.max(0, Number(hitchCostEth) || 0) : 0;
+  return spent + gas + hitch;
+}
+
+/**
+ * Min leftover (ETH) when cost basis is unknown — at least N× sell gas so dust
+ * recycle cannot churn every bag that merely clears pool fee %.
+ */
+export function unknownCostMinLeftoverEth(
+  gasCostEth = 0,
+  mult = UNKNOWN_COST_GAS_EDGE_MULT,
+) {
+  const gas = Math.max(0, Number(gasCostEth) || 0);
+  const m = Number.isFinite(Number(mult)) && Number(mult) > 0
+    ? Number(mult)
+    : UNKNOWN_COST_GAS_EDGE_MULT;
+  return gas * m;
+}
+
+/**
+ * True PnL after ETH skim — cascade / win lights must use this, not pre-skim net.
+ * Fill already nets pool fee + sell gas into `received`; skim is the last drag.
+ */
+export function netAfterSkimEth(receivedEth, skimEth = 0) {
+  const rec = Number(receivedEth) || 0;
+  const skim = Math.max(0, Number(skimEth) || 0);
+  if (!(rec > 0)) return 0;
+  return Math.max(0, rec - skim);
+}
+
+export function netUsdAfterSkim({
+  receivedEth = 0,
+  investedEth = 0,
+  skimEth = 0,
+  ethUsd = 0,
+  trustedCostBasis = true,
+} = {}) {
+  const eth = Number(ethUsd) || 0;
+  if (!(eth > 0)) return { netUsd: 0, earningsUsd: 0, trusted: false };
+  // Unknown cost: never invent a win from entryEth=0 (would list full proceeds as profit).
+  if (!trustedCostBasis) {
+    return { netUsd: 0, earningsUsd: 0, trusted: false, unknownCost: true };
+  }
+  const redeployable = netAfterSkimEth(receivedEth, skimEth);
+  const inv = Math.max(0, Number(investedEth) || 0);
+  const netUsd = (redeployable - inv) * eth;
+  return { netUsd, earningsUsd: netUsd, trusted: true, unknownCost: false, redeployableEth: redeployable };
+}
+
+/**
  * Minimum ETH proceeds required so the sell covers entry + fees + N× hitch.
  * sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
  */
@@ -841,6 +908,9 @@ export function evaluateSellGate({
   env = process.env,
   /** ETH that must remain after fees before hitch may ride (piggy earnings buffer). */
   piggyEarningsBufferEth = 0,
+  /** When true (or entryEth≈0), demand gas-edge leftover — no fake green recycles. */
+  unknownEntry = false,
+  unknownGasEdgeMult = UNKNOWN_COST_GAS_EDGE_MULT,
 } = {}) {
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
@@ -869,8 +939,14 @@ export function evaluateSellGate({
     : (hasLiveL1Fee(l1FeeEth) && wanted > 0
       ? Number(l1FeeEth) * STORE_HITCH_BYTES / wanted
       : undefined);
+  const liveL1Known = hasLiveL1Fee(l1FeeEth) || hasLiveL1Fee(reservedL1);
   const source = hitchFeeSource
-    || (hasLiveL1Fee(l1FeeEth) || hasLiveL1Fee(reservedL1) ? "oracle" : "fallback");
+    || (liveL1Known ? "oracle" : "l2-only");
+  // Only force plain when the agent explicitly marked oracle failure — unit tests
+  // and L2-only sizing still attach hitch from calldata gas alone.
+  const l1OracleFailed = hitchFeeSource === "fallback";
+  // entryEth=0 (unknown / wiped basis) looked green on proceeds−fees alone — demand gas edge.
+  const treatUnknown = !!unknownEntry || !(Number(entryEth) > 0);
 
   // Floor always reserves N× the default §$STORE§ hitch. BTP / orch chunks
   // are extra — skip them if they would break the cushion, but never skip
@@ -974,6 +1050,42 @@ export function evaluateSellGate({
     });
   }
 
+  // Unknown cost basis: leftover = proceeds − fees looks green even when the true
+  // entry was higher. Demand a gas-edge cushion before auto recycle / dust sells.
+  if (treatUnknown) {
+    const need = unknownCostMinLeftoverEth(gasCostEth, unknownGasEdgeMult);
+    if (leftover + 1e-18 < need) {
+      return pack(false, "unknown cost — gas edge not cleared", {
+        hitchBytes: 0,
+        btpInscribe: false,
+        skipHitch: true,
+        injectCostEth: 0,
+        hitchCoverEth: reservedCover.hitchCoverEth,
+        edge: leftover - need,
+        minSellProceedsEth: reservedCover.minSellProceedsEth,
+        sellNow: false,
+        log: `LOSE_ZERO: hold sell ${symbol} unknown cost — leftover ${leftover.toExponential(2)} < ${need.toExponential(2)} gas-edge (no fake win)`,
+      });
+    }
+  }
+
+  // No live L1 quote (oracle soft-fail) → never hitch. L2-only undercover is how
+  // inserts bleed thin books. Plain sale still OK when leftover cleared fees.
+  if (l1OracleFailed) {
+    return pack(true, "plain sale L1 unknown", {
+      hitchBytes: 0,
+      btpInscribe: false,
+      skipHitch: true,
+      injectCostEth: 0,
+      hitchCoverEth: reservedCover.hitchCoverEth,
+      edge: reservedCover.edge,
+      minSellProceedsEth: reservedCover.minSellProceedsEth,
+      sellNow: true,
+      hitchFeeSource: source,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); Eureka skipped so insert cannot undercover`,
+    });
+  }
+
   // Profitable after fees, but N× hitch and/or piggy earnings buffer would eat it —
   // plain sale, letter skipped. Math must never list a message-paid fake gain.
   const hitchCoverNeed = reservedCover.hitchCoverEth || 0;
@@ -1036,6 +1148,7 @@ export function buildSellGateDecision({
   btpL1FeeEth,
   hitchFeeSource,
   piggyEarningsBufferEth = 0,
+  unknownEntry = false,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -1047,6 +1160,7 @@ export function buildSellGateDecision({
     impactPct,
     wantedHitchBytes,
     gwei,
+    unknownEntry,
     providerFeeEth,
     wantBtpInscribe,
     hitchCostMult: multArg,

@@ -201,3 +201,17 @@ describe("avenue-prime: wired into agent.js", () => {
     assert.ok(agentSrc.includes("formatPrimedAvenues"));
   });
 });
+
+describe("avenue-prime: round-trip impact ×2", () => {
+  it("impact is charged on both legs", () => {
+    const c = projectRoundTripCostEth({
+      tradeEth: 1,
+      gasCostEth: 0,
+      hitchCostEth: 0,
+      feePct: 0.01,
+      impactPct: 0.003,
+    });
+    assert.ok(Math.abs(c.impactEth - 0.006) < 1e-12);
+    assert.ok(Math.abs(c.costEth - 0.026) < 1e-12);
+  });
+});

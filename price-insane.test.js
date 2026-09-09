@@ -384,7 +384,7 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     const body = src.slice(sellFn, sellEnd);
     const receivedDecl = body.search(/\b(let|const) received\b/);
     const recUsdDecl = body.search(/\bconst recUsd\b/);
-    const netUsdDecl = body.search(/\bconst netUsd\b/);
+    const netUsdDecl = body.search(/\b(?:let|const) netUsd\b/);
     const btpBlock = body.indexOf("BTP STRAND RECEIPT — sell");
     assert.ok(receivedDecl >= 0 && recUsdDecl >= 0 && netUsdDecl >= 0, "fill math must be declared");
     assert.ok(btpBlock >= 0, "BTP strand sell block must remain");

@@ -43,8 +43,9 @@ export function projectRoundTripCostEth({
   const hitch = Math.max(0, Number(hitchCostEth) || 0);
   const fee = Math.max(0, Number(feePct) || 0);
   const impact = Math.max(0, Number(impactPct) || 0);
+  // Round-trip: fee + impact on buy AND sell (match calcNetMargin / COST_EDGE).
   const feeEth = trade * fee * 2;
-  const impactEth = trade * impact;
+  const impactEth = trade * impact * 2;
   const gasEth = gas * 2;
   const costEth = feeEth + impactEth + gasEth + hitch;
   const costPct = trade > 0 ? costEth / trade : Number.POSITIVE_INFINITY;
