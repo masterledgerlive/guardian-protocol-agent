@@ -38,6 +38,7 @@ import {
   boardHealth,
   demoBoardSnapshot,
   leftoverHitchCapacity,
+  leftoverInputsFromEngine,
   listV3InjectSurfaces,
   modelBotUsagePiggy,
   readLiveParamSnapshot,
@@ -217,7 +218,8 @@ function boardSnapshotPayload(authorized) {
   const engine = engineSnapshotPayload();
   const arena = snapshotPayload();
   const inject = listV3InjectSurfaces();
-  const capacity = leftoverHitchCapacity();
+  const liveInputs = engine?.demo === false ? leftoverInputsFromEngine(engine) : {};
+  const capacity = leftoverHitchCapacity(liveInputs);
   return {
     ok: true,
     demo: !!(engine?.demo) || !arena,
