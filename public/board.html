@@ -141,11 +141,12 @@
 <body>
   <nav class="topbar">
     <span class="mode sim" id="modeBadge">SIM default</span>
-    <a href="#learn">Learn</a>
-    <a href="#params">Params</a>
+    <a href="#inject">Inject</a>
+    <a href="#hitch">Hitch / leftover</a>
+    <a href="#piggy">Piggy</a>
+    <a href="#botpiggy">Bot piggy</a>
+    <a href="#earn">Earn sim</a>
     <a href="#waves">Waves</a>
-    <a href="#arena">Arena</a>
-    <a href="#v4">V4</a>
     <a href="#live">Live (gated)</a>
     <a href="/engine">Full Engine</a>
     <a href="/arena">Full Arena</a>
@@ -156,8 +157,8 @@
     <p class="pill fav">Guardian Protocol · one hub</p>
     <h1 class="brand">Control <em>Board</em></h1>
     <p class="lede">
-      One page for humans and agent bots: live wave equations, Arena practice (storage-token revenue loop),
-      param fine-tune in <strong>sim</strong>, and Uniswap V4 status beside V3. Demo never spends RISK.
+      Find and use <strong>live Uniswap V3 inject avenues</strong>: hitch surfaces, leftover/hitch capacity,
+      piggy leave-behind, and earn-under-LOSE-ZERO sims. Demo never spends RISK. V4 is deferred (link only).
     </p>
     <div class="cta-row">
       <button type="button" id="btnRefresh">Refresh snapshot</button>
@@ -178,63 +179,91 @@
         <div class="rule">No invented P&amp;L</div>
       </div>
       <p class="hint" style="margin-top:0.75rem">
-        <strong>SIM</strong> (default): practice rounds, V4 paper inject, storage-loop capacity — labeled estimates.
-        <strong>LIVE</strong>: snapshot + queue buttons need Railway <code>VITA_WEBHOOK_SECRET</code>.
-        Live knobs (piggy %, hitch mult, LOSE_ZERO) are <em>read-only here</em> — change them in Railway or Telegram, not via an open POST.
-        V3 injector stays <code>npm start</code> / <code>agent.js</code>. V4 is a <em>separate</em> process: <code>npm run start:v4</code>.
-        L1 research Arena is <code>guardian-protocol/</code> (port 8787) — not this Railway URL.
+        <strong>SIM</strong> (default): practice leftover-covered inject on V3 hitch surfaces — labeled estimates.
+        <strong>LIVE</strong>: snapshot + queue need <code>VITA_WEBHOOK_SECRET</code> + spend ack.
+        V4 is <em>deferred</em> — <a href="/v4">/v4</a> docs only, not this runtime.
       </p>
     </section>
 
-    <section id="params">
-      <h2>1 · Param fine-tune</h2>
-      <p class="hint">Left = live snapshot (read-only). Right = sim overrides (do not write production env).</p>
+    <section id="inject">
+      <h2>1 · V3 hitch surfaces (tradeable)</h2>
+      <p class="hint">Every live Uniswap V3 name the injector can hitch Eureka on when leftover covers. Frozen/disabled are listed separately — not inject seats.</p>
+      <div class="grid-2" id="injectStats"></div>
+      <div style="overflow:auto; margin-top:0.55rem">
+        <table>
+          <thead><tr><th>Symbol</th><th>Seat</th><th>Piggy</th><th>Floor</th><th>Fee</th><th>On-chain</th></tr></thead>
+          <tbody id="injectBody"><tr><td colspan="6">Loading surfaces from agent.js catalog…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="hint" id="frozenNote"></p>
+    </section>
+
+    <section id="hitch">
+      <h2>2 · Leftover / hitch capacity</h2>
+      <p class="hint">Same lose-zero hitch math as production. Numbers are <strong>labeled estimates</strong> unless a live snapshot is authorized — not invented P&amp;L.</p>
+      <div class="grid-2" id="capStats"></div>
+      <pre id="capOut">Capacity lands here.</pre>
+    </section>
+
+    <section id="piggy">
+      <h2>3 · Piggy leave-behind</h2>
+      <p class="hint">Dust never sells except <code>/piggyunlock</code>. LINK favorite is 8% / $0.25; global default 5% / $0.15. Live knobs are read-only here.</p>
+      <div class="grid-2" id="liveKnobs"></div>
+    </section>
+
+    <section id="botpiggy">
+      <h2>4 · Bot usage piggy (Grok)</h2>
+      <p class="hint">
+        Monthly Grok Bot cost is a <strong>piggy / transmission cost</strong> hitch leftover-earnings must cover.
+        Game is on <strong>$20/mo now</strong>. <strong>$60 Pro only after proven hitch revenue</strong> (on-chain hashes).
+        DEMO/example unless hashes are supplied — this hub never invents P&amp;L.
+      </p>
+      <div class="grid-2" id="botStats"></div>
+      <pre id="botOut">Bot-usage piggy model (demo).</pre>
+    </section>
+
+    <section id="earn">
+      <h2>5 · Earn sim (LOSE-ZERO)</h2>
+      <p class="hint">Practice inject-all + piggy leave-behind. Negative wave = hold. Hitch only if leftover covers. Not a live fill.</p>
       <div class="grid-2">
         <div>
-          <h3 class="mono" style="margin:0 0 0.4rem">Live snapshot</h3>
-          <div class="grid-2" id="liveKnobs"></div>
-        </div>
-        <div>
-          <h3 class="mono" style="margin:0 0 0.4rem">Sim overrides</h3>
           <label for="simCash">Starting liquid USD</label>
           <input id="simCash" type="number" value="8" min="1" step="0.5" />
-          <label for="simSeat">Seat</label>
-          <select id="simSeat">
-            <option value="LINK">LINK (favorite · 8% piggy)</option>
-            <option value="UNI">UNI</option>
-            <option value="VVV">VVV</option>
-            <option value="ZORA">ZORA</option>
-            <option value="BNKR">BNKR</option>
-            <option value="AERO">AERO</option>
-          </select>
+          <label for="simSeat">Inject seat</label>
+          <select id="simSeat"></select>
           <label for="simMove">Assumed wave</label>
           <select id="simMove">
             <option value="0.03">+3% thin win</option>
             <option value="0.06" selected>+6% clean wave</option>
             <option value="-0.02">−2% hold / lose-zero</option>
           </select>
-          <label for="simPiggy">Piggy % (sim)</label>
-          <input id="simPiggy" type="number" value="5" min="0" max="20" step="1" />
-          <label for="simDust">Dust floor USD (sim)</label>
-          <input id="simDust" type="number" value="0.15" min="0" step="0.05" />
+          <label for="simPiggy">Piggy % override (blank = catalog)</label>
+          <input id="simPiggy" type="number" value="" min="0" max="20" step="1" placeholder="catalog" />
+          <label for="simDust">Dust floor USD override</label>
+          <input id="simDust" type="number" value="" min="0" step="0.05" placeholder="catalog" />
           <label for="simHitch">HITCH_COST_MULT (sim)</label>
           <input id="simHitch" type="number" value="2" min="1" max="5" step="0.5" />
           <div class="check"><input id="simLoseZero" type="checkbox" checked /> <label for="simLoseZero" style="margin:0">LOSE_ZERO hold when leftover ≤ 0</label></div>
           <div class="check"><input id="simHalt" type="checkbox" /> <label for="simHalt" style="margin:0">HALT_NEW_ENTRIES display (sim flag only)</label></div>
           <div class="check"><input id="simCost" type="checkbox" checked /> <label for="simCost" style="margin:0">COST_EDGE gate</label></div>
           <div class="check"><input id="simPeak" type="checkbox" checked /> <label for="simPeak" style="margin:0">Peak-ride (sell MADE top, not hist-max touch)</label></div>
-          <div class="cta-row" style="margin-top:0.7rem">
+          <div class="cta-row" style="margin-top:0.7rem" id="simMainBtns"></div>
+          <div class="cta-row">
             <button type="button" id="btnSim">Run sim round</button>
-            <button type="button" class="ghost" id="btnCopyLive">Copy live → sim</button>
+            <button type="button" class="ghost" id="btnCopyLive">Copy live piggy → sim</button>
+            <button type="button" class="ghost" id="btnStorage">Storage-loop capacity</button>
           </div>
         </div>
+        <div>
+          <pre id="simOut">Press Run sim round — demo/sim, not a live trade.</pre>
+          <pre id="storageOut">Storage loop (optional).</pre>
+        </div>
       </div>
-      <pre id="simOut">Press Run sim round — demo/sim, not a live fill.</pre>
     </section>
 
     <section id="waves">
-      <h2>2 · Live wave / engine view</h2>
-      <p class="hint">Same equations as <a href="/engine">/engine</a> (paddle → ride → peak → trick → reload). Demo without secret.</p>
+      <h2>6 · Wave / engine view</h2>
+      <p class="hint">Same equations as <a href="/engine">/engine</a>. Demo without secret.</p>
       <div class="grid-2" id="waveStats"></div>
       <div class="wave-grid" id="waveGrid"></div>
       <details>
@@ -243,60 +272,22 @@
       </details>
     </section>
 
-    <section id="arena">
-      <h2>3 · Arena learn · storage-token revenue loop</h2>
-      <p class="hint">
-        Practice inject-all + piggy leave-behind. Storage loop: leftover → piggy skim → call-to-add → hitch bytes / BITS.
-        Full L1 simulator stays in <code>guardian-protocol/</code> (<code>npm run arena:crypto-stress</code>).
-      </p>
-      <div class="grid-2">
-        <div>
-          <div class="cta-row">
-            <button type="button" id="btnStorage">Run storage-loop capacity</button>
-          </div>
-          <pre id="storageOut">Capacity report lands here.</pre>
-        </div>
-        <div>
-          <p class="hint">Telegram cheatsheet (live bot, not this sim):</p>
-          <p class="mono">/status · /bank · /piggy · /tiers · /cycles · /costedge · /buy LINK 2 · /sellhalf UNI · /piggyunlock LINK · /prove</p>
-          <p class="hint">Tune live params in Railway: <code>PIGGY_BANK_PCT</code> <code>PIGGY_BANK_MIN_USD</code> <code>HITCH_COST_MULT</code> <code>LOSE_ZERO</code> <code>HALT_NEW_ENTRIES</code>. COST_EDGE and peak-ride are always-on code, not env toggles.</p>
-        </div>
-      </div>
-      <details>
-        <summary>Embed full Arena ledger</summary>
-        <iframe title="Guardian Arena" src="/arena" loading="lazy"></iframe>
-      </details>
-    </section>
-
     <section id="v4">
-      <h2>4 · Uniswap V4 offshoot (SEPARATE process)</h2>
+      <h2>V4 · deferred</h2>
       <p class="hint">
-        <span class="pill warn" id="v4RunPill">separate process</span>
-        This panel is <strong>docs + lockfile status only</strong>. It does not start V4, does not encode V4 swaps,
-        and has no V3 live buttons. V3 injector stays <code>agent.js</code>. V4 stays <code>npm run start:v4</code> with <code>GUARDIAN_V4_*</code>.
+        <span class="pill warn">isolated · not this PR</span>
+        Uniswap V4 stays a separate process (<code>npm run start:v4</code>, <code>GUARDIAN_V4_*</code>).
+        This hub only <a href="/v4">links to V4 docs</a>. No V4 runtime, encode, or mixed controls.
       </p>
-      <div class="cta-row">
-        <a class="btn" href="/v4">Open V4-only docs page</a>
-        <a class="btn ghost" href="https://github.com/masterledgerlive/guardian-protocol-agent/blob/main/guardian-v4/README.md" target="_blank" rel="noreferrer">guardian-v4/README.md</a>
-      </div>
-      <div class="grid-2" id="v4Stats"></div>
-      <pre class="mono" id="v4Start">npm run start:v4 -- --once
-npm run start:v4
-npm run test:v4</pre>
-      <div style="overflow:auto; margin-top:0.6rem">
-        <table>
-          <thead><tr><th>Symbol</th><th>Status</th><th>Notes</th></tr></thead>
-          <tbody id="v4Body"><tr><td colspan="3">Loading catalog names…</td></tr></tbody>
-        </table>
-      </div>
-      <pre id="v4Out">No V4 inject from this V3 hub. Use the CLI in a separate process (DRY_RUN=yes by default).</pre>
     </section>
 
     <section id="live">
-      <h2>5 · Operator live (gated)</h2>
+      <h2>7 · Operator live (gated) — earn under LOSE-ZERO</h2>
       <div class="gate">
         <p class="hint" style="margin-top:0">
-          These enqueue the same commands Telegram uses. <strong>Default is demo/sim above.</strong>
+          Same queue as Telegram. <strong>Default is demo/sim above.</strong>
+          Buy injects a hitch seat; sell-half takes leftover-covered wave (hold if leftover ≤ 0);
+          piggy unlock is the only dust spend (never to pay Grok); hitch prove records a hash — still not invented P&amp;L.
           Paste <code>VITA_WEBHOOK_SECRET</code> only if you intend to talk to the live V3 injector.
         </p>
         <label for="secret">VITA webhook secret</label>
@@ -309,9 +300,11 @@ npm run test:v4</pre>
           <button type="button" class="ghost" id="btnSaveSecret">Save secret in this browser</button>
           <button type="button" class="ghost" id="btnClearSecret">Clear</button>
           <button type="button" class="ghost" data-live='{"action":"status"}'>Ping live snapshot</button>
-          <button type="button" class="live" data-live='{"action":"buy","symbol":"LINK","usd":2}'>Queue buy LINK ~$2</button>
-          <button type="button" class="ghost" data-live='{"action":"sellhalf","symbol":"LINK"}'>Queue sell half LINK</button>
-          <button type="button" class="warn" data-live='{"action":"piggyunlock","symbol":"LINK"}'>Unlock LINK piggy</button>
+          <select id="liveSeat" style="max-width:10rem"></select>
+          <button type="button" class="live" id="btnLiveBuy">Queue buy ~$2 (selected)</button>
+          <button type="button" class="ghost" id="btnLiveHalf">Queue sell half (selected)</button>
+          <button type="button" class="warn" id="btnLiveUnlock">Unlock piggy (selected)</button>
+          <button type="button" class="ghost" id="btnLiveProve">Queue hitch prove</button>
         </div>
         <pre id="cmdOut">Live queue idle — sim does not use this.</pre>
       </div>
@@ -329,7 +322,6 @@ npm run test:v4</pre>
     secretEl.value = localStorage.getItem(KEY) || "";
 
     let lastParams = null;
-    let lastV4 = null;
 
     function headers() {
       const s = (localStorage.getItem(KEY) || secretEl.value || "").trim();
@@ -416,39 +408,100 @@ npm run test:v4</pre>
       });
     }
 
-    function renderV4(v) {
-      lastV4 = v;
-      const running = !!v.running;
-      const pill = document.getElementById("v4RunPill");
-      pill.textContent = running ? "V4 process running (separate)" : "V4 not running on this host";
-      pill.className = "pill " + (running ? "ok" : "warn");
-      document.getElementById("v4Stats").innerHTML = [
-        ["Same process as V3", "no"],
-        ["Loads V4 runtime", yn(v.loadsV4Runtime)],
-        ["Encodes V4 swaps here", yn(v.encodesV4Swaps)],
-        ["Startable from this webhook", "no — CLI only"],
-      ].map(([k, val]) => `<div class="stat"><span>${k}</span><b>${val}</b></div>`).join("");
-      document.getElementById("v4Start").textContent = (v.start?.once || "") + "\n" + (v.start?.loop || "") + "\n" + (v.start?.tests || "");
-      const rows = v.avenues || [];
-      document.getElementById("v4Body").innerHTML = rows.map(t => `
+    function renderInject(inject) {
+      const mains = inject?.injectMains || [];
+      const fav = inject?.favorite || "LINK";
+      const rows = inject?.hitchSurfaces || [];
+      document.getElementById("injectStats").innerHTML = [
+        ["Favorite", fav],
+        ["Inject mains", mains.join(" · ") || "—"],
+        ["Tradeable hitch surfaces", String(rows.length)],
+        ["Deferred majors", (inject?.deferredMajors || []).join(" · ") || "—"],
+      ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+      document.getElementById("injectBody").innerHTML = rows.map((t) => `
         <tr>
-          <td>${t.symbol}${t.injectMain ? ' <span class="pill fav">main</span>' : ""}</td>
-          <td>${t.status}</td>
-          <td>${t.notes || ""}</td>
+          <td>${t.symbol}${t.favorite ? ' <span class="pill fav">fav</span>' : ""}${t.injectMain ? ' <span class="pill ok">inject</span>' : ""}</td>
+          <td>${t.injectMain ? "main" : "hitch"}</td>
+          <td>${pct(t.piggyPct)}</td>
+          <td>${money(t.piggyMinUsd)}</td>
+          <td>${t.poolFeePct != null ? (t.poolFeePct * 100).toFixed(1) + "%" : "—"}</td>
+          <td>${t.basescanToken ? `<a href="${t.basescanToken}" target="_blank" rel="noreferrer">token</a>` : "—"}</td>
         </tr>`).join("");
-      document.getElementById("v4Out").textContent = v.isolation || "V4 stays isolated.";
+      const froze = (inject?.frozenOrDisabled || []).map((t) => t.symbol).join(", ");
+      document.getElementById("frozenNote").textContent = froze
+        ? "Frozen/disabled (not hitch inject seats): " + froze
+        : "";
+      const seat = document.getElementById("simSeat");
+      const liveSeat = document.getElementById("liveSeat");
+      const keep = seat.value || fav;
+      const opts = (mains.length ? mains : rows.filter((r) => r.injectMain).map((r) => r.symbol));
+      const html = opts.map((s) => `<option value="${s}">${s}${s === fav ? " (favorite)" : ""}</option>`).join("");
+      seat.innerHTML = html;
+      liveSeat.innerHTML = html;
+      if ([...seat.options].some((o) => o.value === keep)) seat.value = keep;
+      else seat.value = fav;
+      liveSeat.value = seat.value;
+      const btns = document.getElementById("simMainBtns");
+      btns.innerHTML = opts.map((s) => `<button type="button" class="ghost" data-simseat="${s}">Sim ${s}</button>`).join("");
+      btns.querySelectorAll("[data-simseat]").forEach((b) => {
+        b.onclick = () => {
+          document.getElementById("simSeat").value = b.getAttribute("data-simseat");
+          document.getElementById("btnSim").click();
+        };
+      });
+    }
+
+    function renderCapacity(cap) {
+      document.getElementById("capStats").innerHTML = [
+        ["Kind", cap?.kind || "estimated"],
+        ["Eureka leftover cover", cap?.eurekaOk ? "YES (labeled est.)" : "NO — plain swap"],
+        ["Leftover USD (est.)", money(cap?.leftoverUsd)],
+        ["Hitch tag USD", money(cap?.hitchTagUsd)],
+        ["Max hitch bytes", String(cap?.maxHitchBytes ?? "—")],
+      ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+      document.getElementById("capOut").textContent = JSON.stringify({
+        label: cap?.label,
+        leftoverEth: cap?.leftoverEth,
+        leftoverUsd: cap?.leftoverUsd,
+        hitchTagUsd: cap?.hitchTagUsd,
+        eurekaOk: cap?.eurekaOk,
+        note: cap?.note,
+        funds: cap?.funds,
+        lose_zero: cap?.lose_zero,
+      }, null, 2);
+    }
+
+    function renderBotPiggy(b) {
+      document.getElementById("botStats").innerHTML = [
+        ["Kind", b?.kind || "demo|example"],
+        ["Grok now / mo", money(b?.grokNowUsdPerMonth)],
+        ["Pro / mo (gated)", money(b?.grokProUsdPerMonth)],
+        ["Pro unlocked", yn(b?.grokProUnlocked)],
+      ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+      document.getElementById("botOut").textContent = JSON.stringify({
+        label: b?.label,
+        piggyRole: b?.piggyRole,
+        hitchTagUsdEstimated: b?.hitchTagUsdEstimated,
+        hitchTagUsdLabel: b?.hitchTagUsdLabel,
+        leftoverCoversHitch: b?.leftoverCoversHitch,
+        hitchEarningsMustCoverUsdPerMonth: b?.hitchEarningsMustCoverUsdPerMonth,
+        provenRevenue: b?.provenRevenue,
+        note: b?.note,
+      }, null, 2);
     }
 
     async function refresh() {
       try {
-        const [params, snap, v4] = await Promise.all([
+        const [params, snap, inj] = await Promise.all([
           fetch("/board/api/params").then(r => r.json()),
           fetch("/board/api/snapshot", { headers: headers() }).then(r => r.json()),
-          fetch("/board/api/v4").then(r => r.json()),
+          fetch("/board/api/inject").then(r => r.json()),
         ]);
         renderKnobs(params);
+        renderInject(inj);
+        renderCapacity(inj.capacity || snap.capacity);
+        renderBotPiggy(inj.botPiggy || snap.botPiggy);
         renderWaves(snap.engine);
-        renderV4(v4);
         setMode(!!(headers()["x-vita-secret"] && snap.demo === false));
       } catch (e) {
         document.getElementById("simOut").textContent = String(e.message || e);
@@ -456,13 +509,15 @@ npm run test:v4</pre>
     }
 
     function simBody() {
-      const piggyRaw = Number(document.getElementById("simPiggy").value);
+      const piggyEl = document.getElementById("simPiggy").value.trim();
+      const dustEl = document.getElementById("simDust").value.trim();
+      const piggyRaw = piggyEl === "" ? null : Number(piggyEl);
       return {
         cash: Number(document.getElementById("simCash").value) || 8,
         seat: document.getElementById("simSeat").value,
         movePct: Number(document.getElementById("simMove").value),
-        piggyPct: piggyRaw > 1 ? piggyRaw / 100 : piggyRaw,
-        dustFloorUsd: Number(document.getElementById("simDust").value),
+        piggyPct: piggyRaw == null || !Number.isFinite(piggyRaw) ? null : (piggyRaw > 1 ? piggyRaw / 100 : piggyRaw),
+        dustFloorUsd: dustEl === "" ? null : Number(dustEl),
         hitchCostMult: Number(document.getElementById("simHitch").value),
         loseZero: document.getElementById("simLoseZero").checked,
         haltNewEntries: document.getElementById("simHalt").checked,
@@ -479,7 +534,16 @@ npm run test:v4</pre>
       });
       const data = await res.json();
       const lines = (data.arena?.lines || [JSON.stringify(data, null, 2)]).join("\n");
-      document.getElementById("simOut").textContent = lines;
+      const pig = data.botPiggy || {};
+      const cover = [
+        "",
+        "── bot usage piggy (" + (pig.kind || "demo|example") + ") ──",
+        "Grok now $" + (pig.grokNowUsdPerMonth ?? 20) + "/mo hitch leftover-earnings must cover",
+        "Pro $" + (pig.grokProUsdPerMonth ?? 60) + "/mo only after proven hitch revenue hashes",
+        "leftover covers hitch tag (est.): " + String(pig.leftoverCoversHitch),
+        pig.note || "",
+      ].join("\n");
+      document.getElementById("simOut").textContent = lines + cover;
     };
 
     document.getElementById("btnStorage").onclick = async () => {
@@ -517,27 +581,38 @@ npm run test:v4</pre>
       secretEl.value = "";
     };
 
-    document.querySelectorAll("[data-live]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const cmd = JSON.parse(btn.getAttribute("data-live"));
-        if (cmd.action !== "status" && !document.getElementById("liveAck").checked) {
-          document.getElementById("cmdOut").textContent = "Tick the live-spend acknowledgement first. Sim does not need this.";
-          return;
-        }
-        if (cmd.action === "status") {
-          await refresh();
-          const res = await fetch("/arena/api/snapshot", { headers: headers() });
-          const data = await res.json();
-          document.getElementById("cmdOut").textContent = JSON.stringify(data, null, 2);
-          return;
-        }
-        const res = await fetch("/arena/api/queue", {
-          method: "POST",
-          headers: headers(),
-          body: JSON.stringify(cmd),
-        });
+    async function queueLive(cmd) {
+      if (cmd.action !== "status" && !document.getElementById("liveAck").checked) {
+        document.getElementById("cmdOut").textContent = "Tick the live-spend acknowledgement first. Sim does not need this.";
+        return;
+      }
+      if (cmd.action === "status") {
+        await refresh();
+        const res = await fetch("/arena/api/snapshot", { headers: headers() });
         const data = await res.json();
         document.getElementById("cmdOut").textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+      const res = await fetch("/arena/api/queue", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(cmd),
+      });
+      const data = await res.json();
+      document.getElementById("cmdOut").textContent = JSON.stringify(data, null, 2);
+    }
+
+    function selectedLiveSeat() {
+      return (document.getElementById("liveSeat").value || "LINK").toUpperCase();
+    }
+    document.getElementById("btnLiveBuy").onclick = () => queueLive({ action: "buy", symbol: selectedLiveSeat(), usd: 2 });
+    document.getElementById("btnLiveHalf").onclick = () => queueLive({ action: "sellhalf", symbol: selectedLiveSeat() });
+    document.getElementById("btnLiveUnlock").onclick = () => queueLive({ action: "piggyunlock", symbol: selectedLiveSeat() });
+    document.getElementById("btnLiveProve").onclick = () => queueLive({ action: "prove" });
+
+    document.querySelectorAll("[data-live]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await queueLive(JSON.parse(btn.getAttribute("data-live")));
       });
     });
 

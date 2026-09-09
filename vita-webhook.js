@@ -4,13 +4,13 @@
 // ───────────────────────────────────────────────────────────────────────────────
 // Runs a tiny HTTP server alongside the trading bot.
 //
-//   GET  /board               — Control Board hub (V3 waves + arena learn; V4 docs panel)
+//   GET  /board               — Control Board hub (live V3 inject hooks; V4 deferred/link only)
 //   GET  /board/health        — which boards are mounted (also GET /health)
 //   GET  /board/api/params    — read-only live knobs (public)
 //   GET  /board/api/snapshot  — hub snapshot (demo public; live if authorized)
 //   POST /board/api/sim       — labeled V3 practice sim (public, no spend, no V4 encode)
-//   GET  /board/api/v4        — V4 offshoot status + start commands (public, does not start V4)
-//   GET  /v4                  — V4-only docs page (not the V3 injector)
+//   GET  /board/api/inject    — V3 tradeable hitch surfaces + leftover/hitch capacity + bot piggy
+//   GET  /v4                  — V4 docs only (deferred — not this runtime)
 //   GET  /arena               — Guardian Arena HTML (public learning board)
 //   GET  /                  — same as /arena (original live path)
 //   GET  /arena/api/snapshot  — live ledger snapshot (auth)
@@ -37,6 +37,9 @@ import { demoEngineSnapshot } from "./engine-board.js";
 import {
   boardHealth,
   demoBoardSnapshot,
+  leftoverHitchCapacity,
+  listV3InjectSurfaces,
+  modelBotUsagePiggy,
   readLiveParamSnapshot,
   runBoardSim,
   v4BoardStatus,
@@ -174,15 +177,27 @@ function boardSnapshotPayload(authorized) {
   }
   const engine = engineSnapshotPayload();
   const arena = snapshotPayload();
+  const inject = listV3InjectSurfaces();
+  const capacity = leftoverHitchCapacity();
   return {
     ok: true,
     demo: !!(engine?.demo) || !arena,
     kind: "control-board-snapshot",
     params: readLiveParamSnapshot(),
+    inject,
+    capacity,
+    botPiggy: modelBotUsagePiggy({
+      hitchTagUsd: capacity.hitchTagUsd,
+      leftoverUsd: capacity.leftoverUsd,
+      hitchRevenueTxs: [],
+      hitchRevenueUsd: null,
+    }),
     engine: {
       demo: !!engine?.demo,
       favorite: engine?.favorite,
       hitchProve: engine?.hitchProve,
+      hitchProveNote:
+        "Bot-internal hitch prove counter (toward 20 + profit). Not Grok P&L. Not invented fills.",
       modules: engine?.modules,
       waves: (engine?.waves || []).map((w) => ({
         symbol: w.symbol,
@@ -195,7 +210,7 @@ function boardSnapshotPayload(authorized) {
       })),
     },
     arena: arena || null,
-    v4: v4BoardStatus(),
+    v4: { deferred: true, page: "/v4", sameProcessAsV3: false, startableFromThisWebhook: false },
     invariants: demo.invariants,
     timestamp: new Date().toISOString(),
   };
@@ -238,6 +253,18 @@ async function handleVitaRequest(req, res) {
 
     if (path === "/board/api/params" && req.method === "GET") {
       return json(res, readLiveParamSnapshot());
+    }
+
+    if (path === "/board/api/inject" && req.method === "GET") {
+      const capacity = leftoverHitchCapacity();
+      return json(res, {
+        ...listV3InjectSurfaces(),
+        capacity,
+        botPiggy: modelBotUsagePiggy({
+          hitchTagUsd: capacity.hitchTagUsd,
+          leftoverUsd: capacity.leftoverUsd,
+        }),
+      });
     }
 
     if (path === "/board/api/v4" && req.method === "GET") {

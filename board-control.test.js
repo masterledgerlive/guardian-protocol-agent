@@ -8,6 +8,11 @@ import {
   boardHealth,
   demoBoardSnapshot,
   v4BoardStatus,
+  listV3InjectSurfaces,
+  parseDefaultTokensFromAgentSource,
+  leftoverHitchCapacity,
+  modelBotUsagePiggy,
+  GROK_BOT_USAGE,
   LOSE_ZERO_INVARIANTS,
   BOARD_PATHS,
 } from "./board-control.js";
@@ -123,12 +128,20 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(BOARD_PATHS.hub, "/board");
   });
 
-  it("demo snapshot includes params, waves, and V4 docs status", () => {
+  it("demo snapshot lists V3 inject surfaces, bot-usage piggy DEMO, and deferred V4 stub", () => {
     const d = demoBoardSnapshot({});
     assert.equal(d.demo, true);
     assert.ok(d.engine.waves.length >= 3);
-    assert.ok(d.v4.catalog.total >= 1);
-    assert.equal(d.v4.encodesV4Swaps, false);
+    assert.equal(d.v4.deferred, true);
+    assert.equal(d.v4.page, "/v4");
+    assert.equal(d.v4.sameProcessAsV3, false);
+    assert.equal(d.inject.kind, "v3-uniswap-inject-surfaces");
+    assert.ok(d.inject.hitchSurfaces.length >= 10);
+    assert.equal(d.botPiggy.kind, "demo|example");
+    assert.equal(d.botPiggy.grokNowUsdPerMonth, 20);
+    assert.equal(d.botPiggy.grokProUsdPerMonth, 60);
+    assert.equal(d.botPiggy.provenRevenue, null);
+    assert.equal(d.botPiggy.grokProUnlocked, false);
     assert.equal(d.invariants.neverSellUnderwater, true);
     assert.deepEqual(d.invariants, LOSE_ZERO_INVARIANTS);
   });
@@ -144,5 +157,99 @@ describe("runBoardSim", () => {
     assert.equal(b.v4, undefined);
     assert.match(b.label, /does not encode V4/);
     assert.equal(b.invariants.vaultNeverSpend, true);
+    assert.equal(b.botPiggy.kind, "demo|example");
+    assert.equal(b.botPiggy.provenRevenue, null);
+    assert.equal(b.botPiggy.grokNowUsdPerMonth, 20);
+  });
+});
+
+describe("V3 inject surfaces (agent.js catalog as text)", () => {
+  it("parses tradeable hitch seats and excludes frozen/disabled", () => {
+    const src = readFileSync(new URL("./agent.js", import.meta.url), "utf8");
+    const rows = parseDefaultTokensFromAgentSource(src);
+    assert.ok(rows.find((t) => t.symbol === "LINK")?.injectMain);
+    assert.equal(rows.find((t) => t.symbol === "LINK")?.piggyBankPct, 0.08);
+    assert.equal(rows.find((t) => t.symbol === "LINK")?.piggyBankMinUsd, 0.25);
+    assert.equal(rows.find((t) => t.symbol === "CBBTC")?.frozen, true);
+    assert.equal(rows.find((t) => t.symbol === "AAVE")?.frozen, true);
+    assert.equal(rows.find((t) => t.symbol === "WELL")?.disabled, true);
+    assert.equal(rows.find((t) => t.symbol === "TOSHI")?.frozen, false);
+    assert.equal(rows.find((t) => t.symbol === "TOSHI")?.disabled, false);
+
+    const surf = listV3InjectSurfaces({ agentSrc: src });
+    assert.equal(surf.dex, "uniswap-v3");
+    assert.equal(surf.favorite, "LINK");
+    assert.deepEqual(surf.injectMains, ["LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO"]);
+    assert.deepEqual(surf.deferredMajors, ["CBBTC", "AAVE"]);
+    const bySym = Object.fromEntries(surf.hitchSurfaces.map((t) => [t.symbol, t]));
+    assert.ok(bySym.LINK);
+    assert.equal(bySym.LINK.favorite, true);
+    assert.equal(bySym.LINK.injectMain, true);
+    assert.equal(bySym.LINK.piggyPct, 0.08);
+    assert.equal(bySym.LINK.piggyMinUsd, 0.25);
+    assert.ok(bySym.TOSHI);
+    assert.ok(bySym.UNI);
+    assert.ok(bySym.GAME);
+    assert.equal(bySym.CBBTC, undefined);
+    assert.equal(bySym.WELL, undefined);
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "CBBTC" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "WELL" && t.disabled));
+    assert.ok(surf.hitchSurfaces.length >= 15);
+  });
+});
+
+describe("leftover / hitch capacity", () => {
+  it("labels estimates and never invents live P&L", () => {
+    const cap = leftoverHitchCapacity();
+    assert.match(cap.kind, /estimated|simulated/);
+    assert.ok(Number.isFinite(cap.hitchTagUsd));
+    assert.ok(Number.isFinite(cap.leftoverUsd));
+    assert.equal(typeof cap.eurekaOk, "boolean");
+    assert.equal(cap.lose_zero.never_sell_underwater_to_insert_storage, true);
+  });
+});
+
+describe("bot usage piggy (Grok)", () => {
+  it("stays DEMO unless both hitch revenue hashes and a finite USD are supplied", () => {
+    const demo = modelBotUsagePiggy({ hitchTagUsd: 0.35, leftoverUsd: 2 });
+    assert.equal(demo.kind, "demo|example");
+    assert.equal(demo.grokNowUsdPerMonth, 20);
+    assert.equal(demo.grokProUsdPerMonth, 60);
+    assert.equal(demo.grokProUnlocked, false);
+    assert.equal(demo.provenRevenue, null);
+    assert.equal(demo.leftoverCoversHitch, true);
+    assert.match(demo.hitchTagUsdLabel, /not income/);
+    assert.equal(GROK_BOT_USAGE.proOnlyAfterProvenRevenue, true);
+
+    const hashesOnly = modelBotUsagePiggy({ hitchRevenueTxs: ["0xabc"] });
+    assert.equal(hashesOnly.kind, "demo|example");
+    assert.equal(hashesOnly.grokProUnlocked, false);
+
+    const usdOnly = modelBotUsagePiggy({ hitchRevenueUsd: 80 });
+    assert.equal(usdOnly.kind, "demo|example");
+    assert.equal(usdOnly.grokProUnlocked, false);
+
+    const leftoverIsNotIncome = modelBotUsagePiggy({ leftoverUsd: 100, hitchTagUsd: 0.2 });
+    assert.equal(leftoverIsNotIncome.kind, "demo|example");
+    assert.equal(leftoverIsNotIncome.grokProUnlocked, false);
+    assert.equal(leftoverIsNotIncome.provenRevenue, null);
+  });
+
+  it("unlocks Pro modeling only when hashes + proven USD cover $60", () => {
+    const live = modelBotUsagePiggy({
+      hitchRevenueTxs: ["0xdeadbeef"],
+      hitchRevenueUsd: 80,
+    });
+    assert.equal(live.kind, "live-hashes");
+    assert.equal(live.grokProUnlocked, true);
+    assert.equal(live.provenRevenue.usd, 80);
+    assert.deepEqual(live.provenRevenue.txs, ["0xdeadbeef"]);
+
+    const short = modelBotUsagePiggy({
+      hitchRevenueTxs: ["0xabc"],
+      hitchRevenueUsd: 20,
+    });
+    assert.equal(short.kind, "live-hashes");
+    assert.equal(short.grokProUnlocked, false);
   });
 });

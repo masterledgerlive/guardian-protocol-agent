@@ -6,11 +6,11 @@
 
 Arena (`/arena`, PR #42), Engine (`/engine`, PR #47), V4 offshoot (PR #46), Storage Token loop (PR #50), and fee/gas plug (PR #51) left HTML + docs on three URLs plus `guardian-protocol/` and `guardian-v4/README.md`.
 
-- **`GET /board`** (`public/board.html`) — one hub: V3 wave preview, Arena/storage-loop sim, read-only live knobs + sim overrides, **separate** V4 docs panel (lockfile status + start commands; no V4 encode). `/arena` and `/engine` unchanged (`/` still Arena). Additive `/v4` docs page.
+- **`GET /board`** (`public/board.html`) — one hub for **live V3 inject hooks**: every tradeable hitch surface, leftover/hitch capacity, piggy leave-behind, earn-under-LOSE-ZERO sim, gated operator queue (`buy` / `sellhalf` / `piggyunlock` / `prove`). **Bot usage piggy** models Game’s Grok cost ($20/mo now; $60 Pro only after proven hitch revenue hashes) as a transmission cost hitch leftover-earnings must cover — DEMO/example unless hashes exist; never invented P&L. V4 is **deferred** (link to `/v4` only). `/arena` and `/engine` unchanged (`/` still Arena).
 - **`GET /board/health`** (alias `/health`) — which boards are mounted. V4 listed as a **separate process** (`loadsV4Runtime: false`).
-- Public **`/board/api/params`**, **`/board/api/snapshot`**, **`/board/api/v4`**, **`POST /board/api/sim`** — sim is V3 practice only; V4 API is docs/status. No unauthenticated env mutate, no spend.
+- Public **`/board/api/params`**, **`/board/api/snapshot`**, **`/board/api/inject`**, **`/board/api/v4`**, **`POST /board/api/sim`** — sim is V3 practice only; inject API lists catalog hitch seats + leftover capacity + bot piggy. No unauthenticated env mutate, no spend.
 - Hub modules **do not import** `guardian-v4/` (swap encoder / agent / config stay in the offshoot process).
-- **`BOARD.md`** — operator on-ramp; points stale “2% piggy” / L1-vs-live Arena / V4-CLI-only confusion at the hub.
+- **`BOARD.md`** — operator on-ramp; V3 inject surfaces + bot-usage piggy; points stale “2% piggy” / L1-vs-live Arena / V4-CLI-only confusion at the hub.
 
 ### Fixed — plug fee/gas leaks so thin books never bleed ($10→$6)
 

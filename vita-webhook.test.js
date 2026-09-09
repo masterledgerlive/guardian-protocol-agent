@@ -34,6 +34,11 @@ describe("control board HTTP", () => {
     assert.match(res.headers.get("content-type") || "", /text\/html/);
     assert.match(text, /Control Board/);
     assert.match(text, /SIM/);
+    assert.match(text, /V3 hitch surfaces/);
+    assert.match(text, /Bot usage piggy/);
+    assert.match(text, /\$20\/mo/);
+    assert.match(text, /Queue buy ~\$2/);
+    assert.doesNotMatch(text, /encode V4/);
   });
 
   it("GET / stays Arena; /arena /engine unchanged; /board and /v4 are additive", async () => {
@@ -99,6 +104,34 @@ describe("control board HTTP", () => {
     assert.equal(json.arena.loseZeroHeld, true);
     assert.equal(json.v4, undefined);
     assert.match(json.label, /does not encode V4/);
+    assert.equal(json.botPiggy.kind, "demo|example");
+    assert.equal(json.botPiggy.provenRevenue, null);
+  });
+
+  it("GET /board/api/inject lists V3 hitch surfaces + leftover capacity + demo bot piggy", async () => {
+    const { res, json } = await get("/board/api/inject");
+    assert.equal(res.status, 200);
+    assert.equal(json.kind, "v3-uniswap-inject-surfaces");
+    assert.equal(json.favorite, "LINK");
+    assert.ok(json.hitchSurfaces.some((t) => t.symbol === "LINK" && t.injectMain));
+    assert.ok(json.hitchSurfaces.some((t) => t.symbol === "TOSHI"));
+    assert.equal(json.hitchSurfaces.some((t) => t.symbol === "CBBTC"), false);
+    assert.ok(json.capacity);
+    assert.match(json.capacity.kind, /estimated|simulated/);
+    assert.equal(json.botPiggy.kind, "demo|example");
+    assert.equal(json.botPiggy.grokNowUsdPerMonth, 20);
+    assert.equal(json.botPiggy.grokProUsdPerMonth, 60);
+    assert.equal(json.botPiggy.provenRevenue, null);
+  });
+
+  it("GET /board/api/snapshot demo includes inject + bot piggy and a deferred V4 stub", async () => {
+    const { res, json } = await get("/board/api/snapshot");
+    assert.equal(res.status, 200);
+    assert.equal(json.demo, true);
+    assert.ok(json.inject.hitchSurfaces.length >= 10);
+    assert.equal(json.botPiggy.kind, "demo|example");
+    assert.equal(json.v4.deferred, true);
+    assert.equal(json.v4.sameProcessAsV3, false);
   });
 
   it("live queue still requires auth", async () => {

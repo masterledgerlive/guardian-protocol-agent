@@ -59,6 +59,7 @@ export const BOARD_PATHS = Object.freeze({
   params: "/board/api/params",
   snapshot: "/board/api/snapshot",
   sim: "/board/api/sim",
+  inject: "/board/api/inject",
   v4: "/board/api/v4",
   v4Page: "/v4",
   arena: "/arena",
@@ -72,6 +73,180 @@ export const LOSE_ZERO_INVARIANTS = Object.freeze({
   vaultNeverSpend: true,
   noInventedPnl: true,
 });
+
+const AGENT_JS = join(dirname(fileURLToPath(import.meta.url)), "agent.js");
+const WALLET_BASESCAN = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+
+/** Game's Grok Bot usage — DEMO targets, not live P&L. */
+export const GROK_BOT_USAGE = Object.freeze({
+  kind: "demo|example",
+  nowUsdPerMonth: 20,
+  proUsdPerMonth: 60,
+  proOnlyAfterProvenRevenue: true,
+  label:
+    "DEMO example — Game is on $20/mo Grok now. $60 Pro only after proven hitch revenue (on-chain hashes). This is a piggy/transmission cost hitch leftover-earnings must cover. Not live P&L.",
+});
+
+/**
+ * Parse root agent.js DEFAULT_TOKENS as text (do not import agent.js — that is the live injector).
+ */
+export function parseDefaultTokensFromAgentSource(src) {
+  const startMark = "const DEFAULT_TOKENS = [";
+  const start = String(src || "").indexOf(startMark);
+  if (start < 0) return [];
+  const from = start + startMark.length;
+  const watch = String(src).indexOf("\nconst WATCHLIST = [", from);
+  let end = watch > from ? String(src).lastIndexOf("\n];", watch) : -1;
+  if (end < from) end = String(src).indexOf("\n];\n\n// 🔭 WATCHLIST", from);
+  if (end < from) end = String(src).indexOf("\n];\n\n// ═", from);
+  if (end < from) return [];
+  const body = String(src).slice(from, end);
+  const parts = body.split(/(?=\{\s*symbol:)/);
+  const rows = [];
+  for (const chunk of parts) {
+    const symbol = chunk.match(/symbol:\s*"([A-Z0-9]+)"/)?.[1];
+    if (!symbol) continue;
+    const piggyRaw = chunk.match(/piggyBankPct:\s*([0-9.]+)/)?.[1];
+    const piggyMin = chunk.match(/piggyBankMinUsd:\s*([0-9.]+)/)?.[1];
+    const feeTier = Number(chunk.match(/feeTier:\s*(\d+)/)?.[1]) || null;
+    const poolFeeRaw = chunk.match(/poolFeePct:\s*([0-9.]+)/)?.[1];
+    rows.push({
+      symbol,
+      address: chunk.match(/address:\s*"(0x[0-9a-fA-F]+)"/)?.[1] || null,
+      injectMain: /injectMain:\s*true/.test(chunk),
+      frozen: /frozen:\s*true/.test(chunk),
+      disabled: /disabled:\s*true/.test(chunk),
+      piggyBankPct: piggyRaw != null ? Number(piggyRaw) : null,
+      piggyBankMinUsd: piggyMin != null ? Number(piggyMin) : null,
+      feeTier,
+      poolFeePct: poolFeeRaw != null
+        ? Number(poolFeeRaw)
+        : feeTier === 10000 ? 0.01 : feeTier === 3000 ? 0.003 : null,
+      notes: chunk.match(/notes:\s*"([^"]*)"/)?.[1] || "",
+    });
+  }
+  return rows;
+}
+
+export function listV3InjectSurfaces({ env = process.env, agentSrc = null } = {}) {
+  const src = agentSrc != null ? agentSrc : fs.readFileSync(AGENT_JS, "utf8");
+  const rows = parseDefaultTokensFromAgentSource(src);
+  const mainsLine = src.match(/const INJECT_MAIN_PLAYERS = \[([^\]]+)\]/)?.[1] || "";
+  const mains = [...mainsLine.matchAll(/"([A-Z0-9]+)"/g)].map((m) => m[1]);
+  const favorite = src.match(/const INJECT_MAIN_FAVORITE = "([A-Z0-9]+)"/)?.[1] || "LINK";
+  const deferred = [...(src.match(/const INJECT_MAIN_MAJORS_DEFERRED = \[([^\]]+)\]/)?.[1] || "").matchAll(/"([A-Z0-9]+)"/g)].map((m) => m[1]);
+
+  const hitchSurfaces = rows
+    .filter((t) => !t.frozen && !t.disabled)
+    .map((t) => {
+      const piggyPct = piggyBankPct(env, {
+        symbol: t.symbol,
+        piggyBankPct: t.piggyBankPct,
+      });
+      const dustUsd = piggyBankMinUsd(env, {
+        symbol: t.symbol,
+        piggyBankMinUsd: t.piggyBankMinUsd,
+      });
+      const injectMain = t.injectMain || mains.includes(t.symbol);
+      return {
+        symbol: t.symbol,
+        address: t.address,
+        injectMain,
+        favorite: t.symbol === favorite,
+        hitchSurface: true,
+        piggyPct,
+        piggyMinUsd: dustUsd,
+        feeTier: t.feeTier,
+        poolFeePct: t.poolFeePct,
+        notes: t.notes,
+        basescanToken: t.address
+          ? `https://basescan.org/token/${t.address}?a=${WALLET_BASESCAN}`
+          : null,
+        earnHint: injectMain
+          ? "Prefer leftover-covered inject so Eureka can hitch; never sell underwater"
+          : "Tradeable hitch surface — hitch only if leftover covers",
+      };
+    });
+
+  return {
+    kind: "v3-uniswap-inject-surfaces",
+    dex: "uniswap-v3",
+    favorite,
+    injectMains: mains,
+    deferredMajors: deferred,
+    hitchSurfaces,
+    frozenOrDisabled: rows.filter((t) => t.frozen || t.disabled).map((t) => ({
+      symbol: t.symbol,
+      frozen: t.frozen,
+      disabled: t.disabled,
+    })),
+    loseZero: { ...LOSE_ZERO_INVARIANTS },
+  };
+}
+
+export function leftoverHitchCapacity(live = {}) {
+  const report = reportInjectCapacity(live);
+  const leftoverEth = report.assumptions?.leftoverEth;
+  const hitchTagUsd = report.assumptions?.hitchTagUsd;
+  const hitchTagEth = report.assumptions?.hitchTagEth;
+  const ethUsd = report.assumptions?.ethUsd;
+  const leftoverUsd =
+    leftoverEth != null && Number.isFinite(Number(leftoverEth)) && Number.isFinite(Number(ethUsd))
+      ? Number(leftoverEth) * Number(ethUsd)
+      : null;
+  return {
+    kind: report.kind,
+    label: report.assumptions?.label || LIVE_ASSUMPTIONS.label,
+    leftoverEth,
+    leftoverUsd,
+    hitchTagUsd,
+    hitchTagEth,
+    eurekaOk: report.capacity_now?.eureka_ok,
+    maxHitchBytes: report.capacity_now?.max_hitch_bytes_per_swap,
+    note: report.capacity_now?.note,
+    funds: report.funds,
+    lose_zero: report.lose_zero,
+  };
+}
+
+/**
+ * Bot-usage piggy — Grok $20 now / $60 Pro after proven revenue.
+ * Never treats hitch-tag cost or sim leftover as income.
+ */
+export function modelBotUsagePiggy({
+  hitchTagUsd = 0,
+  leftoverUsd = null,
+  hitchRevenueTxs = [],
+  hitchRevenueUsd = null,
+} = {}) {
+  const txs = (hitchRevenueTxs || []).map((h) => String(h || "").trim()).filter(Boolean);
+  const provenUsd = hitchRevenueUsd == null || String(hitchRevenueUsd).trim() === ""
+    ? NaN
+    : Number(hitchRevenueUsd);
+  const proven = txs.length > 0 && Number.isFinite(provenUsd);
+  const tag = Math.max(0, Number(hitchTagUsd) || 0);
+  const left = leftoverUsd == null ? null : Number(leftoverUsd);
+  const leftoverCoversHitch = left != null && Number.isFinite(left) && left + 1e-12 >= tag;
+  return {
+    kind: proven ? "live-hashes" : "demo|example",
+    label: proven
+      ? "Hitch revenue hashes supplied — still not a forecast. $60 Pro only if proven coverage holds."
+      : GROK_BOT_USAGE.label,
+    grokNowUsdPerMonth: GROK_BOT_USAGE.nowUsdPerMonth,
+    grokProUsdPerMonth: GROK_BOT_USAGE.proUsdPerMonth,
+    grokProUnlocked: proven && provenUsd >= GROK_BOT_USAGE.proUsdPerMonth,
+    piggyRole: "transmission cost — hitch leftover-earnings must cover bot usage; dust piggy never sells to pay Grok; vault never spends",
+    hitchTagUsdEstimated: tag,
+    hitchTagUsdLabel: "estimated hitch insert cost (not income)",
+    leftoverUsd: left,
+    leftoverCoversHitch,
+    hitchEarningsMustCoverUsdPerMonth: GROK_BOT_USAGE.nowUsdPerMonth,
+    provenRevenue: proven ? { usd: provenUsd, txs } : null,
+    invariants: { ...LOSE_ZERO_INVARIANTS },
+    note:
+      "Do not treat hitch-tag cost, demo leftover, or bot-internal hitchProve counters as Grok income. Cover $20/mo only with leftover-covered profitable V3 exits after hitch + piggy buffer. Hold when leftover ≤ 0.",
+  };
+}
 
 /**
  * Read-only live knobs. Does not write env. Sim overrides belong in POST /board/api/sim.
@@ -205,9 +380,20 @@ export function runArenaLearnSim({
 } = {}) {
   const start = Math.max(0.5, Number(cash) || 8);
   const sym = String(seat || "LINK").toUpperCase();
+  let pctOverride = piggyPct;
+  let floorOverride = dustFloorUsd;
+  if (pctOverride == null || floorOverride == null) {
+    try {
+      const surf = listV3InjectSurfaces({ env: process.env }).hitchSurfaces.find((s) => s.symbol === sym);
+      if (surf) {
+        if (pctOverride == null) pctOverride = surf.piggyPct;
+        if (floorOverride == null) floorOverride = surf.piggyMinUsd;
+      }
+    } catch { /* catalog parse optional for sim */ }
+  }
   const env = {
-    PIGGY_BANK_PCT: piggyPct != null ? String(piggyPct) : String(DEFAULT_PIGGY_BANK_PCT),
-    PIGGY_BANK_MIN_USD: String(dustFloorUsd ?? DEFAULT_PIGGY_BANK_MIN_USD),
+    PIGGY_BANK_PCT: pctOverride != null ? String(pctOverride) : String(DEFAULT_PIGGY_BANK_PCT),
+    PIGGY_BANK_MIN_USD: String(floorOverride ?? DEFAULT_PIGGY_BANK_MIN_USD),
     HITCH_COST_MULT: String(hitchMult ?? DEFAULT_HITCH_COST_MULT),
   };
   const pct = piggyBankPct(env, { symbol: sym });
@@ -347,6 +533,15 @@ export function runBoardSim(opts = {}) {
   const storage = runStorageLoopSim({
     tradeableUsd: Number(opts.cash) || LIVE_ASSUMPTIONS.tradeableUsd,
   });
+  const capacity = leftoverHitchCapacity({
+    tradeableUsd: Number(opts.cash) || LIVE_ASSUMPTIONS.tradeableUsd,
+  });
+  const botPiggy = modelBotUsagePiggy({
+    hitchTagUsd: capacity.hitchTagUsd,
+    leftoverUsd: capacity.leftoverUsd,
+    hitchRevenueTxs: opts.hitchRevenueTxs || [],
+    hitchRevenueUsd: opts.hitchRevenueUsd,
+  });
   return {
     ok: true,
     kind: "simulated|control-board",
@@ -362,6 +557,8 @@ export function runBoardSim(opts = {}) {
     },
     arena,
     storage,
+    capacity,
+    botPiggy,
     invariants: { ...LOSE_ZERO_INVARIANTS },
   };
 }
@@ -403,7 +600,8 @@ export function boardHealth({
       params: { path: BOARD_PATHS.params, auth: false, mutate: false },
       snapshot: { path: BOARD_PATHS.snapshot, auth: "optional-live", mutate: false },
       sim: { path: BOARD_PATHS.sim, auth: false, mutate: false },
-      v4: { path: BOARD_PATHS.v4, auth: false, mutate: false },
+      inject: { path: BOARD_PATHS.inject, auth: false, mutate: false },
+      v4: { path: BOARD_PATHS.v4, auth: false, mutate: false, deferred: true },
       arenaSnapshot: { path: "/arena/api/snapshot", auth: true, mutate: false },
       arenaQueue: { path: "/arena/api/queue", auth: true, mutate: "queue-only" },
       engineSnapshot: { path: "/engine/api/snapshot", auth: "optional-demo", mutate: false },
@@ -414,11 +612,19 @@ export function boardHealth({
 
 export function demoBoardSnapshot(env = process.env) {
   const engine = demoEngineSnapshot();
+  const inject = listV3InjectSurfaces({ env });
+  const capacity = leftoverHitchCapacity();
   return {
     ok: true,
     demo: true,
     kind: "control-board-snapshot",
     params: readLiveParamSnapshot(env),
+    inject,
+    capacity,
+    botPiggy: modelBotUsagePiggy({
+      hitchTagUsd: capacity.hitchTagUsd,
+      leftoverUsd: capacity.leftoverUsd,
+    }),
     engine: {
       demo: true,
       favorite: engine.favorite,
@@ -433,7 +639,7 @@ export function demoBoardSnapshot(env = process.env) {
         lights: { lit: w.lights?.lit, total: w.lights?.total, messagePaid: w.lights?.messagePaid },
       })),
     },
-    v4: v4BoardStatus(),
+    v4: { deferred: true, page: "/v4", sameProcessAsV3: false, startableFromThisWebhook: false },
     invariants: { ...LOSE_ZERO_INVARIANTS },
     timestamp: new Date().toISOString(),
   };
