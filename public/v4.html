@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guardian V4 offshoot — separate from V3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c; --muted: #3d5a4c; --lime: #b6f25c; --panel: rgba(255,255,255,0.78);
+      --line: rgba(16,35,28,0.14); --display: "Syne", sans-serif; --body: "Source Serif 4", Georgia, serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink); font-family: var(--body);
+      background: linear-gradient(165deg, #f4fbf0 0%, #e8f0d9 50%, #d5e4c8 100%);
+      min-height: 100vh;
+    }
+    header, main, footer { padding: 1.2rem clamp(1.2rem, 4vw, 2.6rem); }
+    .brand { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 6vw, 3.4rem); line-height: 0.95; margin: 0; }
+    .lede { max-width: 36rem; color: var(--muted); }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--ink); background: #ffd2a8; font-family: var(--mono); font-size: 0.72rem; }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 1rem; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+    h2 { font-family: var(--display); margin: 0 0 0.4rem; }
+    pre { background: #10231c; color: #d8f5c8; padding: 0.8rem; border-radius: 0.5rem; overflow: auto; font-family: var(--mono); font-size: 0.78rem; }
+    a.btn { display: inline-flex; margin: 0.25rem 0.35rem 0.25rem 0; padding: 0.55rem 0.85rem; border: 1px solid var(--ink); border-radius: 0.45rem; background: var(--lime); color: var(--ink); text-decoration: none; font-family: var(--display); font-weight: 700; box-shadow: 3px 3px 0 var(--ink); }
+    a.ghost { background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.78rem; }
+    th, td { text-align: left; padding: 0.4rem 0.25rem; border-bottom: 1px solid var(--line); }
+    .hint { color: var(--muted); font-size: 0.92rem; }
+    .rule { font-family: var(--display); background: #10231c; color: #d8f5c8; padding: 0.45rem 0.6rem; border-radius: 0.4rem; margin: 0.25rem 0; display: inline-block; }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="pill">SEPARATE PROCESS · not the live Uniswap V3 injector</p>
+    <h1 class="brand">Guardian V4 offshoot</h1>
+    <p class="lede">
+      This page is documentation + lockfile status only. It does <strong>not</strong> start V4,
+      does not encode Universal Router calldata, and has <strong>no V3 buy/sell/queue controls</strong>.
+      Live V3 stays on <code>agent.js</code> / <code>/arena</code> / <code>/engine</code>.
+    </p>
+    <p>
+      <a class="btn ghost" href="/board">Control Board hub</a>
+      <a class="btn ghost" href="/arena">V3 Arena</a>
+      <a class="btn ghost" href="/engine">V3 Engine</a>
+      <a class="btn ghost" href="https://github.com/masterledgerlive/guardian-protocol-agent/blob/main/guardian-v4/README.md" target="_blank" rel="noreferrer">guardian-v4/README.md</a>
+    </p>
+  </header>
+  <main>
+    <section>
+      <h2>How to start (side-by-side with V3)</h2>
+      <p class="hint">Own lockfile <code>guardian-v4/state/guardian-v4.lock</code>. Env prefix <code>GUARDIAN_V4_*</code>. Default dry-run.</p>
+      <pre>npm run start:v4 -- --once
+npm run start:v4
+npm run test:v4</pre>
+      <p class="rule">Do not reuse the V3 hot wallet casually</p>
+      <p class="rule">Do not share V3 tokens.json / positions.json</p>
+    </section>
+    <section>
+      <h2>Status on this host</h2>
+      <pre id="status">Loading…</pre>
+    </section>
+    <section>
+      <h2>Display catalog (names only)</h2>
+      <p class="hint">Live pool IDs and encoder stay inside <code>guardian-v4/</code>. This table is a reminder, not a trading surface.</p>
+      <table>
+        <thead><tr><th>Symbol</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="3">Loading…</td></tr></tbody>
+      </table>
+    </section>
+  </main>
+  <footer class="hint">V4 offshoot PR #46 style. Control Board only links here — it never merges V4 into agent.js.</footer>
+  <script>
+    fetch("/board/api/v4").then(r => r.json()).then(v => {
+      document.getElementById("status").textContent = JSON.stringify({
+        running: v.running,
+        sameProcessAsV3: v.sameProcessAsV3,
+        startableFromThisWebhook: v.startableFromThisWebhook,
+        loadsV4Runtime: v.loadsV4Runtime,
+        encodesV4Swaps: v.encodesV4Swaps,
+        envPrefix: v.envPrefix,
+        start: v.start,
+        process: v.process,
+        isolation: v.isolation,
+      }, null, 2);
+      document.getElementById("rows").innerHTML = (v.avenues || []).map(t =>
+        `<tr><td>${t.symbol}</td><td>${t.status}</td><td>${t.notes || ""}</td></tr>`
+      ).join("");
+    }).catch(e => {
+      document.getElementById("status").textContent = String(e.message || e);
+    });
+  </script>
+</body>
+</html>

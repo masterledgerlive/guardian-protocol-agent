@@ -12,6 +12,8 @@ The love note is still:
 
 It hitches **after a real leftover-covered swap**, not as a fake “data field” claim on a plain trade.
 
+**Control Board:** the live V3 webhook **links** to `/v4` (docs + lockfile status). That does **not** start this process, import this encoder, or share lock/state with `agent.js`. To actually run V4 beside V3:
+
 ## Run separately
 
 ```bash

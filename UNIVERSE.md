@@ -79,7 +79,7 @@ Diagnosed **~$6 tradeable**, T1 on UNI/CBBTC/LINK that never hit buy triggers (s
 
 - Prefer **LINK** for reserved inject seat; **8%** LINK piggy leave-behind.
 - Promote **VVV / ZORA / BNKR** to inject-mains (already Uni V3 KEEP).
-- Live learning UI: Railway service `/arena` (VITA webhook).
+- Live learning UI: Railway service `/board` (Control Board hub; `/arena` + `/engine` still work). See `BOARD.md`.
 
 ---
 

@@ -10536,7 +10536,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
       } else if (text === "/help") {
         await tg(
-          `🏄 <b>GUARDIAN PROTOCOL — COMMAND REFERENCE</b>\n\n` +
+          `🏄 <b>GUARDIAN PROTOCOL — COMMAND REFERENCE</b>\n` +
+          `Control Board (waves + learn + V4): https://guardian-protocol-agent-production.up.railway.app/board\n` +
+          `SIM default — live buttons need VITA_WEBHOOK_SECRET. Tune params in sim or Railway env, not an open POST.\n\n` +
           `<b>📊 Status & Info:</b>\n` +
           `/status — full portfolio status\n` +
           `/bank — complete money statement (LIVE chain)\n` +
@@ -11142,9 +11144,7 @@ async function main() {
     console.log(e.stack?.split("\n").slice(0, 3).join("\n"));
   }
 
-  // ── Start VITA webhook server ─────────────────────────────────────────────
-  // Exposes /vita/context, /vita/registry, /vita/read, /vita/status endpoints
-  // Claude can call these directly to pull memory without copy-paste
+  // ── Start VITA webhook (/board hub + /arena + /engine + /vita/*) ──────────
   startVitaWebhook();
 
   // Inject live bot state so webhook can read real-time data

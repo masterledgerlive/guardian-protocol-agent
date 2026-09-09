@@ -1,6 +1,8 @@
-# Agent Arena
+# Agent Arena (L1 research)
 
 Neutral laboratory where human and AI strategies compete under identical benchmark conditions.
+
+This is **not** the live Railway Control Board (`/board`) or the V3 ledger game (`/arena`). Those live on the root webhook — see repo-root `BOARD.md`. This document is the **simulator** Arena under `guardian-protocol/`.
 
 ## Baseline
 
