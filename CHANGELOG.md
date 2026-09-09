@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added — VITA HAT: 1-bit encoded site preservation (Railway-style insert)
+
+Start of append-only vita memory for the live site (`public/*.html`: arena,
+engine, board, v4), mirroring vault key injection:
+
+- **Railway insert** — `HAT_ROOT_TX` / `HAT_STRAND_ID` / `HAT_CONTENT_HASH` /
+  `HAT_K_MASTER` (locations only; plaintext HTML never stored in Railway)
+- **Genesis = one bit** — first always-written node; never deleted
+- **ST + LT beside message** — short-term cliff + long-term message-count plan
+- **Encoded** — `hat-bitpack-v1` hex bits in `§HAT§` packets (not plain HTML)
+- **Reader** — `reader.locations[]` lists every node + how to fetch/decode
+- CLI: `npm run hat:plan` / `npm run hat:bit` · capacity: `vita_hat` in
+  `npm run sim:capacity`
+
 ### Fixed — cascade into lowest primed bottoms; ETH only for fees/gas
 
 Peak exits were settling full proceeds as WETH and often **holding** until a
