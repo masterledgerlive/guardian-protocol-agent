@@ -27,6 +27,12 @@ import {
   piggyEarningsBufferPct,
   piggyEarningsAfterMessage,
   DEFAULT_PIGGY_EARNINGS_BUFFER_PCT,
+  earningsToBankUsd,
+  projectBuyEarningsPlan,
+  effectiveSavedEarningsUsd,
+  creditPiggySavedEarnings,
+  formatBuyReceiptHtml,
+  formatSellReceiptHtml,
 } from "./piggy-bank.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -278,6 +284,135 @@ describe("reserve grows with buys and never auto-shrinks", () => {
     assert.equal(preview.gains, preview.earningsUsd > preview.earningsNeedUsd && preview.earningsUsd > 0);
   });
 
+  it("saved earnings ratchet leaves more than the $0.15 floor (AERO $0.27 case)", () => {
+    // Prior piggy at floor $0.15; bank +$0.12 bear-min → target $0.27 of AERO dust.
+    const price = 0.50;
+    const bal = 10; // $5 bag — can afford floor + savings
+    const env = { PIGGY_BANK_PCT: "0.05", PIGGY_BANK_MIN_USD: "0.15" };
+    const floorOnly = computePiggyTarget(bal, price, env, {});
+    assert.ok(Math.abs(floorOnly * price - 0.15) < 1e-9 || floorOnly * price >= 0.15);
+
+    const targetSaved = 0.27;
+    const withSaved = computePiggyTarget(bal, price, env, { savedEarningsUsd: targetSaved });
+    assert.ok(withSaved * price + 1e-9 >= 0.27, `dust USD ${withSaved * price} should cover $0.27`);
+    assert.ok(withSaved > floorOnly, "saved earnings must size above the floor alone");
+
+    const d = applyPiggyToSell({
+      balance: bal,
+      sellPct: 1,
+      piggyReserve: floorOnly,
+      priceUsd: price,
+      reason: "🎯 MAX PEAK",
+      env,
+      savedEarningsUsd: targetSaved,
+    });
+    assert.ok(d.remainingReserve * price + 1e-9 >= 0.27);
+    assert.ok(d.tokensToSell < bal - floorOnly + 1e-9 || d.remainingReserve >= targetSaved / price - 1e-9);
+  });
+
+  it("earningsToBankUsd banks bear min not full wave profit", () => {
+    assert.equal(earningsToBankUsd({ earningsUsd: 1.0, needUsd: 0.12, gains: true }), 0.12);
+    assert.equal(earningsToBankUsd({ earningsUsd: 0.08, needUsd: 0.12, gains: true }), 0.08);
+    assert.equal(earningsToBankUsd({ earningsUsd: 1.0, needUsd: 0.12, gains: false }), 0);
+    assert.equal(
+      earningsToBankUsd({
+        earningsUsd: 0.40,
+        needUsd: 0.10,
+        gains: true,
+        projectedEarningsUsd: 0.12,
+      }),
+      0.12,
+    );
+  });
+
+  it("buy plan projects sell-at so fees + message + buffer never lose", () => {
+    const plan = projectBuyEarningsPlan({
+      entryPrice: 1,
+      ethSpent: 0.001,
+      ethUsd: 3000,
+      tokensReceived: 3,
+      feePct: 0.006,
+      skimPct: 0.01,
+      hitchCostUsd: 0.05,
+      hitchMult: 2,
+      earningsBufferPct: 0.05,
+      piggyPct: 0.05,
+      piggyMinUsd: 0.15,
+      priorSavedUsd: 0.15,
+    });
+    assert.ok(plan.sellAtMin > plan.entryPrice, "sell-at must clear entry + costs");
+    assert.ok(plan.projectedEarningsUsd > 0);
+    assert.ok(plan.piggyAfterUsd + 1e-9 >= 0.15 + plan.projectedEarningsUsd - 1e-6 || plan.piggyAfterUsd >= plan.dustUsd);
+    assert.equal(plan.neverLose, true);
+    assert.ok(plan.dustUsd + 1e-9 >= 0.15, "prior saved / floor stays in dust");
+  });
+
+  it("creditPiggySavedEarnings counting add matches dust after bank", () => {
+    const row = buildTokenPiggyLedger({ symbol: "AERO", dustReserve: 0.3, dustUsd: 0.15, savedEarningsUsd: 0.15 });
+    assert.equal(row.savedEarningsUsd, 0.15);
+    const next = creditPiggySavedEarnings(row, {
+      bankedUsd: 0.12,
+      dustReserve: 0.54,
+      dustUsd: 0.27,
+      symbol: "AERO",
+    });
+    assert.equal(next.savedEarningsUsd, 0.27);
+    assert.equal(next.dustUsd, 0.27);
+    assert.equal(effectiveSavedEarningsUsd({
+      savedEarningsUsd: next.savedEarningsUsd,
+      dustUsd: next.dustUsd,
+      piggyMinUsd: 0.15,
+    }), 0.27);
+  });
+
+  it("Telegram receipts show buy math and sell bought→sold→piggy count", () => {
+    const buy = formatBuyReceiptHtml({
+      symbol: "AERO",
+      tradeNum: 1,
+      entryPrice: 0.5,
+      ethSpent: 0.001,
+      spentUsd: 3,
+      tokensReceived: 6,
+      plan: {
+        sellAtMin: 0.55,
+        projectedEarningsUsd: 0.12,
+        piggyAfterUsd: 0.27,
+        priorSavedUsd: 0.15,
+        dustUsd: 0.15,
+        hitchNeedUsd: 0.10,
+      },
+      hitchFooter: "🔗 basescan",
+    });
+    assert.match(buy, /RECEIPT — buy math/);
+    assert.match(buy, /Bought at/);
+    assert.match(buy, /Sell at ≥/);
+    assert.match(buy, /Min earn/);
+    assert.match(buy, /After bank/);
+
+    const sell = formatSellReceiptHtml({
+      symbol: "AERO",
+      tradeNum: 2,
+      entryPrice: 0.5,
+      exitPrice: 0.56,
+      investedUsd: 2.5,
+      receivedEth: 0.001,
+      receivedUsd: 3,
+      netUsd: 0.5,
+      earningsUsd: 0.4,
+      bankedUsd: 0.12,
+      piggyDustTokens: 0.54,
+      piggyDustUsd: 0.27,
+      piggySavedUsd: 0.27,
+      hitchFooter: "🔗 x",
+    });
+    assert.match(sell, /RECEIPT — bought → sold/);
+    assert.match(sell, /Bought at/);
+    assert.match(sell, /Sold at/);
+    assert.match(sell, /Banked/);
+    assert.match(sell, /Counted:\s+\$0\.270/);
+    assert.match(sell, /Count matches dust/);
+  });
+
   it("load takes the max of tokens.json and positions.json", () => {
     assert.equal(loadPiggyReserve({ symbol: "TOSHI", piggyReserve: 10 }, { TOSHI: 25 }), 25);
     assert.equal(loadPiggyReserve({ symbol: "TOSHI", piggyReserve: 40 }, { TOSHI: 25 }), 40);
@@ -401,5 +536,17 @@ describe("agent.js wires piggy into every sell path", () => {
     const nextFn = src.indexOf("\nasync function ", buyFn + 1);
     const body = src.slice(buyFn, nextFn > 0 ? nextFn : buyFn + 4000);
     assert.ok(body.includes("syncTokenPiggy") || body.includes("ratchetPiggyReserve"), "buy path must floor-up piggy");
+    assert.ok(body.includes("projectBuyEarningsPlan"), "buy must project sell-at + bear-min earnings");
+    assert.ok(body.includes("formatBuyReceiptHtml"), "buy Telegram must be a full math receipt");
+  });
+
+  it("executeSell banks earnings into piggy and sends a bought→sold receipt", () => {
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const body = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 12000);
+    assert.ok(body.includes("earningsToBankUsd"), "sell must bank bear-min earnings");
+    assert.ok(body.includes("creditPiggySavedEarnings"), "sell must credit saved earnings ledger");
+    assert.ok(body.includes("formatSellReceiptHtml"), "sell Telegram must be a bought→sold receipt");
+    assert.ok(body.includes("savedEarningsUsd"), "piggy sizing must include saved earnings target");
   });
 });

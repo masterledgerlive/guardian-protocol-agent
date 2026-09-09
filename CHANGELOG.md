@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Fixed — piggy banks projected earnings (AERO $0.27 vs $0.15) + trade receipts
+
+Live book left only the **$0.15** USD floor in the AERO piggy after a profitable
+exit while counting said **~$0.27** should remain. Bear-minimum projected
+earnings were never sized into the never-sell dust — Telegram also lacked a
+bought→sold receipt that showed the banked amount vs on-chain dust.
+
+- **Earnings banking** — profitable exits bank the bear-min (`earningsToBankUsd`
+  = buffer need or buy-plan projection) into `savedEarningsUsd`. Reserve tokens
+  are sized so dust USD covers that cumulative count (not floor alone). Extra
+  profit above the bear min stays liquid for redeploy / higher waves.
+- **Buy plan** — `projectBuyEarningsPlan` computes sell-at ≥ fees + 2× message
+  cushion + earnings buffer; Telegram buy receipt shows entry, min earn, sell-at,
+  and piggy-after-bank.
+- **Sell receipt** — bought at → sold at → earnings → banked + counted saved
+  vs dust USD (must match). `/piggy` shows saved vs dust per token.
+- Still never sells/inserts when leftover ≤ 0; hitch still needs the earnings
+  buffer; unlock remains the only way to spend dust.
+
 ### Fixed — more piggy dust + earnings-with-message never-lose math
 
 Live Railway (`Tradeable:0.000342` / `Piggy:0.000134` / trades stuck at 73):
