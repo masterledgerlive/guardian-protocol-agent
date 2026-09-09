@@ -575,6 +575,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("/vitarouter"), "Telegram /vitarouter must exist");
     assert.ok(src.includes("tickHourlyCourse"), "main loop must tick hourly course");
     assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
+    assert.ok(src.includes("persistVitaRouterState"), "boot leftover inject must persist recursive memory");
     assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
     assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
     assert.ok(src.includes("scanAddressLeftoverHitches"), "boot/hourly must scan leftover hitch kinds");

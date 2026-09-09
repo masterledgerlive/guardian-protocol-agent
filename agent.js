@@ -8011,6 +8011,17 @@ async function loadFromGitHub() {
   console.log(`🧠 PredFund: ${predFund.toFixed(6)} ETH | Piggy: ${piggyBank.toFixed(6)} ETH | PF open: ${pfOpen} | PC open: ${pcOpen}`);
 }
 
+async function persistVitaRouterState() {
+  try {
+    await githubSave("vita-router-state.json", {
+      ...serializeVitaRouterState(),
+      course: serializeCourseStats(),
+    }, null);
+  } catch (e) {
+    console.log("⚠️  VITA router-state save (non-critical): " + (e.message || e));
+  }
+}
+
 async function saveToGitHub() {
   try {
     tokensSha    = await githubSave("tokens.json",  { tokens, lastSaved: new Date().toISOString() }, tokensSha);
@@ -8079,12 +8090,7 @@ async function saveToGitHub() {
     try { await githubSave("memory-registry.json", serializeRegistry(), null); } catch {}
     // Save VITA registry
     try { await githubSave("vita-registry.json", serializeVitaRegistry(), null); } catch {}
-    try {
-      await githubSave("vita-router-state.json", {
-        ...serializeVitaRouterState(),
-        course: serializeCourseStats(),
-      }, null);
-    } catch {}
+    try { await persistVitaRouterState(); } catch {}
     // NOTE v18: VITA registry and memory are saved to GitHub only (chain already has them).
     // BTP calldata is ONLY for: trade receipts + VITA family message filler.
     // No full state dumps into calldata — that was causing kbit bloat.
@@ -11255,6 +11261,7 @@ async function main() {
   } catch (pullErr) {
     console.log("⚠️  VITA chain pull (non-critical): " + pullErr.message);
   }
+  await persistVitaRouterState();
 
   // Load macro BTC/ETH trend signal before token data
   await refreshMacroSignal();
@@ -12396,6 +12403,7 @@ async function main() {
           if (!hour.course.achieving || hour.applied?.length) {
             await tg(hour.telegram);
           }
+          await persistVitaRouterState();
         }
       } catch (courseErr) {
         console.log("⚠️  VITA course tick (non-critical): " + courseErr.message);
