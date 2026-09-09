@@ -1,5 +1,17 @@
 # CHANGELOG — guardian-protocol (L1 sideline)
 
+## 0.3.0 — 2026-09-09
+
+### Sprint 6 — Storage Token × sparse inject × crypto hard-push
+- `StorageTokenLedger` — BITS mint/spend/node rewards (mirrored Fast Pass constants)
+- `sparse-placement` — stripe across all online nodes; reconstruct bit-exact
+- `PiggyCompoundModel` — slow→fast skim; unlock only on call-to-add
+- `injection-capacity` — funds → bytes/swap + movie horizon
+- `crypto-events` catalog + survival modes (SAFE_FREEZE / HARD_FAIL / …)
+- `runSystemLoop` / `runHardPushSuite` / `npm run arena:crypto-stress`
+- Doc: `docs/SYSTEM_LOOP.md`
+- Tests: `simulator/tests/sprint6-storage-token.test.js`
+
 ## 0.2.0 — 2026-09-07
 
 ### Sprint 2 — Observability

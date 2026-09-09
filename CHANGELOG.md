@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added — Storage Token system loop + crypto-event hard-push (Sprint 6)
+
+End-to-end simulation of the storage-token vision: sparse inject across all
+swarm nodes, pay hosts in BITS, piggy compound → call-to-add → capacity, and
+hard-push against known crypto freeze events — without rewriting the live
+trading injector.
+
+- **`guardian-protocol/`** — Storage Token ledger, sparse placement, piggy
+  compound, injection capacity, crypto-event catalog, `npm run arena:crypto-stress`
+- **Root** — `storage-inject-capacity.js` / `npm run sim:capacity` uses live
+  lose-zero hitch math for “what can we inject with funds we have now”
+- Doc: `guardian-protocol/docs/SYSTEM_LOOP.md`
+
 ### Fixed — piggy banks projected earnings (AERO $0.27 vs $0.15) + trade receipts
 
 Live book left only the **$0.15** USD floor in the AERO piggy after a profitable

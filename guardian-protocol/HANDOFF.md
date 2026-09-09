@@ -14,6 +14,7 @@
 4. `docs/HYPERLIQUID_BLUEPRINT.md` — **Agentic Memory Network** dual-engine L1 blueprint
 5. `docs/SIMULATION.md`
 6. Inspect `simulator/` and `strategies/`
+7. Sprint 6 loop: `docs/SYSTEM_LOOP.md` + `npm run arena:crypto-stress`
 
 ---
 
