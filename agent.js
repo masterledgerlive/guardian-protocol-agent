@@ -11187,6 +11187,7 @@ async function main() {
     const inj = await injectVitaBlockchainMemory({
       fetchCalldata: fetchTxCalldataHex,
       registry: lastVitaRegistryBlob,
+      fetchPublic: !lastVitaRegistryBlob,
     });
     console.log(
       "🔀 VITA chain inject: registry " + inj.registryPackets +

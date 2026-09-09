@@ -74,6 +74,7 @@ import {
   ingestRegistryPackets,
   injectVitaBlockchainMemory,
   hydrateVitaRecursiveMemory,
+  fetchPublicVitaRegistry,
   shouldIngestHitchKind,
   collectRegistryTxHashes,
   KEYCAT_TX,
@@ -112,7 +113,8 @@ describe("vita-parse §TOKEN§", () => {
   it("refines recursively without dropping KEY when adding LEARN", () => {
     const a = refineVitaPacket(buildGenesisPacket(), { LEARN: "squash-locs", SESS: "2026-09-09|hour1" });
     assert.ok(a.fields.KEY.includes("Krystian"));
-    assert.equal(a.fields.LEARN, "squash-locs");
+    assert.ok(a.fields.LEARN.includes("squash-locs"));
+    assert.ok(a.fields.SESS.includes("hour1"));
     const b = refineVitaPacket(a.packed, { PROVED: "hour1-ok✓" });
     assert.ok(b.fields.KEY.includes("Koda"));
     assert.ok(b.fields.PROVED.includes("hour1-ok✓"));
@@ -542,6 +544,7 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     const inj = await injectVitaBlockchainMemory({
       hashes: [KEYCAT_TX, EUREKA_ONCHAIN_TX, VITA_STRAND_TX],
       maxPulls: 3,
+      fetchPublic: false,
     });
     assert.equal(inj.pulled, 3);
     assert.equal(inj.ingested, 2);
@@ -554,6 +557,16 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.ok(kinds.includes("none"));
     assert.ok(kinds.includes("eureka"));
     assert.ok(kinds.includes("vita"));
+  });
+
+  it("folds public bot-state registry packets without dropping KEY", async () => {
+    const registry = await fetchPublicVitaRegistry();
+    assert.ok(registry, "bot-state vita-registry.json must be readable");
+    const folded = ingestRegistryPackets(registry);
+    assert.ok(folded.ingested >= 1);
+    assert.equal(folded.quality.hasKey, true);
+    assert.ok(folded.packet.includes("Krystian"));
+    assert.ok(folded.packet.includes("Koda"));
   });
 
   it("hydrate restores packet first so registry facts survive reconstruct", () => {

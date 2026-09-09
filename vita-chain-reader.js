@@ -44,7 +44,7 @@ export const KNOWN_CHAIN_ANCHORS = Object.freeze([
 ]);
 
 export const INGESTIBLE_HITCH_KINDS = Object.freeze(["vita", "eureka", "hat", "tag"]);
-export const MAX_BOOT_CHAIN_PULLS = 12;
+export const MAX_BOOT_CHAIN_PULLS = 24;
 
 export function shouldIngestHitchKind(kind) {
   const k = typeof kind === "string" ? kind : kind?.kind;
@@ -180,6 +180,29 @@ export async function pullLocationFromChain(txHash, fetchCalldata = fetchTxCalld
   };
 }
 
+export async function fetchPublicVitaRegistry({
+  repo = process.env.GITHUB_REPO || "masterledgerlive/guardian-protocol-agent",
+  branch = process.env.STATE_BRANCH || "bot-state",
+} = {}) {
+  const url = `https://api.github.com/repos/${repo}/contents/vita-registry.json?ref=${branch}&t=${Date.now()}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "vita-chain-reader" },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) return null;
+  const meta = await res.json();
+  if (!meta?.content) return null;
+  const raw = Buffer.from(String(meta.content).replace(/\n/g, ""), "base64").toString("utf8");
+  return JSON.parse(raw);
+}
+
+function alreadyHasUtf8(hash) {
+  const loc = String(hash || "").toLowerCase();
+  return (getLocationDepository().nodes || []).some(
+    (n) => String(n.location || "").toLowerCase() === loc && String(n.utf8 || "").length >= 40,
+  );
+}
+
 export async function pullMissingLocationUtf8(fetchCalldata = fetchTxCalldataHex) {
   const dep = getLocationDepository();
   const missing = (dep.nodes || []).filter(
@@ -273,15 +296,21 @@ export async function injectVitaBlockchainMemory({
   registry = null,
   hashes = [],
   maxPulls = MAX_BOOT_CHAIN_PULLS,
+  fetchPublic = false,
 } = {}) {
   ensureGenesisMemory();
-  const fromRegistry = ingestRegistryPackets(registry);
+  let reg = registry;
+  if (!reg && fetchPublic) {
+    try { reg = await fetchPublicVitaRegistry(); } catch { reg = null; }
+  }
+  const fromRegistry = ingestRegistryPackets(reg);
+  const anchors = KNOWN_CHAIN_ANCHORS.filter((a) => a.expect !== "none").map((a) => a.tx);
   const want = [
-    ...KNOWN_CHAIN_ANCHORS.map((a) => a.tx),
-    ...collectRegistryTxHashes(registry),
+    ...anchors,
+    ...collectRegistryTxHashes(reg),
     ...(hashes || []),
   ].filter((h) => TX_HASH_RE.test(h));
-  const unique = [...new Set(want.map((h) => h.toLowerCase()))];
+  const unique = [...new Set(want.map((h) => h.toLowerCase()))].filter((h) => !alreadyHasUtf8(h));
   const cap = Math.max(0, Math.floor(Number(maxPulls) || 0));
   const toPull = unique.slice(0, cap);
   const results = [];

@@ -133,11 +133,7 @@ export function refineVitaPacket(prevPacketOrFields, nextFields = {}, { maxChars
     const a = prev[key];
     const b = nextFields[key];
     if (a == null && b == null) continue;
-    if (key === "SESS" || key === "LEARN") {
-      merged[key] = b != null && b !== "" ? b : a;
-    } else {
-      merged[key] = mergeFact(a, b);
-    }
+    merged[key] = mergeFact(a, b);
   }
   const clipped = clipVitaPacket(merged, maxChars);
   return {
