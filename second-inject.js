@@ -255,30 +255,11 @@ export function planSuccessionInjections({
 }
 
 /**
- * Instant peak exit — ride until peak, sell as soon as the top prints with
- * profit after piggy-aligned fees. Tick-down confirms the turn without
- * waiting for a full RSI/MACD overbought stack.
+ * Instant peak exit — delegated to peak-ride.js.
+ * Touching hist max alone no longer sells (breakouts must ride); tick-down
+ * near the ride/hist high confirms the turn with piggy-aligned profit.
  */
-export function isInstantPeakSell({
-  atMaxPeak = false,
-  price = 0,
-  maxPeak = 0,
-  recentTickDown = false,
-  netUsd = 0,
-  breakEvenBuffer = 0,
-  sellableUsdOk = false,
-} = {}) {
-  if (!sellableUsdOk) return false;
-  const net = Number(netUsd);
-  const buf = Math.max(0, Number(breakEvenBuffer) || 0);
-  if (!(Number.isFinite(net) && net > buf)) return false;
-  if (atMaxPeak) return true;
-  const px = Number(price);
-  const peak = Number(maxPeak);
-  if (!(px > 0) || !(peak > 0)) return false;
-  // Within 1% of peak and last tick rolled over — take the profit now
-  return recentTickDown && px >= peak * 0.99;
-}
+export { isInstantPeakSell } from "./peak-ride.js";
 
 /**
  * Bottom inject for any primed / armed seat (not only catalog inject-mains).

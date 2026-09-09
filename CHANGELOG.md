@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Fixed — peak-ride protocol: sell the MADE top, not hist-max touch / mid-range pred
+
+Ledger (bot-state, 419 sells / +$324): peak exits earn, but three holes left upside
+on the table and sold "lower than highest potential":
+
+1. **`atMaxPeak` alone** sold the moment price touched historical MAX — breakouts
+   that were about to print a new high got clipped at the old peak.
+2. **`predSell` alone** ejected mid-range (AIXBT PREDICTED PEAK near flat, then
+   ~+100% printed afterward).
+3. **STALE CASCADE mid-climb** sold sideways bags that were not at the top zone.
+
+Perfect injection protocol (`peak-ride.js`):
+
+- **Ride high-water** ratchets while holding; hist max touch is not a sell.
+- **Sell when peak is MADE**: stagnant near ride high + signs to lower
+  (tick-down / MACD / RSI roll).
+- **Fast crash** off a risen peak sells without waiting for a full indicator stack
+  (only when the high already rose above entry).
+- **Safety-net ladder** (−3% / −5% / −8% from ride high) for drastic drops so an
+  ultimate-high ride survives shallow dips but still dumps on cliffs.
+- **Predicted peak** only inside the peak zone; **stale cascade** only near the
+  ride high (mid-climb flat holds for the turn).
+- Still never sells when piggy-aligned net ≤ break-even (lose-zero).
+
+Bottom inject / second succession (`second-inject.js`) unchanged — exit → paid
+first inject → primed READY second seat.
+
 ### Fixed — STOP LOSS no longer sells underwater (ledger loss hole)
 
 Live Railway armed STOP LOSS on unknown-cost / frozen dust (STONKEX, BLUECHIP)

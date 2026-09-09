@@ -164,10 +164,25 @@ describe("second-inject: succession plan", () => {
 });
 
 describe("second-inject: instant peak + primed bottom", () => {
-  it("sells instantly at max peak when net clears buffer", () => {
+  it("sells instantly at max peak only when turning (tick-down)", () => {
     assert.equal(
       isInstantPeakSell({
         atMaxPeak: true,
+        netUsd: 0.5,
+        breakEvenBuffer: 0.05,
+        sellableUsdOk: true,
+        recentTickDown: false,
+      }),
+      false,
+      "hist max touch alone must not sell — ride breakouts",
+    );
+    assert.equal(
+      isInstantPeakSell({
+        atMaxPeak: true,
+        price: 10,
+        maxPeak: 10,
+        rideHigh: 10,
+        recentTickDown: true,
         netUsd: 0.5,
         breakEvenBuffer: 0.05,
         sellableUsdOk: true,
@@ -180,6 +195,7 @@ describe("second-inject: instant peak + primed bottom", () => {
         netUsd: 0.01,
         breakEvenBuffer: 0.05,
         sellableUsdOk: true,
+        recentTickDown: true,
       }),
       false,
     );
@@ -190,6 +206,7 @@ describe("second-inject: instant peak + primed bottom", () => {
       isInstantPeakSell({
         price: 10,
         maxPeak: 10.05,
+        rideHigh: 10.05,
         recentTickDown: true,
         netUsd: 1,
         breakEvenBuffer: 0.1,
@@ -251,5 +268,7 @@ describe("second-inject: wired into agent.js", () => {
     assert.ok(agentSrc.includes("isInstantPeakSell"));
     assert.ok(agentSrc.includes("isPrimedBottomEntry"));
     assert.ok(agentSrc.includes("formatSuccessionPlan"));
+    assert.ok(agentSrc.includes('from "./peak-ride.js"'));
+    assert.ok(agentSrc.includes("evaluatePeakRideExit"));
   });
 });
