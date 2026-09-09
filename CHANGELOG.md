@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added — HAT smile demo: 8×8×8-bit picture → locations → reader
+
+Quick proof before huge HTML: encode a slow-rez smile, seal chunk locations,
+reader pulls every location + decode recipe and rebuilds the face (ASCII + HTML).
+
+- `npm run hat:smile` → `artifacts/hat-smile-proof.html` + `public/hat-smile-proof.html`
+
 ### Added — HAT × wave: cost-paid bits, confirm seal, exit up without crash
 
 One bit was only the genesis proof. Wave leftover + earnings now size the next
