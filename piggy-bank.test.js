@@ -24,39 +24,44 @@ import {
   buildTokenPiggyLedger,
   creditTokenPiggyPools,
   piggyCoInvestMarkUsd,
+  piggyEarningsBufferPct,
+  piggyEarningsAfterMessage,
+  DEFAULT_PIGGY_EARNINGS_BUFFER_PCT,
 } from "./piggy-bank.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
 describe("piggy config defaults", () => {
-  it("defaults to 2% and a $0.05 USD floor", () => {
-    assert.equal(DEFAULT_PIGGY_BANK_PCT, 0.02);
-    assert.equal(DEFAULT_PIGGY_BANK_MIN_USD, 0.05);
-    assert.equal(piggyBankPct({}), 0.02);
-    assert.equal(piggyBankMinUsd({}), 0.05);
+  it("defaults to 5% dust, $0.15 floor, and 5% earnings buffer", () => {
+    assert.equal(DEFAULT_PIGGY_BANK_PCT, 0.05);
+    assert.equal(DEFAULT_PIGGY_BANK_MIN_USD, 0.15);
+    assert.equal(DEFAULT_PIGGY_EARNINGS_BUFFER_PCT, 0.05);
+    assert.equal(piggyBankPct({}), 0.05);
+    assert.equal(piggyBankMinUsd({}), 0.15);
+    assert.equal(piggyEarningsBufferPct({}), 0.05);
   });
 
   it("accepts fraction or percent for PIGGY_BANK_PCT", () => {
     assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "0.03" }), 0.03);
     assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2" }), 0.02);
     assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "5" }), 0.05);
-    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "nope" }), 0.02);
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "nope" }), 0.05);
     assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "0" }), 0);
   });
 
   it("honors per-symbol env and catalog overrides (LINK favorite 8%)", () => {
-    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2", PIGGY_BANK_PCT_LINK: "8" }, { symbol: "LINK" }), 0.08);
-    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2" }, { symbol: "LINK", piggyBankPct: 0.08 }), 0.08);
-    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "2", PIGGY_BANK_PCT_LINK: "8" }, { symbol: "UNI" }), 0.02);
-    assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0.05", PIGGY_BANK_MIN_USD_LINK: "0.10" }, { symbol: "LINK" }), 0.10);
-    const target = computePiggyTarget(100, 1, { PIGGY_BANK_PCT: "2", PIGGY_BANK_MIN_USD: "0" }, { symbol: "LINK", piggyBankPct: 0.08 });
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "5", PIGGY_BANK_PCT_LINK: "8" }, { symbol: "LINK" }), 0.08);
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "5" }, { symbol: "LINK", piggyBankPct: 0.08 }), 0.08);
+    assert.equal(piggyBankPct({ PIGGY_BANK_PCT: "5", PIGGY_BANK_PCT_LINK: "8" }, { symbol: "UNI" }), 0.05);
+    assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0.15", PIGGY_BANK_MIN_USD_LINK: "0.25" }, { symbol: "LINK" }), 0.25);
+    const target = computePiggyTarget(100, 1, { PIGGY_BANK_PCT: "5", PIGGY_BANK_MIN_USD: "0" }, { symbol: "LINK", piggyBankPct: 0.08 });
     assert.equal(target, 8);
   });
 
   it("honors PIGGY_BANK_MIN_USD including 0 to disable the floor", () => {
     assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0.10" }), 0.10);
     assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "0" }), 0);
-    assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "nope" }), 0.05);
+    assert.equal(piggyBankMinUsd({ PIGGY_BANK_MIN_USD: "nope" }), 0.15);
   });
 });
 
@@ -214,12 +219,63 @@ describe("reserve grows with buys and never auto-shrinks", () => {
     assert.equal(afterSell, 40);
   });
 
-  it("USD floor can lift a tiny bag above 2%", () => {
-    const envFloor = { PIGGY_BANK_PCT: "0.02", PIGGY_BANK_MIN_USD: "0.05" };
-    // 100 tokens @ $0.001 = $0.10 bag. 2% = 2 tokens ($0.002). Floor $0.05 = 50 tokens.
-    assert.equal(computePiggyTarget(100, 0.001, envFloor), 50);
-    const grown = ratchetPiggyReserve(50, 200, 0.001, envFloor);
-    assert.equal(grown, 50); // $0.05 / 0.001 = 50, 2% of 200 = 4 → stay 50
+  it("USD floor lifts bags that can afford it; crumbs stay pct-only", () => {
+    const envFloor = { PIGGY_BANK_PCT: "0.05", PIGGY_BANK_MIN_USD: "0.15" };
+    // $5 bag @ $1 — 5% = 0.25, floor $0.15 → 0.25 tokens
+    assert.equal(computePiggyTarget(5, 1, envFloor), 0.25);
+    // Live crumb $0.02 — floor must NOT 100%-lock the bag (was listing money, sellable 0)
+    const crumb = computePiggyTarget(119, 0.0001707, envFloor);
+    assert.ok(crumb < 119, "crumb must remain partially sellable");
+    assert.equal(crumb, 119 * 0.05);
+    const d = applyPiggyToSell({
+      balance: 119,
+      sellPct: 1,
+      piggyReserve: 0,
+      priceUsd: 0.0001707,
+      reason: "🎯 MAX PEAK",
+      env: envFloor,
+    });
+    assert.equal(d.blocked, false);
+    assert.ok(d.tokensToSell > 0);
+  });
+
+  it("earnings-after-message never lists a wiped gain", () => {
+    const wiped = piggyEarningsAfterMessage({
+      netUsd: 0.04,
+      hitchCostUsd: 0.05,
+      proceedsUsd: 5,
+      bufferPct: 0.05,
+    });
+    assert.ok(wiped.earningsUsd < 0);
+    assert.equal(wiped.gains, false);
+    assert.equal(wiped.neverLose, false);
+
+    const clear = piggyEarningsAfterMessage({
+      netUsd: 0.40,
+      hitchCostUsd: 0.05,
+      proceedsUsd: 5,
+      bufferPct: 0.05,
+    });
+    assert.ok(clear.earningsUsd > clear.needUsd);
+    assert.equal(clear.gains, true);
+  });
+
+  it("preview includes hitch earnings so peak gates refuse message-wiped nets", () => {
+    const preview = previewPiggySellNetUsd({
+      balance: 100,
+      sellable: 95,
+      investedEth: 0.002,
+      priceUsd: 1,
+      ethUsd: 2500,
+      feePct: 0.006,
+      skimPct: 0.01,
+      hitchCostUsd: 0.20,
+      earningsBufferPct: 0.05,
+    });
+    assert.equal(preview.soldFrac, 0.95);
+    assert.equal(preview.hitchCostUsd, 0.20);
+    assert.equal(preview.earningsUsd, preview.netUsd - 0.20);
+    assert.equal(preview.gains, preview.earningsUsd > preview.earningsNeedUsd && preview.earningsUsd > 0);
   });
 
   it("load takes the max of tokens.json and positions.json", () => {
@@ -291,7 +347,9 @@ describe("agent.js wires piggy into every sell path", () => {
     assert.ok(body.includes("applyPiggyToSell"), "executeSell must call applyPiggyToSell");
     assert.ok(body.includes("buildSellGateDecision"), "hitch sell floor must stay after piggy sizing");
     assert.ok(body.includes("piggy.tokensToSell"), "sell size must be piggy-capped tokens");
-    assert.ok(body.includes("costBasisForSoldFraction") || body.includes("entryEthSold"), "PnL must use piggy soldFrac");
+    assert.ok(src.includes("piggyEarningsBufferEth"), "sell gate must reserve piggy earnings buffer before hitch");
+    assert.ok(src.includes("piggyEarningsAfterMessage"), "Telegram/ledger must use earnings after message");
+    assert.ok(src.includes("costBasisForSoldFraction") || body.includes("entryEthSold"), "PnL must use piggy soldFrac");
     assert.ok(body.includes("soldFrac"), "ledger must record piggy-aligned soldFrac");
     assert.ok(body.includes("toWei"), "minOut amount-in must use real decimals");
     assert.ok(body.includes("sanitizeAmountOutMinimum"), "minOut sanity must stay after piggy sizing");

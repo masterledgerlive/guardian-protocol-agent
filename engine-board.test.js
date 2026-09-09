@@ -72,7 +72,7 @@ describe("piggyPaymentLights", () => {
       feesUsd: 0.1,
       hitchCostUsd: 0.1,
       firstMinEntryUsd: 2,
-      proceedsUsd: 2.2,
+      proceedsUsd: 2.4, // clears 8% piggy math buffer + skim runway
       netProfitUsd: 0.15,
       skimUsd: 0.05,
       agentShareUsd: 0.02,

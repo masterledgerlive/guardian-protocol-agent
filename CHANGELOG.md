@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Fixed — more piggy dust + earnings-with-message never-lose math
+
+Live Railway (`Tradeable:0.000342` / `Piggy:0.000134` / trades stuck at 73):
+cycle logs were **listing** micro unknown-cost crumbs ($0.01–$0.02) as money while
+the $0.05 USD piggy floor **100%-locked** them (`sellable = 0`) — capital frozen,
+no earnings, hitch messages rarely clearing a real gain. Historical moonshot/stale
+paths also listed P&L without subtracting hitch cost, so Telegram could show
+WAVE COMPLETE while the letter wiped the edge.
+
+- **Defaults** — `PIGGY_BANK_PCT` **5%** (was 2%), `PIGGY_BANK_MIN_USD` **$0.15**
+  (was $0.05); LINK favorite **8% / $0.25**. Succession `PIGGY_MATH_BUFFER_PCT` **8%**.
+- **Crumb floor** — USD min only applies when bag USD ≥ floor; sub-floor crumbs
+  use pct only so recycle can free inject fuel instead of listing locked dust.
+- **Earnings buffer** — `PIGGY_EARNINGS_BUFFER_PCT` (5%) must clear before Eureka
+  hitch rides; otherwise **plain sale** (still take the wave, never lose to the
+  message). `previewPiggySellNetUsd` / Telegram / ledger expose `earningsUsd`
+  after hitch so we never list wiped gains as wins.
+
+Does **not** weaken LOSE_ZERO hold-when-leftover≤0, PRICE_INSANE, QuoterV2,
+minOut, frozen buy, or 2× hitch sell cushion.
+
 ### Added — Guardian Engine board (wave dance / surfer / hitch lights)
 
 Easy operator + agentic UI so humans and AI bots see the same open equations:

@@ -18,7 +18,8 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
  * if leftover is too thin for hitch, skip hitch and still sell when the wave itself
  * is profitable after fees. Hold only when leftover after fees is ≤ 0.
- * Once hitch leftover is met, attach Eureka on the way out.
+ * Once hitch leftover is met *and* the piggy earnings buffer clears, attach Eureka
+ * on the way out — never list a message-paid "gain" that the hitch would wipe.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -838,6 +839,8 @@ export function evaluateSellGate({
   reason = "",
   symbol = "?",
   env = process.env,
+  /** ETH that must remain after fees before hitch may ride (piggy earnings buffer). */
+  piggyEarningsBufferEth = 0,
 } = {}) {
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
@@ -857,6 +860,8 @@ export function evaluateSellGate({
     btpL1FeeEth,
   };
   const leftover = leftoverAfterFeesEth(base);
+  const earningsBuf = Math.max(0, Number(piggyEarningsBufferEth) || 0);
+  const hitchBudget = leftover - earningsBuf;
 
   const wanted = Math.max(0, Number(wantedHitchBytes) || 0);
   const reservedL1 = hasLiveL1Fee(reservedL1FeeEth)
@@ -887,7 +892,7 @@ export function evaluateSellGate({
   });
 
   const sized = sizeHitchForSell({
-    leftoverEth: leftover,
+    leftoverEth: Math.max(0, hitchBudget),
     wantedBytes: wantedHitchBytes,
     gwei,
     providerFeeEth,
@@ -969,8 +974,13 @@ export function evaluateSellGate({
     });
   }
 
-  // Profitable after fees, but N× hitch would eat it — plain sale, letter skipped.
-  if (!reservedCover.covers) {
+  // Profitable after fees, but N× hitch and/or piggy earnings buffer would eat it —
+  // plain sale, letter skipped. Math must never list a message-paid fake gain.
+  const hitchCoverNeed = reservedCover.hitchCoverEth || 0;
+  if (!reservedCover.covers || hitchBudget <= 0 || hitchBudget + 1e-18 < hitchCoverNeed) {
+    const whyBuf = hitchBudget <= 0 || hitchBudget + 1e-18 < hitchCoverNeed
+      ? `piggy earnings buffer + ${mult}x hitch`
+      : `${mult}x hitch`;
     return pack(true, "plain sale hitch skipped", {
       hitchBytes: 0,
       btpInscribe: false,
@@ -980,12 +990,12 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${mult}x hitch; Eureka skipped so we still take the wave`,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; Eureka skipped so we still take the wave`,
     });
   }
 
   // Extra queued hitch/BTP would eat the 2× cushion — skip extra, sell now.
-  if (!check.covers || leftover - mult * sized.injectCostEth <= 0) {
+  if (!check.covers || hitchBudget - mult * sized.injectCostEth <= 0) {
     return pack(true, "skip hitch leftover too thin", {
       hitchBytes: 0,
       btpInscribe: false,
@@ -1025,6 +1035,7 @@ export function buildSellGateDecision({
   l1FeePerByteEth,
   btpL1FeeEth,
   hitchFeeSource,
+  piggyEarningsBufferEth = 0,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -1044,6 +1055,7 @@ export function buildSellGateDecision({
     l1FeePerByteEth,
     btpL1FeeEth,
     hitchFeeSource,
+    piggyEarningsBufferEth,
     reason,
     symbol,
     env,

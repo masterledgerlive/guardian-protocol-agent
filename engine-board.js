@@ -21,7 +21,7 @@ import { firstInjectPaid, PIGGY_MATH_BUFFER_PCT } from "./second-inject.js";
 /** Mirrors lose-zero-gate DEFAULT_HITCH_COST_MULT (avoid importing L1 oracle → viem). */
 export const DEFAULT_HITCH_COST_MULT = 2;
 /** Mirrors piggy-bank DEFAULT_PIGGY_BANK_PCT. */
-export const DEFAULT_PIGGY_BANK_PCT = 0.02;
+export const DEFAULT_PIGGY_BANK_PCT = 0.05;
 
 /** Ride phases for the trough↔peak dance. */
 export const WAVE_PHASES = Object.freeze([
@@ -310,10 +310,10 @@ export function demoEngineSnapshot() {
 
   const tokens = [
     { symbol: "LINK", base: 14.2, amp: 0.035, piggyPct: 0.08, holding: true, phase: 0.4 },
-    { symbol: "UNI", base: 8.1, amp: 0.04, piggyPct: 0.02, holding: false, phase: 1.2 },
-    { symbol: "AERO", base: 1.05, amp: 0.06, piggyPct: 0.02, holding: true, phase: 2.1 },
-    { symbol: "DEGEN", base: 0.0062, amp: 0.08, piggyPct: 0.02, holding: false, phase: 0.8 },
-    { symbol: "VVV", base: 2.4, amp: 0.05, piggyPct: 0.02, holding: false, phase: 1.7 },
+    { symbol: "UNI", base: 8.1, amp: 0.04, piggyPct: 0.05, holding: false, phase: 1.2 },
+    { symbol: "AERO", base: 1.05, amp: 0.06, piggyPct: 0.05, holding: true, phase: 2.1 },
+    { symbol: "DEGEN", base: 0.0062, amp: 0.08, piggyPct: 0.05, holding: false, phase: 0.8 },
+    { symbol: "VVV", base: 2.4, amp: 0.05, piggyPct: 0.05, holding: false, phase: 1.7 },
   ];
 
   const ethUsd = 3200;
