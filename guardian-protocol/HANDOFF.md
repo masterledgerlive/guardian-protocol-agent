@@ -4,6 +4,8 @@
 **Audience:** Human developers, autonomous coding agents, researchers  
 **Relation to live trader:** This tree is a **sideline**. Do not modify root `agent.js`, hitch/injector, or trading gates from here.
 
+**Not the live Control Board.** Railway `/board` (see repo-root [`BOARD.md`](../BOARD.md)) is the V3/V4 operator hub. This HANDOFF is L1 research Arena only (`npm run dashboard` on :8787).
+
 ---
 
 ## Read order (mandatory)

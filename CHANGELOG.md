@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added — Control Board hub (`/board`) so humans and bots stop hunting files
+
+Arena (`/arena`, PR #42), Engine (`/engine`, PR #47), V4 offshoot (PR #46), Storage Token loop (PR #50), and fee/gas plug (PR #51) left HTML + docs on three URLs plus `guardian-protocol/` and `guardian-v4/README.md`.
+
+- **`GET /board`** (`public/board.html`) — one hub: wave preview, Arena/storage-loop sim, read-only live knobs + sim overrides, V4 catalog/status/paper inject, gated live queue (ack + secret). Root `/` now serves the hub; `/arena` and `/engine` unchanged.
+- **`GET /board/health`** (alias `/health`) — which boards are mounted. V4 is listed as a **separate process**.
+- Public **`/board/api/params`**, **`/board/api/snapshot`**, **`/board/api/v4`**, **`POST /board/api/sim`** — no unauthenticated env mutate, no spend.
+- **`BOARD.md`** — operator on-ramp; points stale “2% piggy” / L1-vs-live Arena / V4-CLI-only confusion at the hub.
+- Webhook serves public HTML even without `VITA_WEBHOOK_SECRET` (live APIs still locked). V3 `agent.js` inject loop not rewritten.
+
 ### Fixed — plug fee/gas leaks so thin books never bleed ($10→$6)
 
 Live RISK book was listing “wins” while liquid fell. Leaks:

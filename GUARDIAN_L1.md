@@ -8,6 +8,8 @@ This monorepo hosts **three related but separate tracks**:
 | **`guardian-v4/`** | Base **Uniswap V4** inject offshoot (DOT / popular V4 avenues + Eureka hitch) | Own process, lockfile, `GUARDIAN_V4_*` env, `state/` — run beside V3 without freezing it |
 | **`guardian-protocol/`** | Agentic Memory Layer-1 research + Arena simulator | Own docs, tests, benchmarks; agents start at `guardian-protocol/HANDOFF.md` |
 
+**Operator / agent bot UI (live V3 webhook):** [`BOARD.md`](./BOARD.md) → Railway `/board`. That hub is **not** the L1 Arena. L1 still starts at [`guardian-protocol/HANDOFF.md`](./guardian-protocol/HANDOFF.md).
+
 The V3 injector is a **transitional technology baseline** (Trickle hitch, dual lanes, L1 fee awareness, strand assembly). The V4 offshoot mirrors inject + Eureka hitch on Universal Router pools (including DOT) without sharing runtime state with `agent.js`. The L1 package targets a **Hyperliquid-inspired Agentic Memory Network**: [MemoryBFT + DataCore + dual-block AgenticEVM](./guardian-protocol/docs/HYPERLIQUID_BLUEPRINT.md), with [0x](https://0x.org) for value routing and [Arbitrum](https://arbitrum.io) for compression-cost models — without merging runtimes or treating messaging bridges as the architecture.
 
 ```bash

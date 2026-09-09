@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guardian Control Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c;
+      --muted: #3d5a4c;
+      --lime: #b6f25c;
+      --lime-deep: #6fad12;
+      --sand: #e7f2e2;
+      --panel: rgba(255, 255, 255, 0.78);
+      --line: rgba(16, 35, 28, 0.14);
+      --warn: #c45d16;
+      --ok: #1f7a45;
+      --link: #1a6bff;
+      --live: #c45d16;
+      --sim: #1f7a45;
+      --wave: #2a8f9a;
+      --display: "Syne", sans-serif;
+      --body: "Source Serif 4", Georgia, serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--body);
+      background:
+        radial-gradient(900px 420px at 10% -8%, rgba(182, 242, 92, 0.5), transparent 58%),
+        radial-gradient(720px 400px at 100% 0%, rgba(26, 107, 255, 0.16), transparent 55%),
+        linear-gradient(165deg, #f4fbf0 0%, #d9ebe0 46%, #cfe0f5 100%);
+      min-height: 100vh;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
+      padding: 0.55rem 1.1rem;
+      background: rgba(244, 251, 240, 0.92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .topbar a, .topbar .mode {
+      font-family: var(--display); font-size: 0.78rem; font-weight: 700;
+      text-decoration: none; color: var(--ink);
+      padding: 0.28rem 0.55rem; border-radius: 999px; border: 1px solid var(--line);
+    }
+    .mode.sim { background: #d8f5c8; }
+    .mode.live { background: #ffd2a8; }
+    .hero { padding: clamp(1.2rem, 4vw, 2.6rem) clamp(1.2rem, 4vw, 2.8rem) 0.6rem; }
+    .brand {
+      font-family: var(--display); font-weight: 800;
+      font-size: clamp(2.3rem, 7vw, 4.4rem);
+      line-height: 0.92; letter-spacing: -0.04em; margin: 0; max-width: 16ch;
+    }
+    .brand em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--lime), #7ad0ff);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .lede { max-width: 38rem; color: var(--muted); font-size: clamp(1.02rem, 2.2vw, 1.18rem); }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.55rem; }
+    button, .btn {
+      appearance: none; border: 1px solid var(--ink); background: var(--lime);
+      color: var(--ink); font-family: var(--display); font-weight: 700; font-size: 0.86rem;
+      padding: 0.62rem 0.9rem; border-radius: 0.5rem; cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    button:hover, .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+    button.ghost, .btn.ghost { background: var(--panel); }
+    button.warn, .btn.warn { background: #ffd2a8; }
+    button.live, .btn.live { background: #ffb08a; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    main { padding: 0 clamp(1.2rem, 4vw, 2.8rem) 2.6rem; display: grid; gap: 1.05rem; }
+    section {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 1rem;
+      padding: 1.05rem 1.15rem 1.25rem; backdrop-filter: blur(8px);
+    }
+    h2 { font-family: var(--display); margin: 0 0 0.45rem; font-size: 1.28rem; letter-spacing: -0.02em; }
+    p, li { color: var(--muted); line-height: 1.45; }
+    .hint { font-size: 0.9rem; }
+    .mono { font-family: var(--mono); font-size: 0.8rem; }
+    .grid-2, .grid-3 {
+      display: grid; gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    .stat, .knob {
+      border: 1px dashed var(--line); border-radius: 0.7rem;
+      padding: 0.7rem 0.8rem; background: rgba(255,255,255,0.55);
+    }
+    .stat span, .knob span {
+      font-family: var(--display); font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .stat b, .knob b { display: block; font-family: var(--mono); font-size: 1.08rem; margin-top: 0.15rem; color: var(--ink); }
+    label { display: block; font-family: var(--display); font-size: 0.78rem; margin: 0.45rem 0 0.2rem; }
+    input, select {
+      width: 100%; max-width: 100%; border: 1px solid var(--ink); border-radius: 0.4rem;
+      padding: 0.5rem 0.6rem; font-family: var(--mono); background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.75rem; }
+    th, td { text-align: left; padding: 0.4rem 0.28rem; border-bottom: 1px solid var(--line); }
+    th { font-family: var(--display); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    pre {
+      margin: 0.5rem 0 0; padding: 0.75rem; background: #10231c; color: #d8f5c8;
+      border-radius: 0.55rem; overflow: auto; font-family: var(--mono); font-size: 0.72rem; max-height: 280px;
+    }
+    .pill {
+      display: inline-block; padding: 0.12rem 0.45rem; border-radius: 999px;
+      border: 1px solid var(--line); font-family: var(--mono); font-size: 0.7rem; margin: 0 0.15rem 0.15rem 0;
+    }
+    .pill.ok { background: #d8f5c8; }
+    .pill.warn { background: #ffd2a8; }
+    .pill.fav { background: var(--lime); border-color: var(--ink); }
+    .rules { display: grid; gap: 0.4rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    .rule { font-family: var(--display); font-size: 0.8rem; padding: 0.5rem 0.6rem; border-radius: 0.5rem; background: #10231c; color: #d8f5c8; }
+    .wave-grid { display: grid; gap: 0.55rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .wave-tile { border: 1px solid var(--line); border-radius: 0.6rem; padding: 0.45rem 0.5rem 0.3rem; background: #fff; }
+    .wave-tile canvas { width: 100%; height: 64px; display: block; }
+    .wave-tile .meta { font-family: var(--mono); font-size: 0.7rem; display: flex; justify-content: space-between; }
+    iframe {
+      width: 100%; min-height: 520px; border: 1px solid var(--line); border-radius: 0.7rem; background: #fff;
+    }
+    details { margin-top: 0.55rem; }
+    summary { cursor: pointer; font-family: var(--display); font-weight: 700; }
+    .gate {
+      border: 2px dashed var(--live); border-radius: 0.7rem; padding: 0.8rem;
+      background: rgba(255, 210, 168, 0.25);
+    }
+    footer { padding: 0 1.4rem 2.2rem; color: var(--muted); font-size: 0.85rem; }
+    .check { display: flex; gap: 0.4rem; align-items: center; margin: 0.35rem 0; font-size: 0.88rem; }
+    .check input { width: auto; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <span class="mode sim" id="modeBadge">SIM default</span>
+    <a href="#learn">Learn</a>
+    <a href="#params">Params</a>
+    <a href="#waves">Waves</a>
+    <a href="#arena">Arena</a>
+    <a href="#v4">V4</a>
+    <a href="#live">Live (gated)</a>
+    <a href="/engine">Full Engine</a>
+    <a href="/arena">Full Arena</a>
+    <a href="/board/health">Health</a>
+  </nav>
+
+  <header class="hero">
+    <p class="pill fav">Guardian Protocol · one hub</p>
+    <h1 class="brand">Control <em>Board</em></h1>
+    <p class="lede">
+      One page for humans and agent bots: live wave equations, Arena practice (storage-token revenue loop),
+      param fine-tune in <strong>sim</strong>, and Uniswap V4 status beside V3. Demo never spends RISK.
+    </p>
+    <div class="cta-row">
+      <button type="button" id="btnRefresh">Refresh snapshot</button>
+      <a class="btn ghost" href="/engine">Open Engine waves</a>
+      <a class="btn ghost" href="/arena">Open Arena learn</a>
+      <a class="btn ghost" href="https://github.com/masterledgerlive/guardian-protocol-agent/blob/main/BOARD.md" target="_blank" rel="noreferrer">BOARD.md</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="learn">
+      <h2>0 · How to use this hub</h2>
+      <div class="rules">
+        <div class="rule">Never sell underwater</div>
+        <div class="rule">Hitch only if leftover covers</div>
+        <div class="rule">Piggy never sells</div>
+        <div class="rule">Vault never spends</div>
+        <div class="rule">No invented P&amp;L</div>
+      </div>
+      <p class="hint" style="margin-top:0.75rem">
+        <strong>SIM</strong> (default): practice rounds, V4 paper inject, storage-loop capacity — labeled estimates.
+        <strong>LIVE</strong>: snapshot + queue buttons need Railway <code>VITA_WEBHOOK_SECRET</code>.
+        Live knobs (piggy %, hitch mult, LOSE_ZERO) are <em>read-only here</em> — change them in Railway or Telegram, not via an open POST.
+        V3 injector stays <code>npm start</code> / <code>agent.js</code>. V4 is a <em>separate</em> process: <code>npm run start:v4</code>.
+        L1 research Arena is <code>guardian-protocol/</code> (port 8787) — not this Railway URL.
+      </p>
+    </section>
+
+    <section id="params">
+      <h2>1 · Param fine-tune</h2>
+      <p class="hint">Left = live snapshot (read-only). Right = sim overrides (do not write production env).</p>
+      <div class="grid-2">
+        <div>
+          <h3 class="mono" style="margin:0 0 0.4rem">Live snapshot</h3>
+          <div class="grid-2" id="liveKnobs"></div>
+        </div>
+        <div>
+          <h3 class="mono" style="margin:0 0 0.4rem">Sim overrides</h3>
+          <label for="simCash">Starting liquid USD</label>
+          <input id="simCash" type="number" value="8" min="1" step="0.5" />
+          <label for="simSeat">Seat</label>
+          <select id="simSeat">
+            <option value="LINK">LINK (favorite · 8% piggy)</option>
+            <option value="UNI">UNI</option>
+            <option value="VVV">VVV</option>
+            <option value="ZORA">ZORA</option>
+            <option value="BNKR">BNKR</option>
+            <option value="AERO">AERO</option>
+          </select>
+          <label for="simMove">Assumed wave</label>
+          <select id="simMove">
+            <option value="0.03">+3% thin win</option>
+            <option value="0.06" selected>+6% clean wave</option>
+            <option value="-0.02">−2% hold / lose-zero</option>
+          </select>
+          <label for="simPiggy">Piggy % (sim)</label>
+          <input id="simPiggy" type="number" value="5" min="0" max="20" step="1" />
+          <label for="simDust">Dust floor USD (sim)</label>
+          <input id="simDust" type="number" value="0.15" min="0" step="0.05" />
+          <label for="simHitch">HITCH_COST_MULT (sim)</label>
+          <input id="simHitch" type="number" value="2" min="1" max="5" step="0.5" />
+          <div class="check"><input id="simLoseZero" type="checkbox" checked /> <label for="simLoseZero" style="margin:0">LOSE_ZERO hold when leftover ≤ 0</label></div>
+          <div class="check"><input id="simHalt" type="checkbox" /> <label for="simHalt" style="margin:0">HALT_NEW_ENTRIES display (sim flag only)</label></div>
+          <div class="check"><input id="simCost" type="checkbox" checked /> <label for="simCost" style="margin:0">COST_EDGE gate</label></div>
+          <div class="check"><input id="simPeak" type="checkbox" checked /> <label for="simPeak" style="margin:0">Peak-ride (sell MADE top, not hist-max touch)</label></div>
+          <div class="cta-row" style="margin-top:0.7rem">
+            <button type="button" id="btnSim">Run sim round</button>
+            <button type="button" class="ghost" id="btnCopyLive">Copy live → sim</button>
+          </div>
+        </div>
+      </div>
+      <pre id="simOut">Press Run sim round — demo/sim, not a live fill.</pre>
+    </section>
+
+    <section id="waves">
+      <h2>2 · Live wave / engine view</h2>
+      <p class="hint">Same equations as <a href="/engine">/engine</a> (paddle → ride → peak → trick → reload). Demo without secret.</p>
+      <div class="grid-2" id="waveStats"></div>
+      <div class="wave-grid" id="waveGrid"></div>
+      <details>
+        <summary>Embed full Engine board</summary>
+        <iframe title="Guardian Engine" src="/engine" loading="lazy"></iframe>
+      </details>
+    </section>
+
+    <section id="arena">
+      <h2>3 · Arena learn · storage-token revenue loop</h2>
+      <p class="hint">
+        Practice inject-all + piggy leave-behind. Storage loop: leftover → piggy skim → call-to-add → hitch bytes / BITS.
+        Full L1 simulator stays in <code>guardian-protocol/</code> (<code>npm run arena:crypto-stress</code>).
+      </p>
+      <div class="grid-2">
+        <div>
+          <div class="cta-row">
+            <button type="button" id="btnStorage">Run storage-loop capacity</button>
+          </div>
+          <pre id="storageOut">Capacity report lands here.</pre>
+        </div>
+        <div>
+          <p class="hint">Telegram cheatsheet (live bot, not this sim):</p>
+          <p class="mono">/status · /bank · /piggy · /tiers · /cycles · /costedge · /buy LINK 2 · /sellhalf UNI · /piggyunlock LINK · /prove</p>
+          <p class="hint">Tune live params in Railway: <code>PIGGY_BANK_PCT</code> <code>PIGGY_BANK_MIN_USD</code> <code>HITCH_COST_MULT</code> <code>LOSE_ZERO</code> <code>HALT_NEW_ENTRIES</code>. COST_EDGE and peak-ride are always-on code, not env toggles.</p>
+        </div>
+      </div>
+      <details>
+        <summary>Embed full Arena ledger</summary>
+        <iframe title="Guardian Arena" src="/arena" loading="lazy"></iframe>
+      </details>
+    </section>
+
+    <section id="v4">
+      <h2>4 · Uniswap V4 offshoot</h2>
+      <p class="hint">
+        <span class="pill warn" id="v4RunPill">separate process</span>
+        Not this Railway V3 webhook. Start beside V3 with <code>GUARDIAN_V4_*</code> env. Default <code>GUARDIAN_V4_DRY_RUN=yes</code> (paper calldata, no broadcast).
+      </p>
+      <div class="grid-2" id="v4Stats"></div>
+      <pre class="mono" id="v4Start">npm run start:v4 -- --once
+npm run start:v4
+npm run test:v4</pre>
+      <div style="overflow:auto; margin-top:0.6rem">
+        <table>
+          <thead><tr><th>Symbol</th><th>Status</th><th>Fee</th><th>Liq</th><th>Notes</th></tr></thead>
+          <tbody id="v4Body"><tr><td colspan="5">Loading catalog…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="cta-row" style="margin-top:0.7rem">
+        <label for="v4Seat" style="margin:0;align-self:center">V4 sim seat</label>
+        <select id="v4Seat" style="max-width:10rem"><option>DOT</option></select>
+        <button type="button" id="btnV4Sim">Run V4 paper inject</button>
+      </div>
+      <pre id="v4Out">Paper inject — hitch if leftover covers, else plain. Never broadcasts from this board.</pre>
+    </section>
+
+    <section id="live">
+      <h2>5 · Operator live (gated)</h2>
+      <div class="gate">
+        <p class="hint" style="margin-top:0">
+          These enqueue the same commands Telegram uses. <strong>Default is demo/sim above.</strong>
+          Paste <code>VITA_WEBHOOK_SECRET</code> only if you intend to talk to the live V3 injector.
+        </p>
+        <label for="secret">VITA webhook secret</label>
+        <input id="secret" type="password" placeholder="x-vita-secret — live only" autocomplete="off" />
+        <div class="check">
+          <input id="liveAck" type="checkbox" />
+          <label for="liveAck" style="margin:0">I understand this can queue a real swap (spend RISK)</label>
+        </div>
+        <div class="cta-row">
+          <button type="button" class="ghost" id="btnSaveSecret">Save secret in this browser</button>
+          <button type="button" class="ghost" id="btnClearSecret">Clear</button>
+          <button type="button" class="ghost" data-live='{"action":"status"}'>Ping live snapshot</button>
+          <button type="button" class="live" data-live='{"action":"buy","symbol":"LINK","usd":2}'>Queue buy LINK ~$2</button>
+          <button type="button" class="ghost" data-live='{"action":"sellhalf","symbol":"LINK"}'>Queue sell half LINK</button>
+          <button type="button" class="warn" data-live='{"action":"piggyunlock","symbol":"LINK"}'>Unlock LINK piggy</button>
+        </div>
+        <pre id="cmdOut">Live queue idle — sim does not use this.</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Hub: <code>/board</code> · health <code>/board/health</code> · V3 <code>agent.js</code> untouched · V4 isolated.
+    Docs consolidated in <code>BOARD.md</code>.
+  </footer>
+
+  <script>
+    const KEY = "guardian_vita_secret";
+    const secretEl = document.getElementById("secret");
+    secretEl.value = localStorage.getItem(KEY) || "";
+
+    let lastParams = null;
+    let lastV4 = null;
+
+    function headers() {
+      const s = (localStorage.getItem(KEY) || secretEl.value || "").trim();
+      return s ? { "x-vita-secret": s, "content-type": "application/json" } : { "content-type": "application/json" };
+    }
+    function money(n) {
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "—";
+      return "$" + x.toFixed(x >= 10 ? 2 : 3);
+    }
+    function pct(n) {
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "—";
+      return (x <= 1 ? x * 100 : x).toFixed(1) + "%";
+    }
+    function yn(v) { return v ? "yes" : "no"; }
+
+    function setMode(live) {
+      const el = document.getElementById("modeBadge");
+      if (live) {
+        el.textContent = "LIVE snapshot";
+        el.className = "mode live";
+      } else {
+        el.textContent = "SIM default";
+        el.className = "mode sim";
+      }
+    }
+
+    function renderKnobs(p) {
+      lastParams = p;
+      const items = [
+        ["LOSE_ZERO", yn(p.loseZero)],
+        ["HALT_NEW_ENTRIES", yn(p.haltNewEntries)],
+        ["HITCH_COST_MULT", String(p.hitchCostMult)],
+        ["PIGGY_BANK_PCT", pct(p.piggyBankPct)],
+        ["dust floor USD", money(p.piggyBankMinUsd)],
+        ["LINK piggy", pct(p.piggyLinkPct)],
+        ["COST_EDGE", "always on · " + (p.costEdge?.thinBookNearTermMult || 1.15) + "× thin"],
+        ["peak-ride", "always on · hist-max touch is NOT a sell"],
+      ];
+      document.getElementById("liveKnobs").innerHTML = items.map(([k, v]) =>
+        `<div class="knob"><span>${k}</span><b>${v}</b></div>`
+      ).join("");
+    }
+
+    function drawWave(canvas, series) {
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth || 180;
+      const h = canvas.clientHeight || 64;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const arr = (series || []).map(Number).filter((p) => p > 0);
+      if (arr.length < 2) return;
+      const min = Math.min(...arr), max = Math.max(...arr), span = max - min || 1, pad = 5;
+      ctx.beginPath();
+      arr.forEach((p, i) => {
+        const x = pad + (i / (arr.length - 1)) * (w - pad * 2);
+        const y = pad + (1 - (p - min) / span) * (h - pad * 2);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = "#2a8f9a"; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    function renderWaves(engine) {
+      const waves = engine?.waves || [];
+      document.getElementById("waveStats").innerHTML = [
+        ["Mode", engine?.demo ? "DEMO waves" : "LIVE waves"],
+        ["Favorite", engine?.favorite || "LINK"],
+        ["Hitch prove", (engine?.hitchProve?.count ?? "—") + " / " + (engine?.hitchProve?.target ?? 20)],
+        ["Modules lit", (engine?.modules || []).filter(m => m.lit).map(m => m.label).join(" · ") || "—"],
+      ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+      const grid = document.getElementById("waveGrid");
+      grid.innerHTML = waves.slice(0, 8).map((w, i) => `
+        <div class="wave-tile">
+          <div class="meta"><strong>${w.symbol}</strong><span>${w.phase?.phase || w.phase?.label || ""}</span></div>
+          <canvas id="wv${i}" height="64"></canvas>
+          <div class="meta"><span>${money(w.price)}</span><span>piggy ${pct(w.piggyPct)}</span></div>
+        </div>`).join("") || "<p class='hint'>No waves yet.</p>";
+      waves.slice(0, 8).forEach((w, i) => {
+        const c = document.getElementById("wv" + i);
+        if (c) drawWave(c, w.series);
+      });
+    }
+
+    function renderV4(v) {
+      lastV4 = v;
+      const running = !!v.running;
+      const pill = document.getElementById("v4RunPill");
+      pill.textContent = running ? "V4 process running (separate)" : "V4 not running on this host";
+      pill.className = "pill " + (running ? "ok" : "warn");
+      document.getElementById("v4Stats").innerHTML = [
+        ["Same process as V3", "no"],
+        ["Startable from /board", "no — use CLI"],
+        ["DRY_RUN default", yn(v.dryRunDefault)],
+        ["Injectable", (v.catalog?.injectable || []).join(", ") || "—"],
+      ].map(([k, val]) => `<div class="stat"><span>${k}</span><b>${val}</b></div>`).join("");
+      document.getElementById("v4Start").textContent = (v.start?.once || "") + "\n" + (v.start?.loop || "") + "\n" + (v.start?.tests || "");
+      const rows = v.avenues || [];
+      document.getElementById("v4Body").innerHTML = rows.map(t => `
+        <tr>
+          <td>${t.symbol}${t.injectMain ? ' <span class="pill fav">main</span>' : ""}</td>
+          <td>${t.status}</td>
+          <td>${t.feePct ?? "—"}%</td>
+          <td>${t.liqUsd ? Math.round(t.liqUsd).toLocaleString() : "—"}</td>
+          <td>${t.notes || ""}</td>
+        </tr>`).join("");
+      const sel = document.getElementById("v4Seat");
+      const keep = sel.value;
+      sel.innerHTML = rows.map(t => `<option value="${t.symbol}">${t.symbol}</option>`).join("");
+      if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+    }
+
+    async function refresh() {
+      try {
+        const [params, snap, v4] = await Promise.all([
+          fetch("/board/api/params").then(r => r.json()),
+          fetch("/board/api/snapshot", { headers: headers() }).then(r => r.json()),
+          fetch("/board/api/v4").then(r => r.json()),
+        ]);
+        renderKnobs(params);
+        renderWaves(snap.engine);
+        renderV4(v4);
+        setMode(!!(headers()["x-vita-secret"] && snap.demo === false));
+      } catch (e) {
+        document.getElementById("simOut").textContent = String(e.message || e);
+      }
+    }
+
+    function simBody() {
+      const piggyRaw = Number(document.getElementById("simPiggy").value);
+      return {
+        cash: Number(document.getElementById("simCash").value) || 8,
+        seat: document.getElementById("simSeat").value,
+        movePct: Number(document.getElementById("simMove").value),
+        piggyPct: piggyRaw > 1 ? piggyRaw / 100 : piggyRaw,
+        dustFloorUsd: Number(document.getElementById("simDust").value),
+        hitchCostMult: Number(document.getElementById("simHitch").value),
+        loseZero: document.getElementById("simLoseZero").checked,
+        haltNewEntries: document.getElementById("simHalt").checked,
+        costEdge: document.getElementById("simCost").checked,
+        peakRide: document.getElementById("simPeak").checked,
+        v4Symbol: document.getElementById("v4Seat").value || "DOT",
+      };
+    }
+
+    document.getElementById("btnSim").onclick = async () => {
+      const res = await fetch("/board/api/sim", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(simBody()),
+      });
+      const data = await res.json();
+      const lines = (data.arena?.lines || [JSON.stringify(data, null, 2)]).join("\n");
+      document.getElementById("simOut").textContent = lines;
+    };
+
+    document.getElementById("btnStorage").onclick = async () => {
+      const res = await fetch("/board/api/sim", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(simBody()),
+      });
+      const data = await res.json();
+      document.getElementById("storageOut").textContent = JSON.stringify({
+        kind: data.storage?.kind,
+        funds: data.storage?.funds,
+        capacity_now: data.storage?.capacity_now,
+        horizons: data.storage?.horizons,
+        note: data.storage?.note,
+      }, null, 2);
+    };
+
+    document.getElementById("btnV4Sim").onclick = async () => {
+      const body = simBody();
+      const res = await fetch("/board/api/sim", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      document.getElementById("v4Out").textContent = JSON.stringify(data.v4, null, 2);
+    };
+
+    document.getElementById("btnCopyLive").onclick = () => {
+      if (!lastParams) return;
+      document.getElementById("simPiggy").value = String(Math.round((lastParams.piggyBankPct || 0.05) * 100));
+      document.getElementById("simDust").value = String(lastParams.piggyBankMinUsd ?? 0.15);
+      document.getElementById("simHitch").value = String(lastParams.hitchCostMult ?? 2);
+      document.getElementById("simLoseZero").checked = !!lastParams.loseZero;
+      document.getElementById("simHalt").checked = !!lastParams.haltNewEntries;
+    };
+
+    document.getElementById("btnRefresh").onclick = refresh;
+    document.getElementById("btnSaveSecret").onclick = () => {
+      localStorage.setItem(KEY, secretEl.value.trim());
+      document.getElementById("cmdOut").textContent = "Secret saved in this browser only.";
+    };
+    document.getElementById("btnClearSecret").onclick = () => {
+      localStorage.removeItem(KEY);
+      secretEl.value = "";
+    };
+
+    document.querySelectorAll("[data-live]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const cmd = JSON.parse(btn.getAttribute("data-live"));
+        if (cmd.action !== "status" && !document.getElementById("liveAck").checked) {
+          document.getElementById("cmdOut").textContent = "Tick the live-spend acknowledgement first. Sim does not need this.";
+          return;
+        }
+        if (cmd.action === "status") {
+          await refresh();
+          const res = await fetch("/arena/api/snapshot", { headers: headers() });
+          const data = await res.json();
+          document.getElementById("cmdOut").textContent = JSON.stringify(data, null, 2);
+          return;
+        }
+        const res = await fetch("/arena/api/queue", {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify(cmd),
+        });
+        const data = await res.json();
+        document.getElementById("cmdOut").textContent = JSON.stringify(data, null, 2);
+      });
+    });
+
+    refresh();
+  </script>
+</body>
+</html>

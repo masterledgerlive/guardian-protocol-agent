@@ -132,6 +132,9 @@ USDT/EURC (stables — no wave amplitude) · cbETH (Uni V3 thin; mostly V4) · c
 
 ```
 agent.js              — Main trading loop + Telegram command handler
+vita-webhook.js       — HTTP: /board hub + /arena + /engine + /vita/*
+board-control.js      — Control Board snapshot / sim / V4 status (no spend)
+engine-board.js       — Shared wave-phase / hitch-option / piggy-light math
 avenue-prime.js       — Projected cost per avenue; prime top 2–3 cascade seats
 second-inject.js      — Paid first inject + surplus → 2nd READY inject; instant peak
 cascade-rollover.js   — Min entry, inject-all book, cascade deploy sizing
@@ -163,8 +166,10 @@ encryptkey.js         — One-time key encryption + inscription tool
 - **Alerts**: Telegram Bot API
 - **Price data**: GeckoTerminal + DexScreener (batch prefetch every cycle)
 - **Wallet**: `0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915`
-- **Arena board**: `https://guardian-protocol-agent-production.up.railway.app/arena` — learn the ledger, practice sims, queue bot moves (needs `VITA_WEBHOOK_SECRET` for live buttons). LINK is the favorite inject main with **8%** piggy leave-behind.
-- **Engine board**: `https://guardian-protocol-agent-production.up.railway.app/engine` — open hardware view of the wave dance (waveforms, surfer phases, hitch/piggy payment lights, ride / trick-out / message options with costs). Demo mode works without a secret; live queue needs `VITA_WEBHOOK_SECRET`.
+- **Control Board (start here)**: `https://guardian-protocol-agent-production.up.railway.app/board` — one hub for waves, Arena learn, param sim, V4 status. See [`BOARD.md`](./BOARD.md). Demo/sim by default; live queue needs `VITA_WEBHOOK_SECRET`.
+- **Arena board**: `/arena` — ledger game + practice sims (also embedded from the hub). LINK favorite inject main with **8%** piggy leave-behind (global default **5%** / **$0.15** dust floor — not 2%).
+- **Engine board**: `/engine` — wave dance hardware view (waveforms, hitch/piggy lights, ride / trick-out). Demo without a secret; live queue needs `VITA_WEBHOOK_SECRET`.
+- **V4 offshoot**: separate process `npm run start:v4` (`GUARDIAN_V4_*`). Status + paper sim on `/board#v4` — not started by this webhook.
 
 ---
 
@@ -360,7 +365,7 @@ The heartbeat never stops.
 
 ## Agentic Memory Layer-1 (sideline research)
 
-The live trader/injector above is unchanged. A separate research Arena lives in **`guardian-protocol/`** (start at [`GUARDIAN_L1.md`](./GUARDIAN_L1.md) → [`guardian-protocol/HANDOFF.md`](./guardian-protocol/HANDOFF.md)). Same monorepo, separate package — do not merge L1 simulator work into `agent.js` / hitch paths.
+The live trader/injector above is unchanged. A separate research Arena lives in **`guardian-protocol/`** (start at [`GUARDIAN_L1.md`](./GUARDIAN_L1.md) → [`guardian-protocol/HANDOFF.md`](./guardian-protocol/HANDOFF.md)). Same monorepo, separate package — do not merge L1 simulator work into `agent.js` / hitch paths. Operator hub for the live bot: [`BOARD.md`](./BOARD.md) → `/board`.
 
 *Built by DA | ᛞᚨᚡᛁᛞ — Clearwater, FL*
 *INFINITUM × IKN × The Living Network*

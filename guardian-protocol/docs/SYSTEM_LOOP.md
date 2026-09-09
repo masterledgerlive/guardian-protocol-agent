@@ -72,6 +72,8 @@ Report fields:
 
 ## Commands
 
+On the live Railway bot, the Control Board storage panel is `/board#arena` (`POST /board/api/sim`). CLI:
+
 ```bash
 npm test                 # includes sprint6-storage-token.test.js
 npm run arena:crypto-stress

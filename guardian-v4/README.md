@@ -12,6 +12,8 @@ The love note is still:
 
 It hitches **after a real leftover-covered swap**, not as a fake “data field” claim on a plain trade.
 
+**Control Board:** the live V3 webhook shows V4 **status + paper sim** at `/board#v4` (`GET /board/api/v4`). That does **not** start this process. To actually run V4 beside V3:
+
 ## Run separately
 
 ```bash

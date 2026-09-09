@@ -1,0 +1,104 @@
+/**
+ * HTTP tests for public Control Board routes (no live spend).
+ */
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { createVitaServer } from "./vita-webhook.js";
+
+let server;
+let base;
+
+before(async () => {
+  server = createVitaServer();
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  base = `http://127.0.0.1:${port}`;
+});
+
+after(async () => {
+  await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
+});
+
+async function get(path) {
+  const res = await fetch(base + path);
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* html */ }
+  return { res, text, json };
+}
+
+describe("control board HTTP", () => {
+  it("GET /board returns 200 HTML hub", async () => {
+    const { res, text } = await get("/board");
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type") || "", /text\/html/);
+    assert.match(text, /Control Board/);
+    assert.match(text, /SIM/);
+  });
+
+  it("GET / and /arena /engine still serve HTML", async () => {
+    const root = await get("/");
+    assert.equal(root.res.status, 200);
+    assert.match(root.text, /Control Board/);
+    const arena = await get("/arena");
+    assert.equal(arena.res.status, 200);
+    assert.match(arena.text, /Guardian Arena/);
+    const engine = await get("/engine");
+    assert.equal(engine.res.status, 200);
+    assert.match(engine.text, /Guardian Engine/);
+  });
+
+  it("GET /board/health lists mounted boards", async () => {
+    const { res, json } = await get("/board/health");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.boards.board.mounted, true);
+    assert.equal(json.boards.arena.mounted, true);
+    assert.equal(json.boards.engine.mounted, true);
+    assert.equal(json.boards.v4.sameProcess, false);
+  });
+
+  it("GET /health aliases board health", async () => {
+    const { res, json } = await get("/health");
+    assert.equal(res.status, 200);
+    assert.equal(json.service, "guardian-control-board");
+  });
+
+  it("GET /board/api/params is public read-only", async () => {
+    const { res, json } = await get("/board/api/params");
+    assert.equal(res.status, 200);
+    assert.equal(json.writable, false);
+    assert.equal(json.loseZeroRules.neverSellUnderwater, true);
+  });
+
+  it("GET /board/api/v4 documents separate process + catalog", async () => {
+    const { res, json } = await get("/board/api/v4");
+    assert.equal(res.status, 200);
+    assert.equal(json.startableFromThisWebhook, false);
+    assert.ok(json.start.loop.includes("start:v4"));
+    assert.ok(json.catalog.total >= 1);
+  });
+
+  it("POST /board/api/sim is labeled practice (no auth, no spend)", async () => {
+    const res = await fetch(base + "/board/api/sim", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cash: 8, seat: "LINK", movePct: -0.02, costEdge: false }),
+    });
+    const json = await res.json();
+    assert.equal(res.status, 200);
+    assert.match(json.kind, /simulated/);
+    assert.equal(json.arena.sold, false);
+    assert.equal(json.arena.loseZeroHeld, true);
+    assert.equal(json.v4.broadcast, false);
+  });
+
+  it("live queue still requires auth", async () => {
+    const res = await fetch(base + "/arena/api/queue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "buy", symbol: "LINK", usd: 2 }),
+    });
+    assert.equal(res.status, 401);
+  });
+});

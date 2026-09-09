@@ -74,8 +74,8 @@ export function parsePiggyPctValue(raw, fallback = DEFAULT_PIGGY_BANK_PCT) {
 }
 
 /**
- * `PIGGY_BANK_PCT` — fraction in (0, 1). Also accepts `2` as 2%.
- * Invalid / missing → 2%.
+ * `PIGGY_BANK_PCT` — fraction in (0, 1). Also accepts `5` as 5%.
+ * Invalid / missing → 5% (`DEFAULT_PIGGY_BANK_PCT`).
  *
  * Per-token override order (highest wins):
  *   1. `opts.piggyBankPct` from the catalog row
