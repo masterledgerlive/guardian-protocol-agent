@@ -169,10 +169,18 @@ import {
 } from "./avenue-prime.js";
 import {
   planSuccessionInjections,
-  isInstantPeakSell,
   isPrimedBottomEntry,
   formatSuccessionPlan,
 } from "./second-inject.js";
+import {
+  evaluatePeakRideExit,
+  updateRideHigh,
+  allowStalePeakExit,
+  isInstantPeakSell,
+  formatPeakRideDecision,
+  nearRideHigh,
+  peakTurnSigns,
+} from "./peak-ride.js";
 import {
   minBuyUsdForToken,
   operatorBuyBelowMin,
@@ -2632,6 +2640,11 @@ const staleCooldown  = {};  // { [symbol]: lastCascadeTime }
 // until the position is fully drained. Critical bug — causes massive over-selling.
 const fibLevelsExecuted = {}; // { [symbol]: Set<pct> } — e.g. { "BRETT": Set {1.000, 1.272} }
 
+// ── PEAK-RIDE HIGH-WATER (per open position) ──────────────────────────────────
+// Ratchets while holding so breakouts past hist maxPeak keep riding. Cleared
+// with fib memory on flat so the next inject starts a fresh ride high.
+const rideHighBySymbol = {}; // { [symbol]: number }
+
 function recordFibLevelExecuted(symbol, pct) {
   if (!fibLevelsExecuted[symbol]) fibLevelsExecuted[symbol] = new Set();
   fibLevelsExecuted[symbol].add(pct);
@@ -2643,6 +2656,7 @@ function isFibLevelAlreadyExecuted(symbol, pct) {
 
 function clearFibLevels(symbol) {
   fibLevelsExecuted[symbol] = new Set();
+  delete rideHighBySymbol[symbol];
 }
 
 
@@ -6509,8 +6523,10 @@ async function processToken(cdp, token, bal) {
     const entrySig = getSurferEntrySignal(token.symbol, price, ethUsd);
 
     // ── DECISIONS ──────────────────────────────────────────────────────────
-    // atMaxPeak: tightened to 0.5% tolerance — 1% was selling mid-wave.
-    // If we consistently miss peaks by >0.5%, raise WAVE_MIN_MOVE instead.
+    // Peak-ride protocol: hist maxPeak touch alone must NOT sell (breakouts
+    // ratchet a ride high-water and keep climbing). Sell when the peak is MADE
+    // (stagnant near high + turn), or fast-crash / safety nets after the high
+    // rose. Predicted peak only fires inside the peak zone (AIXBT lesson).
     const atMaxPeak    = maxPeak && price >= maxPeak * 0.995;
     // Peak / early / fib gates: charge only the sellable slice of entry + fees.
     // Leaving piggy dust behind must leave that cost behind too — otherwise
@@ -6565,23 +6581,68 @@ async function processToken(cdp, token, bal) {
       && netIfSellNow > breakEvenBuffer * 2
       && sellableUsdOk;
 
-    // Prediction-enhanced sell: fires at confirmed peak OR when cycle says peak is imminent
-    const predSell  = pred.ready && pred.action === "pre-sell" && pred.confidence >= PRED_CONFIDENCE_SELL;
-    // Instant peak: ride the wave, sell the moment the top prints with piggy-aligned profit
-    // (or last tick rolled over within 1% of max). Never sell underwater.
+    // Prediction-enhanced sell candidate — peak-ride gate requires peak zone
+    const predSellRaw = pred.ready && pred.action === "pre-sell" && pred.confidence >= PRED_CONFIDENCE_SELL;
     const recentTickDown = recentTks.length >= 2
       && recentTks[recentTks.length - 1] < recentTks[recentTks.length - 2];
+
+    // Ride high-water while holding — breakouts past hist max keep climbing
+    if (entry && sellableUsdOk) {
+      rideHighBySymbol[token.symbol] = updateRideHigh(rideHighBySymbol[token.symbol] || entry || price, price);
+    }
+    const rideHigh = rideHighBySymbol[token.symbol] || maxPeak || price;
+    const stagnantNearHigh = (() => {
+      const ref = stalePriceRef[token.symbol];
+      if (!ref || !(rideHigh > 0)) return false;
+      const moved = Math.abs(price - ref.price) / Math.max(ref.price, 1e-12);
+      const near = nearRideHigh({ price, rideHigh });
+      const elapsed = Date.now() - (ref.timestamp || 0);
+      return near && moved <= STALE_MOVE_PCT && elapsed >= Math.min(STALE_WINDOW_MS, 90_000);
+    })();
+    const turnSnap = peakTurnSigns({
+      recentTickDown,
+      macdCrossDown: !!ind.macd?.crossDown,
+      rsi: rsiVal,
+      rsiWasOverbought: rsiVal != null && rsiVal >= RSI_OVERBOUGHT,
+      stagnantNearHigh,
+      priceFallingFast,
+    });
+    const peakRide = evaluatePeakRideExit({
+      price,
+      entry: entry || 0,
+      rideHigh,
+      histMaxPeak: maxPeak,
+      predictedPeak: pred?.predictedPeak ?? pred4?.waves?.[0]?.high ?? null,
+      recentTickDown,
+      macdCrossDown: !!ind.macd?.crossDown,
+      rsi: rsiVal,
+      rsiWasOverbought: rsiVal != null && rsiVal >= RSI_OVERBOUGHT,
+      stagnantNearHigh,
+      priceFallingFast,
+      netUsd: netIfSellNow,
+      breakEvenBuffer,
+      sellableUsdOk,
+      predSell: predSellRaw,
+      earlySellSignal,
+      profitableSell,
+    });
     const instantPeakSell = isInstantPeakSell({
       atMaxPeak,
       price,
       maxPeak,
+      rideHigh,
       recentTickDown,
       netUsd: netIfSellNow,
       breakEvenBuffer,
       sellableUsdOk,
+      turnCount: turnSnap.count,
     });
-    const shouldSell = (atMaxPeak || predSell || earlySellSignal || profitableSell || instantPeakSell)
+    // Peak-ride is the authority: hist touch / mid-range pred no longer eject alone.
+    const shouldSell = (peakRide.sell || instantPeakSell)
                     && sellableUsdOk && netIfSellNow > breakEvenBuffer;
+    if (entry && sellableUsdOk && Math.random() < 0.04) {
+      console.log(`  🛡️ [${token.symbol}] ${formatPeakRideDecision(peakRide)}`);
+    }
 
     // ── WAVE ENTRY INTELLIGENCE v18 ─────────────────────────────────────────
     // minTrgh MUST be declared before stopLossPrice — PR #31 left a TDZ that
@@ -7064,16 +7125,26 @@ async function processToken(cdp, token, bal) {
       return;
     }
 
-    // ── SELL AT MAX PEAK ───────────────────────────────────────────────────
+    // ── SELL AT MAX PEAK / PEAK-RIDE TURN ──────────────────────────────────
     if (shouldSell) {
       pa.lastSellAlertPct = 100; // sold — reset on next buy
-      const sellReason = earlySellSignal && !atMaxPeak && !predSell && !instantPeakSell
-        ? `🚀 EARLY SELL RSI${rsiVal?.toFixed(0)} BB-upper near-peak $${maxPeak?.toFixed(8)||"?"}`
-        : predSell && !atMaxPeak && !instantPeakSell
-          ? `🧠 PREDICTED PEAK [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
-          : instantPeakSell && !atMaxPeak
-            ? `⚡ INSTANT PEAK $${maxPeak?.toFixed(8)||"?"} (tick-down, piggy-aligned profit)`
-            : `🎯 MAX PEAK $${maxPeak?.toFixed(8)||"?"}`;
+      const sellReason = (() => {
+        if (peakRide.sell && peakRide.kind) {
+          const tag =
+            peakRide.kind === "predicted_peak" ? "🧠 PREDICTED PEAK" :
+            peakRide.kind === "early_peak" ? `🚀 EARLY SELL RSI${rsiVal?.toFixed(0)}` :
+            peakRide.kind === "stagnant_top" ? "⏳ STAGNANT PEAK" :
+            peakRide.kind.startsWith("safety_") ? `🛟 SAFETY ${peakRide.kind.replace("safety_", "").toUpperCase()}` :
+            peakRide.kind === "fast_crash" ? "⚡ FAST CRASH" :
+            peakRide.kind === "profitable_peak" ? "📉 PROFITABLE PEAK TURN" :
+            "🎯 PEAK RIDE";
+          return `${tag} $${(peakRide.rideHigh || maxPeak || price).toFixed(8)} — ${peakRide.reason}`;
+        }
+        if (instantPeakSell && !atMaxPeak) {
+          return `⚡ INSTANT PEAK $${maxPeak?.toFixed(8)||"?"} (tick-down, piggy-aligned profit)`;
+        }
+        return `🎯 MAX PEAK $${maxPeak?.toFixed(8)||"?"} (turn confirmed)`;
+      })();
       const proceeds = await executeSell(cdp, token, 0.98, sellReason, price, false);
       if (proceeds > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, proceeds, nb); }
       return;
@@ -7084,6 +7155,7 @@ async function processToken(cdp, token, bal) {
       pa.lastBuyAlertPct = 100; // bought — reset sell alerts
       pa.lastSellAlertPct = 0;
       stalePriceRef[token.symbol] = { price, timestamp: Date.now() }; // seed stale tracker on buy
+      rideHighBySymbol[token.symbol] = price; // fresh ride high for this inject
       await executeBuy(cdp, token, bal, predBuy && !atMinTrough && !injectPullback && !primedBottom
         ? `🧠 PREDICTED TROUGH [${pred.confidence}% conf φ${pred.cyclePhase?.toFixed(0)}°]`
         : primedBottom && !atMinTrough && !injectPullback
@@ -7121,21 +7193,36 @@ async function processToken(cdp, token, bal) {
             ? token.totalInvestedEth * STALE_SELL_PCT * ethUsd : 0;
           const estNetUsd       = staleSellUsd - allInCostUsd - costBasisUsd;
           const profitOk        = estNetUsd >= STALE_MIN_NET_USD; // nickel floor
+          // Peak-ride: mid-climb stagnant must HOLD. Only cascade when near the
+          // ride high (peak made / flat-top) or turn signs after a risen peak.
+          const stalePeakOk = allowStalePeakExit({
+            stagnant: true,
+            nearHigh: nearRideHigh({ price, rideHigh }),
+            turnCount: turnSnap.count,
+            risen: !!peakRide.risen,
+            netUsdOk: profitOk && estNetUsd > 0,
+          });
 
-          if (staleSellUsd >= STALE_MIN_USD && profitOk) {
-            console.log(`  ⏰ [${token.symbol}] STALE CASCADE — ${(elapsed/60000).toFixed(0)}min no movement | est net $${estNetUsd.toFixed(3)} ✅`);
+          if (staleSellUsd >= STALE_MIN_USD && profitOk && stalePeakOk) {
+            console.log(`  ⏰ [${token.symbol}] STALE CASCADE — ${(elapsed/60000).toFixed(0)}min no movement near peak | est net $${estNetUsd.toFixed(3)} ✅`);
             await tg(
               `⏰ <b>STALE CASCADE — ${token.symbol}</b>\n` +
-              `No movement for ${(elapsed/60000).toFixed(0)} min (${(moved*100).toFixed(2)}% move)\n` +
+              `Peak-zone flat ${(elapsed/60000).toFixed(0)} min (${(moved*100).toFixed(2)}% move)\n` +
               `Selling ${(STALE_SELL_PCT*100).toFixed(0)}% — keeping ${(100-STALE_SELL_PCT*100).toFixed(0)}% riding\n` +
               `💰 ~$${staleSellUsd.toFixed(3)} gross | est net ~$${estNetUsd.toFixed(3)}\n` +
               `🐷 Each piggy pool gets ~$${(estNetUsd * PIGGY_SKIM_PCT * SKIM_LOTTERY_SHARE).toFixed(4)}`
             );
             staleCooldown[token.symbol] = now;
             stalePriceRef[token.symbol] = { price, timestamp: now };
-            const proceeds = await executeSell(cdp, token, STALE_SELL_PCT, `⏰ STALE CASCADE — ${(elapsed/60000).toFixed(0)}min no movement`, price, false);
+            const proceeds = await executeSell(cdp, token, STALE_SELL_PCT, `⏰ STALE CASCADE — ${(elapsed/60000).toFixed(0)}min peak-zone flat`, price, false);
             if (proceeds > 0) { const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, proceeds, nb); }
             return;
+          } else if (staleSellUsd >= STALE_MIN_USD && profitOk && !stalePeakOk) {
+            console.log(`  ⏰ [${token.symbol}] stale mid-climb — holding for peak turn (ride high $${Number(rideHigh).toFixed(6)})`);
+            // Do not reset timer forever; nudge timestamp so we re-check without spamming
+            if (elapsed > STALE_WINDOW_MS * 2) {
+              stalePriceRef[token.symbol] = { price: ref.price, timestamp: now - STALE_WINDOW_MS };
+            }
           } else if (staleSellUsd >= STALE_MIN_USD && !profitOk) {
             // Would cascade but not profitable enough — log and wait for next wave
             console.log(`  ⏰ [${token.symbol}] stale but not profitable yet — est net $${estNetUsd.toFixed(3)} < $${STALE_MIN_NET_USD} floor. Holding for next wave.`);
