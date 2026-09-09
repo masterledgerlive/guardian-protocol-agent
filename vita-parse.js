@@ -92,6 +92,24 @@ function mergeFact(a, b) {
   return parts.join("|");
 }
 
+/** Hitch §LOC§ is a squash token — never union n=0 with a denser encoding. */
+export function locCount(token) {
+  const m = String(token || "").match(/(?:^|\|)n=(\d+)/);
+  return m ? Number(m[1]) || 0 : 0;
+}
+
+export function mergeLocToken(prev, next) {
+  const a = String(prev || "").trim();
+  const b = String(next || "").trim();
+  if (!b) return a;
+  if (!a) return b;
+  const na = locCount(a);
+  const nb = locCount(b);
+  if (nb === 0 && na > 0) return a;
+  if (na > nb) return a;
+  return b;
+}
+
 export function measureVitaText(text, { bytes = false } = {}) {
   const s = String(text || "");
   if (!bytes) return s.length;
@@ -170,7 +188,8 @@ function clipKeyPreservingNames(key, max, measure) {
 
 /**
  * Merge prev packet + new facts. Recursive memory: last strand becomes
- * the stem; new facts overwrite denser values; KEY/LOC union.
+ * the stem. KEY unions. §LOC§ is a squash token — keep the denser n=,
+ * never concatenate n=0 with a sealed encoding.
  */
 export function refineVitaPacket(prevPacketOrFields, nextFields = {}, { maxChars = VITA_CHAR_BUDGET } = {}) {
   const prev = typeof prevPacketOrFields === "string"
@@ -181,7 +200,7 @@ export function refineVitaPacket(prevPacketOrFields, nextFields = {}, { maxChars
     const a = prev[key];
     const b = nextFields[key];
     if (a == null && b == null) continue;
-    merged[key] = mergeFact(a, b);
+    merged[key] = key === "LOC" ? mergeLocToken(a, b) : mergeFact(a, b);
   }
   const clipped = clipVitaPacket(merged, maxChars);
   return {

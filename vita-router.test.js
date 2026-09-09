@@ -19,6 +19,7 @@ import {
   refineVitaPacket,
   measureVitaText,
   vitaQuality,
+  mergeLocToken,
 } from "./vita-parse.js";
 import {
   LOC_SQUASH_DELTA,
@@ -130,6 +131,20 @@ describe("vita-parse §TOKEN§", () => {
     const b = refineVitaPacket(a.packed, { PROVED: "hour1-ok✓" });
     assert.ok(b.fields.KEY.includes("Koda"));
     assert.ok(b.fields.PROVED.includes("hour1-ok✓"));
+  });
+
+  it("refines §LOC§ to the denser squash token instead of unioning n=0", () => {
+    const genesis = buildGenesisPacket();
+    assert.match(parseVitaPacket(genesis).fields.LOC, /n=0/);
+    const dense = "n=12|t=abcd|r=0011|Δ=aa,bb,cc,dd,ee,ff";
+    const a = refineVitaPacket(genesis, { LOC: dense });
+    assert.equal(a.fields.LOC.includes("n=0"), false);
+    assert.equal(a.fields.LOC.startsWith("n=12"), true);
+    assert.equal(a.fields.LOC.includes("n=12|n="), false);
+    const back = refineVitaPacket(a.packed, { LOC: "n=0|t=0000", LEARN: "stamp" });
+    assert.equal(back.fields.LOC.startsWith("n=12"), true);
+    assert.ok(back.fields.KEY.includes("Koda"));
+    assert.equal(mergeLocToken("n=3|t=aaaa", "n=8|t=bbbb"), "n=8|t=bbbb");
   });
 
   it("clips over-budget packets but keeps KEY and LOC while they fit", () => {
