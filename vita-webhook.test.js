@@ -122,6 +122,9 @@ describe("control board HTTP", () => {
     assert.equal(json.botPiggy.grokNowUsdPerMonth, 20);
     assert.equal(json.botPiggy.grokProUsdPerMonth, 60);
     assert.equal(json.botPiggy.provenRevenue, null);
+    assert.equal(json.vitaRouter.kind, "vita-secondary-router");
+    assert.equal(json.vitaRouter.mode, "vita");
+    assert.equal(json.vitaRouter.loseZero.proveKeepsLoveNote, true);
   });
 
   it("GET /board/api/snapshot demo includes inject + bot piggy and a deferred V4 stub", async () => {
@@ -132,6 +135,7 @@ describe("control board HTTP", () => {
     assert.equal(json.botPiggy.kind, "demo|example");
     assert.equal(json.v4.deferred, true);
     assert.equal(json.v4.sameProcessAsV3, false);
+    assert.equal(json.vitaRouter.kind, "vita-secondary-router");
     assert.ok(Array.isArray(json.engine.waves[0].series));
     assert.ok(json.engine.waves[0].series.length >= 8);
   });
@@ -152,5 +156,10 @@ describe("control board HTTP", () => {
       body: JSON.stringify({ action: "buy", symbol: "LINK", usd: 2 }),
     });
     assert.equal(res.status, 401);
+  });
+
+  it("GET /vita/router requires auth and reports vita mode", async () => {
+    const open = await get("/vita/router");
+    assert.equal(open.res.status, 401);
   });
 });

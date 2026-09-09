@@ -298,6 +298,14 @@ import {
   nextVitaModel,
   vitaModelStatusMessage,
 } from "./vita-models.js";
+import {
+  formatRouterMessage,
+  planSecondaryHitch,
+  parseHitchTrailer,
+  setHitchModeOverride,
+} from "./vita-router.js";
+import { recordLocation } from "./vita-locations.js";
+import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -4652,29 +4660,29 @@ function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 300
   return hitch.ok && hitch.onChain ? hitch.data : swapCall;
 }
 
-/** Size-limited §$STORE§ + VITA letter. Telegram may claim this only if onChain. */
+/** Size-limited hitch via VITA secondary router (default §TOKEN§, not love-note prose). */
 function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = storeVoiceEnabled() } = {}) {
   if (!enabled || skipHitch || !swapData) {
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none" };
   }
-  const text = buildStoreVoice({
-    tag: STORE_HITCH_TAG,
-    message: VITA_PROOF_FULL,
-    maxBytes,
-  });
-  const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
+  const planned = planSecondaryHitch({ skipHitch, maxBytes });
+  if (!planned.utf8) {
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved };
+  }
+  const hitch = appendUtf8Hitch(swapData, planned.utf8, { maxBytes });
   if (!hitch.ok || !hitch.onChain) {
     if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved };
   }
   const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
   if (!prefix.ok) {
     console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved };
   }
-  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B on swap — Basescan Input Data → View as UTF-8`);
-  console.log(`      "${hitch.utf8}"`);
-  return hitch;
+  const parsed = parseHitchTrailer(hitch.utf8);
+  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B [${planned.resolved}/${parsed.kind}] — Basescan Input Data → View as UTF-8`);
+  console.log(`      "${hitch.utf8.slice(0, 120)}${hitch.utf8.length > 120 ? "…" : ""}"`);
+  return { ...hitch, vitaMode: planned.resolved, vitaKind: parsed.kind };
 }
 
 function hitchTelegramFooter(hitch, txHash) {
@@ -4752,6 +4760,13 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
     };
   }
   lastStoreVoiceProofAt = Date.now();
+  recordLocation({
+    location: transactionHash,
+    kind: "prove",
+    sealed: true,
+    utf8: text,
+    hitchKind: "eureka",
+  });
   console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
   console.log(`      "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`);
   return {
@@ -4851,8 +4866,19 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
 }
 
 /** Record a mined hitch injection toward the 20-prove capital milestone. */
-function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?" } = {}) {
+function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?", txHash = null, utf8 = "" } = {}) {
   if (!onChain) return null;
+  if (txHash) {
+    const kind = parseHitchTrailer(utf8).kind;
+    recordLocation({
+      location: txHash,
+      kind: "hitch",
+      sealed: true,
+      utf8,
+      symbol,
+      hitchKind: kind,
+    });
+  }
   hitchInjectCount++;
   const pnl = Number(netUsd) || 0;
   if (pnl !== 0) hitchInjectProfitUsd += pnl;
@@ -5644,7 +5670,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), projectedEarningsUsd: token.projectedEarningsUsd, minSellPrice: token.minSellPrice, piggySavedUsd: token.savedEarningsUsd, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
-    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol });
+    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol, txHash, utf8: buyVoice.utf8 || "" });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
     if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
@@ -6135,7 +6161,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const piggyRow = tokenPiggyLedgers[token.symbol] || {};
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
     await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, earningsUsd, hitchCostUsd: hitchCostEth * ethUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, soldFrac, piggyDustLeft:piggy.remainingReserve, piggyDustUsd: piggy.remainingReserve * price, piggyBankedUsd: actualBank, piggySavedUsd: piggyRow.savedEarningsUsd || 0, piggyUnlock:piggy.unlock, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
-    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol });
+    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol, txHash: transactionHash, utf8: sellVoice.utf8 || "" });
     if (earningsUsd < 0 || netUsd < 0) {
       recordCostMistake({
         symbol: token.symbol,
@@ -9384,11 +9410,26 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       } else if (text === "/voiceon") {
         STORE_VOICE_ENABLED = true;
-        await tg("📡 <b>UTF-8 VOICE ON</b>\n§$STORE§ hitch rides leftover swaps. /prove sends a dedicated 0-ETH letter.");
+        await tg("📡 <b>UTF-8 VOICE ON</b>\nVITA §TOKEN§ hitch rides leftover swaps (love note stays in §KEY§). /prove still sends the dedicated Eureka letter.");
 
       } else if (text === "/voiceoff") {
         STORE_VOICE_ENABLED = false;
         await tg("📡 <b>UTF-8 VOICE OFF</b>\nSwaps stay plain. /prove will refuse until /voiceon.");
+
+      } else if (text === "/vitarouter") {
+        await tg(formatRouterMessage());
+
+      } else if (text === "/vitacourse") {
+        await tg(formatCourseMessage(evaluateVitaCourse()));
+
+      } else if (text && text.startsWith("/vitamode ")) {
+        const mode = raw.slice("/vitamode ".length).trim().toLowerCase();
+        const r = setHitchModeOverride(mode);
+        if (!r.ok) {
+          await tg("❌ " + r.reason);
+        } else {
+          await tg("🔀 <b>VITA MODE</b> → <code>" + r.mode + "</code>\n" + formatRouterMessage());
+        }
 
       } else if (text === "/models") {
         await tg(vitaModelStatusMessage());
@@ -10688,7 +10729,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/unwrapall — unwrap all WETH → ETH\n\n` +
           `<b>📡 Blockchain Telegram:</b>\n` +
           `/prove — write §$STORE§ Eureka! letter as UTF-8 on a 0-ETH self-tx (Basescan Input Data → UTF-8)\n` +
-          `/voiceon /voiceoff — hitch the letter on leftover swaps (independent of BTP suspend)\n` +
+          `/voiceon /voiceoff — hitch leftover swaps (VITA §TOKEN§ by default; /prove keeps the love note)\n` +
+          `/vitarouter — secondary hitch router (vita|eureka|hat|auto)\n` +
+          `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
+          `/vitacourse — hourly memory/inject scorecard\n` +
           `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
           `/transmit [msg] — queue a custom BTP message on later trades\n` +
           `/btpstatus — show pending transmissions\n\n` +
@@ -10719,7 +10763,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
           `/vitamemory — show all VITA memory sessions\n` +
-          `/vitarecall — show recent memory context\n\n` +
+          `/vitarecall — show recent memory context\n` +
+          `/vitarouter — hitch payload switch + location squash\n` +
+          `/vitacourse — hourly inject-without-loss scorecard\n\n` +
           `/remember [text] — save cliff note, rides next trade\n` +
           `/savesession — inscribe full session summary on Base\n` +
           `/memories — show all memory chunks\n` +

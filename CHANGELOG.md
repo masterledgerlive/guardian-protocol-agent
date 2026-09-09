@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash
+
+Activate VITA as the hitch payload (not the Eureka love-note prose). Uniswap stays the
+primary swap router; this is the **secondary** trailer switch (`VITA_HITCH_MODE`,
+default **vita**). Love note is encoded in `§KEY§` so it is not lost. `/prove` still
+writes the full Eureka letter as genesis identity.
+
+Locations (tx hashes / node ids) stay append-only; hitch only carries a squashed
+`§LOC§` token (count + root + tip + last-6 shorts). Hourly `evaluateVitaCourse`
+scores inject-without-loss vs leftover-skips (skips are lose-zero, not memory loss).
+
+- `vita-parse.js` — §TOKEN§ parse / refine / 2000-char clip (KEY+LOC first)
+- `vita-locations.js` — append-only depository + squash
+- `vita-router.js` — eureka | vita | hat | auto pipeline switch
+- `vita-course.js` — hourly scorecard
+- Telegram `/vitarouter` `/vitamode` `/vitacourse`
+- HTTP `GET /vita/router` `/vita/locations` `/vita/course` (auth) + public inject `vitaRouter`
+
 ### Added — HAT smile demo: 8×8×8-bit picture → locations → reader
 
 Quick proof before huge HTML: encode a slow-rez smile, seal chunk locations,

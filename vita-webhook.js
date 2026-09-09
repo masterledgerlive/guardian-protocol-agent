@@ -20,7 +20,10 @@
 //   POST /engine/api/queue    — ride / trick / message / surfer commands (auth)
 //   GET  /vita/context        — latest compressed memory for new session start
 //   GET  /vita/registry       — full filing registry (all sessions)
-//   GET  /vita/read?f=FILE    — read any GitHub file VITA has access to
+//   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
+//   GET  /vita/locations     — squashed location depository
+//   GET  /vita/course        — hourly inject-without-loss scorecard
+//   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
 //
@@ -45,6 +48,9 @@ import {
   boardWaveTile,
   v4BoardStatus,
 } from "./board-control.js";
+import { vitaRouterStatus } from "./vita-router.js";
+import { locDepositoryStatus } from "./vita-locations.js";
+import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -211,8 +217,9 @@ function healthPayload() {
 
 function boardSnapshotPayload(authorized) {
   const demo = demoBoardSnapshot();
+  const vitaRouter = vitaRouterStatus();
   if (!authorized || !botState) {
-    return { ...demo, note: "demo — authorize with x-vita-secret for live waves / ledger" };
+    return { ...demo, vitaRouter, note: "demo — authorize with x-vita-secret for live waves / ledger" };
   }
   const engine = engineSnapshotPayload();
   const arena = snapshotPayload();
@@ -225,6 +232,7 @@ function boardSnapshotPayload(authorized) {
     params: readLiveParamSnapshot(),
     inject,
     capacity,
+    vitaRouter,
     botPiggy: modelBotUsagePiggy({
       hitchTagUsd: capacity.hitchTagUsd,
       leftoverUsd: capacity.leftoverUsd,
@@ -291,6 +299,7 @@ async function handleVitaRequest(req, res) {
       return json(res, {
         ...listV3InjectSurfaces(),
         capacity,
+        vitaRouter: vitaRouterStatus(),
         botPiggy: modelBotUsagePiggy({
           hitchTagUsd: capacity.hitchTagUsd,
           leftoverUsd: capacity.leftoverUsd,
@@ -365,8 +374,19 @@ async function handleVitaRequest(req, res) {
     // Everything under /vita/* still requires auth
     if (!isAuthorized(req)) return err(res, "unauthorized", 401);
 
+    // ── GET /vita/router — secondary hitch switch + loc squash (no bot required)
+    if (path === "/vita/router" && req.method === "GET") {
+      return json(res, { ok: true, ...vitaRouterStatus() });
+
+    } else if (path === "/vita/locations" && req.method === "GET") {
+      return json(res, { ok: true, ...locDepositoryStatus() });
+
+    } else if (path === "/vita/course" && req.method === "GET") {
+      const course = evaluateVitaCourse();
+      return json(res, { ok: true, ...course, telegram: formatCourseMessage(course) });
+
     // ── GET /vita/context — compressed memory for new Claude session ────────
-    if (path === "/vita/context" && req.method === "GET") {
+    } else if (path === "/vita/context" && req.method === "GET") {
       if (!botState?.githubGet) return err(res, "bot not ready");
 
       let registry = {};
@@ -420,6 +440,7 @@ async function handleVitaRequest(req, res) {
         "ledger.json","positions.json","tokens.json","vita-registry.json",
         "engine-board.js","peak-ride.js","second-inject.js","piggy-bank.js",
         "board-control.js","BOARD.md",
+        "vita-parse.js","vita-locations.js","vita-router.js","vita-course.js",
       ];
       if (!allowed.includes(filename)) return err(res, "file not in allowed list");
 
@@ -500,6 +521,9 @@ export function startVitaWebhook() {
     console.log("   /engine/api/*   — engine waves + ride/trick/message queue (auth)");
     console.log("   /vita/context  — memory context for new Claude session");
     console.log("   /vita/registry — full filing registry");
+    console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
+    console.log("   /vita/locations — squashed location depository");
+    console.log("   /vita/course   — hourly inject-without-loss scorecard");
     console.log("   /vita/read     — read GitHub files");
     console.log("   /vita/status   — live bot status");
   });
