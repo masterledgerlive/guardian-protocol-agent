@@ -345,7 +345,7 @@ describe("buildBuyGateDecision", () => {
     assert.match(d.log, /MANUAL BUY \(operator\) plain swap/);
   });
 
-  it("operator /buy with leftover covering hitch still hitch Eureka", () => {
+  it("operator /buy with leftover covering hitch still hitch VITA leftover", () => {
     const d = buildBuyGateDecision({
       symbol: "TOSHI",
       reason: manualBuyReason(3),
