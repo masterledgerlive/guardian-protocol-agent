@@ -3,7 +3,9 @@
 **One hub** for humans and agent bots. Do not hunt README / HANDOFF / Telegram `/help` / scattered markdown for “where do I tune this?”
 
 Live URL: `https://guardian-protocol-agent-production.up.railway.app/board`  
-Health: `/board/health` (also `/health`)
+Health: `/board/health` (also `/health`)  
+V3 Arena (unchanged): `/` and `/arena` · Engine: `/engine`  
+V4 docs only: `/v4` (does **not** start or merge V4)
 
 | Open this | What it is |
 |---|---|
@@ -38,17 +40,17 @@ Health: `/board/health` (also `/health`)
 - Vault never spends.
 - No invented P&L.
 
-## Uniswap V4 beside V3
+## Uniswap V4 beside V3 (hard isolation)
 
-V4 is **not** started by this webhook. Catalog + paper sim live on `/board#v4` and `GET /board/api/v4`.
+V4 is **never** loaded into `agent.js` or the V3 webhook runtime. No shared lockfile, state, or swap encoder. The hub **links** to `/v4` (docs + lockfile status). It does **not** encode Universal Router calldata or start the offshoot.
 
 ```bash
-npm run start:v4 -- --once    # paper cycle, then exit
+npm run start:v4 -- --once    # paper cycle, then exit (separate process)
 npm run start:v4              # loop (still DRY_RUN=yes by default)
 npm run test:v4
 ```
 
-Env prefix `GUARDIAN_V4_*`. Isolated lockfile + `guardian-v4/state/`. Root `agent.js` (V3) is untouched.
+Env prefix `GUARDIAN_V4_*`. Isolated lockfile `guardian-v4/state/guardian-v4.lock`. Root `tokens.json` / `positions.json` / V3 live swaps untouched.
 
 ## What used to be scattered
 
@@ -58,7 +60,7 @@ Env prefix `GUARDIAN_V4_*`. Isolated lockfile + `guardian-v4/state/`. Root `agen
 | `public/arena.html` “default 2% piggy” | **stale** vs code default **5%** | board snapshot + this file |
 | `guardian-protocol/HANDOFF.md` + `docs/AGENT_ARENA.md` | L1 strategy Arena | sideline — not `/arena` |
 | `guardian-protocol/docs/SYSTEM_LOOP.md` | storage-token loop CLI | `/board` storage panel + `npm run sim:capacity` |
-| `guardian-v4/README.md` | CLI-only V4 | `/board#v4` status + same start commands |
+| `guardian-v4/README.md` | CLI-only V4 | `/v4` docs page + `/board#v4` panel (no V4 runtime in V3) |
 | Telegram `/help` | commands only | still valid; board is the visual cheatsheet |
 
 Deep docs remain where they are (architecture, constitution, whitepaper). This file is the **operator on-ramp**.

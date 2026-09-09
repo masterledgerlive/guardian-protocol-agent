@@ -269,27 +269,27 @@
     </section>
 
     <section id="v4">
-      <h2>4 · Uniswap V4 offshoot</h2>
+      <h2>4 · Uniswap V4 offshoot (SEPARATE process)</h2>
       <p class="hint">
         <span class="pill warn" id="v4RunPill">separate process</span>
-        Not this Railway V3 webhook. Start beside V3 with <code>GUARDIAN_V4_*</code> env. Default <code>GUARDIAN_V4_DRY_RUN=yes</code> (paper calldata, no broadcast).
+        This panel is <strong>docs + lockfile status only</strong>. It does not start V4, does not encode V4 swaps,
+        and has no V3 live buttons. V3 injector stays <code>agent.js</code>. V4 stays <code>npm run start:v4</code> with <code>GUARDIAN_V4_*</code>.
       </p>
+      <div class="cta-row">
+        <a class="btn" href="/v4">Open V4-only docs page</a>
+        <a class="btn ghost" href="https://github.com/masterledgerlive/guardian-protocol-agent/blob/main/guardian-v4/README.md" target="_blank" rel="noreferrer">guardian-v4/README.md</a>
+      </div>
       <div class="grid-2" id="v4Stats"></div>
       <pre class="mono" id="v4Start">npm run start:v4 -- --once
 npm run start:v4
 npm run test:v4</pre>
       <div style="overflow:auto; margin-top:0.6rem">
         <table>
-          <thead><tr><th>Symbol</th><th>Status</th><th>Fee</th><th>Liq</th><th>Notes</th></tr></thead>
-          <tbody id="v4Body"><tr><td colspan="5">Loading catalog…</td></tr></tbody>
+          <thead><tr><th>Symbol</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody id="v4Body"><tr><td colspan="3">Loading catalog names…</td></tr></tbody>
         </table>
       </div>
-      <div class="cta-row" style="margin-top:0.7rem">
-        <label for="v4Seat" style="margin:0;align-self:center">V4 sim seat</label>
-        <select id="v4Seat" style="max-width:10rem"><option>DOT</option></select>
-        <button type="button" id="btnV4Sim">Run V4 paper inject</button>
-      </div>
-      <pre id="v4Out">Paper inject — hitch if leftover covers, else plain. Never broadcasts from this board.</pre>
+      <pre id="v4Out">No V4 inject from this V3 hub. Use the CLI in a separate process (DRY_RUN=yes by default).</pre>
     </section>
 
     <section id="live">
@@ -424,9 +424,9 @@ npm run test:v4</pre>
       pill.className = "pill " + (running ? "ok" : "warn");
       document.getElementById("v4Stats").innerHTML = [
         ["Same process as V3", "no"],
-        ["Startable from /board", "no — use CLI"],
-        ["DRY_RUN default", yn(v.dryRunDefault)],
-        ["Injectable", (v.catalog?.injectable || []).join(", ") || "—"],
+        ["Loads V4 runtime", yn(v.loadsV4Runtime)],
+        ["Encodes V4 swaps here", yn(v.encodesV4Swaps)],
+        ["Startable from this webhook", "no — CLI only"],
       ].map(([k, val]) => `<div class="stat"><span>${k}</span><b>${val}</b></div>`).join("");
       document.getElementById("v4Start").textContent = (v.start?.once || "") + "\n" + (v.start?.loop || "") + "\n" + (v.start?.tests || "");
       const rows = v.avenues || [];
@@ -434,14 +434,9 @@ npm run test:v4</pre>
         <tr>
           <td>${t.symbol}${t.injectMain ? ' <span class="pill fav">main</span>' : ""}</td>
           <td>${t.status}</td>
-          <td>${t.feePct ?? "—"}%</td>
-          <td>${t.liqUsd ? Math.round(t.liqUsd).toLocaleString() : "—"}</td>
           <td>${t.notes || ""}</td>
         </tr>`).join("");
-      const sel = document.getElementById("v4Seat");
-      const keep = sel.value;
-      sel.innerHTML = rows.map(t => `<option value="${t.symbol}">${t.symbol}</option>`).join("");
-      if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+      document.getElementById("v4Out").textContent = v.isolation || "V4 stays isolated.";
     }
 
     async function refresh() {
@@ -473,7 +468,6 @@ npm run test:v4</pre>
         haltNewEntries: document.getElementById("simHalt").checked,
         costEdge: document.getElementById("simCost").checked,
         peakRide: document.getElementById("simPeak").checked,
-        v4Symbol: document.getElementById("v4Seat").value || "DOT",
       };
     }
 
@@ -502,17 +496,6 @@ npm run test:v4</pre>
         horizons: data.storage?.horizons,
         note: data.storage?.note,
       }, null, 2);
-    };
-
-    document.getElementById("btnV4Sim").onclick = async () => {
-      const body = simBody();
-      const res = await fetch("/board/api/sim", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      document.getElementById("v4Out").textContent = JSON.stringify(data.v4, null, 2);
     };
 
     document.getElementById("btnCopyLive").onclick = () => {

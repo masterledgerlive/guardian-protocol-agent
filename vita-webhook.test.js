@@ -36,16 +36,20 @@ describe("control board HTTP", () => {
     assert.match(text, /SIM/);
   });
 
-  it("GET / and /arena /engine still serve HTML", async () => {
+  it("GET / stays Arena; /arena /engine unchanged; /board and /v4 are additive", async () => {
     const root = await get("/");
     assert.equal(root.res.status, 200);
-    assert.match(root.text, /Control Board/);
+    assert.match(root.text, /Guardian Arena/);
     const arena = await get("/arena");
     assert.equal(arena.res.status, 200);
     assert.match(arena.text, /Guardian Arena/);
     const engine = await get("/engine");
     assert.equal(engine.res.status, 200);
     assert.match(engine.text, /Guardian Engine/);
+    const v4 = await get("/v4");
+    assert.equal(v4.res.status, 200);
+    assert.match(v4.text, /SEPARATE PROCESS/);
+    assert.doesNotMatch(v4.text, /Queue buy/);
   });
 
   it("GET /board/health lists mounted boards", async () => {
@@ -56,6 +60,7 @@ describe("control board HTTP", () => {
     assert.equal(json.boards.arena.mounted, true);
     assert.equal(json.boards.engine.mounted, true);
     assert.equal(json.boards.v4.sameProcess, false);
+    assert.equal(json.boards.v4.loadsV4Runtime, false);
   });
 
   it("GET /health aliases board health", async () => {
@@ -71,10 +76,12 @@ describe("control board HTTP", () => {
     assert.equal(json.loseZeroRules.neverSellUnderwater, true);
   });
 
-  it("GET /board/api/v4 documents separate process + catalog", async () => {
+  it("GET /board/api/v4 documents separate process and does not encode swaps", async () => {
     const { res, json } = await get("/board/api/v4");
     assert.equal(res.status, 200);
     assert.equal(json.startableFromThisWebhook, false);
+    assert.equal(json.encodesV4Swaps, false);
+    assert.equal(json.loadsV4Runtime, false);
     assert.ok(json.start.loop.includes("start:v4"));
     assert.ok(json.catalog.total >= 1);
   });
@@ -90,7 +97,8 @@ describe("control board HTTP", () => {
     assert.match(json.kind, /simulated/);
     assert.equal(json.arena.sold, false);
     assert.equal(json.arena.loseZeroHeld, true);
-    assert.equal(json.v4.broadcast, false);
+    assert.equal(json.v4, undefined);
+    assert.match(json.label, /does not encode V4/);
   });
 
   it("live queue still requires auth", async () => {

@@ -1,9 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   readLiveParamSnapshot,
   runArenaLearnSim,
-  runV4PaperSim,
   runBoardSim,
   boardHealth,
   demoBoardSnapshot,
@@ -86,21 +86,25 @@ describe("runArenaLearnSim", () => {
   });
 });
 
-describe("runV4PaperSim", () => {
-  it("encodes DOT paper inject without broadcasting", () => {
-    const r = runV4PaperSim({ symbol: "DOT", leftoverCover: true });
-    assert.equal(r.ok, true);
-    assert.equal(r.broadcast, false);
-    assert.equal(r.kind, "simulated|v4-paper");
-    assert.equal(r.symbol, "DOT");
-    assert.equal(r.hitchOnChain, true);
-    assert.ok(r.calldataChars > 10);
+describe("V3/V4 isolation", () => {
+  it("does not import guardian-v4 runtime from the V3 hub modules", () => {
+    const board = readFileSync(new URL("./board-control.js", import.meta.url), "utf8");
+    const hook = readFileSync(new URL("./vita-webhook.js", import.meta.url), "utf8");
+    assert.equal(/from\s+["']\.\/guardian-v4\//.test(board), false);
+    assert.equal(/from\s+["']\.\/guardian-v4\//.test(hook), false);
+    assert.equal(/encodeV4ExactInSwap|runV4PaperSim/.test(board), false);
   });
 
-  it("skips hitch when leftover is thin (plain swap, no loss)", () => {
-    const r = runV4PaperSim({ symbol: "DOT", leftoverCover: false });
-    assert.equal(r.hitchOnChain, false);
-    assert.match(r.hitchReason, /plain|cover/i);
+  it("reports V4 as a separate process that this webhook cannot start or encode", () => {
+    const v = v4BoardStatus();
+    assert.equal(v.sameProcessAsV3, false);
+    assert.equal(v.startableFromThisWebhook, false);
+    assert.equal(v.encodesV4Swaps, false);
+    assert.equal(v.loadsV4Runtime, false);
+    assert.ok(v.start.loop.includes("start:v4"));
+    assert.equal(v.envPrefix, "GUARDIAN_V4_");
+    assert.ok(Array.isArray(v.avenues));
+    assert.ok(v.avenues.every((t) => !t.poolId && !t.address));
   });
 });
 
@@ -112,37 +116,33 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(h.boards.arena.mounted, true);
     assert.equal(h.boards.engine.mounted, true);
     assert.equal(h.boards.v4.sameProcess, false);
+    assert.equal(h.boards.v4.loadsV4Runtime, false);
+    assert.equal(h.boards.v4.path, "/v4");
     assert.equal(h.boards.l1_arena.mounted, false);
     assert.equal(h.apis.sim.mutate, false);
     assert.equal(BOARD_PATHS.hub, "/board");
   });
 
-  it("demo snapshot includes params, waves, and V4 catalog", () => {
+  it("demo snapshot includes params, waves, and V4 docs status", () => {
     const d = demoBoardSnapshot({});
     assert.equal(d.demo, true);
     assert.ok(d.engine.waves.length >= 3);
     assert.ok(d.v4.catalog.total >= 1);
+    assert.equal(d.v4.encodesV4Swaps, false);
     assert.equal(d.invariants.neverSellUnderwater, true);
     assert.deepEqual(d.invariants, LOSE_ZERO_INVARIANTS);
   });
 });
 
-describe("runBoardSim + v4BoardStatus", () => {
-  it("bundles arena + storage loop + v4 paper without live spend", () => {
+describe("runBoardSim", () => {
+  it("runs V3 practice only — no V4 encode payload", () => {
     const b = runBoardSim({ cash: 8, seat: "LINK", movePct: 0.06, costEdge: false });
     assert.equal(b.ok, true);
     assert.match(b.kind, /simulated/);
     assert.equal(b.arena.ok, true);
     assert.equal(b.storage.ok, true);
-    assert.equal(b.v4.broadcast, false);
+    assert.equal(b.v4, undefined);
+    assert.match(b.label, /does not encode V4/);
     assert.equal(b.invariants.vaultNeverSpend, true);
-  });
-
-  it("reports V4 as not startable from this webhook", () => {
-    const v = v4BoardStatus();
-    assert.equal(v.sameProcessAsV3, false);
-    assert.equal(v.startableFromThisWebhook, false);
-    assert.ok(v.start.loop.includes("start:v4"));
-    assert.ok(Array.isArray(v.avenues));
   });
 });

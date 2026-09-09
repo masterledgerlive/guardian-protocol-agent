@@ -169,7 +169,7 @@ encryptkey.js         — One-time key encryption + inscription tool
 - **Control Board (start here)**: `https://guardian-protocol-agent-production.up.railway.app/board` — one hub for waves, Arena learn, param sim, V4 status. See [`BOARD.md`](./BOARD.md). Demo/sim by default; live queue needs `VITA_WEBHOOK_SECRET`.
 - **Arena board**: `/arena` — ledger game + practice sims (also embedded from the hub). LINK favorite inject main with **8%** piggy leave-behind (global default **5%** / **$0.15** dust floor — not 2%).
 - **Engine board**: `/engine` — wave dance hardware view (waveforms, hitch/piggy lights, ride / trick-out). Demo without a secret; live queue needs `VITA_WEBHOOK_SECRET`.
-- **V4 offshoot**: separate process `npm run start:v4` (`GUARDIAN_V4_*`). Status + paper sim on `/board#v4` — not started by this webhook.
+- **V4 offshoot**: separate process `npm run start:v4` (`GUARDIAN_V4_*`). Docs page `/v4` — not started by this webhook, not merged into `agent.js`.
 
 ---
 

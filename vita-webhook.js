@@ -4,13 +4,15 @@
 // ───────────────────────────────────────────────────────────────────────────────
 // Runs a tiny HTTP server alongside the trading bot.
 //
-//   GET  /board               — Control Board hub (waves + arena learn + V4)
+//   GET  /board               — Control Board hub (V3 waves + arena learn; V4 docs panel)
 //   GET  /board/health        — which boards are mounted (also GET /health)
 //   GET  /board/api/params    — read-only live knobs (public)
 //   GET  /board/api/snapshot  — hub snapshot (demo public; live if authorized)
-//   POST /board/api/sim       — labeled practice sim (public, no spend)
-//   GET  /board/api/v4        — V4 catalog + start commands (public, no start)
+//   POST /board/api/sim       — labeled V3 practice sim (public, no spend, no V4 encode)
+//   GET  /board/api/v4        — V4 offshoot status + start commands (public, does not start V4)
+//   GET  /v4                  — V4-only docs page (not the V3 injector)
 //   GET  /arena               — Guardian Arena HTML (public learning board)
+//   GET  /                  — same as /arena (original live path)
 //   GET  /arena/api/snapshot  — live ledger snapshot (auth)
 //   POST /arena/api/queue     — queue Telegram-equivalent commands (auth)
 //   GET  /engine              — Guardian Engine HTML (wave / surfer / hitch board)
@@ -41,7 +43,7 @@ import {
 } from "./board-control.js";
 
 function listenPort() {
-  return Number(process.env.VITA_WEBHOOK_PORT || process.env.PORT || 3000) || 3000;
+  return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
 }
 
 function getSecret() {
@@ -52,6 +54,7 @@ const ROOT   = dirname(fileURLToPath(import.meta.url));
 const ARENA_HTML = join(ROOT, "public", "arena.html");
 const ENGINE_HTML = join(ROOT, "public", "engine.html");
 const BOARD_HTML = join(ROOT, "public", "board.html");
+const V4_HTML = join(ROOT, "public", "v4.html");
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 function isAuthorized(req) {
@@ -215,14 +218,18 @@ async function handleVitaRequest(req, res) {
 
   try {
     // ── Public Control Board / Arena / Engine HTML ──────────────────────────
-    if ((path === "/board" || path === "/board/" || path === "/") && req.method === "GET") {
+    // `/` and `/arena` stay the original Arena ledger (do not hijack live path).
+    if ((path === "/board" || path === "/board/") && req.method === "GET") {
       return servePublicHtml(res, BOARD_HTML, "board");
     }
-    if ((path === "/arena" || path === "/arena/") && req.method === "GET") {
+    if ((path === "/arena" || path === "/arena/" || path === "/") && req.method === "GET") {
       return servePublicHtml(res, ARENA_HTML, "arena");
     }
     if ((path === "/engine" || path === "/engine/") && req.method === "GET") {
       return servePublicHtml(res, ENGINE_HTML, "engine");
+    }
+    if ((path === "/v4" || path === "/v4/") && req.method === "GET") {
+      return servePublicHtml(res, V4_HTML, "v4");
     }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {
@@ -405,14 +412,15 @@ export function createVitaServer() {
 
 // ── Server ────────────────────────────────────────────────────────────────────
 export function startVitaWebhook() {
-  if (webhookBound) {
-    console.log("🌐 VITA webhook already bound — skip rebind");
+  const SECRET = getSecret();
+  if (!SECRET) {
+    console.log("⚠️  VITA webhook: VITA_WEBHOOK_SECRET not set — webhook disabled");
     return;
   }
 
-  const SECRET = getSecret();
-  if (!SECRET) {
-    console.log("⚠️  VITA webhook: VITA_WEBHOOK_SECRET not set — public boards only, live APIs locked");
+  if (webhookBound) {
+    console.log("🌐 VITA webhook already bound — skip rebind");
+    return;
   }
 
   const PORT = listenPort();
@@ -425,10 +433,11 @@ export function startVitaWebhook() {
   server.listen(PORT, () => {
     webhookBound = true;
     console.log("🌐 VITA webhook listening on port " + PORT);
-    console.log("   /board          — Control Board hub (waves + arena learn + V4)");
+    console.log("   /board          — Control Board hub (waves + arena learn + V4 docs)");
     console.log("   /board/health   — mounted boards");
     console.log("   /arena          — Guardian Arena ledger game (public HTML)");
     console.log("   /engine         — Guardian Engine wave / surfer / hitch board");
+    console.log("   /v4             — V4 offshoot docs (separate process — does not start V4)");
     console.log("   /arena/api/*    — live snapshot + command queue (auth)");
     console.log("   /engine/api/*   — engine waves + ride/trick/message queue (auth)");
     console.log("   /vita/context  — memory context for new Claude session");

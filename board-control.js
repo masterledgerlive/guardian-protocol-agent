@@ -31,23 +31,26 @@ import {
 } from "./cost-edge-gate.js";
 import { PEAK_ZONE_PCT, FAST_CRASH_PCT, HIST_PEAK_TOUCH_PCT } from "./peak-ride.js";
 import { demoEngineSnapshot } from "./engine-board.js";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { reportInjectCapacity } from "./storage-inject-capacity.js";
 import { LIVE_ASSUMPTIONS } from "./revenue-sim.js";
-import {
-  DRY_RUN as V4_DRY_RUN,
-  ENV_PREFIX as V4_ENV_PREFIX,
-  LOCK_FILE as V4_LOCK_FILE,
-  NATIVE_ETH,
-  HITCH_COST_MULT as V4_HITCH_COST_MULT,
-} from "./guardian-v4/config.js";
-import { V4_AVENUES, avenueSummary, listAvenues } from "./guardian-v4/tokens.js";
-import {
-  VITA_PROOF_FULL,
-  buildStoreVoice,
-  encodeV4ExactInSwap,
-  hitchSwapIfCovered,
-  utf8ByteLength,
-} from "./guardian-v4/swap-v4.js";
+
+/** Display-only V4 names (from guardian-v4/README). No pool IDs, no swap encoder, no V4 imports. */
+const V4_DISPLAY_AVENUES = Object.freeze([
+  { symbol: "DOT", status: "active", injectMain: true, notes: "Uni V4 DOT/ETH — V4 process only" },
+  { symbol: "POLKADOT_BASE", status: "active", injectMain: true, notes: "Polkadot-branded Base V4 avenue" },
+  { symbol: "UDOT", status: "watch", injectMain: false, notes: "watch until V4 ETH book" },
+  { symbol: "CBBTC", status: "active", injectMain: false, notes: "V4 catalog — not this V3 injector" },
+  { symbol: "AERO", status: "active", injectMain: false, notes: "V4 catalog — not this V3 injector" },
+  { symbol: "TOSHI", status: "active", injectMain: false, notes: "V4 catalog — not this V3 injector" },
+  { symbol: "VIRTUAL", status: "active", injectMain: false, notes: "V4 catalog — not this V3 injector" },
+  { symbol: "UNI", status: "active", injectMain: false, notes: "V4 catalog — not this V3 injector" },
+  { symbol: "VVV", status: "active", injectMain: false, notes: "V4 catalog — not this V3 injector" },
+  { symbol: "XPL", status: "deferred", injectMain: false, notes: "no Base V4 ETH book yet" },
+]);
+
+const V4_LOCK_FILE = join(dirname(fileURLToPath(import.meta.url)), "guardian-v4", "state", "guardian-v4.lock");
 
 export const BOARD_PATHS = Object.freeze({
   hub: "/board",
@@ -57,6 +60,7 @@ export const BOARD_PATHS = Object.freeze({
   snapshot: "/board/api/snapshot",
   sim: "/board/api/sim",
   v4: "/board/api/v4",
+  v4Page: "/v4",
   arena: "/arena",
   engine: "/engine",
 });
@@ -144,90 +148,40 @@ export function v4ProcessStatus() {
 
 /**
  * V4 is a separate process (`npm run start:v4`) with GUARDIAN_V4_* env.
- * This webhook never starts it. Catalog + paper sim only.
+ * This V3 webhook never starts it, never imports guardian-v4 swap/agent code,
+ * and never encodes V4 calldata. Status is lockfile + docs only.
  */
 export function v4BoardStatus() {
   const proc = v4ProcessStatus();
-  const summary = avenueSummary();
+  const groups = { active: [], scout: [], watch: [], deferred: [], frozen: [] };
+  for (const t of V4_DISPLAY_AVENUES) {
+    (groups[t.status] || (groups[t.status] = [])).push(t.symbol);
+  }
   return {
-    kind: "v4-offshoot|read-only",
+    kind: "v4-offshoot|docs-only",
     sameProcessAsV3: false,
     startableFromThisWebhook: false,
+    encodesV4Swaps: false,
+    loadsV4Runtime: false,
+    page: "/v4",
     start: {
       once: "npm run start:v4 -- --once",
       loop: "npm run start:v4",
       tests: "npm run test:v4",
     },
-    envPrefix: V4_ENV_PREFIX,
-    dryRunDefault: V4_DRY_RUN,
-    hitchCostMult: V4_HITCH_COST_MULT,
+    envPrefix: "GUARDIAN_V4_",
+    dryRunDefault: true,
     running: proc.running,
     process: proc,
-    catalog: summary,
-    avenues: listAvenues().map((t) => ({
-      symbol: t.symbol,
-      status: t.status,
-      injectMain: !!t.injectMain,
-      feePct: t.feePct,
-      liqUsd: t.liqUsd,
-      volUsd24h: t.volUsd24h,
-      notes: String(t.notes || "").slice(0, 96),
-    })),
+    catalog: {
+      total: V4_DISPLAY_AVENUES.length,
+      injectable: V4_DISPLAY_AVENUES.filter((t) => t.status === "active" && t.injectMain).map((t) => t.symbol),
+      groups,
+      note: "Display names only. Live V4 catalog + encoder live in guardian-v4/ (separate process).",
+    },
+    avenues: V4_DISPLAY_AVENUES.map((t) => ({ ...t })),
     isolation:
-      "Own lockfile + guardian-v4/state/. Does not freeze or share tokens.json with root agent.js (Uniswap V3).",
-  };
-}
-
-function estimateV4HitchCostEth(bytes, gwei = 0.05) {
-  const b = Math.max(0, Number(bytes) || 0);
-  const gas = 21000 + b * 16;
-  return (gas * gwei * 1e-9) * V4_HITCH_COST_MULT;
-}
-
-/**
- * Paper V4 inject — encodes calldata + hitch-or-plain. Never broadcasts.
- */
-export function runV4PaperSim({ symbol = "DOT", tradeEth = 0.002, leftoverCover = true } = {}) {
-  const token = V4_AVENUES.find((t) => String(t.symbol).toUpperCase() === String(symbol).toUpperCase())
-    || V4_AVENUES.find((t) => t.injectMain && t.status === "active")
-    || V4_AVENUES[0];
-  if (!token || !token.address || token.address === NATIVE_ETH) {
-    return { ok: false, kind: "simulated|v4-paper", error: `no V4 avenue for ${symbol}` };
-  }
-  const amountIn = BigInt(Math.floor(Math.max(0.0001, Number(tradeEth) || 0.002) * 1e18));
-  const encoded = encodeV4ExactInSwap({
-    tokenIn: token.quoteAddress || NATIVE_ETH,
-    tokenOut: token.address,
-    fee: token.fee,
-    tickSpacing: token.tickSpacing,
-    hooks: token.hooks,
-    amountIn,
-    amountOutMinimum: 0n,
-  });
-  const voice = buildStoreVoice({ message: VITA_PROOF_FULL });
-  const hitchCost = estimateV4HitchCostEth(utf8ByteLength(voice));
-  const leftoverEth = leftoverCover ? hitchCost * 1.25 : hitchCost * 0.4;
-  const hitched = hitchSwapIfCovered({
-    swapData: encoded.data,
-    leftoverEth,
-    hitchCostEth: hitchCost,
-    message: VITA_PROOF_FULL,
-  });
-  return {
-    ok: true,
-    kind: "simulated|v4-paper",
-    broadcast: false,
-    dryRunDefault: V4_DRY_RUN,
-    symbol: token.symbol,
-    tradeEth: Number(tradeEth) || 0.002,
-    leftoverEth,
-    hitchCostEth: hitchCost,
-    hitchOnChain: !!hitched.onChain,
-    hitchBytes: hitched.hitchBytes || 0,
-    hitchReason: hitched.reason || (hitched.onChain ? "leftover covers hitch" : "plain"),
-    to: encoded.to,
-    calldataChars: String(hitched.data || encoded.data || "").length,
-    loseZero: "hitch only when leftover covers; otherwise plain swap — never lose to insert storage",
+      "Own lockfile guardian-v4/state/guardian-v4.lock + GUARDIAN_V4_* env. Does not share tokens.json / positions.json / agent.js with Uniswap V3.",
   };
 }
 
@@ -393,14 +347,10 @@ export function runBoardSim(opts = {}) {
   const storage = runStorageLoopSim({
     tradeableUsd: Number(opts.cash) || LIVE_ASSUMPTIONS.tradeableUsd,
   });
-  const v4 = runV4PaperSim({
-    symbol: opts.v4Symbol || "DOT",
-    leftoverCover: opts.loseZero !== false,
-  });
   return {
     ok: true,
     kind: "simulated|control-board",
-    label: "simulated — demo/sim by default; not a live fill",
+    label: "simulated — demo/sim by default; not a live fill. V3 practice only — does not encode V4 swaps.",
     paramsUsed: {
       piggyPct: arena.piggyPct,
       dustFloorUsd: arena.dustFloorUsd,
@@ -412,7 +362,6 @@ export function runBoardSim(opts = {}) {
     },
     arena,
     storage,
-    v4,
     invariants: { ...LOSE_ZERO_INVARIANTS },
   };
 }
@@ -434,11 +383,12 @@ export function boardHealth({
       arena: { path: BOARD_PATHS.arena, mounted: true, kind: "ledger-learn", public: true },
       engine: { path: BOARD_PATHS.engine, mounted: true, kind: "wave-dance", public: true },
       v4: {
-        path: "/board#v4",
+        path: "/v4",
         mounted: true,
-        kind: "uniswap-v4-offshoot",
+        kind: "uniswap-v4-offshoot-docs",
         public: true,
         sameProcess: false,
+        loadsV4Runtime: false,
         running: !!v4s.running,
         start: v4s.start,
       },
