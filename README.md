@@ -153,6 +153,8 @@ vault-unlock.js       — Stage 1 boot unlock (password via Telegram)
 keystore.js           — Personal double-encrypted key manager
 log-formatter.js      — Structured human-readable log output
 bitstorage-orchestrator.js  — BITStorage / ShadowWeave strand injection
+vita-hat.js           — Append-only encoded site preservation (1-bit genesis + ST/LT)
+hat-wave-inject.js    — Wave-paid HAT sizing, confirm seal, exit-up without crash
 encryptkey.js         — One-time key encryption + inscription tool
 ```
 
@@ -202,6 +204,11 @@ VAULT_GITHUB_TOKEN        ← tx hash on Base
 VAULT_GITHUB_REPO         ← tx hash on Base
 VAULT_GITHUB_BRANCH       ← tx hash on Base
 VAULT_STATE_BRANCH        ← tx hash on Base
+
+HAT_ROOT_TX               ← genesis 1-bit HAT node tx (or local nodeId until inscribed) — same insert pattern as VAULT_*
+HAT_STRAND_ID             ← linear append-only strand id for site preservation
+HAT_CONTENT_HASH          ← sha256 of canonical public HTML blob (arena+engine+board+v4) at preserve time
+HAT_K_MASTER              ← optional hex key for encrypted fragment payloads
 
 LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple, operator) unless there is a clear edge AND leftover covers a short §$STORE§ hitch (1×)
 HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO

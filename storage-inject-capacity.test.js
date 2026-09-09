@@ -19,4 +19,17 @@ describe("storage-inject-capacity", () => {
     assert.equal(r.capacity_now.max_hitch_bytes_per_swap, 0);
     assert.equal(r.capacity_now.eureka_ok, false);
   });
+
+  it("includes VITA HAT site preservation horizons", () => {
+    const r = reportInjectCapacity();
+    assert.ok(r.vita_hat);
+    assert.equal(r.vita_hat.one_bit_genesis_first, true);
+    assert.equal(r.vita_hat.never_delete, true);
+    assert.ok(r.vita_hat.site_bytes > 80_000);
+    assert.ok(r.vita_hat.messages_at_letter_hitch > 100);
+    assert.ok(r.vita_hat.railway_env.includes("HAT_ROOT_TX"));
+    assert.equal(r.vita_hat.wave.confirm_before_claim_sent, true);
+    assert.equal(r.vita_hat.wave.exit_up_after_seal, true);
+    assert.ok(r.horizons.site_arena_engine_cycles == null || r.horizons.site_arena_engine_cycles >= 1);
+  });
 });
