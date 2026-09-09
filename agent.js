@@ -182,6 +182,12 @@ import {
   peakTurnSigns,
 } from "./peak-ride.js";
 import {
+  classifyWavePhase,
+  piggyPaymentLights,
+  buildEngineOptions,
+  tuneTargets,
+} from "./engine-board.js";
+import {
   minBuyUsdForToken,
   operatorBuyBelowMin,
   applyWethDeadFreeze,
@@ -2751,6 +2757,8 @@ let lastMiniUpdate = Date.now();
 let approvedTokens = new Set();
 let cdpClient      = null;
 let manualCommands = [];
+/** Engine UI global actions (prove / sendsurfer / surferout) — not per-token. */
+const engineGlobalCommands = [];
 let cachedBal      = null;   // updated each loop cycle — used in Telegram commands
 let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
@@ -10913,6 +10921,82 @@ async function main() {
   // Inject live bot state so webhook can read real-time data
   // Updated every main loop cycle
   function updateWebhookState() {
+    const ethUsdApprox = Number(process.env.ETH_USD_HINT) || 3000;
+    const hitchCostUsdApprox = 0.15;
+    const feesUsdApprox = 0.12;
+
+    function buildEngineWaveRows() {
+      const mains = new Set(INJECT_MAIN_PLAYERS.map((s) => String(s).toUpperCase()));
+      const focus = tokens.filter((t) =>
+        !t.frozen && !t.disabled && (
+          t.entryPrice ||
+          (t.piggyReserve || 0) > 0 ||
+          mains.has(t.symbol) ||
+          isInjectMainPlayer(t.symbol)
+        )
+      ).slice(0, 12);
+
+      return focus.map((t) => {
+        const h = history[t.symbol] || {};
+        const readings = (h.readings || []).slice(-48).map((r) => Number(r.price)).filter((p) => p > 0);
+        const price = Number(h.lastPrice) || readings[readings.length - 1] || 0;
+        const series = readings.length >= 2 ? readings : (price > 0 ? [price * 0.98, price] : []);
+        const trough = series.length ? Math.min(...series) : 0;
+        const peak = series.length ? Math.max(...series) : 0;
+        const pred = wavePredictions[t.symbol] || {};
+        const predEntry = Number(pred.entryTarget) || trough;
+        const predExit = Number(pred.exitTarget) || peak;
+        const entry = Number(t.entryPrice) || null;
+        const rideHigh = Number(rideHighBySymbol[t.symbol]) || (entry && price ? Math.max(entry, price) : 0);
+        const holding = !!(entry || (tokenBalanceCache[t.symbol] || 0) > 0.001);
+        const piggyPct = piggyBankPct(process.env, piggyOptsFromToken(t));
+        const leftoverUsd = holding && entry && price
+          ? Math.max(0, ((price - entry) / entry) * 2 - feesUsdApprox)
+          : 2.5;
+        const phase = classifyWavePhase({
+          price, entry, rideHigh, trough, peak, predEntry, predExit, holding,
+        });
+        const lights = piggyPaymentLights({
+          leftoverUsd,
+          feesUsd: feesUsdApprox,
+          hitchCostUsd: hitchCostUsdApprox,
+          firstMinEntryUsd: 2,
+          proceedsUsd: holding ? Math.max(0, leftoverUsd + 2) : 0,
+          netProfitUsd: holding ? leftoverUsd : null,
+          skimUsd: 0.04,
+          agentShareUsd: Number(tokenPiggyLedgers[t.symbol]?.agentShare) || 0.02,
+        });
+        const options = buildEngineOptions({
+          tradeUsd: 2,
+          hitchCostUsd: hitchCostUsdApprox,
+          feesUsd: feesUsdApprox,
+          leftoverUsd,
+          holding,
+          piggyPct,
+          ethUsd: ethUsdApprox,
+        });
+        return {
+          symbol: t.symbol,
+          address: t.address,
+          price,
+          series,
+          trough,
+          peak,
+          entry,
+          rideHigh,
+          predEntry,
+          predExit,
+          piggyPct,
+          holding,
+          leftoverUsd,
+          phase,
+          lights,
+          options,
+          basescanToken: `https://basescan.org/token/${t.address}?a=${WALLET_ADDRESS}`,
+        };
+      });
+    }
+
     injectBotState({
       githubGet,
       walletAddress: WALLET_ADDRESS,
@@ -10934,13 +11018,81 @@ async function main() {
         basescanToken: `https://basescan.org/token/${t.address}?a=${WALLET_ADDRESS}`,
       })),
       tokenPiggyLedgers,
+      getEngineSnapshot: () => ({
+        ok: true,
+        demo: false,
+        running: true,
+        walletAddress: WALLET_ADDRESS,
+        ethUsd: ethUsdApprox,
+        hitchCostUsd: hitchCostUsdApprox,
+        feesUsd: feesUsdApprox,
+        hitchProve: {
+          count: hitchInjectCount,
+          target: 20,
+          profitUsd: hitchInjectProfitUsd,
+        },
+        favorite: INJECT_MAIN_FAVORITE,
+        injectMains: INJECT_MAIN_PLAYERS.slice(),
+        modules: [
+          { id: "wave", label: "Wave engine", lit: true },
+          { id: "peak", label: "Peak ride", lit: true },
+          { id: "hitch", label: "Hitch message", lit: true },
+          { id: "cost", label: "Cost edge", lit: true },
+          { id: "piggy", label: "Piggy banks", lit: true },
+          { id: "surfer", label: "Surfer pool", lit: Object.keys(surfers).length > 0 },
+          { id: "v4", label: "V4 offshoot", lit: false, note: "npm run start:v4" },
+        ],
+        surfers: Object.entries(surfers).map(([name, s]) => ({
+          name,
+          status: s.status,
+          symbol: s.symbol,
+          usdAlloc: s.usdAlloc,
+          pnlUsd: s.pnlUsd,
+        })),
+        waves: buildEngineWaveRows(),
+        queue: manualCommands.map((c) => ({ ...c })),
+        timestamp: new Date().toISOString(),
+      }),
       queueManual: (cmd) => {
         if (!cmd || typeof cmd !== "object") return { ok: false, error: "bad command" };
-        const symbol = String(cmd.symbol || "").toUpperCase();
-        const action = String(cmd.action || "").toLowerCase();
+        let symbol = String(cmd.symbol || "").toUpperCase();
+        let action = String(cmd.action || "").toLowerCase();
+        // Engine aliases → existing injector commands
+        if (action === "ride" || action === "ridewave" || action === "rider" || action === "both") {
+          const hitchMode = String(cmd.hitchMode || (action === "rider" ? "plain" : "hitch")).toLowerCase();
+          if (cmd.handEntry != null || cmd.handExit != null) {
+            const pred = wavePredictions[symbol] || {};
+            const tuned = tuneTargets({
+              predEntry: pred.entryTarget,
+              predExit: pred.exitTarget,
+              handEntry: cmd.handEntry,
+              handExit: cmd.handExit,
+            });
+            cmd.tunedEntry = tuned.entry.value;
+            cmd.tunedExit = tuned.exit.value;
+          }
+          action = "buy";
+          cmd.hitchMode = hitchMode;
+        } else if (action === "trickout" || action === "trick") {
+          action = "exitonly";
+        } else if (action === "message" || action === "prove") {
+          engineGlobalCommands.push({ action: "prove", extra: cmd.message || "" });
+          return { ok: true, queued: true, command: { action: "prove" } };
+        } else if (action === "sendsurfer" || action === "sendsurferout") {
+          engineGlobalCommands.push({
+            action: "sendsurfer",
+            usd: Number(cmd.usd) || 0,
+            name: cmd.name ? String(cmd.name).toUpperCase() : null,
+          });
+          return { ok: true, queued: true, command: { action: "sendsurfer", usd: Number(cmd.usd) || 0, name: cmd.name || null } };
+        } else if (action === "surferout") {
+          engineGlobalCommands.push({ action: "surferout", name: String(cmd.name || symbol || "").toUpperCase() });
+          return { ok: true, queued: true, command: { action: "surferout", name: String(cmd.name || symbol || "").toUpperCase() } };
+        }
+
         const allowed = new Set(["buy", "sell", "sellhalf", "piggyunlock", "exitonly", "status"]);
         if (!allowed.has(action)) return { ok: false, error: "action not allowed" };
-        if (action === "status") return { ok: true, queued: false, note: "use /arena/api/snapshot" };
+        if (action === "status") return { ok: true, queued: false, note: "use /arena/api/snapshot or /engine/api/snapshot" };
         if (!symbol || !tokens.find(t => t.symbol === symbol)) {
           return { ok: false, error: `unknown symbol ${symbol || "?"}` };
         }
@@ -10948,8 +11100,12 @@ async function main() {
           if (manualCommands.find(c => c.symbol === symbol && c.action === "buy")) {
             return { ok: false, error: `BUY ${symbol} already queued` };
           }
-          manualCommands.push({ symbol, action: "buy", usd: Number(cmd.usd) || 0 });
-          return { ok: true, queued: true, command: { symbol, action: "buy", usd: Number(cmd.usd) || 0 } };
+          const row = { symbol, action: "buy", usd: Number(cmd.usd) || 0 };
+          if (cmd.hitchMode) row.hitchMode = cmd.hitchMode;
+          if (cmd.tunedEntry != null) row.tunedEntry = cmd.tunedEntry;
+          if (cmd.tunedExit != null) row.tunedExit = cmd.tunedExit;
+          manualCommands.push(row);
+          return { ok: true, queued: true, command: row };
         }
         if (action === "sellhalf") {
           manualCommands.push({ symbol, action: "sellhalf" });
@@ -10964,12 +11120,21 @@ async function main() {
           return { ok: true, queued: true, command: { symbol, action: "piggyunlock" } };
         }
         if (action === "exitonly") {
-          manualCommands.push({ symbol, action: "exitonly", pct: Number(cmd.pct) || 0.98 });
-          return { ok: true, queued: true, command: { symbol, action: "exitonly", pct: Number(cmd.pct) || 0.98 } };
+          const row = {
+            symbol,
+            action: "exitonly",
+            pct: Number(cmd.pct) || 0.98,
+            hitchMode: cmd.hitchMode || null,
+          };
+          manualCommands.push(row);
+          return { ok: true, queued: true, command: row };
         }
         return { ok: false, error: "unhandled" };
       },
-      getManualQueue: () => manualCommands.map(c => ({ ...c })),
+      getManualQueue: () => [
+        ...manualCommands.map(c => ({ ...c })),
+        ...engineGlobalCommands.map(c => ({ ...c })),
+      ],
     });
   }
   updateWebhookState(); // initial inject
@@ -11321,6 +11486,48 @@ async function main() {
       // ── 🏄 SURFER SYSTEM — process all active surfer decisions ──────────────
       if (Object.keys(surfers).length > 0) {
         await processSurfers(cdpClient, bal, ethUsd).catch(e => console.log(`  🏄 Surfer error: ${e.message}`));
+      }
+
+      // ── Engine UI global commands (prove / send surfer / retire) ────────────
+      while (engineGlobalCommands.length) {
+        const g = engineGlobalCommands.shift();
+        try {
+          if (g.action === "prove") {
+            if (!storeVoiceEnabled()) {
+              await tg("📡 Engine prove skipped — voice hitch OFF (/voiceon)");
+            } else if (!cdpClient) {
+              await tg("❌ Engine prove skipped — no wallet client");
+            } else {
+              await tg("⏳ Engine: dedicated 0-ETH UTF-8 letter…");
+              const proof = await sendStoreVoiceProof(cdpClient, g.extra || "");
+              if (!proof.ok || !proof.onChain || !proof.txHash) {
+                await tg(`⚠️ Engine proof not on-chain: ${proof.reason || "failed"}`);
+              } else {
+                await tg(
+                  `💌 Engine message paid\n` +
+                  `<i>${proof.utf8}</i>\n` +
+                  `🔗 <a href="https://basescan.org/tx/${proof.txHash}">Basescan ↗</a>`
+                );
+              }
+            }
+          } else if (g.action === "sendsurfer") {
+            const usd = Number(g.usd) || 0;
+            if (!(usd > 0) || !(ethUsd > 0)) {
+              await tg("❓ Engine sendsurfer needs usd > 0");
+            } else {
+              const ethAlloc = usd / ethUsd;
+              const result = createSurfer(ethAlloc, g.name || null, ethUsd);
+              if (result.error) await tg(`❓ ${result.error}`);
+              else await tg(`🏄 Engine launched surfer <b>${result.name}</b> → ${result.symbol || "IDLE"} ($${usd})`);
+            }
+          } else if (g.action === "surferout") {
+            const msg = await retireSurfer(cdpClient, g.name, ethUsd);
+            await tg(msg);
+          }
+        } catch (e) {
+          console.log(`⚠️ Engine global cmd error: ${e.message}`);
+          await tg(`⚠️ Engine cmd failed: ${e.message}`).catch(() => {});
+        }
       }
 
       // ── 🏆 TIER COMPUTATION — runs once per cycle, drives all buy sizing ────
