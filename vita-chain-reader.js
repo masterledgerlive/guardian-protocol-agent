@@ -44,7 +44,7 @@ export const KNOWN_CHAIN_ANCHORS = Object.freeze([
 ]);
 
 export const INGESTIBLE_HITCH_KINDS = Object.freeze(["vita", "eureka", "hat", "tag"]);
-export const MAX_BOOT_CHAIN_PULLS = 24;
+export const MAX_BOOT_CHAIN_PULLS = 64;
 
 export function shouldIngestHitchKind(kind) {
   const k = typeof kind === "string" ? kind : kind?.kind;

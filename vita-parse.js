@@ -28,6 +28,20 @@ export const TOKEN_HITCH_PRIORITY = Object.freeze([
   "LOC", "KEY", "LEARN", "NEXT", "SESS", "PROVED", "BUILT", "ARCH", "VISION", "WHO", "STACK",
 ]);
 
+/**
+ * Leftover swap hitch is a dense projection of recursive memory.
+ * Full WHO/STACK/ARCH/VISION stay in lastPacket + the location depository;
+ * the trailer only carries recall-critical tokens so leftover can cover.
+ */
+export const TOKEN_LEFTOVER_KEEP = Object.freeze(["KEY", "LOC"]);
+
+/** Love-note names — leftover clip must not drop these from §KEY§. */
+export const VITA_KEY_NAMES = "eureka♥Krystian,Kai,Koda";
+
+/** Abbreviate the genesis love note into a KEY fact — never drop the names. */
+export const VITA_LOVE_KEY =
+  "eureka♥Krystian,Kai,Koda|DA|ᛞᚨᚡᛁᛞ|truth=chain|IKN|wallet=0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915|KEYCAT-0x5c0a93e4=plain-no-hitch";
+
 const TOKEN_RE = /§([A-Z]+)§([^§]*)/g;
 
 export function parseVitaPacket(text) {
@@ -78,46 +92,78 @@ function mergeFact(a, b) {
   return parts.join("|");
 }
 
+export function measureVitaText(text, { bytes = false } = {}) {
+  const s = String(text || "");
+  return bytes ? Buffer.byteLength(s, "utf8") : s.length;
+}
+
+/** Leftover hitch body: KEY + squashed LOC. Recursive packet stays whole. */
+export function projectLeftoverHitchFields(fields) {
+  const src = fields?.fields || fields || {};
+  const keep = { KEY: src.KEY || VITA_LOVE_KEY };
+  if (src.LOC) keep.LOC = src.LOC;
+  return keep;
+}
+
 /**
- * Clip a packed packet to maxChars without dropping KEY/LOC while they fit.
- * Other fields drop from the tail of TOKEN_HITCH_PRIORITY.
+ * Clip a packed packet to maxChars (or byteBudget) without dropping KEY/LOC
+ * while they fit. Other fields drop from the tail of TOKEN_HITCH_PRIORITY.
  */
-export function clipVitaPacket(fields, maxChars = VITA_CHAR_BUDGET) {
-  const cap = Math.max(0, Math.floor(Number(maxChars) || 0));
+export function clipVitaPacket(fields, maxChars = VITA_CHAR_BUDGET, opts = {}) {
+  const useBytes = opts.byteBudget != null;
+  const cap = Math.max(0, Math.floor(Number(useBytes ? opts.byteBudget : maxChars) || 0));
+  const measure = (s) => measureVitaText(s, { bytes: useBytes });
   const keep = { ...fields };
   let packed = packVitaFields(keep);
-  if (packed.length <= cap) return { fields: keep, packed, clipped: false };
+  if (measure(packed) <= cap) return { fields: keep, packed, clipped: false };
 
   const dropOrder = [...TOKEN_HITCH_PRIORITY].reverse().filter((k) => k !== "KEY" && k !== "LOC");
   for (const key of dropOrder) {
-    if (packed.length <= cap) break;
+    if (measure(packed) <= cap) break;
     if (keep[key] == null) continue;
     delete keep[key];
     packed = packVitaFields(keep);
   }
 
-  if (packed.length > cap && keep.LEARN) {
-    keep.LEARN = clipTail(keep.LEARN, Math.max(24, cap - 80));
+  if (measure(packed) > cap && keep.LEARN) {
+    keep.LEARN = clipToMeasure(keep.LEARN, Math.max(24, cap - 80), measure);
     packed = packVitaFields(keep);
   }
-  if (packed.length > cap && keep.KEY) {
-    keep.KEY = clipTail(keep.KEY, Math.max(40, Math.floor(cap * 0.45)));
+  if (measure(packed) > cap && keep.KEY) {
+    keep.KEY = clipKeyPreservingNames(keep.KEY, Math.max(VITA_KEY_NAMES.length, Math.floor(cap * 0.45)), measure);
     packed = packVitaFields(keep);
   }
-  if (packed.length > cap && keep.LOC) {
-    keep.LOC = clipTail(keep.LOC, Math.max(24, Math.floor(cap * 0.4)));
+  if (measure(packed) > cap && keep.LOC) {
+    keep.LOC = clipToMeasure(keep.LOC, Math.max(24, Math.floor(cap * 0.4)), measure);
     packed = packVitaFields(keep);
   }
-  if (packed.length > cap) {
-    packed = packed.slice(0, Math.max(0, cap));
+  if (measure(packed) > cap) {
+    packed = clipToMeasure(packed, cap, measure);
   }
   return { fields: keep, packed, clipped: true };
 }
 
-function clipTail(s, max) {
-  const t = String(s || "");
-  if (t.length <= max) return t;
-  return t.slice(0, Math.max(0, max - 1)) + "…";
+function clipToMeasure(s, max, measure) {
+  let t = String(s || "");
+  const cap = Math.max(0, Math.floor(Number(max) || 0));
+  if (measure(t) <= cap) return t;
+  const ell = "…";
+  let withEll = t;
+  while (withEll.length && measure(withEll + ell) > cap) withEll = withEll.slice(0, -1);
+  if (withEll && measure(withEll + ell) <= cap) return withEll + ell;
+  while (t.length && measure(t) > cap) t = t.slice(0, -1);
+  return t;
+}
+
+function clipKeyPreservingNames(key, max, measure) {
+  const raw = String(key || "");
+  const clipped = clipToMeasure(raw, max, measure);
+  if (clipped.includes("Krystian") && clipped.includes("Kai") && clipped.includes("Koda")) {
+    return clipped;
+  }
+  const stem = VITA_KEY_NAMES;
+  if (measure(stem) >= max) return clipToMeasure(stem, max, measure);
+  return mergeFact(stem, clipped);
 }
 
 /**
@@ -191,10 +237,6 @@ export function detectHitchKind(utf8) {
   return { kind, eureka, vita, hat, storeTag };
 }
 
-/** Abbreviate the genesis love note into a KEY fact — never drop the names. */
-export const VITA_LOVE_KEY =
-  "eureka♥Krystian,Kai,Koda|DA|ᛞᚨᚡᛁᛞ|truth=chain|IKN|wallet=0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915|KEYCAT-0x5c0a93e4=plain-no-hitch";
-
 export function buildGenesisFields(extra = {}) {
   const date = new Date().toISOString().slice(0, 10);
   return {
@@ -202,13 +244,13 @@ export function buildGenesisFields(extra = {}) {
     WHO: extra.WHO || "DA|VITA|secondary-router",
     STACK: extra.STACK || "V3-hitch|Base|§TOKEN§|HAT|lose-zero",
     BUILT: extra.BUILT || "vita-parse|vita-locations|vita-router|vita-course",
-    PROVED: extra.PROVED || "STORE-tag-10B✓|prefix-preserve✓|lose-zero-no-hitch-if-leftover≤0✓",
+    PROVED: extra.PROVED || "STORE-tag-10B✓|prefix-preserve✓|lose-zero-no-hitch-if-leftover≤0✓|leftover-hitch≠clip-packet✓",
     ARCH: extra.ARCH || "router:eureka|vita|hat|auto;/prove=love-note-genesis;loc=append-only-squash",
     VISION: extra.VISION || "recursive-mem;inject-w/o-loss;hourly-course",
-    NEXT: extra.NEXT || "hourly:sealed-locs vs skip-rate;refine squash;pipeline switches",
+    NEXT: extra.NEXT || "leftover=KEY+LOC hitch;full packet in state;hourly course",
     KEY: mergeFact(VITA_LOVE_KEY, extra.KEY || ""),
-    LEARN: extra.LEARN || "prose-letter wastes hitch B;§TOKEN§ denser recall;squash>list-every-tx;keep §$STORE§ tag",
-    LOC: extra.LOC || "n=0|tip=00000000",
+    LEARN: extra.LEARN || "prose-letter wastes hitch B;§TOKEN§ denser recall;squash>list-every-tx;hitch≠lastPacket;keep §$STORE§ tag",
+    LOC: extra.LOC || "n=0|t=0000",
   };
 }
 

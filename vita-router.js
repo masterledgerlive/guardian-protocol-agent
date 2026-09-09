@@ -32,6 +32,7 @@ import {
   detectHitchKind,
   packVitaFields,
   parseVitaPacket,
+  projectLeftoverHitchFields,
   refineVitaPacket,
   vitaQuality,
 } from "./vita-parse.js";
@@ -275,13 +276,16 @@ function vitaBody({ maxBytes, extraFields = {}, switches }) {
   };
   const prev = lastVitaPacket || packVitaFields(buildGenesisFields({ LOC: loc }));
   const refined = refineVitaPacket(prev, next, { maxChars: VITA_CHAR_BUDGET });
+  // Recursive memory stays whole. Hitch is a dense KEY+LOC+LEARN projection so
+  // leftover can cover — clipping the trailer must not wipe lastPacket.
+  lastVitaPacket = refined.packed;
   const prefix = storePrefix(switches.keepStoreTag);
   const prefixBytes = utf8ByteLength(prefix);
   const bodyBudget = maxBytes != null
     ? Math.max(0, Math.floor(Number(maxBytes)) - prefixBytes)
     : VITA_CHAR_BUDGET;
-  const clipped = clipVitaPacket(refined.fields, bodyBudget);
-  lastVitaPacket = clipped.packed;
+  const hitchFields = projectLeftoverHitchFields(refined.fields);
+  const clipped = clipVitaPacket(hitchFields, bodyBudget, { byteBudget: bodyBudget });
   return prefix + clipped.packed;
 }
 

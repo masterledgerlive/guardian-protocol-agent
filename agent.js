@@ -4691,7 +4691,7 @@ function absorbVitaStrandPacket(entry) {
   }
 }
 
-/** Leftover hitch budget = actual VITA §TOKEN§ hitch, not the Eureka love-note length. */
+/** Leftover hitch budget = dense VITA §TOKEN§ trailer (KEY+LOC+LEARN), not the Eureka letter. */
 function leftoverVoiceHitchBytes() {
   const cap = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
   try {

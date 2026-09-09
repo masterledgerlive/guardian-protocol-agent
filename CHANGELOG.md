@@ -10,8 +10,10 @@ default **vita**). Love note is encoded in `§KEY§` so it is not lost. `/prove`
 writes the full Eureka letter as genesis identity.
 
 Locations (tx hashes / node ids) stay append-only; hitch only carries a squashed
-`§LOC§` token (count + root + tip + last-6 shorts). Hourly `evaluateVitaCourse`
-scores inject-without-loss vs leftover-skips (skips are lose-zero, not memory loss).
+`§LOC§` token (count + 4-hex root/tip + last-6 shorts). Leftover hitch is a **dense
+KEY+LOC projection** — clipping the trailer never overwrites recursive `lastPacket`.
+Hourly `evaluateVitaCourse` scores inject-without-loss vs leftover-skips (skips are
+lose-zero, not memory loss).
 
 Recursive memory now **survives restart**: `vita-router-state.json` stores the last
 §TOKEN§ packet + location depository + course stats. Boot `ensureGenesisMemory`.

@@ -19,6 +19,8 @@ let lastLocHash = "00000000";
 
 /** Max short hashes in a hitch §LOC§ token (the squash window). */
 export const LOC_SQUASH_DELTA = 6;
+/** Hitch §LOC§ hash width — depository keeps full hashes; trailer uses 4 hex. */
+export const LOC_HITCH_SHORT = 4;
 
 export function locHash(text) {
   return createHash("sha256").update(String(text || "")).digest("hex").slice(0, 8);
@@ -139,25 +141,26 @@ export function squashLocations(nodes = locNodes, { maxDelta = LOC_SQUASH_DELTA 
 }
 
 /** Compact hitch body (no §LOC§ wrapper). Full hashes stay in the depository. */
-function hitchShort(s, n = 6) {
+export function hitchShort(s, n = LOC_HITCH_SHORT) {
   const hex = String(s || "").replace(/^0x/i, "").toLowerCase();
-  if (!hex) return "0".repeat(n);
-  return hex.slice(0, n);
+  const width = Math.max(1, Math.floor(Number(n) || LOC_HITCH_SHORT));
+  if (!hex) return "0".repeat(width);
+  return hex.slice(0, width);
 }
 
 export function encodeLocToken(depot) {
   const d = depot || squashLocations();
-  if (!d.n) return "n=0|tip=000000";
+  if (!d.n) return "n=0|t=0000";
   const kindBits = Object.entries(d.kinds || {})
     .map(([k, v]) => {
-      const code = k === "hat" ? "H" : k === "prove" ? "p" : "t";
+      const code = k === "hat" ? "H" : k === "prove" ? "p" : "h";
       return code + v;
     })
     .join(",");
   const parts = [
     "n=" + d.n,
-    "tip=" + hitchShort(d.tip),
-    "root=" + hitchShort(d.root),
+    "t=" + hitchShort(d.tip),
+    "r=" + hitchShort(d.root),
     "Δ=" + (d.delta || []).map((x) => hitchShort(x)).join(","),
   ];
   if (kindBits) parts.push("k=" + kindBits);
@@ -175,15 +178,15 @@ export function parseLocToken(token) {
     const k = part.slice(0, eq);
     const v = part.slice(eq + 1);
     if (k === "n") out.n = Number(v) || 0;
-    else if (k === "tip") out.tip = v;
-    else if (k === "root") out.root = v;
+    else if (k === "tip" || k === "t") out.tip = v;
+    else if (k === "root" || k === "r") out.root = v;
     else if (k === "Δ" || k === "d") out.delta = v ? v.split(",").filter(Boolean) : [];
     else if (k === "p") out.pending = Number(v) || 0;
     else if (k === "k") {
       for (const bit of v.split(",").filter(Boolean)) {
         const letter = bit[0];
         const count = Number(bit.slice(1)) || 0;
-        const name = letter === "t" || letter === "h" ? "hitch" : letter === "p" ? "prove" : letter === "H" ? "hat" : bit;
+        const name = letter === "h" || letter === "t" ? "hitch" : letter === "p" ? "prove" : letter === "H" ? "hat" : bit;
         out.kinds[name] = count;
       }
     }
@@ -237,6 +240,6 @@ export function locDepositoryStatus() {
     token: "§LOC§" + token,
     tokenChars: token.length,
     squashWindow: LOC_SQUASH_DELTA,
-    note: "Hitch carries squashed §LOC§; full locations stay append-only in registry.",
+    note: "Hitch carries squashed §LOC§ (4-hex shorts); full locations stay append-only in registry.",
   };
 }

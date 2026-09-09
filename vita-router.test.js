@@ -15,13 +15,17 @@ import {
   detectHitchKind,
   packVitaFields,
   parseVitaPacket,
+  projectLeftoverHitchFields,
   refineVitaPacket,
+  measureVitaText,
   vitaQuality,
 } from "./vita-parse.js";
 import {
   LOC_SQUASH_DELTA,
+  LOC_HITCH_SHORT,
   encodeLocToken,
   getLocationDepository,
+  hitchShort,
   locDepositoryStatus,
   parseLocToken,
   recordLocation,
@@ -66,6 +70,7 @@ import {
   hitchPreservesSwapPrefix,
   encodeStoreVoiceCalldata,
   buildStoreVoice,
+  utf8ByteLength,
 } from "./swap-minout.js";
 import {
   readHitchUtf8FromCalldata,
@@ -134,6 +139,19 @@ describe("vita-parse §TOKEN§", () => {
     assert.ok(clipped.fields.LOC.includes("n=12"));
     assert.equal(clipped.fields.STACK, undefined);
   });
+
+  it("projects leftover hitch to KEY+LOC and keeps names under a byte budget", () => {
+    const fat = buildGenesisPacket({ LEARN: "y".repeat(400), ARCH: "drop-from-hitch" });
+    const projected = projectLeftoverHitchFields(parseVitaPacket(fat).fields);
+    assert.equal(projected.ARCH, undefined);
+    assert.ok(projected.KEY.includes("Krystian"));
+    assert.ok(projected.LOC);
+    const clipped = clipVitaPacket(projected, 120, { byteBudget: 120 });
+    assert.ok(measureVitaText(clipped.packed, { bytes: true }) <= 120);
+    assert.ok(clipped.fields.KEY.includes("Krystian"));
+    assert.ok(clipped.fields.KEY.includes("Kai"));
+    assert.ok(clipped.fields.KEY.includes("Koda"));
+  });
 });
 
 describe("vita location depository squash", () => {
@@ -166,14 +184,22 @@ describe("vita location depository squash", () => {
     assert.equal(depot.delta.length, LOC_SQUASH_DELTA);
         assert.equal(depot.tip, shortLoc("0x11aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
     const token = encodeLocToken(depot);
-    assert.ok(token.length < 120, "squashed token should be hitch-sized, got " + token.length);
+    assert.ok(token.length < 90, "squashed token should be hitch-sized, got " + token.length);
     assert.ok(token.startsWith("n=12"));
+    assert.ok(token.includes("t="));
+    assert.ok(!token.includes("tip="), "hitch token must use dense t= not tip=");
+    assert.equal(hitchShort("0xabcdef12"), "abcd");
+    assert.equal(LOC_HITCH_SHORT, 4);
     const parsed = parseLocToken("§LOC§" + token);
     assert.equal(parsed.n, 12);
     assert.equal(parsed.delta.length, LOC_SQUASH_DELTA);
+    assert.equal(parsed.tip.length, LOC_HITCH_SHORT);
+    const legacy = parseLocToken("n=3|tip=aabbccdd|root=00112233|Δ=aa,bb,cc");
+    assert.equal(legacy.n, 3);
+    assert.equal(legacy.tip, "aabbccdd");
     const st = locDepositoryStatus();
     assert.ok(st.token.startsWith("§LOC§"));
-    assert.ok(st.tokenChars < 140);
+    assert.ok(st.tokenChars < 90);
   });
 });
 
@@ -202,6 +228,35 @@ describe("vita secondary router", () => {
     assert.ok(plan.utf8.includes("Krystian"));
     assert.doesNotMatch(plan.utf8, /We did it! xoxo/);
     assert.ok(plan.hitchBytes <= 400);
+    assert.equal(plan.utf8.includes("§WHO§"), false);
+    assert.equal(plan.utf8.includes("§STACK§"), false);
+  });
+
+  it("leftover hitch is denser than the Eureka letter and does not clip lastPacket", () => {
+    ensureGenesisMemory();
+    const refined = refineVitaPacket(getLastVitaPacket(), {
+      LEARN: "vault-on-base✓",
+      PROVED: "hour2-ok✓",
+      ARCH: "keep-arch-in-state",
+    });
+    setLastVitaPacket(refined.packed);
+    const before = getLastVitaPacket();
+    const eurekaBytes = utf8ByteLength(buildStoreVoice({ message: VITA_PROOF_FULL }));
+    const plan = planSecondaryHitch({ maxBytes: 280 });
+    assert.equal(plan.skipped, false);
+    assert.equal(plan.resolved, "vita");
+    assert.ok(plan.utf8.includes("§KEY§"));
+    assert.ok(plan.utf8.includes("Krystian"));
+    assert.ok(plan.utf8.includes("Koda"));
+    assert.equal(plan.utf8.includes("§WHO§"), false);
+    assert.equal(plan.utf8.includes("§ARCH§"), false);
+    assert.ok(plan.hitchBytes <= 280);
+    assert.ok(plan.hitchBytes < eurekaBytes, `vita hitch ${plan.hitchBytes} must be < eureka ${eurekaBytes}`);
+    assert.ok(getLastVitaPacket().includes("keep-arch-in-state"));
+    assert.ok(getLastVitaPacket().includes("hour2-ok"));
+    assert.ok(getLastVitaPacket().includes("vault-on-base"));
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().length >= before.length);
   });
 
   it("eureka mode still emits the love note (legacy + /prove twin)", () => {
