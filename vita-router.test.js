@@ -445,6 +445,53 @@ describe("vita hourly course", () => {
     assert.equal(later.achieving, false);
   });
 
+  it("folding leftover Eureka history keeps KEY and leftover-coverable KEY+LOC hitch", () => {
+    ensureGenesisMemory();
+    const eurekaUtf8 = buildStoreVoice({ message: VITA_PROOF_FULL });
+    const eurekaBytes = utf8ByteLength(eurekaUtf8);
+    const rows = [];
+    for (let i = 0; i < 24; i++) {
+      rows.push({
+        hash: "0x" + i.toString(16).padStart(64, "a"),
+        class: "eureka-leftover",
+        leftover: true,
+        utf8: eurekaUtf8,
+        hitchBytes: eurekaBytes,
+      });
+    }
+    ingestLeftoverScan({
+      leftoverStillEureka: true,
+      leftoverKinds: { eureka: 24, vita: 0, leftover: 24 },
+      counts: { eureka: 24, vita: 0, leftover: 24 },
+      hitchBytes: { eurekaMin: eurekaBytes, eurekaCount: 24 },
+      rows,
+    });
+    assert.equal(getLocationDepository().sealedCount, 24);
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("0x50e1C460"));
+    assert.equal(vitaQuality(getLastVitaPacket()).lossy, false);
+    const loc = locDepositoryStatus();
+    assert.match(loc.token, /n=24/);
+    assert.ok(loc.tokenChars < 90);
+    assert.ok(!loc.token.includes("k="));
+    const plan = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0 });
+    assert.ok(plan.hitchBytes < eurekaBytes);
+    assert.ok(plan.hitchBytes < 180);
+    assert.match(plan.utf8, /n=24/);
+    assert.ok(plan.utf8.includes("Krystian"));
+    assert.doesNotMatch(plan.utf8, /0x50e1C460/);
+    setLastVitaPacket("");
+    const rec = reconstructVitaMemoryFromLocations();
+    assert.equal(rec.lossy, false);
+    assert.ok(getLastVitaPacket().includes("0x50e1C460"));
+    const course = evaluateVitaCourse({
+      leftoverKinds: { eureka: 24, vita: 0 },
+      leftoverHitchBytes: { eurekaMin: eurekaBytes, eurekaCount: 24 },
+    });
+    assert.equal(course.inject.leftoverWouldCover, true);
+    assert.equal(course.issues.includes("leftover_still_eureka"), true);
+  });
+
   it("course stats serialize and restore", () => {
     restoreCourseStats({ attempts: 4, sealed: 1, skippedLeftover: 3, lastTickMs: 9 });
     const snap = serializeCourseStats();
@@ -900,6 +947,26 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
       if (course.inject.plannedHitchBytes && scan.hitchBytes.eurekaMin) {
         assert.equal(course.inject.leftoverWouldCover, course.inject.plannedHitchBytes <= scan.hitchBytes.eurekaMin);
       }
+    }
+    ingestLeftoverScan(scan);
+    if (scan.counts.eureka > 0) {
+      assert.ok(getLocationDepository().sealedCount >= scan.counts.eureka);
+      assert.ok(getLastVitaPacket().includes("Krystian"));
+      assert.ok(getLastVitaPacket().includes("0x50e1C460"));
+      assert.equal(vitaQuality(getLastVitaPacket()).lossy, false);
+      const loc = locDepositoryStatus();
+      assert.ok(loc.tokenChars < 90);
+      const plan = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0 });
+      assert.ok(plan.hitchBytes < scan.hitchBytes.eurekaMin);
+      assert.ok(plan.utf8.includes("§KEY§"));
+      assert.ok(plan.utf8.includes("§LOC§"));
+      assert.doesNotMatch(plan.utf8, /0x50e1C460/);
+      const after = evaluateVitaCourse({
+        leftoverKinds: scan.counts,
+        leftoverHitchBytes: scan.hitchBytes,
+      });
+      assert.equal(after.inject.leftoverWouldCover, true);
+      assert.equal(after.issues.includes("leftover_still_eureka"), true);
     }
   });
 
