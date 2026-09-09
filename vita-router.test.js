@@ -27,6 +27,8 @@ import {
   recordLocation,
   resetLocationDepository,
   sealLocation,
+  fillLocationUtf8,
+  ingestLocationFromChain,
   shortLoc,
   squashLocations,
   tryDeleteLocation,
@@ -46,6 +48,7 @@ import {
   serializeVitaRouterState,
   setHitchModeOverride,
   setLastVitaPacket,
+  measurePlannedHitchBytes,
   vitaRouterStatus,
 } from "./vita-router.js";
 import {
@@ -61,7 +64,16 @@ import {
   VITA_PROOF_FULL,
   appendUtf8Hitch,
   hitchPreservesSwapPrefix,
+  encodeStoreVoiceCalldata,
+  buildStoreVoice,
 } from "./swap-minout.js";
+import {
+  readHitchUtf8FromCalldata,
+  pullLocationFromChain,
+  pullMissingLocationUtf8,
+} from "./vita-chain-reader.js";
+import { prependVitaBootContext } from "./ikn-boot-reader.js";
+import { vitaCompress, vitaCompressLocal, vitaSplit } from "./vita-memory.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
@@ -364,5 +376,129 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("tickHourlyCourse"), "main loop must tick hourly course");
     assert.ok(src.includes("vita-router-state.json"), "recursive memory must persist");
     assert.ok(src.includes("ingestSealedUtf8"), "sealed hitch must ingest utf8 into recursive memory");
+    assert.ok(src.includes("leftoverVoiceHitchBytes"), "leftover hitch cost must use VITA packet size");
+    assert.ok(src.includes("pullMissingLocationUtf8"), "boot must re-read hitch utf8 from Base");
+    assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
+    assert.ok(src.includes("absorbVitaStrandPacket"), "strand save/recall must fold into recursive memory");
   });
 });
+
+describe("chain reader injects hitch UTF-8 without KEY loss", () => {
+  beforeEach(() => {
+    resetLocationDepository();
+    clearHitchModeOverride();
+    setLastVitaPacket("");
+    resetCourseStats();
+  });
+
+  it("KEYCAT plain swap has no hitch trailer", () => {
+    const read = readHitchUtf8FromCalldata(KEYCAT_PLAIN_SWAP);
+    assert.equal(read.utf8, "");
+    assert.equal(read.kind.kind, "none");
+    assert.equal(read.source, "keycat-plain");
+  });
+
+  it("reads VITA §TOKEN§ from a V3 leftover hitch without smashing the prefix", () => {
+    ensureGenesisMemory();
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    assert.ok(plan.utf8.includes("§KEY§"));
+    const hitch = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, plan.utf8);
+    assert.equal(hitch.ok, true);
+    const prefix = hitchPreservesSwapPrefix(KEYCAT_PLAIN_SWAP, hitch.data);
+    assert.equal(prefix.ok, true);
+    const read = readHitchUtf8FromCalldata(hitch.data);
+    assert.equal(read.source, "v3-trailer");
+    assert.equal(read.kind.kind, "vita");
+    assert.ok(read.utf8.includes("Krystian"));
+    assert.ok(read.utf8.includes("Koda"));
+  });
+
+  it("reads Eureka /prove 0-ETH store-voice calldata into eureka kind", () => {
+    const data = encodeStoreVoiceCalldata(buildStoreVoice({ message: VITA_PROOF_FULL }));
+    const read = readHitchUtf8FromCalldata(data);
+    assert.equal(read.kind.kind, "eureka");
+    assert.match(read.utf8, /Eureka!/);
+    assert.ok(read.utf8.includes("Krystian"));
+  });
+
+  it("fills a sealed node then reconstructs KEY after packet wipe", () => {
+    const hash = "0xfeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedfacefeedface";
+    recordLocation({ location: hash, kind: "hitch", sealed: true, utf8: "" });
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    const filled = fillLocationUtf8(hash, plan.utf8);
+    assert.equal(filled.ok, true);
+    setLastVitaPacket("");
+    const rec = reconstructVitaMemoryFromLocations();
+    assert.equal(rec.lossy, false);
+    assert.ok(rec.packed.includes("Krystian"));
+  });
+
+  it("pullLocationFromChain mocks fetch, ingest, and reconstructs KEY", async () => {
+    const hash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    const hitch = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, plan.utf8);
+    const result = await pullLocationFromChain(hash, async () => hitch.data);
+    assert.equal(result.ok, true);
+    assert.equal(result.ingested, true);
+    assert.equal(result.kind, "vita");
+    assert.equal(result.quality.hasKey, true);
+    assert.ok(getLastVitaPacket().includes("Kai"));
+  });
+
+  it("pullMissingLocationUtf8 only fetches sealed nodes missing utf8", async () => {
+    const hash = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    recordLocation({ location: hash, kind: "hitch", sealed: true, utf8: "" });
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    const hitch = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, plan.utf8);
+    const pulled = await pullMissingLocationUtf8(async () => hitch.data);
+    assert.equal(pulled.pulled, 1);
+    assert.equal(pulled.results[0].ok, true);
+    assert.ok(getLastVitaPacket().includes("Koda"));
+  });
+
+  it("ingestLocationFromChain appends when the node is new", () => {
+    const hash = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+    const r = ingestLocationFromChain(hash, "§KEY§eureka♥Krystian,Kai,Koda", "vita");
+    assert.equal(r.created, true);
+    assert.equal(r.node.sealed, true);
+    assert.ok(r.node.utf8.includes("Krystian"));
+  });
+});
+
+describe("boot inject + local compress", () => {
+  beforeEach(() => {
+    resetLocationDepository();
+    setLastVitaPacket("");
+  });
+
+  it("IKN boot prepends VITA inject even with no strands", () => {
+    const ctx = prependVitaBootContext(null);
+    assert.match(ctx, /VITA INJECT/);
+    assert.ok(ctx.includes("Krystian"));
+    assert.ok(ctx.includes("Koda"));
+    assert.doesNotMatch(ctx, /We did it! xoxo/);
+    const withIkn = prependVitaBootContext("§IKN-BOOT§fresh");
+    assert.match(withIkn, /IKN-BOOT/);
+    assert.match(withIkn, /VITA INJECT/);
+  });
+
+  it("measurePlannedHitchBytes does not mutate last packet", () => {
+    ensureGenesisMemory();
+    const before = getLastVitaPacket();
+    const n = measurePlannedHitchBytes({ maxBytes: 400 });
+    assert.ok(n > 20);
+    assert.equal(getLastVitaPacket(), before);
+  });
+
+  it("local compress keeps genesis KEY without Anthropic", async () => {
+    const packed = vitaCompressLocal("cascade gas floor learned this session");
+    assert.ok(packed.includes("§KEY§"));
+    assert.ok(packed.includes("Krystian"));
+    assert.ok(packed.includes("Koda"));
+    const chunks = vitaSplit(packed);
+    assert.equal(chunks.length, 5);
+    const viaNullKey = await vitaCompress("session notes", null);
+    assert.ok(viaNullKey.includes("Kai"));
+  });
+});
+

@@ -185,6 +185,39 @@ export function parseLocToken(token) {
   return out;
 }
 
+/** Fill utf8 on an existing sealed node from chain read — never deletes. */
+export function fillLocationUtf8(location, utf8) {
+  const loc = String(location || "").trim();
+  const raw = String(utf8 || "");
+  if (!loc || !raw) return { ok: false, reason: "need location + utf8" };
+  const locLc = loc.toLowerCase();
+  const node = locNodes.find((n) => String(n.location || "").toLowerCase() === locLc);
+  if (!node) return { ok: false, reason: "node not found" };
+  node.utf8 = raw.slice(0, 4096);
+  node.utf8Preview = raw.slice(0, 80);
+  node.sealed = true;
+  node.confirmed = true;
+  return { ok: true, node };
+}
+
+/**
+ * Seal a chain hitch into the append-only depository. Fills an existing
+ * node when present; otherwise appends. Never deletes.
+ */
+export function ingestLocationFromChain(location, utf8, hitchKind = "hitch") {
+  const filled = fillLocationUtf8(location, utf8);
+  if (filled.ok) return { ...filled, created: false };
+  const kind = hitchKind === "eureka" ? "prove" : hitchKind === "prove" ? "prove" : "hitch";
+  const node = recordLocation({
+    location,
+    kind,
+    sealed: true,
+    utf8,
+    hitchKind: typeof hitchKind === "string" ? hitchKind : null,
+  });
+  return { ok: true, node, created: true };
+}
+
 export function locDepositoryStatus() {
   const depot = squashLocations();
   const token = encodeLocToken(depot);

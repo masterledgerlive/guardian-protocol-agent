@@ -98,6 +98,25 @@ export function getLastVitaPacket() {
   return lastVitaPacket;
 }
 
+/**
+ * Hitch byte cost of the current VITA packet without mutating recursive memory.
+ * Leftover gates should use this (not the Eureka love-note length) when mode is vita.
+ */
+export function measurePlannedHitchBytes(opts = {}) {
+  const prev = lastVitaPacket;
+  try {
+    const plan = planSecondaryHitch({
+      leftoverEth: 1,
+      hitchCostEth: 0,
+      skipHitch: false,
+      ...opts,
+    });
+    return Number(plan.hitchBytes) || 0;
+  } finally {
+    lastVitaPacket = prev;
+  }
+}
+
 export function setLastVitaPacket(packet) {
   lastVitaPacket = String(packet || "");
 }

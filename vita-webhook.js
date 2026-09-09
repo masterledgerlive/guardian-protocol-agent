@@ -24,6 +24,7 @@
 //   GET  /vita/locations     — squashed location depository
 //   GET  /vita/course        — hourly inject-without-loss scorecard
 //   GET  /vita/inject       — recursive §TOKEN§ memory for session start
+//   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
 //   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
@@ -52,6 +53,7 @@ import {
 import { vitaRouterStatus, buildVitaInjectContext } from "./vita-router.js";
 import { locDepositoryStatus } from "./vita-locations.js";
 import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
+import { fetchTxCalldataHex, pullLocationFromChain } from "./vita-chain-reader.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -388,6 +390,11 @@ async function handleVitaRequest(req, res) {
 
     } else if (path === "/vita/inject" && req.method === "GET") {
       return json(res, { ok: true, ...buildVitaInjectContext() });
+
+    } else if (path === "/vita/pull" && req.method === "GET") {
+      const tx = String(url.searchParams.get("tx") || url.searchParams.get("hash") || "").trim();
+      const result = await pullLocationFromChain(tx, fetchTxCalldataHex);
+      return json(res, result, result.ok ? 200 : 400);
 
     // ── GET /vita/context — compressed memory for new Claude session ────────
     } else if (path === "/vita/context" && req.method === "GET") {

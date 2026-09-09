@@ -301,6 +301,7 @@ import {
 import {
   formatRouterMessage,
   planSecondaryHitch,
+  measurePlannedHitchBytes,
   parseHitchTrailer,
   setHitchModeOverride,
   serializeVitaRouterState,
@@ -309,6 +310,7 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation } from "./vita-locations.js";
+import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex } from "./vita-chain-reader.js";
 import {
   evaluateVitaCourse,
   formatCourseMessage,
@@ -742,7 +744,7 @@ function buildPrimedAvenues({
         injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
         tokenScore: scored?.score || 0,
         gwei,
-        hitchBytesWanted: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+        hitchBytesWanted: leftoverVoiceHitchBytes(),
         ethUsd,
         tokenMinBuyUsd: minBuyUsdForToken(t),
         minPosUsd: minPosUsd(),
@@ -4672,6 +4674,34 @@ function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 300
   return hitch.ok && hitch.onChain ? hitch.data : swapCall;
 }
 
+/** Fold a sealed strand packet into recursive §TOKEN§ memory + location depository. */
+function absorbVitaStrandPacket(entry) {
+  const packet = entry?.tokenPacket || "";
+  if (!packet) return;
+  ingestSealedUtf8(packet);
+  const loc = entry.chunks?.[0]?.txHash || entry.txHash;
+  if (loc) {
+    recordLocation({
+      location: loc,
+      kind: "hitch",
+      sealed: true,
+      utf8: packet,
+      hitchKind: "vita",
+    });
+  }
+}
+
+/** Leftover hitch budget = actual VITA §TOKEN§ hitch, not the Eureka love-note length. */
+function leftoverVoiceHitchBytes() {
+  const cap = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+  try {
+    const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0 });
+    return n > 0 && n <= cap ? n : cap;
+  } catch {
+    return cap;
+  }
+}
+
 /** Size-limited hitch via VITA secondary router (default §TOKEN§, not love-note prose). */
 function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = storeVoiceEnabled() } = {}) {
   if (!enabled || skipHitch || !swapData) {
@@ -5321,7 +5351,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Min entry = fees + gas + hitch + cascade seed. Refuse fragment buys that strand the book.
     let hitchCostEst = 0;
     try {
-      const voiceBytesEarly = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const voiceBytesEarly = leftoverVoiceHitchBytes();
       const hitchL1Early = await quoteHitchL1ForGates({ hitchBytes: voiceBytesEarly });
       const l2Hitch = estimateCalldataHitchEth(voiceBytesEarly, gwei);
       hitchCostEst = (hitchL1Early.ok ? (Number(hitchL1Early.l1FeeEth) || 0) : 0) + l2Hitch;
@@ -5361,7 +5391,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     );
     if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
       const armEarly    = getArmStatus(token.symbol, gasCost, spendForGate);
-      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const voiceBytes  = leftoverVoiceHitchBytes();
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
@@ -5518,7 +5548,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
-      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+      maxBytes: leftoverVoiceHitchBytes(),
     });
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
@@ -5869,7 +5899,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
     const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+    const voiceBytes = leftoverVoiceHitchBytes();
     const hitchL1 = await quoteHitchL1ForGates({
       hitchBytes: voiceBytes + orchBytes,
       btpInscribe: wantBtp,
@@ -6378,7 +6408,7 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
     const gweiC  = await getCurrentGasGwei();
     let hitchCost = 0;
     try {
-      const vb = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const vb = leftoverVoiceHitchBytes();
       const l1 = await quoteHitchL1ForGates({ hitchBytes: vb });
       const l2 = estimateCalldataHitchEth(vb, gweiC);
       hitchCost = (l1.ok ? (Number(l1.l1FeeEth) || 0) : 0) + l2;
@@ -9465,6 +9495,32 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           await tg("🔀 <b>VITA MODE</b> → <code>" + r.mode + "</code>\n" + formatRouterMessage());
         }
 
+      } else if (text && text.startsWith("/vitapull ")) {
+        const hash = raw.slice("/vitapull ".length).trim();
+        await tg("⛓️ Pulling hitch UTF-8 from Base…");
+        try {
+          const result = await pullLocationFromChain(hash, fetchTxCalldataHex);
+          if (!result.ok) {
+            await tg("❌ VITA pull failed: " + (result.error || "unknown"));
+          } else if (!result.utf8) {
+            await tg(
+              "⛓️ <b>NO HITCH</b> in <code>" + hash.slice(0, 12) + "…</code>\n" +
+              "source <code>" + (result.source || "?") + "</code>\n" +
+              "<i>KEYCAT 0x5c0a93e4 is a plain 228-byte swap. /prove is the letter.</i>"
+            );
+          } else {
+            ingestSealedUtf8(result.utf8);
+            await tg(
+              "⛓️ <b>VITA PULL</b> " + result.kind + " · " + result.source + "\n" +
+              "🔗 <a href=\"https://basescan.org/tx/" + hash + "\">View on Basescan ↗</a>\n" +
+              "KEY " + (result.quality?.hasKey ? "yes" : "LOSS") + " · " + (result.utf8.length) + " chars\n" +
+              "<code>" + esc(result.utf8.slice(0, 400)) + (result.utf8.length > 400 ? "…" : "") + "</code>"
+            );
+          }
+        } catch (e) {
+          await tg("❌ VITA pull failed: " + e.message);
+        }
+
       } else if (text === "/models") {
         await tg(vitaModelStatusMessage());
 
@@ -9750,16 +9806,12 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         // VAULT_VITA_ANTHROPIC_KEY = tx hash → encrypted key on Base (future — when we migrate fully to vault)
         // ANTHROPIC_API_KEY = last resort fallback
         const vitaApiKey = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
-        if (!vitaApiKey) {
-          await tg(
-            "🌟 <b>VITA needs an API key</b>\n\n" +
-            "Add to Railway: <code>ANTHROPIC_API_KEY = sk-ant-...</code>\n\n" +
-            "Or vault VITA's own key:\n" +
-            "<code>/newvault VITA_ANTHROPIC_KEY</code>"
-          );
-        } else {
-          await tg("🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API...");
-          try {
+        await tg(
+          vitaApiKey
+            ? "🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API..."
+            : "🌟 <b>VITA local §TOKEN§ compress</b>\nNo Anthropic key — packing locally so KEY is not lost.\n⏳ Inscribing on Base..."
+        );
+        try {
             const ethPrice3 = await getLiveEthPrice();
             const bal3      = await getFullBalance();
 
@@ -9835,6 +9887,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             global._vitaNotes = [];
 
             const entry = await vitaSave(cdpClient, WALLET_ADDRESS, sessionCtx, vitaApiKey, "session");
+            absorbVitaStrandPacket(entry);
 
             let msg = "🌟 <b>VITA MEMORY SAVED ON BASE</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
             msg += "📦 Strand: <b>" + entry.strandId + "</b> — " + entry.date + "\n";
@@ -9847,6 +9900,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             await tg(msg);
 
             // ── AUTO-FILE: call Claude to label + file this memory ──────────
+            if (vitaApiKey) {
             try {
               console.log("📁 VITA: auto-filing memory to registry...");
               const fileResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -9957,8 +10011,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
               console.log(fileErr.stack?.split("\n").slice(0,3).join("\n"));
               await tg("⚠️ Memory saved to chain but registry filing failed: " + fileErr.message);
             }
+            }
           } catch (e) { await tg("❌ VITA save failed: " + e.message); }
-        }
 
       } else if (text === "/vitarecall" || text === "/vitacontext") {
         await tg("🌟 Loading VITA memory from Base...");
@@ -10097,6 +10151,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
           // Compress and file via VITA
           const vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
+          absorbVitaStrandPacket(vitaEntry);
 
           // File in registry
           const regKey = new Date().toISOString().slice(0,10) + "-trading-data-snapshot";
@@ -10545,23 +10600,19 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         // VITA compresses and saves session autonomously via Anthropic API
         const extra   = raw.slice("/vitasave".length).trim();
         const apiKey  = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-          await tg(
-            "❌ <b>VITA_ANTHROPIC_KEY not set</b>\n\n" +
-            "Add it via vault:\n" +
-            "<code>/newvault VITA_ANTHROPIC_KEY</code>\n" +
-            "Then reply with your API key.\n\n" +
-            "Or add directly to Railway as VITA_ANTHROPIC_KEY"
-          );
-        } else {
-          await tg("💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base...");
-          try {
+        await tg(
+          apiKey
+            ? "💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base..."
+            : "💓 <b>VITA MEMORY SAVE</b>\nLocal §TOKEN§ compress (no Anthropic key).\nInscribing 5 strand chunks on Base..."
+        );
+        try {
             const rawSummary = vitaBuildSummary(extra);
             const entry = await vitaSave(
               cdpClient, WALLET_ADDRESS,
               rawSummary, apiKey,
               extra ? extra.slice(0, 30) : "session-" + new Date().toISOString().slice(0,10)
             );
+            absorbVitaStrandPacket(entry);
             let msg = "💓 <b>VITA STRAND INSCRIBED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
             msg += "🔗 Strand: <b>" + entry.strandId + "</b>\n";
             msg += "📅 Date: " + entry.date + "\n";
@@ -10576,7 +10627,6 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) {
             await tg("❌ VITA save failed: " + e.message);
           }
-        }
 
       } else if (text && text.startsWith("/vitarecall ")) {
         const query  = raw.slice("/vitarecall ".length).trim();
@@ -10587,6 +10637,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           if (!result) {
             await tg("💓 No VITA memory found for: <b>" + query + "</b>\nTry /vitamemory to see all strands");
           } else {
+            ingestSealedUtf8(result.tokenPacket);
             await tg(
               "💓 <b>VITA RECALL — " + result.strandId + "</b>\n" +
               "━━━━━━━━━━━━━━━━━━━━\n" +
@@ -10767,6 +10818,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitarouter — secondary hitch router (vita|eureka|hat|auto)\n` +
           `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
           `/vitacourse — hourly memory/inject scorecard\n` +
+          `/vitapull 0xHASH — re-read hitch UTF-8 from Base into §TOKEN§ memory\n` +
           `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
           `/transmit [msg] — queue a custom BTP message on later trades\n` +
           `/btpstatus — show pending transmissions\n\n` +
@@ -10799,7 +10851,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitamemory — show all VITA memory sessions\n` +
           `/vitarecall — show recent memory context\n` +
           `/vitarouter — hitch payload switch + location squash\n` +
-          `/vitacourse — hourly inject-without-loss scorecard\n\n` +
+          `/vitacourse — hourly inject-without-loss scorecard\n` +
+          `/vitapull 0xHASH — inject sealed hitch from Base without KEY loss\n\n` +
           `/remember [text] — save cliff note, rides next trade\n` +
           `/savesession — inscribe full session summary on Base\n` +
           `/memories — show all memory chunks\n` +
@@ -11121,6 +11174,16 @@ async function main() {
     }
   } catch (iknErr) {
     console.log("⚠️  IKN boot reader error (non-critical): " + iknErr.message);
+  }
+
+  // Re-fetch sealed hitch UTF-8 from Base when the depository only has shorts.
+  try {
+    const pulled = await pullMissingLocationUtf8(fetchTxCalldataHex);
+    if (pulled.pulled) {
+      console.log("🔀 VITA chain pull: " + pulled.pulled + " sealed location(s) re-read from Base");
+    }
+  } catch (pullErr) {
+    console.log("⚠️  VITA chain pull (non-critical): " + pullErr.message);
   }
 
   // Load macro BTC/ETH trend signal before token data
@@ -11959,7 +12022,7 @@ async function main() {
       let gweiForPrime = 0;
       try {
         gweiForPrime = await getCurrentGasGwei();
-        const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const voiceBytes = leftoverVoiceHitchBytes();
         const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
         const l2Hitch = estimateCalldataHitchEth(voiceBytes, gweiForPrime);
         hitchCostForPrime = (hitchL1.ok ? (Number(hitchL1.l1FeeEth) || 0) : 0) + l2Hitch;
@@ -12106,7 +12169,7 @@ async function main() {
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const moonVoiceBytes = leftoverVoiceHitchBytes();
         const moonL1 = await quoteHitchL1ForGates({
           hitchBytes: moonVoiceBytes + moonOrchBytes,
           btpInscribe: moonWantBtp,
