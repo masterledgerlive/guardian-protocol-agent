@@ -95,8 +95,12 @@ describe("vita HTML console", () => {
     assert.equal(state.nodes.some((n) => n.location === hash), true);
     assert.ok(state.packet.includes("Krystian"));
     assert.equal(getLastVitaPacket(), botBefore);
+    state.mode = "eureka";
     const course = await handleVitaConsole(state, "/vitacourse");
     assert.match(course.text, /leftover_still_eureka/);
+    assert.equal(state.mode, "vita");
+    assert.ok(state.packet.includes("Krystian"));
+    assert.equal(vitaQuality(state.packet).lossy, false);
   });
 
   it("inject folds leftover hitch hashes into HTML memory without KEY loss", async () => {

@@ -301,6 +301,27 @@ describe("buildBuyGateDecision", () => {
     assert.equal(d.log, "LOSE_ZERO: allow buy AERO leftover covers inject");
   });
 
+  it("buy L2 hitch fee sizes against planned VITA hitch bytes", () => {
+    const args = {
+      symbol: "AERO",
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      price: 1,
+      existingSellTarget: 1.05,
+      feePct: 0.006,
+      impactPct: 0.002,
+      gasCostEth: 0,
+      tradeEth: 0.01,
+      gwei: 1,
+      armed: true,
+      net: 0.04,
+      env: { LOSE_ZERO: "yes" },
+    };
+    const tag = buildBuyGateDecision({ ...args, hitchBytes: STORE_HITCH_BYTES });
+    const vita = buildBuyGateDecision({ ...args, hitchBytes: 102 });
+    assert.ok(vita.l2FeeEth > tag.l2FeeEth);
+    assert.equal(vita.l2FeeEth, estimateCalldataHitchEth(102, 1));
+  });
+
   it("hasClearEdge requires armed/net or a known signal plus positive net", () => {
     assert.equal(hasClearEdge({ armed: true, net: 0.03 }), true);
     assert.equal(hasClearEdge({ armed: false, net: 0, reason: "MIN TROUGH" }), false);

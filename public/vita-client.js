@@ -47,6 +47,15 @@ function locToken(nodes) {
   ].join("|");
 }
 
+function stampPacketLoc(state) {
+  const loc = locToken(state.nodes);
+  const fields = parseVitaPacket(state.packet).fields;
+  fields.LOC = loc;
+  if (!fields.KEY) fields.KEY = VITA_LOVE_KEY;
+  state.packet = packVitaFields(fields);
+  return loc;
+}
+
 export function createState() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -266,12 +275,23 @@ export async function handleCommand(state, raw) {
         persist(state);
       } catch { /* course still scores KEY/loc without chain scan */ }
     }
+    if (state.leftoverScan?.leftoverStillEureka) state.mode = "vita";
+    const packed = readerPacked(state);
+    if (vitaQuality(packed).hasKey) {
+      state.packet = packed;
+      stampPacketLoc(state);
+    }
     const q = vitaQuality(state.packet);
     const sealed = state.nodes.filter((n) => n.utf8).length;
     const score = Math.min(100, Math.round((50 + q.score) / 2) + Math.min(20, sealed));
     const issues = [];
     if (q.lossy) issues.push("key_fact_loss");
     if (state.leftoverScan?.leftoverStillEureka) issues.push("leftover_still_eureka");
+    const hitchPlan = plannedHitch(state);
+    const plannedBytes = new TextEncoder().encode(hitchPlan).length;
+    const eurekaMin = Number(state.leftoverScan?.hitchBytes?.eurekaMin) || 0;
+    const leftoverWouldCover = plannedBytes > 0 && eurekaMin > 0 && plannedBytes <= eurekaMin;
+    persist(state);
     return say(
       "COURSE " + score + "/100 · " + (issues.length ? "correct" : "achieving") +
       "\nSealed " + sealed + " · notes " + state.notes.length +
@@ -283,6 +303,8 @@ export async function handleCommand(state, raw) {
             ? " · Eureka min " + state.leftoverScan.hitchBytes.eurekaMin + "B"
             : "")
         : "") +
+      (plannedBytes ? "\nHitch plan " + plannedBytes + "B" : "") +
+      (leftoverWouldCover ? " · leftover would cover names-only KEY+LOC" : "") +
       (issues.length ? "\nIssues: " + issues.join(", ") : ""),
     );
   }

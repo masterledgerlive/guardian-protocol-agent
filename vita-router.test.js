@@ -60,6 +60,7 @@ import {
 import {
   evaluateVitaCourse,
   formatCourseMessage,
+  applyVitaCourse,
   resetCourseStats,
   restoreCourseStats,
   serializeCourseStats,
@@ -427,6 +428,42 @@ describe("vita hourly course", () => {
     assert.equal(done.achieving, true);
   });
 
+  it("leftover_still_eureka course-corrects hitch mode from eureka to vita without KEY loss", () => {
+    setHitchModeOverride("eureka");
+    ensureGenesisMemory();
+    const still = evaluateVitaCourse({
+      lastPacket: getLastVitaPacket(),
+      leftoverKinds: { eureka: 40, vita: 0, plain: 1 },
+      leftoverHitchBytes: { eurekaMin: 229, eurekaCount: 40 },
+    });
+    assert.equal(still.mode, "eureka");
+    assert.equal(still.nextMode, "vita");
+    assert.equal(still.inject.leftoverWouldCover, true);
+    const applied = applyVitaCourse(still);
+    assert.ok(applied.applied.includes("mode:vita"));
+    assert.ok(applied.applied.includes("reconstruct-no-loss"));
+    assert.equal(resolveHitchMode(), "vita");
+    assert.equal(vitaQuality(getLastVitaPacket()).lossy, false);
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("Koda"));
+  });
+
+  it("hourly tick pins leftover hitch to vita when leftover would cover KEY+LOC", () => {
+    ensureGenesisMemory();
+    const t = tickHourlyCourse({
+      force: true,
+      leftoverKinds: { eureka: 36, vita: 0, leftover: 36 },
+      leftoverHitchBytes: { eurekaMin: 229, eurekaCount: 36 },
+    });
+    assert.equal(t.ticked, true);
+    assert.equal(t.course.achieving, false);
+    assert.ok(t.course.issues.includes("leftover_still_eureka"));
+    assert.equal(t.course.nextMode, "vita");
+    assert.ok(t.applied.includes("leftover-cover-vita-hitch") || t.applied.includes("mode:vita"));
+    assert.ok(t.applied.includes("reconstruct-no-loss"));
+    assert.equal(vitaQuality(getLastVitaPacket()).lossy, false);
+  });
+
   it("hourly tick persists leftoverKinds so later course still fails leftover_still_eureka", () => {
     ensureGenesisMemory();
     const t = tickHourlyCourse({
@@ -581,6 +618,8 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("scanAddressLeftoverHitches"), "boot/hourly must scan leftover hitch kinds");
     assert.ok(src.includes("leftoverScan: true"), "boot inject must fold leftover hitch memory");
     assert.ok(src.includes("ingestLeftoverScan"), "Eureka leftover fills must fold into recursive memory");
+    assert.ok(src.includes("skipHitch: buySkipHitch || buyVoice.onChain"), "buy leftover must not fall through to orch LIBM when VITA hitch is skipped");
+    assert.ok(src.includes("hitchBytes: voiceBytes"), "buy L2 hitch fee must size against planned VITA hitch");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");

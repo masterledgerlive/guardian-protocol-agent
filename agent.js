@@ -5408,8 +5408,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         armed: !!armEarly.armed,
         net: armEarly.net || 0,
         isCascade,
+        hitchBytes: voiceBytes,
       });
-      logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
+      logHitchFeeSplit(hitchL1, voiceBytes, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
       // Never hitch on buy when L1 oracle is down — undercover insert bleeds the book.
@@ -5560,7 +5561,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams1, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain,
             })
           : cdp.evm.sendTransaction(_txParams1),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5574,7 +5575,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams2, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain,
             })
           : cdp.evm.sendTransaction(_txParams2),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))

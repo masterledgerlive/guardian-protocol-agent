@@ -162,6 +162,10 @@ function plannedHitch(state) {
   return STORE_TAG + " " + packVitaFields(hitchFields, { dense: true });
 }
 
+function hitchUtf8Bytes(text) {
+  return Buffer.byteLength(String(text || ""), "utf8");
+}
+
 function courseScore(state) {
   const quality = vitaQuality(state.packet);
   const sealed = (state.nodes || []).filter((n) => n.sealed && n.location).length;
@@ -170,6 +174,9 @@ function courseScore(state) {
   if (state.injected) score += 5;
   if (quality.lossy) score = Math.min(score, 40);
   score = Math.max(0, Math.min(100, score));
+  const plannedBytes = hitchUtf8Bytes(plannedHitch(state));
+  const eurekaMin = Number(state.leftoverScan?.hitchBytes?.eurekaMin) || 0;
+  const leftoverWouldCover = plannedBytes > 0 && eurekaMin > 0 && plannedBytes <= eurekaMin;
   const issues = [
     ...(quality.lossy ? ["key_fact_loss"] : []),
     ...(state.leftoverScan?.leftoverStillEureka ? ["leftover_still_eureka"] : []),
@@ -179,12 +186,15 @@ function courseScore(state) {
     score,
     achieving: score >= 55 && !issues.includes("key_fact_loss") && !issues.includes("leftover_still_eureka"),
     mode: state.mode,
+    nextMode: issues.includes("leftover_still_eureka") ? "vita" : state.mode,
     quality,
     sealed,
     pendingNotes: state.notes.length,
     pendingInject: Boolean(state.pendingInject),
     injected: state.injected,
     leftoverScan: state.leftoverScan || null,
+    plannedHitchBytes: plannedBytes,
+    leftoverWouldCover,
     issues,
   };
 }
@@ -334,6 +344,12 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
   }
 
   if (text === "/vitacourse") {
+    const out = readerOutput(state);
+    if (out.quality.hasKey) {
+      state.packet = out.packed;
+      stampLoc(state);
+    }
+    if (state.leftoverScan?.leftoverStillEureka) state.mode = "vita";
     const c = courseScore(state);
     return reply(
       "VITA COURSE " + c.score + "/100 · " + (c.achieving ? "achieving" : "correct") +
@@ -343,7 +359,12 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
         ? "\nLeftover eureka=" + Number(c.leftoverScan.counts?.eureka || 0) +
           " vita=" + Number(c.leftoverScan.counts?.vita || 0)
         : "") +
-      (c.issues.length ? "\nIssues: " + c.issues.join(", ") : ""),
+      (c.plannedHitchBytes
+        ? "\nHitch plan " + c.plannedHitchBytes + "B" +
+          (c.leftoverWouldCover ? " · leftover would cover names-only KEY+LOC" : "")
+        : "") +
+      (c.issues.length ? "\nIssues: " + c.issues.join(", ") : "") +
+      (c.nextMode !== c.mode ? "\nSwitch → " + c.nextMode : ""),
     );
   }
 

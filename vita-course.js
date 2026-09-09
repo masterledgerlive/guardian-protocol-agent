@@ -15,9 +15,11 @@ import {
   ensureGenesisMemory,
   getLastVitaPacket,
   measurePlannedHitchBytes,
+  reconstructVitaMemoryFromLocations,
   resolveHitchMode,
   setHitchModeOverride,
   setLastVitaPacket,
+  stampLocIntoPacket,
   vitaRouterStatus,
 } from "./vita-router.js";
 
@@ -115,8 +117,11 @@ export function evaluateVitaCourse({
   if (issues.includes("realized_loss") || issues.includes("all_skips_leftover")) {
     nextMode = mode === "hat" ? "vita" : mode;
   }
+  if (issues.includes("leftover_still_eureka")) {
+    nextMode = "vita";
+  }
   if (issues.includes("key_fact_loss") && mode === "eureka") {
-    actions.push("stay eureka until KEY is re-encoded, then switch back to vita");
+    actions.push("stay eureka until KEY is re-encoded, then switch leftover hitch back to vita");
   }
 
   return {
@@ -286,7 +291,17 @@ export function applyVitaCourse(course) {
     setLastVitaPacket(refined.packed);
     applied.push("restore-KEY");
   }
-  if (c.nextMode && c.nextMode !== c.mode) {
+  if (c.issues.includes("leftover_still_eureka") || c.issues.includes("key_fact_loss")) {
+    reconstructVitaMemoryFromLocations();
+    stampLocIntoPacket();
+    applied.push("reconstruct-no-loss");
+  }
+  if (c.issues.includes("leftover_still_eureka")) {
+    const r = setHitchModeOverride("vita");
+    if (r.ok) {
+      applied.push(c.mode === "vita" ? "leftover-cover-vita-hitch" : "mode:vita");
+    }
+  } else if (c.nextMode && c.nextMode !== c.mode) {
     const r = setHitchModeOverride(c.nextMode);
     if (r.ok) applied.push("mode:" + r.mode);
   }

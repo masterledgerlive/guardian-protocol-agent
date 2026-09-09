@@ -519,6 +519,7 @@ export function buildBuyGateDecision({
   armed = false,
   net = 0,
   isCascade = false,
+  hitchBytes = STORE_HITCH_BYTES,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
@@ -527,7 +528,8 @@ export function buildBuyGateDecision({
   const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
-  const l2FeeEth = estimateCalldataHitchEth(STORE_HITCH_BYTES, gwei);
+  const l2Bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);
+  const l2FeeEth = estimateCalldataHitchEth(l2Bytes, gwei);
   const source = hasLiveL1Fee(l1FeeEth) ? "oracle" : "fallback";
   const feeFields = {
     l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
