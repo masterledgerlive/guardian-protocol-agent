@@ -197,5 +197,6 @@ describe("control board HTTP", () => {
     assert.equal(typeof json.counts.vita, "number");
     assert.equal(Array.isArray(json.rows), true);
     assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
+    assert.ok(json.rows.length <= 80);
   });
 });

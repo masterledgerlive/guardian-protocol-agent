@@ -226,6 +226,13 @@ function answer(state, q) {
   return Object.entries(fields).map(([k, v]) => k + ": " + v).join("\n").slice(0, 800);
 }
 
+async function fetchLeftoverScanJson() {
+  const res = await fetch("/vita/leftover");
+  const scan = await res.json();
+  if (!scan?.ok && !scan?.counts) throw new Error(scan?.error || "scan failed");
+  return scan;
+}
+
 export async function handleCommand(state, raw) {
   const input = String(raw || "").trim();
   const low = input.toLowerCase();
@@ -247,6 +254,17 @@ export async function handleCommand(state, raw) {
     return say("mode → " + mode);
   }
   if (low === "/vitacourse") {
+    if (!state.leftoverScan) {
+      try {
+        const scan = await fetchLeftoverScanJson();
+        state.leftoverScan = {
+          counts: scan.counts,
+          leftoverStillEureka: Boolean(scan.leftoverStillEureka),
+          vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
+        };
+        persist(state);
+      } catch { /* course still scores KEY/loc without chain scan */ }
+    }
     const q = vitaQuality(state.packet);
     const sealed = state.nodes.filter((n) => n.utf8).length;
     const score = Math.min(100, Math.round((50 + q.score) / 2) + Math.min(20, sealed));
@@ -266,9 +284,7 @@ export async function handleCommand(state, raw) {
   }
   if (low === "/vitascan") {
     try {
-      const res = await fetch("/vita/leftover");
-      const scan = await res.json();
-      if (!scan?.ok && !scan?.counts) throw new Error(scan?.error || "scan failed");
+      const scan = await fetchLeftoverScanJson();
       const lines = [];
       for (const row of scan.rows || []) {
         if (!TX_RE.test(row.hash) || !row.leftover) continue;

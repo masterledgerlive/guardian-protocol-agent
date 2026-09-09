@@ -120,6 +120,7 @@ describe("vita HTML artifacts", () => {
     assert.match(client, /handleCommand/);
     assert.match(client, /KEYCAT_TX/);
     assert.match(client, /vitascan/);
+    assert.match(client, /fetchLeftoverScanJson|\/vita\/leftover/);
     assert.match(html, /vitascan/);
   });
 });

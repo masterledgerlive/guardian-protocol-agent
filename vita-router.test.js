@@ -828,6 +828,26 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.equal(view.rows.every((r) => r.utf8 === undefined), true);
   });
 
+  it("publicLeftoverScanView keeps leftover hashes for the reader (not a 24-row clip)", () => {
+    const rows = [];
+    for (let i = 0; i < 40; i++) {
+      rows.push({
+        hash: "0x" + String(i).padStart(64, "a"),
+        class: "eureka-leftover",
+        leftover: true,
+        utf8: "secret-should-not-publish",
+      });
+    }
+    const view = publicLeftoverScanView({
+      counts: { eureka: 40, vita: 0 },
+      leftoverStillEureka: true,
+      rows,
+    });
+    assert.equal(view.rows.length, 40);
+    assert.equal(view.rows.every((r) => r.utf8 === undefined), true);
+    assert.equal(view.leftoverStillEureka, true);
+  });
+
   it("live Base: leftover scan reports leftoverKinds without inventing a VITA hitch", { timeout: 25000 }, async () => {
     const scan = await scanAddressLeftoverHitches({ address: GUARDIAN_WALLET, limit: 40 });
     assert.ok(Array.isArray(scan.rows));

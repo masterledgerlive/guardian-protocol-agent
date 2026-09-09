@@ -247,7 +247,7 @@ export function publicLeftoverScanView(scan) {
     vitaLeftoverPresent: Boolean(s.vitaLeftoverPresent),
     rows: (s.rows || [])
       .filter((r) => r.leftover || r.class === "plain-228")
-      .slice(0, 24)
+      .slice(0, 80)
       .map((r) => ({
         hash: r.hash,
         class: r.class,
