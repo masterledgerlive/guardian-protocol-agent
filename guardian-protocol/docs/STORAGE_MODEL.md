@@ -4,13 +4,20 @@
 
 - store encrypted fragments
 - erasure coding / replication
+- **sparse stripe across all online nodes** (Sprint 6 sim)
 - verify fragments
 - serve retrieval
 - repair
 - availability proofs
 - optional compression/encoding modules
 - benchmark participation
-- storage credit rewards
+- **storage credit / BITS rewards** (per KB stored for public pool)
+
+## Sparse inject (Sprint 6)
+
+Identity stripe: one shard per online node (optional replicas). Thin `r=2`
+fails a 60% bank-run; wide `r ≥ drop+2` survives bit-exact. Erasure `k-of-n`
+remains an Arena research target — see `docs/SYSTEM_LOOP.md`.
 
 ## Simulated node attributes
 

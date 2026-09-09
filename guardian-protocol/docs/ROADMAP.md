@@ -20,6 +20,15 @@ Failure model (node drop, churn, bandwidth cap), multi-replica retrieve + repair
 
 Stub adapters for hitch/injector boundary, DA layer, and storage network. **Still must not import or rewrite production trading paths.** Live coupling remains an explicit later design step.
 
+## Sprint 6 — Storage Token loop + crypto hard-push ✅
+
+- Storage Token (BITS) ledger: Fast Pass spend, node rewards per KB, revenue→BITS mint (hypothesis)
+- Sparse stripe across all online swarm nodes + reconstruct
+- Piggy compound (slow→fast) with operator call-to-add unlock
+- Injection capacity math (what funds buy now + movie horizon)
+- Crypto-event catalog + `npm run arena:crypto-stress` hard-push suite
+- Doc: `docs/SYSTEM_LOOP.md`
+
 ## Later — Dual-engine L1 (theory → design)
 
 After Arena trust: specify **MemoryBFT** assumptions, DataCore native actions + Swarm Manager, AgenticEVM **dual-block** interfaces and read precompiles, Tier-1 ML-DSA seal modules (see `HYPERLIQUID_BLUEPRINT.md`). Simulate finality/reorg and dual-block congestion before any chain implementation.

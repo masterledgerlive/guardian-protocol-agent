@@ -18,7 +18,7 @@ Outputs land in:
 - `arena/reports/` — JSON benchmark reports
 - `benchmarks/0001-tiny/` — tiny canonical object + last run artifacts
 
-## What exists (Sprints 1–5)
+## What exists (Sprints 1–6)
 
 Working **event-driven simulator + Arena**:
 
@@ -34,10 +34,12 @@ Working **event-driven simulator + Arena**:
 10. Observability dashboard (`npm run dashboard`)
 11. Submission validation + leaderboards / Pareto
 12. Protocol adapter **stubs** (no root trader imports)
+13. **Sprint 6:** Storage Token ledger, sparse multi-node inject, piggy compound, crypto-event hard-push (`npm run arena:crypto-stress`) — see [docs/SYSTEM_LOOP.md](./docs/SYSTEM_LOOP.md)
 
 ```bash
 npm run arena:compare
 npm run arena:stress
+npm run arena:crypto-stress
 npm run dashboard
 ```
 
@@ -48,6 +50,7 @@ npm run dashboard
 | [HANDOFF.md](./HANDOFF.md) | Single on-ramp |
 | [docs/CONSTITUTION.md](./docs/CONSTITUTION.md) | Invariants |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Dual-lane + dual-engine peer review |
+| [docs/SYSTEM_LOOP.md](./docs/SYSTEM_LOOP.md) | Storage Token × injector × piggy equation |
 | [docs/HYPERLIQUID_BLUEPRINT.md](./docs/HYPERLIQUID_BLUEPRINT.md) | Corrected L1 theory: DataCore + AgenticEVM (not a bridge) |
 | [docs/SIMULATION.md](./docs/SIMULATION.md) | Simulator contracts |
 | [docs/WHITEPAPER.md](./docs/WHITEPAPER.md) | Thesis v0.1 |

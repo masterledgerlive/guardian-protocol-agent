@@ -1,6 +1,6 @@
 {
   "name": "guardian-protocol-l1",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Agentic Memory Layer-1 / Guardian Protocol — simulation & Arena (sidelined from the live trading injector)",
@@ -10,6 +10,7 @@
     "arena:baseline": "node simulator/benchmarks/run-0001.js --strategy fifo",
     "arena:compare": "node simulator/benchmarks/run-arena-compare.js",
     "arena:stress": "node simulator/benchmarks/run-stress.js",
+    "arena:crypto-stress": "node simulator/benchmarks/run-crypto-stress.js",
     "dashboard": "node dashboard/server.js"
   },
   "engines": {

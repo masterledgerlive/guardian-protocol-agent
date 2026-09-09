@@ -80,3 +80,11 @@ Reports must label: simulated | measured | estimated | hypothetical | experiment
 - Exact reconstruction PASS
 - JSON report with input/output hashes, economics, performance, trace hash, assumptions
 - No invented performance numbers outside the simulator’s own clock/cost model
+
+## Sprint 6 acceptance (Storage Token hard-push)
+
+- System loop: piggy compound → call-to-add → BITS → sparse inject → bit-exact reconstruct
+- Crypto-event catalog all `SAFE_FREEZE` / `DEGRADED` / `CONTINUE` (no silent corruption); RPC total death = `HARD_FAIL`
+- Wide bank-run retrieve PASS; thin redundancy FAIL documented
+- `npm run arena:crypto-stress` → `STATUS: PROVEN`
+- Capacity report labels funds, bytes/swap, movie horizon as simulated/estimated

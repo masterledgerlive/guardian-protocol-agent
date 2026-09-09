@@ -1,0 +1,1225 @@
+{
+  "BENCHMARK": "hard-push-crypto-0001",
+  "BENCHMARK_VERSION": "0.1.0",
+  "GENERATED_AT_KIND": "simulated",
+  "SYSTEM_LOOP": {
+    "BENCHMARK": "system-loop-0001",
+    "BENCHMARK_VERSION": "0.1.0",
+    "GENERATED_AT_KIND": "simulated",
+    "SEED": "crypto-stress-v0.1",
+    "PIGGY": {
+      "before": {
+        "piggy_usd": 0.18,
+        "agent_usd": 0,
+        "liquid_usd": 2.24,
+        "locked": true,
+        "successes": 0,
+        "effective_skim_pct": 0.05,
+        "spendable_without_unlock_usd": 2.24,
+        "total_reserved_usd": 0.18,
+        "assumption_label": "hypothetical-piggy-compound-v0.1",
+        "kind": "simulated",
+        "history_len": 0
+      },
+      "after_cycles": {
+        "piggy_usd": 0.9219094581060365,
+        "agent_usd": 0.14104576665352622,
+        "liquid_usd": 8.40933310791675,
+        "locked": true,
+        "successes": 40,
+        "effective_skim_pct": 0.12,
+        "spendable_without_unlock_usd": 8.40933310791675,
+        "total_reserved_usd": 1.0629552247595628,
+        "assumption_label": "hypothetical-piggy-compound-v0.1",
+        "kind": "simulated",
+        "history_len": 40
+      },
+      "unlocked": {
+        "kind": "CALL_TO_ADD",
+        "unlocked_piggy_usd": 0.9219094581060365,
+        "unlocked_agent_usd": 0,
+        "liquid_usd": 9.331242566022786,
+        "ready_usd": 9.331242566022786
+      },
+      "final": {
+        "piggy_usd": 0,
+        "agent_usd": 0.14104576665352622,
+        "liquid_usd": 9.331242566022786,
+        "locked": false,
+        "successes": 40,
+        "effective_skim_pct": 0.12,
+        "spendable_without_unlock_usd": 9.472288332676312,
+        "total_reserved_usd": 0.14104576665352622,
+        "assumption_label": "hypothetical-piggy-compound-v0.1",
+        "kind": "simulated",
+        "history_len": 41
+      }
+    },
+    "STORAGE_TOKEN": {
+      "symbol": "BITS",
+      "balance": 943.1242566022786,
+      "earned": 987.5242566022782,
+      "spent": 0,
+      "node_earnings_total": 54.39999999999999,
+      "node_earnings": {
+        "node-0": 6.8,
+        "node-1": 6.8,
+        "node-2": 6.8,
+        "node-3": 6.8,
+        "node-4": 6.8,
+        "node-5": 6.8,
+        "node-6": 6.8,
+        "node-7": 6.8
+      },
+      "history_len": 9,
+      "assumption_label": "hypothetical-storage-token-v0.1",
+      "kind": "simulated"
+    },
+    "TREASURY": {
+      "balance": 9.9996901424,
+      "available": 8.999721128160001,
+      "spent": 0.00030985760000000007,
+      "reserve_ratio": 0.1,
+      "deferred_count": 0,
+      "treasury_health": 0.9
+    },
+    "CAPACITY": {
+      "kind": "simulated",
+      "assumption_label": "hypothetical-inject-capacity-v0.1",
+      "funds": {
+        "tradeable_usd": 9.331242566022786,
+        "piggy_usd": 0,
+        "bags_usd": 0,
+        "without_unlock_usd": 9.331242566022786,
+        "with_call_to_add_usd": 9.331242566022786,
+        "with_bags_upper_bound_usd": 9.331242566022786,
+        "bits_balance": 943.1242566022786
+      },
+      "market": {
+        "eth_usd": 2481,
+        "gwei": 0.05,
+        "gas_paused": false,
+        "leftover_eth_assumed": 0.00007522162487724938,
+        "eureka_tag_cost_eth": 8e-9,
+        "eureka_ok": true
+      },
+      "capacity_now": {
+        "max_hitch_bytes_per_swap": 94027,
+        "standby": {
+          "lane": "STANDBY",
+          "payload_bytes": 10240,
+          "full_chunk_bytes": 10320,
+          "chunk_count": 10,
+          "file_bytes": 94027,
+          "hitch_eth_per_chunk": 0.000008256
+        },
+        "fast_pass_chunks_from_bits": 188,
+        "fast_pass_bytes_from_bits": 3850240,
+        "note": "Eureka tag fits; larger payloads need leftover or Fast Pass BITS"
+      },
+      "movie_horizon": {
+        "ref_720p_bytes": 1610612736,
+        "ref_1080p_bytes": 4294967296,
+        "cycles_at_current_leftover_720p": 157287,
+        "cycles_at_current_leftover_1080p": 419431,
+        "fast_pass_bits_needed_720p": 393220,
+        "bits_if_call_to_add_converts": 933.1242566022786,
+        "call_covers_720p_fast_pass": false
+      },
+      "equation": {
+        "summary": "capacity grows slowly while piggy locks skim; after call-to-add, liquid+piggy convert to BITS/hitch leftover and injection accelerates",
+        "lose_zero": "never pay hitch when leftover ≤ 0",
+        "sparse": "each chunk stripes across all online nodes; nodes earn BITS/KB"
+      }
+    },
+    "INJECTION": {
+      "lane": "STANDBY",
+      "payload_bytes": 65536,
+      "chunk_plan": {
+        "lane": "STANDBY",
+        "payload_bytes": 10240,
+        "full_chunk_bytes": 10320,
+        "chunk_count": 7,
+        "file_bytes": 65536,
+        "hitch_eth_per_chunk": 0.000008256
+      },
+      "quote": {
+        "lane": "STANDBY",
+        "chunk_count": 7,
+        "cost_bits": 0,
+        "affordable": true,
+        "balance": 943.1242566022786,
+        "assumption_label": "hypothetical-storage-token-v0.1"
+      },
+      "pay": {
+        "ok": true,
+        "skipped": true
+      },
+      "sparse": {
+        "ok": true,
+        "reason": "SPARSED",
+        "placements": [
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s0:r0",
+            "node_id": "node-0",
+            "shard_index": 0,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "b7e2c30ba635ff37ced9a7c2894fca4e335fba041df62c2e16a2836b516ee110"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s1:r0",
+            "node_id": "node-1",
+            "shard_index": 1,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "8cf8786593679978a643f9436f97903b75df535b13acdf427fe3d722a1ff2047"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s2:r0",
+            "node_id": "node-2",
+            "shard_index": 2,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "c1dcc92f00802f0896af8f81189fba79f6c9a694993ee77a156f1681c7eea5b0"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s3:r0",
+            "node_id": "node-3",
+            "shard_index": 3,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "a4efe4371e2693ae5b2ccf7fad32126e51778a9668f0eb056d536f5923ed94a9"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s4:r0",
+            "node_id": "node-4",
+            "shard_index": 4,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "073f8e08187cfa4387509a0cb32385c26679d23f34d1396648a2f13cb58ce3f4"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s5:r0",
+            "node_id": "node-5",
+            "shard_index": 5,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "2846ee72eb7dce334c726138836c2e8e14a50ac7857313aefbcb75962d8e83fe"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s6:r0",
+            "node_id": "node-6",
+            "shard_index": 6,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "ce9e8c8a7c0f1b46e95f2c88353adfb1f7fa4faf1569bd78316e584fb5b8de83"
+          },
+          {
+            "fragmentId": "loop:crypto-stress-v0.1:s7:r0",
+            "node_id": "node-7",
+            "shard_index": 7,
+            "replica": 0,
+            "length": 8192,
+            "sha256": "96f169876db638bb08e20b1f8913be0c6cac4e7798b98c7d86805bc4e49f6f2d"
+          }
+        ],
+        "paid": [
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-0",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-1",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-2",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-3",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-4",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-5",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-6",
+            "kb": 8
+          },
+          {
+            "ok": true,
+            "bits": 6.8,
+            "node_id": "node-7",
+            "kb": 8
+          }
+        ],
+        "failed": [],
+        "online_used": [
+          "node-0",
+          "node-1",
+          "node-2",
+          "node-3",
+          "node-4",
+          "node-5",
+          "node-6",
+          "node-7"
+        ],
+        "shard_count": 8,
+        "reconstruct_k": 8,
+        "original_length": 65536,
+        "original_sha256": "c08f1c3995f6f4c4557da6a2676331fab4928290c2fa8a3af6ceabfbdc95db23",
+        "kind": "simulated_sparse"
+      },
+      "retrieve": {
+        "ok": true,
+        "sha256": "c08f1c3995f6f4c4557da6a2676331fab4928290c2fa8a3af6ceabfbdc95db23",
+        "length": 65536,
+        "shards": 8
+      },
+      "verification": {
+        "exact_match": true,
+        "input_sha256": "c08f1c3995f6f4c4557da6a2676331fab4928290c2fa8a3af6ceabfbdc95db23",
+        "output_sha256": "c08f1c3995f6f4c4557da6a2676331fab4928290c2fa8a3af6ceabfbdc95db23"
+      },
+      "economics": {
+        "storage_cost": 0.000032768,
+        "bandwidth_cost": 0.000065536,
+        "compute_cost": 0.00007000000000000001,
+        "proof_cost": 0.000035000000000000004,
+        "transaction_cost": 0.0001,
+        "node_reward": 0.0000065536,
+        "simulated_cost": 0.00030985760000000007,
+        "stored_bytes": 65536,
+        "redundancy": 1,
+        "assumption_label": "hypothetical-sprint1-v0.1"
+      },
+      "deferred": null
+    },
+    "STORAGE": {
+      "node_count": 8,
+      "online_count": 8,
+      "total_capacity": 400000000,
+      "total_available": 399934464,
+      "nodes": [
+        {
+          "id": "node-0",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-0",
+          "online": true
+        },
+        {
+          "id": "node-1",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-1",
+          "online": true
+        },
+        {
+          "id": "node-2",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-2",
+          "online": true
+        },
+        {
+          "id": "node-3",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-0",
+          "online": true
+        },
+        {
+          "id": "node-4",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-1",
+          "online": true
+        },
+        {
+          "id": "node-5",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-2",
+          "online": true
+        },
+        {
+          "id": "node-6",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-0",
+          "online": true
+        },
+        {
+          "id": "node-7",
+          "capacity": 50000000,
+          "available": 49991808,
+          "fragments": 1,
+          "region": "sim-region-1",
+          "online": true
+        }
+      ]
+    },
+    "STATUS": "REPRODUCIBLE",
+    "REPRODUCIBLE": true,
+    "ASSUMPTIONS": [
+      "kind=simulated",
+      "boundary=no_root_trader_imports",
+      "cycles=40",
+      "nodes=8",
+      "sparse=identity_stripe_all_online_nodes",
+      "piggy_unlock=call_to_add_only"
+    ]
+  },
+  "CRYPTO_EVENTS": {
+    "BENCHMARK": "crypto-events-stress-0001",
+    "BENCHMARK_VERSION": "0.1.0",
+    "GENERATED_AT_KIND": "simulated",
+    "event_count": 13,
+    "survived": 13,
+    "hard_fails": [],
+    "results": [
+      {
+        "ok": true,
+        "event": {
+          "id": "GAS_SPIKE",
+          "label": "Base gas > pause threshold (live: 50 gwei)",
+          "freezes": [
+            "STANDBY",
+            "FAST_PASS",
+            "SILO",
+            "TRADE"
+          ],
+          "severity": "high",
+          "params": {
+            "gwei": 55,
+            "pause_above_gwei": 50
+          }
+        },
+        "context": {
+          "gwei": 55,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "SAFE_FREEZE",
+          "can_inject": false,
+          "can_trade": false,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": false,
+          "fast_pass_ok": false,
+          "silo_ok": false,
+          "hitch_affordable": true,
+          "deferred": true,
+          "notes": [
+            "GAS_PAUSE",
+            "DEFERRED_OR_FROZEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "L1_FEE_SPIKE",
+          "label": "L1 data fee surge (hitch cost explodes)",
+          "freezes": [
+            "HITCH"
+          ],
+          "severity": "high",
+          "params": {
+            "l1_fee_eth": 0.002,
+            "hitch_cost_mult": 2
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0.002,
+          "hitch_cost_eth": 0.002000008,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": false,
+          "silo_ok": true,
+          "hitch_affordable": false,
+          "deferred": false,
+          "notes": [
+            "HITCH_SKIPPED_LOSE_ZERO",
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "MEMPOOL_CONGESTION",
+          "label": "No organic swap seats for Standby hitch",
+          "freezes": [
+            "STANDBY"
+          ],
+          "severity": "medium",
+          "params": {
+            "organic_gap_rate": 0
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": false,
+          "fast_pass_ok": true,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "RPC_OUTAGE",
+          "label": "Primary RPC dead — failover required",
+          "freezes": [
+            "TRADE",
+            "INJECT"
+          ],
+          "severity": "high",
+          "params": {
+            "rpc_alive": false,
+            "failover_ok": true
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": false,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "SAFE_FREEZE",
+          "can_inject": false,
+          "can_trade": false,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": false,
+          "hitch_affordable": true,
+          "deferred": true,
+          "notes": [
+            "RPC_FAILOVER_USED",
+            "DEFERRED_OR_FROZEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "SEQUENCER_DOWNTIME",
+          "label": "L2 sequencer halt — no new blocks",
+          "freezes": [
+            "TRADE",
+            "INJECT",
+            "ANCHOR"
+          ],
+          "severity": "critical",
+          "params": {
+            "blocks_progressing": false
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": false,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "SAFE_FREEZE",
+          "can_inject": false,
+          "can_trade": false,
+          "can_retrieve": true,
+          "deferred": true,
+          "notes": [
+            "SEQUENCER_HALT_HONEST_FREEZE"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "LIQUIDITY_FREEZE",
+          "label": "Thin book / inject-all seat cannot clear min entry",
+          "freezes": [
+            "TRADE"
+          ],
+          "severity": "medium",
+          "params": {
+            "tradeable_usd": 0.71,
+            "min_entry_usd": 2
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 0.71,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "DEGRADED",
+          "can_inject": true,
+          "can_trade": false,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": false,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "FLASH_CRASH",
+          "label": "Mark collapses — PRICE_INSANE / lose-zero hold",
+          "freezes": [
+            "SELL_HITCH",
+            "CASCADE"
+          ],
+          "severity": "high",
+          "params": {
+            "price_mult": 0.05,
+            "lose_zero_hold": true
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": true,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "LOSE_ZERO_HOLD",
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "ORACLE_DESYNC",
+          "label": "DexScreener vs pool mark outside 0.01×–100×",
+          "freezes": [
+            "BUY",
+            "SELL"
+          ],
+          "severity": "high",
+          "params": {
+            "price_insane": true
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": true,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "DEGRADED",
+          "can_inject": true,
+          "can_trade": false,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": false,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "NODE_BANK_RUN",
+          "label": "Mass Tier-2 node withdrawal",
+          "freezes": [
+            "RETRIEVE"
+          ],
+          "severity": "critical",
+          "params": {
+            "drop_ratio": 0.6
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 3,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "DEGRADED",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": false,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "RETRIEVE_AT_RISK",
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "BANDWIDTH_CAP",
+          "label": "Per-tick bandwidth ceiling hit",
+          "freezes": [
+            "INJECT"
+          ],
+          "severity": "medium",
+          "params": {
+            "bandwidth_cap_bytes": 512
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": false
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": false,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": true,
+          "notes": []
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "TREASURY_DRAIN",
+          "label": "Storage credits / BITS exhausted",
+          "freezes": [
+            "FAST_PASS"
+          ],
+          "severity": "medium",
+          "params": {
+            "bits_balance": 0
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 0,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": false,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "STABLECOIN_DEPEG",
+          "label": "Payment rail depeg — agent fees unreliable",
+          "freezes": [
+            "AGENT_PAY"
+          ],
+          "severity": "medium",
+          "params": {
+            "stable_mult": 0.7
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      },
+      {
+        "ok": true,
+        "event": {
+          "id": "FEE_MARKET_FREEZE",
+          "label": "Dual-block small-block gas market saturated (hypothesis)",
+          "freezes": [
+            "AGENT_MICRO"
+          ],
+          "severity": "low",
+          "params": {
+            "small_block_full": true
+          }
+        },
+        "context": {
+          "gwei": 0.05,
+          "pause_above_gwei": 50,
+          "l1_fee_eth": 0,
+          "hitch_cost_eth": 8e-9,
+          "leftover_eth": 0.00007522162487724938,
+          "tradeable_usd": 9.331242566022786,
+          "min_entry_usd": 2,
+          "bits_balance": 943.1242566022786,
+          "rpc_alive": true,
+          "failover_ok": true,
+          "blocks_progressing": true,
+          "organic_gap_rate": 0.5,
+          "online_nodes": 8,
+          "total_nodes": 8,
+          "price_insane": false,
+          "lose_zero_hold": false,
+          "bandwidth_ok": true
+        },
+        "checks": {
+          "survives": true,
+          "mode": "CONTINUE",
+          "can_inject": true,
+          "can_trade": true,
+          "can_retrieve": true,
+          "retrieve_healthy": true,
+          "standby_ok": true,
+          "fast_pass_ok": true,
+          "silo_ok": true,
+          "hitch_affordable": true,
+          "deferred": false,
+          "notes": [
+            "INJECT_PATH_OPEN"
+          ]
+        },
+        "kind": "simulated"
+      }
+    ],
+    "STATUS": "PROVEN_UNDER_CATALOG",
+    "ASSUMPTIONS": [
+      "kind=simulated",
+      "catalog=CRYPTO_EVENTS_v0.1",
+      "lose_zero=hitch_skipped_before_loss",
+      "gas_pause_above=50_gwei"
+    ]
+  },
+  "BANK_RUN": {
+    "event": {
+      "ok": true,
+      "event": {
+        "id": "NODE_BANK_RUN",
+        "label": "Mass Tier-2 node withdrawal",
+        "freezes": [
+          "RETRIEVE"
+        ],
+        "severity": "critical",
+        "params": {
+          "drop_ratio": 0.6
+        }
+      },
+      "context": {
+        "gwei": 0.05,
+        "pause_above_gwei": 50,
+        "l1_fee_eth": 0,
+        "hitch_cost_eth": 1e-8,
+        "leftover_eth": 0.001,
+        "tradeable_usd": 5,
+        "min_entry_usd": 2,
+        "bits_balance": 100,
+        "rpc_alive": true,
+        "failover_ok": true,
+        "blocks_progressing": true,
+        "organic_gap_rate": 0.5,
+        "online_nodes": 3,
+        "total_nodes": 8,
+        "price_insane": false,
+        "lose_zero_hold": false,
+        "bandwidth_ok": true
+      },
+      "checks": {
+        "survives": true,
+        "mode": "DEGRADED",
+        "can_inject": true,
+        "can_trade": true,
+        "can_retrieve": true,
+        "retrieve_healthy": false,
+        "standby_ok": true,
+        "fast_pass_ok": true,
+        "silo_ok": true,
+        "hitch_affordable": true,
+        "deferred": false,
+        "notes": [
+          "RETRIEVE_AT_RISK",
+          "INJECT_PATH_OPEN"
+        ]
+      },
+      "kind": "simulated"
+    },
+    "drop_ratio": 0.6,
+    "drop_count": 4,
+    "thin_redundancy": {
+      "replicas": 2,
+      "placed_ok": true,
+      "retrieve_ok": false,
+      "exact_match": false,
+      "online_after": 4
+    },
+    "wide_redundancy": {
+      "replicas": 6,
+      "placed_ok": true,
+      "retrieve_ok": true,
+      "exact_match": true,
+      "online_after": 4
+    },
+    "lesson": "Identity stripe needs surviving replica per shard. Thin r=2 fails 60% bank-run; wide r>=drop+2 survives. Erasure k-of-n is the next Arena research target.",
+    "exact_match": true
+  },
+  "VERDICT": {
+    "system_loop": "REPRODUCIBLE",
+    "crypto_catalog": "PROVEN_UNDER_CATALOG",
+    "bank_run_survived": true,
+    "hard_fails": [],
+    "proven": true,
+    "capacity_now_bytes": 94027,
+    "movie_720p_cycles": 157287,
+    "piggy_ready_usd": 9.331242566022786
+  },
+  "STATUS": "PROVEN",
+  "ASSUMPTIONS": [
+    "kind=simulated",
+    "boundary=no_root_trader_imports",
+    "cycles=40",
+    "nodes=8",
+    "sparse=identity_stripe_all_online_nodes",
+    "piggy_unlock=call_to_add_only",
+    "kind=simulated",
+    "catalog=CRYPTO_EVENTS_v0.1",
+    "lose_zero=hitch_skipped_before_loss",
+    "gas_pause_above=50_gwei",
+    "hard_push=catalog+bank_run+system_loop"
+  ],
+  "CAPACITY_AT_START": {
+    "kind": "simulated",
+    "assumption_label": "hypothetical-inject-capacity-v0.1",
+    "funds": {
+      "tradeable_usd": 2.24,
+      "piggy_usd": 0.18,
+      "bags_usd": 5,
+      "without_unlock_usd": 2.24,
+      "with_call_to_add_usd": 2.4200000000000004,
+      "with_bags_upper_bound_usd": 7.42,
+      "bits_balance": 10
+    },
+    "market": {
+      "eth_usd": 2481,
+      "gwei": 0.05,
+      "gas_paused": false,
+      "leftover_eth_assumed": 0.000018057234985892788,
+      "eureka_tag_cost_eth": 8e-9,
+      "eureka_ok": true
+    },
+    "capacity_now": {
+      "max_hitch_bytes_per_swap": 22571,
+      "standby": {
+        "lane": "STANDBY",
+        "payload_bytes": 10240,
+        "full_chunk_bytes": 10320,
+        "chunk_count": 3,
+        "file_bytes": 22571,
+        "hitch_eth_per_chunk": 0.000008256
+      },
+      "fast_pass_chunks_from_bits": 2,
+      "fast_pass_bytes_from_bits": 40960,
+      "note": "Eureka tag fits; larger payloads need leftover or Fast Pass BITS"
+    },
+    "movie_horizon": {
+      "ref_720p_bytes": 1610612736,
+      "ref_1080p_bytes": 4294967296,
+      "cycles_at_current_leftover_720p": 157287,
+      "cycles_at_current_leftover_1080p": 419431,
+      "fast_pass_bits_needed_720p": 393220,
+      "bits_if_call_to_add_converts": 242.00000000000003,
+      "call_covers_720p_fast_pass": false
+    },
+    "equation": {
+      "summary": "capacity grows slowly while piggy locks skim; after call-to-add, liquid+piggy convert to BITS/hitch leftover and injection accelerates",
+      "lose_zero": "never pay hitch when leftover ≤ 0",
+      "sparse": "each chunk stripes across all online nodes; nodes earn BITS/KB"
+    }
+  },
+  "GENERATED_AT": "2026-09-09T15:07:35.197Z"
+}
