@@ -158,6 +158,14 @@ export function evaluateVitaCourse({
   };
 }
 
+export function leftoverWouldCoverVitaHitch() {
+  try {
+    return Boolean(evaluateVitaCourse().inject?.leftoverWouldCover);
+  } catch {
+    return false;
+  }
+}
+
 export function formatCourseMessage(course) {
   const c = course || evaluateVitaCourse();
   const flag = c.achieving ? "✅" : "🧭";

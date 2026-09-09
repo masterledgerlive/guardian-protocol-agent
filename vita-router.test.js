@@ -62,6 +62,7 @@ import {
 } from "./vita-router.js";
 import {
   evaluateVitaCourse,
+  leftoverWouldCoverVitaHitch,
   formatCourseMessage,
   applyVitaCourse,
   resetCourseStats,
@@ -472,6 +473,7 @@ describe("vita hourly course", () => {
     assert.ok(t.applied.includes("reconstruct-no-loss"));
     assert.ok(t.applied.includes("freeze-leftover-hitch"));
     assert.equal(vitaQuality(getLastVitaPacket()).lossy, false);
+    assert.equal(leftoverWouldCoverVitaHitch(), true);
   });
 
   it("hourly tick persists leftoverKinds so later course still fails leftover_still_eureka", () => {
@@ -641,7 +643,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("leftoverScan: true"), "boot inject must fold leftover hitch memory");
     assert.ok(src.includes("ingestLeftoverScan"), "Eureka leftover fills must fold into recursive memory");
     assert.ok(src.includes("skipHitch: buySkipHitch || buyVoice.onChain"), "buy leftover must not fall through to orch LIBM when VITA hitch is skipped");
-    assert.ok(src.includes("hitchBytes: voiceBytes"), "buy L2 hitch fee must size against planned VITA hitch");
+    assert.ok(src.includes("leftoverWouldCoverVitaHitch"), "L1-unknown leftover must hitch VITA when leftover already covered Eureka bytes");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");

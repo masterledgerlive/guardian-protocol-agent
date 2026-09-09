@@ -1082,6 +1082,25 @@ describe("never-lose fee/gas leak plugs", () => {
     assert.match(d.log, /L1 fee unknown|plain/);
   });
 
+  it("oracle fallback still hitches VITA when leftover already covered a larger Eureka trailer", () => {
+    const l2Hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = l2Hitch * 2 + 1e-12;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      hitchFeeSource: "fallback",
+      leftoverWouldCoverHitch: true,
+      symbol: "AERO",
+      reason: "MAX PEAK",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.ok(d.hitchBytes > 0);
+  });
+
   it("net after skim never lists a wiped edge as profit", () => {
     const wiped = netUsdAfterSkim({
       receivedEth: 0.01005,

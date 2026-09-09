@@ -913,6 +913,7 @@ export function evaluateSellGate({
   /** When true (or entryEth≈0), demand gas-edge leftover — no fake green recycles. */
   unknownEntry = false,
   unknownGasEdgeMult = UNKNOWN_COST_GAS_EDGE_MULT,
+  leftoverWouldCoverHitch = false,
 } = {}) {
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
@@ -1071,9 +1072,9 @@ export function evaluateSellGate({
     }
   }
 
-  // No live L1 quote (oracle soft-fail) → never hitch. L2-only undercover is how
-  // inserts bleed thin books. Plain sale still OK when leftover cleared fees.
-  if (l1OracleFailed) {
+  // No live L1 quote (oracle soft-fail) → skip hitch unless leftover already
+  // covered a larger Eureka trailer on this wallet (planned VITA KEY+LOC fits).
+  if (l1OracleFailed && !leftoverWouldCoverHitch) {
     return pack(true, "plain sale L1 unknown", {
       hitchBytes: 0,
       btpInscribe: false,
@@ -1084,7 +1085,7 @@ export function evaluateSellGate({
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
       hitchFeeSource: source,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); Eureka skipped so insert cannot undercover`,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`,
     });
   }
 
@@ -1104,7 +1105,7 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; Eureka skipped so we still take the wave`,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; VITA hitch skipped so we still take the wave`,
     });
   }
 
@@ -1151,6 +1152,7 @@ export function buildSellGateDecision({
   hitchFeeSource,
   piggyEarningsBufferEth = 0,
   unknownEntry = false,
+  leftoverWouldCoverHitch = false,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -1172,6 +1174,7 @@ export function buildSellGateDecision({
     btpL1FeeEth,
     hitchFeeSource,
     piggyEarningsBufferEth,
+    leftoverWouldCoverHitch,
     reason,
     symbol,
     env,

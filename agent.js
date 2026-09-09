@@ -313,6 +313,7 @@ import { recordLocation } from "./vita-locations.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   evaluateVitaCourse,
+  leftoverWouldCoverVitaHitch,
   formatCourseMessage,
   recordHitchAttempt,
   recordHitchSealed,
@@ -5413,10 +5414,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       logHitchFeeSplit(hitchL1, voiceBytes, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
-      // Never hitch on buy when L1 oracle is down — undercover insert bleeds the book.
+      // L1 oracle down: skip hitch unless leftover already covered a larger Eureka trailer.
       if (!hitchL1.ok) {
-        buySkipHitch = true;
-        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
+        if (leftoverWouldCoverVitaHitch()) {
+          console.log(`   LOSE_ZERO: L1 fee unknown — hitch VITA anyway (leftover already covered Eureka hitch bytes)`);
+        } else {
+          buySkipHitch = true;
+          console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
+        }
       }
       if (!decision.allow) {
         return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");
@@ -5921,6 +5926,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       wantBtpInscribe: wantBtp,
       piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
       unknownEntry: !sellTrustedBasis,
+      leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
       ...hitchL1GateArgs(hitchL1),
     });
     logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
@@ -12285,6 +12291,7 @@ async function main() {
           wantBtpInscribe: moonWantBtp,
           piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
           unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
+          leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
           ...hitchL1GateArgs(moonL1),
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
