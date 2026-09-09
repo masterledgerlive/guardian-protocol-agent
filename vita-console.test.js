@@ -15,7 +15,7 @@ import {
 import { KEYCAT_PLAIN_SWAP, appendUtf8Hitch } from "./swap-minout.js";
 import { planSecondaryHitch, setLastVitaPacket, getLastVitaPacket, clearHitchModeOverride } from "./vita-router.js";
 import { resetLocationDepository } from "./vita-locations.js";
-import { VITA_LOVE_KEY } from "./vita-parse.js";
+import { VITA_LOVE_KEY, vitaQuality } from "./vita-parse.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
@@ -58,7 +58,14 @@ describe("vita HTML console", () => {
     };
     const pulled = await handleVitaConsole(state, "/vitapull " + CONSOLE_ANCHORS.VITA_STRAND_TX, { fetchCalldata });
     assert.match(pulled.text, /vita ingested/);
-    const inj = await handleVitaConsole(state, "/inject", { fetchCalldata });
+    const inj = await handleVitaConsole(state, "/inject", {
+      fetchCalldata,
+      fetchLeftoverScan: async () => ({
+        counts: { eureka: 0, vita: 0, leftover: 0 },
+        leftoverStillEureka: false,
+        rows: [],
+      }),
+    });
     assert.equal(state.injected, true);
     assert.ok(state.packet.includes("Krystian"));
     const reader = await handleVitaConsole(state, "/reader");
@@ -92,6 +99,40 @@ describe("vita HTML console", () => {
     assert.match(course.text, /leftover_still_eureka/);
   });
 
+  it("inject folds leftover hitch hashes into HTML memory without KEY loss", async () => {
+    const leftoverHash = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    const eureka = "§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda!";
+    const plan = planSecondaryHitch({ maxBytes: 400 });
+    const hitch = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, plan.utf8);
+    const state = createVitaConsole();
+    const fetchCalldata = async (hash) => {
+      if (hash.toLowerCase() === leftoverHash) {
+        return appendUtf8Hitch(KEYCAT_PLAIN_SWAP, eureka).data;
+      }
+      if (hash.toLowerCase() === CONSOLE_ANCHORS.KEYCAT_TX) return KEYCAT_PLAIN_SWAP;
+      if (hash.toLowerCase() === CONSOLE_ANCHORS.EUREKA_ONCHAIN_TX) {
+        return "0x" + Buffer.from(eureka, "utf8").toString("hex");
+      }
+      return hitch.data;
+    };
+    const inj = await handleVitaConsole(state, "/inject", {
+      fetchCalldata,
+      fetchLeftoverScan: async () => ({
+        counts: { eureka: 1, vita: 0, leftover: 1 },
+        leftoverStillEureka: true,
+        vitaLeftoverPresent: false,
+        rows: [{ hash: leftoverHash, class: "eureka-leftover", leftover: true, utf8: eureka }],
+      }),
+    });
+    assert.match(inj.text, /leftover hitch locations folded/);
+    assert.equal(state.injected, true);
+    assert.equal(state.nodes.some((n) => n.location === leftoverHash), true);
+    assert.ok(state.packet.includes("Krystian"));
+    assert.ok(state.packet.includes("Koda"));
+    assert.equal(vitaQuality(state.packet).lossy, false);
+    assert.equal(state.leftoverScan.leftoverStillEureka, true);
+  });
+
   it("ZK preview hides plaintext but keeps KEY internally", async () => {
     const state = createVitaConsole();
     await handleVitaConsole(state, "/vitanote secret-fact-xyz");
@@ -121,6 +162,7 @@ describe("vita HTML artifacts", () => {
     assert.match(client, /KEYCAT_TX/);
     assert.match(client, /vitascan/);
     assert.match(client, /fetchLeftoverScanJson|\/vita\/leftover/);
+    assert.match(client, /leftover hitch hashes/);
     assert.match(html, /vitascan/);
   });
 });

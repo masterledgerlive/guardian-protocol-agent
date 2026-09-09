@@ -182,6 +182,8 @@ describe("control board HTTP", () => {
     assert.equal(js.res.status, 200);
     assert.match(js.res.headers.get("content-type") || "", /javascript/);
     assert.match(js.text, /handleCommand/);
+    assert.match(js.text, /leftover hitch hashes/);
+    assert.match(js.text, /fetchLeftoverScanJson/);
     const parse = await get("/vita/lib/vita-parse.js");
     assert.equal(parse.res.status, 200);
     assert.match(parse.text, /projectLeftoverHitchFields/);

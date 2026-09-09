@@ -290,7 +290,7 @@ function helpText() {
     "/vitanote [text] — queue a fact (HTML-side, not on chain yet)",
     "/vitaqueue /vitaclear — pending notes",
     "/vitasave — fold notes into §TOKEN§, stage leftover hitch (pending inject)",
-    "/inject — pull known Base locations and reconstruct",
+    "/inject — pull known Base locations + leftover hitch hashes and reconstruct",
     "/vitapull 0xHASH — pull one hitch from Base",
     "/vitascan — leftover hitch eureka vs VITA on recent Uniswap swaps",
     "/reader — reconstruct output from sealed locations",
@@ -445,15 +445,35 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
 
   if (text === "/inject") {
     const lines = [];
+    const seen = new Set();
     for (const a of KNOWN_CHAIN_ANCHORS) {
+      seen.add(String(a.tx).toLowerCase());
       lines.push(await pullOne(state, a.tx, fetchCalldata));
     }
+    try {
+      const scan = await fetchLeftoverScan({ limit: 80, maxPages: 3 });
+      const folded = ingestConsoleLeftoverScan(state, scan);
+      lines.push("leftover hitch locations folded " + folded);
+      for (const row of scan.rows || []) {
+        const hash = String(row.hash || "");
+        if (!row.leftover || !TX_HASH_RE.test(hash)) continue;
+        const key = hash.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const existing = (state.nodes || []).find((n) => String(n.location || "").toLowerCase() === key);
+        if (existing?.utf8) continue;
+        lines.push(await pullOne(state, hash, fetchCalldata));
+      }
+    } catch (e) {
+      lines.push("leftover scan: " + (e.message || e));
+    }
     const out = readerOutput(state);
+    state.packet = out.packed;
     state.injected = out.quality.hasKey && out.nodesUsed > 0;
     if (state.pendingInject && state.injected) state.pendingInject = null;
     stampLoc(state);
     return reply(
-      "INJECT from known Base locations\n" + lines.join("\n") +
+      "INJECT from known Base locations + leftover hitch hashes\n" + lines.join("\n") +
       "\n\nReader output:\n" + (out.display || out.loc),
     );
   }

@@ -199,7 +199,7 @@ function helpText() {
     "VITA HTML console — Telegram commands, local memory until inject.",
     "/vitanote [text]  queue a fact (stays on this page)",
     "/vitasave         fold notes into §TOKEN§ — still not on chain",
-    "/inject           pull known Base locations → reader reconstructs",
+    "/inject           pull known Base locations + leftover hitch hashes → reader reconstructs",
     "/vitapull 0xHASH  pull one hitch from Base",
     "/vitascan         leftover hitch eureka vs VITA (reader pulls locations)",
     "/reader           show reconstructed packet from locations",
@@ -387,7 +387,9 @@ export async function handleCommand(state, raw) {
   }
   if (low === "/inject") {
     const lines = [];
+    const seen = new Set();
     for (const a of ANCHORS) {
+      seen.add(a.tx.toLowerCase());
       try {
         const hex = await fetchTxHex(a.tx);
         const read = readHitchFromHex(hex);
@@ -396,9 +398,35 @@ export async function handleCommand(state, raw) {
         lines.push(a.tx.slice(0, 10) + "… " + (e.message || e));
       }
     }
+    try {
+      const scan = await fetchLeftoverScanJson();
+      state.leftoverScan = {
+        counts: scan.counts,
+        leftoverStillEureka: Boolean(scan.leftoverStillEureka),
+        vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
+        hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
+      };
+      for (const row of scan.rows || []) {
+        if (!TX_RE.test(row.hash) || !row.leftover) continue;
+        const key = row.hash.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        try {
+          const hex = await fetchTxHex(row.hash);
+          const read = readHitchFromHex(hex);
+          lines.push(ingestUtf8(state, row.hash, read.utf8, read.kind.kind, read.source));
+        } catch (e) {
+          lines.push(row.hash.slice(0, 10) + "… " + (e.message || e));
+        }
+      }
+    } catch (e) {
+      lines.push("leftover scan: " + (e.message || e));
+    }
     const packed = readerPacked(state);
+    state.packet = packed;
     state.injected = vitaQuality(packed).hasKey && state.nodes.some((n) => n.utf8);
     if (state.injected) state.pendingInject = null;
+    persist(state);
     return say("INJECT\n" + lines.join("\n") + "\n\n" + (state.reveal === "locations" ? locToken(state.nodes) : packed));
   }
   if (low.startsWith("/vita ")) return say(answer(state, input.slice(6)));
