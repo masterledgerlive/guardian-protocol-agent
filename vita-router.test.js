@@ -298,6 +298,17 @@ describe("vita hourly course", () => {
     assert.equal(t2.ticked, false);
   });
 
+  it("empty-packet hourly tick seeds genesis so KEY is not scored as missing", () => {
+    setLastVitaPacket("");
+    const t = tickHourlyCourse({ force: true, now: Date.now() });
+    assert.equal(t.ticked, true);
+    assert.equal(t.course.achieving, true);
+    assert.ok(t.course.score >= 55);
+    assert.equal(t.course.issues.includes("key_fact_loss"), false);
+    assert.ok(getLastVitaPacket().includes("Krystian"));
+    assert.ok(getLastVitaPacket().includes("Koda"));
+  });
+
   it("course stats serialize and restore", () => {
     restoreCourseStats({ attempts: 4, sealed: 1, skippedLeftover: 3, lastTickMs: 9 });
     const snap = serializeCourseStats();

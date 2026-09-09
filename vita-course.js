@@ -12,6 +12,7 @@
 import { VITA_CHAR_BUDGET, VITA_LOVE_KEY, refineVitaPacket, vitaQuality } from "./vita-parse.js";
 import { locDepositoryStatus, squashLocations } from "./vita-locations.js";
 import {
+  ensureGenesisMemory,
   getLastVitaPacket,
   resolveHitchMode,
   setHitchModeOverride,
@@ -237,6 +238,7 @@ export function tickHourlyCourse({ now = Date.now(), force = false } = {}) {
       waitMs: COURSE_INTERVAL_MS - (now - courseStats.lastTickMs),
     };
   }
+  if (!getLastVitaPacket()) ensureGenesisMemory();
   const course = evaluateVitaCourse({
     hitchAttempts: courseStats.attempts,
     hitchSealed: courseStats.sealed,
