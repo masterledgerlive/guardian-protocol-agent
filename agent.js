@@ -1685,7 +1685,7 @@ const DEFAULT_TOKENS = [
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
   { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Thin/wrong-pool Uni V3 WETH — liquid book is Uni V2 GAME/VIRTUAL; catalog Uni V3 WETH feeTier 3000 depth ~$3k. Hitch CAUTION until a battle-tested V3 WETH pool. Exits-only (sells + piggy dust still apply).",
+    frozen: true, frozenReason: "Thin/wrong-pool Uni V3 WETH — liquid book is Uni V2 GAME/VIRTUAL 0xD418dfE7670c21F682E041F34250c114DB5D7789 (~$2.14M); Uni V3 GAME/WETH feeTier 3000 0x70fbffe3… liquidity()=0 / ghost (STF buys hit the wrong book). Screener CAUTION — not battle-tested. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — AI gaming agent infra. FROZEN exits-only — thin Uni V3 WETH vs liquid Uni V2 GAME/VIRTUAL." },
 
