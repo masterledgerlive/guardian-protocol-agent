@@ -15,6 +15,7 @@ import {
   UNIVERSAL_ROUTER,
   WETH,
 } from "./config.js";
+import { detectHitchKind } from "../vita-parse.js";
 import { planSecondaryHitch } from "../vita-router.js";
 
 /** Universal Router Commands */
@@ -336,7 +337,21 @@ export function hitchSwapIfCovered({
   let voice = "";
   if (utf8 != null && utf8 !== "") voice = String(utf8);
   else if (message != null && message !== "") voice = buildStoreVoice({ tag, message });
-  else voice = planSecondaryHitch({ leftoverEth, hitchCostEth }).utf8;
+  else {
+    // Leftover hitch is VITA KEY+LOC. Eureka leftover is /prove (explicit message) only.
+    voice = planSecondaryHitch({ leftoverEth, hitchCostEth, mode: "vita" }).utf8;
+    const kind = detectHitchKind(voice);
+    if (!voice || (kind.eureka && !kind.vita) || !kind.vita || !String(voice).includes("Krystian")) {
+      return {
+        data: swapData,
+        hitchBytes: 0,
+        utf8: "",
+        onChain: false,
+        skipped: true,
+        reason: "leftover hitch refused Eureka — plain swap (KEY+LOC only)",
+      };
+    }
+  }
   if (!voice) {
     return {
       data: swapData,

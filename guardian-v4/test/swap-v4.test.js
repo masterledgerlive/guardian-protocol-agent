@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   ACTION_SETTLE_ALL,
   ACTION_SWAP_EXACT_IN_SINGLE,
@@ -162,6 +163,9 @@ describe("guardian-v4 swap + eureka hitch", () => {
     assert.doesNotMatch(r.utf8, /We did it! xoxo/);
     assert.doesNotMatch(r.utf8, /Eureka!/);
     assert.ok(r.data.toLowerCase().startsWith(enc.data.toLowerCase()));
+    const src = readFileSync(new URL("../swap-v4.js", import.meta.url), "utf8");
+    assert.ok(src.includes('planSecondaryHitch({ leftoverEth, hitchCostEth, mode: "vita" })'), "V4 leftover hitch must plan VITA KEY+LOC, not Eureka leftover");
+    assert.ok(src.includes("kind.eureka && !kind.vita"), "V4 leftover hitch must refuse leftover Eureka");
   });
 });
 
