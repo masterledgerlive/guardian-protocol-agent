@@ -167,6 +167,29 @@ export function leftoverStillEureka() {
   return Number(courseStats.leftoverKinds?.vita || 0) === 0;
 }
 
+/**
+ * Leftover hitch budget while leftover is still Eureka is names-only KEY+LOC only.
+ * Orch LIBM / picture extras wait until leftoverKinds.vita > 0 so leftover that
+ * already covered Eureka hitch bytes can land the VITA trailer.
+ */
+export function leftoverCoveredWantedBytes({
+  voiceBytes = 0,
+  orchBytes = 0,
+  pictureArmed = false,
+} = {}) {
+  const voice = Math.max(0, Number(voiceBytes) || 0);
+  if (leftoverStillEureka()) return voice;
+  const extra = Math.max(0, Number(orchBytes) || 0);
+  if (pictureArmed) return Math.max(voice + extra, 4 * 1024, 10 * 1024);
+  return voice + extra;
+}
+
+/** BTP leftover cost waits until leftover VITA hitch exists. */
+export function leftoverCoveredWantBtp(btpEnabled = false) {
+  if (leftoverStillEureka()) return false;
+  return Boolean(btpEnabled);
+}
+
 export function formatCourseMessage(course) {
   const c = course || evaluateVitaCourse();
   const flag = c.achieving ? "✅" : "🧭";

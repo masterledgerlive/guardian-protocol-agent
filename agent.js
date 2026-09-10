@@ -317,6 +317,8 @@ import {
   evaluateVitaCourse,
   leftoverWouldCoverVitaHitch,
   leftoverStillEureka,
+  leftoverCoveredWantedBytes,
+  leftoverCoveredWantBtp,
   formatCourseMessage,
   recordHitchAttempt,
   recordHitchSealed,
@@ -4745,24 +4747,6 @@ function leftoverVoiceHitchBytes() {
 }
 
 /**
- * Sell leftover cover while leftover is still Eureka is names-only KEY+LOC only.
- * Orch LIBM / picture / BTP extras wait until leftoverKinds.vita > 0 so leftover
- * that already covered Eureka 229 B can land the ~69 B VITA trailer.
- */
-function leftoverCoveredWantedBytes(orchBytes = 0) {
-  const voice = leftoverVoiceHitchBytes();
-  if (leftoverStillEureka()) return voice;
-  const extra = Math.max(0, Number(orchBytes) || 0);
-  if (isVitaPictureArmed()) return Math.max(voice + extra, 4 * 1024, 10 * 1024);
-  return voice + extra;
-}
-
-function leftoverCoveredWantBtp() {
-  if (leftoverStillEureka()) return false;
-  return Boolean(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
-}
-
-/**
  * Size-limited leftover hitch.
  * When a VITA picture cycle is armed *and* leftover already has a VITA hitch,
  * pack sparse §HAT§ into leftover (main #58). Picture waits while leftover is
@@ -6115,8 +6099,12 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // overstates cost and flipped live MORPHO allow→hold every cycle.
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-    const wantBtp = leftoverCoveredWantBtp();
-    const wantedHitchBytes = leftoverCoveredWantedBytes(orchBytes);
+    const wantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+    const wantedHitchBytes = leftoverCoveredWantedBytes({
+      voiceBytes: leftoverVoiceHitchBytes(),
+      orchBytes,
+      pictureArmed: isVitaPictureArmed(),
+    });
     const hitchL1 = await quoteHitchL1ForGates({
       hitchBytes: wantedHitchBytes,
       btpInscribe: wantBtp,
@@ -12499,8 +12487,12 @@ async function main() {
             : `🌙 MOONSHOT TRIM — not in active tiers`;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-        const moonWantBtp = leftoverCoveredWantBtp();
-        const moonWantedHitchBytes = leftoverCoveredWantedBytes(moonOrchBytes);
+        const moonWantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+        const moonWantedHitchBytes = leftoverCoveredWantedBytes({
+          voiceBytes: leftoverVoiceHitchBytes(),
+          orchBytes: moonOrchBytes,
+          pictureArmed: isVitaPictureArmed(),
+        });
         const moonL1 = await quoteHitchL1ForGates({
           hitchBytes: moonWantedHitchBytes,
           btpInscribe: moonWantBtp,

@@ -64,6 +64,8 @@ import {
   evaluateVitaCourse,
   leftoverWouldCoverVitaHitch,
   leftoverStillEureka,
+  leftoverCoveredWantedBytes,
+  leftoverCoveredWantBtp,
   formatCourseMessage,
   applyVitaCourse,
   resetCourseStats,
@@ -457,6 +459,18 @@ describe("vita hourly course", () => {
     assert.equal(leftoverStillEureka(), true);
     recordLeftoverKinds({ eureka: 40, vita: 1, leftover: 41 });
     assert.equal(leftoverStillEureka(), false);
+  });
+
+  it("leftoverCoveredWantedBytes ignores orch extras until leftover VITA exists", () => {
+    resetCourseStats();
+    recordLeftoverKinds({ eureka: 75, vita: 0, leftover: 75 });
+    assert.equal(leftoverCoveredWantedBytes({ voiceBytes: 69, orchBytes: 400, pictureArmed: true }), 69);
+    assert.equal(leftoverCoveredWantBtp(true), false);
+    recordLeftoverKinds({ eureka: 75, vita: 1, leftover: 76 });
+    assert.equal(leftoverCoveredWantedBytes({ voiceBytes: 69, orchBytes: 400, pictureArmed: false }), 469);
+    assert.equal(leftoverCoveredWantedBytes({ voiceBytes: 69, orchBytes: 400, pictureArmed: true }), 10 * 1024);
+    assert.equal(leftoverCoveredWantBtp(true), true);
+    assert.equal(leftoverCoveredWantBtp(false), false);
   });
 
   it("leftover hitch stays KEY+LOC while leftoverStillEureka even if override is eureka or hat", () => {
