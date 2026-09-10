@@ -4745,6 +4745,24 @@ function leftoverVoiceHitchBytes() {
 }
 
 /**
+ * Sell leftover cover while leftover is still Eureka is names-only KEY+LOC only.
+ * Orch LIBM / picture / BTP extras wait until leftoverKinds.vita > 0 so leftover
+ * that already covered Eureka 229 B can land the ~69 B VITA trailer.
+ */
+function leftoverCoveredWantedBytes(orchBytes = 0) {
+  const voice = leftoverVoiceHitchBytes();
+  if (leftoverStillEureka()) return voice;
+  const extra = Math.max(0, Number(orchBytes) || 0);
+  if (isVitaPictureArmed()) return Math.max(voice + extra, 4 * 1024, 10 * 1024);
+  return voice + extra;
+}
+
+function leftoverCoveredWantBtp() {
+  if (leftoverStillEureka()) return false;
+  return Boolean(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+}
+
+/**
  * Size-limited leftover hitch.
  * When a VITA picture cycle is armed *and* leftover already has a VITA hitch,
  * pack sparse §HAT§ into leftover (main #58). Picture waits while leftover is
@@ -6097,13 +6115,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // overstates cost and flipped live MORPHO allow→hold every cycle.
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-    const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-    const voiceBytes = leftoverVoiceHitchBytes();
-    // When VITA picture cycle is armed, ask the sell gate for up to fragment-sized
-    // leftover hitch so wave-up tailwind can sparse-pack encoded bits.
-    const wantedHitchBytes = isVitaPictureArmed() && !leftoverStillEureka()
-      ? Math.max(voiceBytes + orchBytes, 4 * 1024, 10 * 1024)
-      : voiceBytes + orchBytes;
+    const wantBtp = leftoverCoveredWantBtp();
+    const wantedHitchBytes = leftoverCoveredWantedBytes(orchBytes);
     const hitchL1 = await quoteHitchL1ForGates({
       hitchBytes: wantedHitchBytes,
       btpInscribe: wantBtp,
@@ -12486,10 +12499,10 @@ async function main() {
             : `🌙 MOONSHOT TRIM — not in active tiers`;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-        const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-        const moonVoiceBytes = leftoverVoiceHitchBytes();
+        const moonWantBtp = leftoverCoveredWantBtp();
+        const moonWantedHitchBytes = leftoverCoveredWantedBytes(moonOrchBytes);
         const moonL1 = await quoteHitchL1ForGates({
-          hitchBytes: moonVoiceBytes + moonOrchBytes,
+          hitchBytes: moonWantedHitchBytes,
           btpInscribe: moonWantBtp,
         });
         // Preview piggy so gate matches executeSell (soldFrac × entry, not request %)
@@ -12521,7 +12534,7 @@ async function main() {
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
-          wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
+          wantedHitchBytes: moonWantedHitchBytes,
           wantBtpInscribe: moonWantBtp,
           piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
           unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
