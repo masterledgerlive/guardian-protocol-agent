@@ -410,11 +410,17 @@ describe("vita hourly course", () => {
     setLastVitaPacket("");
     const t = tickHourlyCourse({ force: true, now: Date.now() });
     assert.equal(t.ticked, true);
-    assert.equal(t.course.achieving, true);
-    assert.ok(t.course.score >= 55);
     assert.equal(t.course.issues.includes("key_fact_loss"), false);
+    assert.equal(t.course.issues.includes("leftover_still_eureka"), true);
+    assert.equal(t.course.achieving, false);
     assert.ok(getLastVitaPacket().includes("Krystian"));
     assert.ok(getLastVitaPacket().includes("Koda"));
+  });
+
+  it("missing leftoverKinds still fails leftover_still_eureka until leftover VITA hitch exists", () => {
+    const c = evaluateVitaCourse({ lastPacket: buildGenesisPacket() });
+    assert.equal(c.issues.includes("leftover_still_eureka"), true);
+    assert.equal(c.achieving, false);
   });
 
   it("leftover_still_eureka fails achieving until a leftover VITA hitch exists", () => {

@@ -284,7 +284,9 @@ export async function handleCommand(state, raw) {
     const score = Math.min(100, Math.round((50 + q.score) / 2) + Math.min(20, sealed));
     const issues = [];
     if (q.lossy) issues.push("key_fact_loss");
-    if (state.leftoverScan?.leftoverStillEureka) issues.push("leftover_still_eureka");
+    const vitaLeftover = Number(state.leftoverScan?.counts?.vita || 0) > 0
+      || Boolean(state.leftoverScan?.vitaLeftoverPresent);
+    if (!vitaLeftover) issues.push("leftover_still_eureka");
     const hitchPlan = plannedHitch(state);
     const plannedBytes = new TextEncoder().encode(hitchPlan).length;
     const eurekaMin = Number(state.leftoverScan?.hitchBytes?.eurekaMin) || 0;

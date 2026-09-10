@@ -87,11 +87,7 @@ export function evaluateVitaCourse({
     issues.push("pending_without_seal");
     actions.push("stop enqueueing drafts; confirm one location first");
   }
-  if (
-    kinds &&
-    Number(kinds.eureka) > 0 &&
-    Number(kinds.vita || 0) === 0
-  ) {
+  if (Number(kinds?.vita || 0) === 0) {
     issues.push("leftover_still_eureka");
     actions.push(
       leftoverWouldCover

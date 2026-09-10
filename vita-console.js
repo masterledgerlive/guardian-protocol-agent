@@ -177,9 +177,11 @@ function courseScore(state) {
   const plannedBytes = hitchUtf8Bytes(plannedHitch(state));
   const eurekaMin = Number(state.leftoverScan?.hitchBytes?.eurekaMin) || 0;
   const leftoverWouldCover = plannedBytes > 0 && eurekaMin > 0 && plannedBytes <= eurekaMin;
-  const issues = [
+    const issues = [
     ...(quality.lossy ? ["key_fact_loss"] : []),
-    ...(state.leftoverScan?.leftoverStillEureka ? ["leftover_still_eureka"] : []),
+    ...((Number(state.leftoverScan?.counts?.vita || 0) > 0 || Boolean(state.leftoverScan?.vitaLeftoverPresent))
+      ? []
+      : ["leftover_still_eureka"]),
   ];
   return {
     kind: "vita-html-course",
