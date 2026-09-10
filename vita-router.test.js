@@ -63,12 +63,14 @@ import {
 import {
   evaluateVitaCourse,
   leftoverWouldCoverVitaHitch,
+  leftoverStillEureka,
   formatCourseMessage,
   applyVitaCourse,
   resetCourseStats,
   restoreCourseStats,
   serializeCourseStats,
   tickHourlyCourse,
+  recordLeftoverKinds,
 } from "./vita-course.js";
 import {
   KEYCAT_PLAIN_SWAP,
@@ -444,6 +446,40 @@ describe("vita hourly course", () => {
     assert.equal(done.achieving, true);
   });
 
+  it("leftoverStillEureka is true until leftoverKinds.vita > 0", () => {
+    resetCourseStats();
+    assert.equal(leftoverStillEureka(), true);
+    recordLeftoverKinds({ eureka: 40, vita: 0, leftover: 40 });
+    assert.equal(leftoverStillEureka(), true);
+    recordLeftoverKinds({ eureka: 40, vita: 1, leftover: 41 });
+    assert.equal(leftoverStillEureka(), false);
+  });
+
+  it("leftover hitch stays KEY+LOC while leftoverStillEureka even if override is eureka or hat", () => {
+    const routerSrc = readFileSync(join(root, "vita-router.js"), "utf8");
+    assert.ok(routerSrc.includes("leftoverHitchLockedToVita"), "leftover hitch must pin KEY+LOC while leftover is still Eureka");
+    assert.ok(routerSrc.includes("leftoverStillEureka"), "secondary router leftover hitch reads leftoverStillEureka");
+    resetCourseStats();
+    ensureGenesisMemory();
+    setHitchModeOverride("eureka");
+    const eurekaOverride = planSecondaryHitch({ maxBytes: 400 });
+    assert.equal(eurekaOverride.resolved, "vita");
+    assert.equal(eurekaOverride.kind.vita, true);
+    assert.ok(eurekaOverride.utf8.includes("§KEY§"));
+    assert.ok(eurekaOverride.utf8.includes("Krystian"));
+    assert.doesNotMatch(eurekaOverride.utf8, /We did it! xoxo/);
+    setHitchModeOverride("hat");
+    const hatOverride = planSecondaryHitch({ maxBytes: 400 });
+    assert.equal(hatOverride.resolved, "vita");
+    assert.equal(hatOverride.kind.vita, true);
+    assert.ok(hatOverride.utf8.includes("§KEY§"));
+    recordLeftoverKinds({ eureka: 40, vita: 1, leftover: 41 });
+    setHitchModeOverride("eureka");
+    const afterVita = planSecondaryHitch({ maxBytes: 500 });
+    assert.equal(afterVita.resolved, "eureka");
+    assert.ok(afterVita.utf8.includes("Eureka!"));
+  });
+
   it("leftover_still_eureka course-corrects hitch mode from eureka to vita without KEY loss", () => {
     setHitchModeOverride("eureka");
     ensureGenesisMemory();
@@ -653,7 +689,8 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("leftoverHitchUtf8"), "leftover encoder must emit VITA parse, not Eureka prose");
     assert.ok(src.includes("kind.eureka && !kind.vita"), "encodeSwapWithReceipt must refuse leftover Eureka hitch");
     assert.ok(src.includes("setLastVitaPacket(prev)"), "leftover hitch size must not wipe recursive lastPacket");
-    assert.ok(src.includes("isVitaPictureArmed"), "main picture tailwind must ride leftover when a cycle is armed");
+    assert.ok(src.includes("leftoverStillEureka"), "picture leftover hitch must wait until leftover VITA hitch exists");
+    assert.ok(src.includes("isVitaPictureArmed() && !leftoverStillEureka()"), "leftover hitch stays KEY+LOC while leftover is still Eureka");
     assert.ok(src.includes("leftover hitch would clip §KEY§ names"), "must skip hitch rather than clip KEY names off the chain");
     assert.ok(src.includes("planSecondaryHitch({ skipHitch, maxBytes })"), "leftover hitch default remains VITA parse, not Eureka leftover");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");

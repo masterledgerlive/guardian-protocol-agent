@@ -43,6 +43,7 @@ import {
   setLocationDepository,
   squashLocations,
 } from "./vita-locations.js";
+import { leftoverStillEureka } from "./vita-course.js";
 
 export const HITCH_MODES = Object.freeze(["eureka", "vita", "hat", "auto"]);
 
@@ -381,7 +382,12 @@ export function planSecondaryHitch({
     return emptyPlan("leftover<hitchCost", switches);
   }
 
-  const resolved = pickMode(switches);
+  // Leftover hitch stays KEY+LOC until a leftover-covered VITA hitch exists.
+  // Explicit `mode` still lets tests / /prove-twin callers emit eureka/hat.
+  let resolved = pickMode(switches);
+  if (mode == null && leftoverHitchLockedToVita() && resolved !== "vita") {
+    resolved = "vita";
+  }
   const cap = maxBytes != null ? Math.floor(Number(maxBytes)) : null;
 
   if (resolved === "eureka") {
@@ -411,6 +417,14 @@ export function planSecondaryHitch({
   }
   const utf8 = clipUtf8(vitaBody({ maxBytes: cap, extraFields, switches }), cap);
   return hitchPlan("vita", utf8, switches);
+}
+
+function leftoverHitchLockedToVita() {
+  try {
+    return leftoverStillEureka();
+  } catch {
+    return true;
+  }
 }
 
 function pickMode(switches) {

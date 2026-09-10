@@ -162,6 +162,11 @@ export function leftoverWouldCoverVitaHitch() {
   }
 }
 
+/** True until a leftover-covered VITA hitch exists on this wallet. */
+export function leftoverStillEureka() {
+  return Number(courseStats.leftoverKinds?.vita || 0) === 0;
+}
+
 export function formatCourseMessage(course) {
   const c = course || evaluateVitaCourse();
   const flag = c.achieving ? "✅" : "🧭";

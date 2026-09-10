@@ -316,6 +316,7 @@ import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ing
 import {
   evaluateVitaCourse,
   leftoverWouldCoverVitaHitch,
+  leftoverStillEureka,
   formatCourseMessage,
   recordHitchAttempt,
   recordHitchSealed,
@@ -4745,7 +4746,9 @@ function leftoverVoiceHitchBytes() {
 
 /**
  * Size-limited leftover hitch.
- * When a VITA picture cycle is armed, pack sparse §HAT§ into leftover (main #58).
+ * When a VITA picture cycle is armed *and* leftover already has a VITA hitch,
+ * pack sparse §HAT§ into leftover (main #58). Picture waits while leftover is
+ * still Eureka so KEY+LOC can land first.
  * Otherwise leftover hitch is VITA KEY+LOC parse — never leftover Eureka prose.
  * If leftover cannot cover the names-only KEY+LOC trailer, skip hitch (lose-zero)
  * rather than clip §KEY§ names off the chain.
@@ -4763,7 +4766,7 @@ function planVoiceHitch(swapData, {
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
   }
 
-  if (isVitaPictureArmed()) {
+  if (isVitaPictureArmed() && !leftoverStillEureka()) {
     const pic = planVitaTailwindOrVoiceHitch(swapData, {
       skipHitch,
       maxBytes,
@@ -5714,7 +5717,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
-      maxBytes: isVitaPictureArmed() ? undefined : leftoverVoiceHitchBytes(),
+      maxBytes: isVitaPictureArmed() && !leftoverStillEureka() ? undefined : leftoverVoiceHitchBytes(),
       leftoverEth: buyLeftoverEth,
       gwei,
       hitchCostMult: 1,
@@ -6096,7 +6099,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const voiceBytes = leftoverVoiceHitchBytes();
     // When VITA picture cycle is armed, ask the sell gate for up to fragment-sized
     // leftover hitch so wave-up tailwind can sparse-pack encoded bits.
-    const wantedHitchBytes = isVitaPictureArmed()
+    const wantedHitchBytes = isVitaPictureArmed() && !leftoverStillEureka()
       ? Math.max(voiceBytes + orchBytes, 4 * 1024, 10 * 1024)
       : voiceBytes + orchBytes;
     const hitchL1 = await quoteHitchL1ForGates({

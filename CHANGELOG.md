@@ -44,7 +44,7 @@ memory inbound. Each successful receipt seals a spaced location; when the
 picture completes, the next cycle auto-arms (continuous on-chain proof).
 
 - `vita-tailwind-picture.js` — arm / plan / confirm / next-cycle
-- `planVoiceHitch` prefers picture when armed; leftover hitch otherwise is VITA KEY+LOC parse
+- `planVoiceHitch` prefers picture when armed **and leftover already has a VITA hitch**; leftover hitch stays KEY+LOC while leftover is still Eureka
 - Exit receipt includes spaced location count for the picture
 
 ### Added — Exit inject receipt + spaced-chain image proof
