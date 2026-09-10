@@ -118,6 +118,8 @@ describe("processToken hasPosition TDZ", () => {
 
   it("executeSell and executeBuy run amountOutMinimum sanity before submit", () => {
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut helper must be imported");
+    assert.ok(src.includes("requireLiveQuoterFill"), "must not send without a live Quoter fill");
+    assert.ok(src.includes("feeTierCandidates"), "must probe other V3 fees when catalog fee misses");
     const sellFn = src.indexOf("async function executeSell(");
     const buyFn = src.indexOf("async function executeBuy(");
     const sellEnd = src.indexOf("\nasync function ", sellFn + 1);

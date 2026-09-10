@@ -281,6 +281,7 @@ describe("Too little received retry cooldown", () => {
     assert.equal(c.cooled, true);
     assert.equal(isSlippageCooledDown("TOSHI", t0 + 2000, store), true);
     assert.match(slippageCooldownLog("TOSHI", t0 + 2000, store), /cooldown/);
+    assert.match(slippageCooldownLog("GAME", t0 + 2000, store, { side: "buy" }), /BUY SKIPPED/);
     assert.match(slippageFailLog("TOSHI", c), /cooldown armed/);
     // still cooled mid-window
     assert.equal(isSlippageCooledDown("TOSHI", t0 + 30_000, store), true);
@@ -374,6 +375,10 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     assert.ok(src.includes("isPriceJumpInsane"), "must not cache a 100× fantasy into the mark");
     assert.ok(src.includes("buildSellGateDecision"), "2× hitch stays");
     assert.ok(src.includes("isCatalogFrozen(token)"), "frozen buy gate stays");
+    assert.ok(src.includes("requireLiveQuoterFill"), "must import requireLiveQuoterFill");
+    assert.ok(src.includes("feeTierCandidates"), "must probe V3 fees");
+    assert.ok(buyBody.includes("requireQuote: true"), "buy minOut requires live quote");
+    assert.ok(sellBody.includes("requireQuote: true"), "sell minOut requires live quote");
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut sanitize stays");
     assert.ok(src.includes("applyPiggyToSell"), "piggy dust stays");
   });

@@ -248,7 +248,7 @@ import {
   formatHitchFeeSplit,
   GAS_PRICE_ORACLE,
 } from "./l1-fee-oracle.js";
-import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
+import { buildRpcUrls, withRpcFailover, isRpcFailoverError } from "./rpc-pool.js";
 import {
   encodeExactInputSingle,
   sanitizeAmountOutMinimum,
@@ -264,6 +264,13 @@ import {
   VITA_PROOF_FULL,
   utf8ByteLength,
 } from "./swap-minout.js";
+import {
+  feeTierCandidates,
+  requireLiveQuoterFill,
+  plainSaleIfHitchTooThin,
+  adoptLivePoolFee,
+  isQuoteContractRevert,
+} from "./quote-swap-guard.js";
 import {
   BASE_QUOTER_V2,
   evaluatePriceInsane,
@@ -1684,7 +1691,7 @@ const DEFAULT_TOKENS = [
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:8, community:8, total:36 },
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
-  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
+  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — AI gaming agent infra. ACTIVE." },
 
@@ -1998,27 +2005,66 @@ async function rpcCall(fn) {
 // 🔍 ON-CHAIN QUOTE — live pool out before every swap (buy + sell)
 // minOut is then run through sanitizeAmountOutMinimum so an impossible floor
 // (TOSHI→WETH ~93k WETH) cannot be submitted.
+//
+// Quote revert at the catalog fee is a pool miss (GAME empty 3000), not an RPC
+// outage — do not drain the public list. Probe other V3 fees; if none fill,
+// return null and the swap path MUST NOT send (spot cannot clear an empty pool).
 // ═══════════════════════════════════════════════════════════════════════════════
-async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
-  try {
-    const result = await rpcCall(c => c.simulateContract({
-      address: QUOTER_V2,
-      abi: QUOTER_ABI,
-      functionName: "quoteExactInputSingle",
-      args: [{ tokenIn, tokenOut, amountIn, fee: feeTier, sqrtPriceLimitX96: 0n }]
-    }));
+async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
+  const simulate = (client) => client.simulateContract({
+    address: QUOTER_V2,
+    abi: QUOTER_ABI,
+    functionName: "quoteExactInputSingle",
+    args: [{ tokenIn, tokenOut, amountIn, fee, sqrtPriceLimitX96: 0n }],
+  });
+  const outOf = (result) => {
     const out = result?.result?.[0];
     return (typeof out === "bigint" && out > 0n) ? out : null;
+  };
+  try {
+    const result = await Promise.race([
+      simulate(getClient()),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000)),
+    ]);
+    return outOf(result);
   } catch (e) {
-    console.log(`   ⚠️  On-chain quote failed: ${e.message?.slice(0,60)} — using cached price with wider slippage`);
-    return null;
+    if (isQuoteContractRevert(e) && !isRpcFailoverError(e)) return null;
+    try {
+      const result = await rpcCall((c) => simulate(c));
+      return outOf(result);
+    } catch (e2) {
+      if (isQuoteContractRevert(e2)) return null;
+      return null;
+    }
   }
+}
+
+/** @returns {{ amountOut: bigint, fee: number } | null} */
+async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
+  const fees = feeTierCandidates(feeTier);
+  for (const fee of fees) {
+    const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
+    if (amountOut && amountOut > 0n) {
+      if (fee !== Number(feeTier)) {
+        console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${fee}`);
+      }
+      return { amountOut, fee };
+    }
+  }
+  console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
+  return null;
 }
 async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
   return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier);
 }
 async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
   return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
+}
+
+function noteSwapPathFail(symbol, { kind = "quote/swap fail" } = {}) {
+  const rec = recordSlippageFail(symbol);
+  console.log(`   ${slippageFailLog(symbol, rec, { kind })}`);
+  return rec;
 }
 
 /**
@@ -5351,7 +5397,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       return await skipBuy(reason, token.symbol, buyPriceGate.log || `PRICE_INSANE — ${token.symbol} mark refused`);
     }
     if (isSlippageCooledDown(token.symbol)) {
-      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol));
+      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "buy" }));
     }
     if (!canTrade(token.symbol, isCascade)) {
       return await skipBuy(reason, token.symbol, `⏳ ${token.symbol} cooldown`);
@@ -5555,11 +5601,30 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       outDecimals: tokenDecimals,
     });
     let quotedTokens = null;
+    let swapFee = token.feeTier;
     try {
-      quotedTokens = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
+      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
+      quotedTokens = live?.amountOut ?? null;
+      if (live?.fee) swapFee = live.fee;
     } catch { quotedTokens = null; }
-    const expectedTokens = quotedTokens && quotedTokens > 0n ? quotedTokens : spotTokens;
-    let minTokens = slippageFloor(expectedTokens, quotedTokens && quotedTokens > 0n ? SLIPPAGE_GUARD : 0.75);
+    const quoteGate = requireLiveQuoterFill({
+      quotedOut: quotedTokens,
+      spotOut: spotTokens,
+      symbol: token.symbol,
+      side: "buy",
+    });
+    if (!quoteGate.allow) {
+      noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
+      return await skipBuy(reason, token.symbol, quoteGate.log);
+    }
+    quotedTokens = quoteGate.quotedOut;
+    if (swapFee !== token.feeTier) {
+      const adopted = adoptLivePoolFee(token, swapFee);
+      if (adopted.changed) {
+        console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
+      }
+    }
+    let minTokens = slippageFloor(quotedTokens, SLIPPAGE_GUARD);
     const buyMinOut = sanitizeAmountOutMinimum({
       minOut: minTokens,
       expectedOut: quotedTokens,
@@ -5567,15 +5632,15 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       slippage: SLIPPAGE_GUARD,
       side: "buy",
       symbol: token.symbol,
+      requireQuote: true,
     });
     if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
     if (!buyMinOut.allow) {
+      noteSwapPathFail(token.symbol, { kind: "minOut reject" });
       return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
     }
     minTokens = buyMinOut.amountOutMinimum;
-    if (quotedTokens && quotedTokens > 0n) {
-      console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
-    }
+    console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
 
     const ind = getIndicatorScore(token.symbol);
     console.log(`\n   🟢 BUY ${token.symbol} [${tierLabel}] — ${reason}`);
@@ -5592,7 +5657,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const tokensBefore = await getTokenBalance(token.address);
-    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
+    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
@@ -5603,6 +5668,13 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       gwei,
       hitchCostMult: 1,
     });
+    const buyHitchCostEth = estimateCalldataHitchEth(buyVoice.hitchBytes || 0, gwei);
+    buyVoice = plainSaleIfHitchTooThin(buyVoice, buySwap, {
+      leftoverEth: buyLeftoverEth,
+      hitchCostEth: buyHitchCostEth,
+    });
+    if (buyVoice.log) console.log(`   ${buyVoice.log}`);
+    const buySkipAllHitch = buySkipHitch || !buyVoice.onChain;
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
@@ -5612,7 +5684,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams1, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain,
+              maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams1),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5626,7 +5699,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams2, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain,
+              maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams2),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5803,9 +5877,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     return ethToSpend;
   } catch (e) {
     console.log(`      ❌ BUY FAILED: ${e.message}`);
-    if (isTooLittleReceived(e)) {
-      const rec = recordSlippageFail(token.symbol);
-      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
+      noteSwapPathFail(token.symbol, { kind: "Too little received" });
     }
     await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\n${e.message}\nThe letter is not claimed.`);
     return false;
@@ -5822,7 +5895,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // Blocking sells with the same timer was causing AIXBT-style traps where
     // the position grew through cascades but could never exit.
     if (isSlippageCooledDown(token.symbol)) {
-      console.log(`   ${slippageCooldownLog(token.symbol)}`);
+      console.log(`   ${slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "sell" })}`);
       return null;
     }
 
@@ -6026,19 +6099,35 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     let quotedWeth = null;
     let minWeth = 0n;
+    let swapFee = token.feeTier;
     try {
-      quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
-      if (quotedWeth && quotedWeth > 0n) {
-        minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
-        console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
-      } else {
-        minWeth = slippageFloor(spotWeth, 0.75);
-        console.log(`   📐 Quote fallback: estimated ${formatWei18(spotWeth)} WETH → floor ${formatWei18(minWeth)} (75%)`);
-      }
+      const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
+      quotedWeth = live?.amountOut ?? null;
+      if (live?.fee) swapFee = live.fee;
     } catch (e) {
-      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — using 0 floor (protective sell)`);
-      minWeth = 0n; // only on quote error — don't block protective/stop-loss sells
+      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — not sending`);
+      quotedWeth = null;
     }
+    const quoteGate = requireLiveQuoterFill({
+      quotedOut: quotedWeth,
+      spotOut: spotWeth,
+      symbol: token.symbol,
+      side: "sell",
+    });
+    if (!quoteGate.allow) {
+      noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
+      console.log(`   ${quoteGate.log}`);
+      return null;
+    }
+    quotedWeth = quoteGate.quotedOut;
+    if (swapFee !== token.feeTier) {
+      const adopted = adoptLivePoolFee(token, swapFee);
+      if (adopted.changed) {
+        console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
+      }
+    }
+    minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
+    console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
 
     const sellMinOut = sanitizeAmountOutMinimum({
       minOut: minWeth,
@@ -6047,9 +6136,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       slippage: SLIPPAGE_GUARD,
       side: "sell",
       symbol: token.symbol,
+      requireQuote: true,
     });
     if (sellMinOut.log) console.log(`   ${sellMinOut.log}`);
     if (!sellMinOut.allow) {
+      noteSwapPathFail(token.symbol, { kind: "minOut reject" });
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
       return null;
     }
@@ -6065,10 +6156,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
-    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
+    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, swapFee, minWeth);
     // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
     // or Eureka voice — pack as much encoded data as hitchBytes allow.
-    const sellVoice = planVoiceHitch(sellSwap, {
+    let sellVoice = planVoiceHitch(sellSwap, {
       skipHitch: sellGate.skipHitch,
       maxBytes: sellGate.hitchBytes,
       enabled: storeVoiceEnabled(),
@@ -6080,6 +6171,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       gwei,
       hitchCostMult: sellGate.hitchCostMult || 2,
     });
+    sellVoice = plainSaleIfHitchTooThin(sellVoice, sellSwap, {
+      leftoverEth: Math.max(0, Number(sellGate.leftover) || 0),
+      hitchCostEth: Math.max(
+        0,
+        Number(sellGate.injectCostEth) || estimateCalldataHitchEth(sellVoice.hitchBytes || 0, gwei),
+      ),
+    });
+    if (sellVoice.log) console.log(`   ${sellVoice.log}`);
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -6089,8 +6188,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         ? orch.injectAndSend(_sellTx, {
             isOwnerTrade: true,
             currentGwei: gwei,
-            maxHitchBytes: Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
-            skipHitch: sellGate.skipHitch || sellVoice.onChain,
+            maxHitchBytes: (sellGate.skipHitch || sellVoice.kind === "plain-thin")
+              ? 0
+              : Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
+            skipHitch: sellGate.skipHitch || sellVoice.onChain || sellVoice.kind === "plain-thin",
           })
         : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -6407,9 +6508,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     return Math.max(received - skim, 0);
   } catch (e) {
     console.log(`      ❌ SELL FAILED: ${e.message}`);
-    if (isTooLittleReceived(e)) {
-      const rec = recordSlippageFail(token.symbol);
-      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
+      noteSwapPathFail(token.symbol, { kind: "Too little received" });
     }
     await tg(`⚠️ <b>${token.symbol} SELL FAILED</b>\n${e.message}`);
     return null;

@@ -309,12 +309,15 @@ export function isSlippageCooledDown(symbol, now = Date.now(), store = slipFails
   return now < row.cooledUntil;
 }
 
-export function slippageCooldownLog(symbol, now = Date.now(), store = slipFails) {
+export function slippageCooldownLog(symbol, now = Date.now(), store = slipFails, {
+  side = "swap",
+} = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const row = store[sym];
   const leftMs = row?.cooledUntil ? Math.max(0, row.cooledUntil - now) : 0;
   const leftMin = (leftMs / 60000).toFixed(1);
-  return `🧊 SELL SKIPPED [${sym}]: Too little received cooldown (${leftMin}m left) — not burning more gas`;
+  const label = side === "buy" ? "BUY SKIPPED" : side === "sell" ? "SELL SKIPPED" : "SWAP SKIPPED";
+  return `🧊 ${label} [${sym}]: quote/swap fail cooldown (${leftMin}m left) — not burning more gas`;
 }
 
 /**
@@ -350,14 +353,15 @@ export function clearSlippageFails(symbol, store = slipFails) {
   if (sym) delete store[sym];
 }
 
-export function slippageFailLog(symbol, rec) {
+export function slippageFailLog(symbol, rec, { kind = "quote/swap fail" } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const n = rec?.count || 0;
   const max = rec?.max || SLIP_RETRY_MAX;
+  const label = kind || "quote/swap fail";
   if (rec?.cooled) {
-    return `🧊 [${sym}] Too little received ×${n} — cooldown armed, stop burning gas`;
+    return `🧊 [${sym}] ${label} ×${n} — cooldown armed, stop burning gas`;
   }
-  return `⚠️  [${sym}] Too little received (${n}/${max}) — will cooldown after ${max}`;
+  return `⚠️  [${sym}] ${label} (${n}/${max}) — will cooldown after ${max}`;
 }
 
 /**

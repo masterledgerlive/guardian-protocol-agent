@@ -300,7 +300,9 @@ export function encodingDoesNotLoseMoney({ leftoverEth, hitchCostEth } = {}) {
  *
  * @returns {{ allow: boolean, amountOutMinimum: bigint, action: 'ok'|'clamp'|'reject', log: string|null }}
  *
- * - minOut == 0: allow (protective / quote-error path). Does not weaken hitch or LOSE_ZERO.
+ * - requireQuote && no live quote: reject — DexScreener/Aerodrome spot cannot
+ *   clear a Uni V3 pool that QuoterV2 does not fill (live GAME fee-3000 buys).
+ * - minOut == 0 (and a quote is present, or requireQuote is off): allow.
  * - minOut <= trusted expected: allow as-is.
  * - minOut > trusted but we have a quote/spot: clamp to slippage*trusted and allow
  *   (do not send the impossible floor; send the sane one so exits are not bricked).
@@ -313,10 +315,22 @@ export function sanitizeAmountOutMinimum({
   slippage = SLIPPAGE_GUARD_DEFAULT,
   side = "swap",
   symbol = "?",
+  requireQuote = false,
 } = {}) {
   const min = asBigInt(minOut) ?? 0n;
   const quote = asBigInt(expectedOut);
   const spot = asBigInt(spotOut);
+
+  if (requireQuote && (quote == null || quote <= 0n)) {
+    return {
+      allow: false,
+      amountOutMinimum: 0n,
+      action: "reject",
+      log:
+        `MINOUT: reject ${side} ${symbol} — no live QuoterV2 fill; ` +
+        `refusing spot-only minOut (cannot clear a pool that does not quote)`,
+    };
+  }
 
   if (min === 0n) {
     return { allow: true, amountOutMinimum: 0n, action: "ok", log: null };

@@ -265,6 +265,21 @@ describe("sanitizeAmountOutMinimum", () => {
     assert.match(r.log, /refusing to send/);
   });
 
+  it("requireQuote refuses Aerodrome-spot minOut when Quoter missed (GAME buys)", () => {
+    const aeroSpot = toWei(366, 18);
+    const r = sanitizeAmountOutMinimum({
+      minOut: slippageFloor(aeroSpot, 0.75),
+      expectedOut: null,
+      spotOut: aeroSpot,
+      side: "buy",
+      symbol: "GAME",
+      requireQuote: true,
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.action, "reject");
+    assert.match(r.log, /no live QuoterV2/);
+  });
+
   it("clamps buy minOut that is 1e12× too high (18-dec wei on an 8-dec token)", () => {
     const spot8 = toWei(0.001, 8);
     const badMin = toWei(0.001, 18);

@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Fixed — GAME SwapRouter02 exactInputSingle reverts (empty Uni V3 fee 3000)
+
+RISK bag buys of GAME (`0x50e1…7915`, blocks 51106117–51106192) reverted after a
+hitch streak. Fail class was **Quoter vs pool mismatch**, not PRICE_INSANE:
+
+- DexScreener mark came from Aerodrome GAME/WETH (`0x2A36…DFD2`).
+- Catalog `feeTier: 3000` pointed at Uni V3 pool `0x70fb…45b5` with **liquidity=0**.
+- QuoterV2 `quoteExactInputSingle` reverted on every RPC (a pool miss, not an outage).
+- `executeBuy` still sent SwapRouter02 with Aerodrome-spot minOut + UTF-8 `§$STORE§`.
+- Txs reverted (~788k of 800k gas): `0x2644773a…`, `0x2589e0a3…`, `0x280e898e…`.
+- Slippage cooldown armed after the **third mined revert** — too late; buy path also logged `SELL SKIPPED`.
+
+Live Uni V3 GAME/WETH book is **fee 10000** (`0xE5Ff…77a3`). Harden:
+
+- Require a live QuoterV2 fill before send (no spot-only minOut).
+- Probe other V3 fees when catalog fee misses; remember the fee that quoted.
+- Quote contract revert does not drain the RPC pool.
+- Quote miss / PRICE_INSANE quote / minOut reject increment the fail streak; cooldown after N (still 3) without sending.
+- Hitch leftover too thin → plain sale (no hitch); orch cannot re-hitch after skip.
+- GAME catalog fee 10000 / 1%. LOSE-ZERO unchanged. Uni V4 untouched. No invented P&L.
+
 ### Added — VITA picture tailwind (sparse out = sparse in)
 
 When VITA triggers (`/vitasave`, `/vitadata`, `/remember`, `/vitapicture arm`),
