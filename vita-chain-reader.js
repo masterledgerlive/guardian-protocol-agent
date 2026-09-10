@@ -259,20 +259,23 @@ export function resetLeftoverScanCacheForTests() {
   leftoverScanInflight = null;
 }
 
+/** Incomplete leftover scan — must not look like eureka=0/vita=0 finished work. */
+export function isPendingLeftoverScan(scan) {
+  return Boolean(scan && typeof scan === "object" && scan.scanning === true);
+}
+
 function pendingPublicScan(address = GUARDIAN_WALLET) {
-  const counts = { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 };
-  const hitchBytes = leftoverHitchByteStats([]);
   return {
     kind: "vita-leftover-scan",
     address,
     scanned: 0,
-    counts,
-    leftoverKinds: counts,
-    hitchBytes,
-    leftoverHitchBytes: hitchBytes,
+    counts: null,
+    leftoverKinds: null,
+    hitchBytes: null,
+    leftoverHitchBytes: null,
     rows: [],
-    leftoverStillEureka: true,
-    vitaLeftoverPresent: false,
+    leftoverStillEureka: null,
+    vitaLeftoverPresent: null,
     scanning: true,
   };
 }
@@ -303,13 +306,16 @@ export async function getCachedLeftoverScan(opts = {}) {
     })
     .catch((err) => {
       if (leftoverScanCache.scan) return leftoverScanCache.scan;
-      return pendingPublicScan(opts.address);
+      throw err;
     })
     .finally(() => {
       leftoverScanInflight = null;
     });
 
-  if (opts.wait === false) return leftoverScanCache.scan || pendingPublicScan(opts.address);
+  if (opts.wait === false) {
+    leftoverScanInflight.catch(() => {});
+    return leftoverScanCache.scan || pendingPublicScan(opts.address);
+  }
   if (!opts.force && leftoverScanCache.scan) return leftoverScanCache.scan;
   return leftoverScanInflight;
 }
@@ -317,17 +323,34 @@ export async function getCachedLeftoverScan(opts = {}) {
 /** Public reader view — hashes + class, no hitch utf8 (HTML pulls locations itself). */
 export function publicLeftoverScanView(scan) {
   const s = scan || {};
+  if (isPendingLeftoverScan(s)) {
+    return {
+      kind: s.kind || "vita-leftover-scan",
+      address: s.address || GUARDIAN_WALLET,
+      scanned: 0,
+      counts: null,
+      leftoverKinds: null,
+      leftoverStillEureka: null,
+      vitaLeftoverPresent: null,
+      scanning: true,
+      hitchBytes: null,
+      leftoverHitchBytes: null,
+      rows: [],
+    };
+  }
+  const counts = s.counts || s.leftoverKinds || { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 };
+  const hitchBytes = s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows);
   return {
     kind: s.kind || "vita-leftover-scan",
     address: s.address || GUARDIAN_WALLET,
     scanned: s.scanned || 0,
-    counts: s.counts || s.leftoverKinds || { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 },
-    leftoverKinds: s.counts || s.leftoverKinds || null,
+    counts,
+    leftoverKinds: counts,
     leftoverStillEureka: Boolean(s.leftoverStillEureka),
     vitaLeftoverPresent: Boolean(s.vitaLeftoverPresent),
-    scanning: Boolean(s.scanning),
-    hitchBytes: s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows),
-    leftoverHitchBytes: s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows),
+    scanning: false,
+    hitchBytes,
+    leftoverHitchBytes: hitchBytes,
     rows: (s.rows || [])
       .filter((r) => r.leftover || r.class === "plain-228")
       .slice(0, 80)
@@ -344,9 +367,21 @@ export function publicLeftoverScanView(scan) {
 /** Fold scanned leftover hitch UTF-8 into recursive memory. Skip LIBM. */
 export function ingestLeftoverScan(scan) {
   ensureGenesisMemory();
-  const counts = scan?.counts || scan?.leftoverKinds || null;
+  if (!scan || typeof scan !== "object" || isPendingLeftoverScan(scan)) {
+    return {
+      ingested: 0,
+      quality: vitaQuality(getLastVitaPacket()),
+      packet: getLastVitaPacket(),
+      leftoverStillEureka: null,
+      leftoverKinds: null,
+      scanning: Boolean(scan?.scanning),
+    };
+  }
+  const counts = scan.counts || scan.leftoverKinds || null;
   recordLeftoverKinds(counts);
-  recordLeftoverHitchBytes(scan?.hitchBytes || scan?.leftoverHitchBytes || leftoverHitchByteStats(scan?.rows));
+  const hitchBytes = scan.hitchBytes || scan.leftoverHitchBytes
+    || (Array.isArray(scan.rows) && scan.rows.length ? leftoverHitchByteStats(scan.rows) : null);
+  if (hitchBytes) recordLeftoverHitchBytes(hitchBytes);
   let ingested = 0;
   for (const row of scan?.rows || []) {
     if (!TX_HASH_RE.test(String(row.hash || ""))) continue;

@@ -114,6 +114,7 @@ function stampLoc(state) {
 
 /** Fold leftover hitch UTF-8 into HTML-console memory. Does not touch bot lastPacket. */
 export function ingestConsoleLeftoverScan(state, scan) {
+  if (scan?.scanning) return 0;
   let ingested = 0;
   for (const row of scan?.rows || []) {
     if (!row?.utf8) continue;
@@ -373,6 +374,9 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
   if (text === "/vitascan") {
     try {
       const scan = await fetchLeftoverScan({ limit: 40 });
+      if (scan?.scanning) {
+        return reply("leftover scan still pending — not persisting empty leftoverKinds");
+      }
       const ingested = ingestConsoleLeftoverScan(state, scan);
       const c = courseScore(state);
       return reply(
@@ -475,17 +479,21 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     }
     try {
       const scan = await fetchLeftoverScan({ limit: 80, maxPages: 3 });
-      const folded = ingestConsoleLeftoverScan(state, scan);
-      lines.push("leftover hitch locations folded " + folded);
-      for (const row of scan.rows || []) {
-        const hash = String(row.hash || "");
-        if (!row.leftover || !TX_HASH_RE.test(hash)) continue;
-        const key = hash.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const existing = (state.nodes || []).find((n) => String(n.location || "").toLowerCase() === key);
-        if (existing?.utf8) continue;
-        lines.push(await pullOne(state, hash, fetchCalldata));
+      if (scan?.scanning) {
+        lines.push("leftover scan still pending — hashes not pulled yet");
+      } else {
+        const folded = ingestConsoleLeftoverScan(state, scan);
+        lines.push("leftover hitch locations folded " + folded);
+        for (const row of scan.rows || []) {
+          const hash = String(row.hash || "");
+          if (!row.leftover || !TX_HASH_RE.test(hash)) continue;
+          const key = hash.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const existing = (state.nodes || []).find((n) => String(n.location || "").toLowerCase() === key);
+          if (existing?.utf8) continue;
+          lines.push(await pullOne(state, hash, fetchCalldata));
+        }
       }
     } catch (e) {
       lines.push("leftover scan: " + (e.message || e));

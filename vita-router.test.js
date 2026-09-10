@@ -71,6 +71,7 @@ import {
   serializeCourseStats,
   tickHourlyCourse,
   recordLeftoverKinds,
+  recordLeftoverHitchBytes,
 } from "./vita-course.js";
 import {
   KEYCAT_PLAIN_SWAP,
@@ -98,6 +99,7 @@ import {
   getCachedLeftoverScan,
   resetLeftoverScanCacheForTests,
   publicLeftoverScanView,
+  isPendingLeftoverScan,
   fetchRecentWalletTransactions,
   blockscoutTxListUrl,
   KEYCAT_TX,
@@ -1101,11 +1103,70 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.equal(walks, 1);
     assert.equal(fast.scanning, true);
     assert.equal(fast.scanned, 0);
+    assert.equal(fast.leftoverKinds, null);
+    assert.equal(fast.leftoverStillEureka, null);
+    assert.equal(fast.hitchBytes, null);
+    assert.equal(isPendingLeftoverScan(fast), true);
+    const pendingView = publicLeftoverScanView(fast);
+    assert.equal(pendingView.leftoverKinds, null);
+    assert.equal(pendingView.leftoverStillEureka, null);
+    assert.equal(pendingView.hitchBytes, null);
+    assert.equal(pendingView.scanning, true);
     resolveWalk();
     const done = await getCachedLeftoverScan({ fetchTxs, limit: 4, maxPages: 1 });
     assert.equal(walks, 1);
     assert.equal(done.scanning, undefined);
     assert.equal(done.scanned, 0);
+    resetLeftoverScanCacheForTests();
+  });
+
+  it("pending leftover scan does not wipe leftoverKinds or leftoverWouldCover", () => {
+    ensureGenesisMemory();
+    resetCourseStats();
+    recordLeftoverKinds({ eureka: 75, vita: 0, leftover: 75 });
+    recordLeftoverHitchBytes({ eurekaMin: 229, eurekaCount: 75 });
+    assert.equal(leftoverWouldCoverVitaHitch(), true);
+    assert.equal(leftoverStillEureka(), true);
+    ingestLeftoverScan({
+      scanning: true,
+      scanned: 0,
+      counts: { eureka: 0, vita: 0, plain: 0, leftover: 0 },
+      leftoverKinds: { eureka: 0, vita: 0, leftover: 0 },
+      leftoverStillEureka: true,
+      hitchBytes: { eurekaMin: 0, eurekaCount: 0 },
+      rows: [],
+    });
+    ingestLeftoverScan(publicLeftoverScanView({ scanning: true, rows: [] }));
+    recordLeftoverKinds({ eureka: 0, vita: 0 }, { scanning: true });
+    recordLeftoverHitchBytes({ eurekaMin: 0, eurekaCount: 0 }, { scanning: true });
+    assert.equal(leftoverStillEureka(), true);
+    const course = evaluateVitaCourse();
+    assert.equal(course.inject.leftoverWouldCover, true);
+    const snap = serializeCourseStats();
+    assert.equal(snap.leftoverKinds.eureka, 75);
+    assert.equal(snap.leftoverHitchBytes.eurekaMin, 229);
+  });
+
+  it("wait:true leftover scan failure without cache does not look like a finished empty scan", async () => {
+    resetLeftoverScanCacheForTests();
+    await assert.rejects(
+      () => getCachedLeftoverScan({
+        fetchTxs: async () => { throw new Error("blockscout down"); },
+        limit: 2,
+        maxPages: 1,
+      }),
+      /blockscout down/,
+    );
+    const fast = await getCachedLeftoverScan({
+      fetchTxs: async () => { throw new Error("blockscout down"); },
+      wait: false,
+      limit: 2,
+      maxPages: 1,
+    });
+    assert.equal(fast.scanning, true);
+    assert.equal(fast.leftoverKinds, null);
+    assert.equal(fast.leftoverStillEureka, null);
+    await new Promise((r) => setTimeout(r, 20));
     resetLeftoverScanCacheForTests();
   });
 

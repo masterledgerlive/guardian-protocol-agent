@@ -10,6 +10,7 @@ import {
   CONSOLE_ANCHORS,
   createVitaConsole,
   handleVitaConsole,
+  ingestConsoleLeftoverScan,
   redactConsoleView,
 } from "./vita-console.js";
 import { KEYCAT_PLAIN_SWAP, appendUtf8Hitch } from "./swap-minout.js";
@@ -137,6 +138,25 @@ describe("vita HTML console", () => {
     assert.equal(state.leftoverScan.leftoverStillEureka, true);
   });
 
+  it("ingestConsoleLeftoverScan ignores a scanning placeholder", () => {
+    const state = createVitaConsole();
+    state.leftoverScan = {
+      counts: { eureka: 12, vita: 0 },
+      leftoverStillEureka: true,
+      hitchBytes: { eurekaMin: 229 },
+    };
+    const n = ingestConsoleLeftoverScan(state, {
+      scanning: true,
+      counts: { eureka: 0, vita: 0 },
+      leftoverStillEureka: true,
+      hitchBytes: { eurekaMin: 0 },
+      rows: [],
+    });
+    assert.equal(n, 0);
+    assert.equal(state.leftoverScan.counts.eureka, 12);
+    assert.equal(state.leftoverScan.hitchBytes.eurekaMin, 229);
+  });
+
   it("ZK preview hides plaintext but keeps KEY internally", async () => {
     const state = createVitaConsole();
     await handleVitaConsole(state, "/vitanote secret-fact-xyz");
@@ -166,6 +186,8 @@ describe("vita HTML artifacts", () => {
     assert.match(client, /KEYCAT_TX/);
     assert.match(client, /vitascan/);
     assert.match(client, /fetchLeftoverScanJson|\/vita\/leftover/);
+    assert.match(client, /leftoverScanIncomplete/);
+    assert.match(client, /scan\.scanning/);
     assert.match(client, /leftover hitch hashes/);
     assert.match(html, /vitascan/);
   });

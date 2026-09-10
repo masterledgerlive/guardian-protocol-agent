@@ -197,6 +197,8 @@ describe("control board HTTP", () => {
     assert.match(js.text, /handleCommand/);
     assert.match(js.text, /leftover hitch hashes/);
     assert.match(js.text, /fetchLeftoverScanJson/);
+    assert.match(js.text, /leftoverScanIncomplete/);
+    assert.match(js.text, /scan\.scanning/);
     const parse = await get("/vita/lib/vita-parse.js");
     assert.equal(parse.res.status, 200);
     assert.match(parse.text, /projectLeftoverHitchFields/);
@@ -204,21 +206,39 @@ describe("control board HTTP", () => {
   });
 
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
-    const { res, json } = await get("/vita/leftover");
-    assert.equal(res.status, 200);
-    assert.equal(json.ok, true);
-    assert.equal(json.kind, "vita-leftover-scan");
-    assert.equal(typeof json.counts.eureka, "number");
-    assert.equal(typeof json.counts.vita, "number");
-    assert.equal(Array.isArray(json.rows), true);
-    assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
-    assert.ok(json.rows.length <= 80);
-    assert.equal(typeof json.hitchBytes, "object");
-    assert.equal(typeof json.scanning, "boolean");
-    if (json.counts.eureka > 0) {
-      assert.ok(json.hitchBytes.eurekaMin > 0);
+    const first = await get("/vita/leftover");
+    assert.equal(first.res.status, 200);
+    assert.equal(first.json.ok, true);
+    assert.equal(first.json.kind, "vita-leftover-scan");
+    assert.equal(typeof first.json.scanning, "boolean");
+    if (first.json.scanning) {
+      assert.equal(first.json.counts, null);
+      assert.equal(first.json.leftoverKinds, null);
+      assert.equal(first.json.leftoverStillEureka, null);
+      assert.equal(first.json.hitchBytes, null);
+    }
+    let json = first.json;
+    const started = Date.now();
+    while (json.scanning && Date.now() - started < 20000) {
+      await new Promise((r) => setTimeout(r, 500));
+      json = (await get("/vita/leftover")).json;
+    }
+    if (json.scanning) {
+      assert.equal(json.counts, null);
+      assert.equal(json.leftoverStillEureka, null);
+    } else {
+      assert.equal(typeof json.counts.eureka, "number");
+      assert.equal(typeof json.counts.vita, "number");
+      assert.equal(Array.isArray(json.rows), true);
+      assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
+      assert.ok(json.rows.length <= 80);
+      assert.equal(typeof json.hitchBytes, "object");
+      if (json.counts.eureka > 0) {
+        assert.ok(json.hitchBytes.eurekaMin > 0);
+      }
     }
     const webhookSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
     assert.ok(webhookSrc.includes("wait: false"), "public leftover scan must not await Blockscout on the injector");
+    assert.ok(webhookSrc.includes("isPendingLeftoverScan"), "auth /vita/course must ignore scanning placeholders");
   });
 });

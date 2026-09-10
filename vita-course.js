@@ -251,7 +251,8 @@ export function recordHitchAttempt({ skippedLeftover = false, realizedLossUsd = 
 }
 
 /** Confirmed leftover hitch kinds from a Base wallet scan. */
-export function recordLeftoverKinds(kinds) {
+export function recordLeftoverKinds(kinds, extra = {}) {
+  if (extra?.scanning) return getCourseStats();
   if (kinds && typeof kinds === "object") {
     courseStats.leftoverKinds = {
       eureka: Number(kinds.eureka) || 0,
@@ -266,7 +267,8 @@ export function recordLeftoverKinds(kinds) {
 }
 
 /** Leftover hitch UTF-8 sizes from a Base wallet scan. */
-export function recordLeftoverHitchBytes(stats) {
+export function recordLeftoverHitchBytes(stats, extra = {}) {
+  if (extra?.scanning) return getCourseStats();
   if (stats && typeof stats === "object") {
     courseStats.leftoverHitchBytes = {
       eurekaMin: Number(stats.eurekaMin) || 0,

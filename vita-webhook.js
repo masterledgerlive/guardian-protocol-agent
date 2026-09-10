@@ -61,6 +61,7 @@ import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
 import {
   fetchTxCalldataHex,
   getCachedLeftoverScan,
+  isPendingLeftoverScan,
   publicLeftoverScanView,
   pullLocationFromChain,
 } from "./vita-chain-reader.js";
@@ -424,8 +425,10 @@ async function handleVitaRequest(req, res) {
       let leftoverHitchBytes;
       try {
         const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3 });
-        leftoverKinds = scan.counts;
-        leftoverHitchBytes = scan.hitchBytes || scan.leftoverHitchBytes;
+        if (!isPendingLeftoverScan(scan)) {
+          leftoverKinds = scan.counts || scan.leftoverKinds;
+          leftoverHitchBytes = scan.hitchBytes || scan.leftoverHitchBytes;
+        }
       } catch { leftoverKinds = undefined; leftoverHitchBytes = undefined; }
       const course = leftoverKinds
         ? evaluateVitaCourse({ leftoverKinds, leftoverHitchBytes })

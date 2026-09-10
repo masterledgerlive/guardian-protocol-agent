@@ -233,10 +233,40 @@ function answer(state, q) {
   return Object.entries(fields).map(([k, v]) => k + ": " + v).join("\n").slice(0, 800);
 }
 
+function leftoverScanIncomplete(scan) {
+  if (!scan) return true;
+  if (scan.scanning === true) return true;
+  if (scan.counts == null && scan.leftoverKinds == null) return true;
+  const eureka = Number(scan.counts?.eureka || scan.leftoverKinds?.eureka || 0);
+  const vita = Number(scan.counts?.vita || scan.leftoverKinds?.vita || 0);
+  const eurekaMin = Number((scan.hitchBytes || scan.leftoverHitchBytes)?.eurekaMin || 0);
+  return Boolean(scan.leftoverStillEureka) && eureka === 0 && vita === 0 && eurekaMin === 0;
+}
+
+function snapshotLeftoverScan(scan) {
+  if (leftoverScanIncomplete(scan)) return null;
+  return {
+    counts: scan.counts || scan.leftoverKinds,
+    leftoverStillEureka: Boolean(scan.leftoverStillEureka),
+    vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
+    hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
+  };
+}
+
 async function fetchLeftoverScanJson() {
-  const res = await fetch("/vita/leftover");
-  const scan = await res.json();
-  if (!scan?.ok && !scan?.counts) throw new Error(scan?.error || "scan failed");
+  const maxAttempts = 12;
+  let scan = null;
+  for (let i = 0; i < maxAttempts; i++) {
+    const res = await fetch("/vita/leftover");
+    scan = await res.json();
+    if (scan?.error && !scan.ok && scan.scanning !== true) {
+      throw new Error(scan.error || "scan failed");
+    }
+    if (!leftoverScanIncomplete(scan)) return scan;
+    if (i < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
   return scan;
 }
 
@@ -261,16 +291,14 @@ export async function handleCommand(state, raw) {
     return say("mode → " + mode);
   }
   if (low === "/vitacourse") {
-    if (!state.leftoverScan) {
+    if (leftoverScanIncomplete(state.leftoverScan)) {
       try {
         const scan = await fetchLeftoverScanJson();
-        state.leftoverScan = {
-          counts: scan.counts,
-          leftoverStillEureka: Boolean(scan.leftoverStillEureka),
-          vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
-          hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
-        };
-        persist(state);
+        const snap = snapshotLeftoverScan(scan);
+        if (snap) {
+          state.leftoverScan = snap;
+          persist(state);
+        }
       } catch { /* course still scores KEY/loc without chain scan */ }
     }
     if (state.leftoverScan?.leftoverStillEureka) state.mode = "vita";
@@ -311,6 +339,9 @@ export async function handleCommand(state, raw) {
   if (low === "/vitascan") {
     try {
       const scan = await fetchLeftoverScanJson();
+      if (leftoverScanIncomplete(scan)) {
+        return say("leftover scan still pending — hashes not pulled yet. Try /vitascan again shortly.");
+      }
       const lines = [];
       for (const row of scan.rows || []) {
         if (!TX_RE.test(row.hash) || !row.leftover) continue;
@@ -322,13 +353,11 @@ export async function handleCommand(state, raw) {
           lines.push(row.hash.slice(0, 10) + "… " + (e.message || e));
         }
       }
-      state.leftoverScan = {
-        counts: scan.counts,
-        leftoverStillEureka: Boolean(scan.leftoverStillEureka),
-        vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
-        hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
-      };
-      persist(state);
+      const snap = snapshotLeftoverScan(scan);
+      if (snap) {
+        state.leftoverScan = snap;
+        persist(state);
+      }
       return say(
         "LEFTOVER SCAN eureka=" + Number(scan.counts?.eureka || 0) +
         " vita=" + Number(scan.counts?.vita || 0) +
@@ -422,23 +451,23 @@ export async function handleCommand(state, raw) {
     }
     try {
       const scan = await fetchLeftoverScanJson();
-      state.leftoverScan = {
-        counts: scan.counts,
-        leftoverStillEureka: Boolean(scan.leftoverStillEureka),
-        vitaLeftoverPresent: Boolean(scan.vitaLeftoverPresent),
-        hitchBytes: scan.hitchBytes || scan.leftoverHitchBytes || null,
-      };
-      for (const row of scan.rows || []) {
-        if (!TX_RE.test(row.hash) || !row.leftover) continue;
-        const key = row.hash.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        try {
-          const hex = await fetchTxHex(row.hash);
-          const read = readHitchFromHex(hex);
-          lines.push(ingestUtf8(state, row.hash, read.utf8, read.kind.kind, read.source));
-        } catch (e) {
-          lines.push(row.hash.slice(0, 10) + "… " + (e.message || e));
+      if (leftoverScanIncomplete(scan)) {
+        lines.push("leftover scan still pending — hashes not pulled yet");
+      } else {
+        const snap = snapshotLeftoverScan(scan);
+        if (snap) state.leftoverScan = snap;
+        for (const row of scan.rows || []) {
+          if (!TX_RE.test(row.hash) || !row.leftover) continue;
+          const key = row.hash.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          try {
+            const hex = await fetchTxHex(row.hash);
+            const read = readHitchFromHex(hex);
+            lines.push(ingestUtf8(state, row.hash, read.utf8, read.kind.kind, read.source));
+          } catch (e) {
+            lines.push(row.hash.slice(0, 10) + "… " + (e.message || e));
+          }
         }
       }
     } catch (e) {
