@@ -281,6 +281,7 @@ function pendingPublicScan(address = GUARDIAN_WALLET) {
  * One leftover scan at a time. Concurrent callers share the in-flight promise
  * (or a still-warm cache) so public GET /vita/leftover cannot stampede Blockscout.
  * Stale-while-revalidate: if a scan is already cached, return it while a refresh runs.
+ * Refresh failures keep the last cache (never an unhandled rejection).
  * `wait: false` never awaits Blockscout — public leftover must not stall leftover hitch.
  */
 export async function getCachedLeftoverScan(opts = {}) {
@@ -300,14 +301,15 @@ export async function getCachedLeftoverScan(opts = {}) {
       leftoverScanCache = { at: Date.now(), scan };
       return scan;
     })
+    .catch((err) => {
+      if (leftoverScanCache.scan) return leftoverScanCache.scan;
+      return pendingPublicScan(opts.address);
+    })
     .finally(() => {
       leftoverScanInflight = null;
     });
 
-  if (opts.wait === false) {
-    leftoverScanInflight.catch(() => {});
-    return leftoverScanCache.scan || pendingPublicScan(opts.address);
-  }
+  if (opts.wait === false) return leftoverScanCache.scan || pendingPublicScan(opts.address);
   if (!opts.force && leftoverScanCache.scan) return leftoverScanCache.scan;
   return leftoverScanInflight;
 }

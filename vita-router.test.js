@@ -1109,6 +1109,34 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     resetLeftoverScanCacheForTests();
   });
 
+  it("stale leftover scan refresh rejection keeps cache and is not unhandled", async () => {
+    resetLeftoverScanCacheForTests();
+    await getCachedLeftoverScan({
+      fetchTxs: async () => [],
+      ttlMs: 1,
+      limit: 2,
+      maxPages: 1,
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    let unhandled = 0;
+    const onUnhandled = () => { unhandled += 1; };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const stale = await getCachedLeftoverScan({
+        fetchTxs: async () => { throw new Error("blockscout down"); },
+        ttlMs: 1,
+        limit: 2,
+        maxPages: 1,
+      });
+      assert.equal(stale.scanned, 0);
+      await new Promise((r) => setTimeout(r, 30));
+      assert.equal(unhandled, 0);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+      resetLeftoverScanCacheForTests();
+    }
+  });
+
   it("publicLeftoverScanView keeps leftover hashes for the reader (not a 24-row clip)", () => {
     const rows = [];
     for (let i = 0; i < 40; i++) {
