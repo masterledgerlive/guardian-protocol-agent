@@ -7,7 +7,7 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  *
  * Buy penny-pinch: leftover must cover 1× hitch (auto, cascade, ripple).
  * Operator Telegram /buy is an explicit test: leftover+edge never block it.
- * Hitch Eureka if leftover covers 1× hitch; otherwise send a plain swap.
+ * Hitch VITA KEY+LOC if leftover covers 1× hitch; otherwise send a plain swap.
  * Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply.
  * Sell lose-zero:  sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
  *                  HITCH_COST_MULT default 2 — twice the hitch as profit cushion.
@@ -18,8 +18,8 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
  * if leftover is too thin for hitch, skip hitch and still sell when the wave itself
  * is profitable after fees. Hold only when leftover after fees is ≤ 0.
- * Once hitch leftover is met *and* the piggy earnings buffer clears, attach Eureka
- * on the way out — never list a message-paid "gain" that the hitch would wipe.
+ * Once hitch leftover is met *and* the piggy earnings buffer clears, attach VITA
+ * parse on the way out — never list a message-paid "gain" that the hitch would wipe.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -65,10 +65,11 @@ export function estimateStoreHitchGasUnits() {
 }
 
 /** Hitch cost in ETH given gas price in gwei. Optional live L1 fee is added. */
-export function estimateInjectCostEth(gwei, l1FeeEth) {
+export function estimateInjectCostEth(gwei, l1FeeEth, hitchBytes = STORE_HITCH_BYTES) {
   const g = Number(gwei);
   if (!Number.isFinite(g) || g < 0) return hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0;
-  const l2 = estimateStoreHitchGasUnits() * g * 1e-9;
+  const bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);
+  const l2 = estimateCalldataHitchEth(bytes, gwei);
   return l2 + (hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0);
 }
 
@@ -76,8 +77,8 @@ export function estimateInjectCostEth(gwei, l1FeeEth) {
  * Price increment so a position of `tradeEth` covers hitch gas.
  * inject_cost_spread = (injectEth / tradeEth) * entryPrice
  */
-export function injectCostSpread(entryPrice, tradeEth, gwei, l1FeeEth) {
-  const injectEth = estimateInjectCostEth(gwei, l1FeeEth);
+export function injectCostSpread(entryPrice, tradeEth, gwei, l1FeeEth, hitchBytes = STORE_HITCH_BYTES) {
+  const injectEth = estimateInjectCostEth(gwei, l1FeeEth, hitchBytes);
   const price = Number(entryPrice);
   const eth = Number(tradeEth);
   if (!Number.isFinite(price) || price <= 0) return 0;
@@ -525,7 +526,7 @@ export function buildBuyGateDecision({
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
   const fairExit = computeFairExit(price, { feePct, gasCostEth, tradeEth, impactPct });
-  const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth);
+  const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth, hitchBytes);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
   const l2Bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);

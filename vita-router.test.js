@@ -644,6 +644,9 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("ingestLeftoverScan"), "Eureka leftover fills must fold into recursive memory");
     assert.ok(src.includes("skipHitch: buySkipHitch || buyVoice.onChain"), "buy leftover must not fall through to orch LIBM when VITA hitch is skipped");
     assert.ok(src.includes("leftoverWouldCoverVitaHitch"), "L1-unknown leftover must hitch VITA when leftover already covered Eureka bytes");
+    assert.ok(src.includes("leftoverHitchUtf8"), "leftover encoder must emit VITA parse, not Eureka prose");
+    assert.ok(src.includes("kind.eureka && !kind.vita"), "encodeSwapWithReceipt must refuse leftover Eureka hitch");
+    assert.ok(src.includes("setLastVitaPacket(prev)"), "leftover hitch size must not wipe recursive lastPacket");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");

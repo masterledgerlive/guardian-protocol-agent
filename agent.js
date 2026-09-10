@@ -307,6 +307,8 @@ import {
   serializeVitaRouterState,
   restoreVitaRouterState,
   ensureGenesisMemory,
+  getLastVitaPacket,
+  setLastVitaPacket,
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation } from "./vita-locations.js";
@@ -4669,10 +4671,27 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 // The router ignores trailing bytes (only reads the first 7 params).
 // Result: inscription is permanently on Base at ZERO extra gas cost.
 // This is how the top MEV bots stamp their identity on every trade.
+function leftoverHitchUtf8() {
+  const prev = getLastVitaPacket();
+  try {
+    const planned = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0 });
+    const utf8 = planned.utf8 || "";
+    const kind = parseHitchTrailer(utf8);
+    if (kind.vita && utf8.includes("Krystian")) return utf8;
+    return "";
+  } finally {
+    setLastVitaPacket(prev);
+  }
+}
+
 function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n, receiptData = "") {
   const swapCall = encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee, amountOutMin);
-  if (!receiptData || !BTP_INSCRIPTIONS_ENABLED) return swapCall;
-  const hitch = appendUtf8Hitch(swapCall, receiptData);
+  let hitchUtf8 = String(receiptData || "").trim();
+  const kind = parseHitchTrailer(hitchUtf8);
+  // Leftover swap hitch is VITA parse. Eureka leftover via this helper is refused.
+  if (!hitchUtf8 || (kind.eureka && !kind.vita)) hitchUtf8 = leftoverHitchUtf8();
+  if (!hitchUtf8) return swapCall;
+  const hitch = appendUtf8Hitch(swapCall, hitchUtf8);
   return hitch.ok && hitch.onChain ? hitch.data : swapCall;
 }
 
@@ -4696,6 +4715,11 @@ function absorbVitaStrandPacket(entry) {
 /** Leftover hitch budget = dense VITA §TOKEN§ trailer (KEY+LOC), not the Eureka letter. */
 function leftoverVoiceHitchBytes() {
   const cap = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+  const frozen = leftoverHitchUtf8();
+  if (frozen) {
+    const n = utf8ByteLength(frozen);
+    if (n > 0 && n <= cap) return n;
+  }
   try {
     const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0 });
     return n > 0 && n <= cap ? n : cap;

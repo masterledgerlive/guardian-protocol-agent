@@ -137,6 +137,15 @@ describe("penny-pinch leftover", () => {
     const spread = injectCostSpread(2, 1, 1);
     assert.equal(spread, estimateInjectCostEth(1) * 2);
   });
+
+  it("inject_cost_spread leftover uses planned VITA hitch bytes, not only the 10-byte tag", () => {
+    const tag = injectCostSpread(2, 1, 1);
+    const vita = injectCostSpread(2, 1, 1, undefined, 69);
+    assert.equal(tag, estimateInjectCostEth(1) * 2);
+    assert.equal(vita, estimateInjectCostEth(1, undefined, 69) * 2);
+    assert.ok(vita > tag, "names-only KEY+LOC (69B) must cost more L2 than the 10-byte tag");
+    assert.equal(estimateInjectCostEth(1, undefined, 10), estimateInjectCostEth(1));
+  });
 });
 
 describe("evaluateBuyGate", () => {
@@ -320,6 +329,7 @@ describe("buildBuyGateDecision", () => {
     const vita = buildBuyGateDecision({ ...args, hitchBytes: 102 });
     assert.ok(vita.l2FeeEth > tag.l2FeeEth);
     assert.equal(vita.l2FeeEth, estimateCalldataHitchEth(102, 1));
+    assert.ok(vita.leftover < tag.leftover, "leftover leftover must reserve VITA hitch L2, not only the 10-byte tag");
   });
 
   it("hasClearEdge requires armed/net or a known signal plus positive net", () => {
