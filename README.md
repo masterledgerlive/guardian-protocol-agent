@@ -106,14 +106,14 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · **UNI** (inject main / T1 reserved) · LINK · DEGEN · AIXBT · TOSHI  
-❄️ FROZEN exits-only: CBBTC · AAVE · …
-KEYCAT · DOGINME · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
+❄️ FROZEN exits-only: CBBTC · AAVE · GAME · …
+KEYCAT · DOGINME · SKI · LUNA · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
 
 **Inject main players (Tier-1 seat reserved for UNI first):**
 UNI · LINK · AERO · MORPHO _(CBBTC / AAVE deferred on thin RISK — COST_EDGE)_
 
 **Frozen (no new capital):**
-SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
+SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · **GAME** (thin Uni V3 WETH vs Uni V2 GAME/VIRTUAL) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
 TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
 CRASH · BRIUN · NORMIE · OGGY · FREN
 
