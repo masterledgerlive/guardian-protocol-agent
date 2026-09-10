@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added — VITA picture tailwind (sparse out = sparse in)
+
+When VITA triggers (`/vitasave`, `/vitadata`, `/remember`, `/vitapicture arm`),
+a smile-picture cycle is armed. Wave-up leftover hitch ("tailwind") packs as
+much encoded `§HAT§` data as fits — same sparse ride-the-trade pattern as VITA
+memory inbound. Each successful receipt seals a spaced location; when the
+picture completes, the next cycle auto-arms (continuous on-chain proof).
+
+- `vita-tailwind-picture.js` — arm / plan / confirm / next-cycle
+- `planVoiceHitch` prefers picture when armed; sell gate asks up to 10KiB leftover
+- Exit receipt includes spaced location count for the picture
+
+### Added — Exit inject receipt + spaced-chain image proof
+
+When an exit can inject, the sell Telegram receipt now includes a **HAT EXIT
+INJECT RECEIPT**: confirm only after chain receipt success, and prove how many
+**spaced blockchain locations** (distinct txs / blocks) assemble the picture.
+
+- `hat-exit-receipt.js` — confirm gate, spaced proof, Telegram formatter
+- Smile demo seals +3 blocks apart × 8 locations → full 8×8 image
+- `formatSellReceiptHtml(..., hatInjectReceipt)` wired from `executeSell`
+
 ### Added — HAT smile demo: 8×8×8-bit picture → locations → reader
 
 Quick proof before huge HTML: encode a slow-rez smile, seal chunk locations,

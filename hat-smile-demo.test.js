@@ -38,8 +38,9 @@ describe("hat-smile-demo", () => {
     assert.ok(demo.locations.every((l) => l.location.startsWith("0x")));
     assert.ok(demo.locations.every((l) => l.howToRead && l.codeLines.start >= 1));
     assert.ok(demo.locations[0].packetPreview.startsWith(HAT_MAGIC));
-    // Encoded — packet is not raw 0xff paper pixels dumped as text art
     assert.equal(demo.locations[0].packetPreview.includes("········"), false);
+    assert.equal(demo.spacedProof.spacedBlockchainLocations, 8);
+    assert.match(demo.finalExitReceiptHtml, /EXIT INJECT RECEIPT/);
   });
 
   it("reader proof HTML shows match and locations", () => {

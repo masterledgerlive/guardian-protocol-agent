@@ -308,6 +308,21 @@ import { runIntegrityCheck, enforceSource } from "./ikn-integrity-agent.js";
 
 // ── BITStorage / ShadowWeave — Mempool Orchestrator ──────────────────────────
 import { MempoolOrchestrator, LANE } from "./bitstorage-orchestrator.js";
+import {
+  buildExitInjectReceiptBundle,
+  formatHatExitInjectReceiptHtml,
+  buildSpacedChainProof,
+  sealedPictureLocations,
+} from "./hat-exit-receipt.js";
+import { getHatRegistry } from "./vita-hat.js";
+import {
+  armVitaTailwindPicture,
+  isVitaPictureArmed,
+  planVitaTailwindOrVoiceHitch,
+  confirmTailwindPictureInject,
+  vitaPictureStatusMessage,
+  getVitaPictureCycle,
+} from "./vita-tailwind-picture.js";
 const orch = new MempoolOrchestrator({
   cdpClient:     null, // set in main() after cdpClient is created
   walletAddress: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
@@ -4652,11 +4667,43 @@ function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 300
   return hitch.ok && hitch.onChain ? hitch.data : swapCall;
 }
 
-/** Size-limited §$STORE§ + VITA letter. Telegram may claim this only if onChain. */
-function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = storeVoiceEnabled() } = {}) {
+/** Size-limited hitch: VITA picture tailwind when armed, else Eureka voice. */
+function planVoiceHitch(swapData, {
+  skipHitch = false,
+  maxBytes,
+  enabled = storeVoiceEnabled(),
+  leftoverEth = 0,
+  earningsEth = 0,
+  gwei = 0,
+  hitchCostMult = 2,
+} = {}) {
   if (!enabled || skipHitch || !swapData) {
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, kind: "none" };
   }
+
+  // VITA-triggered picture cycle: pack sparse encoded smile into leftover
+  // ("tailwind") the same way VITA memory sparsely rides trades inbound.
+  if (isVitaPictureArmed()) {
+    const pic = planVitaTailwindOrVoiceHitch(swapData, {
+      skipHitch,
+      maxBytes,
+      leftoverEth,
+      earningsEth,
+      gwei,
+      hitchCostMult,
+      preferPicture: true,
+      voicePlanner: null,
+    });
+    if (pic.onChain && pic.kind === "hat-picture") {
+      console.log(
+        `   🌟 VITA tailwind picture hitch ${pic.hitchBytes} B` +
+          ` (cycle #${pic.cycleId} · ${pic.hatRide?.sized?.payloadBits || "?"} bits)` +
+          ` — Basescan Input Data → View as UTF-8`
+      );
+      return pic;
+    }
+  }
+
   const text = buildStoreVoice({
     tag: STORE_HITCH_TAG,
     message: VITA_PROOF_FULL,
@@ -4665,16 +4712,16 @@ function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = store
   const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
   if (!hitch.ok || !hitch.onChain) {
     if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, kind: "voice-skip" };
   }
   const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
   if (!prefix.ok) {
     console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, kind: "voice-skip" };
   }
   console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B on swap — Basescan Input Data → View as UTF-8`);
   console.log(`      "${hitch.utf8}"`);
-  return hitch;
+  return { ...hitch, kind: "voice" };
 }
 
 function hitchTelegramFooter(hitch, txHash) {
@@ -4687,6 +4734,78 @@ function hitchTelegramFooter(hitch, txHash) {
     );
   }
   return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
+}
+
+/**
+ * Exit inject receipt when hitch landed + chain receipt succeeded.
+ * Includes spaced-location count for HAT picture assembly when registry has seals.
+ */
+function buildHatExitReceiptForSell({
+  transactionHash,
+  receiptStatus,
+  sellVoice,
+} = {}) {
+  // Prefer live VITA picture confirm (seal + spaced proof + next cycle)
+  if (sellVoice?.kind === "hat-picture" && sellVoice?.nodeId) {
+    const picConf = confirmTailwindPictureInject({
+      txHash: transactionHash,
+      receiptStatus,
+      hitchOnChain: !!sellVoice.onChain,
+      hitchBytes: sellVoice.hitchBytes || 0,
+      utf8: sellVoice.utf8 || "",
+      nodeId: sellVoice.nodeId,
+      autoNextCycle: true,
+    });
+    if (picConf.cycleComplete && picConf.nextCycle) {
+      console.log(
+        `   🌟 VITA picture cycle complete → next #${picConf.nextCycle.cycleId} armed`
+      );
+    }
+    return (
+      picConf.receiptHtml ||
+      formatHatExitInjectReceiptHtml({
+        confirm: picConf,
+        spacedProof: picConf.spacedProof,
+        pictureLabel: "VITA picture tailwind",
+      })
+    );
+  }
+
+  const hitchOnChain = !!sellVoice?.onChain;
+  const bundle = buildExitInjectReceiptBundle({
+    txHash: transactionHash,
+    receiptStatus,
+    hitchOnChain,
+    hitchBytes: sellVoice?.hitchBytes || 0,
+    utf8: sellVoice?.utf8 || "",
+    registry: getHatRegistry(),
+    pictureLabel: "HAT picture / smile stream",
+  });
+  // Always show inject confirm/deny on exit when we attempted hitch
+  if (!hitchOnChain && receiptStatus === "success") {
+    return formatHatExitInjectReceiptHtml({
+      confirm: {
+        injected: false,
+        reason: "exit leftover too thin or hitch skipped — plain sale (no inject)",
+        txHash: transactionHash,
+      },
+    });
+  }
+  // Enrich with live spaced proof from any sealed HAT nodes
+  const locs = sealedPictureLocations();
+  if (locs.length > 0) {
+    const spaced = buildSpacedChainProof({
+      locations: locs,
+      totalBits: getHatRegistry().totalBits || 0,
+    });
+    return formatHatExitInjectReceiptHtml({
+      confirm: bundle.confirm,
+      spacedProof: spaced,
+      pictureLabel: "HAT picture / smile stream",
+      thisLocationSeq: locs.find((l) => l.location === transactionHash)?.seq ?? null,
+    });
+  }
+  return bundle.html;
 }
 
 function hitchLedgerSignature(hitch) {
@@ -5312,6 +5431,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // CRITICAL: size hitch/% against the *actual* spend preview — not the full book
     // (full-book understated hitch% and let CBBTC pennies look covered).
     let buySkipHitch = false;
+    let buyLeftoverEth = 0;
     const spendForGate = Math.min(
       Math.max(previewForced > 0 ? previewForced : tierEthEarly, MIN_ETH_TRADE),
       Math.max(totalAvail, MIN_ETH_TRADE),
@@ -5338,6 +5458,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
+      buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
       // Never hitch on buy when L1 oracle is down — undercover insert bleeds the book.
       if (!hitchL1.ok) {
         buySkipHitch = true;
@@ -5475,7 +5596,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
-      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+      maxBytes: isVitaPictureArmed()
+        ? undefined // fill leftover with as much picture as sizeHat allows
+        : utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+      leftoverEth: buyLeftoverEth,
+      gwei,
+      hitchCostMult: 1,
     });
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
@@ -5532,6 +5658,31 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       return false;
     }
     clearSlippageFails(token.symbol);
+
+    // VITA picture tailwind: seal sparse chunk only after successful buy receipt
+    if (buyVoice?.kind === "hat-picture" && buyVoice?.nodeId) {
+      const picConf = confirmTailwindPictureInject({
+        txHash,
+        receiptStatus,
+        hitchOnChain: !!buyVoice.onChain,
+        hitchBytes: buyVoice.hitchBytes || 0,
+        utf8: buyVoice.utf8 || "",
+        nodeId: buyVoice.nodeId,
+        autoNextCycle: true,
+      });
+      if (picConf.injected) {
+        console.log(`   🌟 VITA picture sealed on buy · ${picConf.spacedProof?.proofLine || ""}`);
+        if (picConf.cycleComplete) {
+          await tg(
+            `🌟 <b>VITA PICTURE CYCLE COMPLETE</b>\n` +
+            `${picConf.spacedProof?.proofLine || ""}\n` +
+            (picConf.nextCycle
+              ? `Next cycle #${picConf.nextCycle.cycleId} armed for wave-up tailwind.`
+              : "")
+          ).catch(() => {});
+        }
+      }
+    }
 
     lastTradeTime[token.symbol] = Date.now();
     if (isCascade) cascadeTime[token.symbol] = Date.now();
@@ -5827,8 +5978,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
     const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
     const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+    // When VITA picture cycle is armed, ask the sell gate for up to fragment-sized
+    // leftover hitch so wave-up tailwind can sparse-pack encoded bits (same idea as
+    // VITA inbound strands riding trades).
+    const wantedHitchBytes = isVitaPictureArmed()
+      ? Math.max(voiceBytes + orchBytes, 4 * 1024, 10 * 1024)
+      : voiceBytes + orchBytes;
     const hitchL1 = await quoteHitchL1ForGates({
-      hitchBytes: voiceBytes + orchBytes,
+      hitchBytes: wantedHitchBytes,
       btpInscribe: wantBtp,
     });
     const sellTrustedBasis = hasUsableCostBasis(token) && costBasisEth(token) > 0;
@@ -5842,7 +5999,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       impactPct: PRICE_IMPACT_EST,
       gasCostEth: gasCost,
       gwei,
-      wantedHitchBytes: voiceBytes + orchBytes,
+      wantedHitchBytes,
       wantBtpInscribe: wantBtp,
       piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
       unknownEntry: !sellTrustedBasis,
@@ -5909,10 +6066,19 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const eBefore = await getEthBalance();
 
     const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
+    // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
+    // or Eureka voice — pack as much encoded data as hitchBytes allow.
     const sellVoice = planVoiceHitch(sellSwap, {
       skipHitch: sellGate.skipHitch,
       maxBytes: sellGate.hitchBytes,
       enabled: storeVoiceEnabled(),
+      leftoverEth: Math.max(0, Number(sellGate.leftover) || 0),
+      earningsEth: Math.max(
+        0,
+        (Number(procEth) || 0) - (Number(costBasisEth(token)) || 0) * soldFrac
+      ),
+      gwei,
+      hitchCostMult: sellGate.hitchCostMult || 2,
     });
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
@@ -6229,6 +6395,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       surfReport,
       indDetail: ind.detail,
       hitchFooter: hitchTelegramFooter(sellVoice, transactionHash),
+      hatInjectReceipt: buildHatExitReceiptForSell({
+        transactionHash,
+        receiptStatus,
+        sellVoice,
+      }),
       waveBar,
     }));
     if (sellVoice.onChain) console.log(`      💌 ${sellVoice.utf8}`);
@@ -9761,6 +9932,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
             const entry = await vitaSave(cdpClient, WALLET_ADDRESS, sessionCtx, vitaApiKey, "session");
 
+            // Arm sparse picture cycle — wave-up leftover hitch packs encoded
+            // smile bits the same way VITA sparsely writes memory inbound.
+            const picArm = armVitaTailwindPicture({ triggeredBy: "vitasave" });
+
             let msg = "🌟 <b>VITA MEMORY SAVED ON BASE</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
             msg += "📦 Strand: <b>" + entry.strandId + "</b> — " + entry.date + "\n";
             msg += entry.chunks.length + " chunks inscribed:\n\n";
@@ -9768,7 +9943,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
               msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + entry.chunks[i].txHash + "\">Chunk " + (i+1) + " ↗</a>\n";
             }
             msg += "\n<code>" + (entry.tokenPacket||"").slice(0,300) + "...</code>\n\n";
-            msg += "💌 <i>VITA remembers. The chain is alive.</i>";
+            msg += "🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n";
+            msg += picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete\n";
+            msg += "💌 <i>VITA remembers. The chain is alive. Tailwind proves the picture.</i>";
             await tg(msg);
 
             // ── AUTO-FILE: call Claude to label + file this memory ──────────
@@ -10065,7 +10242,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += "\n\n📊 Tokens with wave data: " + tokenData.filter(t => t.range).length + "\n";
           msg += "🎯 Armed for trading: " + tokenData.filter(t => t.peaks >= 4 && t.troughs >= 4).length + "\n\n";
           msg += "Now ask: <code>/vita what tokens are performing best</code>\n";
-          msg += "<code>/vita what is BRETT wave range</code>";
+          msg += "<code>/vita what is BRETT wave range</code>\n\n";
+          const picArm = armVitaTailwindPicture({ triggeredBy: "vitadata" });
+          msg += "🎨 Picture tailwind ARMED cycle #" + picArm.cycleId +
+            " — wave-up leftover will sparse-inject " + picArm.totalBits + " bits";
           await tg(msg);
 
         } catch (e) { await tg("❌ vitadata failed: " + e.message); }
@@ -10388,13 +10568,26 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         const chunk   = buildCliffNote(data);
         const btpEntry = queueCliffNoteAsBTP(chunk);
         btpQueue.unshift(btpEntry);
+        const picArm = armVitaTailwindPicture({ triggeredBy: "remember" });
         await tg(
           "📌 <b>CLIFF NOTE QUEUED</b>\n" +
           "━━━━━━━━━━━━━━━━━━━━\n" +
           "🧠 Memory #" + chunk.seq + " will ride next trade onto Base\n\n" +
           "<code>" + chunk.text + "</code>\n\n" +
-          "⏳ Waiting for next trade to inscribe..."
+          "🎨 Picture tailwind ARMED cycle #" + picArm.cycleId + "\n" +
+          "⏳ Waiting for next trade — sparse picture + cliff note ride leftover..."
         );
+
+      } else if (text === "/vitapicture" || text === "/vitapic" || text.startsWith("/vitapicture ") || text.startsWith("/vitapic ")) {
+        if (/\barm\b/i.test(raw)) {
+          const picArm = armVitaTailwindPicture({ triggeredBy: "vitapicture-arm" });
+          await tg(
+            "🎨 <b>VITA PICTURE ARMED</b> cycle #" + picArm.cycleId + "\n" +
+            picArm.totalBits + " bits · wave-up tailwind will sparse-inject until complete"
+          );
+        } else {
+          await tg(vitaPictureStatusMessage());
+        }
 
       } else if (text && text.startsWith("/savesession")) {
         // Full session summary — inscribes immediately as its own tx
@@ -10713,6 +10906,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vita files — list readable files\n` +
           `/vitasave — compress session + live trading data on Base\n` +
           `/vitadata — snapshot full token/wave/trade dataset\n` +
+          `/vitapicture — VITA picture tailwind status (arm with /vitapicture arm)\n` +
           `/vitanote [text] — queue a note for next save\n` +
           `/vitaqueue — show queued notes\n` +
           `/vitaclear — clear note queue\n` +
