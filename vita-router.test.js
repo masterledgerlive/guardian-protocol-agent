@@ -702,6 +702,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("planSecondaryHitch({ skipHitch, maxBytes, mode: \"vita\" })"), "leftover hitch default remains VITA parse, not Eureka leftover");
     assert.ok(src.includes("mode: \"vita\""), "leftover hitch UTF-8 and hitch-byte sizing must plan VITA, not Eureka letter length");
     assert.ok(!/recordHitchAttempt\(\{\}\);\s*\n\s*const hitch = appendUtf8Hitch/.test(src), "must not count a hitch attempt before append can clip KEY names");
+    assert.ok(/leftoverVoiceHitchBytes[\s\S]*return 0/.test(src), "leftover hitch-byte fallback must not reserve Eureka letter length");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
@@ -1083,6 +1084,28 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     const cached = await getCachedLeftoverScan({ fetchTxs, limit: 10, maxPages: 1 });
     assert.equal(walks, 1);
     assert.equal(cached.scanned, 0);
+    resetLeftoverScanCacheForTests();
+  });
+
+  it("getCachedLeftoverScan wait:false does not await Blockscout on a cold cache", async () => {
+    resetLeftoverScanCacheForTests();
+    let walks = 0;
+    let resolveWalk;
+    const fetchTxs = () => new Promise((resolve) => {
+      walks += 1;
+      resolveWalk = () => resolve([]);
+    });
+    const started = Date.now();
+    const fast = await getCachedLeftoverScan({ fetchTxs, wait: false, limit: 4, maxPages: 1 });
+    assert.ok(Date.now() - started < 80);
+    assert.equal(walks, 1);
+    assert.equal(fast.scanning, true);
+    assert.equal(fast.scanned, 0);
+    resolveWalk();
+    const done = await getCachedLeftoverScan({ fetchTxs, limit: 4, maxPages: 1 });
+    assert.equal(walks, 1);
+    assert.equal(done.scanning, undefined);
+    assert.equal(done.scanned, 0);
     resetLeftoverScanCacheForTests();
   });
 

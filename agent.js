@@ -4738,9 +4738,9 @@ function leftoverVoiceHitchBytes() {
   }
   try {
     const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
-    return n > 0 && n <= cap ? n : cap;
+    return n > 0 && n <= cap ? n : 0;
   } catch {
-    return cap;
+    return 0;
   }
 }
 

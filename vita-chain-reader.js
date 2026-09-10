@@ -259,10 +259,29 @@ export function resetLeftoverScanCacheForTests() {
   leftoverScanInflight = null;
 }
 
+function pendingPublicScan(address = GUARDIAN_WALLET) {
+  const counts = { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 };
+  const hitchBytes = leftoverHitchByteStats([]);
+  return {
+    kind: "vita-leftover-scan",
+    address,
+    scanned: 0,
+    counts,
+    leftoverKinds: counts,
+    hitchBytes,
+    leftoverHitchBytes: hitchBytes,
+    rows: [],
+    leftoverStillEureka: true,
+    vitaLeftoverPresent: false,
+    scanning: true,
+  };
+}
+
 /**
  * One leftover scan at a time. Concurrent callers share the in-flight promise
  * (or a still-warm cache) so public GET /vita/leftover cannot stampede Blockscout.
  * Stale-while-revalidate: if a scan is already cached, return it while a refresh runs.
+ * `wait: false` never awaits Blockscout — public leftover must not stall leftover hitch.
  */
 export async function getCachedLeftoverScan(opts = {}) {
   const now = Date.now();
@@ -271,6 +290,7 @@ export async function getCachedLeftoverScan(opts = {}) {
   if (!opts.force && fresh) return leftoverScanCache.scan;
 
   if (leftoverScanInflight) {
+    if (opts.wait === false) return leftoverScanCache.scan || pendingPublicScan(opts.address);
     if (!opts.force && leftoverScanCache.scan) return leftoverScanCache.scan;
     return leftoverScanInflight;
   }
@@ -284,6 +304,10 @@ export async function getCachedLeftoverScan(opts = {}) {
       leftoverScanInflight = null;
     });
 
+  if (opts.wait === false) {
+    leftoverScanInflight.catch(() => {});
+    return leftoverScanCache.scan || pendingPublicScan(opts.address);
+  }
   if (!opts.force && leftoverScanCache.scan) return leftoverScanCache.scan;
   return leftoverScanInflight;
 }
@@ -299,6 +323,7 @@ export function publicLeftoverScanView(scan) {
     leftoverKinds: s.counts || s.leftoverKinds || null,
     leftoverStillEureka: Boolean(s.leftoverStillEureka),
     vitaLeftoverPresent: Boolean(s.vitaLeftoverPresent),
+    scanning: Boolean(s.scanning),
     hitchBytes: s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows),
     leftoverHitchBytes: s.hitchBytes || s.leftoverHitchBytes || leftoverHitchByteStats(s.rows),
     rows: (s.rows || [])

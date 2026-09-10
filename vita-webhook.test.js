@@ -3,6 +3,9 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createVitaServer } from "./vita-webhook.js";
 
 let server;
@@ -211,8 +214,11 @@ describe("control board HTTP", () => {
     assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
     assert.ok(json.rows.length <= 80);
     assert.equal(typeof json.hitchBytes, "object");
+    assert.equal(typeof json.scanning, "boolean");
     if (json.counts.eureka > 0) {
       assert.ok(json.hitchBytes.eurekaMin > 0);
     }
+    const webhookSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
+    assert.ok(webhookSrc.includes("wait: false"), "public leftover scan must not await Blockscout on the injector");
   });
 });
