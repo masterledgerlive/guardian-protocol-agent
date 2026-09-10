@@ -18,14 +18,23 @@
 //   GET  /engine              — Guardian Engine HTML (wave / surfer / hitch board)
 //   GET  /engine/api/snapshot — live engine waves + costs + piggy lights (auth)
 //   POST /engine/api/queue    — ride / trick / message / surfer commands (auth)
+//   GET  /vita                — VITA HTML console (Telegram twin, public)
+//   GET  /vita/client.js      — browser console client
+//   GET  /vita/lib/vita-parse.js — same §TOKEN§ parser as the bot
 //   GET  /vita/context        — latest compressed memory for new session start
 //   GET  /vita/registry       — full filing registry (all sessions)
-//   GET  /vita/read?f=FILE    — read any GitHub file VITA has access to
+//   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
+//   GET  /vita/locations     — squashed location depository
+//   GET  /vita/leftover     — public leftover hitch scan (hashes + class, no utf8)
+//   GET  /vita/course        — hourly inject-without-loss scorecard
+//   GET  /vita/inject       — recursive §TOKEN§ memory for session start
+//   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
+//   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
 //
 // Auth: VITA_WEBHOOK_SECRET header must match env var
-// Public HTML + /board/health + demo/sim APIs do not require the secret.
+// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover do not require the secret.
 // Live queue / vita/* still require the secret. No unauthenticated mutate of env.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -46,6 +55,16 @@ import {
   boardWaveTile,
   v4BoardStatus,
 } from "./board-control.js";
+import { vitaRouterStatus, buildVitaInjectContext } from "./vita-router.js";
+import { locDepositoryStatus } from "./vita-locations.js";
+import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
+import {
+  fetchTxCalldataHex,
+  getCachedLeftoverScan,
+  isPendingLeftoverScan,
+  publicLeftoverScanView,
+  pullLocationFromChain,
+} from "./vita-chain-reader.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -60,6 +79,9 @@ const ARENA_HTML = join(ROOT, "public", "arena.html");
 const ENGINE_HTML = join(ROOT, "public", "engine.html");
 const BOARD_HTML = join(ROOT, "public", "board.html");
 const V4_HTML = join(ROOT, "public", "v4.html");
+const VITA_HTML = join(ROOT, "public", "vita.html");
+const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
+const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 function isAuthorized(req) {
@@ -152,17 +174,21 @@ export function handleWebhookListenError(err, port = listenPort()) {
   return "error";
 }
 
-async function servePublicHtml(res, filePath, label) {
+async function servePublicFile(res, filePath, contentType, label) {
   try {
-    const html = await readFile(filePath, "utf8");
+    const body = await readFile(filePath, "utf8");
     res.writeHead(200, {
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": contentType,
       "Cache-Control": "no-store",
     });
-    res.end(html);
+    res.end(body);
   } catch (e) {
-    err(res, `${label} html missing: ` + e.message, 500);
+    err(res, `${label} missing: ` + e.message, 500);
   }
+}
+
+async function servePublicHtml(res, filePath, label) {
+  return servePublicFile(res, filePath, "text/html; charset=utf-8", label + " html");
 }
 
 function snapshotPayload() {
@@ -212,8 +238,9 @@ function healthPayload() {
 
 function boardSnapshotPayload(authorized) {
   const demo = demoBoardSnapshot();
+  const vitaRouter = vitaRouterStatus();
   if (!authorized || !botState) {
-    return { ...demo, note: "demo — authorize with x-vita-secret for live waves / ledger" };
+    return { ...demo, vitaRouter, note: "demo — authorize with x-vita-secret for live waves / ledger" };
   }
   const engine = engineSnapshotPayload();
   const arena = snapshotPayload();
@@ -227,6 +254,7 @@ function boardSnapshotPayload(authorized) {
     params: readLiveParamSnapshot(),
     inject,
     capacity,
+    vitaRouter,
     botPiggy: modelBotUsagePiggy({
       hitchTagUsd: capacity.hitchTagUsd,
       leftoverUsd: capacity.leftoverUsd,
@@ -279,6 +307,23 @@ async function handleVitaRequest(req, res) {
     if ((path === "/v4" || path === "/v4/") && req.method === "GET") {
       return servePublicHtml(res, V4_HTML, "v4");
     }
+    if ((path === "/vita" || path === "/vita/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_HTML, "vita");
+    }
+    if (path === "/vita/client.js" && req.method === "GET") {
+      return servePublicFile(res, VITA_CLIENT_JS, "text/javascript; charset=utf-8", "vita client");
+    }
+    if (path === "/vita/lib/vita-parse.js" && req.method === "GET") {
+      return servePublicFile(res, VITA_PARSE_JS, "text/javascript; charset=utf-8", "vita parse");
+    }
+    if (path === "/vita/leftover" && req.method === "GET") {
+      try {
+        const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3, wait: false });
+        return json(res, { ok: true, ...publicLeftoverScanView(scan) });
+      } catch (e) {
+        return err(res, "leftover scan failed: " + (e.message || e), 502);
+      }
+    }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {
       return json(res, healthPayload());
@@ -293,6 +338,7 @@ async function handleVitaRequest(req, res) {
       return json(res, {
         ...listV3InjectSurfaces(),
         capacity,
+        vitaRouter: vitaRouterStatus(),
         botPiggy: modelBotUsagePiggy({
           hitchTagUsd: capacity.hitchTagUsd,
           leftoverUsd: capacity.leftoverUsd,
@@ -364,27 +410,55 @@ async function handleVitaRequest(req, res) {
       }, result.ok ? 200 : 400);
     }
 
-    // Everything under /vita/* still requires auth
+    // Public HTML/JS for the VITA console. JSON /vita/router etc. still require auth.
     if (!isAuthorized(req)) return err(res, "unauthorized", 401);
 
-    // ── GET /vita/context — compressed memory for new Claude session ────────
-    if (path === "/vita/context" && req.method === "GET") {
-      if (!botState?.githubGet) return err(res, "bot not ready");
+    // ── GET /vita/router — secondary hitch switch + loc squash (no bot required)
+    if (path === "/vita/router" && req.method === "GET") {
+      return json(res, { ok: true, ...vitaRouterStatus() });
 
-      let registry = {};
+    } else if (path === "/vita/locations" && req.method === "GET") {
+      return json(res, { ok: true, ...locDepositoryStatus() });
+
+    } else if (path === "/vita/course" && req.method === "GET") {
+      let leftoverKinds;
+      let leftoverHitchBytes;
       try {
-        const rf = await botState.githubGet("vita-registry.json");
-        if (rf?.content) registry = rf.content;
-      } catch {}
+        const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3 });
+        if (!isPendingLeftoverScan(scan)) {
+          leftoverKinds = scan.counts || scan.leftoverKinds;
+          leftoverHitchBytes = scan.hitchBytes || scan.leftoverHitchBytes;
+        }
+      } catch { leftoverKinds = undefined; leftoverHitchBytes = undefined; }
+      const course = leftoverKinds
+        ? evaluateVitaCourse({ leftoverKinds, leftoverHitchBytes })
+        : evaluateVitaCourse();
+      return json(res, { ok: true, ...course, telegram: formatCourseMessage(course) });
+
+    } else if (path === "/vita/inject" && req.method === "GET") {
+      return json(res, { ok: true, ...buildVitaInjectContext() });
+
+    } else if (path === "/vita/pull" && req.method === "GET") {
+      const tx = String(url.searchParams.get("tx") || url.searchParams.get("hash") || "").trim();
+      const result = await pullLocationFromChain(tx, fetchTxCalldataHex);
+      return json(res, result, result.ok ? 200 : 400);
+
+    // ── GET /vita/context — compressed memory for new Claude session ────────
+    } else if (path === "/vita/context" && req.method === "GET") {
+      const inject = buildVitaInjectContext();
+      let registry = {};
+      if (botState?.githubGet) {
+        try {
+          const rf = await botState.githubGet("vita-registry.json");
+          if (rf?.content) registry = rf.content;
+        } catch {}
+      }
 
       const entries  = Object.entries(registry);
       const recent   = entries.slice(-3).reverse();
 
       const context  = [
-        "═══ VITA MEMORY CONTEXT — paste this to start any new session ═══",
-        "Generated: " + new Date().toISOString(),
-        "Wallet: " + (botState.walletAddress || "unknown"),
-        "Repo: " + (process.env.GITHUB_REPO || "unknown"),
+        inject.context,
         "",
         "RECENT SESSIONS (" + recent.length + " of " + entries.length + " total):",
         ...recent.map(([key, val]) =>
@@ -399,6 +473,7 @@ async function handleVitaRequest(req, res) {
       json(res, {
         ok: true,
         sessionCount: entries.length,
+        inject,
         context,
         registry: Object.fromEntries(recent),
       });
@@ -422,6 +497,8 @@ async function handleVitaRequest(req, res) {
         "ledger.json","positions.json","tokens.json","vita-registry.json",
         "engine-board.js","peak-ride.js","second-inject.js","piggy-bank.js",
         "board-control.js","BOARD.md",
+        "vita-parse.js","vita-locations.js","vita-router.js","vita-course.js",
+        "vita-router-state.json",
       ];
       if (!allowed.includes(filename)) return err(res, "file not in allowed list");
 
@@ -498,10 +575,16 @@ export function startVitaWebhook() {
     console.log("   /arena          — Guardian Arena ledger game (public HTML)");
     console.log("   /engine         — Guardian Engine wave / surfer / hitch board");
     console.log("   /v4             — V4 offshoot docs (separate process — does not start V4)");
+    console.log("   /vita           — VITA HTML console (Telegram twin, public)");
     console.log("   /arena/api/*    — live snapshot + command queue (auth)");
     console.log("   /engine/api/*   — engine waves + ride/trick/message queue (auth)");
     console.log("   /vita/context  — memory context for new Claude session");
     console.log("   /vita/registry — full filing registry");
+    console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
+    console.log("   /vita/locations — squashed location depository");
+    console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
+    console.log("   /vita/course   — hourly inject-without-loss scorecard");
+    console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/read     — read GitHub files");
     console.log("   /vita/status   — live bot status");
   });

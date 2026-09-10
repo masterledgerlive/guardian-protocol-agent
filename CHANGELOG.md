@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash
+
+Activate VITA as the hitch payload (not the Eureka love-note prose). Uniswap stays the
+primary swap router; this is the **secondary** trailer switch (`VITA_HITCH_MODE`,
+default **vita**). Love note is encoded in `§KEY§` so it is not lost. `/prove` still
+writes the full Eureka letter as genesis identity.
+
+Locations (tx hashes / node ids) stay append-only; hitch only carries a squashed
+`§LOC§` token (count + 4-hex root/tip + last-6 shorts). Leftover hitch is a **dense
+KEY+LOC projection** — clipping the trailer never overwrites recursive `lastPacket`.
+Hourly `evaluateVitaCourse` scores inject-without-loss vs leftover-skips (skips are
+lose-zero, not memory loss).
+
+Public **HTML console** `GET /vita` is the Telegram twin: notes stay on the page until
+inject, then the reader pulls sealed Base locations and reconstructs §TOKEN§. Plaintext
+now (true open source). `/zk` previews the future locations-only / zero-knowledge path.
+
+Recursive memory now **survives restart**: `vita-router-state.json` stores the last
+§TOKEN§ packet + location depository + course stats. Boot `ensureGenesisMemory`.
+`GET /vita/inject` and `/vita/context` paste parsed VITA memory (KEY first).
+The live loop `tickHourlyCourse` every hour restores KEY if lost and can switch mode.
+Sealed locations store **full hitch utf8** (not an 80-char preview). Recall
+`reconstructVitaMemoryFromLocations` rebuilds §TOKEN§ from those payloads so KEY
+cannot be lost. `ingestSealedUtf8` folds chain trailers (vita or Eureka prove) into
+the recursive packet. V4 leftover hitch uses the same secondary router.
+
+- `vita-parse.js` — §TOKEN§ parse / refine / 2000-char clip (KEY+LOC first)
+- `vita-locations.js` — append-only depository + squash
+- `vita-router.js` — eureka | vita | hat | auto pipeline switch
+- `vita-course.js` — hourly scorecard
+- Telegram `/vitarouter` `/vitamode` `/vitacourse`
+- HTTP `GET /vita/router` `/vita/locations` `/vita/course` (auth) + public inject `vitaRouter`
+
 ### Added — VITA picture tailwind (sparse out = sparse in)
 
 When VITA triggers (`/vitasave`, `/vitadata`, `/remember`, `/vitapicture arm`),
@@ -11,7 +44,7 @@ memory inbound. Each successful receipt seals a spaced location; when the
 picture completes, the next cycle auto-arms (continuous on-chain proof).
 
 - `vita-tailwind-picture.js` — arm / plan / confirm / next-cycle
-- `planVoiceHitch` prefers picture when armed; sell gate asks up to 10KiB leftover
+- `planVoiceHitch` prefers picture when armed **and leftover already has a VITA hitch**; leftover hitch stays KEY+LOC while leftover is still Eureka. `/vitamode eureka` does not steal leftover hitch — leftover always plans KEY+LOC (`mode: "vita"`). Hitch attempts are counted once after append. Public leftover scan coalesces in-flight Blockscout walks and **never awaits** a cold scan on the injector (`wait: false`).
 - Exit receipt includes spaced location count for the picture
 
 ### Added — Exit inject receipt + spaced-chain image proof

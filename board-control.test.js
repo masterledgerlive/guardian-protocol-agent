@@ -175,6 +175,8 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(h.boards.v4.sameProcess, false);
     assert.equal(h.boards.v4.loadsV4Runtime, false);
     assert.equal(h.boards.v4.path, "/v4");
+    assert.equal(h.boards.vita.path, "/vita");
+    assert.equal(h.boards.vita.public, true);
     assert.equal(h.boards.l1_arena.mounted, false);
     assert.equal(h.apis.sim.mutate, false);
     assert.equal(BOARD_PATHS.hub, "/board");

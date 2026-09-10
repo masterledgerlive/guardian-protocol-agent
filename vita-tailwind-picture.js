@@ -299,8 +299,8 @@ export function confirmTailwindPictureInject({
 }
 
 /**
- * Prefer VITA picture tailwind when armed; else fall back to Eureka voice hitch.
- * Same sparse outbound pattern as VITA memory riding trades.
+ * Prefer VITA picture tailwind when armed; else caller supplies leftover hitch
+ * (VITA KEY+LOC parse). Same sparse outbound pattern as VITA memory riding trades.
  */
 export function planVitaTailwindOrVoiceHitch(
   swapData,

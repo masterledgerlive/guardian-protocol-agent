@@ -137,6 +137,15 @@ describe("penny-pinch leftover", () => {
     const spread = injectCostSpread(2, 1, 1);
     assert.equal(spread, estimateInjectCostEth(1) * 2);
   });
+
+  it("inject_cost_spread leftover uses planned VITA hitch bytes, not only the 10-byte tag", () => {
+    const tag = injectCostSpread(2, 1, 1);
+    const vita = injectCostSpread(2, 1, 1, undefined, 69);
+    assert.equal(tag, estimateInjectCostEth(1) * 2);
+    assert.equal(vita, estimateInjectCostEth(1, undefined, 69) * 2);
+    assert.ok(vita > tag, "names-only KEY+LOC (69B) must cost more L2 than the 10-byte tag");
+    assert.equal(estimateInjectCostEth(1, undefined, 10), estimateInjectCostEth(1));
+  });
 });
 
 describe("evaluateBuyGate", () => {
@@ -301,6 +310,28 @@ describe("buildBuyGateDecision", () => {
     assert.equal(d.log, "LOSE_ZERO: allow buy AERO leftover covers inject");
   });
 
+  it("buy L2 hitch fee sizes against planned VITA hitch bytes", () => {
+    const args = {
+      symbol: "AERO",
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      price: 1,
+      existingSellTarget: 1.05,
+      feePct: 0.006,
+      impactPct: 0.002,
+      gasCostEth: 0,
+      tradeEth: 0.01,
+      gwei: 1,
+      armed: true,
+      net: 0.04,
+      env: { LOSE_ZERO: "yes" },
+    };
+    const tag = buildBuyGateDecision({ ...args, hitchBytes: STORE_HITCH_BYTES });
+    const vita = buildBuyGateDecision({ ...args, hitchBytes: 102 });
+    assert.ok(vita.l2FeeEth > tag.l2FeeEth);
+    assert.equal(vita.l2FeeEth, estimateCalldataHitchEth(102, 1));
+    assert.ok(vita.leftover < tag.leftover, "leftover leftover must reserve VITA hitch L2, not only the 10-byte tag");
+  });
+
   it("hasClearEdge requires armed/net or a known signal plus positive net", () => {
     assert.equal(hasClearEdge({ armed: true, net: 0.03 }), true);
     assert.equal(hasClearEdge({ armed: false, net: 0, reason: "MIN TROUGH" }), false);
@@ -324,7 +355,7 @@ describe("buildBuyGateDecision", () => {
     assert.match(d.log, /MANUAL BUY \(operator\) plain swap/);
   });
 
-  it("operator /buy with leftover covering hitch still hitch Eureka", () => {
+  it("operator /buy with leftover covering hitch still hitch VITA leftover", () => {
     const d = buildBuyGateDecision({
       symbol: "TOSHI",
       reason: manualBuyReason(3),
@@ -1059,6 +1090,25 @@ describe("never-lose fee/gas leak plugs", () => {
     assert.equal(d.allow, true);
     assert.equal(d.skipHitch, true);
     assert.match(d.log, /L1 fee unknown|plain/);
+  });
+
+  it("oracle fallback still hitches VITA when leftover already covered a larger Eureka trailer", () => {
+    const l2Hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = l2Hitch * 2 + 1e-12;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      hitchFeeSource: "fallback",
+      leftoverWouldCoverHitch: true,
+      symbol: "AERO",
+      reason: "MAX PEAK",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.ok(d.hitchBytes > 0);
   });
 
   it("net after skim never lists a wiped edge as profit", () => {

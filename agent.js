@@ -298,6 +298,35 @@ import {
   nextVitaModel,
   vitaModelStatusMessage,
 } from "./vita-models.js";
+import {
+  formatRouterMessage,
+  planSecondaryHitch,
+  measurePlannedHitchBytes,
+  parseHitchTrailer,
+  setHitchModeOverride,
+  serializeVitaRouterState,
+  restoreVitaRouterState,
+  ensureGenesisMemory,
+  getLastVitaPacket,
+  setLastVitaPacket,
+  ingestSealedUtf8,
+} from "./vita-router.js";
+import { recordLocation } from "./vita-locations.js";
+import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
+import {
+  evaluateVitaCourse,
+  leftoverWouldCoverVitaHitch,
+  leftoverStillEureka,
+  leftoverCoveredWantedBytes,
+  leftoverCoveredWantBtp,
+  formatCourseMessage,
+  recordHitchAttempt,
+  recordHitchSealed,
+  tickHourlyCourse,
+  shouldTickHourlyCourse,
+  serializeCourseStats,
+  restoreCourseStats,
+} from "./vita-course.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -737,7 +766,7 @@ function buildPrimedAvenues({
         injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
         tokenScore: scored?.score || 0,
         gwei,
-        hitchBytesWanted: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+        hitchBytesWanted: leftoverVoiceHitchBytes(),
         ethUsd,
         tokenMinBuyUsd: minBuyUsdForToken(t),
         minPosUsd: minPosUsd(),
@@ -4661,14 +4690,72 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 // The router ignores trailing bytes (only reads the first 7 params).
 // Result: inscription is permanently on Base at ZERO extra gas cost.
 // This is how the top MEV bots stamp their identity on every trade.
+function leftoverHitchUtf8() {
+  const prev = getLastVitaPacket();
+  try {
+    const planned = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
+    const utf8 = planned.utf8 || "";
+    const kind = parseHitchTrailer(utf8);
+    if (kind.vita && utf8.includes("Krystian")) return utf8;
+    return "";
+  } finally {
+    setLastVitaPacket(prev);
+  }
+}
+
 function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n, receiptData = "") {
   const swapCall = encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee, amountOutMin);
-  if (!receiptData || !BTP_INSCRIPTIONS_ENABLED) return swapCall;
-  const hitch = appendUtf8Hitch(swapCall, receiptData);
+  let hitchUtf8 = String(receiptData || "").trim();
+  const kind = parseHitchTrailer(hitchUtf8);
+  // Leftover swap hitch is VITA parse. Eureka leftover via this helper is refused.
+  if (!hitchUtf8 || (kind.eureka && !kind.vita)) hitchUtf8 = leftoverHitchUtf8();
+  if (!hitchUtf8) return swapCall;
+  const hitch = appendUtf8Hitch(swapCall, hitchUtf8);
   return hitch.ok && hitch.onChain ? hitch.data : swapCall;
 }
 
-/** Size-limited hitch: VITA picture tailwind when armed, else Eureka voice. */
+/** Fold a sealed strand packet into recursive §TOKEN§ memory + location depository. */
+function absorbVitaStrandPacket(entry) {
+  const packet = entry?.tokenPacket || "";
+  if (!packet) return;
+  ingestSealedUtf8(packet);
+  const loc = entry.chunks?.[0]?.txHash || entry.txHash;
+  if (loc) {
+    recordLocation({
+      location: loc,
+      kind: "hitch",
+      sealed: true,
+      utf8: packet,
+      hitchKind: "vita",
+    });
+  }
+}
+
+/** Leftover hitch budget = dense VITA §TOKEN§ trailer (KEY+LOC), not the Eureka letter. */
+function leftoverVoiceHitchBytes() {
+  const cap = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+  const frozen = leftoverHitchUtf8();
+  if (frozen) {
+    const n = utf8ByteLength(frozen);
+    if (n > 0 && n <= cap) return n;
+  }
+  try {
+    const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
+    return n > 0 && n <= cap ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Size-limited leftover hitch.
+ * When a VITA picture cycle is armed *and* leftover already has a VITA hitch,
+ * pack sparse §HAT§ into leftover (main #58). Picture waits while leftover is
+ * still Eureka so KEY+LOC can land first.
+ * Otherwise leftover hitch is VITA KEY+LOC parse — never leftover Eureka prose.
+ * If leftover cannot cover the names-only KEY+LOC trailer, skip hitch (lose-zero)
+ * rather than clip §KEY§ names off the chain.
+ */
 function planVoiceHitch(swapData, {
   skipHitch = false,
   maxBytes,
@@ -4679,12 +4766,10 @@ function planVoiceHitch(swapData, {
   hitchCostMult = 2,
 } = {}) {
   if (!enabled || skipHitch || !swapData) {
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, kind: "none" };
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
   }
 
-  // VITA-triggered picture cycle: pack sparse encoded smile into leftover
-  // ("tailwind") the same way VITA memory sparsely rides trades inbound.
-  if (isVitaPictureArmed()) {
+  if (isVitaPictureArmed() && !leftoverStillEureka()) {
     const pic = planVitaTailwindOrVoiceHitch(swapData, {
       skipHitch,
       maxBytes,
@@ -4701,28 +4786,42 @@ function planVoiceHitch(swapData, {
           ` (cycle #${pic.cycleId} · ${pic.hatRide?.sized?.payloadBits || "?"} bits)` +
           ` — Basescan Input Data → View as UTF-8`
       );
-      return pic;
+      return { ...pic, vitaMode: "hat" };
     }
   }
 
-  const text = buildStoreVoice({
-    tag: STORE_HITCH_TAG,
-    message: VITA_PROOF_FULL,
-    maxBytes,
-  });
-  const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
+  const planned = planSecondaryHitch({ skipHitch, maxBytes, mode: "vita" });
+  if (!planned.utf8) {
+    recordHitchAttempt({ skippedLeftover: /leftover|skipHitch/i.test(String(planned.reason || "")) });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
+  }
+  const plannedKind = parseHitchTrailer(planned.utf8);
+  if (!plannedKind.vita || !planned.utf8.includes("Krystian")) {
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
+  }
+  const hitch = appendUtf8Hitch(swapData, planned.utf8, { maxBytes });
   if (!hitch.ok || !hitch.onChain) {
     if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, kind: "voice-skip" };
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
   const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
   if (!prefix.ok) {
     console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, kind: "voice-skip" };
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
-  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B on swap — Basescan Input Data → View as UTF-8`);
-  console.log(`      "${hitch.utf8}"`);
-  return { ...hitch, kind: "voice" };
+  const parsed = parseHitchTrailer(hitch.utf8);
+  if (!parsed.vita || !hitch.utf8.includes("Krystian")) {
+    console.log(`   leftover hitch would clip §KEY§ names — sending plain swap (no UTF-8 hitch)`);
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
+  }
+  recordHitchAttempt({});
+  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B [${planned.resolved}/${parsed.kind}] — Basescan Input Data → View as UTF-8`);
+  console.log(`      "${hitch.utf8.slice(0, 120)}${hitch.utf8.length > 120 ? "…" : ""}"`);
+  return { ...hitch, vitaMode: planned.resolved, vitaKind: parsed.kind, kind: parsed.kind };
 }
 
 function hitchTelegramFooter(hitch, txHash) {
@@ -4872,6 +4971,14 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
     };
   }
   lastStoreVoiceProofAt = Date.now();
+  recordLocation({
+    location: transactionHash,
+    kind: "prove",
+    sealed: true,
+    utf8: text,
+    hitchKind: "eureka",
+  });
+  ingestSealedUtf8(text);
   console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
   console.log(`      "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`);
   return {
@@ -4971,8 +5078,21 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
 }
 
 /** Record a mined hitch injection toward the 20-prove capital milestone. */
-function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?" } = {}) {
+function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?", txHash = null, utf8 = "" } = {}) {
   if (!onChain) return null;
+  if (txHash) {
+    const kind = parseHitchTrailer(utf8).kind;
+    recordLocation({
+      location: txHash,
+      kind: "hitch",
+      sealed: true,
+      utf8,
+      symbol,
+      hitchKind: kind,
+    });
+    recordHitchSealed({ realizedLossUsd: Number(netUsd) || 0 });
+    ingestSealedUtf8(utf8);
+  }
   hitchInjectCount++;
   const pnl = Number(netUsd) || 0;
   if (pnl !== 0) hitchInjectProfitUsd += pnl;
@@ -5398,7 +5518,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Min entry = fees + gas + hitch + cascade seed. Refuse fragment buys that strand the book.
     let hitchCostEst = 0;
     try {
-      const voiceBytesEarly = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const voiceBytesEarly = leftoverVoiceHitchBytes();
       const hitchL1Early = await quoteHitchL1ForGates({ hitchBytes: voiceBytesEarly });
       const l2Hitch = estimateCalldataHitchEth(voiceBytesEarly, gwei);
       hitchCostEst = (hitchL1Early.ok ? (Number(hitchL1Early.l1FeeEth) || 0) : 0) + l2Hitch;
@@ -5439,7 +5559,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     );
     if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
       const armEarly    = getArmStatus(token.symbol, gasCost, spendForGate);
-      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const voiceBytes  = leftoverVoiceHitchBytes();
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
@@ -5455,15 +5575,20 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         armed: !!armEarly.armed,
         net: armEarly.net || 0,
         isCascade,
+        hitchBytes: voiceBytes,
       });
-      logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
+      logHitchFeeSplit(hitchL1, voiceBytes, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
       buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
-      // Never hitch on buy when L1 oracle is down — undercover insert bleeds the book.
+      // L1 oracle down: skip hitch unless leftover already covered a larger Eureka trailer.
       if (!hitchL1.ok) {
-        buySkipHitch = true;
-        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
+        if (leftoverWouldCoverVitaHitch()) {
+          console.log(`   LOSE_ZERO: L1 fee unknown — hitch VITA anyway (leftover already covered Eureka hitch bytes)`);
+        } else {
+          buySkipHitch = true;
+          console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
+        }
       }
       if (!decision.allow) {
         return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");
@@ -5597,9 +5722,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
-      maxBytes: isVitaPictureArmed()
-        ? undefined // fill leftover with as much picture as sizeHat allows
-        : utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+      maxBytes: isVitaPictureArmed() && !leftoverStillEureka() ? undefined : leftoverVoiceHitchBytes(),
       leftoverEth: buyLeftoverEth,
       gwei,
       hitchCostMult: 1,
@@ -5613,7 +5736,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams1, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain,
             })
           : cdp.evm.sendTransaction(_txParams1),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5627,7 +5750,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams2, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain,
             })
           : cdp.evm.sendTransaction(_txParams2),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5796,7 +5919,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), projectedEarningsUsd: token.projectedEarningsUsd, minSellPrice: token.minSellPrice, piggySavedUsd: token.savedEarningsUsd, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
-    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol });
+    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol, txHash, utf8: buyVoice.utf8 || "" });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
     if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
@@ -5977,14 +6100,12 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // overstates cost and flipped live MORPHO allow→hold every cycle.
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-    const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
-    // When VITA picture cycle is armed, ask the sell gate for up to fragment-sized
-    // leftover hitch so wave-up tailwind can sparse-pack encoded bits (same idea as
-    // VITA inbound strands riding trades).
-    const wantedHitchBytes = isVitaPictureArmed()
-      ? Math.max(voiceBytes + orchBytes, 4 * 1024, 10 * 1024)
-      : voiceBytes + orchBytes;
+    const wantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+    const wantedHitchBytes = leftoverCoveredWantedBytes({
+      voiceBytes: leftoverVoiceHitchBytes(),
+      orchBytes,
+      pictureArmed: isVitaPictureArmed(),
+    });
     const hitchL1 = await quoteHitchL1ForGates({
       hitchBytes: wantedHitchBytes,
       btpInscribe: wantBtp,
@@ -6004,6 +6125,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       wantBtpInscribe: wantBtp,
       piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
       unknownEntry: !sellTrustedBasis,
+      leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
       ...hitchL1GateArgs(hitchL1),
     });
     logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
@@ -6068,7 +6190,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
     // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
-    // or Eureka voice — pack as much encoded data as hitchBytes allow.
+    // or VITA KEY+LOC parse — pack as much encoded data as hitchBytes allow.
     const sellVoice = planVoiceHitch(sellSwap, {
       skipHitch: sellGate.skipHitch,
       maxBytes: sellGate.hitchBytes,
@@ -6302,7 +6424,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const piggyRow = tokenPiggyLedgers[token.symbol] || {};
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
     await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, earningsUsd, hitchCostUsd: hitchCostEth * ethUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, soldFrac, piggyDustLeft:piggy.remainingReserve, piggyDustUsd: piggy.remainingReserve * price, piggyBankedUsd: actualBank, piggySavedUsd: piggyRow.savedEarningsUsd || 0, piggyUnlock:piggy.unlock, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
-    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol });
+    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol, txHash: transactionHash, utf8: sellVoice.utf8 || "" });
     if (earningsUsd < 0 || netUsd < 0) {
       recordCostMistake({
         symbol: token.symbol,
@@ -6507,7 +6629,7 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
     const gweiC  = await getCurrentGasGwei();
     let hitchCost = 0;
     try {
-      const vb = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const vb = leftoverVoiceHitchBytes();
       const l1 = await quoteHitchL1ForGates({ hitchBytes: vb });
       const l2 = estimateCalldataHitchEth(vb, gweiC);
       hitchCost = (l1.ok ? (Number(l1.l1FeeEth) || 0) : 0) + l2;
@@ -7890,6 +8012,8 @@ async function githubSave(path, content, sha, retries = 3) {
   return null;
 }
 
+let lastVitaRegistryBlob = null;
+
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
   const tf = await githubGet("tokens.json");
@@ -8068,19 +8192,35 @@ async function loadFromGitHub() {
   try {
     const vf = await githubGet("vita-registry.json");
     if (vf?.content) {
+      lastVitaRegistryBlob = vf.content;
       setVitaRegistry(vf.content);
-      console.log(`   💓 vita-registry.json: loaded ${vf.content.registry?.length || 0} VITA strands`);
+      console.log("   💓 vita-registry.json: blob armed for recursive inject");
     }
   } catch { /* non-critical */ }
 
   // ── Load VITA memory index ──────────────────────────────────────────────────
   try {
     const vf = await githubGet("vita-memory.json");
-    if (vf?.content) {
-      setVitaRegistry(vf.content?.index || []);
-      console.log(`   🌟 vita-memory.json: loaded ${vf.content.index?.length || 0} VITA sessions`);
+    if (Array.isArray(vf?.content?.index) && vf.content.index.length) {
+      setVitaRegistry(vf.content.index);
+      console.log(`   🌟 vita-memory.json: loaded ${vf.content.index.length} VITA sessions`);
     }
   } catch { /* non-critical */ }
+
+  // ── Load VITA secondary-router recursive memory (packet + loc squash) ────
+  try {
+    const rf = await githubGet("vita-router-state.json");
+    if (rf?.content) {
+      restoreVitaRouterState(rf.content);
+      restoreCourseStats(rf.content.course);
+      console.log(`   🔀 vita-router-state.json: packet ${String(rf.content.lastPacket || "").length} chars · loc ${rf.content.locations?.sealedCount ?? "?"}`);
+    }
+  } catch { /* non-critical */ }
+  ensureGenesisMemory();
+  if (lastVitaRegistryBlob) {
+    const folded = ingestRegistryPackets(lastVitaRegistryBlob);
+    console.log(`   💓 registry folded after restore: ${folded.ingested} packet(s) · KEY=${folded.quality?.hasKey ? "yes" : "LOSS"}`);
+  }
 
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
@@ -8089,6 +8229,17 @@ async function loadFromGitHub() {
   const frozenCount = tokens.filter(t => t.frozen).length;
   console.log(`✅ ${activeCount} active tokens | ❄️ ${frozenCount} frozen | Positions: ${positions || "none"} | Piggy: ${piggyBank.toFixed(6)} ETH | Trades: ${tradeCount}`);
   console.log(`🧠 PredFund: ${predFund.toFixed(6)} ETH | Piggy: ${piggyBank.toFixed(6)} ETH | PF open: ${pfOpen} | PC open: ${pcOpen}`);
+}
+
+async function persistVitaRouterState() {
+  try {
+    await githubSave("vita-router-state.json", {
+      ...serializeVitaRouterState(),
+      course: serializeCourseStats(),
+    }, null);
+  } catch (e) {
+    console.log("⚠️  VITA router-state save (non-critical): " + (e.message || e));
+  }
 }
 
 async function saveToGitHub() {
@@ -8159,6 +8310,7 @@ async function saveToGitHub() {
     try { await githubSave("memory-registry.json", serializeRegistry(), null); } catch {}
     // Save VITA registry
     try { await githubSave("vita-registry.json", serializeVitaRegistry(), null); } catch {}
+    try { await persistVitaRouterState(); } catch {}
     // NOTE v18: VITA registry and memory are saved to GitHub only (chain already has them).
     // BTP calldata is ONLY for: trade receipts + VITA family message filler.
     // No full state dumps into calldata — that was causing kbit bloat.
@@ -8491,7 +8643,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         await tg(
           `🔁 <b>NO-LOSS SUCCESSION</b>\n` +
           `Align gate: ≥${align} of trough/momentum/pred/pullback/leftover/smartMoney\n` +
-          `Piggy + Eureka hitch ride leftover-covered fills only.\n\n` +
+          `Piggy + VITA hitch ride leftover-covered fills only.\n\n` +
           `<b>Cycles</b>\n${report}\n\n` +
           `<b>Live min buys (WETH books)</b>\n${liveMins || "none"}`
         );
@@ -9556,11 +9708,90 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       } else if (text === "/voiceon") {
         STORE_VOICE_ENABLED = true;
-        await tg("📡 <b>UTF-8 VOICE ON</b>\n§$STORE§ hitch rides leftover swaps. /prove sends a dedicated 0-ETH letter.");
+        await tg("📡 <b>UTF-8 VOICE ON</b>\nVITA §TOKEN§ hitch rides leftover swaps (love note stays in §KEY§). /prove still sends the dedicated Eureka letter.");
 
       } else if (text === "/voiceoff") {
         STORE_VOICE_ENABLED = false;
         await tg("📡 <b>UTF-8 VOICE OFF</b>\nSwaps stay plain. /prove will refuse until /voiceon.");
+
+      } else if (text === "/vitarouter") {
+        await tg(formatRouterMessage());
+
+      } else if (text === "/vitacourse") {
+        try {
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+          ingestLeftoverScan(leftoverScan);
+          await tg(formatCourseMessage(evaluateVitaCourse({
+            leftoverKinds: leftoverScan.counts,
+            leftoverHitchBytes: leftoverScan.hitchBytes,
+          })));
+        } catch (e) {
+          await tg(formatCourseMessage(evaluateVitaCourse()) + "\n⚠️ leftover scan: " + e.message);
+        }
+
+      } else if (text === "/vitascan") {
+        await tg("⛓️ Scanning leftover hitch trailers on Base…");
+        try {
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+          const folded = ingestLeftoverScan(leftoverScan);
+          const course = evaluateVitaCourse({
+            leftoverKinds: leftoverScan.counts,
+            leftoverHitchBytes: leftoverScan.hitchBytes,
+          });
+          await tg(
+            "⛓️ <b>LEFTOVER SCAN</b>\n" +
+            "eureka=" + leftoverScan.counts.eureka +
+            " vita=" + leftoverScan.counts.vita +
+            " plain=" + leftoverScan.counts.plain +
+            " libm=" + leftoverScan.counts.libm + "\n" +
+            (leftoverScan.hitchBytes?.eurekaMin
+              ? "Eureka hitch min " + leftoverScan.hitchBytes.eurekaMin + "B · planned VITA " +
+                (course.inject.plannedHitchBytes || "?") + "B\n"
+              : "") +
+            "ingested " + folded.ingested + " · KEY=" + (folded.quality?.hasKey ? "yes" : "LOSS") + "\n" +
+            (leftoverScan.vitaLeftoverPresent
+              ? "VITA leftover hitch is on chain."
+              : "No leftover-covered VITA hitch yet — still Eureka prose. /prove keeps the letter.") +
+            "\n" + formatCourseMessage(course)
+          );
+        } catch (e) {
+          await tg("❌ leftover scan failed: " + e.message);
+        }
+
+      } else if (text && text.startsWith("/vitamode ")) {
+        const mode = raw.slice("/vitamode ".length).trim().toLowerCase();
+        const r = setHitchModeOverride(mode);
+        if (!r.ok) {
+          await tg("❌ " + r.reason);
+        } else {
+          await tg("🔀 <b>VITA MODE</b> → <code>" + r.mode + "</code>\n" + formatRouterMessage());
+        }
+
+      } else if (text && text.startsWith("/vitapull ")) {
+        const hash = raw.slice("/vitapull ".length).trim();
+        await tg("⛓️ Pulling hitch UTF-8 from Base…");
+        try {
+          const result = await pullLocationFromChain(hash, fetchTxCalldataHex);
+          if (!result.ok) {
+            await tg("❌ VITA pull failed: " + (result.error || "unknown"));
+          } else if (!result.utf8) {
+            await tg(
+              "⛓️ <b>NO HITCH</b> in <code>" + hash.slice(0, 12) + "…</code>\n" +
+              "source <code>" + (result.source || "?") + "</code>\n" +
+              "<i>KEYCAT 0x5c0a93e4 is a plain 228-byte swap. /prove is the letter.</i>"
+            );
+          } else {
+            ingestSealedUtf8(result.utf8);
+            await tg(
+              "⛓️ <b>VITA PULL</b> " + result.kind + " · " + result.source + "\n" +
+              "🔗 <a href=\"https://basescan.org/tx/" + hash + "\">View on Basescan ↗</a>\n" +
+              "KEY " + (result.quality?.hasKey ? "yes" : "LOSS") + " · " + (result.utf8.length) + " chars\n" +
+              "<code>" + esc(result.utf8.slice(0, 400)) + (result.utf8.length > 400 ? "…" : "") + "</code>"
+            );
+          }
+        } catch (e) {
+          await tg("❌ VITA pull failed: " + e.message);
+        }
 
       } else if (text === "/models") {
         await tg(vitaModelStatusMessage());
@@ -9847,16 +10078,12 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         // VAULT_VITA_ANTHROPIC_KEY = tx hash → encrypted key on Base (future — when we migrate fully to vault)
         // ANTHROPIC_API_KEY = last resort fallback
         const vitaApiKey = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
-        if (!vitaApiKey) {
-          await tg(
-            "🌟 <b>VITA needs an API key</b>\n\n" +
-            "Add to Railway: <code>ANTHROPIC_API_KEY = sk-ant-...</code>\n\n" +
-            "Or vault VITA's own key:\n" +
-            "<code>/newvault VITA_ANTHROPIC_KEY</code>"
-          );
-        } else {
-          await tg("🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API...");
-          try {
+        await tg(
+          vitaApiKey
+            ? "🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API..."
+            : "🌟 <b>VITA local §TOKEN§ compress</b>\nNo Anthropic key — packing locally so KEY is not lost.\n⏳ Inscribing on Base..."
+        );
+        try {
             const ethPrice3 = await getLiveEthPrice();
             const bal3      = await getFullBalance();
 
@@ -9932,6 +10159,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             global._vitaNotes = [];
 
             const entry = await vitaSave(cdpClient, WALLET_ADDRESS, sessionCtx, vitaApiKey, "session");
+            absorbVitaStrandPacket(entry);
 
             // Arm sparse picture cycle — wave-up leftover hitch packs encoded
             // smile bits the same way VITA sparsely writes memory inbound.
@@ -9950,6 +10178,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             await tg(msg);
 
             // ── AUTO-FILE: call Claude to label + file this memory ──────────
+            if (vitaApiKey) {
             try {
               console.log("📁 VITA: auto-filing memory to registry...");
               const fileResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -10060,8 +10289,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
               console.log(fileErr.stack?.split("\n").slice(0,3).join("\n"));
               await tg("⚠️ Memory saved to chain but registry filing failed: " + fileErr.message);
             }
+            }
           } catch (e) { await tg("❌ VITA save failed: " + e.message); }
-        }
 
       } else if (text === "/vitarecall" || text === "/vitacontext") {
         await tg("🌟 Loading VITA memory from Base...");
@@ -10200,6 +10429,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
           // Compress and file via VITA
           const vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
+          absorbVitaStrandPacket(vitaEntry);
 
           // File in registry
           const regKey = new Date().toISOString().slice(0,10) + "-trading-data-snapshot";
@@ -10664,23 +10894,19 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         // VITA compresses and saves session autonomously via Anthropic API
         const extra   = raw.slice("/vitasave".length).trim();
         const apiKey  = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-          await tg(
-            "❌ <b>VITA_ANTHROPIC_KEY not set</b>\n\n" +
-            "Add it via vault:\n" +
-            "<code>/newvault VITA_ANTHROPIC_KEY</code>\n" +
-            "Then reply with your API key.\n\n" +
-            "Or add directly to Railway as VITA_ANTHROPIC_KEY"
-          );
-        } else {
-          await tg("💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base...");
-          try {
+        await tg(
+          apiKey
+            ? "💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base..."
+            : "💓 <b>VITA MEMORY SAVE</b>\nLocal §TOKEN§ compress (no Anthropic key).\nInscribing 5 strand chunks on Base..."
+        );
+        try {
             const rawSummary = vitaBuildSummary(extra);
             const entry = await vitaSave(
               cdpClient, WALLET_ADDRESS,
               rawSummary, apiKey,
               extra ? extra.slice(0, 30) : "session-" + new Date().toISOString().slice(0,10)
             );
+            absorbVitaStrandPacket(entry);
             let msg = "💓 <b>VITA STRAND INSCRIBED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
             msg += "🔗 Strand: <b>" + entry.strandId + "</b>\n";
             msg += "📅 Date: " + entry.date + "\n";
@@ -10695,7 +10921,6 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) {
             await tg("❌ VITA save failed: " + e.message);
           }
-        }
 
       } else if (text && text.startsWith("/vitarecall ")) {
         const query  = raw.slice("/vitarecall ".length).trim();
@@ -10706,6 +10931,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           if (!result) {
             await tg("💓 No VITA memory found for: <b>" + query + "</b>\nTry /vitamemory to see all strands");
           } else {
+            ingestSealedUtf8(result.tokenPacket);
             await tg(
               "💓 <b>VITA RECALL — " + result.strandId + "</b>\n" +
               "━━━━━━━━━━━━━━━━━━━━\n" +
@@ -10882,7 +11108,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/unwrapall — unwrap all WETH → ETH\n\n` +
           `<b>📡 Blockchain Telegram:</b>\n` +
           `/prove — write §$STORE§ Eureka! letter as UTF-8 on a 0-ETH self-tx (Basescan Input Data → UTF-8)\n` +
-          `/voiceon /voiceoff — hitch the letter on leftover swaps (independent of BTP suspend)\n` +
+          `/voiceon /voiceoff — hitch leftover swaps (VITA §TOKEN§ by default; /prove keeps the love note)\n` +
+          `/vitarouter — secondary hitch router (vita|eureka|hat|auto)\n` +
+          `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
+          `/vitacourse — hourly memory/inject scorecard\n` +
+          `/vitascan — leftover hitch kinds on recent Uniswap swaps\n` +
+          `/vitapull 0xHASH — re-read hitch UTF-8 from Base into §TOKEN§ memory\n` +
+          `HTML console /vita — same commands, local memory until the reader pulls locations\n` +
           `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
           `/transmit [msg] — queue a custom BTP message on later trades\n` +
           `/btpstatus — show pending transmissions\n\n` +
@@ -10914,7 +11146,11 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
           `/vitamemory — show all VITA memory sessions\n` +
-          `/vitarecall — show recent memory context\n\n` +
+          `/vitarecall — show recent memory context\n` +
+          `/vitarouter — hitch payload switch + location squash\n` +
+          `/vitacourse — hourly inject-without-loss scorecard\n` +
+          `/vitascan — leftover hitch eureka vs VITA on Base\n` +
+          `/vitapull 0xHASH — inject sealed hitch from Base without KEY loss\n\n` +
           `/remember [text] — save cliff note, rides next trade\n` +
           `/savesession — inscribe full session summary on Base\n` +
           `/memories — show all memory chunks\n` +
@@ -11237,6 +11473,38 @@ async function main() {
   } catch (iknErr) {
     console.log("⚠️  IKN boot reader error (non-critical): " + iknErr.message);
   }
+
+  try {
+    const inj = await injectVitaBlockchainMemory({
+      fetchCalldata: fetchTxCalldataHex,
+      registry: lastVitaRegistryBlob,
+      fetchPublic: !lastVitaRegistryBlob,
+      leftoverScan: true,
+      leftoverLimit: 120,
+      leftoverMaxPages: 4,
+    });
+    console.log(
+      "🔀 VITA chain inject: registry " + inj.registryPackets +
+      " · pulled " + inj.pulled + " · ingested " + inj.ingested +
+      " · leftover eureka=" + Number(inj.leftoverKinds?.eureka || 0) +
+      " vita=" + Number(inj.leftoverKinds?.vita || 0) +
+      " stillEureka=" + inj.leftoverStillEureka +
+      " · KEY=" + (inj.quality?.hasKey ? "yes" : "LOSS")
+    );
+  } catch (injErr) {
+    console.log("⚠️  VITA chain inject (non-critical): " + injErr.message);
+  }
+
+  // Re-fetch sealed hitch UTF-8 from Base when the depository only has shorts.
+  try {
+    const pulled = await pullMissingLocationUtf8(fetchTxCalldataHex);
+    if (pulled.pulled) {
+      console.log("🔀 VITA chain pull: " + pulled.pulled + " sealed location(s) re-read from Base");
+    }
+  } catch (pullErr) {
+    console.log("⚠️  VITA chain pull (non-critical): " + pullErr.message);
+  }
+  await persistVitaRouterState();
 
   // Load macro BTC/ETH trend signal before token data
   await refreshMacroSignal();
@@ -12074,7 +12342,7 @@ async function main() {
       let gweiForPrime = 0;
       try {
         gweiForPrime = await getCurrentGasGwei();
-        const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const voiceBytes = leftoverVoiceHitchBytes();
         const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
         const l2Hitch = estimateCalldataHitchEth(voiceBytes, gweiForPrime);
         hitchCostForPrime = (hitchL1.ok ? (Number(hitchL1.l1FeeEth) || 0) : 0) + l2Hitch;
@@ -12220,10 +12488,14 @@ async function main() {
             : `🌙 MOONSHOT TRIM — not in active tiers`;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-        const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const moonWantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+        const moonWantedHitchBytes = leftoverCoveredWantedBytes({
+          voiceBytes: leftoverVoiceHitchBytes(),
+          orchBytes: moonOrchBytes,
+          pictureArmed: isVitaPictureArmed(),
+        });
         const moonL1 = await quoteHitchL1ForGates({
-          hitchBytes: moonVoiceBytes + moonOrchBytes,
+          hitchBytes: moonWantedHitchBytes,
           btpInscribe: moonWantBtp,
         });
         // Preview piggy so gate matches executeSell (soldFrac × entry, not request %)
@@ -12255,10 +12527,11 @@ async function main() {
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
-          wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
+          wantedHitchBytes: moonWantedHitchBytes,
           wantBtpInscribe: moonWantBtp,
           piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
           unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
+          leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
           ...hitchL1GateArgs(moonL1),
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
@@ -12268,7 +12541,7 @@ async function main() {
           console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
           continue;
         }
-        const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
+        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : `${hitchCostMult()}× hitch covered`;
         const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
@@ -12356,6 +12629,32 @@ async function main() {
       }
       if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         await saveToGitHub();
+      }
+
+      // ── VITA hourly course — refine memory, restore KEY if lost, switch mode
+      try {
+        let leftoverKinds;
+        let leftoverHitchBytes;
+        if (shouldTickHourlyCourse()) {
+          try {
+            const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+            ingestLeftoverScan(leftoverScan);
+            leftoverKinds = leftoverScan.counts;
+            leftoverHitchBytes = leftoverScan.hitchBytes;
+          } catch { leftoverKinds = undefined; leftoverHitchBytes = undefined; }
+        }
+        const hour = leftoverKinds
+          ? tickHourlyCourse({ leftoverKinds, leftoverHitchBytes })
+          : tickHourlyCourse();
+        if (hour.ticked) {
+          console.log("🔀 VITA COURSE " + hour.course.score + "/100 achieving=" + hour.course.achieving + " applied=" + (hour.applied || []).join(",") );
+          if (!hour.course.achieving || hour.applied?.length) {
+            await tg(hour.telegram);
+          }
+          await persistVitaRouterState();
+        }
+      } catch (courseErr) {
+        console.log("⚠️  VITA course tick (non-critical): " + courseErr.message);
       }
 
       // ── IKN INTEGRITY AGENT — runs every 6 hours ───────────────────────────
