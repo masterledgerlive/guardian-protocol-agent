@@ -4690,7 +4690,7 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 function leftoverHitchUtf8() {
   const prev = getLastVitaPacket();
   try {
-    const planned = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0 });
+    const planned = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
     const utf8 = planned.utf8 || "";
     const kind = parseHitchTrailer(utf8);
     if (kind.vita && utf8.includes("Krystian")) return utf8;
@@ -4737,7 +4737,7 @@ function leftoverVoiceHitchBytes() {
     if (n > 0 && n <= cap) return n;
   }
   try {
-    const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0 });
+    const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
     return n > 0 && n <= cap ? n : cap;
   } catch {
     return cap;
@@ -4787,7 +4787,7 @@ function planVoiceHitch(swapData, {
     }
   }
 
-  const planned = planSecondaryHitch({ skipHitch, maxBytes });
+  const planned = planSecondaryHitch({ skipHitch, maxBytes, mode: "vita" });
   if (!planned.utf8) {
     recordHitchAttempt({ skippedLeftover: /leftover|skipHitch/i.test(String(planned.reason || "")) });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
@@ -4797,15 +4797,16 @@ function planVoiceHitch(swapData, {
     recordHitchAttempt({ skippedLeftover: true });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
-  recordHitchAttempt({});
   const hitch = appendUtf8Hitch(swapData, planned.utf8, { maxBytes });
   if (!hitch.ok || !hitch.onChain) {
     if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
+    recordHitchAttempt({ skippedLeftover: true });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
   const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
   if (!prefix.ok) {
     console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
+    recordHitchAttempt({ skippedLeftover: true });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
   const parsed = parseHitchTrailer(hitch.utf8);
@@ -4814,6 +4815,7 @@ function planVoiceHitch(swapData, {
     recordHitchAttempt({ skippedLeftover: true });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
+  recordHitchAttempt({});
   console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B [${planned.resolved}/${parsed.kind}] — Basescan Input Data → View as UTF-8`);
   console.log(`      "${hitch.utf8.slice(0, 120)}${hitch.utf8.length > 120 ? "…" : ""}"`);
   return { ...hitch, vitaMode: planned.resolved, vitaKind: parsed.kind, kind: parsed.kind };

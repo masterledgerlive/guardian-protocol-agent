@@ -95,6 +95,8 @@ import {
   leftoverHitchByteStats,
   ingestLeftoverScan,
   scanAddressLeftoverHitches,
+  getCachedLeftoverScan,
+  resetLeftoverScanCacheForTests,
   publicLeftoverScanView,
   fetchRecentWalletTransactions,
   blockscoutTxListUrl,
@@ -476,8 +478,13 @@ describe("vita hourly course", () => {
     recordLeftoverKinds({ eureka: 40, vita: 1, leftover: 41 });
     setHitchModeOverride("eureka");
     const afterVita = planSecondaryHitch({ maxBytes: 500 });
-    assert.equal(afterVita.resolved, "eureka");
-    assert.ok(afterVita.utf8.includes("Eureka!"));
+    assert.equal(afterVita.resolved, "vita");
+    assert.equal(afterVita.kind.vita, true);
+    assert.ok(afterVita.utf8.includes("§KEY§"));
+    assert.doesNotMatch(afterVita.utf8, /We did it! xoxo/);
+    const explicit = planSecondaryHitch({ maxBytes: 500, mode: "eureka" });
+    assert.equal(explicit.resolved, "eureka");
+    assert.ok(explicit.utf8.includes("Eureka!"));
   });
 
   it("leftover_still_eureka course-corrects hitch mode from eureka to vita without KEY loss", () => {
@@ -692,7 +699,9 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("leftoverStillEureka"), "picture leftover hitch must wait until leftover VITA hitch exists");
     assert.ok(src.includes("isVitaPictureArmed() && !leftoverStillEureka()"), "leftover hitch stays KEY+LOC while leftover is still Eureka");
     assert.ok(src.includes("leftover hitch would clip §KEY§ names"), "must skip hitch rather than clip KEY names off the chain");
-    assert.ok(src.includes("planSecondaryHitch({ skipHitch, maxBytes })"), "leftover hitch default remains VITA parse, not Eureka leftover");
+    assert.ok(src.includes("planSecondaryHitch({ skipHitch, maxBytes, mode: \"vita\" })"), "leftover hitch default remains VITA parse, not Eureka leftover");
+    assert.ok(src.includes("mode: \"vita\""), "leftover hitch UTF-8 and hitch-byte sizing must plan VITA, not Eureka letter length");
+    assert.ok(!/recordHitchAttempt\(\{\}\);\s*\n\s*const hitch = appendUtf8Hitch/.test(src), "must not count a hitch attempt before append can clip KEY names");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
@@ -1053,6 +1062,28 @@ describe("chain reader injects hitch UTF-8 without KEY loss", () => {
     assert.ok(scan.hitchBytes.vitaMin > 0);
     assert.ok(scan.hitchBytes.eurekaMin > 0);
     assert.ok(scan.hitchBytes.vitaMin < scan.hitchBytes.eurekaMin);
+  });
+
+  it("getCachedLeftoverScan coalesces concurrent misses so one Blockscout walk runs", async () => {
+    resetLeftoverScanCacheForTests();
+    let walks = 0;
+    const fetchTxs = () => new Promise((resolve) => {
+      walks += 1;
+      setTimeout(() => resolve([]), 40);
+    });
+    const [a, b, c] = await Promise.all([
+      getCachedLeftoverScan({ fetchTxs, limit: 10, maxPages: 1 }),
+      getCachedLeftoverScan({ fetchTxs, limit: 10, maxPages: 1 }),
+      getCachedLeftoverScan({ fetchTxs, limit: 10, maxPages: 1 }),
+    ]);
+    assert.equal(walks, 1);
+    assert.equal(a.scanned, 0);
+    assert.equal(b.scanned, 0);
+    assert.equal(c.scanned, 0);
+    const cached = await getCachedLeftoverScan({ fetchTxs, limit: 10, maxPages: 1 });
+    assert.equal(walks, 1);
+    assert.equal(cached.scanned, 0);
+    resetLeftoverScanCacheForTests();
   });
 
   it("publicLeftoverScanView keeps leftover hashes for the reader (not a 24-row clip)", () => {

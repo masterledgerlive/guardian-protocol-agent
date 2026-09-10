@@ -252,15 +252,40 @@ export async function scanAddressLeftoverHitches({
 
 const LEFTOVER_SCAN_TTL_MS = 60_000;
 let leftoverScanCache = { at: 0, scan: null };
+let leftoverScanInflight = null;
 
+export function resetLeftoverScanCacheForTests() {
+  leftoverScanCache = { at: 0, scan: null };
+  leftoverScanInflight = null;
+}
+
+/**
+ * One leftover scan at a time. Concurrent callers share the in-flight promise
+ * (or a still-warm cache) so public GET /vita/leftover cannot stampede Blockscout.
+ * Stale-while-revalidate: if a scan is already cached, return it while a refresh runs.
+ */
 export async function getCachedLeftoverScan(opts = {}) {
   const now = Date.now();
-  if (!opts.force && leftoverScanCache.scan && now - leftoverScanCache.at < LEFTOVER_SCAN_TTL_MS) {
-    return leftoverScanCache.scan;
+  const ttl = Number(opts.ttlMs) > 0 ? Number(opts.ttlMs) : LEFTOVER_SCAN_TTL_MS;
+  const fresh = leftoverScanCache.scan && now - leftoverScanCache.at < ttl;
+  if (!opts.force && fresh) return leftoverScanCache.scan;
+
+  if (leftoverScanInflight) {
+    if (!opts.force && leftoverScanCache.scan) return leftoverScanCache.scan;
+    return leftoverScanInflight;
   }
-  const scan = await scanAddressLeftoverHitches(opts);
-  leftoverScanCache = { at: now, scan };
-  return scan;
+
+  leftoverScanInflight = scanAddressLeftoverHitches(opts)
+    .then((scan) => {
+      leftoverScanCache = { at: Date.now(), scan };
+      return scan;
+    })
+    .finally(() => {
+      leftoverScanInflight = null;
+    });
+
+  if (!opts.force && leftoverScanCache.scan) return leftoverScanCache.scan;
+  return leftoverScanInflight;
 }
 
 /** Public reader view — hashes + class, no hitch utf8 (HTML pulls locations itself). */

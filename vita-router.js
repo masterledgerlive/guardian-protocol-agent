@@ -127,6 +127,7 @@ export function freezeLeftoverReadyHitch(opts = {}) {
       hitchCostEth: 0,
       skipHitch: false,
       useFrozen: false,
+      mode: "vita",
       ...opts,
     });
     leftoverReadyHitch = plan.utf8 || "";
@@ -158,6 +159,7 @@ export function measurePlannedHitchBytes(opts = {}) {
       leftoverEth: 1,
       hitchCostEth: 0,
       skipHitch: false,
+      mode: "vita",
       ...opts,
     });
     return Number(plan.hitchBytes) || 0;
@@ -382,11 +384,12 @@ export function planSecondaryHitch({
     return emptyPlan("leftover<hitchCost", switches);
   }
 
-  // Leftover hitch stays KEY+LOC until a leftover-covered VITA hitch exists.
-  // Explicit `mode` still lets tests / /prove-twin callers emit eureka/hat.
+  // Leftover hitch is KEY+LOC parse. Eureka leftover is /prove only (explicit mode).
+  // While leftover is still Eureka, hat/auto also wait so KEY+LOC can land first.
   let resolved = pickMode(switches);
-  if (mode == null && leftoverHitchLockedToVita() && resolved !== "vita") {
-    resolved = "vita";
+  if (mode == null) {
+    const lockVita = leftoverHitchLockedToVita() || resolved === "eureka";
+    if (lockVita && resolved !== "vita") resolved = "vita";
   }
   const cap = maxBytes != null ? Math.floor(Number(maxBytes)) : null;
 
