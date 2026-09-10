@@ -35,6 +35,28 @@ the recursive packet. V4 leftover hitch uses the same secondary router.
 - Telegram `/vitarouter` `/vitamode` `/vitacourse`
 - HTTP `GET /vita/router` `/vita/locations` `/vita/course` (auth) + public inject `vitaRouter`
 
+### Added — VITA picture tailwind (sparse out = sparse in)
+
+When VITA triggers (`/vitasave`, `/vitadata`, `/remember`, `/vitapicture arm`),
+a smile-picture cycle is armed. Wave-up leftover hitch ("tailwind") packs as
+much encoded `§HAT§` data as fits — same sparse ride-the-trade pattern as VITA
+memory inbound. Each successful receipt seals a spaced location; when the
+picture completes, the next cycle auto-arms (continuous on-chain proof).
+
+- `vita-tailwind-picture.js` — arm / plan / confirm / next-cycle
+- `planVoiceHitch` prefers picture when armed; leftover hitch otherwise is VITA KEY+LOC parse
+- Exit receipt includes spaced location count for the picture
+
+### Added — Exit inject receipt + spaced-chain image proof
+
+When an exit can inject, the sell Telegram receipt now includes a **HAT EXIT
+INJECT RECEIPT**: confirm only after chain receipt success, and prove how many
+**spaced blockchain locations** (distinct txs / blocks) assemble the picture.
+
+- `hat-exit-receipt.js` — confirm gate, spaced proof, Telegram formatter
+- Smile demo seals +3 blocks apart × 8 locations → full 8×8 image
+- `formatSellReceiptHtml(..., hatInjectReceipt)` wired from `executeSell`
+
 ### Added — HAT smile demo: 8×8×8-bit picture → locations → reader
 
 Quick proof before huge HTML: encode a slow-rez smile, seal chunk locations,
@@ -98,7 +120,7 @@ Arena (`/arena`, PR #42), Engine (`/engine`, PR #47), V4 offshoot (PR #46), Stor
 - **`GET /board/health`** (alias `/health`) — which boards are mounted. V4 listed as a **separate process** (`loadsV4Runtime: false`).
 - Public **`/board/api/params`**, **`/board/api/snapshot`**, **`/board/api/inject`**, **`/board/api/v4`**, **`POST /board/api/sim`** — sim is V3 practice only; inject API lists catalog hitch seats + leftover capacity + bot piggy. No unauthenticated env mutate, no spend.
 - Hub modules **do not import** `guardian-v4/` (swap encoder / agent / config stay in the offshoot process).
-- Bugbot follow-up: 16 KiB cap on public `POST /board/api/sim` bodies; LINK piggy knobs use catalog 8% / $0.25; earn sim spends buy gas and hitch instead of recycling them as leftover cash; storage loop uses the same cash as the arena round; wave tiles keep engine `series`.
+- Bugbot follow-up: 16 KiB cap on public `POST /board/api/sim` bodies; LINK piggy knobs use catalog 8% / $0.25; earn sim spends buy gas and hitch instead of recycling them as leftover cash; storage loop uses the same cash as the arena round; wave tiles keep engine `series`. Catalog LINK dust floor ($0.25) applies when sim omits `dustFloorUsd`. Authorized leftover/hitch panel uses holding-wave leftover (not the 2% demo assumption).
 - **`BOARD.md`** — operator on-ramp; V3 inject surfaces + bot-usage piggy; points stale “2% piggy” / L1-vs-live Arena / V4-CLI-only confusion at the hub.
 
 ### Fixed — plug fee/gas leaks so thin books never bleed ($10→$6)

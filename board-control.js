@@ -219,18 +219,30 @@ export function listV3InjectSurfaces({ env = process.env, agentSrc = null } = {}
 }
 
 export function leftoverHitchCapacity(live = {}) {
-  const report = reportInjectCapacity(live);
+  const ethUsd = Number(live.ethUsd) || LIVE_ASSUMPTIONS.ethUsd;
+  const patched = { ...live, ethUsd };
+  if (
+    patched.leftoverEth == null
+    && patched.leftoverUsd != null
+    && Number.isFinite(Number(patched.leftoverUsd))
+  ) {
+    patched.leftoverEth = Number(patched.leftoverUsd) / ethUsd;
+  }
+  const fromLive = patched.leftoverEth != null;
+  const report = reportInjectCapacity(patched);
   const leftoverEth = report.assumptions?.leftoverEth;
   const hitchTagUsd = report.assumptions?.hitchTagUsd;
   const hitchTagEth = report.assumptions?.hitchTagEth;
-  const ethUsd = report.assumptions?.ethUsd;
   const leftoverUsd =
     leftoverEth != null && Number.isFinite(Number(leftoverEth)) && Number.isFinite(Number(ethUsd))
       ? Number(leftoverEth) * Number(ethUsd)
       : null;
   return {
-    kind: report.kind,
-    label: report.assumptions?.label || LIVE_ASSUMPTIONS.label,
+    kind: fromLive ? "live-snapshot|estimated leftover" : report.kind,
+    source: fromLive ? (live.source || "live-holding-waves") : "demo-assumptions",
+    label: fromLive
+      ? (live.label || "live leftover from holding waves (price vs entry after fees) — estimated, not invented P&L")
+      : (report.assumptions?.label || LIVE_ASSUMPTIONS.label),
     leftoverEth,
     leftoverUsd,
     hitchTagUsd,
@@ -240,6 +252,29 @@ export function leftoverHitchCapacity(live = {}) {
     note: report.capacity_now?.note,
     funds: report.funds,
     lose_zero: report.lose_zero,
+  };
+}
+
+/**
+ * Map an authorized engine snapshot onto hitch-capacity inputs.
+ * Uses leftover only from *holding* waves (non-holding engine rows default to 2.5 — not live).
+ * Never reads hitchProve.profitUsd (not leftover, not Grok P&L).
+ */
+export function leftoverInputsFromEngine(engine = {}) {
+  const ethUsd = Number(engine.ethUsd) || LIVE_ASSUMPTIONS.ethUsd;
+  const holdingLeft = (engine.waves || [])
+    .filter((w) => w?.holding)
+    .map((w) => Number(w.leftoverUsd))
+    .filter((n) => Number.isFinite(n));
+  const out = { ethUsd };
+  if (!holdingLeft.length) return out;
+  const leftoverUsd = Math.max(...holdingLeft);
+  return {
+    ...out,
+    leftoverUsd,
+    leftoverEth: leftoverUsd / ethUsd,
+    source: "live-holding-waves",
+    label: "live leftover from holding waves (price vs entry after fees) — estimated, not invented P&L",
   };
 }
 
@@ -405,7 +440,7 @@ export function runArenaLearnSim({
   seat = "LINK",
   movePct = 0.06,
   piggyPct = null,
-  dustFloorUsd = DEFAULT_PIGGY_BANK_MIN_USD,
+  dustFloorUsd = null,
   hitchCostMult: hitchMult = DEFAULT_HITCH_COST_MULT,
   hitchUsd = 0.35,
   gasUsd = 0.05,

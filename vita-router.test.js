@@ -647,6 +647,9 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("leftoverHitchUtf8"), "leftover encoder must emit VITA parse, not Eureka prose");
     assert.ok(src.includes("kind.eureka && !kind.vita"), "encodeSwapWithReceipt must refuse leftover Eureka hitch");
     assert.ok(src.includes("setLastVitaPacket(prev)"), "leftover hitch size must not wipe recursive lastPacket");
+    assert.ok(src.includes("isVitaPictureArmed"), "main picture tailwind must ride leftover when a cycle is armed");
+    assert.ok(src.includes("leftover hitch would clip §KEY§ names"), "must skip hitch rather than clip KEY names off the chain");
+    assert.ok(src.includes("planSecondaryHitch({ skipHitch, maxBytes })"), "leftover hitch default remains VITA parse, not Eureka leftover");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");

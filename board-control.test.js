@@ -11,6 +11,7 @@ import {
   listV3InjectSurfaces,
   parseDefaultTokensFromAgentSource,
   leftoverHitchCapacity,
+  leftoverInputsFromEngine,
   modelBotUsagePiggy,
   GROK_BOT_USAGE,
   LOSE_ZERO_INVARIANTS,
@@ -122,6 +123,23 @@ describe("runArenaLearnSim", () => {
     assert.equal(r.refused, true);
     assert.equal(r.endLiquid, r.startLiquid);
     assert.equal(r.endBags, 0);
+  });
+
+  it("uses catalog LINK 8% / $0.25 when piggy overrides are omitted", () => {
+    const link = runArenaLearnSim({ seat: "LINK", costEdge: false });
+    assert.equal(link.piggyPct, 0.08);
+    assert.equal(link.dustFloorUsd, 0.25);
+    const uni = runArenaLearnSim({ seat: "UNI", costEdge: false });
+    assert.equal(uni.piggyPct, 0.05);
+    assert.equal(uni.dustFloorUsd, 0.15);
+    const over = runArenaLearnSim({
+      seat: "LINK",
+      piggyPct: 0.05,
+      dustFloorUsd: 0.15,
+      costEdge: false,
+    });
+    assert.equal(over.piggyPct, 0.05);
+    assert.equal(over.dustFloorUsd, 0.15);
   });
 });
 
@@ -246,6 +264,28 @@ describe("leftover / hitch capacity", () => {
     assert.ok(Number.isFinite(cap.leftoverUsd));
     assert.equal(typeof cap.eurekaOk, "boolean");
     assert.equal(cap.lose_zero.never_sell_underwater_to_insert_storage, true);
+    assert.equal(cap.source, "demo-assumptions");
+  });
+
+  it("uses leftover from holding waves only when live engine leftover is supplied", () => {
+    const live = leftoverHitchCapacity(leftoverInputsFromEngine({
+      ethUsd: 2500,
+      waves: [
+        { symbol: "LINK", holding: true, leftoverUsd: 1.25 },
+        { symbol: "UNI", holding: false, leftoverUsd: 2.5 },
+      ],
+    }));
+    assert.equal(live.source, "live-holding-waves");
+    assert.match(live.kind, /live-snapshot/);
+    assert.ok(Math.abs(live.leftoverUsd - 1.25) < 1e-9);
+    assert.equal(live.eurekaOk, true);
+    const empty = leftoverInputsFromEngine({
+      ethUsd: 2500,
+      hitchProve: { profitUsd: 80 },
+      waves: [{ symbol: "UNI", holding: false, leftoverUsd: 2.5 }],
+    });
+    assert.equal(empty.leftoverUsd, undefined);
+    assert.equal(empty.leftoverEth, undefined);
   });
 });
 

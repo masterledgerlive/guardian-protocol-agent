@@ -42,8 +42,14 @@
       background: rgba(255,255,255,.7); padding: .8rem 1rem; display: inline-block;
       border: 1px solid rgba(16,35,28,.2);
     }
+    pre.receipt {
+      white-space: pre-wrap; font-size: .75rem; line-height: 1.35;
+      background: rgba(255,255,255,.75); padding: .8rem 1rem;
+      border: 1px solid rgba(16,35,28,.2); max-width: 40rem;
+    }
     code { font-size: .7rem; word-break: break-all; }
     .meta { font-size: .8rem; color: var(--muted); }
+    .stat { font-family: var(--display); font-size: 1.4rem; margin: .2rem 0; }
   </style>
 </head>
 <body>
@@ -51,6 +57,16 @@
   <p class="lede">Slow-rez <b>8×8 × 8-bit</b> smile encoded as <code>§HAT§</code> bitpack chunks —
   reader pulls every sealed location and rebuilds the picture. Tiny proof before the huge HTML site.</p>
   <div class="ok">✓ READER MATCH — picture reconstructed from locations</div>
+
+  <section>
+    <h2>Spaced blockchain proof</h2>
+    <p class="stat">8 spaced locations</p>
+    <p class="meta">8 spaced blockchain locations / 8 blocks → full image</p>
+    <p class="meta">Blocks touched: <b>8</b>
+      · span 21 blocks apart
+      · +3 blocks between each seal</p>
+    <p class="meta">Full image needs <b>8</b> spaced txs — each exit inject seals one.</p>
+  </section>
 
   <section>
     <h2>Reconstructed picture</h2>
@@ -67,74 +83,99 @@
   </section>
 
   <section>
+    <h2>Exit inject receipt (last location)</h2>
+    <pre class="receipt">🎩 HAT EXIT INJECT RECEIPT
+✅ Inject confirmed on exit — location sealed
+📍 This exit = location #7
+🔗 View on Basescan ↗
+📡 Hitch 595 B on-chain (Input Data → UTF-8)
+━━━━━━━━━━━━━━━━━━━━
+SPACED CHAIN PROOF — 8×8×8-bit smile
+🧩 Locations used: 8 spaced txs
+📦 Blocks touched: 8 (span 21 blocks apart)
+📐 Full image needs ~8 spaced locations
+🔢 Bits: 512/512 ✓ COMPLETE
+📖 Picture assembled from 8 spaced blockchain locations across 8 blocks (span 21)
+Reader: pull each location → decodeHat → assemble pixels</pre>
+  </section>
+
+  <section>
     <h2>Locations (reader pulls these)</h2>
     <table>
       <thead>
-        <tr><th>#</th><th>kind</th><th>bits</th><th>code lines</th><th>location</th><th>how to read</th></tr>
+        <tr><th>#</th><th>kind</th><th>bits</th><th>block</th><th>code lines</th><th>location</th><th>how to read</th></tr>
       </thead>
       <tbody>
         <tr>
       <td>0</td>
       <td><code>CHUNK</code></td>
       <td>bits 0–63</td>
-      <td>lines 1–8</td>
-      <td><a href="https://basescan.org/tx/0x5ba5f6719f5d4474c07efbe163b6110e1ae2b0e5ded6efd5a6511f14eee04a01"><code>0x5ba5f6719f5d…</code></a></td>
+      <td>block 37000000</td>
+      <td>lines 1–9</td>
+      <td><a href="https://basescan.org/tx/0x1e8a305d9de07e36131117b7ba5e83db303f48381d6f5a862d2d6c5fc0425e2e"><code>0x1e8a305d9de0…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>1</td>
       <td><code>CHUNK</code></td>
       <td>bits 64–127</td>
-      <td>lines 9–16</td>
-      <td><a href="https://basescan.org/tx/0x4cd9dba7800e81b68b9c76e2ea5175454ed9fd205b84b5a67f40c837f0255d04"><code>0x4cd9dba7800e…</code></a></td>
+      <td>block 37000003</td>
+      <td>lines 10–18</td>
+      <td><a href="https://basescan.org/tx/0xb2d9f009ed68d17ee6b8506c76a05438c092febdc2077bb1633a29f7622913dd"><code>0xb2d9f009ed68…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>2</td>
       <td><code>CHUNK</code></td>
       <td>bits 128–191</td>
-      <td>lines 17–24</td>
-      <td><a href="https://basescan.org/tx/0x4c1cd0c68685516160ae17bd313a4a511a1744da215a81df3db628ecde85d6c5"><code>0x4c1cd0c68685…</code></a></td>
+      <td>block 37000006</td>
+      <td>lines 19–27</td>
+      <td><a href="https://basescan.org/tx/0xfd78233da121da6cbfed1f519f24eadc1a9fc970ccc407f0250928abbfe31307"><code>0xfd78233da121…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>3</td>
       <td><code>CHUNK</code></td>
       <td>bits 192–255</td>
-      <td>lines 25–32</td>
-      <td><a href="https://basescan.org/tx/0xf93d9b236463f2222b6841db28f51175d5f2c54884e44b05ae29bf634fab5b9f"><code>0xf93d9b236463…</code></a></td>
+      <td>block 37000009</td>
+      <td>lines 28–36</td>
+      <td><a href="https://basescan.org/tx/0x43fc572f33a8e09fa9b09a6845f619d57710697613392227e069ebbcca29b0e9"><code>0x43fc572f33a8…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>4</td>
       <td><code>CHUNK</code></td>
       <td>bits 256–319</td>
-      <td>lines 33–40</td>
-      <td><a href="https://basescan.org/tx/0x113d1837c39f331736c8da29779202c24a650b121074607b9a254565d96462ec"><code>0x113d1837c39f…</code></a></td>
+      <td>block 37000012</td>
+      <td>lines 37–45</td>
+      <td><a href="https://basescan.org/tx/0x7676341ad40d191736000b421f0c51a8f72ec9d2196620a5691c20850eb3af39"><code>0x7676341ad40d…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>5</td>
       <td><code>CHUNK</code></td>
       <td>bits 320–383</td>
-      <td>lines 41–48</td>
-      <td><a href="https://basescan.org/tx/0xd1418550bfad7911efa6368d5d60a0a85c3d1b34dadb385ef495a6c32ce5db1c"><code>0xd1418550bfad…</code></a></td>
+      <td>block 37000015</td>
+      <td>lines 46–54</td>
+      <td><a href="https://basescan.org/tx/0x780a9341887947601b0421cdf7db83adeae36c742b0224b3f7fea144fc313456"><code>0x780a93418879…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>6</td>
       <td><code>CHUNK</code></td>
       <td>bits 384–447</td>
-      <td>lines 49–56</td>
-      <td><a href="https://basescan.org/tx/0x5e4e9d3a732c67ba24a87aeb6881968cb0fd5f3ed4b3c5bc1fcf54b0b45250e0"><code>0x5e4e9d3a732c…</code></a></td>
+      <td>block 37000018</td>
+      <td>lines 55–63</td>
+      <td><a href="https://basescan.org/tx/0xccac0fc8756779afeb01d32e3511cc8a8f5221688c56af7a4bd1db82d0ac13cd"><code>0xccac0fc87567…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
 <tr>
       <td>7</td>
       <td><code>CHUNK</code></td>
       <td>bits 448–511</td>
-      <td>lines 57–64</td>
-      <td><a href="https://basescan.org/tx/0xb429039d18af0daa9617321478c06f300c112624354d6f5fdeeb15cb2bf324ac"><code>0xb429039d18af…</code></a></td>
+      <td>block 37000021</td>
+      <td>lines 64–72</td>
+      <td><a href="https://basescan.org/tx/0x1b138dee21bb4e63a7d54ba4538bee0bf5ef5234b7ec953c3f6c258c6052a421"><code>0x1b138dee21bb…</code></a></td>
       <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
     </tr>
       </tbody>
@@ -144,11 +185,12 @@
   <section>
     <h2>Reader walk</h2>
     <ol class="meta">
+      <li>On each inject-capable exit: hitch chunk → wait receipt success → seal location.</li>
       <li>Start at location #0 (HAT_ROOT_TX once live on Base).</li>
       <li>Fetch calldata → UTF-8 → <code>parseHatPacket</code>.</li>
       <li><code>decodeBitSlice</code> → place bits at <code>bitOffset</code>.</li>
-      <li>Walk every sealed location in seq order (append-only).</li>
-      <li>bits→bytes → 8×8 grayscale → smile.</li>
+      <li>Walk every sealed location in seq order across spaced blocks (append-only).</li>
+      <li>bits→bytes → 8×8 grayscale → smile. Count of spaced txs = proof.</li>
     </ol>
   </section>
 </body>

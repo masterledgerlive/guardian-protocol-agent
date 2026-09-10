@@ -116,6 +116,15 @@ describe("control board HTTP", () => {
     assert.equal(json.botPiggy.provenRevenue, null);
   });
 
+  it("GET /board/api/sim uses catalog LINK dust when overrides are omitted", async () => {
+    const { res, json } = await get("/board/api/sim?seat=LINK&costEdge=no");
+    assert.equal(res.status, 200);
+    assert.equal(json.arena.seat, "LINK");
+    assert.equal(json.arena.piggyPct, 0.08);
+    assert.equal(json.arena.dustFloorUsd, 0.25);
+    assert.equal(json.v4, undefined);
+  });
+
   it("GET /board/api/inject lists V3 hitch surfaces + leftover capacity + demo bot piggy", async () => {
     const { res, json } = await get("/board/api/inject");
     assert.equal(res.status, 200);
@@ -126,6 +135,7 @@ describe("control board HTTP", () => {
     assert.equal(json.hitchSurfaces.some((t) => t.symbol === "CBBTC"), false);
     assert.ok(json.capacity);
     assert.match(json.capacity.kind, /estimated|simulated/);
+    assert.equal(json.capacity.source, "demo-assumptions");
     assert.equal(json.botPiggy.kind, "demo|example");
     assert.equal(json.botPiggy.grokNowUsdPerMonth, 20);
     assert.equal(json.botPiggy.grokProUsdPerMonth, 60);
