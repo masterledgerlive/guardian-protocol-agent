@@ -247,13 +247,24 @@ describe("V3 inject surfaces (agent.js catalog as text)", () => {
     assert.equal(bySym.LINK.piggyMinUsd, 0.25);
     assert.ok(bySym.TOSHI);
     assert.ok(bySym.UNI);
+    assert.ok(bySym.DOGINME);
+    assert.ok(bySym.DRB);
+    assert.ok(bySym.CLANKER);
     assert.equal(bySym.GAME, undefined);
+    assert.equal(bySym.AIXBT, undefined);
+    assert.equal(bySym.KEYCAT, undefined);
+    assert.equal(bySym.SKI, undefined);
+    assert.equal(bySym.LUNA, undefined);
+    assert.equal(bySym.REI, undefined);
+    assert.equal(bySym.BASECAT, undefined);
     assert.equal(bySym.CBBTC, undefined);
     assert.equal(bySym.WELL, undefined);
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "CBBTC" && t.frozen));
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "GAME" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "BASECAT" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "AIXBT" && t.frozen));
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "WELL" && t.disabled));
-    assert.ok(surf.hitchSurfaces.length >= 15);
+    assert.ok(surf.hitchSurfaces.length >= 14);
   });
 });
 

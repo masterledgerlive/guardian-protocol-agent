@@ -42,7 +42,9 @@ Bot = **Uniswap V3 only**. Many CoinMarketCap top-100 names have **no** liquid B
 
 | Sym | Best useful pool | Note |
 |---|---|---|
-| AERO BRETT VIRTUAL MORPHO CBBTC DEGEN AIXBT TOSHI KEYCAT DOGINME SKI LUNA BASECAT DRB REI CLANKER | prior KEEP | unchanged |
+| AERO BRETT VIRTUAL MORPHO CBBTC DEGEN TOSHI DOGINME DRB CLANKER | prior KEEP / deep earners | unchanged — DOGINME stays tradeable (catalog ~$1.8M book) |
+| **AIXBT KEYCAT SKI LUNA REI** | thin Uni V3 WETH hitch / gas burn vs deep earners | **FROZEN buys** — exits-only |
+| **BASECAT** | Uni V3 WETH `0xB200…1D01` (borderline ~$500k) | **FROZEN buys** — screener CAUTION/CUT. FIFO 12/31 red sells; exit throughput failed under LOSE-ZERO/2× hitch. |
 | **XCN** | Uni V3 **USDC** ~$173k; WETH ~$212 | **FROZEN buys** — WETH-dead / USDC-primary (bot is WETH-only). Wave data still seeded (DS/GT + Binance). |
 | **GAME** | Uni V2 GAME/VIRTUAL ~$2.14M; Uni V3 WETH 0.3% ghost (`liquidity()=0`) | **FROZEN buys** — exits-only / hitch CAUTION until battle-tested V3 WETH. |
 | **LINK AAVE UNI** | Uni V3 WETH (factory fee above) | **NEW** top-100 injection targets |
@@ -50,10 +52,13 @@ Bot = **Uniswap V3 only**. Many CoinMarketCap top-100 names have **no** liquid B
 
 ### Still frozen
 
-XCN (WETH-dead) · GAME (thin Uni V3 WETH) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN · NORMIE · OGGY · FREN
+XCN (WETH-dead) · GAME (thin Uni V3 WETH) · AIXBT · KEYCAT · SKI · LUNA · REI · BASECAT (CAUTION/CUT) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN · NORMIE · OGGY · FREN
 
 MIGGLES stays frozen (Uni V2 primary; Uni V3 thin — WELL lesson).
 GAME stays frozen exits-only (Uni V2 GAME/VIRTUAL 0xD418…7789 ~$2.14M is the liquid book; Uni V3 WETH feeTier 3000 0x70fbffe3… `liquidity()=0` / ghost — hitch CAUTION, not battle-tested).
+AIXBT / KEYCAT / SKI / LUNA / REI stay frozen exits-only (thin Uni V3 WETH hitch surface / gas burn vs deep earners).
+BASECAT stays frozen exits-only (screener CAUTION/CUT — FIFO 12/31 red sells; books exist but exit throughput failed under LOSE-ZERO/2× hitch).
+DOGINME stays tradeable (catalog notes a deep ~$1.8M book — not a thin WETH cut).
 
 ### Disabled
 
