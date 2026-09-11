@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — processToken `.push` crash after #72 boot-order (OPERATOR_BUY idle)
+
+Railway `a0b8c4ad` / `bafc82c9`: `OPERATOR_BUY=AERO:2` stayed queued (nonce 5450)
+while every token logged
+`processToken error (…): Cannot read properties of undefined (reading 'push')`.
+
+`SKIP_OHLC_SEED` + boot quotes created `history[symbol] = { lastPrice }` with no
+`readings[]`. `recordPrice` (first push in `processToken`) assumed the array
+existed, so MANUAL BUY never ran.
+
+- `ensureHistoryEntry` / `recordPriceOnHistory` always create `readings` before push.
+- `loadFromGitHub` normalizes lastPrice-only GitHub rows.
+- Boot quote / live-balance paths no longer write lastPrice-only objects.
+- `initWaveState` fills `peaks`/`troughs` if a partial map is present.
+
+Does **not** change LOSE-ZERO. Does **not** invent P&L. Does **not** deploy.
+
 ### Fixed — OPERATOR_BUY fires before OHLC seed; SKIP_OHLC_SEED honored
 
 Risk desk `OPERATOR_BUY=AERO:2` queued on every Railway boot but never

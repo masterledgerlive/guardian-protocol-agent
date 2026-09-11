@@ -91,6 +91,12 @@ import {
   planOhlcSeed,
 } from "./price-oracle.js";
 import {
+  ensureHistoryEntry,
+  normalizeHistoryMap,
+  recordPriceOnHistory,
+  ensureWaveStateEntry,
+} from "./history-state.js";
+import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
@@ -2992,8 +2998,7 @@ const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
 const tokenBalanceCache = {};
 
 function initWaveState(symbol) {
-  if (!waveState[symbol]) waveState[symbol] = { peaks: [], troughs: [], peakScores: [], troughScores: [] };
-  return waveState[symbol];
+  return ensureWaveStateEntry(waveState, symbol);
 }
 
 // ── PERMANENT TRADE LEDGER ────────────────────────────────────────────────────
@@ -3340,7 +3345,7 @@ async function loadHistoricalData(days = 90) {
         if (live && isValidUsdPrice(live.priceUsd) && !token._watchlist) {
           const trusted = Boolean(live.trustedQuote || live.verifiedPool);
           if (noteLastSaneUsd(token.symbol, live.priceUsd, undefined, { trusted })) {
-            if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
+            ensureHistoryEntry(history, token.symbol);
             history[token.symbol].lastPrice = live.priceUsd;
             console.log(`   ⚠️  ${token.symbol}: no Base OHLC — live ${live.source} $${live.priceUsd} (waves from ticks, not CEX)`);
           } else {
@@ -3357,7 +3362,7 @@ async function loadHistoricalData(days = 90) {
 
       // ── Seed price history with candle closes for indicator calc ──────────
       if (!token._watchlist) {
-        if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
+        ensureHistoryEntry(history, token.symbol);
         if (history[token.symbol].readings.length < candles.length) {
           const now   = Date.now();
           const dayMs = 86_400_000;
@@ -3434,7 +3439,7 @@ async function loadHistoricalData(days = 90) {
       };
 
       if (!token._watchlist) {
-        if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
+        ensureHistoryEntry(history, token.symbol);
         history[token.symbol].candles = ohlc;
       } else {
         if (!watchPrices[token.symbol]) watchPrices[token.symbol] = { prices: [], high24h: 0, low24h: Infinity };
@@ -3586,10 +3591,9 @@ async function bootstrapWavesFromLedger() {
 
 function recordPrice(symbol, price) {
   if (!isValidUsdPrice(price)) return; // never seed waves / prediction with $0
-  if (!history[symbol]) history[symbol] = { readings: [], lastPrice: null };
-  history[symbol].readings.push({ price, time: Date.now() });
-  if (history[symbol].readings.length > 2000) history[symbol].readings.shift(); // keep under GitHub 1MB API limit
-  history[symbol].lastPrice = price;
+  // Boot quotes / SKIP_OHLC_SEED / GitHub lastPrice-only rows have no readings[].
+  // Never assume the array exists — live #72 crash: processToken .push on undefined.
+  recordPriceOnHistory(history, symbol, price);
 }
 
 // Update waves — now with indicator confirmation scoring
@@ -8393,6 +8397,7 @@ async function loadFromGitHub() {
   const hf = await githubGet("history.json");
   if (hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0) {
     history = hf.content;
+    normalizeHistoryMap(history);
     historySha = hf.sha;
     console.log(`   📜 history.json: loaded ${Object.keys(history).length} tokens of price history`);
   } else {
@@ -11973,9 +11978,10 @@ async function main() {
         const trusted = Boolean(bootQuotes.meta[addr]?.trustedQuote || bootQuotes.meta[addr]?.verifiedPool);
         if (!noteLastSaneUsd(t.symbol, p, undefined, { trusted })) continue;
         setCachedPrice(addr, p, { trusted });
-        if (!history[t.symbol]) history[t.symbol] = { lastPrice: p };
-        else if (!isPriceJumpInsane(p, history[t.symbol].lastPrice) || trusted) {
-          history[t.symbol].lastPrice = p;
+        const h = ensureHistoryEntry(history, t.symbol);
+        if (!isValidUsdPrice(h.lastPrice)) h.lastPrice = p;
+        else if (!isPriceJumpInsane(p, h.lastPrice) || trusted) {
+          h.lastPrice = p;
         }
       }
       console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
@@ -12002,8 +12008,7 @@ async function main() {
         const live = await getTokenPrice(token.address, true);
         if (isValidUsdPrice(live)) {
           price = live;
-          if (!history[symbol]) history[symbol] = { lastPrice: live };
-          else history[symbol].lastPrice = live;
+          ensureHistoryEntry(history, symbol).lastPrice = live;
         }
       }
       const hasQuote = isValidUsdPrice(price);
