@@ -25,6 +25,7 @@ import {
   parseOperatorBuyEnv,
   queueOperatorBuyOnce,
   takeQueuedManualBuys,
+  settleFlushedOperatorBuy,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
   isManualOperatorSell,
@@ -570,6 +571,21 @@ describe("OPERATOR_BUY env", () => {
     assert.deepEqual(buys.map((c) => c.symbol), ["AERO", "UNI"]);
     assert.equal(commands.length, 1);
     assert.equal(commands[0].action, "sellhalf");
+  });
+
+  it("settleFlushedOperatorBuy re-queues unspent OPERATOR_BUY and not a fill", () => {
+    const commands = [];
+    const cmd = { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" };
+    const skip = settleFlushedOperatorBuy(commands, cmd, false);
+    assert.equal(skip.requeued, true);
+    assert.equal(skip.reason, "unspent");
+    assert.equal(commands.length, 1);
+    const again = settleFlushedOperatorBuy(commands, cmd, false);
+    assert.equal(again.requeued, false);
+    assert.equal(again.reason, "already-queued");
+    const fill = settleFlushedOperatorBuy([], cmd, 0.0008);
+    assert.equal(fill.requeued, false);
+    assert.equal(fill.reason, "spent");
   });
 });
 

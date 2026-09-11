@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Fixed — processToken `undefined.push` after SKIP_OHLC_SEED; unspent OPERATOR_BUY re-queues
+
+Live after #72 (`a0b8c4ad`, Railway `b0fda674`): `OPERATOR_BUY=AERO:2` +
+`SKIP_OHLC_SEED=yes` still left nonce 5450. The live loop logged
+`processToken error (AERO/…): Cannot read properties of undefined (reading 'push')`
+on every quoted token, so the MANUAL BUY path never ran.
+
+Root cause (verified): skip-seed never writes `history[symbol].readings`.
+Boot quotes / recon pin `{ lastPrice }` only. `recordPrice` then pushed
+into `undefined`. #72 also took the buy off the queue and dropped it when
+`executeBuy` skipped (cold quote / safe mode / route miss) — the PR text
+promised a re-queue that was not in the code.
+
+- `ensureHistorySlot` / `recordPriceInto` / `hydrateHistoryMap` initialize
+  readings (and wave/watch arrays) so a missing container never throws.
+- `settleFlushedOperatorBuy` re-queues unspent OPERATOR_BUY / Telegram `/buy`.
+  Only a real fill latches. Flush still runs before OHLC seed and after recon
+  (including when `SKIP_OHLC_SEED=yes`).
+- AERO Uni V3 WETH bind `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf` unchanged.
+
+Does **not** change LOSE-ZERO / always-plus / quote-gate. Does **not** invent
+P&L. Does **not** merge V4 into `agent.js`.
+
 ### Fixed — OPERATOR_BUY fires before OHLC seed; SKIP_OHLC_SEED honored
 
 Risk desk `OPERATOR_BUY=AERO:2` queued on every Railway boot but never

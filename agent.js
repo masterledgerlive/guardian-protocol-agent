@@ -91,6 +91,13 @@ import {
   planOhlcSeed,
 } from "./price-oracle.js";
 import {
+  ensureHistorySlot,
+  hydrateHistoryMap,
+  recordPriceInto,
+  ensureWaveSlot,
+  ensureWatchSlot,
+} from "./history-slot.js";
+import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
@@ -119,6 +126,7 @@ import {
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
   takeQueuedManualBuys,
+  settleFlushedOperatorBuy,
   investedEthWithCosts,
   netUsdAfterSkim,
   conservativeSellProceedsEth,
@@ -1992,8 +2000,7 @@ async function updateWatchlistPrices() {
     try {
       const price = await getTokenPrice(w.address);
       if (!price || price <= 0) continue;
-      if (!watchPrices[w.symbol]) watchPrices[w.symbol] = { prices: [], peaks: [], troughs: [], high24h: 0, low24h: Infinity };
-      const wp = watchPrices[w.symbol];
+      const wp = ensureWatchSlot(watchPrices, w.symbol);
       wp.prices.push({ price, time: Date.now() });
       if (wp.prices.length > 200) wp.prices.shift(); // keep last 200 readings
       wp.lastPrice = price;
@@ -2992,8 +2999,7 @@ const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
 const tokenBalanceCache = {};
 
 function initWaveState(symbol) {
-  if (!waveState[symbol]) waveState[symbol] = { peaks: [], troughs: [], peakScores: [], troughScores: [] };
-  return waveState[symbol];
+  return ensureWaveSlot(waveState, symbol);
 }
 
 // ── PERMANENT TRADE LEDGER ────────────────────────────────────────────────────
@@ -3260,6 +3266,7 @@ async function loadHistoricalData(days = 90) {
 
   const seedPlan = planOhlcSeed(allTokens, process.env);
   if (seedPlan.skipAll) {
+    hydrateHistoryMap(history);
     console.log("📅 SKIP_OHLC_SEED — skipping 90-day candle seed entirely (no frozen timeout path)");
     return { loaded: 0, skipped: allTokens.length, skipAll: true };
   }
@@ -3340,8 +3347,8 @@ async function loadHistoricalData(days = 90) {
         if (live && isValidUsdPrice(live.priceUsd) && !token._watchlist) {
           const trusted = Boolean(live.trustedQuote || live.verifiedPool);
           if (noteLastSaneUsd(token.symbol, live.priceUsd, undefined, { trusted })) {
-            if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-            history[token.symbol].lastPrice = live.priceUsd;
+            const slot = ensureHistorySlot(history, token.symbol);
+            slot.lastPrice = live.priceUsd;
             console.log(`   ⚠️  ${token.symbol}: no Base OHLC — live ${live.source} $${live.priceUsd} (waves from ticks, not CEX)`);
           } else {
             console.log(`   ⚠️  ${token.symbol}: no Base OHLC — rejected insane ${live.source} $${live.priceUsd} (keep last sane)`);
@@ -3357,8 +3364,8 @@ async function loadHistoricalData(days = 90) {
 
       // ── Seed price history with candle closes for indicator calc ──────────
       if (!token._watchlist) {
-        if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-        if (history[token.symbol].readings.length < candles.length) {
+        const slot = ensureHistorySlot(history, token.symbol);
+        if (slot.readings.length < candles.length) {
           const now   = Date.now();
           const dayMs = 86_400_000;
           const syntheticReadings = candles.map((c, i) => ({
@@ -3366,8 +3373,8 @@ async function loadHistoricalData(days = 90) {
             time:  now - (candles.length - i) * dayMs,
             synthetic: true,
           }));
-          const liveReadings = history[token.symbol].readings.filter(r => !r.synthetic);
-          history[token.symbol].readings = [...syntheticReadings, ...liveReadings].slice(-2000);
+          const liveReadings = slot.readings.filter(r => !r.synthetic);
+          slot.readings = [...syntheticReadings, ...liveReadings].slice(-2000);
           const seedClose = candles[candles.length - 1].c;
           if (picked?.src === "Binance") {
             const liveQuote = await fetchTokenUsdQuote(token.address);
@@ -3387,8 +3394,7 @@ async function loadHistoricalData(days = 90) {
         }
       } else {
         // Watchlist — store in watchPrices
-        if (!watchPrices[token.symbol]) watchPrices[token.symbol] = { prices: [], high24h: 0, low24h: Infinity };
-        watchPrices[token.symbol].lastPrice = candles[candles.length - 1].c;
+        ensureWatchSlot(watchPrices, token.symbol).lastPrice = candles[candles.length - 1].c;
       }
 
       // ── Build full OHLC timeframe summary ─────────────────────────────────
@@ -3434,11 +3440,9 @@ async function loadHistoricalData(days = 90) {
       };
 
       if (!token._watchlist) {
-        if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-        history[token.symbol].candles = ohlc;
+        ensureHistorySlot(history, token.symbol).candles = ohlc;
       } else {
-        if (!watchPrices[token.symbol]) watchPrices[token.symbol] = { prices: [], high24h: 0, low24h: Infinity };
-        watchPrices[token.symbol].candles = ohlc;
+        ensureWatchSlot(watchPrices, token.symbol).candles = ohlc;
       }
 
       loaded++;
@@ -3586,10 +3590,9 @@ async function bootstrapWavesFromLedger() {
 
 function recordPrice(symbol, price) {
   if (!isValidUsdPrice(price)) return; // never seed waves / prediction with $0
-  if (!history[symbol]) history[symbol] = { readings: [], lastPrice: null };
-  history[symbol].readings.push({ price, time: Date.now() });
-  if (history[symbol].readings.length > 2000) history[symbol].readings.shift(); // keep under GitHub 1MB API limit
-  history[symbol].lastPrice = price;
+  // SKIP_OHLC_SEED / boot quotes may leave { lastPrice } with no readings.
+  // recordPriceInto always initializes the array — never throw on .push.
+  recordPriceInto(history, symbol, price);
 }
 
 // Update waves — now with indicator confirmation scoring
@@ -7948,8 +7951,14 @@ async function processToken(cdp, token, bal) {
       if (cmd.action === "buy") {
         lastTradeTime[token.symbol] = 0; // operator override — fire now
         const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
-        const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+        let spent = false;
+        try {
+          spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+        } catch (e) {
+          console.log(`⚠️  MANUAL BUY ${token.symbol}: ${e.message} — re-queued`);
+        }
         if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+        else settleFlushedOperatorBuy(manualCommands, cmd, spent);
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
@@ -8394,6 +8403,7 @@ async function loadFromGitHub() {
   if (hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0) {
     history = hf.content;
     historySha = hf.sha;
+    hydrateHistoryMap(history);
     console.log(`   📜 history.json: loaded ${Object.keys(history).length} tokens of price history`);
   } else {
     history = {};
@@ -11581,21 +11591,27 @@ async function flushPendingOperatorBuys(cdp) {
         console.log(`⚠️  Boot buy ${cmd.symbol}: unknown token — dropped`);
         continue;
       }
-      let price = history[cmd.symbol]?.lastPrice || getCachedPrice(token.address);
-      if (!isValidUsdPrice(price)) {
-        try { price = await getTokenPrice(token.address, true); } catch { /* no invent */ }
+      try {
+        let price = history[cmd.symbol]?.lastPrice || getCachedPrice(token.address);
+        if (!isValidUsdPrice(price)) {
+          try { price = await getTokenPrice(token.address, true); } catch { /* no invent */ }
+        }
+        if (!isValidUsdPrice(price)) {
+          settleFlushedOperatorBuy(manualCommands, cmd, false);
+          console.log(`⚠️  Boot buy ${cmd.symbol}: no live USD quote — will retry after seed`);
+          continue;
+        }
+        lastTradeTime[token.symbol] = 0;
+        const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+        const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+        else settleFlushedOperatorBuy(manualCommands, cmd, spent);
+        if (spent) flushed++;
+        try { bal = await getFullBalance(); cachedBal = bal; } catch { /* keep */ }
+      } catch (e) {
+        settleFlushedOperatorBuy(manualCommands, cmd, false);
+        console.log(`⚠️  Boot buy ${cmd.symbol}: ${e.message} — re-queued`);
       }
-      if (!isValidUsdPrice(price)) {
-        manualCommands.push(cmd);
-        console.log(`⚠️  Boot buy ${cmd.symbol}: no live USD quote — will retry after seed`);
-        continue;
-      }
-      lastTradeTime[token.symbol] = 0;
-      const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
-      const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
-      if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
-      flushed++;
-      try { bal = await getFullBalance(); cachedBal = bal; } catch { /* keep */ }
     }
     return { flushed };
   } finally {
@@ -11973,9 +11989,10 @@ async function main() {
         const trusted = Boolean(bootQuotes.meta[addr]?.trustedQuote || bootQuotes.meta[addr]?.verifiedPool);
         if (!noteLastSaneUsd(t.symbol, p, undefined, { trusted })) continue;
         setCachedPrice(addr, p, { trusted });
-        if (!history[t.symbol]) history[t.symbol] = { lastPrice: p };
-        else if (!isPriceJumpInsane(p, history[t.symbol].lastPrice) || trusted) {
-          history[t.symbol].lastPrice = p;
+        const slot = ensureHistorySlot(history, t.symbol);
+        if (slot.lastPrice == null) slot.lastPrice = p;
+        else if (!isPriceJumpInsane(p, slot.lastPrice) || trusted) {
+          slot.lastPrice = p;
         }
       }
       console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
@@ -12002,8 +12019,7 @@ async function main() {
         const live = await getTokenPrice(token.address, true);
         if (isValidUsdPrice(live)) {
           price = live;
-          if (!history[symbol]) history[symbol] = { lastPrice: live };
-          else history[symbol].lastPrice = live;
+          ensureHistorySlot(history, symbol).lastPrice = live;
         }
       }
       const hasQuote = isValidUsdPrice(price);
