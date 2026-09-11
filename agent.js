@@ -161,6 +161,9 @@ import {
   writeFifoLotsSync,
   readFifoLotsSync,
   lotAppliedOk,
+  tokenHasKnownFifoCost,
+  bootKnownCostLabel,
+  seededRebuildRemaining,
 } from "./fifo-lot-store.js";
 import {
   liveGithubToken,
@@ -8492,8 +8495,8 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
   for (const token of tokens) {
     if (!hashes[token.symbol]?.length) continue;
     if (isUsableLot(fifoLots[token.symbol])) continue;
-    const bal = Number(tokenBalanceCache[token.symbol]);
-    const remain = Number.isFinite(bal) && bal > 0 ? bal : undefined;
+    const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
+    if (remain == null) continue;
     const rebuilt = await tryRebuildLotFromReceipts(token, remain);
     if (isUsableLot(rebuilt)) n++;
   }
@@ -12157,12 +12160,7 @@ async function main() {
       console.log(`   ⚠️  Ledger read error: ${e.message}`);
     }
 
-    // GitHub 401 must not skip seeded AERO/DRB/BNKR receipt latch.
-    await rebuildSeededLotsFromChain(
-      githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
-    );
-
-    // ── Step 2: Scan actual Base blockchain for every token balance ─────────
+    // ── Step 2: Scan actual Base blockchain for token balances ─────────
     // This is the ground truth — blockchain never lies
     console.log("   🔗 Scanning Base blockchain for token balances...");
     let found = 0, recovered = 0, ghosts = 0, confirmed = 0;
@@ -12173,6 +12171,17 @@ async function main() {
         const bal = await getTokenBalance(token.address);
         return { symbol: token.symbol, address: token.address, bal };
       })
+    );
+
+    for (const result of balanceResults) {
+      if (result.status !== "fulfilled") continue;
+      tokenBalanceCache[result.value.symbol] = result.value.bal;
+    }
+
+    // After cache is live — sized remaining, not the full fill. GitHub 401
+    // must not skip seeded AERO/DRB/BNKR receipt latch.
+    await rebuildSeededLotsFromChain(
+      githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
     );
 
     // DexScreener + GT chunked prefetch — never one giant GT URL (400 / silent drop)
@@ -12290,8 +12299,8 @@ async function main() {
     }
 
     // ── Step 3: Summary + Telegram ──────────────────────────────────────────
-    const openNow = tokens.filter(t => hasUsableCostBasis(t));
-    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !hasUsableCostBasis(t)));
+    const openNow = tokens.filter(t => hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol]));
+    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !(hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol]))));
     const heldNow = tokens.filter(t => (tokenBalanceCache[t.symbol] || 0) > 0.001);
     const totalHeld = heldNow.reduce((s, t) => {
       const p = history[t.symbol]?.lastPrice;
@@ -12301,7 +12310,7 @@ async function main() {
     }, 0);
 
     console.log(`🔍 On-chain scan: ${found} holdings | ${recovered} recovered | ${confirmed} confirmed | ${ghosts} ghosts cleared`);
-    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => t.symbol + "@$" + t.entryPrice.toFixed(6)).join(", ") || "none"}`);
+    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => bootKnownCostLabel(t)).join(", ") || "none"}`);
     console.log(`⚠️ Unknown basis (${unknownNow.length}): ${unknownNow.map(t => t.symbol).join(", ") || "none"}`);
     console.log(`💰 Total held value: ~$${totalHeld.toFixed(2)} (chain units × live mark)`);
 
@@ -12312,11 +12321,11 @@ async function main() {
         const bal = tokenBalanceCache[t.symbol] || 0;
         const p   = history[t.symbol]?.lastPrice || t.entryPrice || 0;
         const val = (bal * p).toFixed(2);
-        if (hasUsableCostBasis(t)) {
+        if (hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol])) {
           const pnl = t.entryPrice > 0 && p > 0
             ? ((p - t.entryPrice) / t.entryPrice * 100).toFixed(1)
             : "?";
-          bootMsg += `   <b>${t.symbol}</b>: entry $${t.entryPrice.toFixed(6)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
+          bootMsg += `   <b>${t.symbol}</b>: ${bootKnownCostLabel(t)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
         } else {
           bootMsg += `   <b>${t.symbol}</b>: ${bal >= 1 ? bal.toFixed(2) : bal.toFixed(6)} on-chain ~$${val}\n   ${UNKNOWN_COST_BASIS_LABEL}\n`;
         }

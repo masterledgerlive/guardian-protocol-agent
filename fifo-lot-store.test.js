@@ -27,6 +27,9 @@ import {
   mergeLedgerBuysIntoLots,
   rebuildLotsAfterRestart,
   recoverLotsAfterGithubReadFailure,
+  tokenHasKnownFifoCost,
+  bootKnownCostLabel,
+  seededRebuildRemaining,
   writeFifoLotsSync,
   readFifoLotsSync,
   collectRebuildTxs,
@@ -278,7 +281,13 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
       assert.equal(rebuilt.applied[sym].unknownEntry, false);
       assert.ok(rebuilt.applied[sym].totalInvestedEth > 0, `${sym} known ETH cost`);
       assert.ok(rebuilt.lots[sym].tokensIn > 0 && rebuilt.lots[sym].ethIn > 0, `${sym} latched tokensIn/ethIn`);
+      assert.equal(tokenHasKnownFifoCost(rebuilt.applied[sym], rebuilt.lots[sym]), true, `${sym} desk known cost`);
+      assert.match(bootKnownCostLabel(rebuilt.applied[sym]), new RegExp(`${sym}@`));
     }
+    assert.equal(seededRebuildRemaining(undefined), null);
+    assert.equal(seededRebuildRemaining(0), null);
+    assert.equal(seededRebuildRemaining(0.0004), null);
+    assert.equal(seededRebuildRemaining(3.42), 3.42);
   });
 
   it("missing persist and missing receipt stays unknown — does not invent P&L", () => {

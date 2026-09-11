@@ -392,6 +392,33 @@ export function applyLotToToken(token, lot, { remainingTokens } = {}) {
   return fifo;
 }
 
+/**
+ * Desk / boot "known cost" without inventing a USD entryPrice.
+ * Proven FIFO ETH (`tokensIn`/`ethIn` applied) is enough. #80 lotAppliedOk
+ * is the apply-site check; this is the summary / unknown-basis filter.
+ */
+export function tokenHasKnownFifoCost(token, lot) {
+  if (!token || token.unknownEntry === true) return false;
+  const eth = Number(token.totalInvestedEth) || Number(token.operatorLot?.fillCostEth) || 0;
+  if (!(eth > 0)) return false;
+  return isUsableLot(lot) || lotProvesCostBasis(lot);
+}
+
+export function bootKnownCostLabel(token) {
+  const px = Number(token?.entryPrice);
+  if (Number.isFinite(px) && px > 0) return `${token.symbol}@$${px.toFixed(6)}`;
+  const eth = Number(token?.totalInvestedEth);
+  if (Number.isFinite(eth) && eth > 0) return `${token.symbol}@${eth.toFixed(6)}ETH`;
+  return String(token?.symbol || "?");
+}
+
+/** Sized remaining for receipt rebuild. Null = skip (no cache / dust / sold-all). */
+export function seededRebuildRemaining(bal) {
+  const n = Number(bal);
+  if (!Number.isFinite(n) || n <= 0.001) return null;
+  return n;
+}
+
 export function seedNetPositionsFromFifoLots(netPositions, lots) {
   const nets = netPositions && typeof netPositions === "object" ? netPositions : {};
   const map = lots && typeof lots === "object" ? lots : {};

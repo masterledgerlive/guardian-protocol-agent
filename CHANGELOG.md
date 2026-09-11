@@ -19,8 +19,13 @@ and never forced the on-chain seeded rebuild.
 - Contents reads (`ledger.json` / `fifo-lots.json` / `positions`) use
   live `token` + `STATE_BRANCH` (default `bot-state`) — no Bearer, no
   invented secrets.
-- 401/403 do not retry. Seeded buy-hash rebuild runs on boot anyway and
-  latches `tokensIn`/`ethIn` from Transfer+WETH receipts.
+- 401/403 do not retry. Seeded buy-hash rebuild runs **after** the
+  on-chain balance cache is filled (sized remaining, not the full fill;
+  dust / sold-all is skipped).
+- Desk treats proven FIFO ETH as known cost without inventing a USD
+  `entryPrice` (`AERO@0.000787ETH` when no fill USD).
+- Seeded buy-hash rebuild latches `tokensIn`/`ethIn` from Transfer+WETH
+  receipts even when GitHub 401s.
 - #80 (viem `status: "success"`) stays separate. #78 HOLD +
   `DISABLE_DOW_BIAS` default ON, #76 / #74 / #79 persist — unchanged.
 

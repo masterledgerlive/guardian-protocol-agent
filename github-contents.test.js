@@ -82,6 +82,11 @@ describe("github-contents — token / branch / header", () => {
     assert.ok(src.includes("githubAuthHeaders(liveGithubToken())"));
     assert.ok(src.includes("rebuildSeededLotsFromChain"));
     assert.ok(src.includes("github-401"));
+    assert.ok(src.includes("seededRebuildRemaining"));
+    assert.ok(src.includes("tokenHasKnownFifoCost"));
+    const cacheFill = src.indexOf("tokenBalanceCache[result.value.symbol] = result.value.bal");
+    const seeded = src.indexOf("await rebuildSeededLotsFromChain(");
+    assert.ok(cacheFill >= 0 && seeded > cacheFill, "seeded rebuild must run after balance cache fill");
     assert.ok(!src.includes("Bearer ${process.env.GITHUB_TOKEN}"));
     assert.ok(!src.includes("const [owner, repo] = (process.env.GITHUB_REPO || \"\").split(\"/\")"));
   });
