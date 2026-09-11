@@ -27,6 +27,8 @@ import {
 import { BASE_WETH, BASE_USDC, BASE_USDBC, NATIVE_ETH } from "./price-oracle.js";
 
 export const V3_FEE_TIERS = [100, 500, 3000, 10000];
+/** After catalog miss, try wider fees first — 100/500 ghosts quote before the live 1% book. */
+export const V3_FEE_PROBE_ORDER = [10000, 3000, 500, 100];
 export const UNISWAP_V3_FACTORY_BASE = "0x33128a8fC17869897dcE68Ed026d694621f6FDfD";
 /** Below this, a $3–11 RISK fill eats the Uni V3 WETH book (GAME 1% ~$2.8k). */
 export const MIN_SWAP_POOL_LIQ_USD = 25_000;
@@ -324,7 +326,7 @@ export function evaluateSwapRouterRoute({
 export function feeTierCandidates(preferred) {
   const p = Number(preferred);
   const pref = V3_FEE_TIERS.includes(p) ? p : 3000;
-  return [pref, ...V3_FEE_TIERS.filter((f) => f !== pref)];
+  return [pref, ...V3_FEE_PROBE_ORDER.filter((f) => f !== pref)];
 }
 
 export function poolAddr(v) {
@@ -334,15 +336,14 @@ export function poolAddr(v) {
 }
 
 /**
- * Bind the SwapRouter fee to the DexScreener Uni V3 WETH book, not the first
- * permissionless fee that happens to quote. A 100/500 ghost can quote while
- * the deep 10000 book is the pair that already passed $25k / 5%-of-pool.
+ * Bind the SwapRouter fee to the DexScreener Uni V3 WETH book, not a
+ * permissionless fee that happens to quote. Factory `liquidity()` is
+ * gameable — never rank by it.
  *
- * preferredPool set → that pool or null (factory flake / mismatch never
- * falls through to highest-liquidity). No preferred pool (sells /
- * DexScreener outage) → highest factory liquidity.
+ * preferredPool set → that pool or null.
+ * Else catalog fee if it quoted, else insertion order (wider fees first).
  */
-export function pickQuotedPool(candidates, { preferredPool = null } = {}) {
+export function pickQuotedPool(candidates, { preferredPool = null, catalogFee = null } = {}) {
   const rows = (Array.isArray(candidates) ? candidates : []).filter((c) => {
     const out = asBigInt(c?.amountOut);
     return out != null && out > 0n;
@@ -352,13 +353,12 @@ export function pickQuotedPool(candidates, { preferredPool = null } = {}) {
   if (wanted) {
     return rows.find((c) => poolAddr(c.pool) === wanted) || null;
   }
-  let best = rows[0];
-  for (const row of rows.slice(1)) {
-    const a = asBigInt(best.liquidity) ?? -1n;
-    const b = asBigInt(row.liquidity) ?? -1n;
-    if (b > a) best = row;
+  const cat = Number(catalogFee);
+  if (V3_FEE_TIERS.includes(cat)) {
+    const hit = rows.find((c) => Number(c.fee) === cat);
+    if (hit) return hit;
   }
-  return best;
+  return rows[0];
 }
 
 /** Catalog poolFeePct convention (0.3% listed as 0.006 RT; 1% as 0.010). */

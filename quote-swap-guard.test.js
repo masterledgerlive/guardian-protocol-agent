@@ -39,9 +39,9 @@ import {
 const root = dirname(fileURLToPath(import.meta.url));
 
 describe("fee tier candidates", () => {
-  it("tries catalog fee first, then the other Uni V3 fees", () => {
-    assert.deepEqual(feeTierCandidates(3000), [3000, 100, 500, 10000]);
-    assert.deepEqual(feeTierCandidates(10000), [10000, 100, 500, 3000]);
+  it("tries catalog fee first, then wider Uni V3 fees before 100/500 ghosts", () => {
+    assert.deepEqual(feeTierCandidates(3000), [3000, 10000, 500, 100]);
+    assert.deepEqual(feeTierCandidates(10000), [10000, 3000, 500, 100]);
     assert.ok(V3_FEE_TIERS.includes(10000));
   });
 
@@ -94,8 +94,15 @@ describe("pickQuotedPool — do not send the first quoting fee", () => {
     assert.equal(picked, null);
   });
 
-  it("without a preferred pool, picks the highest factory liquidity (sells / Dex outage)", () => {
-    const picked = pickQuotedPool([thin100, deep10000]);
+  it("without a preferred pool, prefers catalog fee — not gameable factory liquidity", () => {
+    const gamed100 = { ...thin100, liquidity: 10_000_000n };
+    const picked = pickQuotedPool([gamed100, deep10000], { catalogFee: 10000 });
+    assert.equal(picked.fee, 10000);
+  });
+
+  it("without preferred or catalog hit, keeps probe order (not max liquidity)", () => {
+    const gamed100 = { ...thin100, liquidity: 10_000_000n };
+    const picked = pickQuotedPool([deep10000, gamed100], { catalogFee: 3000 });
     assert.equal(picked.fee, 10000);
   });
 
@@ -349,9 +356,11 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(src.includes("readV3PoolLiquidity"), "must skip empty Uni V3 fees");
     assert.ok(src.includes("pickQuotedPool"), "must bind quote to DexScreener pool / deepest factory liq");
     assert.ok(buyBody.includes("preferredPool"), "buy quote must bind to the DexScreener Uni V3 WETH pair");
+    assert.ok(sellBody.includes("selectUniV3WethUsdcPair"), "sells bind to DexScreener V3 WETH when known");
+    assert.ok(sellBody.includes("preferredPool"), "sell quote must bind when DexScreener V3 WETH exists");
     assert.ok(buyBody.includes("liveFeeWithinGatedCost"), "buy must not send a live fee costlier than gated RT%");
     assert.ok(sellBody.includes("liveFeeWithinGatedCost"), "sell must strip hitch when live fee exceeds gated RT%");
-    assert.ok(!sellBody.includes("evaluateSwapRouterRoute"), "sells must not freeze on primary-book mismatch");
+    assert.ok(!/evaluateSwapRouterRoute\s*\(/.test(sellBody), "sells must not freeze on primary-book mismatch");
     assert.ok(!sellBody.includes("isSlippageCooledDown"), "sells stay open during buy cooldown");
     assert.ok(!sellBody.includes("isBuyFrozen"), "buy freeze must not block leftover exits");
     assert.ok(sellBody.includes("requireFactoryLiquidity"), "sell still skips empty V3 fees");

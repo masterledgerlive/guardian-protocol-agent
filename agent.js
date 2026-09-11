@@ -275,6 +275,7 @@ import {
   poolAddr,
   isQuoteContractRevert,
   evaluateSwapRouterRoute,
+  selectUniV3WethUsdcPair,
   requireFactoryLiquidity,
   UNISWAP_V3_FACTORY_BASE,
 } from "./quote-swap-guard.js";
@@ -2151,7 +2152,7 @@ async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferred
       candidates.push({ amountOut, fee, liquidity: depth.liquidity, pool: depth.pool });
     }
   }
-  const picked = pickQuotedPool(candidates, { preferredPool });
+  const picked = pickQuotedPool(candidates, { preferredPool, catalogFee: feeTier });
   if (!picked) {
     console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
     return null;
@@ -6357,8 +6358,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     let minWeth = 0n;
     let swapFee = token.feeTier;
     let sellFactoryLiq = null;
+    let sellPreferredPool = null;
     try {
-      const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
+      // Bind leftover exits to the DexScreener Uni V3 WETH pair when known.
+      // Thin/wrong-book must not freeze leftover sells.
+      const pairs = await fetchDexScreenerPairs(token.address);
+      sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
+    } catch { sellPreferredPool = null; }
+    try {
+      const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier, {
+        preferredPool: sellPreferredPool,
+      });
       quotedWeth = live?.amountOut ?? null;
       if (live?.fee) swapFee = live.fee;
       if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
