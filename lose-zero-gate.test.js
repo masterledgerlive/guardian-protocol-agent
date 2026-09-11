@@ -1418,11 +1418,13 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
   });
 });
 
-describe("always-plus harden — FIFO remaining cost + plus floor (post-#62 reds)", () => {
-  // Live after #62 / deploy 66158bd6: BASECAT/UNI/BASECAT/DRB nonces 5446–5449
-  // hitch-embedded §$STORE§ while FIFO mark was proceeds < buy cost.
-  // Boot used ethIn−ethOut as remaining basis; after plus partials that
-  // leftover is cheaper than the leftover pile, so the gate painted red green.
+describe("always-plus harden — FIFO remaining cost + plus floor (defense in depth)", () => {
+  // PRE-#62 Online class (mined before Railway 66158bd6 Online 2026-09-11T16:04:54Z).
+  // Sell times ET: BASECAT 0xef4d… 11:55:07; UNI 0xeca2… 11:56:33;
+  // BASECAT 0x1cb9… 11:58:53; DRB 0x5622… 11:59:01. Not a #62 tip leak after Online.
+  // Class still proves exits-only / HOLD-if-thin / unknown-cost could sell red
+  // on the old tip. Current main already has #62–#64; these tests close leftover
+  // holes (cash-flow leftover as remaining cost, unknown lots, plus-floor minOut).
 
   it("known-cost red (proceeds < buy cost) HOLDs", () => {
     const d = evaluateSellGate({
@@ -1560,7 +1562,7 @@ describe("always-plus harden — FIFO remaining cost + plus floor (post-#62 reds
       reason: "🎯 MAX PEAK",
       exitsOnly: true,
     });
-    assert.equal(painted.allow, true, "documents the #62 hole: understated entry looks PLUS");
+    assert.equal(painted.allow, true, "documents the leftover hole: understated cash-flow entry looks PLUS");
 
     const honest = evaluateSellGate({
       projectedProceedsEth: proceeds,

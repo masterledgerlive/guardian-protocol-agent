@@ -12271,7 +12271,7 @@ async function main() {
     for (const token of tokens) {
       if (token.disabled) continue;
       // Frozen / exits-only leftover bags still need honest FIFO cost.
-      // Skipping BASECAT here left boot cash-flow basis in place and sold red.
+      // Skipping BASECAT here would leave an unproven basis in place.
       const reconTrusted = shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog })
         && costBasisEth(token) > 0;
       if (reconTrusted) {
