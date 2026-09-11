@@ -1214,9 +1214,13 @@ describe("always-plus exit — large hitch must not flip a green sell red", () =
 });
 
 describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
-  // Risk-desk FIFO: 31 red sells (proceeds < buy cost). Worst BASECAT underwater
-  // bags + DRB hitch-prove tiny red (−5.4e-7 ETH). Numbers are class mirrors,
-  // not invented live P&L for those hashes.
+  // Risk-desk FIFO: 31 red sells (proceeds < buy cost).
+  // BASECAT 12, MORPHO 4, SKI 4, LINK 3, UNI 3, AERO 2, VVV 2, DRB 1.
+  // Worst BASECAT: 0xe53b1f70… 0xd42cca53… 0x753ce264…
+  // DRB hitch-prove 0xb495213f… tiny red (−5.4e-7 ETH).
+  // Numbers below are class mirrors (proceeds < soldFrac×entry, or hitch would
+  // flip a hair of plus red). Not invented live P&L for those hashes.
+  const FIFO_RED_SYMBOLS = ["BASECAT", "MORPHO", "SKI", "LINK", "UNI", "AERO", "VVV", "DRB"];
   const basecatUnderwater = {
     symbol: "BASECAT",
     reason: "🎯 MAX PEAK",
@@ -1230,7 +1234,7 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
     wantedHitchBytes: STORE_HITCH_BYTES,
   };
 
-  it("BASECAT underwater (proceeds < buy cost) HOLDs — never send red", () => {
+  it("BASECAT 0xe53b1f70 / 0xd42cca53 / 0x753ce264 class: proceeds < buy cost HOLDs", () => {
     const d = evaluateSellGate(basecatUnderwater);
     assert.equal(d.allow, false);
     assert.equal(d.verdict, "HOLD");
@@ -1239,7 +1243,7 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
     assert.match(d.alwaysPlusLog, /HOLD/);
   });
 
-  it("BASECAT STOP LOSS and operator ALLOW_LOSSY still HOLD underwater", () => {
+  it("BASECAT STOP LOSS, moonshot trim, and operator ALLOW_LOSSY still HOLD underwater", () => {
     for (const reason of ["STOP LOSS", "MANUAL SELL (operator) 50%", "🌙 MOONSHOT TRIM — not in active tiers"]) {
       const d = evaluateSellGate({
         ...basecatUnderwater,
@@ -1265,15 +1269,34 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
     assert.equal(d.verdict, "HOLD");
   });
 
-  it("same underwater class HOLDs MORPHO/SKI/LINK/UNI/AERO/VVV (FIFO red symbols)", () => {
-    for (const symbol of ["MORPHO", "SKI", "LINK", "UNI", "AERO", "VVV"]) {
+  it("FIFO red symbols (31 sells) HOLD the same underwater class", () => {
+    for (const symbol of FIFO_RED_SYMBOLS) {
       const d = evaluateSellGate({ ...basecatUnderwater, symbol });
       assert.equal(d.allow, false, symbol);
       assert.equal(d.verdict, "HOLD", symbol);
     }
   });
 
-  it("DRB hitch-prove tiny leftover sizes hitch DOWN or SKIPs — never −5.4e-7 red", () => {
+  it("DRB 0xb495213f class: leftover after fees already −5.4e-7 HOLDs", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 - 5.4e-7,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      impactPct: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover < 0);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("DRB 0xb495213f hitch-prove: hitch that would print −5.4e-7 sizes DOWN or SKIP", () => {
     // leftover after fees is a hair of plus; planned VITA packet L1 would flip red.
     const leftover = 1e-7;
     const hitchWould = leftover + 5.4e-7;

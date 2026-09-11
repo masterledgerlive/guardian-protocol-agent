@@ -30,10 +30,11 @@ plain only when plain is still plus; else **HOLD**. Piggy dust never sold.
   not the 10-byte §$STORE§ tag. L1 oracle fallback SKIPs hitch on **buys and
   sells** — `leftoverWouldCoverVitaHitch` cannot re-attach KEY+LOC without live L1
 
-FIFO red-sell class (risk desk): BASECAT/MORPHO/SKI/LINK/UNI/AERO/VVV/DRB
-proceeds < buy cost → **HOLD**. DRB hitch-prove tiny leftover → **SKIP_HITCH**
-(never send −5.4e-7 red to place KEY+LOC). Tests mirror those classes; they
-do not invent live P&L for the hashes.
+FIFO red-sell class (risk desk): 31 sells with proceeds < buy cost — BASECAT 12
+(0xe53b1f70… 0xd42cca53… 0x753ce264…), MORPHO 4, SKI 4, LINK 3, UNI 3, AERO 2,
+VVV 2, DRB 1. Underwater → **HOLD**. DRB hitch-prove 0xb495213f… (−5.4e-7 ETH
+if the full KEY+LOC packet rode) → **size hitch DOWN or SKIP_HITCH**. Tests
+mirror those classes; they do not invent live P&L for the hashes.
 
 Open PR #61 (quote-gate / GAME fee 10000) is complementary — merge it first so
 GAME Uni V3 actually quotes; this PR still falls back to mark when Quoter misses.
