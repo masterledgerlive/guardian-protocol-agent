@@ -26,6 +26,10 @@ import {
   ledgerBuyHasLotSizes,
   mergeLedgerBuysIntoLots,
   rebuildLotsAfterRestart,
+  recoverLotsAfterGithubReadFailure,
+  tokenHasKnownFifoCost,
+  bootKnownCostLabel,
+  seededRebuildRemaining,
   writeFifoLotsSync,
   readFifoLotsSync,
   collectRebuildTxs,
@@ -243,6 +247,47 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     });
     assert.ok(Math.abs(aero.tokensIn - 3.426611425491222) < 1e-9);
     assert.ok(Math.abs(aero.ethIn - 0.000786757301107754) < 1e-15);
+  });
+
+  it("GitHub 401: seeded buy-hash rebuild still produces known cost", () => {
+    const github = { status: 401, content: null, sha: null };
+    assert.equal(github.content, null);
+    const rebuilt = recoverLotsAfterGithubReadFailure({
+      persisted: {},
+      remainingBySymbol: { AERO: 3.42, DRB: 8238, BNKR: 8449 },
+      receipts: [
+        {
+          symbol: "AERO",
+          tokenAddress: AERO,
+          wallet: WALLET,
+          txHash: AERO_HASH,
+          receipt: aeroReceipt(),
+          tx: { hash: AERO_HASH, value: "0x0" },
+          reason: "MANUAL BUY (operator) $2",
+        },
+        drbReceipt(),
+        bnkrReceipt(),
+      ],
+      tokens: [
+        { symbol: "AERO", address: AERO },
+        { symbol: "DRB", address: DRB },
+        { symbol: "BNKR", address: BNKR },
+      ],
+    });
+    assert.deepEqual(rebuilt.unknown, []);
+    for (const sym of ["AERO", "DRB", "BNKR"]) {
+      assert.ok(isUsableLot(rebuilt.lots[sym]), `${sym} lot after GitHub 401`);
+      assert.equal(rebuilt.lots[sym].source, "onchain-receipt");
+      assert.equal(rebuilt.applied[sym].unknownEntry, false);
+      assert.ok(rebuilt.applied[sym].totalInvestedEth > 0, `${sym} known ETH cost`);
+      assert.ok(rebuilt.lots[sym].tokensIn > 0 && rebuilt.lots[sym].ethIn > 0, `${sym} latched tokensIn/ethIn`);
+      assert.equal(tokenHasKnownFifoCost(rebuilt.applied[sym], rebuilt.lots[sym]), true, `${sym} desk known cost`);
+      assert.match(bootKnownCostLabel(rebuilt.applied[sym]), new RegExp(`${sym}@`));
+    }
+    assert.equal(seededRebuildRemaining(undefined), null);
+    assert.equal(seededRebuildRemaining(0), null);
+    assert.equal(seededRebuildRemaining(0.0004), null);
+    assert.equal(seededRebuildRemaining(3.42), 3.42);
   });
 
   it("missing persist and missing receipt stays unknown — does not invent P&L", () => {
@@ -468,6 +513,11 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("persistFifoLotsNow"));
     assert.ok(src.includes("lotAppliedOk"));
     assert.ok(src.includes("rebuildLotsAfterRestart") || src.includes("lotFromBuyReceipt"));
+    assert.ok(src.includes("rebuildSeededLotsFromChain"));
+    assert.ok(src.includes("github-401"));
+    assert.ok(src.includes("liveGithubToken"));
+    assert.ok(src.includes("githubAuthHeaders"));
+    assert.ok(!src.includes("Bearer ${process.env.GITHUB_TOKEN}"), "ledger/fifo-lots must not use Bearer");
     assert.ok(src.includes("fifoLots"));
     assert.ok(src.includes("DISABLE_DOW_BIAS"));
     assert.ok(src.includes("isManualOperatorBuy(reason)"));

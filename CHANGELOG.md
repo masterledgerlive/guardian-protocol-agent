@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Fixed — GitHub 401 must not block seeded FIFO rebuild
+
+Live after #79 (`1d73c1bc`, Railway `156ec757`): boot logged
+`githubGetFromBranch(ledger.json) HTTP 401 ×3`, trusted cost basis none,
+AERO / DRB / BNKR stayed UNKNOWN ENTRY. Durable lots / buy receipts were
+claimed but recon never latched.
+
+Root cause (verified): ledger reads used `Authorization: Bearer` and a
+module-load snapshot of `GITHUB_TOKEN` / `STATE_BRANCH`. Working IKN /
+`githubGet` paths use `token <PAT>` and live env (vault may set the PAT
+after import). `STATE_BRANCH` also inherited `GITHUB_BRANCH=main`, so
+fine-grained PATs 401 on the deploy ref. Auth failure then retried 3×
+and never forced the on-chain seeded rebuild.
+
+- Contents reads (`ledger.json` / `fifo-lots.json` / `positions`) use
+  live `token` + `STATE_BRANCH` (default `bot-state`) — no Bearer, no
+  invented secrets.
+- 401/403 do not retry. Seeded buy-hash rebuild runs **after** the
+  on-chain balance cache is filled (sized remaining, not the full fill;
+  dust / sold-all is skipped).
+- Desk treats proven FIFO ETH as known cost without inventing a USD
+  `entryPrice` (`AERO@0.000787ETH` when no fill USD).
+- Seeded buy-hash rebuild latches `tokensIn`/`ethIn` from Transfer+WETH
+  receipts even when GitHub 401s, then `persistFifoLotsNow` (disk first;
+  GitHub may still 401) so a crash before the 15-min save keeps the latch.
+- Sits on #80 (`ee80a226`, viem `status: "success"` + `lotAppliedOk`).
+  #78 HOLD + `DISABLE_DOW_BIAS` default ON, #76 / #74 / #79 persist —
+  unchanged. Does not re-implement #80.
+
+Does **not** invent P&L. Does **not** merge V4 into `agent.js`. No capital.
+
 ### Fixed — persist / rebuild FIFO lot cost across Railway restart
 
 Live after #78 (`70480110`): operator lots AERO `0x94faa542…` / DRB

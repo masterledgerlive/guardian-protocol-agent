@@ -161,7 +161,22 @@ import {
   writeFifoLotsSync,
   readFifoLotsSync,
   lotAppliedOk,
+  tokenHasKnownFifoCost,
+  bootKnownCostLabel,
+  seededRebuildRemaining,
 } from "./fifo-lot-store.js";
+import {
+  liveGithubToken,
+  liveGithubRepo,
+  liveStateBranch,
+  liveGithubBranch,
+  githubAuthHeaders,
+  githubContentsApiUrl,
+  githubContentsUrl,
+  githubReadAuthFailed,
+  shouldRetryGithubRead,
+  decodeGithubContentsJson,
+} from "./github-contents.js";
 import {
   tierBookParams,
   entryTroughForBuy,
@@ -3041,7 +3056,7 @@ async function appendToLedger(entry) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       // Always read fresh from GitHub — never use stale in-memory state
-      const lf     = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+      const lf     = await githubGetFromBranch("ledger.json", liveStateBranch());
       const ledger = lf?.content && lf.content.trades
         ? lf.content
         : { trades: [], created: new Date().toISOString(), wallet: WALLET_ADDRESS };
@@ -3075,31 +3090,31 @@ async function appendToLedger(entry) {
 // Helper: load a file from a specific branch
 async function githubGetFromBranch(filename, branch) {
   try {
-    const [owner, repo] = (process.env.GITHUB_REPO || "").split("/");
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}?ref=${branch}&t=${Date.now()}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json" } });
+    const url = githubContentsUrl({
+      repo: liveGithubRepo(),
+      filename,
+      branch: branch || liveStateBranch(),
+    });
+    const res = await fetch(url, { headers: githubAuthHeaders(liveGithubToken()) });
     if (!res.ok) {
       console.log(`⚠️  githubGetFromBranch(${filename}): HTTP ${res.status}`);
-      return null;
+      return { content: null, sha: null, status: res.status };
     }
     const data = await res.json();
-    // GitHub returns base64 with newlines every 60 chars — must strip them
-    const decoded = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8");
-    return { content: JSON.parse(decoded), sha: data.sha };
+    return { content: decodeGithubContentsJson(data), sha: data.sha, status: res.status };
   } catch (e) {
     console.log(`⚠️  githubGetFromBranch(${filename}): ${e.message}`);
-    return null;
+    return { content: null, sha: null, status: 0 };
   }
 }
 
 // Helper: save a file to the state branch
 async function githubSaveToState(filename, content, sha) {
   try {
-    const [owner, repo] = (process.env.GITHUB_REPO || "").split("/");
-    const url  = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}`;
-    const body = { message: `ledger: ${new Date().toISOString()}`, content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"), branch: STATE_BRANCH };
+    const url  = githubContentsApiUrl({ repo: liveGithubRepo(), filename });
+    const body = { message: `ledger: ${new Date().toISOString()}`, content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"), branch: liveStateBranch() };
     if (sha) body.sha = sha;
-    const res = await fetch(url, { method: "PUT", headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(url, { method: "PUT", headers: { ...githubAuthHeaders(liveGithubToken()), "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     if (data.content?.sha) ledgerSha = data.content.sha;
   } catch (e) { console.log(`⚠️  Ledger save error: ${e.message}`); }
@@ -3556,7 +3571,7 @@ function bootstrapWavesFromHistory() {
 async function bootstrapWavesFromLedger() {
   console.log("📖 Seeding waves from trade ledger...");
   try {
-    const lf = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+    const lf = await githubGetFromBranch("ledger.json", liveStateBranch());
     if (!lf?.content?.trades?.length) {
       console.log("   ⚠️  Ledger empty or unreadable — skipping ledger seed");
       return;
@@ -8359,16 +8374,18 @@ async function runPredFundTick(cdp, token, price, ethUsd, pred, ind) {
 // ═══════════════════════════════════════════════════════════════════════════════
 async function githubGet(path) {
   try {
-    // Try STATE_BRANCH first (most recent), fall back to GITHUB_BRANCH
-    const branch = STATE_BRANCH !== GITHUB_BRANCH ? STATE_BRANCH : GITHUB_BRANCH;
+    const branch = liveStateBranch();
     const res = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}?ref=${branch}&t=${Date.now()}`,
-      { headers: { Authorization: `token ${GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json" } }
+      githubContentsUrl({ repo: liveGithubRepo(), filename: path, branch }),
+      { headers: githubAuthHeaders(liveGithubToken()) }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`⚠️  githubGet(${path}): HTTP ${res.status}`);
+      return { content: null, sha: null, status: res.status };
+    }
     const data = await res.json();
-    return { content: JSON.parse(Buffer.from(data.content.replace(/\n/g,""), "base64").toString("utf8")), sha: data.sha };
-  } catch (e) { console.log(`GitHub read error (${path}): ${e.message}`); return null; }
+    return { content: decodeGithubContentsJson(data), sha: data.sha, status: res.status };
+  } catch (e) { console.log(`GitHub read error (${path}): ${e.message}`); return { content: null, sha: null, status: 0 }; }
 }
 
 async function githubSave(path, content, sha, retries = 3) {
@@ -8377,12 +8394,12 @@ async function githubSave(path, content, sha, retries = 3) {
       const body = {
         message: `state ${new Date().toISOString()}`,
         content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"),
-        branch:  STATE_BRANCH,
+        branch:  liveStateBranch(),
       };
       if (sha) body.sha = sha;
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`, {
+      const res = await fetch(githubContentsApiUrl({ repo: liveGithubRepo(), filename: path }), {
         method: "PUT",
-        headers: { Authorization: `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
+        headers: { ...githubAuthHeaders(liveGithubToken()), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const result = await res.json();
@@ -8465,6 +8482,32 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
     }
   }
   return null;
+}
+
+/** Seeded evidence hashes → chain receipts. Runs even when GitHub 401s. */
+async function rebuildSeededLotsFromChain(reason = "boot") {
+  const hashes = collectRebuildTxs({
+    persistedLots: fifoLots,
+    env: process.env,
+    evidence: EVIDENCE_BUY_TXS,
+  });
+  let n = 0;
+  for (const token of tokens) {
+    if (!hashes[token.symbol]?.length) continue;
+    if (isUsableLot(fifoLots[token.symbol])) continue;
+    const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
+    if (remain == null) continue;
+    const rebuilt = await tryRebuildLotFromReceipts(token, remain);
+    if (isUsableLot(rebuilt)) n++;
+  }
+  if (n) {
+    console.log(`   🔗 seeded rebuild (${reason}): ${n} lot(s) latched from buy receipts`);
+    // Disk first — GitHub may still 401. Holding loop will see usable lots and
+    // skip persistFifoLotsNow("boot-rebuild"); without this a crash before the
+    // 15-min save drops the latch.
+    try { await persistFifoLotsNow(reason); } catch {}
+  }
+  return n;
 }
 
 async function loadFromGitHub() {
@@ -9834,7 +9877,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         // /ledger       — summary stats + last 5 trades
         // /ledger full  — last 20 trades
         const full = text.includes("full");
-        const lf   = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+        const lf   = await githubGetFromBranch("ledger.json", liveStateBranch());
         if (!lf?.content?.trades?.length) {
           await tg(`📖 <b>LEDGER</b>\nNo trades recorded yet.\nEvery future trade will be permanently logged here.`);
         } else {
@@ -12070,18 +12113,24 @@ async function main() {
     // ── Step 1: Seed durable FIFO lots, then ledger buys that have lot sizes ─
     netPositions = {};
     seedNetPositionsFromFifoLots(netPositions, fifoLots);
+    let githubLedgerStatus = null;
     try {
-      // Try multiple times — ledger is critical
+      // Try multiple times — ledger is critical. Auth failures do not retry.
       let ledgerData = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
-        const lf = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+        const lf = await githubGetFromBranch("ledger.json", liveStateBranch());
+        githubLedgerStatus = lf?.status ?? 0;
         if (lf?.content?.trades?.length > 0) {
           ledgerData = lf.content.trades;
           console.log(`   📖 Ledger: ${ledgerData.length} trades (attempt ${attempt})`);
           break;
         }
+        if (githubReadAuthFailed(githubLedgerStatus) || !shouldRetryGithubRead(githubLedgerStatus)) {
+          console.log(`   ⚠️  Ledger GitHub HTTP ${githubLedgerStatus} — on-chain buy receipts still apply`);
+          break;
+        }
         console.log(`   ⚠️  Ledger attempt ${attempt} empty — retrying...`);
-        await new Promise(r => setTimeout(r, 2000));
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
       }
 
       if (ledgerData) {
@@ -12117,7 +12166,7 @@ async function main() {
       console.log(`   ⚠️  Ledger read error: ${e.message}`);
     }
 
-    // ── Step 2: Scan actual Base blockchain for every token balance ─────────
+    // ── Step 2: Scan actual Base blockchain for token balances ─────────
     // This is the ground truth — blockchain never lies
     console.log("   🔗 Scanning Base blockchain for token balances...");
     let found = 0, recovered = 0, ghosts = 0, confirmed = 0;
@@ -12128,6 +12177,17 @@ async function main() {
         const bal = await getTokenBalance(token.address);
         return { symbol: token.symbol, address: token.address, bal };
       })
+    );
+
+    for (const result of balanceResults) {
+      if (result.status !== "fulfilled") continue;
+      tokenBalanceCache[result.value.symbol] = result.value.bal;
+    }
+
+    // After cache is live — sized remaining, not the full fill. GitHub 401
+    // must not skip seeded AERO/DRB/BNKR receipt latch.
+    await rebuildSeededLotsFromChain(
+      githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
     );
 
     // DexScreener + GT chunked prefetch — never one giant GT URL (400 / silent drop)
@@ -12245,8 +12305,8 @@ async function main() {
     }
 
     // ── Step 3: Summary + Telegram ──────────────────────────────────────────
-    const openNow = tokens.filter(t => hasUsableCostBasis(t));
-    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !hasUsableCostBasis(t)));
+    const openNow = tokens.filter(t => hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol]));
+    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !(hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol]))));
     const heldNow = tokens.filter(t => (tokenBalanceCache[t.symbol] || 0) > 0.001);
     const totalHeld = heldNow.reduce((s, t) => {
       const p = history[t.symbol]?.lastPrice;
@@ -12256,7 +12316,7 @@ async function main() {
     }, 0);
 
     console.log(`🔍 On-chain scan: ${found} holdings | ${recovered} recovered | ${confirmed} confirmed | ${ghosts} ghosts cleared`);
-    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => t.symbol + "@$" + t.entryPrice.toFixed(6)).join(", ") || "none"}`);
+    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => bootKnownCostLabel(t)).join(", ") || "none"}`);
     console.log(`⚠️ Unknown basis (${unknownNow.length}): ${unknownNow.map(t => t.symbol).join(", ") || "none"}`);
     console.log(`💰 Total held value: ~$${totalHeld.toFixed(2)} (chain units × live mark)`);
 
@@ -12267,11 +12327,11 @@ async function main() {
         const bal = tokenBalanceCache[t.symbol] || 0;
         const p   = history[t.symbol]?.lastPrice || t.entryPrice || 0;
         const val = (bal * p).toFixed(2);
-        if (hasUsableCostBasis(t)) {
+        if (hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol])) {
           const pnl = t.entryPrice > 0 && p > 0
             ? ((p - t.entryPrice) / t.entryPrice * 100).toFixed(1)
             : "?";
-          bootMsg += `   <b>${t.symbol}</b>: entry $${t.entryPrice.toFixed(6)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
+          bootMsg += `   <b>${t.symbol}</b>: ${bootKnownCostLabel(t)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
         } else {
           bootMsg += `   <b>${t.symbol}</b>: ${bal >= 1 ? bal.toFixed(2) : bal.toFixed(6)} on-chain ~$${val}\n   ${UNKNOWN_COST_BASIS_LABEL}\n`;
         }
@@ -12669,11 +12729,11 @@ async function main() {
     balInit = { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 };
   }
   console.log(`✅ CDP ready | ETH: ${balInit.eth.toFixed(6)} | WETH: ${balInit.weth.toFixed(6)} | ETH=$${ethUsdInit.toFixed(2)}\n`);
-  if (STATE_BRANCH === GITHUB_BRANCH) {
-    console.log(`⚠️  STATE_BRANCH == GITHUB_BRANCH (${GITHUB_BRANCH}) — state saves will trigger Railway redeploys!`);
+  if (liveStateBranch() === liveGithubBranch()) {
+    console.log(`⚠️  STATE_BRANCH == GITHUB_BRANCH (${liveGithubBranch()}) — state saves will trigger Railway redeploys!`);
     console.log(`   Set Railway env var STATE_BRANCH=bot-state and create that branch to fix this.`);
   } else {
-    console.log(`✅ State saves → branch: ${STATE_BRANCH} (Railway watches: ${GITHUB_BRANCH}) — redeploys prevented`);
+    console.log(`✅ State saves → branch: ${liveStateBranch()} (Railway watches: ${liveGithubBranch()}) — redeploys prevented`);
   }
 
   // Startup arm status
