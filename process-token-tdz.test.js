@@ -70,6 +70,13 @@ describe("processToken hasPosition TDZ", () => {
     const moonGate = src.indexOf("buildSellGateDecision", moon);
     assert.ok(sellFn >= 0 && sellGate > sellFn, "executeSell must call buildSellGateDecision");
     assert.ok(moon >= 0 && moonGate > moon, "moonshot trim must call buildSellGateDecision");
+    const quote = src.indexOf("getOnChainSellQuote", sellFn);
+    assert.ok(quote > sellFn && quote < sellGate, "executeSell must quote before plus gate");
+    assert.ok(src.includes("leftoverVoiceHitchBytes()"), "wanted hitch must be planned VITA packet, not 10-byte tag");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 8000);
+    assert.ok(sellBody.includes("hitchCostMult: 1"), "sell hitch size is leftover-after-plus, not 2× veto");
+    assert.ok(sellBody.includes("earningsEth: 0"), "earnings must not add hitch fuel on top of leftover");
   });
 
   it("still reaches buy / MANUAL SELL / sellhalf after the armed-idle log", () => {

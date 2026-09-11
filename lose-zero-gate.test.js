@@ -1212,3 +1212,128 @@ describe("always-plus exit — large hitch must not flip a green sell red", () =
     }), /PLUS sell GAME/);
   });
 });
+
+describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
+  // Risk-desk FIFO: 31 red sells (proceeds < buy cost). Worst BASECAT underwater
+  // bags + DRB hitch-prove tiny red (−5.4e-7 ETH). Numbers are class mirrors,
+  // not invented live P&L for those hashes.
+  const basecatUnderwater = {
+    symbol: "BASECAT",
+    reason: "🎯 MAX PEAK",
+    sellPct: 0.98, // piggy leave-behind
+    entryEth: 0.001,
+    projectedProceedsEth: 0.00070, // proceeds < soldFrac × entry
+    feePct: 0.010, // catalog BASECAT Uni v3 1%
+    gasCostEth: 0.00002,
+    impactPct: 0.003,
+    gwei: 0.05,
+    wantedHitchBytes: STORE_HITCH_BYTES,
+  };
+
+  it("BASECAT underwater (proceeds < buy cost) HOLDs — never send red", () => {
+    const d = evaluateSellGate(basecatUnderwater);
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover <= 0);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("BASECAT STOP LOSS and operator ALLOW_LOSSY still HOLD underwater", () => {
+    for (const reason of ["STOP LOSS", "MANUAL SELL (operator) 50%", "🌙 MOONSHOT TRIM — not in active tiers"]) {
+      const d = evaluateSellGate({
+        ...basecatUnderwater,
+        reason,
+        env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      });
+      assert.equal(d.allow, false, reason);
+      assert.equal(d.verdict, "HOLD", reason);
+    }
+  });
+
+  it("Dex mark cannot paint BASECAT green when Uni quote is underwater", () => {
+    const markEth = 0.00120; // looks plus vs 0.001 entry
+    const quotedEth = 0.00072; // fill thinner than soldFrac × entry
+    const proc = conservativeSellProceedsEth({ markEth, quotedEth });
+    assert.equal(proc, quotedEth);
+    const d = evaluateSellGate({
+      ...basecatUnderwater,
+      projectedProceedsEth: proc,
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+  });
+
+  it("same underwater class HOLDs MORPHO/SKI/LINK/UNI/AERO/VVV (FIFO red symbols)", () => {
+    for (const symbol of ["MORPHO", "SKI", "LINK", "UNI", "AERO", "VVV"]) {
+      const d = evaluateSellGate({ ...basecatUnderwater, symbol });
+      assert.equal(d.allow, false, symbol);
+      assert.equal(d.verdict, "HOLD", symbol);
+    }
+  });
+
+  it("DRB hitch-prove tiny leftover sizes hitch DOWN or SKIPs — never −5.4e-7 red", () => {
+    // leftover after fees is a hair of plus; planned VITA packet L1 would flip red.
+    const leftover = 1e-7;
+    const hitchWould = leftover + 5.4e-7;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      impactPct: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400, // planned KEY+LOC packet, not 10-byte §$STORE§
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      reservedL1FeeEth: hitchWould * STORE_HITCH_BYTES / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, true, "must still take the plus — never HOLD a green leftover");
+    assert.ok(d.leftover > 0);
+    assert.ok(d.plusNetEth > 0, "net after 1× this-tx hitch (or skip) must stay plus");
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.equal(d.injectCostEth, 0);
+      assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    } else {
+      // size hitch DOWN so the 400B packet cannot print −5.4e-7
+      assert.ok(d.hitchBytes < 400, "must not send the full packet that would go red");
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("VITA planned packet sizes DOWN to leftover-after-plus (not 10-byte tag floor)", () => {
+    const leftover = 0.00005;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: 0.00002,
+      l1FeePerByteEth: 0.00002 / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, true);
+    assert.ok(d.leftover > 0);
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.ok(d.plusNetEth > 0);
+    } else {
+      assert.ok(d.hitchBytes > 0);
+      assert.ok(d.hitchBytes <= 400);
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+});

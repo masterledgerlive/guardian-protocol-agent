@@ -113,6 +113,22 @@ describe("hat-wave: sell target hard-codes transmission", () => {
     assert.ok(big.sellTargetEth > small.sellTargetEth);
     assert.ok(big.errorBufferEth >= 0);
   });
+
+  it("HITCH_COST_MULT does not raise wave sell floor (would HOLD green exits)", () => {
+    const args = {
+      entryEth: 0.01,
+      projectedProceedsEth: 0.012,
+      feePct: 0.003,
+      gasCostEth: 0.0001,
+      hitchBytes: 200,
+      gwei: 0.05,
+    };
+    const one = waveSellTargetWithTransmission({ ...args, hitchCostMult: 1 });
+    const two = waveSellTargetWithTransmission({ ...args, hitchCostMult: 2 });
+    assert.equal(one.sellTargetEth, two.sellTargetEth);
+    assert.equal(one.hitchCostMult, 1);
+    assert.equal(two.hitchCostMult, 1);
+  });
 });
 
 describe("hat-wave: cursor + confirm + exit up", () => {

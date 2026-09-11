@@ -4766,7 +4766,7 @@ function planVoiceHitch(swapData, {
   leftoverEth = 0,
   earningsEth = 0,
   gwei = 0,
-  hitchCostMult = 2,
+  hitchCostMult = 1,
 } = {}) {
   if (!enabled || skipHitch || !swapData) {
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
@@ -12559,7 +12559,7 @@ async function main() {
           console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 or unknown cost (would lose money)`);
           continue;
         }
-        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : `${hitchCostMult()}× hitch covered`;
+        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : "PLUS (1× hitch this tx)";
         const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {

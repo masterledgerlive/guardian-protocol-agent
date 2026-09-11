@@ -25,6 +25,11 @@ plain only when plain is still plus; else **HOLD**. Piggy dust never sold.
   re-hitch after SKIP_HITCH
 - Logs `PLUS` / `HOLD` / `SKIP_HITCH` with leftover, entrySold, fees, hitch, net
 
+FIFO red-sell class (risk desk): BASECAT/MORPHO/SKI/LINK/UNI/AERO/VVV/DRB
+proceeds < buy cost → **HOLD**. DRB hitch-prove tiny leftover → **SKIP_HITCH**
+(never send −5.4e-7 red to place KEY+LOC). Tests mirror those classes; they
+do not invent live P&L for the hashes.
+
 Open PR #61 (quote-gate / GAME fee 10000) is complementary — merge it first so
 GAME Uni V3 actually quotes; this PR still falls back to mark when Quoter misses.
 

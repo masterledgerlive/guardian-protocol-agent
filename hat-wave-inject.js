@@ -6,8 +6,10 @@
  * Earnings are a slice of leftover — they must not add hitch fuel on top.
  *
  * Wave math hard-codes transmission into the sell floor:
- *   sell_target ≥ entry + fees + (mult × hitch_cost(bytes)) + error_buffer
- * Every bit that rides up is paid for by that floor — we do not invent free bytes.
+ *   sell_target ≥ entry + fees + hitch_cost(1× this tx) + error_buffer
+ * Do not multiply by HITCH_COST_MULT — that HOLDs green exits. Size hitch DOWN
+ * to leftover-after-plus. Every bit that rides is paid by leftover — we do
+ * not invent free bytes, and we never sell red to inject.
  *
  * Cursor: last confirmed bit offset → next-ready chunk for the next hitch.
  * Confirmation: location (txHash) sealed ONLY after on-chain send — reader trusts
