@@ -2,19 +2,38 @@
  * Base RPC pool — env-first, no dead public nodes in rotation.
  *
  * Railway sets BASE_RPC / RPC_URL / BASE_RPC_URL to https://mainnet.base.org.
- * Those must win over any hardcoded public list. base.llamarpc.com returns
- * Cloudflare 521 and must never be first-class (or in the rotation at all).
+ * Those must win over any hardcoded public list. Code defaults match so a
+ * process restart without env still hits official Base first (balanceOf /
+ * AERO buys must not start on 429 hosts).
+ *
+ * base.llamarpc.com returns Cloudflare 521 and must never be first-class
+ * (or in the rotation at all).
+ *
+ * base.meowrpc.com / base.drpc.org 429 under desk load — last-resort only,
+ * never early failover. Official Base + publicnode + nodies + tenderly stay
+ * ahead of them.
  */
 
 export const DEAD_RPC_HOSTS = ["base.llamarpc.com"];
 
-export const DEFAULT_PUBLIC_RPCS = [
+/** 429-prone public endpoints — last-resort only, never first-class. */
+export const RATE_LIMITED_RPC_HOSTS = ["base.meowrpc.com", "base.drpc.org"];
+
+export const PREFERRED_PUBLIC_RPCS = [
   "https://mainnet.base.org",
   "https://base-rpc.publicnode.com",
-  "https://base.drpc.org",
-  "https://base.meowrpc.com",
   "https://base-pokt.nodies.app",
   "https://gateway.tenderly.co/public/base",
+];
+
+export const RATE_LIMITED_PUBLIC_RPCS = [
+  "https://base.drpc.org",
+  "https://base.meowrpc.com",
+];
+
+export const DEFAULT_PUBLIC_RPCS = [
+  ...PREFERRED_PUBLIC_RPCS,
+  ...RATE_LIMITED_PUBLIC_RPCS,
 ];
 
 export function normalizeRpcUrl(url) {
@@ -24,6 +43,11 @@ export function normalizeRpcUrl(url) {
 export function isDeadPublicRpc(url) {
   const host = normalizeRpcUrl(url).toLowerCase();
   return DEAD_RPC_HOSTS.some((h) => host.includes(h));
+}
+
+export function isRateLimitedPublicRpc(url) {
+  const host = normalizeRpcUrl(url).toLowerCase();
+  return RATE_LIMITED_RPC_HOSTS.some((h) => host.includes(h));
 }
 
 /** Prefer BASE_RPC, then RPC_URL, then BASE_RPC_URL. Comma/space separated OK. */
@@ -38,14 +62,28 @@ export function collectEnvRpcUrls(env = process.env) {
 export function buildRpcUrls(env = process.env) {
   const seen = new Set();
   const out = [];
-  for (const url of [...collectEnvRpcUrls(env), ...DEFAULT_PUBLIC_RPCS]) {
+  // Env first (as written), then reliable publics, then 429 hosts last.
+  const candidates = [
+    ...collectEnvRpcUrls(env),
+    ...PREFERRED_PUBLIC_RPCS,
+    ...RATE_LIMITED_PUBLIC_RPCS,
+  ];
+  for (const url of candidates) {
     const n = normalizeRpcUrl(url);
     const key = n.toLowerCase();
     if (!n || seen.has(key) || isDeadPublicRpc(n)) continue;
     seen.add(key);
     out.push(n);
   }
-  return out.length ? out : ["https://mainnet.base.org"];
+  // Env may have listed meowrpc/drpc first; keep those hosts last-resort
+  // unless they are the only URLs left. Official Base stays #1 when present.
+  const preferred = [];
+  const limited = [];
+  for (const url of out) {
+    (isRateLimitedPublicRpc(url) ? limited : preferred).push(url);
+  }
+  const ordered = [...preferred, ...limited];
+  return ordered.length ? ordered : ["https://mainnet.base.org"];
 }
 
 /**
