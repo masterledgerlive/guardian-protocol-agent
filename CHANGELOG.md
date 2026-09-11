@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Fixed — operator/fresh-lot FIFO HOLD beats Friday de-risk; DISABLE_DOW_BIAS default ON
+
+Live after #76 (`2d83b26b`): `OPERATOR_BUY=AERO:2` filled (`0x94faa542…`
+nonce 5450). ~23 blocks later Friday sellMod +0.08 / Fri-close UTC 19–22
+auto-flipped sell `0x326f41af…` nonce 5451 FIFO red (tiny eth, no hitch).
+USD-mark was −29.5% below breakeven. Same class: DRB `0x808acc7d…` nonce
+5453. BNKR buy `0xeef39d62…` nonce 5454. Vault untouched.
+
+Root cause (verified): Friday `DOW_BIAS` sellMod +0.08 is hardcoded with
+no Railway kill switch. Fresh operator lots can sell against an
+understated remaining-cost (pre-latch leftover) so always-plus leftover
+looks PLUS while FIFO vs the fill and the USD mark are red.
+
+- Latch operator/fresh fill cost; sell entry is `max(FIFO, lot floor)`.
+- Always-plus HOLDs FIFO eth red **or** USD-mark below breakeven on
+  operator/fresh lots. Friday / weekend de-risk cannot sell red.
+- `DISABLE_DOW_BIAS` — yes/true/1/on **or unset** zeros Fri sellMod and
+  skips Fri-close de-risk (hotfix default ON so live stops bleeding
+  without a new Railway var). After calm: `DISABLE_DOW_BIAS=no`.
+- Green operator/fresh exits still sell (SKIP_HITCH / PLUS).
+- LOSE-ZERO, #76 COST_EDGE operator bypass, quote-gate, AERO Uni V3
+  bind, #74 unspent OPERATOR_BUY re-queue — unchanged.
+
+Does **not** invent P&L. Does **not** merge V4 into `agent.js`. No capital.
+
 ### Fixed — OPERATOR_BUY / Telegram `/buy` bypass COST_EDGE near-term
 
 Live after #74 (`167cb333`): `processToken` crash gone. `OPERATOR_BUY=AERO:2`

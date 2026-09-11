@@ -66,6 +66,10 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("alwaysPlusLog"), "PLUS/HOLD/SKIP_HITCH must be logged");
     assert.ok(src.includes("fifoRemainingCostEth"), "boot must recover FIFO remaining, not cash-flow leftover");
     assert.ok(src.includes("applySellPlusFloorMinOut"), "executeSell must raise minOut to FIFO plus floor");
+    assert.ok(src.includes("sellEntryEthWithLotFloor"), "operator/fresh lot floor must raise sell entry");
+    assert.ok(src.includes("usdMarkProceedsEth"), "plus gate must see USD-mark proceeds");
+    assert.ok(src.includes("isFridayCloseWindow"), "Fri-close must honor DISABLE_DOW_BIAS");
+    assert.ok(src.includes("latchFreshLot"), "operator fill must latch remaining cost");
     assert.ok(!src.includes("ethIn - ethOut"), "boot must not use cash-flow leftover as remaining cost");
     const sellFn = src.indexOf("async function executeSell(");
     const moon = src.indexOf("MOONSHOT SELL-DOWN");

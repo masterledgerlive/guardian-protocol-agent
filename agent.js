@@ -135,6 +135,13 @@ import {
   fifoRemainingCostEth,
   applySellPlusFloorMinOut,
   isForceExitLockedReason,
+  isDisableDowBias,
+  applyDowBiasDisable,
+  isFridayCloseWindow,
+  latchFreshLot,
+  clearFreshLot,
+  freshLotCostFloor,
+  sellEntryEthWithLotFloor,
 } from "./lose-zero-gate.js";
 import {
   tierBookParams,
@@ -1410,7 +1417,7 @@ function computeWavePrediction(symbol, currentPrice, ethUsd) {
   const maxPeak    = getMaxPeak(symbol)    || currentPrice * (1 + amp);
   const now        = new Date();
   const dow        = now.getDay();
-  const dowBias    = DOW_BIAS[dow];
+  const dowBias    = applyDowBiasDisable(DOW_BIAS[dow]);
   const calPress   = getCalendarPressure();
 
   // Adjust amplitude by day-of-week and calendar
@@ -6116,6 +6123,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     token.entryTime = Date.now();
     token.unknownEntry = false;
+    latchFreshLot(token, { fillCostEth, tokens: receivedTokens, reason });
     {
       const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
       syncTokenPiggy(token, estBal, price);
@@ -6316,7 +6324,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
 
     const soldFrac       = sellFractionAfterPiggy({ balance: totalBal, tokensToSell: piggy.tokensToSell });
-    const investedBefore = token.totalInvestedEth || 0;
+    const investedBefore = sellEntryEthWithLotFloor(token.totalInvestedEth || 0, token);
     const entryEthSold   = costBasisForSoldFraction(investedBefore, soldFrac);
     const markProcEth    = (piggy.tokensToSell * price) / ethUsd;
     const posValueUsd    = markProcEth * ethUsd;
@@ -6410,12 +6418,20 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       hitchBytes: wantedHitchBytes,
       btpInscribe: wantBtp,
     });
-    const sellTrustedBasis = hasUsableCostBasis(token) && costBasisEth(token) > 0;
+    const lotCostEth = freshLotCostFloor(token);
+    const operatorLot = !!token.operatorLot || isManualOperatorBuy(reason);
+    const freshLot = lotCostEth > 0 || operatorLot;
+    const entryEthForGate = sellEntryEthWithLotFloor(costBasisEth(token), token);
+    const sellTrustedBasis = (hasUsableCostBasis(token) || lotCostEth > 0) && entryEthForGate > 0;
     const sellGate = buildSellGateDecision({
       symbol: token.symbol,
       reason,
       sellPct: soldFrac,
-      entryEth: costBasisEth(token),
+      entryEth: entryEthForGate,
+      lotCostEth,
+      usdMarkProceedsEth: markProcEth,
+      operatorLot,
+      freshLot,
       projectedProceedsEth: procEth,
       feePct: token.poolFeePct || 0.006,
       impactPct: PRICE_IMPACT_EST,
@@ -6728,6 +6744,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     if (piggy.soldAll) {
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+      clearFreshLot(token);
       token.piggyReserve = 0;
       token.projectedEarningsUsd = null;
       token.minSellPrice = null;
@@ -7661,7 +7678,7 @@ async function processToken(cdp, token, bal) {
     const dayOfWeek     = now_.getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
     const hourUTC       = now_.getUTCHours();
     const isMondayOpen  = dayOfWeek === 1 && hourUTC >= 13 && hourUTC <= 16; // Mon 9-12 EST = UTC 13-16
-    const isFridayClose = dayOfWeek === 5 && hourUTC >= 19 && hourUTC <= 22; // Fri 3-6pm EST
+    const isFridayClose = isFridayCloseWindow({ now: now_ }); // Fri 3-6pm EST; DISABLE_DOW_BIAS (default ON) skips
     const isTuesdayDip  = dayOfWeek === 2 && hourUTC >= 13 && hourUTC <= 17; // Tue AM — Trump effect
     const isEndOfMonth  = now_.getDate() >= 28; // pressure selling near month end
     // Calendar bias: looser buy tolerance on high-opportunity days
@@ -12615,17 +12632,18 @@ async function main() {
       }
       // Show day-of-week bias and calendar context at top of each loop
       const dowNow = new Date().getDay();
-      const dowInfo = DOW_BIAS[dowNow];
+      const dowInfo = applyDowBiasDisable(DOW_BIAS[dowNow]);
       const calNow  = getCalendarPressure();
       const calStr  = calNow.length > 0 ? ` | 📅 ${calNow.map(e=>e.type).join(",")}` : "";
-      console.log(`📅 ${dowInfo.name} bias: buy${dowInfo.buyMod>=0?"+":""}${(dowInfo.buyMod*100).toFixed(0)}% sell${dowInfo.sellMod>=0?"+":""}${(dowInfo.sellMod*100).toFixed(0)}% — ${dowInfo.note}${calStr}`);
+      const dowKill = isDisableDowBias() ? " [DISABLE_DOW_BIAS]" : "";
+      console.log(`📅 ${dowInfo.name} bias: buy${dowInfo.buyMod>=0?"+":""}${(dowInfo.buyMod*100).toFixed(0)}% sell${dowInfo.sellMod>=0?"+":""}${(dowInfo.sellMod*100).toFixed(0)}% — ${dowInfo.note}${dowKill}${calStr}`);
 
       // ── Calendar bias globals — updated each loop, used in /waves command ──
       const now_g        = new Date();
       const dayOfWeek_g  = now_g.getDay();
       const hourUTC_g    = now_g.getUTCHours();
       global._isMondayOpen  = dayOfWeek_g === 1 && hourUTC_g >= 13 && hourUTC_g <= 16;
-      global._isFridayClose = dayOfWeek_g === 5 && hourUTC_g >= 19 && hourUTC_g <= 22;
+      global._isFridayClose = isFridayCloseWindow({ now: now_g });
       global._isTuesdayDip  = dayOfWeek_g === 2 && hourUTC_g >= 13 && hourUTC_g <= 17;
       const activeSurfers = Object.values(surfers).filter(s => s.status !== "RETIRED");
       if (activeSurfers.length > 0) {
@@ -12951,20 +12969,27 @@ async function main() {
           balance,
           tokensToSell: moonPiggy.tokensToSell,
         });
+        const moonLotCost = freshLotCostFloor(token);
+        const moonEntryEth = sellEntryEthWithLotFloor(costBasisEth(token), token);
+        const moonMarkEth = (moonPiggy.tokensToSell * price) / ethUsd;
         const moonGate = buildSellGateDecision({
           symbol: token.symbol,
           reason: moonReason,
           sellPct: moonSoldFrac,
-          entryEth: costBasisEth(token), // 0 for unknown — demand gas-edge leftover
-          projectedProceedsEth: (moonPiggy.tokensToSell * price) / ethUsd,
+          entryEth: moonEntryEth, // 0 for unknown — demand gas-edge leftover
+          lotCostEth: moonLotCost,
+          usdMarkProceedsEth: moonMarkEth,
+          operatorLot: !!token.operatorLot,
+          freshLot: moonLotCost > 0 || !!token.operatorLot,
+          projectedProceedsEth: moonMarkEth,
           feePct: token.poolFeePct || 0.006,
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
           wantedHitchBytes: moonWantedHitchBytes,
           wantBtpInscribe: moonWantBtp,
-          piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
-          unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
+          piggyEarningsBufferEth: moonMarkEth * piggyEarningsBufferPct(),
+          unknownEntry: !!(unknownBag || !(moonEntryEth > 0)),
           leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
           exitsOnly: !!token.frozen,
           ...hitchL1GateArgs(moonL1),

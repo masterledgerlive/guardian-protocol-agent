@@ -54,6 +54,92 @@ export function envFlagYes(name, env = process.env) {
   return String(env[name] ?? "").trim().toLowerCase() === "yes";
 }
 
+export function envFlagOn(name, env = process.env) {
+  const s = String(env[name] ?? "").trim().toLowerCase();
+  return s === "yes" || s === "true" || s === "1" || s === "on";
+}
+
+export function envFlagOff(name, env = process.env) {
+  const s = String(env[name] ?? "").trim().toLowerCase();
+  return s === "no" || s === "false" || s === "0" || s === "off";
+}
+
+/**
+ * Friday DOW_BIAS sellMod +0.08 / Fri-close UTC 19–22 is hardcoded in agent.js
+ * and live-bleeding (AERO 0x326f41af / DRB 0x808acc7d FIFO-red flips).
+ * Unset treats as ON so Railway does not need a new var to kill Friday.
+ * After calm: DISABLE_DOW_BIAS=no restores day-of-week mods.
+ */
+export function isDisableDowBias(env = process.env) {
+  if (envFlagOff("DISABLE_DOW_BIAS", env)) return false;
+  return true;
+}
+
+/** Zero buyMod/sellMod when DISABLE_DOW_BIAS is on (hotfix default). */
+export function applyDowBiasDisable(bias, env = process.env) {
+  if (!bias || typeof bias !== "object") return bias;
+  if (!isDisableDowBias(env)) return bias;
+  return { ...bias, buyMod: 0, sellMod: 0 };
+}
+
+/** Fri 3–6pm EST = UTC 19–22. Disabled when DISABLE_DOW_BIAS is on (default). */
+export function isFridayCloseWindow({ now = new Date(), env = process.env } = {}) {
+  if (isDisableDowBias(env)) return false;
+  const d = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getDay() === 5 && d.getUTCHours() >= 19 && d.getUTCHours() <= 22;
+}
+
+/** Operator / fresh-lot cost stays armed so a Friday flip cannot drop the floor. */
+export const FRESH_LOT_HOLD_MS = 6 * 60 * 60 * 1000;
+
+export function latchFreshLot(token, {
+  fillCostEth = 0,
+  tokens = 0,
+  reason = "",
+  now = Date.now(),
+} = {}) {
+  if (!token) return token;
+  const cost = Number(fillCostEth);
+  if (!(cost > 0)) return token;
+  token.freshLotAt = now;
+  token.freshLotCostEth = cost;
+  if (isManualOperatorBuy(reason)) {
+    token.operatorLot = { fillCostEth: cost, tokens: Number(tokens) || 0, at: now };
+  }
+  return token;
+}
+
+export function clearFreshLot(token) {
+  if (!token) return token;
+  token.freshLotAt = 0;
+  token.freshLotCostEth = 0;
+  token.operatorLot = null;
+  return token;
+}
+
+export function freshLotCostFloor(token, now = Date.now()) {
+  const lot = token?.operatorLot;
+  if (lot && Number(lot.fillCostEth) > 0) return Number(lot.fillCostEth);
+  const at = Number(token?.freshLotAt || 0);
+  const cost = Number(token?.freshLotCostEth || 0);
+  if (at > 0 && cost > 0 && (now - at) >= 0 && (now - at) < FRESH_LOT_HOLD_MS) return cost;
+  return 0;
+}
+
+export function sellEntryEthWithLotFloor(entryEth = 0, token, now = Date.now()) {
+  const base = Number(entryEth);
+  const floor = freshLotCostFloor(token, now);
+  return Math.max(Number.isFinite(base) && base > 0 ? base : 0, floor);
+}
+
+export function usdMarkBelowBreakeven({ markProceedsEth = 0, entrySoldEth = 0 } = {}) {
+  const mark = Number(markProceedsEth);
+  const entry = Number(entrySoldEth);
+  if (!(mark > 0) || !(entry > 0)) return false;
+  return mark + MIN_PLUS_ETH < entry;
+}
+
 export function isLoseZeroMode(env = process.env) {
   return envFlagYes("LOSE_ZERO", env) || envFlagYes("HALT_NEW_ENTRIES", env);
 }
@@ -1140,9 +1226,19 @@ export function evaluateSellGate({
   leftoverWouldCoverHitch = false,
   /** Frozen / exits-only leftover bags still obey always-plus. Cannot bypass. */
   exitsOnly = false,
+  /** Operator / fresh-lot fill cost — raise entry so a pre-latch leftover cannot paint PLUS. */
+  lotCostEth = 0,
+  /** Dex/USD mark proceeds (ETH). Below entrySold → HOLD even if a quote looks plus. */
+  usdMarkProceedsEth = 0,
+  operatorLot = false,
+  freshLot = false,
 } = {}) {
   void leftoverWouldCoverHitch;
   void exitsOnly;
+  const lotFloor = Number(lotCostEth);
+  if (Number.isFinite(lotFloor) && lotFloor > Number(entryEth || 0)) {
+    entryEth = lotFloor;
+  }
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
     : hitchCostMult(env);
@@ -1319,16 +1415,32 @@ export function evaluateSellGate({
 
   const proceeds = Number(projectedProceedsEth);
   const proceedsBelowCost = Number.isFinite(proceeds) && proceeds + MIN_PLUS_ETH < entrySold;
+  const markBelow = usdMarkBelowBreakeven({
+    markProceedsEth: usdMarkProceedsEth,
+    entrySoldEth: entrySold,
+  });
+  const fifoEthRed = leftover <= 0 || proceedsBelowCost;
+  const lotHold = !!(operatorLot || freshLot);
 
   // Trade itself loses after fees (piggy dust already reserved in executeSell).
   // STOP LOSS included — emergency floor is not permission to sell underwater.
   // Proceeds < recorded buy cost is the same HOLD (FIFO red) — exits-only included.
-  if (leftover <= 0 || proceedsBelowCost) {
+  // Operator / fresh lots: FIFO eth red OR USD-mark below breakeven HOLDs even
+  // when Friday sellMod +0.08 / weekend de-risk fired the exit (AERO 0x326f41af /
+  // DRB 0x808acc7d). DOW bias cannot sell red.
+  if (fifoEthRed || markBelow) {
     const stopNote = isStopLossReason(reason) ? " (STOP LOSS floor held)" : "";
     const fifoNote = proceedsBelowCost
       ? ` — FIFO red proceeds ${Number.isFinite(proceeds) ? proceeds.toExponential(2) : "?"} < entrySold ${entrySold.toExponential(2)}`
       : "";
-    return pack(false, proceedsBelowCost ? "proceeds below recorded buy cost" : "trade would lose after fees", {
+    const markNote = markBelow
+      ? ` — USD-mark ${Number(usdMarkProceedsEth).toExponential(2)} < entrySold ${entrySold.toExponential(2)}`
+      : "";
+    const lotNote = lotHold ? " (operator/fresh lot; Friday/weekend de-risk cannot sell red)" : "";
+    const why = markBelow && !fifoEthRed
+      ? "USD-mark below breakeven"
+      : proceedsBelowCost ? "proceeds below recorded buy cost" : "trade would lose after fees";
+    return pack(false, why, {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
@@ -1339,7 +1451,7 @@ export function evaluateSellGate({
       sellNow: false,
       verdict: "HOLD",
       netEth: leftover,
-      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money${stopNote}${fifoNote}`,
+      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money${stopNote}${fifoNote}${markNote}${lotNote}`,
     });
   }
 
@@ -1418,6 +1530,10 @@ export function buildSellGateDecision({
   unknownEntry = false,
   leftoverWouldCoverHitch = false,
   exitsOnly = false,
+  lotCostEth = 0,
+  usdMarkProceedsEth = 0,
+  operatorLot = false,
+  freshLot = false,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -1441,6 +1557,10 @@ export function buildSellGateDecision({
     piggyEarningsBufferEth,
     leftoverWouldCoverHitch,
     exitsOnly,
+    lotCostEth,
+    usdMarkProceedsEth,
+    operatorLot,
+    freshLot,
     reason,
     symbol,
     env,

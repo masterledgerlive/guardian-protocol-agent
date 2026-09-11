@@ -47,6 +47,14 @@ import {
   canBypassBuyLossGate,
   isAllowLossyOperatorSell,
   canBypassSellLossGate,
+  isDisableDowBias,
+  applyDowBiasDisable,
+  isFridayCloseWindow,
+  latchFreshLot,
+  clearFreshLot,
+  freshLotCostFloor,
+  sellEntryEthWithLotFloor,
+  usdMarkBelowBreakeven,
   estimateCalldataHitchEth,
   estimateBtpInscribeEth,
   estimateInjectHitchCostEth,
@@ -1684,5 +1692,126 @@ describe("always-plus harden — FIFO remaining cost + plus floor (defense in de
     assert.equal(raised.allow, true);
     assert.ok(raised.minOutWei >= floor);
     assert.ok(raised.minOutWei <= quote);
+  });
+});
+
+describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
+  // Live AERO 0x326f41af / DRB 0x808acc7d: Friday sellMod +0.08 + Fri-close
+  // UTC 19–22 flipped operator lots FIFO red (tiny eth). Desk cannot set an
+  // env that does not exist yet — unset must kill Friday without Railway.
+
+  it("isDisableDowBias is ON when unset (hotfix default)", () => {
+    assert.equal(isDisableDowBias({}), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "yes" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "true" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "1" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "on" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "no" }), false);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "false" }), false);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "0" }), false);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "off" }), false);
+  });
+
+  it("zeros Friday sellMod +0.08 and skips Fri-close when unset", () => {
+    const friday = { name: "Friday", buyMod: -0.04, sellMod: +0.08, note: "Weekend de-risk" };
+    const killed = applyDowBiasDisable(friday, {});
+    assert.equal(killed.sellMod, 0);
+    assert.equal(killed.buyMod, 0);
+    const restored = applyDowBiasDisable(friday, { DISABLE_DOW_BIAS: "no" });
+    assert.equal(restored.sellMod, 0.08);
+    const friClose = new Date(Date.UTC(2026, 8, 11, 20, 0, 0)); // Fri Sep 11 2026 20:00 UTC
+    assert.equal(friClose.getUTCDay(), 5);
+    assert.equal(isFridayCloseWindow({ now: friClose, env: {} }), false);
+    assert.equal(isFridayCloseWindow({ now: friClose, env: { DISABLE_DOW_BIAS: "no" } }), true);
+  });
+
+  it("operator buy lot that would exit FIFO red HOLDs — Friday de-risk cannot sell", () => {
+    const lot = latchFreshLot({}, {
+      fillCostEth: 0.00045,
+      tokens: 2,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(freshLotCostFloor(lot), 0.00045);
+    const understated = 0.00001; // pre-latch leftover that painted PLUS
+    const entry = sellEntryEthWithLotFloor(understated, lot);
+    assert.equal(entry, 0.00045);
+    const proceeds = 0.00045 - 0.0000036; // live-class tiny FIFO red
+    const d = buildSellGateDecision({
+      symbol: "AERO",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 0.98,
+      entryEth: understated,
+      lotCostEth: freshLotCostFloor(lot),
+      usdMarkProceedsEth: 0.00045 * 0.705, // −29.5% USD-mark
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: proceeds,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /operator\/fresh lot|FIFO red|lose money|USD-mark/i);
+
+    const fifoOnly = evaluateSellGate({
+      symbol: "DRB",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(fifoOnly.allow, false, "tiny FIFO eth red must HOLD with no USD mark");
+    assert.equal(fifoOnly.verdict, "HOLD");
+  });
+
+  it("USD-mark below breakeven HOLDs even if a quote leftover looks plus", () => {
+    const d = evaluateSellGate({
+      symbol: "DRB",
+      reason: "🎯 PEAK RIDE",
+      sellPct: 1,
+      entryEth: 0.00045,
+      lotCostEth: 0.00045,
+      usdMarkProceedsEth: 0.00045 * 0.705,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00046, // quote looks plus vs fill
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /USD-mark below breakeven|operator\/fresh lot/i);
+  });
+
+  it("green operator/fresh exit still sells (SKIP_HITCH or PLUS)", () => {
+    const d = evaluateSellGate({
+      symbol: "AERO",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00045,
+      lotCostEth: 0.00045,
+      usdMarkProceedsEth: 0.00055,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00055,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, true);
+    assert.ok(d.verdict === "SKIP_HITCH" || d.verdict === "PLUS");
+    assert.ok(d.leftover > 0);
+    clearFreshLot({ operatorLot: { fillCostEth: 1 } });
+    assert.equal(usdMarkBelowBreakeven({ markProceedsEth: 0.001, entrySoldEth: 0.002 }), true);
+    assert.equal(usdMarkBelowBreakeven({ markProceedsEth: 0.002, entrySoldEth: 0.001 }), false);
   });
 });
