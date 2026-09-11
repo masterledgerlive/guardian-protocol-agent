@@ -251,6 +251,21 @@ export function takeQueuedManualBuys(commands) {
   return buys;
 }
 
+/**
+ * After a flush / processToken buy attempt: only a real fill retires the
+ * command. Skip, throw, cold wallet, safe mode, or route miss must re-queue
+ * so OPERATOR_BUY / Telegram /buy is not dropped before exactInputSingle.
+ */
+export function settleFlushedOperatorBuy(commands, cmd, spent) {
+  const list = Array.isArray(commands) ? commands : [];
+  if (spent) return { requeued: false, reason: "spent" };
+  if (!cmd || cmd.action !== "buy") return { requeued: false, reason: "not-buy" };
+  const already = list.some((c) => c && c.symbol === cmd.symbol && c.action === "buy");
+  if (already) return { requeued: false, reason: "already-queued" };
+  list.push(cmd);
+  return { requeued: true, reason: "unspent" };
+}
+
 /** Latch only after executeBuy actually sends the swap. */
 export function markOperatorBuyExecuted(state) {
   if (state) {

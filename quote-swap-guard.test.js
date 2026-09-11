@@ -740,6 +740,8 @@ describe("OPERATOR_BUY boot order vs OHLC seed", () => {
     const procBody = src.slice(proc, src.indexOf("\nasync function ", proc + 1));
     assert.ok(procBody.includes("pendingManual"));
     assert.ok(procBody.includes("isDeadWaveSkipped") && procBody.includes("!pendingManual"));
+    assert.ok(src.includes("settleFlushedOperatorBuy"), "unspent flush / processToken buy must re-queue");
+    assert.ok(src.includes("hydrateHistoryMap"), "skip-seed / GitHub load must hydrate readings");
   });
 
   it("AERO buy binds the verified Uni V3 WETH pool", () => {
