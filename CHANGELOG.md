@@ -13,6 +13,8 @@ dead-wave / NO QUOTE before the MANUAL BUY path.
   seed entirely — no per-token DexScreener/GT fetch, no 8s frozen timeout.
 - Flush OPERATOR_BUY / Telegram `/buy` after CDP queue, after recon, and
   at the start of the live loop — do not wait for candle seeding.
+- Unspent flush (cold wallet / safe mode / route miss) re-queues the buy;
+  only a real fill latches `OPERATOR_BUY`.
 - `processToken` no longer silent-returns past a queued operator buy.
 - AERO SwapRouter route binds Uni V3 WETH `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf`
   (~$1.25M DexScreener). Aerodrome-primary USDC is not a PRIMARY_NOT_V3_WETH freeze.
