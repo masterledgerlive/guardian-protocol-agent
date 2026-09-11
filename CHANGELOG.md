@@ -26,6 +26,7 @@ Live Uni V3 GAME/WETH book is **fee 10000** (`0xE5Ff…77a3`). Harden:
 - On-chain factory `liquidity=0` skips that fee (GAME empty 3000 ghost). Quoter amountOut is not enough without a real pool.
 - After N=3 quote/swap fails on the same symbol: cooldown **and** persistent buy freeze. Cooldown expiry does not reopen buys. Successful **buy** fill or `/unfreeze` lifts the runtime freeze; successful **sell** does not.
 - Hitch only when leftover covers; plain sale otherwise. LOSE-ZERO unchanged. Uni V4 leftover hitch stays VITA KEY+LOC. No invented P&L.
+- GAME catalog freeze is **sticky** (`0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3`). No `FREEZE_GAME` env — `/unfreeze` and `OPERATOR_BUY` cannot reopen new buys. Sells/exits stay open. Inject hitch surfaces other than GAME stay live.
 
 ### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash
 

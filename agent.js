@@ -1742,7 +1742,7 @@ const DEFAULT_TOKENS = [
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
   { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Primary book Uni V2 GAME/VIRTUAL 0xD418dfE7…7789 ~$2.14M — SwapRouter02 is Uni V3 WETH-only. V3 GAME/WETH 3000 0x70fbffe3… liquidity()=0 / ghost; 1% ~$2.8k too thin. Freeze new buys; exits remain.",
+    frozen: true, frozenReason: "Primary book Uni V2 GAME/VIRTUAL 0xD418dfE7…7789 ~$2.14M — SwapRouter02 is Uni V3 WETH-only. V3 GAME/WETH 3000 0x70fbffe3… liquidity()=0 / ghost; 1% ~$2.8k too thin. Freeze new buys; exits remain. Catalog freeze is the gate (no FREEZE_GAME env).",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — FROZEN exits-only. Liquid book is Uni V2 GAME/VIRTUAL; SwapRouter cannot fill it." },
 
@@ -1889,6 +1889,27 @@ const DEFAULT_TOKENS = [
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:6, community:8, total:31 },
     notes: "FREN. FROZEN — no Base pool." },
 ];
+
+/** Catalog `frozen: true` is the buy gate. Railway has no FREEZE_GAME env. */
+function defaultCatalogRow(symbol) {
+  return DEFAULT_TOKENS.find((t) => t.symbol === String(symbol || "").toUpperCase()) || null;
+}
+
+function catalogFreezeIsSticky(symbol) {
+  const def = defaultCatalogRow(symbol);
+  if (!def) return false;
+  return isCatalogFrozen(applyWethDeadFreeze(def));
+}
+
+/** Re-apply code catalog freeze so runtime /unfreeze cannot arm new buys. Sells stay open. */
+function applyStickyCatalogFreeze(token) {
+  if (!token) return token;
+  if (!catalogFreezeIsSticky(token.symbol)) return token;
+  const def = applyWethDeadFreeze(defaultCatalogRow(token.symbol) || token);
+  token.frozen = true;
+  if (def.frozenReason) token.frozenReason = def.frozenReason;
+  return token;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔭 WATCHLIST — Future pipeline. Guardian learns prices, never trades.
@@ -5556,6 +5577,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
   try {
     // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
     // cascade / ripple) dies here. Sells never call this function.
+    // Catalog frozen:true is sticky (GAME etc.) — no FREEZE_GAME env knob.
+    applyStickyCatalogFreeze(token);
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
@@ -7196,6 +7219,7 @@ ${modeLabel}: [${sourceNames}] → [${targetNames}] | ~$${totalSellUsd.toFixed(2
 
 async function processToken(cdp, token, bal) {
   try {
+    applyStickyCatalogFreeze(token);
     // Skip disabled tokens — they have no viable Uniswap pool
     if (token.disabled) {
       // Still track price for signal purposes, just never trade
@@ -9512,6 +9536,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const t   = tokens.find(t => t.symbol === sym);
         if (!t) {
           await tg(`❓ Token <b>${sym}</b> not found in token list.`);
+        } else if (catalogFreezeIsSticky(sym)) {
+          applyStickyCatalogFreeze(t);
+          await tg(`❄️ <b>${sym}</b> is catalog-frozen (exits-only).\nCode change required — /unfreeze cannot arm new buys.`);
         } else if (!t.frozen) {
           await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
         } else {
@@ -11407,10 +11434,13 @@ function applyOperatorBuyEnv() {
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
   ]);
-  // Live token.frozen wins (runtime /unfreeze). Catalog defaults fill gaps.
-  const frozen = new Set(DEFAULT_TOKENS.filter(t => isCatalogFrozen(t)).map(t => t.symbol));
+  // Catalog frozen names always stay frozen — runtime /unfreeze cannot reopen OPERATOR_BUY.
+  // No FREEZE_GAME env; DEFAULT_TOKENS.frozen is the gate.
+  const frozen = new Set(
+    DEFAULT_TOKENS.filter((t) => isCatalogFrozen(applyWethDeadFreeze(t))).map((t) => t.symbol),
+  );
   for (const t of tokens) {
-    if (isCatalogFrozen(t)) frozen.add(t.symbol);
+    if (catalogFreezeIsSticky(t.symbol) || isCatalogFrozen(t)) frozen.add(t.symbol);
     else frozen.delete(t.symbol);
   }
   const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState, frozen);

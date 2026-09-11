@@ -212,6 +212,34 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(!/feeTier:\s*3000/.test(row), "GAME must not stay on empty 3000");
   });
 
+  it("GAME is catalog-frozen exits-only — no FREEZE_GAME env, injector stays up", () => {
+    const i = src.indexOf('symbol: "GAME"');
+    assert.ok(i >= 0);
+    const row = src.slice(i, src.indexOf("{ symbol:", i + 1));
+    assert.match(row, /address:\s*"0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3"/);
+    assert.equal(GAME_TOKEN.toLowerCase(), "0x1c4cca7c5db003824208adda61bd749e55f463a3");
+    assert.match(row, /frozen:\s*true/);
+    assert.ok(!/disabled:\s*true/.test(row), "GAME must stay exits-capable, not disabled");
+    assert.ok(!/process\.env\.FREEZE_GAME/.test(src) && !/\bFREEZE_GAME\s*=/.test(src),
+      "Railway has no FREEZE_GAME env — catalog is the gate");
+    assert.ok(src.includes("catalogFreezeIsSticky"), "catalog freeze must win over /unfreeze");
+    assert.ok(src.includes("applyStickyCatalogFreeze"), "executeBuy must re-apply catalog freeze");
+    const buyFn = src.indexOf("async function executeBuy(");
+    const sellFn = src.indexOf("async function executeSell(");
+    const buyEnd = src.indexOf("\nasync function ", buyFn + 1);
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const buyBody = src.slice(buyFn, buyEnd);
+    const sellBody = src.slice(sellFn, sellEnd);
+    assert.ok(buyBody.includes("applyStickyCatalogFreeze"), "new buys cannot arm GAME");
+    assert.ok(!sellBody.includes("isCatalogFrozen"), "residual GAME sells stay open");
+    assert.ok(!sellBody.includes("applyStickyCatalogFreeze"), "sticky freeze is buy-side only");
+    assert.ok(src.includes('INJECT_MAIN_PLAYERS = ["LINK"'), "do not disable the whole injector");
+    const unfreeze = src.indexOf('text.startsWith("/unfreeze ")');
+    const unfreezeEnd = src.indexOf('text.startsWith("/freeze ")', unfreeze);
+    const unfreezeBody = src.slice(unfreeze, unfreezeEnd > 0 ? unfreezeEnd : unfreeze + 800);
+    assert.ok(unfreezeBody.includes("catalogFreezeIsSticky"), "/unfreeze GAME must refuse");
+  });
+
   it("executeBuy and executeSell require a live Quoter fill and fee fallback", () => {
     assert.ok(src.includes("requireLiveQuoterFill"), "must gate on live Quoter");
     assert.ok(src.includes("feeTierCandidates"), "must probe other V3 fees");
