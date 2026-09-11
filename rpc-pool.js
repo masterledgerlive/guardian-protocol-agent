@@ -4,17 +4,32 @@
  * Railway sets BASE_RPC / RPC_URL / BASE_RPC_URL to https://mainnet.base.org.
  * Those must win over any hardcoded public list. base.llamarpc.com returns
  * Cloudflare 521 and must never be first-class (or in the rotation at all).
+ *
+ * meowrpc / drpc public free tiers 429 under guardian read volume
+ * (balanceOf, nonce) and must stay last-resort — never ahead of
+ * mainnet.base.org or the healthier public nodes already in this list.
  */
 
 export const DEAD_RPC_HOSTS = ["base.llamarpc.com"];
 
-export const DEFAULT_PUBLIC_RPCS = [
+/** Public free pools that 429 under live guardian traffic. Last-resort only. */
+export const DEMOTE_RPC_HOSTS = ["base.meowrpc.com", "base.drpc.org"];
+
+export const HEALTHY_PUBLIC_RPCS = [
   "https://mainnet.base.org",
   "https://base-rpc.publicnode.com",
-  "https://base.drpc.org",
-  "https://base.meowrpc.com",
   "https://base-pokt.nodies.app",
   "https://gateway.tenderly.co/public/base",
+];
+
+export const DEMOTED_PUBLIC_RPCS = [
+  "https://base.drpc.org",
+  "https://base.meowrpc.com",
+];
+
+export const DEFAULT_PUBLIC_RPCS = [
+  ...HEALTHY_PUBLIC_RPCS,
+  ...DEMOTED_PUBLIC_RPCS,
 ];
 
 export function normalizeRpcUrl(url) {
@@ -24,6 +39,11 @@ export function normalizeRpcUrl(url) {
 export function isDeadPublicRpc(url) {
   const host = normalizeRpcUrl(url).toLowerCase();
   return DEAD_RPC_HOSTS.some((h) => host.includes(h));
+}
+
+export function isDemotedPublicRpc(url) {
+  const host = normalizeRpcUrl(url).toLowerCase();
+  return DEMOTE_RPC_HOSTS.some((h) => host.includes(h));
 }
 
 /** Prefer BASE_RPC, then RPC_URL, then BASE_RPC_URL. Comma/space separated OK. */
@@ -37,14 +57,28 @@ export function collectEnvRpcUrls(env = process.env) {
 
 export function buildRpcUrls(env = process.env) {
   const seen = new Set();
-  const out = [];
-  for (const url of [...collectEnvRpcUrls(env), ...DEFAULT_PUBLIC_RPCS]) {
+  const preferred = [];
+  const healthy = [];
+  const demoted = [];
+
+  function push(url, bucket) {
     const n = normalizeRpcUrl(url);
     const key = n.toLowerCase();
-    if (!n || seen.has(key) || isDeadPublicRpc(n)) continue;
+    if (!n || seen.has(key) || isDeadPublicRpc(n)) return;
     seen.add(key);
-    out.push(n);
+    bucket.push(n);
   }
+
+  // Env-configured healthier URLs stay first. meowrpc/drpc from env or
+  // the public list are appended last so failover still works.
+  for (const url of collectEnvRpcUrls(env)) {
+    push(url, isDemotedPublicRpc(url) ? demoted : preferred);
+  }
+  for (const url of DEFAULT_PUBLIC_RPCS) {
+    push(url, isDemotedPublicRpc(url) ? demoted : healthy);
+  }
+
+  const out = [...preferred, ...healthy, ...demoted];
   return out.length ? out : ["https://mainnet.base.org"];
 }
 

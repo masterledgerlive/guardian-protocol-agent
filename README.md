@@ -227,7 +227,7 @@ PIGGY_EARNINGS_BUFFER_PCT ← fraction of proceeds that must remain after fees/s
 PIGGY_COINVEST            ← yes = allow ETH piggy paper co-invest with pred fund (default no — piggy stays locked for AI).
 CYCLE_ALIGN_MIN           ← auto buys need this many aligned entry vars (default 2, max 4). Telegram `/cycles` reports succession streaks.
 TOKEN_MIN_BUY_USD_JSON    ← optional `{"TOSHI":1,"UNI":0.5}` overrides for per-token Telegram/operator min buy floors.
-BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks exclude dead base.llamarpc.com (Cloudflare 521).
+BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.base.org). Used first; public fallbacks prefer official Base + publicnode/nodies/tenderly. Dead base.llamarpc.com (Cloudflare 521) is excluded. base.meowrpc.com / base.drpc.org are last-resort only (public free tiers 429 under guardian read volume).
 OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready). Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Leftover+edge do not block; hitch if leftover covers, else plain. Frozen catalog names are never queued.
 OPERATOR_SELL             ← TOSHI:50 = queue one operator 50% sell (same as /sellhalf TOSHI / /sell TOSHI 50) once after CDP ready. TOSHI:all = full /sell. Latch is set only after the swap executes. Bypasses wave gates as MANUAL SELL (operator). Does not re-buy unless OPERATOR_BUY is also set. LOSE_ZERO auto stays gated.
 PRICE_INSANE_MIN_RATIO    ← mark / DexScreener-Gecko (or last sane) floor (default 0.01)

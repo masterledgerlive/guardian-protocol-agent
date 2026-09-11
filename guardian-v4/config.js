@@ -5,6 +5,7 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildRpcUrls } from "../rpc-pool.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -50,8 +51,7 @@ export const MIN_NET_MARGIN = Number(env("MIN_NET_MARGIN", "0.02")) || 0.02;
 export const HITCH_COST_MULT = Number(env("HITCH_COST_MULT", "2")) || 2;
 export const SLIPPAGE = Number(env("SLIPPAGE", "0.85")) || 0.85;
 
-export const DEFAULT_RPCS = [
-  env("RPC_URL", "https://mainnet.base.org"),
-  "https://base.llamarpc.com",
-  "https://base.meowrpc.com",
-];
+/** Same ranking as V3: env first, then official/healthy public, meowrpc/drpc last. */
+export const DEFAULT_RPCS = buildRpcUrls({
+  BASE_RPC: env("RPC_URL"),
+});

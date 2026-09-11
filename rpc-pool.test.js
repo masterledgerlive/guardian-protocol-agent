@@ -2,14 +2,19 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEAD_RPC_HOSTS,
+  DEMOTE_RPC_HOSTS,
   DEFAULT_PUBLIC_RPCS,
+  HEALTHY_PUBLIC_RPCS,
+  DEMOTED_PUBLIC_RPCS,
   normalizeRpcUrl,
   isDeadPublicRpc,
+  isDemotedPublicRpc,
   collectEnvRpcUrls,
   buildRpcUrls,
   isRpcFailoverError,
   withRpcFailover,
 } from "./rpc-pool.js";
+import { readFileSync } from "node:fs";
 import { isAddrInUseError, handleWebhookListenError } from "./vita-webhook.js";
 import {
   queueOperatorBuyOnce,
@@ -42,6 +47,65 @@ describe("env RPC preference", () => {
     const urls = buildRpcUrls({ BASE_RPC: "https://mainnet.base.org" });
     assert.equal(urls.filter((u) => u === "https://mainnet.base.org").length, 1);
     assert.ok(urls.includes("https://base-rpc.publicnode.com"));
+  });
+});
+
+describe("meowrpc/drpc are last-resort (429-prone free pools)", () => {
+  it("lists official Base and healthier publics before meowrpc/drpc", () => {
+    assert.equal(DEFAULT_PUBLIC_RPCS[0], "https://mainnet.base.org");
+    assert.deepEqual(HEALTHY_PUBLIC_RPCS, [
+      "https://mainnet.base.org",
+      "https://base-rpc.publicnode.com",
+      "https://base-pokt.nodies.app",
+      "https://gateway.tenderly.co/public/base",
+    ]);
+    const firstDemoted = Math.min(
+      ...DEMOTED_PUBLIC_RPCS.map((u) => DEFAULT_PUBLIC_RPCS.indexOf(u)),
+    );
+    for (const healthy of HEALTHY_PUBLIC_RPCS) {
+      assert.ok(
+        DEFAULT_PUBLIC_RPCS.indexOf(healthy) < firstDemoted,
+        `${healthy} must rank before meowrpc/drpc`,
+      );
+    }
+  });
+
+  it("classifies meowrpc and drpc as demoted, not dead", () => {
+    assert.ok(isDemotedPublicRpc("https://base.meowrpc.com"));
+    assert.ok(isDemotedPublicRpc("https://base.drpc.org/"));
+    assert.ok(DEMOTE_RPC_HOSTS.includes("base.meowrpc.com"));
+    assert.ok(DEMOTE_RPC_HOSTS.includes("base.drpc.org"));
+    assert.equal(isDeadPublicRpc("https://base.meowrpc.com"), false);
+    assert.equal(isDemotedPublicRpc("https://mainnet.base.org"), false);
+  });
+
+  it("buildRpcUrls tries mainnet.base.org before meowrpc/drpc even with empty env", () => {
+    const urls = buildRpcUrls({});
+    assert.equal(urls[0], "https://mainnet.base.org");
+    const official = urls.indexOf("https://mainnet.base.org");
+    const meow = urls.indexOf("https://base.meowrpc.com");
+    const drpc = urls.indexOf("https://base.drpc.org");
+    assert.ok(meow > official, "meowrpc must be after official Base RPC");
+    assert.ok(drpc > official, "drpc must be after official Base RPC");
+    assert.ok(meow > urls.indexOf("https://base-rpc.publicnode.com"));
+    assert.ok(drpc > urls.indexOf("https://base-pokt.nodies.app"));
+  });
+
+  it("env healthier URL stays first; meowrpc/drpc still last", () => {
+    const urls = buildRpcUrls({
+      BASE_RPC: "https://mainnet.base.org,https://base.meowrpc.com",
+    });
+    assert.equal(urls[0], "https://mainnet.base.org");
+    assert.ok(urls.indexOf("https://base.meowrpc.com") > urls.indexOf("https://base-rpc.publicnode.com"));
+    assert.ok(urls.indexOf("https://base.drpc.org") > urls.indexOf("https://gateway.tenderly.co/public/base"));
+  });
+
+  it("V4 DEFAULT_RPCS uses the shared pool (no hardcoded llamarpc/meowrpc)", () => {
+    const src = readFileSync(new URL("./guardian-v4/config.js", import.meta.url), "utf8");
+    assert.ok(src.includes("buildRpcUrls"));
+    assert.ok(!src.includes("base.llamarpc.com"));
+    assert.ok(!src.includes("base.meowrpc.com"));
+    assert.ok(!src.includes("base.drpc.org"));
   });
 });
 

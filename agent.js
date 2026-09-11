@@ -2019,6 +2019,7 @@ const ERC20_ABI = [
 
 // ── RPC ROTATION ──────────────────────────────────────────────────────────────
 // Env first: BASE_RPC || RPC_URL || BASE_RPC_URL. base.llamarpc.com is dead (CF 521).
+// meowrpc/drpc public free tiers 429 under read volume — last-resort only.
 const RPC_URLS = buildRpcUrls(process.env);
 console.log("🔗 RPC pool: " + RPC_URLS.join(" → "));
 

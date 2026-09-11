@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed — demote meowrpc/drpc so official Base RPC is tried first
+
+Live Railway flooded HTTP 429s on `base.meowrpc.com` / `base.drpc.org`, so
+`balanceOf` / nonce reads failed across fallbacks and `OPERATOR_BUY AERO:2`
+stuck (nonce 5450).
+
+- Rank `https://mainnet.base.org` and the healthier public nodes
+  (publicnode, nodies, tenderly) ahead of meowrpc/drpc.
+- Keep meowrpc/drpc as last-resort only — public free tiers 429 under
+  guardian read volume. Still fail over the full list; no secrets hardcoded.
+- Guardian V4 `DEFAULT_RPCS` uses the same pool (drops dead llamarpc).
+
 ### Added — Outlet scoreboard + dense KEY+LOC hitch (Base V3 only)
 
 Faster leftover hitch without losing money: keep outlets that can earn a Uni V3
