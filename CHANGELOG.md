@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_BUY / Telegram `/buy` bypass COST_EDGE near-term
+
+Live after #74 (`167cb333`): `processToken` crash gone. `OPERATOR_BUY=AERO:2`
+reached LOSE_ZERO allow (operator plain swap), then
+`COST_EDGE AERO near-term upside 3.00% < 1.15× required 2.63%` blocked
+forever. Nonce stayed 5450; no buy hash; AERO:2 latched; tradeable ETH idle.
+
+Root cause (verified): `evaluateCostEdgeGate` `near_term` runs **after**
+LOSE_ZERO allow inside `executeBuy`. `isManualOperator` already skipped
+high-unit floors, not the wave-peak edge math.
+
+- Operator / Telegram `/buy` (`MANUAL BUY (operator)`) skips COST_EDGE in
+  `executeBuy` and skips `near_term` inside the gate.
+- Auto / wave / cascade still evaluate COST_EDGE (same 1.15× thin-book
+  near-term). Hitch% / RT% / no_size unchanged.
+- LOSE-ZERO, always-plus, quote-gate, AERO Uni V3 WETH
+  `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf`, unspent OPERATOR_BUY
+  re-queue from #74 — unchanged.
+
+Does **not** invent P&L. Does **not** merge V4 into `agent.js`.
+
 ### Fixed — processToken `undefined.push` after SKIP_OHLC_SEED; unspent OPERATOR_BUY re-queues
 
 Live after #72 (`a0b8c4ad`, Railway `b0fda674`): `OPERATOR_BUY=AERO:2` +
