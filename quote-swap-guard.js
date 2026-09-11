@@ -24,7 +24,7 @@ import {
   QUOTE_INSANE_VS_SPOT,
   encodingDoesNotLoseMoney,
 } from "./swap-minout.js";
-import { BASE_WETH, BASE_USDC, BASE_USDBC, NATIVE_ETH } from "./price-oracle.js";
+import { BASE_WETH, BASE_USDC, BASE_USDBC, NATIVE_ETH, isGhostDexPair } from "./price-oracle.js";
 
 export const V3_FEE_TIERS = [100, 500, 3000, 10000];
 /** After catalog miss, try wider fees first — 100/500 ghosts quote before the live 1% book. */
@@ -166,11 +166,11 @@ function matchingBasePairs(pairs, tokenAddress) {
   });
 }
 
-/** Deepest DexScreener book (any DEX) — the "liquid book" humans see. */
+/** Deepest non-ghost DexScreener book — junk mega-liq $0-vol prints are not the liquid book. */
 export function deepestDexPair(pairs, tokenAddress) {
   const rows = matchingBasePairs(pairs, tokenAddress)
     .map(summarizeDexPair)
-    .filter((r) => r && r.liqUsd > 0);
+    .filter((r) => r && r.liqUsd > 0 && !isGhostDexPair({ liqUsd: r.liqUsd, volUsd: r.volUsd }));
   rows.sort((a, b) => b.liqUsd - a.liqUsd);
   return rows[0] || null;
 }
@@ -182,7 +182,8 @@ export function deepestDexPair(pairs, tokenAddress) {
 export function selectUniV3WethUsdcPair(pairs, tokenAddress) {
   const rows = matchingBasePairs(pairs, tokenAddress)
     .map(summarizeDexPair)
-    .filter((r) => r && r.uniV3 && r.weth && r.liqUsd > 0);
+    .filter((r) => r && r.uniV3 && r.weth && r.liqUsd > 0
+      && !isGhostDexPair({ liqUsd: r.liqUsd, volUsd: r.volUsd }));
   rows.sort((a, b) => b.liqUsd - a.liqUsd);
   return rows[0] || null;
 }
@@ -257,6 +258,17 @@ export function evaluateSwapRouterRoute({
   }
   const primary = deepestDexPair(rows, tokenAddress);
   const swap = selectUniV3WethUsdcPair(rows, tokenAddress);
+  // All DexScreener rows were ghost mega-liq prints — same as an outage.
+  if (!primary && !swap) {
+    return {
+      allow: true,
+      code: "NO_DEX_PAIRS",
+      freezeBuys: false,
+      primary: null,
+      swap: null,
+      log: null,
+    };
+  }
 
   if (!swap) {
     const via = primary
