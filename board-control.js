@@ -35,6 +35,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { reportInjectCapacity } from "./storage-inject-capacity.js";
 import { LIVE_ASSUMPTIONS } from "./revenue-sim.js";
+import { ALWAYS_PLUS_EXIT } from "./always-plus-exit.js";
+import { buildOutletScoreboard } from "./outlet-scoreboard.js";
+import { maxInjectRateUnderLoseZero, L2_BYTE_LESSONS, preferDenseHitch } from "./hitch-density.js";
 
 /** Display-only V4 names (from guardian-v4/README). No pool IDs, no swap encoder, no V4 imports. */
 const V4_DISPLAY_AVENUES = Object.freeze([
@@ -60,6 +63,7 @@ export const BOARD_PATHS = Object.freeze({
   snapshot: "/board/api/snapshot",
   sim: "/board/api/sim",
   inject: "/board/api/inject",
+  scoreboard: "/board/api/scoreboard",
   v4: "/board/api/v4",
   v4Page: "/v4",
   arena: "/arena",
@@ -73,6 +77,8 @@ export const LOSE_ZERO_INVARIANTS = Object.freeze({
   piggyNeverSell: true,
   vaultNeverSpend: true,
   noInventedPnl: true,
+  alwaysPlusExit: ALWAYS_PLUS_EXIT.leftoverAfterFeesMustBePositive,
+  cutClassDoesNotBlockGreenExit: ALWAYS_PLUS_EXIT.cutClassDoesNotBlockGreenExit,
 });
 
 const AGENT_JS = join(dirname(fileURLToPath(import.meta.url)), "agent.js");
@@ -215,6 +221,42 @@ export function listV3InjectSurfaces({ env = process.env, agentSrc = null } = {}
       disabled: t.disabled,
     })),
     loseZero: { ...LOSE_ZERO_INVARIANTS },
+    alwaysPlus: ALWAYS_PLUS_EXIT,
+  };
+}
+
+export function listOutletScoreboard({ env = process.env, agentSrc = null } = {}) {
+  const src = agentSrc != null ? agentSrc : fs.readFileSync(AGENT_JS, "utf8");
+  const rows = parseDefaultTokensFromAgentSource(src);
+  const mainsLine = src.match(/const INJECT_MAIN_PLAYERS = \[([^\]]+)\]/)?.[1] || "";
+  const mains = [...mainsLine.matchAll(/"([A-Z0-9]+)"/g)].map((m) => m[1]);
+  return buildOutletScoreboard(rows, { injectMains: mains, env });
+}
+
+export function hitchDensityBoard(live = {}) {
+  const bagUsd = Number(live.bagUsd) > 0 ? Number(live.bagUsd) : 3;
+  const leftoverEth = live.leftoverEth != null ? Number(live.leftoverEth) : undefined;
+  const leftoverPct = leftoverEth != null
+    ? null
+    : (live.leftoverPct != null ? Number(live.leftoverPct) : 0.02);
+  const rate = maxInjectRateUnderLoseZero({
+    bagUsd,
+    leftoverPct: leftoverPct == null ? 0.02 : leftoverPct,
+    leftoverEth,
+    ethUsd: live.ethUsd,
+    gwei: live.gwei,
+    l1FeePerByteEth: live.l1FeePerByteEth,
+  });
+  const pick = preferDenseHitch({
+    leftoverEth: rate.leftoverEth,
+    gwei: live.gwei,
+    l1FeePerByteEth: live.l1FeePerByteEth,
+  });
+  return {
+    ...rate,
+    preferDense: pick,
+    l2Lessons: L2_BYTE_LESSONS,
+    alwaysPlus: ALWAYS_PLUS_EXIT,
   };
 }
 
@@ -249,6 +291,12 @@ export function leftoverHitchCapacity(live = {}) {
     hitchTagEth,
     eurekaOk: report.capacity_now?.eureka_ok,
     maxHitchBytes: report.capacity_now?.max_hitch_bytes_per_swap,
+    hitchDensity: hitchDensityBoard({
+      bagUsd: 3,
+      leftoverEth,
+      ethUsd,
+      gwei: patched.gwei,
+    }),
     note: report.capacity_now?.note,
     funds: report.funds,
     lose_zero: report.lose_zero,
@@ -688,6 +736,7 @@ export function boardHealth({
       snapshot: { path: BOARD_PATHS.snapshot, auth: "optional-live", mutate: false },
       sim: { path: BOARD_PATHS.sim, auth: false, mutate: false },
       inject: { path: BOARD_PATHS.inject, auth: false, mutate: false },
+      scoreboard: { path: BOARD_PATHS.scoreboard, auth: false, mutate: false },
       v4: { path: BOARD_PATHS.v4, auth: false, mutate: false, deferred: true },
       arenaSnapshot: { path: "/arena/api/snapshot", auth: true, mutate: false },
       arenaQueue: { path: "/arena/api/queue", auth: true, mutate: "queue-only" },
@@ -707,6 +756,8 @@ export function demoBoardSnapshot(env = process.env) {
     kind: "control-board-snapshot",
     params: readLiveParamSnapshot(env),
     inject,
+    scoreboard: listOutletScoreboard({ env }),
+    hitchDensity: hitchDensityBoard({ leftoverEth: capacity.leftoverEth, ethUsd: LIVE_ASSUMPTIONS.ethUsd }),
     capacity,
     botPiggy: modelBotUsagePiggy({
       hitchTagUsd: capacity.hitchTagUsd,

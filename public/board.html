@@ -117,6 +117,8 @@
     }
     .pill.ok { background: #d8f5c8; }
     .pill.warn { background: #ffd2a8; }
+    .pill.cut { background: #ffb08a; }
+    .pill.keep { background: #d8f5c8; }
     .pill.fav { background: var(--lime); border-color: var(--ink); }
     .rules { display: grid; gap: 0.4rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
     .rule { font-family: var(--display); font-size: 0.8rem; padding: 0.5rem 0.6rem; border-radius: 0.5rem; background: #10231c; color: #d8f5c8; }
@@ -198,6 +200,23 @@
         </table>
       </div>
       <p class="hint" id="frozenNote"></p>
+    </section>
+
+    <section id="scoreboard">
+      <h2>1b · Outlet scoreboard (KEEP / CUT / CAUTION)</h2>
+      <p class="hint">
+        Hitch on Uni V3 fees that Quoter fills. Cut ghosts. GAME is the <strong>CUT</strong> class
+        (fee 3000 <code>liquidity()=0</code>, three mined reverts). Rates are observed receipts or blank — never invented P&amp;L.
+        Always-plus: leftover-green sells stay open on CUT names.
+      </p>
+      <div class="grid-2" id="scoreStats"></div>
+      <div style="overflow:auto; margin-top:0.55rem">
+        <table>
+          <thead><tr><th>Symbol</th><th>Rec</th><th>Hitch ok</th><th>Revert</th><th>Depth</th><th>Why</th></tr></thead>
+          <tbody id="scoreBody"><tr><td colspan="6">Loading scoreboard…</td></tr></tbody>
+        </table>
+      </div>
+      <pre id="densityOut">KEY+LOC vs Eureka hitch budget on a ~$3 bag.</pre>
     </section>
 
     <section id="hitch">
@@ -411,6 +430,49 @@
       });
     }
 
+    function renderScoreboard(board, density) {
+      const counts = board?.counts || {};
+      document.getElementById("scoreStats").innerHTML = [
+        ["KEEP", String(counts.keep ?? "—")],
+        ["CUT", (board?.cut || []).join(" · ") || String(counts.cut ?? "—")],
+        ["CAUTION", String(counts.caution ?? "—")],
+        ["GAME class", board?.gameGhost?.class || "CUT"],
+      ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join("");
+      const rows = board?.rows || [];
+      const show = [
+        ...rows.filter((r) => r.recommend === "CUT"),
+        ...rows.filter((r) => r.recommend === "CAUTION").slice(0, 8),
+        ...rows.filter((r) => r.recommend === "KEEP" && r.injectMain),
+      ];
+      document.getElementById("scoreBody").innerHTML = show.map((t) => {
+        const rec = String(t.recommend || "").toLowerCase();
+        const hitch = t.hitchSuccessRate == null ? "—" : (t.hitchSuccessRate * 100).toFixed(0) + "%";
+        const fail = t.failRevertRate == null ? "—" : (t.failRevertRate * 100).toFixed(0) + "%";
+        const depth = t.liquidDepthUsd == null ? "—" : money(t.liquidDepthUsd);
+        return `<tr>
+          <td>${t.symbol}${t.injectMain ? ' <span class="pill ok">inject</span>' : ""}</td>
+          <td><span class="pill ${rec === "cut" ? "cut" : rec === "keep" ? "keep" : "warn"}">${t.recommend}</span></td>
+          <td>${hitch}</td>
+          <td>${fail}</td>
+          <td>${depth}</td>
+          <td>${t.why || ""}</td>
+        </tr>`;
+      }).join("") || "<tr><td colspan='6'>No scoreboard rows.</td></tr>";
+      const d = density || {};
+      document.getElementById("densityOut").textContent = JSON.stringify({
+        kind: d.kind,
+        label: d.label,
+        bagUsd: d.bagUsd,
+        leftoverUsd: d.leftoverUsd,
+        prefer: d.prefer,
+        keyLoc: d.keyLoc,
+        eurekaLeftover: d.eurekaLeftover,
+        l2: d.l2Lessons?.liveChain,
+        v4Deferred: d.l2Lessons?.v4Deferred,
+        note: d.note,
+      }, null, 2);
+    }
+
     function renderInject(inject) {
       const mains = inject?.injectMains || [];
       const fav = inject?.favorite || "LINK";
@@ -504,6 +566,7 @@
         ]);
         renderKnobs(params);
         renderInject(inj);
+        renderScoreboard(inj.scoreboard || snap.scoreboard, inj.hitchDensity || inj.capacity?.hitchDensity || snap.hitchDensity);
         const live = !!(headers()["x-vita-secret"] && snap.demo === false);
         renderCapacity((live && snap.capacity) ? snap.capacity : (inj.capacity || snap.capacity));
         renderBotPiggy((live && snap.botPiggy) ? snap.botPiggy : (inj.botPiggy || snap.botPiggy));

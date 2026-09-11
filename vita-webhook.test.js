@@ -38,6 +38,7 @@ describe("control board HTTP", () => {
     assert.match(text, /Control Board/);
     assert.match(text, /SIM/);
     assert.match(text, /V3 hitch surfaces/);
+    assert.match(text, /Outlet scoreboard/);
     assert.match(text, /Bot usage piggy/);
     assert.match(text, /\$20\/mo/);
     assert.match(text, /Queue buy ~\$2/);
@@ -146,6 +147,22 @@ describe("control board HTTP", () => {
     assert.equal(json.vitaRouter.kind, "vita-secondary-router");
     assert.equal(json.vitaRouter.mode, "vita");
     assert.equal(json.vitaRouter.loseZero.proveKeepsLoveNote, true);
+    assert.equal(json.scoreboard.gameGhost.class, "CUT");
+    assert.ok(json.scoreboard.cut.includes("GAME"));
+    assert.equal(json.hitchDensity.prefer, "key-loc");
+    assert.ok(json.hitchDensity.keyLoc.bytes < json.hitchDensity.eurekaLeftover.bytes);
+  });
+
+  it("GET /board/api/scoreboard is public KEEP/CUT/CAUTION without invented P&L", async () => {
+    const { res, json } = await get("/board/api/scoreboard");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.gameGhost.class, "CUT");
+    assert.equal(json.gameGhost.pnlUsd, null);
+    assert.ok(json.cut.includes("GAME"));
+    assert.equal(json.alwaysPlus.cutClassDoesNotBlockGreenExit, true);
+    assert.equal(json.hitchDensity.bagUsd, 3);
+    assert.equal(json.v4Deferred, true);
   });
 
   it("GET /board/api/snapshot demo includes inject + bot piggy and a deferred V4 stub", async () => {
@@ -153,6 +170,7 @@ describe("control board HTTP", () => {
     assert.equal(res.status, 200);
     assert.equal(json.demo, true);
     assert.ok(json.inject.hitchSurfaces.length >= 10);
+    assert.equal(json.scoreboard.gameGhost.class, "CUT");
     assert.equal(json.botPiggy.kind, "demo|example");
     assert.equal(json.v4.deferred, true);
     assert.equal(json.v4.sameProcessAsV3, false);

@@ -10,6 +10,7 @@
 //   GET  /board/api/snapshot  — hub snapshot (demo public; live if authorized)
 //   POST /board/api/sim       — labeled V3 practice sim (public, no spend, no V4 encode)
 //   GET  /board/api/inject    — V3 tradeable hitch surfaces + leftover/hitch capacity + bot piggy
+//   GET  /board/api/scoreboard — KEEP/CUT/CAUTION outlets + KEY+LOC hitch density (no invented P&L)
 //   GET  /v4                  — V4 docs only (deferred — not this runtime)
 //   GET  /arena               — Guardian Arena HTML (public learning board)
 //   GET  /                  — same as /arena (original live path)
@@ -49,6 +50,8 @@ import {
   leftoverHitchCapacity,
   leftoverInputsFromEngine,
   listV3InjectSurfaces,
+  listOutletScoreboard,
+  hitchDensityBoard,
   modelBotUsagePiggy,
   readLiveParamSnapshot,
   runBoardSim,
@@ -338,11 +341,22 @@ async function handleVitaRequest(req, res) {
       return json(res, {
         ...listV3InjectSurfaces(),
         capacity,
+        scoreboard: listOutletScoreboard(),
+        hitchDensity: hitchDensityBoard({ leftoverEth: capacity.leftoverEth }),
         vitaRouter: vitaRouterStatus(),
         botPiggy: modelBotUsagePiggy({
           hitchTagUsd: capacity.hitchTagUsd,
           leftoverUsd: capacity.leftoverUsd,
         }),
+      });
+    }
+
+    if (path === "/board/api/scoreboard" && req.method === "GET") {
+      const capacity = leftoverHitchCapacity();
+      return json(res, {
+        ok: true,
+        ...listOutletScoreboard(),
+        hitchDensity: hitchDensityBoard({ leftoverEth: capacity.leftoverEth }),
       });
     }
 
