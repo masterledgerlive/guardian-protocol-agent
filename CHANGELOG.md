@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_BUY fires before OHLC seed; SKIP_OHLC_SEED honored
+
+Risk desk `OPERATOR_BUY=AERO:2` queued on every Railway boot but never
+sent `exactInputSingle` (nonce stuck). Frozen candle timeouts blocked boot
+even with `SKIP_OHLC_SEED=yes`, and `processToken` could eat the queue on
+dead-wave / NO QUOTE before the MANUAL BUY path.
+
+- `SKIP_OHLC_SEED=yes` (also `true` / `1` / `on`) skips the 90-day candle
+  seed entirely — no per-token DexScreener/GT fetch, no 8s frozen timeout.
+- Flush OPERATOR_BUY / Telegram `/buy` after CDP queue, after recon, and
+  at the start of the live loop — do not wait for candle seeding.
+- `processToken` no longer silent-returns past a queued operator buy.
+- AERO SwapRouter route binds Uni V3 WETH `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf`
+  (~$1.25M DexScreener). Aerodrome-primary USDC is not a PRIMARY_NOT_V3_WETH freeze.
+
+Does **not** change LOSE-ZERO. Does **not** invent P&L. Does **not** merge V4.
+
 ### Fixed — Base RPC pool prefers official; meowrpc/drpc last-resort
 
 Risk desk AERO `balanceOf` was failing on 429s from meowrpc/drpc when the

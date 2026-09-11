@@ -444,6 +444,29 @@ export function shouldSkipOhlcSeed(token) {
 }
 
 /**
+ * Railway `SKIP_OHLC_SEED=yes` (also true / 1 / on) skips the 90-day candle
+ * seed entirely — no per-token DexScreener/GT fetch, no frozen 8s timeout path.
+ */
+export function isSkipOhlcSeed(env = process.env) {
+  const v = String(env?.SKIP_OHLC_SEED ?? "").trim().toLowerCase();
+  return v === "yes" || v === "true" || v === "1" || v === "on";
+}
+
+/**
+ * Plan the OHLC seed pass. `skipAll` means do not iterate tokens at all
+ * (no raceTimeout / frozen candle hang).
+ */
+export function planOhlcSeed(tokens, env = process.env) {
+  const rows = Array.isArray(tokens) ? tokens : [];
+  if (isSkipOhlcSeed(env)) {
+    return { skipAll: true, seedTokens: [], skipped: rows.slice(), reason: "SKIP_OHLC_SEED" };
+  }
+  const skipped = rows.filter(shouldSkipOhlcSeed);
+  const seedTokens = rows.filter((t) => !shouldSkipOhlcSeed(t));
+  return { skipAll: false, seedTokens, skipped, reason: null };
+}
+
+/**
  * Prefer Base DEX candles whenever they exist, even if Binance has a longer
  * history. Binance is last-resort and only for allowlisted CEX-equivalent assets.
  */

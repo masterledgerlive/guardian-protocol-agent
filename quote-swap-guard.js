@@ -47,6 +47,49 @@ export const GAME_EMPTY_FEE_3000_POOL = "0x70fbffe313d4a40909dba7129e0b2f4a45a64
 export const GAME_LIVE_FEE_10000_POOL = "0xe5ff624bc6c0f85c5e1e27f94366b5829b1877a3";
 export const GAME_TOKEN = "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3";
 
+/** Aerodrome token on Base — SwapRouter02 fills Uni V3 WETH, not Aerodrome. */
+export const AERO_TOKEN = "0x940181a94A35A4569E4529A3CDfB74e38FD98631";
+/**
+ * Deepest Uni V3 AERO/WETH book on Base (DexScreener Uniswap v3 WETH).
+ * Live ~$1.25M / ~$0.67M 24h — not the Aerodrome USDC primary (~$33M).
+ */
+export const AERO_UNI_V3_WETH_POOL = "0x3d5D143381916280ff91407FeBEB52f2b60f33Cf";
+
+/** Live DexScreener AERO books — Aerodrome USDC is primary; Uni V3 WETH is the SwapRouter book. */
+export const AERO_DEX_PAIRS = [
+  {
+    chainId: "base",
+    dexId: "aerodrome",
+    pairAddress: "0x6cDcb1C4A4D1C3C6d054b27AC5B77e89eAFb971d",
+    liquidity: { usd: 33_474_617 },
+    volume: { h24: 5_998_553 },
+    priceUsd: "0.5886",
+    baseToken: { address: AERO_TOKEN },
+    quoteToken: { address: BASE_USDC, symbol: "USDC" },
+  },
+  {
+    chainId: "base",
+    dexId: "aerodrome",
+    pairAddress: "0x7f670f78B17dEC44d5Ef68a48740b6f8849cc2e6",
+    liquidity: { usd: 2_967_113 },
+    volume: { h24: 400_000 },
+    priceUsd: "0.5886",
+    baseToken: { address: AERO_TOKEN },
+    quoteToken: { address: BASE_WETH, symbol: "WETH" },
+  },
+  {
+    chainId: "base",
+    dexId: "uniswap",
+    labels: ["v3"],
+    pairAddress: AERO_UNI_V3_WETH_POOL,
+    liquidity: { usd: 1_249_091 },
+    volume: { h24: 669_307 },
+    priceUsd: "0.5886",
+    baseToken: { address: AERO_TOKEN },
+    quoteToken: { address: BASE_WETH, symbol: "WETH" },
+  },
+];
+
 /** First failed GAME buy — WETH→GAME fee 3000 + §$STORE§ hitch, status=0. */
 export const GAME_FAILED_BUY = {
   tx: "0x2644773a875e2cfb67f8d85ec329f326a68406b5f66c327250b8404ffcacfef0",
@@ -176,6 +219,19 @@ export function deepestDexPair(pairs, tokenAddress) {
 }
 
 /**
+ * Deepest Uniswap book only. Aerodrome / Pancake being deeper is not a
+ * SwapRouter02 route — PRIMARY_NOT_V3_WETH must not freeze AERO on Aero USDC.
+ */
+export function deepestUniswapPair(pairs, tokenAddress) {
+  const rows = matchingBasePairs(pairs, tokenAddress)
+    .map(summarizeDexPair)
+    .filter((r) => r && r.liqUsd > 0 && String(r.dexId || "").toLowerCase() === "uniswap"
+      && !isGhostDexPair({ liqUsd: r.liqUsd, volUsd: r.volUsd }));
+  rows.sort((a, b) => b.liqUsd - a.liqUsd);
+  return rows[0] || null;
+}
+
+/**
  * SwapRouter02 encodeSwap is WETH↔token only. A deep Uni V3 USDC book is not
  * the pool that exactInputSingle will hit — do not treat USDC as the route.
  */
@@ -258,6 +314,10 @@ export function evaluateSwapRouterRoute({
   }
   const primary = deepestDexPair(rows, tokenAddress);
   const swap = selectUniV3WethUsdcPair(rows, tokenAddress);
+  // PRIMARY_NOT_V3_WETH compares Uniswap books only (GAME Uni V2 VIRTUAL vs
+  // thin V3). Aerodrome-primary (AERO ~$33M USDC) is the wrong SwapRouter book
+  // — a liquid Uni V3 WETH pool is the route.
+  const uniPrimary = deepestUniswapPair(rows, tokenAddress);
   // All DexScreener rows were ghost mega-liq prints — same as an outage.
   if (!primary && !swap) {
     return {
@@ -313,21 +373,21 @@ export function evaluateSwapRouterRoute({
   }
 
   if (
-    primary
-    && primary.pairAddress
+    uniPrimary
+    && uniPrimary.pairAddress
     && swap.pairAddress
-    && primary.pairAddress.toLowerCase() !== swap.pairAddress.toLowerCase()
-    && swap.liqUsd < primary.liqUsd * minVsPrimary
+    && uniPrimary.pairAddress.toLowerCase() !== swap.pairAddress.toLowerCase()
+    && swap.liqUsd < uniPrimary.liqUsd * minVsPrimary
   ) {
     return {
       allow: false,
       code: "PRIMARY_NOT_V3_WETH",
       freezeBuys: true,
-      primary,
+      primary: uniPrimary,
       swap,
       log:
-        `🛑 PRIMARY NOT V3 WETH ${sym} — liquid book is ${primary.dexId} ` +
-        `${primary.quoteSymbol || "?"} $${primary.liqUsd.toFixed(0)}, Uni V3 WETH ` +
+        `🛑 PRIMARY NOT V3 WETH ${sym} — liquid book is ${uniPrimary.dexId} ` +
+        `${uniPrimary.quoteSymbol || "?"} $${uniPrimary.liqUsd.toFixed(0)}, Uni V3 WETH ` +
         `only $${swap.liqUsd.toFixed(0)}. Quoter on the thin V3 pool is not the book. Freeze new buys.`,
     };
   }
