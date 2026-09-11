@@ -8500,7 +8500,13 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
     const rebuilt = await tryRebuildLotFromReceipts(token, remain);
     if (isUsableLot(rebuilt)) n++;
   }
-  if (n) console.log(`   🔗 seeded rebuild (${reason}): ${n} lot(s) latched from buy receipts`);
+  if (n) {
+    console.log(`   🔗 seeded rebuild (${reason}): ${n} lot(s) latched from buy receipts`);
+    // Disk first — GitHub may still 401. Holding loop will see usable lots and
+    // skip persistFifoLotsNow("boot-rebuild"); without this a crash before the
+    // 15-min save drops the latch.
+    try { await persistFifoLotsNow(reason); } catch {}
+  }
   return n;
 }
 

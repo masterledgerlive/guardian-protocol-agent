@@ -25,9 +25,11 @@ and never forced the on-chain seeded rebuild.
 - Desk treats proven FIFO ETH as known cost without inventing a USD
   `entryPrice` (`AERO@0.000787ETH` when no fill USD).
 - Seeded buy-hash rebuild latches `tokensIn`/`ethIn` from Transfer+WETH
-  receipts even when GitHub 401s.
-- #80 (viem `status: "success"`) stays separate. #78 HOLD +
-  `DISABLE_DOW_BIAS` default ON, #76 / #74 / #79 persist — unchanged.
+  receipts even when GitHub 401s, then `persistFifoLotsNow` (disk first;
+  GitHub may still 401) so a crash before the 15-min save keeps the latch.
+- Sits on #80 (`ee80a226`, viem `status: "success"` + `lotAppliedOk`).
+  #78 HOLD + `DISABLE_DOW_BIAS` default ON, #76 / #74 / #79 persist —
+  unchanged. Does not re-implement #80.
 
 Does **not** invent P&L. Does **not** merge V4 into `agent.js`. No capital.
 

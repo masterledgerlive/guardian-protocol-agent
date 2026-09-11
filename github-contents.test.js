@@ -82,6 +82,10 @@ describe("github-contents — token / branch / header", () => {
     assert.ok(src.includes("githubAuthHeaders(liveGithubToken())"));
     assert.ok(src.includes("rebuildSeededLotsFromChain"));
     assert.ok(src.includes("github-401"));
+    const fn = src.indexOf("async function rebuildSeededLotsFromChain");
+    const persist = src.indexOf("persistFifoLotsNow(reason)", fn);
+    const nextFn = src.indexOf("\nasync function ", fn + 1);
+    assert.ok(persist > fn && persist < nextFn, "seeded rebuild must persist lots (disk) after latch");
     assert.ok(src.includes("seededRebuildRemaining"));
     assert.ok(src.includes("tokenHasKnownFifoCost"));
     const cacheFill = src.indexOf("tokenBalanceCache[result.value.symbol] = result.value.bal");
