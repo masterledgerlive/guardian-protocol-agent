@@ -16,6 +16,8 @@ import {
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
   shouldSkipOhlcSeed,
+  isSkipOhlcSeed,
+  planOhlcSeed,
   isGhostDexPair,
   isTrustedQuoteToken,
   TOSHI_BASE,
@@ -248,5 +250,25 @@ describe("Binance must not overwrite Base", () => {
     assert.equal(shouldSkipOhlcSeed({ symbol: "SIMBA", brokenQuote: true }), true);
     assert.equal(shouldSkipOhlcSeed({ symbol: "TOSHI" }), false);
     assert.equal(shouldSkipOhlcSeed({ symbol: "SEAM", frozen: true }), false);
+  });
+
+  it("SKIP_OHLC_SEED=yes/true/1/on skips the entire seed pass", () => {
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "yes" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "true" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "1" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "on" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "no" }), false);
+    assert.equal(isSkipOhlcSeed({}), false);
+    const tokens = [
+      { symbol: "AERO", address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631" },
+      { symbol: "KITE", noBasePool: true },
+    ];
+    const skipped = planOhlcSeed(tokens, { SKIP_OHLC_SEED: "yes" });
+    assert.equal(skipped.skipAll, true);
+    assert.equal(skipped.seedTokens.length, 0);
+    assert.equal(skipped.reason, "SKIP_OHLC_SEED");
+    const normal = planOhlcSeed(tokens, {});
+    assert.equal(normal.skipAll, false);
+    assert.equal(normal.seedTokens.some((t) => t.symbol === "AERO"), true);
   });
 });

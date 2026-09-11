@@ -22,6 +22,9 @@ import {
   GAME_TOKEN,
   GAME_FAILED_BUY,
   GAME_DEX_PAIRS,
+  AERO_TOKEN,
+  AERO_UNI_V3_WETH_POOL,
+  AERO_DEX_PAIRS,
   feeTierCandidates,
   catalogPoolFeePct,
   adoptLivePoolFee,
@@ -623,6 +626,21 @@ describe("SwapRouter route vs DexScreener primary book", () => {
     assert.equal(r.freezeBuys, false);
     assert.equal(shouldFreezeOnRouteReject(r.code), false);
   });
+
+  it("allows AERO Uni V3 WETH even when Aerodrome USDC is the DexScreener primary", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: AERO_DEX_PAIRS,
+      tokenAddress: AERO_TOKEN,
+      tradeUsd: 2,
+      symbol: "AERO",
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.freezeBuys, false);
+    assert.equal(r.swap.pairAddress.toLowerCase(), AERO_UNI_V3_WETH_POOL.toLowerCase());
+    assert.equal(r.swap.quoteSymbol, "WETH");
+    assert.ok(r.swap.liqUsd > 1_000_000);
+    assert.notEqual(r.code, "PRIMARY_NOT_V3_WETH");
+  });
 });
 
 describe("factory liquidity vs ghost Uni V3 fee", () => {
@@ -686,6 +704,47 @@ describe("buy freeze after N quote/swap fails", () => {
     clearSlippageFails("LINK", store);
     assert.equal(isBuyFrozen("LINK", store), false);
     assert.equal(isSlippageCooledDown("LINK", 4, store), false);
+  });
+});
+
+describe("OPERATOR_BUY boot order vs OHLC seed", () => {
+  const src = readFileSync(join(root, "agent.js"), "utf8");
+
+  it("flushes OPERATOR_BUY before loadHistoricalData and after recon", () => {
+    const main = src.indexOf("async function main()");
+    const mainBody = src.slice(main);
+    const queue = mainBody.indexOf("applyOperatorBuyEnv()");
+    const firstFlush = mainBody.indexOf("flushPendingOperatorBuys");
+    const seed = mainBody.indexOf("await loadHistoricalData(90)");
+    const recon = mainBody.indexOf("Chain reconciliation");
+    const afterRecon = mainBody.indexOf("flushPendingOperatorBuys", recon);
+    assert.ok(queue >= 0 && firstFlush > queue, "queue then flush");
+    assert.ok(seed > firstFlush, "first flush before OHLC seed");
+    assert.ok(afterRecon > recon && afterRecon > seed, "flush again after recon");
+  });
+
+  it("SKIP_OHLC_SEED short-circuits loadHistoricalData with no timeout path", () => {
+    const fn = src.indexOf("async function loadHistoricalData(");
+    const end = src.indexOf("\nfunction bootstrapWavesFromHistory");
+    const body = src.slice(fn, end);
+    const skip = body.indexOf("seedPlan.skipAll");
+    const timeout = body.indexOf("SEED_TOKEN_TIMEOUT_MS");
+    assert.ok(skip >= 0, "must honor planOhlcSeed skipAll");
+    assert.ok(timeout > skip, "timeout path only after skip gate");
+    assert.ok(body.includes("skipping 90-day candle seed entirely"));
+  });
+
+  it("Telegram /buy flushes immediately and processToken does not eat queued buys", () => {
+    assert.ok(src.includes("Immediate /buy flush failed"));
+    const proc = src.indexOf("async function processToken(");
+    const procBody = src.slice(proc, src.indexOf("\nasync function ", proc + 1));
+    assert.ok(procBody.includes("pendingManual"));
+    assert.ok(procBody.includes("isDeadWaveSkipped") && procBody.includes("!pendingManual"));
+  });
+
+  it("AERO buy binds the verified Uni V3 WETH pool", () => {
+    assert.ok(src.includes("AERO_UNI_V3_WETH_POOL"));
+    assert.match(src, /0x3d5D143381916280ff91407FeBEB52f2b60f33Cf/i);
   });
 });
 

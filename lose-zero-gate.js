@@ -236,6 +236,21 @@ export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { d
   return { queued: true, reason: "queued", symbol: parsed.symbol, usd: parsed.usd };
 }
 
+/**
+ * Pull queued buy commands out of `commands` (OPERATOR_BUY and Telegram /buy).
+ * Leaves sells / exits in place. Used to flush operator buys before OHLC seed.
+ */
+export function takeQueuedManualBuys(commands) {
+  const list = Array.isArray(commands) ? commands : [];
+  const buys = [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i]?.action === "buy") {
+      buys.unshift(list.splice(i, 1)[0]);
+    }
+  }
+  return buys;
+}
+
 /** Latch only after executeBuy actually sends the swap. */
 export function markOperatorBuyExecuted(state) {
   if (state) {

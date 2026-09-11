@@ -88,7 +88,7 @@ import {
   pickHistoricalSeedSource,
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
-  shouldSkipOhlcSeed,
+  planOhlcSeed,
 } from "./price-oracle.js";
 import {
   isLoseZeroMode,
@@ -118,6 +118,7 @@ import {
   manualSellReason,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
+  takeQueuedManualBuys,
   investedEthWithCosts,
   netUsdAfterSkim,
   conservativeSellProceedsEth,
@@ -284,6 +285,7 @@ import {
   selectUniV3WethUsdcPair,
   requireFactoryLiquidity,
   UNISWAP_V3_FACTORY_BASE,
+  AERO_UNI_V3_WETH_POOL,
 } from "./quote-swap-guard.js";
 import {
   BASE_QUOTER_V2,
@@ -1638,7 +1640,7 @@ const DEFAULT_TOKENS = [
   { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     injectMain: true,
     score: { liquidity:9, waveQuality:9, fundamentals:8, coinbaseFit:10, community:8, total:44 },
-    notes: "Aerodrome — inject main. DEX backbone of Base. Deep Uni V3 + Aero books. Crown jewel liquidity hub." },
+    notes: "Aerodrome — inject main. DEX backbone of Base. SwapRouter02 fills Uni V3 WETH 0x3d5D143381916280ff91407FeBEB52f2b60f33Cf (~$1.25M), not Aerodrome-primary USDC." },
 
   { symbol: "BRETT",   address: "0x532f27101965dd16442E59d40670FaF5eBB142E4", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:8, waveQuality:9, fundamentals:6, coinbaseFit:9, community:9, total:41 },
@@ -3248,9 +3250,6 @@ async function fetchHistoricalCandles(tokenAddress, days = 90, symbol = null) {
 // Pull historical data for every token and pre-load their wave state + indicator data
 // Uses full OHLC candles — real highs/lows for every timeframe, no more waiting
 async function loadHistoricalData(days = 90) {
-  console.log(`📅 Loading ${days}-day historical OHLC data for all tokens...`);
-  let loaded = 0, skipped = 0;
-
   const allTokens = [
     ...DEFAULT_TOKENS,
     ...WATCHLIST.map(w => ({
@@ -3259,7 +3258,16 @@ async function loadHistoricalData(days = 90) {
     }))
   ].filter(t => t.address && t.address !== "PENDING" && t.address.startsWith("0x"));
 
-  const seedSkip = allTokens.filter(shouldSkipOhlcSeed);
+  const seedPlan = planOhlcSeed(allTokens, process.env);
+  if (seedPlan.skipAll) {
+    console.log("📅 SKIP_OHLC_SEED — skipping 90-day candle seed entirely (no frozen timeout path)");
+    return { loaded: 0, skipped: allTokens.length, skipAll: true };
+  }
+
+  console.log(`📅 Loading ${days}-day historical OHLC data for all tokens...`);
+  let loaded = 0, skipped = 0;
+
+  const seedSkip = seedPlan.skipped;
   if (seedSkip.length) {
     for (const t of seedSkip) {
       const why = t.noBasePool ? "no Base pool" : "broken quote";
@@ -3267,7 +3275,7 @@ async function loadHistoricalData(days = 90) {
     }
     skipped += seedSkip.length;
   }
-  const seedTokens = allTokens.filter(t => !shouldSkipOhlcSeed(t));
+  const seedTokens = seedPlan.seedTokens;
 
   // Process in sequential batches of 3 tokens.
   // Each token fires GT+DS in parallel (2 requests). With 3 tokens per batch
@@ -5819,6 +5827,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         return await skipBuy(reason, token.symbol, route.log);
       }
       if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
+      else if (token.symbol === "AERO") preferredPool = AERO_UNI_V3_WETH_POOL;
     }
 
     // Slippage guard: factory liquidity then QuoterV2, BEFORE wrap/send.
@@ -7321,7 +7330,9 @@ async function processToken(cdp, token, bal) {
     // FIX: Skip dead-wave tokens that will never clear fees — stops them burning
     // 0.8s + RPC calls per loop on tokens mathematically impossible to trade.
     // Only skip if we have NO open position (never block an exit).
-    if (!token.entryPrice && isDeadWaveSkipped(token.symbol)) {
+    // OPERATOR_BUY / Telegram /buy must still fire — do not eat the queue here.
+    const pendingManual = manualCommands.some(c => c.symbol === token.symbol);
+    if (!token.entryPrice && isDeadWaveSkipped(token.symbol) && !pendingManual) {
       return; // silent skip — already logged when streak was hit
     }
     const heldPosition = !!(token.entryPrice) || hasSellableUsd(getCachedBalance(token.symbol) || 0, history[token.symbol]?.lastPrice || 0, BAG_DUST_USD) || (getCachedBalance(token.symbol) || 0) > 0.001;
@@ -7329,6 +7340,7 @@ async function processToken(cdp, token, bal) {
     if (!isValidUsdPrice(price)) {
       noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
       console.log(`   ⏳ ${token.symbol}: NO QUOTE — skip trade (pool dry or unindexed) ${token.address}`);
+      if (pendingManual) await flushPendingOperatorBuys(cdp);
       return false;
     }
 
@@ -8852,6 +8864,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.find(c => c.symbol===sym && c.action==="buy")) { await tg(`⚠️ BUY ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "buy", usd: parsed.usd || 0 });
         await tg(operatorBuyQueuedTelegram(sym, parsed.usd));
+        if (cdpClient) {
+          try { await flushPendingOperatorBuys(cdpClient); }
+          catch (e) { console.log(`⚠️  Immediate /buy flush failed: ${e.message} — remains queued`); }
+        }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);
         const sym = parsed?.symbol;
@@ -11534,6 +11550,59 @@ function applyOperatorBuyEnv() {
   return result;
 }
 
+let flushingOperatorBuys = false;
+
+/**
+ * Execute queued OPERATOR_BUY / Telegram /buy commands now.
+ * Must run after CDP ready and BEFORE OHLC seed so a hung candle fetch
+ * cannot leave OPERATOR_BUY queued with nonce idle.
+ */
+async function flushPendingOperatorBuys(cdp) {
+  if (!cdp || flushingOperatorBuys) return { flushed: 0, reason: "busy" };
+  const pending = takeQueuedManualBuys(manualCommands);
+  if (!pending.length) return { flushed: 0, reason: "empty" };
+  flushingOperatorBuys = true;
+  console.log(`📱 Flushing ${pending.length} queued operator/Telegram buy(s) before OHLC seed`);
+  try {
+    let bal;
+    try { bal = await getFullBalance(); }
+    catch { bal = cachedBal || { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 }; }
+    cachedBal = bal;
+    let ethUsd = cachedEthUsd;
+    try {
+      ethUsd = await getLiveEthPrice();
+      cachedEthUsd = ethUsd;
+    } catch { /* keep last */ }
+    let flushed = 0;
+    for (const cmd of pending) {
+      const token = tokens.find(t => t.symbol === cmd.symbol)
+        || DEFAULT_TOKENS.find(t => t.symbol === cmd.symbol);
+      if (!token) {
+        console.log(`⚠️  Boot buy ${cmd.symbol}: unknown token — dropped`);
+        continue;
+      }
+      let price = history[cmd.symbol]?.lastPrice || getCachedPrice(token.address);
+      if (!isValidUsdPrice(price)) {
+        try { price = await getTokenPrice(token.address, true); } catch { /* no invent */ }
+      }
+      if (!isValidUsdPrice(price)) {
+        manualCommands.push(cmd);
+        console.log(`⚠️  Boot buy ${cmd.symbol}: no live USD quote — will retry after seed`);
+        continue;
+      }
+      lastTradeTime[token.symbol] = 0;
+      const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+      const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+      if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+      flushed++;
+      try { bal = await getFullBalance(); cachedBal = bal; } catch { /* keep */ }
+    }
+    return { flushed };
+  } finally {
+    flushingOperatorBuys = false;
+  }
+}
+
 function applyOperatorSellEnv() {
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
@@ -11769,6 +11838,9 @@ async function main() {
   await loadFromGitHub();
   applyOperatorBuyEnv();
   applyOperatorSellEnv();
+  // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
+  // Frozen candle timeouts used to leave the queue sitting and nonce idle.
+  await flushPendingOperatorBuys(cdpClient);
   // Balances may still be cold at boot — main loop re-queues after refresh.
 
   // ── 📚 IKN BOOT READER — arm Claude context from vita-registry.json ─────────
@@ -12324,6 +12396,10 @@ async function main() {
     console.log("⚠️ Chain reconciliation error: " + e.message);
   }
 
+  // After recon: wallet + quotes are warm. Fire OPERATOR_BUY / Telegram /buy
+  // here so a finished OHLC seed cannot leave the queue sitting (nonce idle).
+  await flushPendingOperatorBuys(cdpClient);
+
   // ── BITStorage: register Railway config as first strand ───────────────────
   try {
     const { strandID, kMaster, totalChunks } = await orch.register(
@@ -12473,6 +12549,10 @@ async function main() {
   // Poller already started after vault/CDP — this is a no-op guard
   startTelegramPoller();
 
+  // Last chance before the live loop: queued operator buys must not wait
+  // for a processToken early-out (NO QUOTE / dead-wave) to eat the cycle.
+  await flushPendingOperatorBuys(cdpClient);
+
   // Main trading loop
   while (true) {
     try {
@@ -12480,6 +12560,9 @@ async function main() {
       const bal    = await getFullBalance();
       cachedBal    = bal;
       cachedEthUsd = ethUsd;
+      if (manualCommands.some((c) => c.action === "buy")) {
+        await flushPendingOperatorBuys(cdpClient);
+      }
       const time   = new Date().toLocaleTimeString();
       const gwei   = await getCurrentGasGwei();
 

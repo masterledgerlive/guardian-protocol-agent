@@ -24,6 +24,7 @@ import {
   manualBuyReason,
   parseOperatorBuyEnv,
   queueOperatorBuyOnce,
+  takeQueuedManualBuys,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
   isManualOperatorSell,
@@ -557,6 +558,18 @@ describe("OPERATOR_BUY env", () => {
     assert.equal(state.executed, true);
     clearOperatorBuyIfNotExecuted(state);
     assert.equal(state.done, true);
+  });
+
+  it("takeQueuedManualBuys pulls buys and leaves sells", () => {
+    const commands = [
+      { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" },
+      { symbol: "TOSHI", action: "sellhalf", source: "OPERATOR_SELL" },
+      { symbol: "UNI", action: "buy", usd: 3 },
+    ];
+    const buys = takeQueuedManualBuys(commands);
+    assert.deepEqual(buys.map((c) => c.symbol), ["AERO", "UNI"]);
+    assert.equal(commands.length, 1);
+    assert.equal(commands[0].action, "sellhalf");
   });
 });
 
