@@ -751,8 +751,14 @@ describe("OPERATOR_BUY boot order vs OHLC seed", () => {
     const fn = src.indexOf("async function flushPendingOperatorBuys(");
     const end = src.indexOf("\nfunction applyOperatorSellEnv");
     const body = src.slice(fn, end);
-    assert.ok(body.includes("settleFlushedOperatorBuy"));
-    assert.ok(body.includes("executeBuy did not fill — left queued for retry"));
+    assert.ok(body.includes("finalizeOperatorBuyAttempt"));
+    assert.ok(body.includes("executeBuy did not send — left queued for retry"));
+    const proc = src.indexOf("async function processToken(");
+    const procBody = src.slice(proc, src.indexOf("\nasync function ", proc + 1));
+    assert.ok(procBody.includes("finalizeOperatorBuyAttempt"), "processToken must settle unspent buys");
+    const buyFn = src.indexOf("async function executeBuy(");
+    const buyBody = src.slice(buyFn, src.indexOf("\nasync function executeSell("));
+    assert.ok(buyBody.includes("noteOperatorBuyBroadcast"), "broadcast must latch so flush cannot double-send");
   });
 });
 

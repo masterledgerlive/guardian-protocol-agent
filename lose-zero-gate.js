@@ -252,16 +252,47 @@ export function takeQueuedManualBuys(commands) {
 }
 
 /**
- * After a flush attempt: keep the buy on the queue unless the swap spent.
- * Cold wallet / safe mode / route miss must not drop OPERATOR_BUY until latch.
+ * After a flush / processToken attempt: keep the buy on the queue unless
+ * the swap spent OR a SwapRouter tx was already broadcast.
+ * Re-queueing after broadcast would double-send exactInputSingle.
+ * Cold wallet / safe mode / route miss (never sent) must retry.
  */
-export function settleFlushedOperatorBuy(commands, cmd, spent) {
+export function settleFlushedOperatorBuy(commands, cmd, spent, extras = {}) {
   const list = Array.isArray(commands) ? commands : [];
   if (!cmd || cmd.action !== "buy") return { requeued: false };
-  if (spent) return { requeued: false };
+  const broadcast = extras.broadcast === true;
+  if (spent || broadcast) {
+    return { requeued: false, reason: spent ? "spent" : "broadcast" };
+  }
   const already = list.some((c) => c && c.symbol === cmd.symbol && c.action === "buy");
   if (!already) list.push(cmd);
   return { requeued: !already, reason: "unspent" };
+}
+
+export function noteOperatorBuyBroadcast(state, symbol, txHash) {
+  if (!state || !symbol) return state;
+  state.lastBroadcastSymbol = symbol;
+  state.lastBroadcastTx = txHash || true;
+  return state;
+}
+
+export function consumeOperatorBuyBroadcast(state, symbol) {
+  if (!state || state.lastBroadcastSymbol !== symbol) return null;
+  const hit = { symbol: state.lastBroadcastSymbol, txHash: state.lastBroadcastTx };
+  state.lastBroadcastSymbol = null;
+  state.lastBroadcastTx = null;
+  return hit;
+}
+
+/** Latch on fill or broadcast; re-queue only when nothing was sent. */
+export function finalizeOperatorBuyAttempt(commands, cmd, spent, state) {
+  const broadcast = consumeOperatorBuyBroadcast(state, cmd?.symbol);
+  const sent = Boolean(spent) || Boolean(broadcast);
+  if (sent) {
+    if (cmd?.source === "OPERATOR_BUY") markOperatorBuyExecuted(state);
+    return { requeued: false, reason: spent ? "spent" : "broadcast", broadcast: Boolean(broadcast) };
+  }
+  return settleFlushedOperatorBuy(commands, cmd, false);
 }
 
 /** Latch only after executeBuy actually sends the swap. */

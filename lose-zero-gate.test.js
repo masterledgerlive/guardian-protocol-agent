@@ -26,6 +26,9 @@ import {
   queueOperatorBuyOnce,
   takeQueuedManualBuys,
   settleFlushedOperatorBuy,
+  noteOperatorBuyBroadcast,
+  consumeOperatorBuyBroadcast,
+  finalizeOperatorBuyAttempt,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
   isManualOperatorSell,
@@ -585,6 +588,35 @@ describe("OPERATOR_BUY env", () => {
     const again = settleFlushedOperatorBuy(commands, cmd, false);
     assert.equal(again.requeued, false, "already queued — no duplicate");
     assert.equal(commands.length, 1);
+  });
+
+  it("does not re-queue after a broadcast (failed fill / timeout) — no double exactInput", () => {
+    const commands = [];
+    const cmd = { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" };
+    const r = settleFlushedOperatorBuy(commands, cmd, false, { broadcast: true });
+    assert.equal(r.requeued, false);
+    assert.equal(r.reason, "broadcast");
+    assert.equal(commands.length, 0);
+  });
+
+  it("finalizeOperatorBuyAttempt latches on broadcast and re-queues only never-sent skips", () => {
+    const commands = [];
+    const cmd = { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" };
+    const state = { done: false, executed: false };
+    const skip = finalizeOperatorBuyAttempt(commands, cmd, false, state);
+    assert.equal(skip.requeued, true);
+    assert.equal(state.done, false);
+    assert.equal(commands.length, 1);
+
+    commands.length = 0;
+    noteOperatorBuyBroadcast(state, "AERO", "0xabc");
+    const sent = finalizeOperatorBuyAttempt(commands, cmd, false, state);
+    assert.equal(sent.requeued, false);
+    assert.equal(sent.reason, "broadcast");
+    assert.equal(state.done, true);
+    assert.equal(state.executed, true);
+    assert.equal(commands.length, 0);
+    assert.equal(consumeOperatorBuyBroadcast(state, "AERO"), null);
   });
 });
 

@@ -15,6 +15,9 @@ dead-wave / NO QUOTE before the MANUAL BUY path.
   at the start of the live loop — do not wait for candle seeding.
 - Unspent flush (cold wallet / safe mode / route miss) re-queues the buy;
   only a real fill latches `OPERATOR_BUY`.
+- `processToken` also settles unspent operator buys. A SwapRouter broadcast
+  (even a failed fill / send timeout) latches — do not re-queue a second
+  `exactInputSingle`.
 - `processToken` no longer silent-returns past a queued operator buy.
 - AERO SwapRouter route binds Uni V3 WETH `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf`
   (~$1.25M DexScreener). Aerodrome-primary USDC is not a PRIMARY_NOT_V3_WETH freeze.

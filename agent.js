@@ -120,6 +120,8 @@ import {
   raceTimeout,
   takeQueuedManualBuys,
   settleFlushedOperatorBuy,
+  noteOperatorBuyBroadcast,
+  finalizeOperatorBuyAttempt,
   investedEthWithCosts,
   netUsdAfterSkim,
   conservativeSellProceedsEth,
@@ -5940,6 +5942,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const tokensBefore = await getTokenBalance(token.address);
+    // Mark send-started before SwapRouter so a 45s timeout cannot re-queue
+    // and double-fire exactInputSingle in the same tick.
+    if (isManualOperatorBuy(reason)) {
+      noteOperatorBuyBroadcast(operatorBuyState, token.symbol, "pending-send");
+    }
     const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
@@ -5989,6 +5996,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
       ]);
       txHash = transactionHash;
+    }
+
+    if (txHash && isManualOperatorBuy(reason)) {
+      noteOperatorBuyBroadcast(operatorBuyState, token.symbol, txHash);
     }
 
     if (!txHash) {
@@ -7950,7 +7961,7 @@ async function processToken(cdp, token, bal) {
         lastTradeTime[token.symbol] = 0; // operator override — fire now
         const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
         const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
-        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+        finalizeOperatorBuyAttempt(manualCommands, cmd, spent, operatorBuyState);
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
@@ -11594,12 +11605,9 @@ async function flushPendingOperatorBuys(cdp) {
       lastTradeTime[token.symbol] = 0;
       const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
       const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
-      if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
-      else {
-        settleFlushedOperatorBuy(manualCommands, cmd, spent);
-        if (!spent) {
-          console.log(`⚠️  Boot buy ${cmd.symbol}: executeBuy did not fill — left queued for retry`);
-        }
+      const settled = finalizeOperatorBuyAttempt(manualCommands, cmd, spent, operatorBuyState);
+      if (settled.requeued) {
+        console.log(`⚠️  Boot buy ${cmd.symbol}: executeBuy did not send — left queued for retry`);
       }
       flushed++;
       if (spent) {
