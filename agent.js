@@ -119,6 +119,7 @@ import {
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
   takeQueuedManualBuys,
+  settleFlushedOperatorBuy,
   investedEthWithCosts,
   netUsdAfterSkim,
   conservativeSellProceedsEth,
@@ -11586,16 +11587,24 @@ async function flushPendingOperatorBuys(cdp) {
         try { price = await getTokenPrice(token.address, true); } catch { /* no invent */ }
       }
       if (!isValidUsdPrice(price)) {
-        manualCommands.push(cmd);
-        console.log(`⚠️  Boot buy ${cmd.symbol}: no live USD quote — will retry after seed`);
+        settleFlushedOperatorBuy(manualCommands, cmd, false);
+        console.log(`⚠️  Boot buy ${cmd.symbol}: no live USD quote — will retry after recon`);
         continue;
       }
       lastTradeTime[token.symbol] = 0;
       const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
       const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
       if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+      else {
+        settleFlushedOperatorBuy(manualCommands, cmd, spent);
+        if (!spent) {
+          console.log(`⚠️  Boot buy ${cmd.symbol}: executeBuy did not fill — left queued for retry`);
+        }
+      }
       flushed++;
-      try { bal = await getFullBalance(); cachedBal = bal; } catch { /* keep */ }
+      if (spent) {
+        try { bal = await getFullBalance(); cachedBal = bal; } catch { /* keep */ }
+      }
     }
     return { flushed };
   } finally {

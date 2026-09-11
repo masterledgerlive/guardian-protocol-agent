@@ -746,5 +746,13 @@ describe("OPERATOR_BUY boot order vs OHLC seed", () => {
     assert.ok(src.includes("AERO_UNI_V3_WETH_POOL"));
     assert.match(src, /0x3d5D143381916280ff91407FeBEB52f2b60f33Cf/i);
   });
+
+  it("unspent boot flush re-queues OPERATOR_BUY (does not drop on skip)", () => {
+    const fn = src.indexOf("async function flushPendingOperatorBuys(");
+    const end = src.indexOf("\nfunction applyOperatorSellEnv");
+    const body = src.slice(fn, end);
+    assert.ok(body.includes("settleFlushedOperatorBuy"));
+    assert.ok(body.includes("executeBuy did not fill — left queued for retry"));
+  });
 });
 

@@ -251,6 +251,19 @@ export function takeQueuedManualBuys(commands) {
   return buys;
 }
 
+/**
+ * After a flush attempt: keep the buy on the queue unless the swap spent.
+ * Cold wallet / safe mode / route miss must not drop OPERATOR_BUY until latch.
+ */
+export function settleFlushedOperatorBuy(commands, cmd, spent) {
+  const list = Array.isArray(commands) ? commands : [];
+  if (!cmd || cmd.action !== "buy") return { requeued: false };
+  if (spent) return { requeued: false };
+  const already = list.some((c) => c && c.symbol === cmd.symbol && c.action === "buy");
+  if (!already) list.push(cmd);
+  return { requeued: !already, reason: "unspent" };
+}
+
 /** Latch only after executeBuy actually sends the swap. */
 export function markOperatorBuyExecuted(state) {
   if (state) {

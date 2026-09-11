@@ -25,6 +25,7 @@ import {
   parseOperatorBuyEnv,
   queueOperatorBuyOnce,
   takeQueuedManualBuys,
+  settleFlushedOperatorBuy,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
   isManualOperatorSell,
@@ -570,6 +571,20 @@ describe("OPERATOR_BUY env", () => {
     assert.deepEqual(buys.map((c) => c.symbol), ["AERO", "UNI"]);
     assert.equal(commands.length, 1);
     assert.equal(commands[0].action, "sellhalf");
+  });
+
+  it("settleFlushedOperatorBuy re-queues an unspent OPERATOR_BUY (cold wallet / skip)", () => {
+    const commands = [];
+    const cmd = { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" };
+    const skipped = settleFlushedOperatorBuy(commands, cmd, false);
+    assert.equal(skipped.requeued, true);
+    assert.deepEqual(commands, [cmd]);
+    const filled = settleFlushedOperatorBuy(commands, cmd, true);
+    assert.equal(filled.requeued, false);
+    assert.equal(commands.length, 1, "spent fill must not duplicate the leftover skip row");
+    const again = settleFlushedOperatorBuy(commands, cmd, false);
+    assert.equal(again.requeued, false, "already queued — no duplicate");
+    assert.equal(commands.length, 1);
   });
 });
 
