@@ -160,6 +160,7 @@ import {
   collectRebuildTxs,
   writeFifoLotsSync,
   readFifoLotsSync,
+  lotAppliedOk,
 } from "./fifo-lot-store.js";
 import {
   tierBookParams,
@@ -8424,7 +8425,8 @@ async function loadFifoLotsFromStores() {
       if (gf.sha) fifoLotsSha = gf.sha;
     }
   } catch { /* first boot has no remote file */ }
-  fifoLots = mergeLotMaps(disk, remote, fifoLots);
+  // Stale positions.json last — disk / fifo-lots.json have on-fill updatedAt.
+  fifoLots = mergeLotMaps(fifoLots, remote, disk);
   const n = Object.keys(fifoLots).filter((s) => isUsableLot(fifoLots[s])).length;
   if (n) console.log(`   📦 fifo-lots: ${n} durable lot(s) restored (disk/GitHub)`);
 }
@@ -8455,7 +8457,7 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
       fifoLots[token.symbol] = lot;
       applyLotToNet(netPositions, lot);
       const fifo = applyLotToToken(token, lot, { remainingTokens });
-      if (fifo.unknown || !(fifo.investedEth > 0)) continue;
+      if (!lotAppliedOk(token, fifo)) continue;
       console.log(`   🔗 ${token.symbol}: FIFO lot rebuilt from buy ${hash.slice(0, 10)}… remaining=${fifo.investedEth.toFixed(6)}ETH`);
       return lot;
     } catch (e) {
@@ -12185,7 +12187,7 @@ async function main() {
         if (isUsableLot(fifoLots[symbol])) {
           const fifo = applyLotToToken(token, fifoLots[symbol], { remainingTokens: bal });
           applyLotToNet(netPositions, fifoLots[symbol]);
-          if (!fifo.unknown && fifo.investedEth > 0) {
+          if (lotAppliedOk(token, fifo)) {
             recovered++;
             const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
             console.log(`   ✅ RECOVERED ${symbol}: fifo lot (${fifoLots[symbol].source || "persisted"}) ` +
@@ -12193,9 +12195,9 @@ async function main() {
             continue;
           }
         }
-        if (!isUsableLot(fifoLots[symbol]) || token.unknownEntry || !(costBasisEth(token) > 0)) {
+        if (!isUsableLot(fifoLots[symbol]) || token.unknownEntry || !lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
           const rebuilt = await tryRebuildLotFromReceipts(token, bal);
-          if (isUsableLot(rebuilt) && !token.unknownEntry && costBasisEth(token) > 0) {
+          if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
             recovered++;
             try { await persistFifoLotsNow("boot-rebuild"); } catch {}
             continue;
@@ -12528,16 +12530,17 @@ async function main() {
       // Frozen / exits-only leftover bags still need honest FIFO cost.
       // Skipping BASECAT here would leave an unproven basis in place.
       const reconTrusted = shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] })
-        && costBasisEth(token) > 0;
+        && (costBasisEth(token) > 0 || Number(token.totalInvestedEth) > 0);
       if (reconTrusted) {
-        console.log(`   ✓ ${token.symbol}: trusted fill receipt entry $${token.entryPrice.toFixed(8)}`);
+        const px = Number(token.entryPrice) > 0 ? `$${Number(token.entryPrice).toFixed(8)}` : "ETH lot";
+        console.log(`   ✓ ${token.symbol}: trusted fill receipt entry ${px}`);
         continue;
       }
       try {
         const liveBal   = await getTokenBalance(token.address);
         if (liveBal > 0.001 && isUsableLot(fifoLots[token.symbol])) {
-          applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: liveBal });
-          if (!token.unknownEntry && costBasisEth(token) > 0) {
+          const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: liveBal });
+          if (lotAppliedOk(token, fifo)) {
             tokenBalanceCache[token.symbol] = liveBal;
             console.log(`   ✓ ${token.symbol}: FIFO lot rebuilt (${fifoLots[token.symbol].source || "persisted"})`);
             continue;
@@ -12545,7 +12548,7 @@ async function main() {
         }
         if (liveBal > 0.001 && !isUsableLot(fifoLots[token.symbol])) {
           const rebuilt = await tryRebuildLotFromReceipts(token, liveBal);
-          if (isUsableLot(rebuilt) && !token.unknownEntry && costBasisEth(token) > 0) {
+          if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
             tokenBalanceCache[token.symbol] = liveBal;
             try { await persistFifoLotsNow("recon-rebuild"); } catch {}
             continue;
