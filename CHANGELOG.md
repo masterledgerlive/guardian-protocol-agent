@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Fixed — Base RPC pool prefers official; meowrpc/drpc last-resort
+
+Risk desk AERO `balanceOf` was failing on 429s from meowrpc/drpc when the
+guardian bot walked the default public list. Railway already points
+`BASE_RPC` / `BASE_RPC_URL` / `RPC_URL` at `https://mainnet.base.org`; code
+defaults now match so a restart without env still hits official Base first.
+
+- `DEFAULT_PUBLIC_RPCS` / `buildRpcUrls`: official Base → publicnode → nodies
+  → tenderly, then meowrpc/drpc last. Rate-limited hosts are demoted even if
+  env lists them first.
+- `base.llamarpc.com` stays excluded (Cloudflare 521).
+- V4 offshoot defaults drop llamarpc/meowrpc from the early list.
+
+Does **not** change trading / LOSE-ZERO logic. Does **not** invent P&L.
+
 ### Added — Outlet scoreboard + dense KEY+LOC hitch (Base V3 only)
 
 Faster leftover hitch without losing money: keep outlets that can earn a Uni V3
