@@ -21,6 +21,10 @@ HOLD path forever.
 - After restart, rebuild from persisted lots **or** buy-hash
   Transfer+WETH receipts (evidence hashes seeded; `LOT_REBUILD_TXS` extra).
 - Tokenless ledger BUY rows no longer poison `tokensIn`.
+- Receipt rebuild accepts viem `status: "success"` (same as live `getSwapReceiptStatus`).
+- Leftover chain balance uses proportional FIFO (full-fill floor does not HOLD a true PLUS).
+- Proven ETH lots apply without a USD `entryPrice` (do not wipe after restart).
+- Sell shrink / sold-all tombstone `updatedAt` beats a stale `positions.json` full lot.
 - Always-plus can HOLD red / green true PLUS with real FIFO after reboot.
 - #78 HOLD + `DISABLE_DOW_BIAS` default ON, #76 COST_EDGE operator
   bypass, #74 re-queue, LOSE-ZERO, quote-gate, AERO Uni V3 bind — unchanged.
