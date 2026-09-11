@@ -175,6 +175,8 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(h.boards.v4.sameProcess, false);
     assert.equal(h.boards.v4.loadsV4Runtime, false);
     assert.equal(h.boards.v4.path, "/v4");
+    assert.equal(h.boards.vita.path, "/vita");
+    assert.equal(h.boards.vita.public, true);
     assert.equal(h.boards.l1_arena.mounted, false);
     assert.equal(h.apis.sim.mutate, false);
     assert.equal(BOARD_PATHS.hub, "/board");
@@ -245,10 +247,11 @@ describe("V3 inject surfaces (agent.js catalog as text)", () => {
     assert.equal(bySym.LINK.piggyMinUsd, 0.25);
     assert.ok(bySym.TOSHI);
     assert.ok(bySym.UNI);
-    assert.ok(bySym.GAME);
+    assert.equal(bySym.GAME, undefined);
     assert.equal(bySym.CBBTC, undefined);
     assert.equal(bySym.WELL, undefined);
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "CBBTC" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "GAME" && t.frozen));
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "WELL" && t.disabled));
     assert.ok(surf.hitchSurfaces.length >= 15);
   });

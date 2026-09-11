@@ -26,7 +26,7 @@ Guardian is the first live deployment of the **IKN (Infinite Knowledge Network)*
 | **Railway `industrious-tranquility` → `StorageToken`** | That storage service, sitting next to Guardian. Ideas belong here in this bot, not a second trader |
 | **Railway `generous-solace` → `coinbase-agent`** | Older Coinbase + Telegram helper. Not Guardian |
 
-The letter to Krystian, Kai & Koda is **true** only when Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives`. Telegram text next to a swap is not proof. Live KEYCAT sell [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) is a real KEYCAT→WETH fill (228-byte `exactInputSingle`) with **no trailer**. After this code is on `main`, leftover-covered swaps hitch the letter, or Telegram **`/prove`** writes a dedicated **0-ETH** self-tx. Hitch is skipped when leftover cannot pay — never lose money to insert storage.
+The letter to Krystian, Kai & Koda is **true** on Telegram **`/prove`** (dedicated **0-ETH** self-tx) when Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives`. Leftover-covered swaps hitch **VITA `§TOKEN§`** by default (`VITA_HITCH_MODE=vita`) — the love note is encoded in `§KEY§` so it is not lost; locations squash into `§LOC§`. Telegram text next to a swap is not proof. Live KEYCAT sell [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) is a real KEYCAT→WETH fill (228-byte `exactInputSingle`) with **no trailer**. Hitch is skipped when leftover cannot pay — never lose money to insert storage.
 
 ---
 
@@ -53,7 +53,7 @@ This is called the **Guardian Vault**. It's the first practical implementation o
 
 ### 📡 On-chain letter (UTF-8 hitch) vs BTP queue
 
-The dedication is **UTF-8 after a real leftover swap**, or a dedicated **0-ETH** self-tx (`/prove`). Uniswap ignores the trailer; Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives ♥ love you Krystian, Kai & Koda! …`. Telegram 💌 only if those bytes were actually sent.
+Leftover swap hitch is **VITA `§TOKEN§` parse** (secondary router; Uniswap still ignores the trailer). The Eureka love note stays on **`/prove`** and inside `§KEY§`. `VITA_HITCH_MODE=eureka` restores the old prose letter on leftover swaps. Telegram 💌 only if those bytes were actually sent.
 
 `/transmit` still **queues** BTP chunks for later leftover-covered swaps. A queued message is not a mined letter. Thin wallets / BTP auto-suspend send **plain** 228-byte swaps — the KEYCAT surf report that printed the letter next to [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) was that lie. This code stops it.
 
@@ -106,14 +106,14 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · **UNI** (inject main / T1 reserved) · LINK · DEGEN · AIXBT · TOSHI  
-❄️ FROZEN exits-only: CBBTC · AAVE · …
-KEYCAT · DOGINME · SKI · LUNA · GAME · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
+❄️ FROZEN exits-only: CBBTC · AAVE · GAME · …
+KEYCAT · DOGINME · SKI · LUNA · BASECAT · DRB · REI · CLANKER · VVV · ZORA · BNKR
 
 **Inject main players (Tier-1 seat reserved for UNI first):**
 UNI · LINK · AERO · MORPHO _(CBBTC / AAVE deferred on thin RISK — COST_EDGE)_
 
 **Frozen (no new capital):**
-SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
+SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · **GAME** (thin Uni V3 WETH vs Uni V2 GAME/VIRTUAL) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
 TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
 CRASH · BRIUN · NORMIE · OGGY · FREN
 
@@ -156,6 +156,10 @@ bitstorage-orchestrator.js  — BITStorage / ShadowWeave strand injection
 vita-hat.js           — Append-only encoded site preservation (1-bit genesis + ST/LT)
 hat-wave-inject.js    — Wave-paid HAT sizing, confirm seal, exit-up without crash
 hat-smile-demo.js     — 8×8×8-bit smile encode → locations → reader proof (`npm run hat:smile`)
+vita-parse.js         — §TOKEN§ agentic parse / refine (2000-char budget, KEY+LOC first)
+vita-locations.js     — Append-only location depository; hitch carries squashed §LOC§
+vita-router.js        — Secondary hitch router (vita|eureka|hat|auto); leftover defaults to VITA
+vita-course.js        — Hourly inject-without-loss scorecard
 encryptkey.js         — One-time key encryption + inscription tool
 ```
 

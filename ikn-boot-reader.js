@@ -5,6 +5,15 @@
  */
 
 import crypto from 'crypto';
+import { buildVitaInjectContext, ensureGenesisMemory } from './vita-router.js';
+
+/** Always prepend recursive VITA §TOKEN§ — even when the IKN registry is empty. */
+export function prependVitaBootContext(iknContext) {
+  ensureGenesisMemory();
+  const vita = buildVitaInjectContext().context;
+  if (!iknContext) return vita;
+  return vita + '\n\n' + iknContext;
+}
 
 const GITHUB_TOKEN     = process.env.GITHUB_TOKEN;
 const GITHUB_REPO      = process.env.GITHUB_REPO  || 'masterledgerlive/guardian-protocol-agent';
@@ -90,8 +99,13 @@ async function bootReader() {
     .slice(0, MAX_STRANDS);
 
   if (recent.length === 0) {
-    console.log('📚 IKN: no strands yet — fresh registry');
-    return null;
+    console.log('📚 IKN: no strands yet — injecting VITA §TOKEN§ memory');
+    const context = prependVitaBootContext(null);
+    try {
+      const fs = await import('fs');
+      fs.writeFileSync('./ikn-boot-context.txt', context, 'utf8');
+    } catch {}
+    return context;
   }
 
   const cards     = recent.map(s => s.iknCard || null);
@@ -100,7 +114,7 @@ async function bootReader() {
     return s.tokenPacket || null;
   });
 
-  const context = buildContextPacket(cards, decrypted);
+  const context = prependVitaBootContext(buildContextPacket(cards, decrypted));
 
   try {
     const fs = await import('fs');

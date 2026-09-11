@@ -3,6 +3,9 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createVitaServer } from "./vita-webhook.js";
 
 let server;
@@ -55,6 +58,12 @@ describe("control board HTTP", () => {
     assert.equal(v4.res.status, 200);
     assert.match(v4.text, /SEPARATE PROCESS/);
     assert.doesNotMatch(v4.text, /Queue buy/);
+    const vita = await get("/vita");
+    assert.equal(vita.res.status, 200);
+    assert.match(vita.res.headers.get("content-type") || "", /text\/html/);
+    assert.match(vita.text, /Talk to/);
+    assert.match(vita.text, /plaintext/);
+    assert.match(vita.text, /\/inject/);
   });
 
   it("GET /board/health lists mounted boards", async () => {
@@ -66,6 +75,8 @@ describe("control board HTTP", () => {
     assert.equal(json.boards.engine.mounted, true);
     assert.equal(json.boards.v4.sameProcess, false);
     assert.equal(json.boards.v4.loadsV4Runtime, false);
+    assert.equal(json.boards.vita.mounted, true);
+    assert.equal(json.boards.vita.path, "/vita");
   });
 
   it("GET /health aliases board health", async () => {
@@ -132,6 +143,9 @@ describe("control board HTTP", () => {
     assert.equal(json.botPiggy.grokNowUsdPerMonth, 20);
     assert.equal(json.botPiggy.grokProUsdPerMonth, 60);
     assert.equal(json.botPiggy.provenRevenue, null);
+    assert.equal(json.vitaRouter.kind, "vita-secondary-router");
+    assert.equal(json.vitaRouter.mode, "vita");
+    assert.equal(json.vitaRouter.loseZero.proveKeepsLoveNote, true);
   });
 
   it("GET /board/api/snapshot demo includes inject + bot piggy and a deferred V4 stub", async () => {
@@ -142,6 +156,7 @@ describe("control board HTTP", () => {
     assert.equal(json.botPiggy.kind, "demo|example");
     assert.equal(json.v4.deferred, true);
     assert.equal(json.v4.sameProcessAsV3, false);
+    assert.equal(json.vitaRouter.kind, "vita-secondary-router");
     assert.ok(Array.isArray(json.engine.waves[0].series));
     assert.ok(json.engine.waves[0].series.length >= 8);
   });
@@ -162,5 +177,68 @@ describe("control board HTTP", () => {
       body: JSON.stringify({ action: "buy", symbol: "LINK", usd: 2 }),
     });
     assert.equal(res.status, 401);
+  });
+
+  it("GET /vita/router requires auth and reports vita mode", async () => {
+    const open = await get("/vita/router");
+    assert.equal(open.res.status, 401);
+    const inj = await get("/vita/inject");
+    assert.equal(inj.res.status, 401);
+  });
+
+  it("GET /vita HTML console and client are public; parse module is the bot parser", async () => {
+    const page = await get("/vita");
+    assert.equal(page.res.status, 200);
+    assert.match(page.text, /VITA Console/);
+    assert.match(page.text, /localStorage|HTML until inject|not injected/i);
+    const js = await get("/vita/client.js");
+    assert.equal(js.res.status, 200);
+    assert.match(js.res.headers.get("content-type") || "", /javascript/);
+    assert.match(js.text, /handleCommand/);
+    assert.match(js.text, /leftover hitch hashes/);
+    assert.match(js.text, /fetchLeftoverScanJson/);
+    assert.match(js.text, /leftoverScanIncomplete/);
+    assert.match(js.text, /scan\.scanning/);
+    const parse = await get("/vita/lib/vita-parse.js");
+    assert.equal(parse.res.status, 200);
+    assert.match(parse.text, /projectLeftoverHitchFields/);
+    assert.match(parse.text, /VITA_LOVE_KEY/);
+  });
+
+  it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
+    const first = await get("/vita/leftover");
+    assert.equal(first.res.status, 200);
+    assert.equal(first.json.ok, true);
+    assert.equal(first.json.kind, "vita-leftover-scan");
+    assert.equal(typeof first.json.scanning, "boolean");
+    if (first.json.scanning) {
+      assert.equal(first.json.counts, null);
+      assert.equal(first.json.leftoverKinds, null);
+      assert.equal(first.json.leftoverStillEureka, null);
+      assert.equal(first.json.hitchBytes, null);
+    }
+    let json = first.json;
+    const started = Date.now();
+    while (json.scanning && Date.now() - started < 20000) {
+      await new Promise((r) => setTimeout(r, 500));
+      json = (await get("/vita/leftover")).json;
+    }
+    if (json.scanning) {
+      assert.equal(json.counts, null);
+      assert.equal(json.leftoverStillEureka, null);
+    } else {
+      assert.equal(typeof json.counts.eureka, "number");
+      assert.equal(typeof json.counts.vita, "number");
+      assert.equal(Array.isArray(json.rows), true);
+      assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
+      assert.ok(json.rows.length <= 80);
+      assert.equal(typeof json.hitchBytes, "object");
+      if (json.counts.eureka > 0) {
+        assert.ok(json.hitchBytes.eurekaMin > 0);
+      }
+    }
+    const webhookSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
+    assert.ok(webhookSrc.includes("wait: false"), "public leftover scan must not await Blockscout on the injector");
+    assert.ok(webhookSrc.includes("isPendingLeftoverScan"), "auth /vita/course must ignore scanning placeholders");
   });
 });

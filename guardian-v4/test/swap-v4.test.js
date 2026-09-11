@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   ACTION_SETTLE_ALL,
   ACTION_SWAP_EXACT_IN_SINGLE,
@@ -123,6 +124,48 @@ describe("guardian-v4 swap + eureka hitch", () => {
     assert.equal(r.onChain, false);
     assert.equal(r.skipped, true);
     assert.equal(r.data, enc.data);
+  });
+
+  it("utf8 override hitches VITA §TOKEN§ without overwriting swap prefix", () => {
+    const enc = encodeV4ExactInSwap({
+      tokenIn: NATIVE_ETH,
+      tokenOut: "0x23a2847d772803f9efc64b4277b782b06296fe51",
+      fee: 10000,
+      amountIn: 10n ** 15n,
+    });
+    const r = hitchSwapIfCovered({
+      swapData: enc.data,
+      leftoverEth: 1,
+      hitchCostEth: 0.0001,
+      utf8: "§$STORE§\n§KEY§eureka♥Krystian,Kai,Koda",
+    });
+    assert.equal(r.onChain, true);
+    assert.ok(r.utf8.includes("§KEY§"));
+    assert.ok(r.data.toLowerCase().startsWith(enc.data.toLowerCase()));
+    assert.doesNotMatch(r.utf8, /We did it! xoxo/);
+  });
+
+  it("leftover hitch defaults to VITA parse, not Eureka letter", () => {
+    const enc = encodeV4ExactInSwap({
+      tokenIn: NATIVE_ETH,
+      tokenOut: "0x23a2847d772803f9efc64b4277b782b06296fe51",
+      fee: 10000,
+      amountIn: 10n ** 15n,
+    });
+    const r = hitchSwapIfCovered({
+      swapData: enc.data,
+      leftoverEth: 1,
+      hitchCostEth: 0.0001,
+    });
+    assert.equal(r.onChain, true);
+    assert.ok(r.utf8.includes("§KEY§"));
+    assert.ok(r.utf8.includes("Krystian"));
+    assert.doesNotMatch(r.utf8, /We did it! xoxo/);
+    assert.doesNotMatch(r.utf8, /Eureka!/);
+    assert.ok(r.data.toLowerCase().startsWith(enc.data.toLowerCase()));
+    const src = readFileSync(new URL("../swap-v4.js", import.meta.url), "utf8");
+    assert.ok(src.includes('planSecondaryHitch({ leftoverEth, hitchCostEth, mode: "vita" })'), "V4 leftover hitch must plan VITA KEY+LOC, not Eureka leftover");
+    assert.ok(src.includes("kind.eureka && !kind.vita"), "V4 leftover hitch must refuse leftover Eureka");
   });
 });
 

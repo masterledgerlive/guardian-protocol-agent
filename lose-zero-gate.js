@@ -7,7 +7,7 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  *
  * Buy penny-pinch: leftover must cover 1× hitch (auto, cascade, ripple).
  * Operator Telegram /buy is an explicit test: leftover+edge never block it.
- * Hitch Eureka if leftover covers 1× hitch; otherwise send a plain swap.
+ * Hitch VITA KEY+LOC if leftover covers 1× hitch; otherwise send a plain swap.
  * Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply.
  * Sell lose-zero:  sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
  *                  HITCH_COST_MULT default 2 — twice the hitch as profit cushion.
@@ -18,8 +18,8 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
  * if leftover is too thin for hitch, skip hitch and still sell when the wave itself
  * is profitable after fees. Hold only when leftover after fees is ≤ 0.
- * Once hitch leftover is met *and* the piggy earnings buffer clears, attach Eureka
- * on the way out — never list a message-paid "gain" that the hitch would wipe.
+ * Once hitch leftover is met *and* the piggy earnings buffer clears, attach VITA
+ * parse on the way out — never list a message-paid "gain" that the hitch would wipe.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -65,10 +65,11 @@ export function estimateStoreHitchGasUnits() {
 }
 
 /** Hitch cost in ETH given gas price in gwei. Optional live L1 fee is added. */
-export function estimateInjectCostEth(gwei, l1FeeEth) {
+export function estimateInjectCostEth(gwei, l1FeeEth, hitchBytes = STORE_HITCH_BYTES) {
   const g = Number(gwei);
   if (!Number.isFinite(g) || g < 0) return hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0;
-  const l2 = estimateStoreHitchGasUnits() * g * 1e-9;
+  const bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);
+  const l2 = estimateCalldataHitchEth(bytes, gwei);
   return l2 + (hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0);
 }
 
@@ -76,8 +77,8 @@ export function estimateInjectCostEth(gwei, l1FeeEth) {
  * Price increment so a position of `tradeEth` covers hitch gas.
  * inject_cost_spread = (injectEth / tradeEth) * entryPrice
  */
-export function injectCostSpread(entryPrice, tradeEth, gwei, l1FeeEth) {
-  const injectEth = estimateInjectCostEth(gwei, l1FeeEth);
+export function injectCostSpread(entryPrice, tradeEth, gwei, l1FeeEth, hitchBytes = STORE_HITCH_BYTES) {
+  const injectEth = estimateInjectCostEth(gwei, l1FeeEth, hitchBytes);
   const price = Number(entryPrice);
   const eth = Number(tradeEth);
   if (!Number.isFinite(price) || price <= 0) return 0;
@@ -519,15 +520,17 @@ export function buildBuyGateDecision({
   armed = false,
   net = 0,
   isCascade = false,
+  hitchBytes = STORE_HITCH_BYTES,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
   const fairExit = computeFairExit(price, { feePct, gasCostEth, tradeEth, impactPct });
-  const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth);
+  const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth, hitchBytes);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
-  const l2FeeEth = estimateCalldataHitchEth(STORE_HITCH_BYTES, gwei);
+  const l2Bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);
+  const l2FeeEth = estimateCalldataHitchEth(l2Bytes, gwei);
   const source = hasLiveL1Fee(l1FeeEth) ? "oracle" : "fallback";
   const feeFields = {
     l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
@@ -911,6 +914,7 @@ export function evaluateSellGate({
   /** When true (or entryEth≈0), demand gas-edge leftover — no fake green recycles. */
   unknownEntry = false,
   unknownGasEdgeMult = UNKNOWN_COST_GAS_EDGE_MULT,
+  leftoverWouldCoverHitch = false,
 } = {}) {
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
@@ -1069,9 +1073,9 @@ export function evaluateSellGate({
     }
   }
 
-  // No live L1 quote (oracle soft-fail) → never hitch. L2-only undercover is how
-  // inserts bleed thin books. Plain sale still OK when leftover cleared fees.
-  if (l1OracleFailed) {
+  // No live L1 quote (oracle soft-fail) → skip hitch unless leftover already
+  // covered a larger Eureka trailer on this wallet (planned VITA KEY+LOC fits).
+  if (l1OracleFailed && !leftoverWouldCoverHitch) {
     return pack(true, "plain sale L1 unknown", {
       hitchBytes: 0,
       btpInscribe: false,
@@ -1082,7 +1086,7 @@ export function evaluateSellGate({
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
       hitchFeeSource: source,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); Eureka skipped so insert cannot undercover`,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`,
     });
   }
 
@@ -1102,7 +1106,7 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; Eureka skipped so we still take the wave`,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; VITA hitch skipped so we still take the wave`,
     });
   }
 
@@ -1149,6 +1153,7 @@ export function buildSellGateDecision({
   hitchFeeSource,
   piggyEarningsBufferEth = 0,
   unknownEntry = false,
+  leftoverWouldCoverHitch = false,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -1170,6 +1175,7 @@ export function buildSellGateDecision({
     btpL1FeeEth,
     hitchFeeSource,
     piggyEarningsBufferEth,
+    leftoverWouldCoverHitch,
     reason,
     symbol,
     env,
