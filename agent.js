@@ -2047,10 +2047,13 @@ function nextRpc() {
 }
 function raceWithTimeout(promise, ms = 6000, label = "rpc timeout 6s") {
   let timer;
+  const work = Promise.resolve(promise);
+  // Timeout winning must not leave simulate()/RPC as an unhandled rejection.
+  work.catch(() => {});
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(label)), ms);
   });
-  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
 async function rpcCall(fn) {
