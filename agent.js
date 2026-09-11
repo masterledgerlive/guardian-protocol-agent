@@ -163,6 +163,14 @@ import {
   lotAppliedOk,
 } from "./fifo-lot-store.js";
 import {
+  githubAuthHeaders,
+  githubContentsUrl,
+  githubReadDenied,
+  resolveGithubRepo,
+  resolveGithubToken,
+  shouldRetryGithubRead,
+} from "./github-state.js";
+import {
   tierBookParams,
   entryTroughForBuy,
   isInjectPullbackEntry,
@@ -2041,6 +2049,8 @@ const GITHUB_TOKEN  = process.env.GITHUB_TOKEN;
 const GITHUB_REPO   = process.env.GITHUB_REPO;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
 const STATE_BRANCH  = process.env.STATE_BRANCH  || process.env.GITHUB_BRANCH || "bot-state"; // separate branch for state saves — prevents Railway re-deploy
+/** Last Contents API status. 401/403 must not retry or block evidence FIFO rebuild. */
+let lastGithubContentsStatus = 0;
 
 const ERC20_ABI = [
   { name: "balanceOf", type: "function", stateMutability: "view",
@@ -3042,6 +3052,9 @@ async function appendToLedger(entry) {
     try {
       // Always read fresh from GitHub — never use stale in-memory state
       const lf     = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+      if (githubReadDenied(lf?.status ?? lastGithubContentsStatus)) {
+        throw new Error(`GitHub HTTP ${lf?.status || lastGithubContentsStatus} reading ledger.json — not inventing an empty ledger`);
+      }
       const ledger = lf?.content && lf.content.trades
         ? lf.content
         : { trades: [], created: new Date().toISOString(), wallet: WALLET_ADDRESS };
@@ -3075,31 +3088,43 @@ async function appendToLedger(entry) {
 // Helper: load a file from a specific branch
 async function githubGetFromBranch(filename, branch) {
   try {
-    const [owner, repo] = (process.env.GITHUB_REPO || "").split("/");
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}?ref=${branch}&t=${Date.now()}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json" } });
+    const token = resolveGithubToken();
+    const repo = resolveGithubRepo() || GITHUB_REPO;
+    if (!token || !repo) {
+      lastGithubContentsStatus = 0;
+      console.log(`⚠️  githubGetFromBranch(${filename}): missing GITHUB_TOKEN or GITHUB_REPO`);
+      return { content: null, sha: null, status: 0 };
+    }
+    const url = githubContentsUrl(filename, { repo, branch, cacheBust: true });
+    const res = await fetch(url, { headers: githubAuthHeaders() });
+    lastGithubContentsStatus = res.status;
     if (!res.ok) {
       console.log(`⚠️  githubGetFromBranch(${filename}): HTTP ${res.status}`);
-      return null;
+      return { content: null, sha: null, status: res.status };
     }
     const data = await res.json();
     // GitHub returns base64 with newlines every 60 chars — must strip them
     const decoded = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8");
-    return { content: JSON.parse(decoded), sha: data.sha };
+    return { content: JSON.parse(decoded), sha: data.sha, status: res.status };
   } catch (e) {
     console.log(`⚠️  githubGetFromBranch(${filename}): ${e.message}`);
-    return null;
+    return { content: null, sha: null, status: lastGithubContentsStatus || 0 };
   }
 }
 
 // Helper: save a file to the state branch
 async function githubSaveToState(filename, content, sha) {
   try {
-    const [owner, repo] = (process.env.GITHUB_REPO || "").split("/");
-    const url  = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}`;
+    const token = resolveGithubToken();
+    const repo = resolveGithubRepo() || GITHUB_REPO;
+    if (!token || !repo) {
+      console.log(`⚠️  Ledger save error: missing GITHUB_TOKEN or GITHUB_REPO`);
+      return;
+    }
+    const url  = githubContentsUrl(filename, { repo, cacheBust: false });
     const body = { message: `ledger: ${new Date().toISOString()}`, content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"), branch: STATE_BRANCH };
     if (sha) body.sha = sha;
-    const res = await fetch(url, { method: "PUT", headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(url, { method: "PUT", headers: { ...githubAuthHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     if (data.content?.sha) ledgerSha = data.content.sha;
   } catch (e) { console.log(`⚠️  Ledger save error: ${e.message}`); }
@@ -8359,19 +8384,36 @@ async function runPredFundTick(cdp, token, price, ethUsd, pred, ind) {
 // ═══════════════════════════════════════════════════════════════════════════════
 async function githubGet(path) {
   try {
+    const token = resolveGithubToken() || GITHUB_TOKEN;
+    const repo = resolveGithubRepo() || GITHUB_REPO;
+    if (!token || !repo) {
+      lastGithubContentsStatus = 0;
+      console.log(`GitHub read error (${path}): missing GITHUB_TOKEN or GITHUB_REPO`);
+      return null;
+    }
     // Try STATE_BRANCH first (most recent), fall back to GITHUB_BRANCH
     const branch = STATE_BRANCH !== GITHUB_BRANCH ? STATE_BRANCH : GITHUB_BRANCH;
     const res = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}?ref=${branch}&t=${Date.now()}`,
-      { headers: { Authorization: `token ${GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json" } }
+      githubContentsUrl(path, { repo, branch, cacheBust: true }),
+      { headers: githubAuthHeaders() }
     );
-    if (!res.ok) return null;
+    lastGithubContentsStatus = res.status;
+    if (!res.ok) {
+      console.log(`⚠️  githubGet ${path} HTTP ${res.status}`);
+      return null;
+    }
     const data = await res.json();
-    return { content: JSON.parse(Buffer.from(data.content.replace(/\n/g,""), "base64").toString("utf8")), sha: data.sha };
+    return { content: JSON.parse(Buffer.from(data.content.replace(/\n/g,""), "base64").toString("utf8")), sha: data.sha, status: res.status };
   } catch (e) { console.log(`GitHub read error (${path}): ${e.message}`); return null; }
 }
 
 async function githubSave(path, content, sha, retries = 3) {
+  const token = resolveGithubToken() || GITHUB_TOKEN;
+  const repo = resolveGithubRepo() || GITHUB_REPO;
+  if (!token || !repo) {
+    console.log(`GitHub save failed (${path}): missing GITHUB_TOKEN or GITHUB_REPO`);
+    return null;
+  }
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const body = {
@@ -8380,9 +8422,9 @@ async function githubSave(path, content, sha, retries = 3) {
         branch:  STATE_BRANCH,
       };
       if (sha) body.sha = sha;
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`, {
+      const res = await fetch(githubContentsUrl(path, { repo, cacheBust: false }), {
         method: "PUT",
-        headers: { Authorization: `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
+        headers: { ...githubAuthHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const result = await res.json();
@@ -8465,6 +8507,48 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
     }
   }
   return null;
+}
+
+/** ETH lot is latched when FIFO remaining is on the token — USD entryPrice is optional. */
+function hasLatchedFifoCost(token) {
+  if (!token || token.unknownEntry === true) return false;
+  if (hasUsableCostBasis(token)) return true;
+  const fifo = { unknown: false, investedEth: Number(token.totalInvestedEth) || 0 };
+  return isUsableLot(fifoLots[token.symbol]) && lotAppliedOk(token, fifo);
+}
+
+/**
+ * Seeded AERO/DRB/BNKR buy hashes must rebuild even when GitHub Contents 401s
+ * (empty persist / empty ledger). Do not wait on hasRealHolding or USD mark.
+ */
+async function rebuildEvidenceLotsAfterGithubDeny(reason = "github-deny") {
+  const denied = githubReadDenied(lastGithubContentsStatus);
+  const symbols = Object.keys(EVIDENCE_BUY_TXS);
+  console.log(
+    `🔗 Evidence FIFO rebuild (${reason})` +
+    (denied ? ` after GitHub HTTP ${lastGithubContentsStatus}` : "") +
+    ` — ${symbols.join("/")} buy hashes still run`
+  );
+  let n = 0;
+  for (const symbol of symbols) {
+    const token = tokens.find((t) => t.symbol === symbol);
+    if (!token) continue;
+    if (hasLatchedFifoCost(token)) continue;
+    let bal = Number(tokenBalanceCache[symbol]);
+    if (!(bal > 0)) {
+      try { bal = await getTokenBalance(token.address); } catch { bal = 0; }
+      if (bal > 0) tokenBalanceCache[symbol] = bal;
+    }
+    const rebuilt = await tryRebuildLotFromReceipts(token, bal > 0 ? bal : undefined);
+    if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
+      n++;
+    }
+  }
+  if (n) {
+    try { await persistFifoLotsNow("evidence-rebuild"); } catch {}
+    console.log(`   ✅ Evidence rebuild latched ${n} FIFO lot(s)`);
+  }
+  return n;
 }
 
 async function loadFromGitHub() {
@@ -12080,6 +12164,11 @@ async function main() {
           console.log(`   📖 Ledger: ${ledgerData.length} trades (attempt ${attempt})`);
           break;
         }
+        const st = lf?.status ?? lastGithubContentsStatus;
+        if (githubReadDenied(st) || !shouldRetryGithubRead(st)) {
+          console.log(`   ⚠️  Ledger HTTP ${st} — not retrying; evidence buy-hash rebuild still runs`);
+          break;
+        }
         console.log(`   ⚠️  Ledger attempt ${attempt} empty — retrying...`);
         await new Promise(r => setTimeout(r, 2000));
       }
@@ -12183,7 +12272,9 @@ async function main() {
       if (hasRealHolding) {
         found++;
         const netBuy = net?.lastBuyPrice > 0 && Number(net?.tokensIn) > 0 && Number(net?.ethIn) > 0;
-        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog, fifoLot: fifoLots[symbol] }) && costBasisEth(token) > 0;
+        const trusted = (shouldTrustSavedCostBasis(token, { net, tradeLog, fifoLot: fifoLots[symbol] })
+          && (costBasisEth(token) > 0 || Number(token.totalInvestedEth) > 0))
+          || hasLatchedFifoCost(token);
         if (isUsableLot(fifoLots[symbol])) {
           const fifo = applyLotToToken(token, fifoLots[symbol], { remainingTokens: bal });
           applyLotToNet(netPositions, fifoLots[symbol]);
@@ -12244,9 +12335,13 @@ async function main() {
       }
     }
 
+    await rebuildEvidenceLotsAfterGithubDeny(
+      githubReadDenied(lastGithubContentsStatus) ? "github-deny" : "boot-scan"
+    );
+
     // ── Step 3: Summary + Telegram ──────────────────────────────────────────
-    const openNow = tokens.filter(t => hasUsableCostBasis(t));
-    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !hasUsableCostBasis(t)));
+    const openNow = tokens.filter(t => hasLatchedFifoCost(t));
+    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !hasLatchedFifoCost(t)));
     const heldNow = tokens.filter(t => (tokenBalanceCache[t.symbol] || 0) > 0.001);
     const totalHeld = heldNow.reduce((s, t) => {
       const p = history[t.symbol]?.lastPrice;
@@ -12256,7 +12351,10 @@ async function main() {
     }, 0);
 
     console.log(`🔍 On-chain scan: ${found} holdings | ${recovered} recovered | ${confirmed} confirmed | ${ghosts} ghosts cleared`);
-    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => t.symbol + "@$" + t.entryPrice.toFixed(6)).join(", ") || "none"}`);
+    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => {
+      const px = Number(t.entryPrice) > 0 ? `$${t.entryPrice.toFixed(6)}` : `${Number(t.totalInvestedEth || 0).toFixed(6)}ETH`;
+      return `${t.symbol}@${px}`;
+    }).join(", ") || "none"}`);
     console.log(`⚠️ Unknown basis (${unknownNow.length}): ${unknownNow.map(t => t.symbol).join(", ") || "none"}`);
     console.log(`💰 Total held value: ~$${totalHeld.toFixed(2)} (chain units × live mark)`);
 
@@ -12272,6 +12370,8 @@ async function main() {
             ? ((p - t.entryPrice) / t.entryPrice * 100).toFixed(1)
             : "?";
           bootMsg += `   <b>${t.symbol}</b>: entry $${t.entryPrice.toFixed(6)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
+        } else if (hasLatchedFifoCost(t)) {
+          bootMsg += `   <b>${t.symbol}</b>: FIFO ${Number(t.totalInvestedEth).toFixed(6)}ETH | chain ~$${val}\n`;
         } else {
           bootMsg += `   <b>${t.symbol}</b>: ${bal >= 1 ? bal.toFixed(2) : bal.toFixed(6)} on-chain ~$${val}\n   ${UNKNOWN_COST_BASIS_LABEL}\n`;
         }
@@ -12292,6 +12392,7 @@ async function main() {
   } catch (e) {
     console.log(`⚠️  On-chain scan error: ${e.message}`);
     console.log(e.stack?.split("\n").slice(0, 3).join("\n"));
+    try { await rebuildEvidenceLotsAfterGithubDeny("scan-error"); } catch {}
   }
 
   // ── Start VITA webhook (/board hub + /arena + /engine + /vita/*) ──────────

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Fixed — GitHub 401 no longer blocks FIFO lot latch (#79 live)
+
+Live after #79 (`1d73c1bc`): `githubGetFromBranch(ledger.json)` sent
+`Authorization: Bearer …` and logged **HTTP 401×3**. Trusted cost basis
+stayed 0; AERO / DRB / BNKR stayed UNKNOWN ENTRY. Seeded buy-hash rebuild
+either never ran (retries on 401) or was discarded because boot summary
+required a USD `entryPrice`.
+
+- Contents reads/writes use the working pattern: `Authorization: token`
+  + `repos/${GITHUB_REPO}/contents/…`, token/repo resolved at call time
+  (vault may inject after module load). `GH_TOKEN` / `GH_REPO` aliases.
+- Ledger 401/403 fail-fast — do not retry 3× or invent an empty ledger.
+- `rebuildEvidenceLotsAfterGithubDeny` always rebuilds seeded AERO / DRB /
+  BNKR buy hashes even when GitHub Contents 401s.
+- Boot “Trusted cost basis” counts ETH-only FIFO lots (`lotAppliedOk` /
+  `totalInvestedEth`), not only USD `hasUsableCostBasis`.
+- Bugbot #79 follow-ups remain: viem `status: "success"`, leftover FIFO
+  floor, ETH-only apply, sell-merge tombstones.
+
+Does **not** invent P&L. No capital. #78 HOLD + `DISABLE_DOW_BIAS` default
+ON, #76 COST_EDGE operator bypass, #74 re-queue — unchanged.
+
 ### Fixed — persist / rebuild FIFO lot cost across Railway restart
 
 Live after #78 (`70480110`): operator lots AERO `0x94faa542…` / DRB
