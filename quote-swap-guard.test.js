@@ -240,6 +240,30 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(unfreezeBody.includes("catalogFreezeIsSticky"), "/unfreeze GAME must refuse");
   });
 
+  it("rejects factory liquidity=0 before QuoterV2 (GAME ghost fee 3000)", () => {
+    const fn = src.indexOf("async function getOnChainQuote(");
+    const end = src.indexOf("async function getOnChainSellQuote");
+    assert.ok(fn >= 0 && end > fn);
+    const body = src.slice(fn, end);
+    const liq = body.indexOf("readV3PoolLiquidity");
+    const skip = body.indexOf("if (depth.empty)");
+    const quote = body.indexOf("quoteAtFee");
+    assert.ok(liq >= 0 && skip > liq && quote > skip, "liquidity()=0 must skip before quote");
+    assert.ok(body.includes("continue"), "ghost fee must not fall through to Quoter");
+    const buyFn = src.indexOf("async function executeBuy(");
+    const buyEnd = src.indexOf("\nasync function ", buyFn + 1);
+    const buyBody = src.slice(buyFn, buyEnd);
+    const route = buyBody.indexOf("evaluateSwapRouterRoute");
+    const liveQuote = buyBody.indexOf("getOnChainBuyQuote");
+    assert.ok(route >= 0 && route < liveQuote, "DexScreener book gate before buy quote");
+    const wrap = buyBody.indexOf("wrapEth");
+    assert.ok(wrap < 0 || liveQuote < wrap, "factory/quote reject before wrap");
+    const row = src.slice(src.indexOf('symbol: "GAME"'), src.indexOf("{ symbol:", src.indexOf('symbol: "GAME"') + 1));
+    assert.match(row, /0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3/);
+    assert.match(row, /0x70fbffe313d4a40909dba7129e0b2f4a45a645b5/);
+    assert.match(row, /liquidity\(\)=0/);
+  });
+
   it("executeBuy and executeSell require a live Quoter fill and fee fallback", () => {
     assert.ok(src.includes("requireLiveQuoterFill"), "must gate on live Quoter");
     assert.ok(src.includes("feeTierCandidates"), "must probe other V3 fees");

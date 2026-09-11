@@ -1742,7 +1742,7 @@ const DEFAULT_TOKENS = [
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
   { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Primary book Uni V2 GAME/VIRTUAL 0xD418dfE7…7789 ~$2.14M — SwapRouter02 is Uni V3 WETH-only. V3 GAME/WETH 3000 0x70fbffe3… liquidity()=0 / ghost; 1% ~$2.8k too thin. Freeze new buys; exits remain. Catalog freeze is the gate (no FREEZE_GAME env).",
+    frozen: true, frozenReason: "Desk-confirmed ghost: Uni V3 GAME/WETH fee 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 liquidity()=0. Liquid book is Uni V2 GAME/VIRTUAL. Screener CAUTION. Freeze new buys; exits remain. Catalog freeze is the gate (no FREEZE_GAME env).",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — FROZEN exits-only. Liquid book is Uni V2 GAME/VIRTUAL; SwapRouter cannot fill it." },
 
@@ -2145,7 +2145,14 @@ async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
   const fees = feeTierCandidates(feeTier);
   for (const fee of fees) {
     const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
-    if (depth.empty) continue;
+    if (depth.empty) {
+      // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 — liquidity()=0.
+      // Do not call QuoterV2 on a ghost pool (STF / Too little received).
+      if (fee === Number(feeTier)) {
+        console.log(`   🛑 EMPTY V3 POOL fee ${fee} — factory liquidity=0, skip quote (ghost)`);
+      }
+      continue;
+    }
     const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
     if (amountOut && amountOut > 0n) {
       if (fee !== Number(feeTier)) {
@@ -5803,26 +5810,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       }
     }
 
-    // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
-    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor
-    let useWeth = weth >= ethToSpend;
-    if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
-      // Have enough ETH to cover — use ETH directly (no wrap needed)
-      useWeth = false;
-    } else if (!useWeth && weth > 0 && eth + weth - gasFloor >= ethToSpend) {
-      // Need to wrap some ETH to top up WETH — leave cascade gas floor native
-      const wrapAmount = ethToSpend - weth + 0.0001;
-      const maxWrap = Math.max(0, eth - gasFloor);
-      if (wrapAmount > maxWrap + 1e-12) {
-        return await skipBuy(reason, token.symbol, `🛑 Wrap would breach cascade gas floor ${gasFloor.toFixed(6)}`);
-      }
-      const wrapped = await wrapEth(cdp, wrapAmount);
-      if (wrapped) useWeth = true;
-      else useWeth = false; // fall back to direct ETH if wrap fails
-    }
-
-    // Slippage guard: quote (preferred) + USD spot, then minOut sanity.
-    // Always use the token's real decimals — 1e18 on an 8-dec token bricks the buy.
+    // Slippage guard: factory liquidity then QuoterV2, BEFORE wrap/send.
+    // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 liquidity()=0 —
+    // do not quote or wrap into a ghost pool.
     const tokenDecimals = await getTokenDecimals(token.address);
     const spotTokens = spotOutWei({
       amountInHuman: ethToSpend,
@@ -5887,6 +5877,25 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     minTokens = buyMinOut.amountOutMinimum;
     console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+
+    // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
+    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor.
+    // Wrap only after a live non-empty Uni V3 quote.
+    let useWeth = weth >= ethToSpend;
+    if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
+      // Have enough ETH to cover — use ETH directly (no wrap needed)
+      useWeth = false;
+    } else if (!useWeth && weth > 0 && eth + weth - gasFloor >= ethToSpend) {
+      // Need to wrap some ETH to top up WETH — leave cascade gas floor native
+      const wrapAmount = ethToSpend - weth + 0.0001;
+      const maxWrap = Math.max(0, eth - gasFloor);
+      if (wrapAmount > maxWrap + 1e-12) {
+        return await skipBuy(reason, token.symbol, `🛑 Wrap would breach cascade gas floor ${gasFloor.toFixed(6)}`);
+      }
+      const wrapped = await wrapEth(cdp, wrapAmount);
+      if (wrapped) useWeth = true;
+      else useWeth = false; // fall back to direct ETH if wrap fails
+    }
 
     const ind = getIndicatorScore(token.symbol);
     console.log(`\n   🟢 BUY ${token.symbol} [${tierLabel}] — ${reason}`);
