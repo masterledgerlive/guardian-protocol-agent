@@ -252,7 +252,7 @@ import {
   formatHitchFeeSplit,
   GAS_PRICE_ORACLE,
 } from "./l1-fee-oracle.js";
-import { buildRpcUrls, withRpcFailover, isRpcFailoverError } from "./rpc-pool.js";
+import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
 import {
   encodeExactInputSingle,
   sanitizeAmountOutMinimum,
@@ -2045,6 +2045,14 @@ function nextRpc() {
   // All in cooldown — use the one that's been coolest the longest
   rpcIndex = (rpcIndex + 1) % RPC_URLS.length;
 }
+function raceWithTimeout(promise, ms = 6000, label = "rpc timeout 6s") {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(label)), ms);
+  });
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
+}
+
 async function rpcCall(fn) {
   // Rotate through the whole pool. A single 521 / timeout / fetch fail must
   // NOT throw — that used to kill main() on eth_getBalance at boot.
@@ -2052,11 +2060,7 @@ async function rpcCall(fn) {
   return withRpcFailover(ordered, async (url) => {
     const idx = RPC_URLS.indexOf(url);
     if (idx >= 0) rpcIndex = idx;
-    const result = await Promise.race([
-      fn(getClient()),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000))
-    ]);
-    return result;
+    return raceWithTimeout(fn(getClient()));
   }, {
     onFail(url, e) {
       console.log(`⚠️  RPC ${url} failed: ${String(e.message || e).slice(0, 80)} — trying next`);
@@ -2115,20 +2119,11 @@ async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
     return (typeof out === "bigint" && out > 0n) ? out : null;
   };
   try {
-    const result = await Promise.race([
-      simulate(getClient()),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000)),
-    ]);
-    return outOf(result);
-  } catch (e) {
-    if (isQuoteContractRevert(e) && !isRpcFailoverError(e)) return null;
-    try {
-      const result = await rpcCall((c) => simulate(c));
-      return outOf(result);
-    } catch (e2) {
-      if (isQuoteContractRevert(e2)) return null;
-      return null;
-    }
+    return outOf(await raceWithTimeout(simulate(getClient())));
+  } catch {
+    // Pool miss, timeout, or RPC flake — do not walk the public list.
+    // A 6s timeout is failover-class; draining rpcCall would cool every URL.
+    return null;
   }
 }
 
