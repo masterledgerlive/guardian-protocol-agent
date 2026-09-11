@@ -21,6 +21,9 @@ hourly and dust-recycle required a USD `entryPrice` (`hasUsableCostBasis`
   do not block as unknown solely for missing USD.
 - Seeded rebuild applies an already-persisted lot onto the token (AERO
   latch must not skip DRB/BNKR apply). Dust / sold-all still skipped.
+- Add-on buy does not blend a missing USD `entryPrice` as $0 (old units
+  are not free). FIFO ETH still accumulates; USD stays unset until a
+  real mark exists.
 - #81 401 rebuild, #80 viem/leftover/tombstone, #78 HOLD +
   `DISABLE_DOW_BIAS` default ON, #76 / #74 — unchanged.
 

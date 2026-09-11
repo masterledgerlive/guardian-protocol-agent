@@ -72,6 +72,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("latchFreshLot"), "operator fill must latch remaining cost");
     assert.ok(src.includes("persistFifoLotsNow"), "operator fill must persist FIFO lots before restart");
     assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
+    assert.ok(src.includes("blendUsdEntryOnAddOnBuy"), "add-on buy must not blend missing USD as 0");
     assert.ok(src.includes("lotFromBuyReceipt") || src.includes("tryRebuildLotFromReceipts"), "boot must rebuild lots from buy hash");
     assert.ok(!src.includes("ethIn - ethOut"), "boot must not use cash-flow leftover as remaining cost");
     const sellFn = src.indexOf("async function executeSell(");

@@ -526,6 +526,7 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("settleFlushedOperatorBuy"));
     assert.ok(src.includes("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"));
     assert.ok(src.includes("classifyRecycleBag"));
+    assert.ok(src.includes("blendUsdEntryOnAddOnBuy"));
     assert.ok(!src.includes("from \"./guardian-v4/agent.js\""), "must not merge V4 into agent.js");
   });
 });

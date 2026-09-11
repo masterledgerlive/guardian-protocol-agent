@@ -82,6 +82,7 @@ import {
   fetchDexScreenerPairs,
   hasUsableCostBasis,
   costBasisEth,
+  blendUsdEntryOnAddOnBuy,
   shouldTrustSavedCostBasis,
   applyUnknownChainHolding,
   allowBinanceOhlcSeed,
@@ -6151,14 +6152,13 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       hitchOnChain: !!buyVoice?.onChain,
     });
     token.totalInvestedEth = prevInvested + fillCostEth;
-    if (prevInvested > 0 && prevTokenBal > 0 && hasUsableCostBasis(token)) {
-      // Weighted average: (prevTokens * prevEntryPrice + newTokens * newPrice) / totalTokens
-      const newTokensEstimate = receivedTokens;
-      const totalTokensEstimate = prevTokenBal + newTokensEstimate;
-      token.entryPrice = ((prevTokenBal * token.entryPrice) + (newTokensEstimate * price)) / totalTokensEstimate;
-    } else {
-      token.entryPrice = price;
-    }
+    token.entryPrice = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: token.entryPrice,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: receivedTokens,
+      newPrice: price,
+    });
     token.entryTime = Date.now();
     token.unknownEntry = false;
     latchFreshLot(token, { fillCostEth, tokens: receivedTokens, reason });

@@ -7,6 +7,7 @@ import {
   selectBestDexScreenerPair,
   parseGeckoTerminalPrices,
   hasUsableCostBasis,
+  blendUsdEntryOnAddOnBuy,
   GECKO_TERMINAL_CHUNK,
   costBasisEth,
   shouldTrustSavedCostBasis,
@@ -194,6 +195,34 @@ describe("cost basis", () => {
     applyUnknownChainHolding(invented, { units: 4514, priceUsd: 0.000129 });
     assert.equal(invented.unknownEntry, true);
     assert.equal(invented.totalInvestedEth, 0);
+  });
+
+  it("add-on buy does not invent USD by blending a missing entryPrice as 0", () => {
+    // DRB/BNKR: FIFO ETH bag, no USD mark, then another fill.
+    assert.equal(blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: null,
+      prevTokenBal: 2844.72,
+      prevInvestedEth: 0.000271,
+      newTokens: 1000,
+      newPrice: 0.00009,
+    }), null);
+    // First fill (no prior bag) may take the live USD.
+    assert.equal(blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: null,
+      prevTokenBal: 0,
+      prevInvestedEth: 0,
+      newTokens: 3.42,
+      newPrice: 0.94,
+    }), 0.94);
+    // Known USD + add-on still weighted-averages.
+    const blended = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: 1,
+      prevTokenBal: 10,
+      prevInvestedEth: 0.001,
+      newTokens: 10,
+      newPrice: 3,
+    });
+    assert.equal(blended, 2);
   });
 });
 
