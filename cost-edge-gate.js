@@ -190,8 +190,10 @@ export function evaluateCostEdgeGate({
   let reason = "ok";
   let code = "ok";
 
-  // Operator /buy stays a test path for leftover+edge — but still refuse
-  // catastrophic hitch% / high-unit smoke into CBBTC on pennies.
+  // Operator /buy is a plain-swap test path: leftover+edge never block, and
+  // near-term peak math must not wait forever on a far wave (live AERO $2:
+  // 3.00% < 1.15× required 2.63%). Still refuse no_size / hitch% / RT%.
+  // High-unit floors already skip operator.
   if (!(fr.tradeEth > 0)) {
     allow = false;
     code = "no_size";
@@ -204,7 +206,10 @@ export function evaluateCostEdgeGate({
     allow = false;
     code = "rt_pct";
     reason = `round-trip ${(fr.roundTripPct * 100).toFixed(1)}% of stake > max ${(maxRoundTripPct * 100).toFixed(0)}%`;
-  } else if (!(nearUpside + 1e-12 >= needMove * edgeMult)) {
+  } else if (
+    !isManualOperator &&
+    !(nearUpside + 1e-12 >= needMove * edgeMult)
+  ) {
     allow = false;
     code = "near_term";
     reason = `near-term upside ${(nearUpside * 100).toFixed(2)}% < ${(edgeMult).toFixed(2)}× required ${(needMove * 100).toFixed(2)}% — would wait forever on a far peak`;

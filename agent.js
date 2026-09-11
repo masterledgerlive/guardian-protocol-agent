@@ -5783,7 +5783,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // COST_EDGE — hitch/RT % of *this* fill + near-term upside must clear costs.
     // Catches CBBTC-class: far peak leftover looked fine, insert already ate the bag.
-    {
+    // Operator / Telegram /buy is a plain-swap test path: leftover+edge already
+    // allowed. Do not wait on wave-peak near-term math (live after #74:
+    // COST_EDGE AERO 3.00% < 1.15× required 2.63% — would wait forever).
+    // Auto / wave / cascade still gated.
+    if (!isManualOperatorBuy(reason)) {
       const readings = (history[token.symbol]?.readings || []).slice(-20).map((r) => r.price).filter((p) => p > 0);
       const recentHigh = readings.length ? Math.max(...readings) : price;
       const tradeableUsdNow = (Number(bal?.tradeableWithWeth) || 0) * ethUsd;
@@ -5798,7 +5802,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         recentHigh,
         ethUsd,
         tradeableUsd: tradeableUsdNow,
-        isManualOperator: isManualOperatorBuy(reason),
+        isManualOperator: false,
       });
       if (!edge.allow) {
         recordCostMistake({ ...edge, source: isCascade ? "cascade" : "buy" });

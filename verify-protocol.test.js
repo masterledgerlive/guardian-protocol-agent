@@ -279,6 +279,15 @@ describe("verification: operator /buy is honest and chain is the ledger", () => 
     assert.ok(body.indexOf("isSuccessfulBuyFill") < body.indexOf("formatBuyReceiptHtml"));
   });
 
+  it("operator /buy bypasses COST_EDGE near-term; auto still evaluates", () => {
+    const buyFn = src.indexOf("async function executeBuy(");
+    const body = src.slice(buyFn, src.indexOf("\nasync function executeSell", buyFn));
+    assert.ok(body.includes("evaluateCostEdgeGate"));
+    assert.match(body, /if\s*\(\s*!isManualOperatorBuy\(reason\)\s*\)/);
+    assert.ok(body.includes("COST_EDGE blocked"));
+    assert.ok(src.includes("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"));
+  });
+
   it("does not invent invested ETH from a live mark", () => {
     assert.ok(src.includes("applyUnknownChainHolding"));
     assert.ok(src.includes("costBasisEth(token)"));
