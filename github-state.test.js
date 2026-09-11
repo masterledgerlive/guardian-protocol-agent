@@ -15,7 +15,12 @@ import {
   EVIDENCE_BUY_TXS,
   rebuildLotsAfterRestart,
   isUsableLot,
+  isClearedLot,
   lotAppliedOk,
+  recordBuyFill,
+  recordSellFill,
+  serializeFifoLots,
+  shouldRebuildLotFromReceipts,
 } from "./fifo-lot-store.js";
 import { fifoRemainingCostEth, buildSellGateDecision } from "./lose-zero-gate.js";
 
@@ -71,6 +76,8 @@ describe("github-state — Contents auth matches live githubGet", () => {
     assert.ok(src.includes("rebuildEvidenceLotsAfterGithubDeny"));
     assert.ok(src.includes("hasLatchedFifoCost"));
     assert.ok(src.includes("shouldRetryGithubRead"));
+    assert.ok(src.includes("shouldRebuildLotFromReceipts"));
+    assert.ok(src.includes("isClearedLot"));
     assert.ok(!/githubGetFromBranch[\s\S]{0,800}Bearer \$\{/.test(src), "ledger read must not use Bearer");
     assert.ok(!/githubSaveToState[\s\S]{0,800}Bearer \$\{/.test(src), "ledger write must not use Bearer");
   });
@@ -138,5 +145,51 @@ describe("GitHub 401 — seeded AERO/DRB/BNKR buy hashes still rebuild", () => {
     });
     assert.equal(d.allow, true);
     assert.ok(d.verdict === "PLUS" || d.verdict === "SKIP_HITCH");
+  });
+
+  it("sold-all tombstone + zero bal does not resurrect AERO evidence hash", () => {
+    const sold = {};
+    recordBuyFill(sold, {
+      symbol: "AERO",
+      ethIn: 0.000787,
+      tokensIn: 3.4266,
+      txHash: EVIDENCE_BUY_TXS.AERO,
+      fillCostEth: 0.000787,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    recordSellFill(sold, { symbol: "AERO", remainingTokens: 0 });
+    assert.equal(isClearedLot(sold.AERO), true);
+    assert.equal(shouldRebuildLotFromReceipts(sold.AERO, 0), false);
+
+    const resurrect = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(sold),
+      remainingBySymbol: { AERO: 0 },
+      receipts: [{
+        symbol: "AERO",
+        tokenAddress: AERO,
+        wallet: WALLET,
+        txHash: EVIDENCE_BUY_TXS.AERO,
+        receipt: {
+          status: "success",
+          transactionHash: EVIDENCE_BUY_TXS.AERO,
+          logs: [
+            {
+              address: AERO,
+              topics: [TRANSFER, padAddr("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"), padAddr(WALLET)],
+              data: `0x${(3426611425491222000n).toString(16).padStart(64, "0")}`,
+            },
+            {
+              address: WETH,
+              topics: [TRANSFER, padAddr(WALLET), padAddr("0x2626664c2603336E57B271c5C0b26F421741e481")],
+              data: `0x${(786757301107754n).toString(16).padStart(64, "0")}`,
+            },
+          ],
+        },
+        tx: { value: "0x0" },
+        reason: "MANUAL BUY (operator) $2",
+      }],
+    });
+    assert.equal(isUsableLot(resurrect.lots.AERO), false);
+    assert.equal(isClearedLot(resurrect.lots.AERO), true);
   });
 });

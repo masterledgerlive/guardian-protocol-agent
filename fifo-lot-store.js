@@ -97,6 +97,16 @@ export function isClearedLot(lot) {
   return !!(lot && lot.cleared === true && lotUpdatedAt(lot) > 0);
 }
 
+/**
+ * Receipt rebuild is for a live bag only.
+ * Sold-all tombstone or zero/unknown chain balance must not resurrect FIFO.
+ */
+export function shouldRebuildLotFromReceipts(lot, remainingTokens) {
+  if (isClearedLot(lot)) return false;
+  const remain = Number(remainingTokens);
+  return Number.isFinite(remain) && remain > 0;
+}
+
 /** Apply succeeded: real FIFO ETH is on the token (USD entry is optional). */
 export function lotAppliedOk(token, fifo) {
   return !!(fifo && !fifo.unknown && Number(fifo.investedEth) > 0
@@ -561,6 +571,8 @@ export function rebuildLotsAfterRestart({
   for (const row of receipts) {
     if (!row) continue;
     const sym = String(row.symbol || "").toUpperCase();
+    const remain = Number(remainingBySymbol?.[sym]);
+    if (!shouldRebuildLotFromReceipts(lots[sym], remain)) continue;
     if (isUsableLot(lots[sym])) continue;
     const token = catalog.get(sym) || {};
     const rebuilt = lotFromBuyReceipt({

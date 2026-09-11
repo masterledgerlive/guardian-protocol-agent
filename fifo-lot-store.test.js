@@ -34,6 +34,7 @@ import {
   lotAppliedOk,
   mergeLotMaps,
   isClearedLot,
+  shouldRebuildLotFromReceipts,
 } from "./fifo-lot-store.js";
 import {
   fifoRemainingCostEth,
@@ -454,6 +455,41 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.equal(isUsableLot(afterClear.DRB), false);
     assert.equal(isClearedLot(afterClear.DRB), true);
   });
+
+  it("sold-all tombstone or zero chain bal does not resurrect evidence FIFO", () => {
+    const sold = {};
+    recordBuyFill(sold, {
+      symbol: "AERO",
+      ethIn: 0.000787,
+      tokensIn: 3.4266,
+      txHash: EVIDENCE_BUY_TXS.AERO,
+      fillCostEth: 0.000787,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    recordSellFill(sold, { symbol: "AERO", remainingTokens: 0 });
+    assert.equal(isClearedLot(sold.AERO), true);
+    assert.equal(shouldRebuildLotFromReceipts(sold.AERO, 3.42), false);
+    assert.equal(shouldRebuildLotFromReceipts(undefined, 0), false);
+    assert.equal(shouldRebuildLotFromReceipts(undefined, undefined), false);
+    assert.equal(shouldRebuildLotFromReceipts(undefined, 3.42), true);
+
+    const resurrect = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(sold),
+      remainingBySymbol: { AERO: 0 },
+      receipts: [{
+        symbol: "AERO",
+        tokenAddress: AERO,
+        wallet: WALLET,
+        txHash: AERO_HASH,
+        receipt: aeroReceipt(),
+        tx: { hash: AERO_HASH, value: "0x0" },
+        reason: "MANUAL BUY (operator) $2",
+      }],
+    });
+    assert.equal(isUsableLot(resurrect.lots.AERO), false);
+    assert.equal(isClearedLot(resurrect.lots.AERO), true);
+    assert.equal(resurrect.applied.AERO, undefined);
+  });
 });
 
 describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
@@ -467,6 +503,7 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("recordBuyFill"));
     assert.ok(src.includes("persistFifoLotsNow"));
     assert.ok(src.includes("lotAppliedOk"));
+    assert.ok(src.includes("shouldRebuildLotFromReceipts"));
     assert.ok(src.includes("rebuildLotsAfterRestart") || src.includes("lotFromBuyReceipt"));
     assert.ok(src.includes("fifoLots"));
     assert.ok(src.includes("DISABLE_DOW_BIAS"));

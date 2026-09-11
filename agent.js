@@ -161,6 +161,8 @@ import {
   writeFifoLotsSync,
   readFifoLotsSync,
   lotAppliedOk,
+  isClearedLot,
+  shouldRebuildLotFromReceipts,
 } from "./fifo-lot-store.js";
 import {
   githubAuthHeaders,
@@ -8474,6 +8476,12 @@ async function loadFifoLotsFromStores() {
 }
 
 async function tryRebuildLotFromReceipts(token, remainingTokens) {
+  if (!shouldRebuildLotFromReceipts(fifoLots[token.symbol], remainingTokens)) {
+    if (isClearedLot(fifoLots[token.symbol])) {
+      console.log(`   🚫 ${token.symbol}: sold-all tombstone — skip receipt rebuild`);
+    }
+    return null;
+  }
   const hashes = collectRebuildTxs({
     persistedLots: fifoLots,
     env: process.env,
@@ -8534,12 +8542,20 @@ async function rebuildEvidenceLotsAfterGithubDeny(reason = "github-deny") {
     const token = tokens.find((t) => t.symbol === symbol);
     if (!token) continue;
     if (hasLatchedFifoCost(token)) continue;
+    if (isClearedLot(fifoLots[symbol])) {
+      console.log(`   🚫 ${symbol}: sold-all tombstone — evidence hash will not resurrect FIFO`);
+      continue;
+    }
     let bal = Number(tokenBalanceCache[symbol]);
     if (!(bal > 0)) {
       try { bal = await getTokenBalance(token.address); } catch { bal = 0; }
       if (bal > 0) tokenBalanceCache[symbol] = bal;
     }
-    const rebuilt = await tryRebuildLotFromReceipts(token, bal > 0 ? bal : undefined);
+    if (!shouldRebuildLotFromReceipts(fifoLots[symbol], bal)) {
+      console.log(`   🚫 ${symbol}: chain bal=${Number.isFinite(bal) ? bal : 0} — skip evidence rebuild`);
+      continue;
+    }
+    const rebuilt = await tryRebuildLotFromReceipts(token, bal);
     if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
       n++;
     }

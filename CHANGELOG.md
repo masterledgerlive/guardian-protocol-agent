@@ -15,7 +15,8 @@ required a USD `entryPrice`.
   (vault may inject after module load). `GH_TOKEN` / `GH_REPO` aliases.
 - Ledger 401/403 fail-fast — do not retry 3× or invent an empty ledger.
 - `rebuildEvidenceLotsAfterGithubDeny` always rebuilds seeded AERO / DRB /
-  BNKR buy hashes even when GitHub Contents 401s.
+  BNKR buy hashes even when GitHub Contents 401s — but not after a sold-all
+  tombstone or a zero chain balance (no resurrected FIFO).
 - Boot “Trusted cost basis” counts ETH-only FIFO lots (`lotAppliedOk` /
   `totalInvestedEth`), not only USD `hasUsableCostBasis`.
 - Bugbot #79 follow-ups remain: viem `status: "success"`, leftover FIFO
