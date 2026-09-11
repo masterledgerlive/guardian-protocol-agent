@@ -1665,8 +1665,9 @@ const DEFAULT_TOKENS = [
     notes: "Seamless Protocol. FROZEN — chronic dead volume on Base." },
 
   { symbol: "AIXBT",   address: "0x4F9Fd6Be4a90f2620860d680c0d4d5Fb53d1A825", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.015,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:7, waveQuality:8, fundamentals:7, coinbaseFit:8, community:8, total:38 },
-    notes: "AI trading agent born from Virtuals. Strong brand, cult following, real product. Volatile but predictable waves." },
+    notes: "AI trading agent born from Virtuals. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "TOSHI",   address: "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:6, waveQuality:7, fundamentals:5, coinbaseFit:8, community:8, total:34 },
@@ -1682,8 +1683,9 @@ const DEFAULT_TOKENS = [
   // Smaller bets. Learning the wave. Building conviction with real data.
 
   { symbol: "KEYCAT",  address: "0x9a26f5433671751c3276a065f57e5a02d2817973", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:5, waveQuality:6, fundamentals:4, coinbaseFit:7, community:7, total:29 },
-    notes: "Keyboard Cat — Base OG meme. 900k+ holders, Coinbase listed. Wave learning in progress." },
+    notes: "Keyboard Cat — Base OG meme. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "DOGINME", address: "0x6921B130D297cc43754afba22e5EAc0FBf8Db75b", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     score: { liquidity:5, waveQuality:6, fundamentals:4, coinbaseFit:6, community:8, total:29 },
@@ -1696,8 +1698,9 @@ const DEFAULT_TOKENS = [
     notes: "Onyx Protocol — L3 governance + gas token. Coinbase listed. FROZEN for buys — USDC-primary on Base." },
 
   { symbol: "SKI",     address: "0x768BE13e1680b5ebE0024C42c896E3dB59ec0149", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:5, waveQuality:5, fundamentals:4, coinbaseFit:6, community:7, total:27 },
-    notes: "Ski Mask Dog — Base meme culture. Consistent trading volume, solid community. Scout tier." },
+    notes: "Ski Mask Dog — Base meme culture. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ✅ ACTIVE ADDITIONS — 4 high-probability tokens (v18.0)
@@ -1713,8 +1716,9 @@ const DEFAULT_TOKENS = [
     notes: "BASE token. FROZEN — liquidity too thin for RISK bag." },
 
   { symbol: "LUNA",    address: "0x55cD6469F597452B5A7536e2CD98fDE4c1247ee4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:8, community:8, total:36 },
-    notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
+    notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
     frozen: true, frozenReason: "Thin/wrong-pool Uni V3 WETH — liquid book is Uni V2 GAME/VIRTUAL 0xD418dfE7670c21F682E041F34250c114DB5D7789 (~$2.14M); Uni V3 GAME/WETH feeTier 3000 0x70fbffe3… liquidity()=0 / ghost (STF buys hit the wrong book). Screener CAUTION — not battle-tested. Exits-only (sells + piggy dust still apply).",
@@ -1723,16 +1727,18 @@ const DEFAULT_TOKENS = [
 
   // ── GREENLIGHT ADDS — liquid Base Uni/Aero books (DexScreener 2026-09-06) ──
   { symbol: "BASECAT", address: "0xB2000000000000000000004c27f6523082f41D01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "FIFO 12/31 red sells (worst); CUT new buys until always-plus exit proven — books exist but exit throughput failed under LOSE-ZERO/2× hitch.",
     score: { liquidity:8, waveQuality:6, fundamentals:4, coinbaseFit:7, community:7, total:32 },
-    notes: "Basecat — Uniswap v3 BASECAT/WETH ~$464k / ~$5.2M 24h. Not the low-vol 0xB200…E49B twin." },
+    notes: "Basecat — Uniswap v3 BASECAT/WETH 0xB200…1D01. FROZEN exits-only — screener CAUTION/CUT. FIFO 12/31 red sells; books exist but exit throughput failed under LOSE-ZERO/2× hitch. Not the low-vol 0xB200…E49B twin." },
 
   { symbol: "DRB",     address: "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:8, waveQuality:6, fundamentals:5, coinbaseFit:7, community:7, total:33 },
     notes: "DebtReliefBot — Uniswap v3 DRB/WETH ~$1.42M / ~$465k 24h." },
 
   { symbol: "REI",     address: "0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface (~$208k / ~$77k) / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:7, community:7, total:35 },
-    notes: "REI Network — Uniswap v3 REI/WETH 1% ~$208k / ~$77k 24h (2026-09-07). Aero backup ~$1.86M. KEEP: Uni V3 proven." },
+    notes: "REI Network — Uniswap v3 REI/WETH 1% ~$208k / ~$77k 24h (2026-09-07). Aero backup ~$1.86M. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },

@@ -160,7 +160,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellInsane > sellFn && sellInsane < sellSanity, "PRICE_INSANE before minOut on sell");
   });
 
-  it("does not unfreeze overnight data-only names or flip BASECAT", () => {
+  it("does not unfreeze overnight data-only names or flip deep earners", () => {
     assert.match(src, /symbol: "STONKEX"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "BLUECHIP"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "VELVET"[\s\S]*?frozen: true/);
@@ -168,13 +168,23 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes('address: "0xc0634090F2Fe6C6D75e61Be2b949464aBb498973"'), "KTA Base address");
     assert.match(src, /symbol: "TIBBIR"[\s\S]*?frozen: true/);
     assert.ok(!/\bsymbol: "(BSTONK|FLOCK|HYDX)"/.test(src), "do not add BSTONK/FLOCK/HYDX");
-    for (const sym of ["BASECAT", "DRB", "REI", "CLANKER", "LINK", "UNI", "VVV", "ZORA", "BNKR"]) {
+    for (const sym of ["DRB", "CLANKER", "LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "TOSHI", "DEGEN", "BRETT", "VIRTUAL", "MORPHO", "DOGINME"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
       assert.ok(base >= 0, `${sym} must remain in catalog`);
       const next = src.indexOf("{ symbol:", base + 1);
       const row = src.slice(base, next > 0 ? next : base + 400);
       assert.ok(!row.includes("frozen: true"), `${sym} must stay tradeable`);
     }
+    // Thin gas-burners + BASECAT CAUTION/CUT — exits-only. GAME already frozen.
+    for (const sym of ["AIXBT", "KEYCAT", "SKI", "LUNA", "REI", "BASECAT", "GAME"]) {
+      const base = src.indexOf(`symbol: "${sym}"`);
+      assert.ok(base >= 0, `${sym} must remain in catalog`);
+      const next = src.indexOf("{ symbol:", base + 1);
+      const row = src.slice(base, next > 0 ? next : base + 500);
+      assert.ok(row.includes("frozen: true"), `${sym} must stay frozen exits-only`);
+    }
+    assert.ok(src.includes('address: "0xB2000000000000000000004c27f6523082f41D01"'), "BASECAT catalog address");
+    assert.match(src, /FIFO 12\/31 red sells/);
     // CBBTC/AAVE stay catalogued but FROZEN — fractional bags locked the RISK book.
     for (const sym of ["CBBTC", "AAVE"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
