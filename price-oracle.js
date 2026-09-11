@@ -366,14 +366,44 @@ export async function fetchTokenUsdQuote(address) {
 
 export function hasUsableCostBasis(token) {
   if (!token || token.unknownEntry) return false;
-  if (!isValidUsdPrice(token.entryPrice)) return false;
   const invested = Number(token.totalInvestedEth);
-  return Number.isFinite(invested) && invested > 0;
+  // Proven FIFO ETH is enough. Do not require a USD entryPrice — storage
+  // hourly / dust-recycle treated DRB/BNKR as unknown after #81 while AERO
+  // only looked "usable" because tokens.json still had a fill USD.
+  // Add-on USD blending is separate: FIFO ETH is not a $0 entryPrice.
+  if (Number.isFinite(invested) && invested > 0) return true;
+  return false;
+}
+
+/**
+ * USD entry after an add-on fill. FIFO ETH without a USD mark must not
+ * blend as entryPrice=0 (that treats old units as free and invents P&L).
+ * First fill (no prior bag) may take the live fill USD. Prior bag with
+ * no USD stays unset.
+ */
+export function blendUsdEntryOnAddOnBuy({
+  prevEntryPrice,
+  prevTokenBal = 0,
+  prevInvestedEth = 0,
+  newTokens = 0,
+  newPrice,
+} = {}) {
+  const prevPx = Number(prevEntryPrice);
+  const fillPx = Number(newPrice);
+  const hadBag = Number(prevInvestedEth) > 0 && Number(prevTokenBal) > 0;
+  if (hadBag && isValidUsdPrice(prevPx) && isValidUsdPrice(fillPx) && Number(newTokens) > 0) {
+    const total = Number(prevTokenBal) + Number(newTokens);
+    if (!(total > 0)) return prevPx;
+    return ((Number(prevTokenBal) * prevPx) + (Number(newTokens) * fillPx)) / total;
+  }
+  if (!hadBag && isValidUsdPrice(fillPx)) return fillPx;
+  return isValidUsdPrice(prevPx) ? prevPx : null;
 }
 
 /**
  * Invested ETH used by leftover / P&L. Unknown bags (chain truth, no fill
  * receipt) contribute 0 — never a live mark invented as "what we paid."
+ * USD entryPrice is optional; FIFO ETH is the cost.
  */
 export function costBasisEth(token) {
   if (!hasUsableCostBasis(token)) return 0;

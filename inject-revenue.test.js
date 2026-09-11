@@ -13,6 +13,7 @@ import {
   nearEntryScoreBoost,
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
+  classifyRecycleBag,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
@@ -105,6 +106,23 @@ describe("inject-revenue: unknown dust recycle", () => {
     assert.equal(shouldRecycleUnknownDust({ unknownEntry: true, posUsd: 0.9, moonshotHoldUsd: 0.5 }), true);
     assert.equal(shouldRecycleUnknownDust({ unknownEntry: true, posUsd: 0.05, moonshotHoldUsd: 0.5 }), false);
     assert.equal(shouldRecycleUnknownDust({ unknownEntry: false, posUsd: 2 }), false);
+  });
+
+  it("treats FIFO ETH as known cost without a USD entryPrice", () => {
+    const kind = classifyRecycleBag({
+      unknownEntry: false,
+      totalInvestedEth: 0.000271,
+      entryPrice: null,
+      hasUsdBasis: false,
+    });
+    assert.equal(kind.unknownBag, false);
+    assert.equal(kind.hasKnownPos, true);
+    assert.equal(kind.fifoKnown, true);
+    assert.equal(kind.fifoEth, 0.000271);
+    assert.equal(
+      classifyRecycleBag({ unknownEntry: true, totalInvestedEth: 0 }).unknownBag,
+      true,
+    );
   });
 });
 
@@ -225,6 +243,7 @@ describe("inject-revenue: wired into agent.js", () => {
   it("moonshot / dust recycle covers unknownEntry bags", () => {
     assert.ok(src.includes("shouldRecycleUnknownDust"));
     assert.ok(src.includes("unknownEntry") && src.includes("MOONSHOT"));
+    assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
   });
 
   it("wires inject fuel recycle + piggy-aligned sell gate", () => {
