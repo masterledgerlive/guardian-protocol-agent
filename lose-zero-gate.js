@@ -9,28 +9,35 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * Operator Telegram /buy is an explicit test: leftover+edge never block it.
  * Hitch VITA KEY+LOC if leftover covers 1× hitch; otherwise send a plain swap.
  * Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply.
- * Sell lose-zero:  sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
- *                  HITCH_COST_MULT default 2 — twice the hitch as profit cushion.
+ * Sell always-plus (hard rule): expected net proceeds must beat
+ *   entry_basis_for_sold_frac + fees + hitch_cost_for_THIS_tx
+ * even by 1 wei. Buy hitch is already in cost basis (`investedEthWithCosts`);
+ * the sell leg charges 1× of the hitch that actually rides. HITCH_COST_MULT
+ * (default 2) is a *size* cushion (spend leftover/mult on payload) — it is
+ * not a veto that HOLDs a green wave, and it must not eat the plus.
  * inject_hitch_cost = L2 calldata-char gas + live Base L1 data fee (GasPriceOracle
  * getL1Fee / getL1FeeUpperBound) + provider/value fee + optional BTP inscription.
- * L1 is preferred when quoted; oracle failure falls back to L2-only.
+ * L1 is preferred when quoted; oracle failure → SKIP_HITCH (plain plus sale).
  *
- * Never sell at a loss to insert storage. Size hitch so inject_cost × mult ≤ leftover;
- * if leftover is too thin for hitch, skip hitch and still sell when the wave itself
- * is profitable after fees. Hold only when leftover after fees is ≤ 0.
- * Once hitch leftover is met *and* the piggy earnings buffer clears, attach VITA
- * parse on the way out — never list a message-paid "gain" that the hitch would wipe.
+ * If hitch would push net ≤ 0: SKIP_HITCH and sell plain only when plain is
+ * still plus; else HOLD. Never sell red to place code. Unknown-cost bags
+ * cannot prove plus vs entry → HOLD (no fake-green recycle). Piggy dust is
+ * never sold; soldFrac must match tokens actually sold.
+ * Only underwater exception: FORCE EXIT LOCKED recovery (no hitch).
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
 export const STORE_HITCH_BYTES = 10;               // UTF-8 length of §$STORE§
 export const CALLDATA_GAS_PER_NONZERO_BYTE = 16;   // EIP-2028
 export const BTP_INSCRIBE_GAS_UNITS = 50_000;      // separate BTP self-send inscription tx
-export const DEFAULT_HITCH_COST_MULT = 2;          // sells reserve 2× hitch; buys stay 1×
+export const DEFAULT_HITCH_COST_MULT = 2;          // sell hitch SIZE budget leftover/mult; plus gate is 1× this tx
+/** 1 wei — every auto exit must print at least this plus after entry+fees+hitch. */
+export const MIN_PLUS_ETH = 1e-18;
 /**
  * Unknown-cost bags (entryEth=0) used to look "green" on leftover = proceeds − fees
- * alone, then recycle as fake wins while the RISK book bled ($10→$6). Require leftover
- * to clear this multiple of sell gas before auto-recycle / dust sells fire.
+ * alone, then recycle as fake wins while the RISK book bled ($10→$6). Always-plus
+ * HOLDs them — leftover without a cost basis is not plus vs entry. Gas-edge mult
+ * kept for diagnostics / sims only.
  */
 export const UNKNOWN_COST_GAS_EDGE_MULT = 2;
 
@@ -51,8 +58,10 @@ export function isInjectCoverRequired(env = process.env) {
 }
 
 /**
- * Sell-side hitch cover multiplier. Env `HITCH_COST_MULT` overrides; default 2.
- * Buys ignore this and stay at 1× leftover cover.
+ * Sell-side hitch *size* multiplier. Env `HITCH_COST_MULT` overrides; default 2.
+ * Budget for payload = leftover / mult so a 2× cushion remains as plus.
+ * If leftover covers 1× hitch but not 2×, hitch still rides at 1× (buy hitch
+ * already sits in cost basis). Buys ignore this and stay at 1× leftover cover.
  */
 export function hitchCostMult(env = process.env) {
   const n = Number(env?.HITCH_COST_MULT);
@@ -586,11 +595,15 @@ export function isAllowLossyOperatorSell(env = process.env) {
   return envFlagYes("ALLOW_LOSSY_OPERATOR_SELL", env);
 }
 
+export function isForceExitLockedReason(reason = "") {
+  return /FORCE EXIT LOCKED/i.test(String(reason || ""));
+}
+
 export function canBypassSellLossGate(reason = "", env = process.env) {
-  if (isManualOperatorSell(reason) && isAllowLossyOperatorSell(env)) return true;
-  // Recovery: free stranded locked majors even if underwater — cash must return
-  if (/FORCE EXIT LOCKED/i.test(String(reason || ""))) return true;
-  return false;
+  void env;
+  // ALLOW_LOSSY_OPERATOR_SELL used to send red operator exits. Always-plus
+  // forbids that — only FORCE EXIT LOCKED may recover stranded majors.
+  return isForceExitLockedReason(reason);
 }
 
 export function isStopLossReason(reason = "") {
@@ -780,6 +793,77 @@ export function leftoverAfterFeesEth({
     - sellFeesEth({ projectedProceedsEth, feePct, gasCostEth, impactPct });
 }
 
+/** WETH wei → ETH number. RISK-bag notionals fit in Number. */
+export function wei18ToEth(wei) {
+  if (typeof wei === "bigint") {
+    if (wei <= 0n) return 0;
+    return Number(wei) / 1e18;
+  }
+  const n = Number(wei);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Always-plus proceeds: never prefer a Dex mark over a live Uni quote.
+ * When both exist, take the worse (min) so leftover cannot look green on
+ * Aerodrome/Dex while Uni V3 fills thinner.
+ */
+export function conservativeSellProceedsEth({ markEth = 0, quotedEth = 0 } = {}) {
+  const mark = Number(markEth);
+  const quoted = Number(quotedEth);
+  const m = Number.isFinite(mark) && mark > 0 ? mark : 0;
+  const q = Number.isFinite(quoted) && quoted > 0 ? quoted : 0;
+  if (q > 0 && m > 0) return Math.min(m, q);
+  if (q > 0) return q;
+  return m;
+}
+
+/** leftover after fees minus 1× hitch on THIS tx. Must be > 0 to send with hitch. */
+export function plusAfterHitchEth(leftoverAfterFees = 0, hitchCostThisTxEth = 0) {
+  return (Number(leftoverAfterFees) || 0) - Math.max(0, Number(hitchCostThisTxEth) || 0);
+}
+
+export function formatAlwaysPlusLog({
+  verdict = "HOLD",
+  symbol = "?",
+  leftover = 0,
+  entrySold = 0,
+  feesEth = 0,
+  hitchCostEth = 0,
+  hitchWouldEth,
+  netEth = 0,
+  hitchBytes = 0,
+} = {}) {
+  const n = (v) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x.toExponential(2) : "?";
+  };
+  const v = String(verdict || "HOLD").toUpperCase();
+  if (v === "SKIP_HITCH") {
+    return (
+      `SKIP_HITCH sell ${symbol} leftover=${n(leftover)} hitchWould=${n(hitchWouldEth ?? hitchCostEth)}` +
+      ` — plain sale net=${n(leftover)}`
+    );
+  }
+  if (v === "FORCE_EXIT") {
+    return (
+      `FORCE_EXIT sell ${symbol} leftover=${n(leftover)} entrySold=${n(entrySold)}` +
+      ` fees=${n(feesEth)} — recovery (no hitch)`
+    );
+  }
+  if (v === "HOLD") {
+    return (
+      `HOLD sell ${symbol} leftover=${n(leftover)} entrySold=${n(entrySold)}` +
+      ` fees=${n(feesEth)} hitch=${n(hitchCostEth)} net=${n(netEth)}`
+    );
+  }
+  const bytes = Number(hitchBytes) > 0 ? ` (${Number(hitchBytes)}B)` : "";
+  return (
+    `PLUS sell ${symbol} leftover=${n(leftover)} entrySold=${n(entrySold)}` +
+    ` fees=${n(feesEth)} hitch=${n(hitchCostEth)} net=${n(netEth)}${bytes}`
+  );
+}
+
 /**
  * True iff projected proceeds strictly beat entry + fees + (mult × hitch).
  */
@@ -820,9 +904,9 @@ export function maxHitchBytesForLeftover(leftoverEth, gwei, providerFeeEth = 0, 
 }
 
 /**
- * Size hitch so (HITCH_COST_MULT × inject_cost) ≤ leftover.
- * Budget for actual hitch = leftover / mult. Extra BTP/STORE bytes that would
- * break the 2× cushion are skipped rather than selling at a loss to make room.
+ * Size hitch so 1× inject_cost stays strictly inside leftover (minimal plus).
+ * Default budget = leftover / HITCH_COST_MULT (2× size cushion) after a 1-wei
+ * plus reserve so hitch cannot consume the entire leftover.
  */
 export function sizeHitchForSell({
   leftoverEth = 0,
@@ -832,18 +916,23 @@ export function sizeHitchForSell({
   wantBtpInscribe = false,
   btpGasUnits = BTP_INSCRIBE_GAS_UNITS,
   hitchCostMult: mult = DEFAULT_HITCH_COST_MULT,
+  plusReserveEth = MIN_PLUS_ETH,
   l1FeeEth,
   l1FeePerByteEth,
   btpL1FeeEth,
 } = {}) {
   const leftover = Number(leftoverEth);
   const m = Number.isFinite(Number(mult)) && Number(mult) > 0 ? Number(mult) : DEFAULT_HITCH_COST_MULT;
-  if (!Number.isFinite(leftover) || leftover <= 0) {
+  const plusReserve = plusReserveEth === undefined
+    ? MIN_PLUS_ETH
+    : Math.max(0, Number(plusReserveEth) || 0);
+  const usable = leftover - plusReserve;
+  if (!Number.isFinite(leftover) || leftover <= 0 || !(usable > 0)) {
     return { hitchBytes: 0, btpInscribe: false, injectCostEth: 0, skipHitch: true, hitchCostMult: m };
   }
 
-  // Only spend leftover/mult on the actual hitch so leftover still covers N×.
-  const budget = leftover / m;
+  // Spend leftover/mult (or leftover−plusReserve when mult=1) so plus remains.
+  const budget = usable / m;
   let remaining = budget;
   let btp = false;
   const btpL1 = hasLiveL1Fee(btpL1FeeEth) ? Number(btpL1FeeEth) : 0;
@@ -880,13 +969,11 @@ export function sizeHitchForSell({
 /**
  * LOSE-ZERO sell gate. Always on.
  *
- * sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
- * Hold unless leftover after fees covers N× hitch (default 2). Buys stay 1×.
- * Once the floor is met, the caller must sell immediately — do not wait past it.
- * Only exception: reason starts with `MANUAL SELL (operator)` AND
- * ALLOW_LOSSY_OPERATOR_SELL=yes, or FORCE EXIT LOCKED recovery.
- * STOP LOSS is NOT a loss bypass — underwater floors hold; green floors
- * take a plain sale (hitch skipped) so we lock what is still profitable.
+ * Always-plus: leftover after entry_sold + fees must be > 0. Hitch on THIS tx
+ * is 1× (buy hitch already in basis). HITCH_COST_MULT sizes payload (leftover/mult)
+ * only when that still leaves plus; otherwise hitch at 1× or SKIP_HITCH.
+ * STOP LOSS is NOT a loss bypass. Unknown-cost is HOLD. Operator cannot sell
+ * red. Only FORCE EXIT LOCKED recovers stranded majors (no hitch).
  */
 export function evaluateSellGate({
   projectedProceedsEth = 0,
@@ -911,11 +998,12 @@ export function evaluateSellGate({
   env = process.env,
   /** ETH that must remain after fees before hitch may ride (piggy earnings buffer). */
   piggyEarningsBufferEth = 0,
-  /** When true (or entryEth≈0), demand gas-edge leftover — no fake green recycles. */
+  /** When true (or entryEth≈0), HOLD — leftover without basis is not plus vs entry. */
   unknownEntry = false,
   unknownGasEdgeMult = UNKNOWN_COST_GAS_EDGE_MULT,
   leftoverWouldCoverHitch = false,
 } = {}) {
+  void leftoverWouldCoverHitch;
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
     : hitchCostMult(env);
@@ -929,13 +1017,17 @@ export function evaluateSellGate({
     gwei,
     providerFeeEth,
     btpGasUnits,
-    hitchCostMult: mult,
+    hitchCostMult: 1, // plus gate is 1× hitch on THIS sell
     l1FeeEth,
     btpL1FeeEth,
   };
   const leftover = leftoverAfterFeesEth(base);
+  const feesEth = sellFeesEth(base);
+  const entrySold = entrySliceEth(entryEth, sellPct);
   const earningsBuf = Math.max(0, Number(piggyEarningsBufferEth) || 0);
   const hitchBudget = leftover - earningsBuf;
+  const forceExit = isForceExitLockedReason(reason);
+  const treatUnknown = !!unknownEntry || !(Number(entryEth) > 0);
 
   const wanted = Math.max(0, Number(wantedHitchBytes) || 0);
   const reservedL1 = hasLiveL1Fee(reservedL1FeeEth)
@@ -946,15 +1038,26 @@ export function evaluateSellGate({
   const liveL1Known = hasLiveL1Fee(l1FeeEth) || hasLiveL1Fee(reservedL1);
   const source = hitchFeeSource
     || (liveL1Known ? "oracle" : "l2-only");
-  // Only force plain when the agent explicitly marked oracle failure — unit tests
-  // and L2-only sizing still attach hitch from calldata gas alone.
   const l1OracleFailed = hitchFeeSource === "fallback";
-  // entryEth=0 (unknown / wiped basis) looked green on proceeds−fees alone — demand gas edge.
-  const treatUnknown = !!unknownEntry || !(Number(entryEth) > 0);
 
-  // Floor always reserves N× the default §$STORE§ hitch. BTP / orch chunks
-  // are extra — skip them if they would break the cushion, but never skip
-  // this reservation to sneak a thin sell.
+  const sizeArgs = {
+    leftoverEth: Math.max(0, hitchBudget),
+    wantedBytes: wantedHitchBytes,
+    gwei,
+    providerFeeEth,
+    wantBtpInscribe,
+    btpGasUnits,
+    plusReserveEth: MIN_PLUS_ETH,
+    l1FeeEth,
+    l1FeePerByteEth,
+    btpL1FeeEth,
+  };
+  // Size hitch DOWN to leftover − 1 wei plus. 2× is not a sell veto and must
+  // not shrink inject when leftover already covers 1× this tx.
+  let sized = sizeHitchForSell({ ...sizeArgs, hitchCostMult: 1 });
+  const hitchThis = sized.skipHitch ? 0 : (Number(sized.injectCostEth) || 0);
+  const plusNet = plusAfterHitchEth(leftover, hitchThis);
+
   const reservedHitch = estimateInjectHitchCostEth({
     hitchBytes: STORE_HITCH_BYTES,
     gwei,
@@ -969,24 +1072,13 @@ export function evaluateSellGate({
     btpInscribe: false,
     l1FeeEth: reservedL1,
     btpL1FeeEth: undefined,
-  });
-
-  const sized = sizeHitchForSell({
-    leftoverEth: Math.max(0, hitchBudget),
-    wantedBytes: wantedHitchBytes,
-    gwei,
-    providerFeeEth,
-    wantBtpInscribe,
-    btpGasUnits,
-    hitchCostMult: mult,
-    l1FeeEth,
-    l1FeePerByteEth,
-    btpL1FeeEth,
+    hitchCostMult: 1,
   });
   const check = coversHitchAndEntry({
     ...base,
     hitchBytes: sized.hitchBytes,
     btpInscribe: sized.btpInscribe,
+    hitchCostMult: 1,
     l1FeeEth: sized.hitchBytes > 0 && hasLiveL1Fee(l1FeeEth) && wanted > 0
       ? Number(l1FeeEth) * sized.hitchBytes / wanted
       : (sized.hitchBytes === wanted ? l1FeeEth : undefined),
@@ -1002,23 +1094,42 @@ export function evaluateSellGate({
     const liveBtpL1 = extra.btpInscribe ?? sized.btpInscribe
       ? (hasLiveL1Fee(btpL1FeeEth) ? Number(btpL1FeeEth) : 0)
       : 0;
+    const verdict = extra.verdict
+      || (allow ? (extra.skipHitch ? "SKIP_HITCH" : "PLUS") : "HOLD");
+    const hitchCost = extra.injectCostEth ?? (extra.skipHitch ? 0 : sized.injectCostEth);
+    const net = extra.netEth ?? plusAfterHitchEth(leftover, extra.skipHitch ? 0 : hitchCost);
     return {
       allow,
       leftover,
-      hitchBytes: bytes,
-      btpInscribe: extra.btpInscribe ?? sized.btpInscribe,
+      entrySoldEth: entrySold,
+      feesEth,
+      plusNetEth: net,
+      verdict,
+      hitchBytes: extra.skipHitch ? 0 : bytes,
+      btpInscribe: extra.skipHitch ? false : (extra.btpInscribe ?? sized.btpInscribe),
       skipHitch: extra.skipHitch ?? sized.skipHitch,
-      injectCostEth: extra.injectCostEth ?? sized.injectCostEth,
-      hitchCostMult: mult,
-      hitchCoverEth: extra.hitchCoverEth ?? (mult * (extra.injectCostEth ?? sized.injectCostEth)),
+      injectCostEth: extra.skipHitch ? 0 : hitchCost,
+      hitchCostMult: extra.skipHitch ? 1 : sized.hitchCostMult ?? mult,
+      hitchCoverEth: extra.hitchCoverEth ?? hitchCost,
       reservedHitchEth: reservedHitch,
-      edge: extra.edge ?? check.edge,
-      minSellProceedsEth: extra.minSellProceedsEth ?? check.minSellProceedsEth,
+      edge: extra.edge ?? net,
+      minSellProceedsEth: extra.minSellProceedsEth ?? (entrySold + feesEth + (extra.skipHitch ? 0 : hitchThis)),
       sellNow: extra.sellNow ?? allow,
       l1FeeEth: liveL1,
       l2FeeEth,
       btpL1FeeEth: liveBtpL1,
       hitchFeeSource: extra.hitchFeeSource ?? source,
+      alwaysPlusLog: extra.alwaysPlusLog ?? formatAlwaysPlusLog({
+        verdict,
+        symbol,
+        leftover,
+        entrySold,
+        feesEth,
+        hitchCostEth: extra.skipHitch ? 0 : hitchCost,
+        hitchWouldEth: extra.hitchWouldEth,
+        netEth: net,
+        hitchBytes: extra.skipHitch ? 0 : bytes,
+      }),
       feeSplitLog: formatHitchFeeSplit({
         l1FeeEth: liveL1,
         l2FeeEth,
@@ -1030,14 +1141,44 @@ export function evaluateSellGate({
     };
   };
 
-  if (canBypassSellLossGate(reason, env)) {
-    return pack(true, "lossy-operator", {
-      log: `LOSE_ZERO: allow sell ${symbol} MANUAL SELL (operator) ALLOW_LOSSY_OPERATOR_SELL`,
+  // FORCE EXIT LOCKED — only underwater recovery. Never hitch on a red exit.
+  if (forceExit) {
+    const red = leftover <= 0;
+    return pack(true, red ? "FORCE EXIT LOCKED" : "FORCE EXIT LOCKED plus", {
+      hitchBytes: 0,
+      btpInscribe: false,
+      skipHitch: true,
+      injectCostEth: 0,
+      hitchCoverEth: reservedCover.hitchCoverEth,
+      edge: leftover,
+      minSellProceedsEth: reservedCover.minSellProceedsEth,
+      verdict: red ? "FORCE_EXIT" : "PLUS",
+      netEth: leftover,
+      log: red
+        ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
+        : `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — skip hitch (recovery)`,
+    });
+  }
+
+  // Unknown cost: leftover = proceeds − 0 − fees looks green. Cannot prove plus vs entry.
+  if (treatUnknown) {
+    void unknownGasEdgeMult;
+    return pack(false, "unknown cost — cannot prove plus vs entry", {
+      hitchBytes: 0,
+      btpInscribe: false,
+      skipHitch: true,
+      injectCostEth: 0,
+      hitchCoverEth: reservedCover.hitchCoverEth,
+      edge: leftover,
+      minSellProceedsEth: reservedCover.minSellProceedsEth,
+      sellNow: false,
+      verdict: "HOLD",
+      netEth: leftover,
+      log: `LOSE_ZERO: hold sell ${symbol} unknown cost — leftover ${leftover.toExponential(2)} is not plus vs entry (no fake win)`,
     });
   }
 
   // Trade itself loses after fees (piggy dust already reserved in executeSell).
-  // Hitch is optional: never hold a profitable wave hostage to insertion cost.
   // STOP LOSS included — emergency floor is not permission to sell underwater.
   if (leftover <= 0) {
     const stopNote = isStopLossReason(reason) ? " (STOP LOSS floor held)" : "";
@@ -1050,84 +1191,60 @@ export function evaluateSellGate({
       edge: reservedCover.edge,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: false,
+      verdict: "HOLD",
+      netEth: leftover,
       log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money${stopNote}`,
     });
   }
 
-  // Unknown cost basis: leftover = proceeds − fees looks green even when the true
-  // entry was higher. Demand a gas-edge cushion before auto recycle / dust sells.
-  if (treatUnknown) {
-    const need = unknownCostMinLeftoverEth(gasCostEth, unknownGasEdgeMult);
-    if (leftover + 1e-18 < need) {
-      return pack(false, "unknown cost — gas edge not cleared", {
-        hitchBytes: 0,
-        btpInscribe: false,
-        skipHitch: true,
-        injectCostEth: 0,
-        hitchCoverEth: reservedCover.hitchCoverEth,
-        edge: leftover - need,
-        minSellProceedsEth: reservedCover.minSellProceedsEth,
-        sellNow: false,
-        log: `LOSE_ZERO: hold sell ${symbol} unknown cost — leftover ${leftover.toExponential(2)} < ${need.toExponential(2)} gas-edge (no fake win)`,
-      });
-    }
-  }
-
-  // No live L1 quote (oracle soft-fail) → skip hitch unless leftover already
-  // covered a larger Eureka trailer on this wallet (planned VITA KEY+LOC fits).
-  if (l1OracleFailed && !leftoverWouldCoverHitch) {
+  // No live L1 quote → never hitch (plain PLUS). leftoverWouldCoverHitch used to
+  // re-attach VITA without L1 and undercover the insert.
+  if (l1OracleFailed) {
     return pack(true, "plain sale L1 unknown", {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
       injectCostEth: 0,
       hitchCoverEth: reservedCover.hitchCoverEth,
-      edge: reservedCover.edge,
+      edge: leftover,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
       hitchFeeSource: source,
+      verdict: "SKIP_HITCH",
+      netEth: leftover,
+      hitchWouldEth: hitchThis || reservedHitch,
       log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`,
     });
   }
 
-  // Profitable after fees, but N× hitch and/or piggy earnings buffer would eat it —
-  // plain sale, letter skipped. Math must never list a message-paid fake gain.
-  const hitchCoverNeed = reservedCover.hitchCoverEth || 0;
-  if (!reservedCover.covers || hitchBudget <= 0 || hitchBudget + 1e-18 < hitchCoverNeed) {
-    const whyBuf = hitchBudget <= 0 || hitchBudget + 1e-18 < hitchCoverNeed
-      ? `piggy earnings buffer + ${mult}x hitch`
-      : `${mult}x hitch`;
+  // Hitch would wipe leftover (or piggy buffer left no hitch budget) — plain PLUS.
+  if (sized.skipHitch || hitchThis <= 0 || hitchBudget <= 0 || plusNet <= 0) {
+    const whyBuf = hitchBudget <= 0
+      ? "piggy earnings buffer + hitch"
+      : "hitch";
     return pack(true, "plain sale hitch skipped", {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
       injectCostEth: 0,
       hitchCoverEth: reservedCover.hitchCoverEth,
-      edge: reservedCover.edge,
+      edge: leftover,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
       sellNow: true,
+      verdict: "SKIP_HITCH",
+      netEth: leftover,
+      hitchWouldEth: hitchThis || sized.injectCostEth || reservedHitch,
       log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; VITA hitch skipped so we still take the wave`,
     });
   }
 
-  // Extra queued hitch/BTP would eat the 2× cushion — skip extra, sell now.
-  if (!check.covers || hitchBudget - mult * sized.injectCostEth <= 0) {
-    return pack(true, "skip hitch leftover too thin", {
-      hitchBytes: 0,
-      btpInscribe: false,
-      skipHitch: true,
-      injectCostEth: 0,
-      hitchCoverEth: reservedCover.hitchCoverEth,
-      edge: reservedCover.edge,
-      minSellProceedsEth: reservedCover.minSellProceedsEth,
-      sellNow: true,
-      log: `LOSE_ZERO: allow sell ${symbol} leftover covers ${mult}x hitch — skip extra hitch, sell now`,
-    });
-  }
-
+  // 1× hitch on THIS tx still leaves plus.
+  void check;
   return pack(true, "leftover covers hitch + edge", {
     sellNow: true,
-    log: `LOSE_ZERO: allow sell ${symbol} leftover covers hitch + edge — sell now (${mult}x hitch)`,
+    verdict: "PLUS",
+    netEth: plusNet,
+    log: `LOSE_ZERO: allow sell ${symbol} leftover covers hitch + edge — sell now (1x plus gate, hitch sized to leftover)`,
   });
 }
 

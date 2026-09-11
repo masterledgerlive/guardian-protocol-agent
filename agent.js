@@ -119,6 +119,9 @@ import {
   raceTimeout,
   investedEthWithCosts,
   netUsdAfterSkim,
+  conservativeSellProceedsEth,
+  wei18ToEth,
+  plusAfterHitchEth,
 } from "./lose-zero-gate.js";
 import {
   tierBookParams,
@@ -4769,7 +4772,7 @@ function planVoiceHitch(swapData, {
   leftoverEth = 0,
   earningsEth = 0,
   gwei = 0,
-  hitchCostMult = 2,
+  hitchCostMult = 1,
 } = {}) {
   if (!enabled || skipHitch || !swapData) {
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
@@ -4796,7 +4799,19 @@ function planVoiceHitch(swapData, {
     }
   }
 
-  const planned = planSecondaryHitch({ skipHitch, maxBytes, mode: "vita" });
+  const planned = planSecondaryHitch({
+    skipHitch,
+    maxBytes,
+    leftoverEth,
+    hitchCostEth: (() => {
+      const bytes = maxBytes != null
+        ? Math.max(0, Math.floor(Number(maxBytes) || 0))
+        : leftoverVoiceHitchBytes();
+      if (!(bytes > 0) || !(Number(gwei) > 0)) return undefined;
+      return estimateCalldataHitchEth(bytes, gwei);
+    })(),
+    mode: "vita",
+  });
   if (!planned.utf8) {
     recordHitchAttempt({ skippedLeftover: /leftover|skipHitch/i.test(String(planned.reason || "")) });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
@@ -5587,14 +5602,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
       buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
-      // L1 oracle down: skip hitch unless leftover already covered a larger Eureka trailer.
+      // L1 oracle down: never hitch (plain buy). leftoverWouldCoverVitaHitch used
+      // to re-attach KEY+LOC without live L1 and undercover the insert.
       if (!hitchL1.ok) {
-        if (leftoverWouldCoverVitaHitch()) {
-          console.log(`   LOSE_ZERO: L1 fee unknown — hitch VITA anyway (leftover already covered Eureka hitch bytes)`);
-        } else {
-          buySkipHitch = true;
-          console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
-        }
+        buySkipHitch = true;
+        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`);
       }
       if (!decision.allow) {
         return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");
@@ -6085,25 +6097,56 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   🐷 ${token.symbol}: banking +$${projectedBank.toFixed(3)} bear-min → piggy target $${targetSaved.toFixed(3)} (was $${priorSaved.toFixed(3)})`);
     }
 
-    // Gas profitability check using live ETH price
-    const procEth        = (piggy.tokensToSell * price) / ethUsd;
-    const posValueUsd    = procEth * ethUsd;
     const soldFrac       = sellFractionAfterPiggy({ balance: totalBal, tokensToSell: piggy.tokensToSell });
     const investedBefore = token.totalInvestedEth || 0;
     const entryEthSold   = costBasisForSoldFraction(investedBefore, soldFrac);
+    const markProcEth    = (piggy.tokensToSell * price) / ethUsd;
+    const posValueUsd    = markProcEth * ethUsd;
+
+    const tokenDecimals = await getTokenDecimals(token.address);
+    const amtHuman = piggy.tokensToSell;
+    const amtToSell = toWei(amtHuman, tokenDecimals);
+    if (amtToSell === 0n) return null;
+
+    // Quote BEFORE the plus gate so leftover cannot look green on a Dex mark
+    // while Uni V3 fills thinner (GAME Aerodrome vs empty fee-3000 lesson).
+    const spotWeth = spotOutWei({
+      amountInHuman: amtHuman,
+      inUsd: price,
+      outUsd: ethUsd,
+      outDecimals: 18,
+    });
+    let quotedWeth = null;
+    let minWeth = 0n;
+    try {
+      quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
+      if (quotedWeth && quotedWeth > 0n) {
+        minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
+        console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
+      } else {
+        minWeth = slippageFloor(spotWeth, 0.75);
+        console.log(`   📐 Quote fallback: estimated ${formatWei18(spotWeth)} WETH → floor ${formatWei18(minWeth)} (75%)`);
+      }
+    } catch (e) {
+      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — using mark proceeds for plus gate`);
+      minWeth = 0n;
+    }
+    const quotedEth = wei18ToEth(quotedWeth);
+    const procEth = conservativeSellProceedsEth({ markEth: markProcEth, quotedEth });
+    if (quotedEth > 0 && quotedEth + 1e-18 < markProcEth) {
+      console.log(`   📐 PLUS proceeds use quote ${quotedEth.toExponential(3)} ETH < mark ${markProcEth.toExponential(3)} ETH`);
+    }
     const expectedProfit = procEth - entryEthSold;
-    // Skip gas check entirely for dust positions (<$0.50) — just clear them out at peak
+    // Skip the 15% gas-vs-profit heuristic for dust — plus gate still HOLDs red.
     const isDust = posValueUsd < 0.50;
     if (!isProtective && !isDust && gasCost > 0.15 * expectedProfit && expectedProfit > 0) {
       console.log(`   🛑 Gas ${gasCost.toFixed(6)} ETH > 15% of $${(expectedProfit*ethUsd).toFixed(2)} profit — skipping`);
       return null;
     }
-    if (isDust) console.log(`   💨 Dust position ($${posValueUsd.toFixed(3)}) — clearing at peak regardless of gas`);
+    if (isDust) console.log(`   💨 Dust position ($${posValueUsd.toFixed(3)}) — plus gate still required`);
 
-    // LOSE-ZERO sell floor: leftover must cover HITCH_COST_MULT × hitch (default 2×).
-    // Never sell at a loss to insert storage. Once the floor is met, sell now.
-    // Entry slice MUST match tokens actually sold after piggy — requested sellPct
-    // overstates cost and flipped live MORPHO allow→hold every cycle.
+    // Always-plus sell floor: leftover after soldFrac×entry + fees must beat
+    // 1× hitch on THIS tx. Piggy dust already reserved in tokensToSell.
     const gwei = await getCurrentGasGwei();
     const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
     const wantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
@@ -6136,38 +6179,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
     if (sellGate.log) console.log(`   ${sellGate.log}`);
+    if (sellGate.alwaysPlusLog) console.log(`   ${sellGate.alwaysPlusLog}`);
     if (!sellGate.allow) return null;
-
-    const tokenDecimals = await getTokenDecimals(token.address);
-    const amtHuman = piggy.tokensToSell;
-    const amtToSell = toWei(amtHuman, tokenDecimals);
-    if (amtToSell === 0n) return null;
-
-    // Slippage floor from QuoterV2 (bigint, never Number(wei)*0.85 — that
-    // loses precision above ~9e15 and was in the path that produced ~93k WETH
-    // minOut on 4424 TOSHI). Fallback: USD spot * 75%. Then sanitize so an
-    // impossible floor is clamped or the tx is not sent.
-    const spotWeth = spotOutWei({
-      amountInHuman: amtHuman,
-      inUsd: price,
-      outUsd: ethUsd,
-      outDecimals: 18,
-    });
-    let quotedWeth = null;
-    let minWeth = 0n;
-    try {
-      quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
-      if (quotedWeth && quotedWeth > 0n) {
-        minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
-        console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
-      } else {
-        minWeth = slippageFloor(spotWeth, 0.75);
-        console.log(`   📐 Quote fallback: estimated ${formatWei18(spotWeth)} WETH → floor ${formatWei18(minWeth)} (75%)`);
-      }
-    } catch (e) {
-      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — using 0 floor (protective sell)`);
-      minWeth = 0n; // only on quote error — don't block protective/stop-loss sells
-    }
 
     const sellMinOut = sanitizeAmountOutMinimum({
       minOut: minWeth,
@@ -6196,19 +6209,33 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
     // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
-    // or VITA KEY+LOC parse — pack as much encoded data as hitchBytes allow.
-    const sellVoice = planVoiceHitch(sellSwap, {
+    // or VITA KEY+LOC parse. Earnings are NOT extra hitch fuel (leftover already
+    // is profit-from-entry). If hitch would wipe plus, strip to plain sale.
+    let sellVoice = planVoiceHitch(sellSwap, {
       skipHitch: sellGate.skipHitch,
-      maxBytes: sellGate.hitchBytes,
+      maxBytes: sellGate.skipHitch ? 0 : sellGate.hitchBytes,
       enabled: storeVoiceEnabled(),
       leftoverEth: Math.max(0, Number(sellGate.leftover) || 0),
-      earningsEth: Math.max(
-        0,
-        (Number(procEth) || 0) - (Number(costBasisEth(token)) || 0) * soldFrac
-      ),
+      earningsEth: 0,
       gwei,
-      hitchCostMult: sellGate.hitchCostMult || 2,
+      hitchCostMult: 1,
     });
+    const voiceHitchCost = sellVoice.onChain
+      ? estimateCalldataHitchEth(sellVoice.hitchBytes || 0, gwei)
+        + (hitchL1?.ok && wantedHitchBytes > 0
+          ? (Number(hitchL1.l1FeeEth) || 0) * (sellVoice.hitchBytes || 0) / wantedHitchBytes
+          : 0)
+      : 0;
+    let sellSkipHitch = !!sellGate.skipHitch;
+    if (sellVoice.onChain && plusAfterHitchEth(sellGate.leftover, voiceHitchCost) <= 0) {
+      console.log(
+        `   SKIP_HITCH sell ${token.symbol} leftover=${Number(sellGate.leftover).toExponential(2)}` +
+        ` hitchWould=${voiceHitchCost.toExponential(2)} — plain sale (wave must not wipe plus)`
+      );
+      sellVoice = { data: sellSwap, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
+      // Orch must not re-embed hitch after we stripped VITA to keep plus.
+      sellSkipHitch = true;
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -6218,8 +6245,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         ? orch.injectAndSend(_sellTx, {
             isOwnerTrade: true,
             currentGwei: gwei,
-            maxHitchBytes: Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
-            skipHitch: sellGate.skipHitch || sellVoice.onChain,
+            maxHitchBytes: sellSkipHitch
+              ? 0
+              : Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
+            skipHitch: sellSkipHitch || sellVoice.onChain,
           })
         : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -11371,7 +11400,7 @@ async function main() {
   } else if (isInjectCoverRequired()) {
     console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
   }
-  console.log(`🧷 SELL FLOOR — leftover must cover ${hitchCostMult()}× hitch (HITCH_COST_MULT) after fees; never lose to storage insert`);
+  console.log(`🧷 SELL FLOOR — always-plus vs soldFrac×entry + fees + 1× hitch this tx; HITCH_COST_MULT=${hitchCostMult()} is size cushion only; never sell red to inject`);
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
@@ -12542,12 +12571,13 @@ async function main() {
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
+        if (moonGate.alwaysPlusLog) console.log(`   ${moonGate.alwaysPlusLog}`);
         if (!moonGate.allow) {
           const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
-          console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
+          console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 or unknown cost (would lose money)`);
           continue;
         }
-        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : `${hitchCostMult()}× hitch covered`;
+        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : "PLUS (1× hitch this tx)";
         const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {

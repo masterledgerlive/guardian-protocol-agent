@@ -46,7 +46,7 @@ describe("verification: math actually covers hitch without losing money", () => 
     assert.equal(leftoverCoversInject(leftoverThin), false);
   });
 
-  it("sell floor defaults to 2× hitch — leftover that only covers 1× skips hitch and still sells", () => {
+  it("sell floor is always-plus: leftover that covers 1× hitch still sells (shrink hitch, do not HOLD)", () => {
     assert.equal(hitchCostMult({}), 2);
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const oneX = evaluateSellGate({
@@ -68,8 +68,10 @@ describe("verification: math actually covers hitch without losing money", () => 
       reason: "🌙 MOONSHOT TRIM — not in active tiers",
     });
     assert.equal(oneX.allow, true);
-    assert.equal(oneX.skipHitch, true);
+    assert.ok(oneX.plusNetEth > 0);
+    assert.ok(oneX.verdict === "PLUS" || oneX.verdict === "SKIP_HITCH");
     assert.equal(twoX.allow, true);
+    assert.ok(twoX.plusNetEth > 0);
     assert.equal(encodingDoesNotLoseMoney({ leftoverEth: hitch, hitchCostEth: hitch * 2 }), false);
     assert.equal(encodingDoesNotLoseMoney({ leftoverEth: hitch * 2, hitchCostEth: hitch * 2 }), true);
   });

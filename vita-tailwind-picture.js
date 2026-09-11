@@ -42,7 +42,6 @@ import {
   confirmExitInject,
 } from "./hat-exit-receipt.js";
 import { appendUtf8Hitch } from "./swap-minout.js";
-import { DEFAULT_HITCH_COST_MULT } from "./lose-zero-gate.js";
 
 /** @type {null | { cycleId, bits, contentHash, strandId, armedAt, armedBy, complete }} */
 let activeCycle = null;
@@ -129,7 +128,7 @@ export function planTailwindPictureHitch(
     leftoverEth = 0,
     earningsEth = 0,
     gwei = 0,
-    hitchCostMult = DEFAULT_HITCH_COST_MULT,
+    hitchCostMult = 1,
     wantedBytes = null,
   } = {}
 ) {
@@ -310,7 +309,7 @@ export function planVitaTailwindOrVoiceHitch(
     leftoverEth = 0,
     earningsEth = 0,
     gwei = 0,
-    hitchCostMult = DEFAULT_HITCH_COST_MULT,
+    hitchCostMult = 1,
     voicePlanner = null,
     preferPicture = true,
   } = {}

@@ -168,9 +168,10 @@ export function leftoverStillEureka() {
 }
 
 /**
- * Leftover hitch budget while leftover is still Eureka is names-only KEY+LOC only.
- * Orch LIBM / picture extras wait until leftoverKinds.vita > 0 so leftover that
- * already covered Eureka hitch bytes can land the VITA trailer.
+ * Leftover hitch *wanted* bytes. While leftover is still Eureka: names-only KEY+LOC
+ * (planned packet — not the 10-byte §$STORE§ tag). After leftover VITA exists,
+ * picture may quote up to 10KB — that is a ceiling for sizing, not a sell floor.
+ * executeSell sizes hitch DOWN to leftover-after-plus or SKIP_HITCH.
  */
 export function leftoverCoveredWantedBytes({
   voiceBytes = 0,
