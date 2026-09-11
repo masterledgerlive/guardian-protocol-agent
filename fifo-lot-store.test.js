@@ -46,7 +46,7 @@ import {
   freshLotCostFloor,
   sellEntryEthWithLotFloor,
 } from "./lose-zero-gate.js";
-import { hasUsableCostBasis, costBasisEth } from "./price-oracle.js";
+import { hasUsableCostBasis, costBasisEth, blendUsdEntryOnAddOnBuy } from "./price-oracle.js";
 import { classifyRecycleBag } from "./inject-revenue.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -628,5 +628,54 @@ describe("fifo-lot-store — live DRB/BNKR seed + dust-recycle FIFO eth", () => 
       blockedUnknown.unknownBag ? "🌙 DUST RECYCLE — unknown cost basis" : "",
       /unknown cost basis/,
     );
+  });
+
+  it("ETH-only DRB add-on keeps FIFO / recycle and does not invent free-token USD", () => {
+    const token = { symbol: "DRB", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const lot = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      receipt: drbReceipt().receipt,
+      tx: drbReceipt().tx,
+      price: 0,
+    });
+    applyLotToToken(token, lot, { remainingTokens: LIVE_REMAIN.DRB });
+    assert.equal(hasUsableCostBasis(token), true);
+    assert.ok(!(Number(token.entryPrice) > 0));
+
+    const prevInvested = costBasisEth(token);
+    const prevTokenBal = LIVE_REMAIN.DRB;
+    const fillCostEth = 0.00008;
+    const fillPrice = 0.00009;
+    const fillTokens = 400;
+    token.totalInvestedEth = prevInvested + fillCostEth;
+    token.entryPrice = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: token.entryPrice,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
+    });
+    token.unknownEntry = false;
+
+    assert.equal(token.entryPrice, null);
+    assert.ok(token.totalInvestedEth > prevInvested);
+    assert.equal(hasUsableCostBasis(token), true);
+
+    const kind = classifyRecycleBag({
+      unknownEntry: token.unknownEntry,
+      totalInvestedEth: token.totalInvestedEth,
+      entryPrice: token.entryPrice,
+      hasUsdBasis: hasUsableCostBasis(token),
+    });
+    assert.equal(kind.unknownBag, false);
+    assert.equal(kind.hasKnownPos, true);
+    assert.ok(kind.fifoEth > prevInvested);
+
+    // Fib / peak / USD P&L that require entryPrice must not fire from $0.
+    assert.equal(token.entryPrice ? (fillPrice - token.entryPrice) / token.entryPrice : null, null);
+    assert.ok(!(token.entryPrice > 0 && fillPrice > token.entryPrice), "no invented peak-vs-entry");
   });
 });

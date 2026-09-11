@@ -197,15 +197,82 @@ describe("cost basis", () => {
     assert.equal(invented.totalInvestedEth, 0);
   });
 
-  it("add-on buy does not invent USD by blending a missing entryPrice as 0", () => {
-    // DRB/BNKR: FIFO ETH bag, no USD mark, then another fill.
+  it("ETH-only FIFO add-on does not write $0 / free old tokens into entryPrice / fib / peak", () => {
+    // Live DRB leftover: proven FIFO ETH, no fill USD (Bugbot on #83).
+    const token = {
+      symbol: "DRB",
+      unknownEntry: false,
+      entryPrice: null,
+      totalInvestedEth: 0.000271,
+    };
+    const prevTokenBal = 2844.726394849007;
+    const fillTokens = 1000;
+    const fillPrice = 0.00009;
+    const fillCostEth = 0.00008;
+    const liveMark = fillPrice;
+    const costPct = 0.02;
+
+    assert.equal(hasUsableCostBasis(token), true);
+    const prevInvested = costBasisEth(token);
+    assert.ok(prevInvested > 0);
+
+    // Pre-fix: hasUsableCostBasis after ETH accumulate took the average
+    // branch and multiplied missing entryPrice as 0.
+    const buggyEntry = (
+      (prevTokenBal * (Number(token.entryPrice) || 0)) + (fillTokens * fillPrice)
+    ) / (prevTokenBal + fillTokens);
+    assert.ok(buggyEntry > 0 && buggyEntry < fillPrice * 0.4,
+      "zero-blend pulls USD below the fill — old units look free");
+    const buggyFibBreakeven = buggyEntry * (1 + costPct);
+    const buggyPnlPct = (liveMark - buggyEntry) / buggyEntry;
+    const buggyPeakProfit = liveMark > buggyEntry;
+    assert.ok(buggyFibBreakeven < liveMark * 0.5, "fib would arm far below live");
+    assert.ok(buggyPnlPct > 1, "P&L would invent >100% as if old tokens were free");
+    assert.equal(buggyPeakProfit, true);
+
+    // Same bookkeeping as executeBuy: blend, then latch ETH + unknownEntry.
+    token.totalInvestedEth = prevInvested + fillCostEth;
+    token.entryPrice = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: token.entryPrice,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
+    });
+    token.unknownEntry = false;
+
+    assert.equal(token.entryPrice, null, "must not write blended / $0 USD");
+    assert.ok(token.totalInvestedEth > prevInvested, "FIFO ETH still accumulates");
+    assert.equal(hasUsableCostBasis(token), true);
+    assert.equal(costBasisEth(token), token.totalInvestedEth);
+
+    // agent checkFibTargetHit / P&L / peak-vs-entry skip when entry is unset.
+    const entryForUsd = token.entryPrice;
+    const fibBreakeven = entryForUsd ? entryForUsd * (1 + costPct) : null;
+    const pnlPct = entryForUsd > 0 && liveMark > 0
+      ? (liveMark - entryForUsd) / entryForUsd
+      : null;
+    const peakVsEntry = entryForUsd > 0 ? liveMark > entryForUsd : null;
+    assert.equal(fibBreakeven, null);
+    assert.equal(pnlPct, null);
+    assert.equal(peakVsEntry, null);
+
+    // Explicit $0 / undefined old marks must not become a free-token USD.
     assert.equal(blendUsdEntryOnAddOnBuy({
-      prevEntryPrice: null,
-      prevTokenBal: 2844.72,
-      prevInvestedEth: 0.000271,
-      newTokens: 1000,
-      newPrice: 0.00009,
+      prevEntryPrice: 0,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
     }), null);
+    assert.equal(blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: undefined,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
+    }), null);
+
     // First fill (no prior bag) may take the live USD.
     assert.equal(blendUsdEntryOnAddOnBuy({
       prevEntryPrice: null,

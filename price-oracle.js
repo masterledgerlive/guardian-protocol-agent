@@ -370,6 +370,7 @@ export function hasUsableCostBasis(token) {
   // Proven FIFO ETH is enough. Do not require a USD entryPrice — storage
   // hourly / dust-recycle treated DRB/BNKR as unknown after #81 while AERO
   // only looked "usable" because tokens.json still had a fill USD.
+  // Add-on USD blending is separate: FIFO ETH is not a $0 entryPrice.
   if (Number.isFinite(invested) && invested > 0) return true;
   return false;
 }
