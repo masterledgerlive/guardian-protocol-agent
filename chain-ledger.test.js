@@ -94,6 +94,8 @@ describe("unknown cost basis is not invented invested", () => {
     assert.ok(!src.includes("UNKNOWN ENTRY resolved from live market"));
     assert.ok(src.includes("applyUnknownChainHolding"));
     assert.ok(src.includes("costBasisEth(token)"));
+    assert.ok(src.includes("fifoRemainingCostEth"));
+    assert.ok(!src.includes("ethIn - ethOut"));
   });
 });
 

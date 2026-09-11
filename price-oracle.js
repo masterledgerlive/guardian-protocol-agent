@@ -366,7 +366,9 @@ export async function fetchTokenUsdQuote(address) {
 
 export function hasUsableCostBasis(token) {
   if (!token || token.unknownEntry) return false;
-  return isValidUsdPrice(token.entryPrice);
+  if (!isValidUsdPrice(token.entryPrice)) return false;
+  const invested = Number(token.totalInvestedEth);
+  return Number.isFinite(invested) && invested > 0;
 }
 
 /**
