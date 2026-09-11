@@ -185,6 +185,9 @@ describe("cost basis", () => {
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: false, totalInvestedEth: 0.0002 }), 0.0002);
     const invented = { symbol: "TOSHI", entryPrice: 0.000129, totalInvestedEth: 0.0002, unknownEntry: false };
     assert.equal(shouldTrustSavedCostBasis(invented, {}), false);
+    assert.equal(shouldTrustSavedCostBasis(invented, {
+      fifoLot: { ethIn: 0.0002, tokensIn: 4514, fillCostEth: 0.0002 },
+    }), true);
     applyUnknownChainHolding(invented, { units: 4514, priceUsd: 0.000129 });
     assert.equal(invented.unknownEntry, true);
     assert.equal(invented.totalInvestedEth, 0);

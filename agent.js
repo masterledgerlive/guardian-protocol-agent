@@ -144,6 +144,24 @@ import {
   sellEntryEthWithLotFloor,
 } from "./lose-zero-gate.js";
 import {
+  FIFO_LOTS_FILENAME,
+  EVIDENCE_BUY_TXS,
+  isUsableLot,
+  recordBuyFill,
+  recordSellFill,
+  serializeFifoLots,
+  deserializeFifoLots,
+  mergeLotMaps,
+  applyLotToNet,
+  applyLotToToken,
+  seedNetPositionsFromFifoLots,
+  lotFromBuyReceipt,
+  ledgerBuyHasLotSizes,
+  collectRebuildTxs,
+  writeFifoLotsSync,
+  readFifoLotsSync,
+} from "./fifo-lot-store.js";
+import {
   tierBookParams,
   entryTroughForBuy,
   isInjectPullbackEntry,
@@ -3001,6 +3019,9 @@ const successionTracker   = createSuccessionTracker();
 const waveState    = {};
 const tradeLog     = [];
 let netPositions   = {};
+/** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
+let fifoLots       = {};
+let fifoLotsSha    = null;
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
 // Cached token balances — refreshed each main loop cycle, used in Telegram responses
 const tokenBalanceCache = {};
@@ -6124,6 +6145,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     token.entryTime = Date.now();
     token.unknownEntry = false;
     latchFreshLot(token, { fillCostEth, tokens: receivedTokens, reason });
+    recordBuyFill(fifoLots, {
+      symbol: token.symbol,
+      ethIn: ethToSpend,
+      tokensIn: receivedTokens,
+      txHash,
+      price,
+      reason,
+      fillCostEth,
+    });
+    applyLotToNet(netPositions, fifoLots[token.symbol]);
+    try { await persistFifoLotsNow("buy-fill"); } catch (e) {
+      console.log(`⚠️  fifo lot persist (non-critical): ${e.message}`);
+    }
     {
       const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
       syncTokenPiggy(token, estBal, price);
@@ -6749,10 +6783,15 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       token.projectedEarningsUsd = null;
       token.minSellPrice = null;
       clearFibLevels(token.symbol); // FIX: reset fib memory so next position starts fresh
+      recordSellFill(fifoLots, { symbol: token.symbol, remainingTokens: 0 });
     } else {
       token.totalInvestedEth = investedBefore * (1 - soldFrac);
+      recordSellFill(fifoLots, { symbol: token.symbol, soldFrac });
       // Clear buy-plan projection once banked so the next wave re-plans.
       if (actualBank > 0) token.projectedEarningsUsd = null;
+    }
+    try { await persistFifoLotsNow("sell-fill"); } catch (e) {
+      console.log(`⚠️  fifo lot persist (non-critical): ${e.message}`);
     }
 
     // Score the wave prediction that just completed
@@ -7370,7 +7409,7 @@ async function processToken(cdp, token, bal) {
 
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
-    if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog }) &&
+    if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
         (getCachedBalance(token.symbol) > 0.001 || token.unknownEntry)) {
       applyUnknownChainHolding(token, {
         units: getCachedBalance(token.symbol),
@@ -8362,6 +8401,70 @@ async function githubSave(path, content, sha, retries = 3) {
 
 let lastVitaRegistryBlob = null;
 
+async function persistFifoLotsNow(reason = "lot") {
+  try { writeFifoLotsSync(FIFO_LOTS_FILENAME, fifoLots); } catch (e) {
+    console.log(`⚠️  fifo-lots disk: ${e.message}`);
+  }
+  try {
+    const sha = await githubSave(FIFO_LOTS_FILENAME, serializeFifoLots(fifoLots), fifoLotsSha);
+    if (sha) fifoLotsSha = sha;
+    console.log(`💾 fifo-lots.json persisted (${reason})`);
+  } catch (e) {
+    console.log(`⚠️  fifo-lots GitHub (${reason}): ${e.message || e}`);
+  }
+}
+
+async function loadFifoLotsFromStores() {
+  const disk = readFifoLotsSync(FIFO_LOTS_FILENAME);
+  let remote = {};
+  try {
+    const gf = await githubGet(FIFO_LOTS_FILENAME);
+    if (gf?.content) {
+      remote = deserializeFifoLots(gf.content);
+      if (gf.sha) fifoLotsSha = gf.sha;
+    }
+  } catch { /* first boot has no remote file */ }
+  fifoLots = mergeLotMaps(disk, remote, fifoLots);
+  const n = Object.keys(fifoLots).filter((s) => isUsableLot(fifoLots[s])).length;
+  if (n) console.log(`   📦 fifo-lots: ${n} durable lot(s) restored (disk/GitHub)`);
+}
+
+async function tryRebuildLotFromReceipts(token, remainingTokens) {
+  const hashes = collectRebuildTxs({
+    persistedLots: fifoLots,
+    env: process.env,
+    evidence: EVIDENCE_BUY_TXS,
+  })[token.symbol] || [];
+  if (!hashes.length) return null;
+  for (const hash of hashes) {
+    try {
+      const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
+      const tx = await rpcCall((c) => c.getTransaction({ hash }));
+      const lot = lotFromBuyReceipt({
+        symbol: token.symbol,
+        tokenAddress: token.address,
+        wallet: WALLET_ADDRESS,
+        txHash: hash,
+        receipt,
+        tx,
+        tokenDecimals: token.decimals || 18,
+        price: token.unknownEntry ? 0 : (token.entryPrice || 0),
+        reason: "MANUAL BUY (operator)",
+      });
+      if (!isUsableLot(lot)) continue;
+      fifoLots[token.symbol] = lot;
+      applyLotToNet(netPositions, lot);
+      const fifo = applyLotToToken(token, lot, { remainingTokens });
+      if (fifo.unknown || !(fifo.investedEth > 0)) continue;
+      console.log(`   🔗 ${token.symbol}: FIFO lot rebuilt from buy ${hash.slice(0, 10)}… remaining=${fifo.investedEth.toFixed(6)}ETH`);
+      return lot;
+    } catch (e) {
+      console.log(`   ⚠️  ${token.symbol}: receipt rebuild ${hash.slice(0, 10)}… ${e.message}`);
+    }
+  }
+  return null;
+}
+
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
   const tf = await githubGet("tokens.json");
@@ -8484,6 +8587,13 @@ async function loadFromGitHub() {
       }
     }
     // portfolioPeakUsd intentionally NOT loaded — stale peaks cause false drawdown halts
+    if (pos.fifoLots) {
+      fifoLots = mergeLotMaps(fifoLots, deserializeFifoLots(pos.fifoLots));
+    }
+    if (Array.isArray(pos.tradeLog) && pos.tradeLog.length) {
+      tradeLog.length = 0;
+      tradeLog.push(...pos.tradeLog.slice(-200));
+    }
     for (const t of tokens) {
       if (pos.entries?.[t.symbol] != null) {
         const savedEntry = pos.entries[t.symbol];
@@ -8571,6 +8681,13 @@ async function loadFromGitHub() {
     console.log(`   💓 registry folded after restore: ${folded.ingested} packet(s) · KEY=${folded.quality?.hasKey ? "yes" : "LOSS"}`);
   }
 
+  await loadFifoLotsFromStores();
+  for (const t of tokens) {
+    if (!isUsableLot(fifoLots[t.symbol])) continue;
+    applyLotToNet(netPositions, fifoLots[t.symbol]);
+    applyLotToToken(t, fifoLots[t.symbol]);
+  }
+
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
   const pcOpen      = Object.keys(piggyCoPos).length;
@@ -8653,8 +8770,10 @@ async function saveToGitHub() {
       // Per-token piggy bank contribution tracking — permanent record of what each token has earned
       piggyContrib: Object.fromEntries(tokens.map(t => [t.symbol, (waveStats[t.symbol]?.piggyContrib || 0)])),
       tradeLog:   tradeLog.slice(-200),
+      fifoLots:   serializeFifoLots(fifoLots),
     }, positionsSha);
     lastSaveTime = Date.now();
+    try { await persistFifoLotsNow("saveToGitHub"); } catch {}
     // Save memory registry
     try { await githubSave("memory-registry.json", serializeRegistry(), null); } catch {}
     // Save VITA registry
@@ -11946,8 +12065,9 @@ async function main() {
 
     const ethPriceNow = await getLiveEthPrice();
 
-    // ── Step 1: Read ledger for entry prices (best effort) ──────────────────
+    // ── Step 1: Seed durable FIFO lots, then ledger buys that have lot sizes ─
     netPositions = {};
+    seedNetPositionsFromFifoLots(netPositions, fifoLots);
     try {
       // Try multiple times — ledger is critical
       let ledgerData = null;
@@ -11965,11 +12085,18 @@ async function main() {
       if (ledgerData) {
         for (const t of ledgerData) {
           if (!t.symbol || !t.price || t.price <= 0) continue;
+          if (t.type === "BUY" && !ledgerBuyHasLotSizes(t)) {
+            // Stale ledger rows often have ethSpent but no receivedTokens.
+            // Adding ethIn with tokensIn=0 poisons #69 unknown HOLD forever.
+            continue;
+          }
           if (!netPositions[t.symbol]) {
             netPositions[t.symbol] = { ethIn: 0, ethOut: 0, tokensIn: 0, lastBuyPrice: 0, lastBuyEth: 0, lastBuyTime: 0 };
           }
           const p = netPositions[t.symbol];
           if (t.type === "BUY") {
+            // Prefer durable lots when they already prove tokensIn/ethIn.
+            if (isUsableLot(fifoLots[t.symbol])) continue;
             p.ethIn        += parseFloat(t.ethSpent || 0);
             p.tokensIn     += parseFloat(t.receivedTokens || t.tokensReceived || 0);
             p.lastBuyPrice  = t.price;
@@ -11980,9 +12107,9 @@ async function main() {
             p.ethOut += parseFloat(t.receivedEth || 0);
           }
         }
-        console.log(`   📊 Net positions from ledger: ${Object.keys(netPositions).length} tokens traded`);
+        console.log(`   📊 Net positions from ledger+lots: ${Object.keys(netPositions).length} tokens traded`);
       } else {
-        console.log("   ⚠️  Ledger empty or unreadable — will use on-chain balances only");
+        console.log("   ⚠️  Ledger empty or unreadable — durable lots / buy receipts still apply");
       }
     } catch (e) {
       console.log(`   ⚠️  Ledger read error: ${e.message}`);
@@ -12053,8 +12180,27 @@ async function main() {
 
       if (hasRealHolding) {
         found++;
-        const netBuy = net?.lastBuyPrice > 0;
-        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog }) && costBasisEth(token) > 0;
+        const netBuy = net?.lastBuyPrice > 0 && Number(net?.tokensIn) > 0 && Number(net?.ethIn) > 0;
+        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog, fifoLot: fifoLots[symbol] }) && costBasisEth(token) > 0;
+        if (isUsableLot(fifoLots[symbol])) {
+          const fifo = applyLotToToken(token, fifoLots[symbol], { remainingTokens: bal });
+          applyLotToNet(netPositions, fifoLots[symbol]);
+          if (!fifo.unknown && fifo.investedEth > 0) {
+            recovered++;
+            const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
+            console.log(`   ✅ RECOVERED ${symbol}: fifo lot (${fifoLots[symbol].source || "persisted"}) ` +
+                       `fifoRemaining=${token.totalInvestedEth.toFixed(6)}ETH${shown}`);
+            continue;
+          }
+        }
+        if (!isUsableLot(fifoLots[symbol]) || token.unknownEntry || !(costBasisEth(token) > 0)) {
+          const rebuilt = await tryRebuildLotFromReceipts(token, bal);
+          if (isUsableLot(rebuilt) && !token.unknownEntry && costBasisEth(token) > 0) {
+            recovered++;
+            try { await persistFifoLotsNow("boot-rebuild"); } catch {}
+            continue;
+          }
+        }
         if (netBuy) {
           // Remaining cost is lots still on chain — never cash-flow ethIn−ethOut.
           // After plus exits that leftover understates FIFO and paints later reds green.
@@ -12381,7 +12527,7 @@ async function main() {
       if (token.disabled) continue;
       // Frozen / exits-only leftover bags still need honest FIFO cost.
       // Skipping BASECAT here would leave an unproven basis in place.
-      const reconTrusted = shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog })
+      const reconTrusted = shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] })
         && costBasisEth(token) > 0;
       if (reconTrusted) {
         console.log(`   ✓ ${token.symbol}: trusted fill receipt entry $${token.entryPrice.toFixed(8)}`);
@@ -12389,6 +12535,22 @@ async function main() {
       }
       try {
         const liveBal   = await getTokenBalance(token.address);
+        if (liveBal > 0.001 && isUsableLot(fifoLots[token.symbol])) {
+          applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: liveBal });
+          if (!token.unknownEntry && costBasisEth(token) > 0) {
+            tokenBalanceCache[token.symbol] = liveBal;
+            console.log(`   ✓ ${token.symbol}: FIFO lot rebuilt (${fifoLots[token.symbol].source || "persisted"})`);
+            continue;
+          }
+        }
+        if (liveBal > 0.001 && !isUsableLot(fifoLots[token.symbol])) {
+          const rebuilt = await tryRebuildLotFromReceipts(token, liveBal);
+          if (isUsableLot(rebuilt) && !token.unknownEntry && costBasisEth(token) > 0) {
+            tokenBalanceCache[token.symbol] = liveBal;
+            try { await persistFifoLotsNow("recon-rebuild"); } catch {}
+            continue;
+          }
+        }
         const livePrice = liveBal > 0.001 ? await getTokenPrice(token.address, true) : null;
         if (liveBal > 0.001 && isValidUsdPrice(livePrice)) {
           const valueUsd = liveBal * livePrice;

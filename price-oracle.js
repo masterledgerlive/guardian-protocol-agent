@@ -385,7 +385,11 @@ export function costBasisEth(token) {
  * Trust a saved entry only when a fill receipt / ledger buy exists.
  * Live-market "UNKNOWN ENTRY" copies are not cost basis.
  */
-export function shouldTrustSavedCostBasis(token, { net, tradeLog } = {}) {
+export function shouldTrustSavedCostBasis(token, { net, tradeLog, fifoLot } = {}) {
+  if (fifoLot && Number(fifoLot.tokensIn) > 0
+      && (Number(fifoLot.ethIn) > 0 || Number(fifoLot.fillCostEth) > 0)) {
+    return true;
+  }
   if (!token || token.unknownEntry) return false;
   if (!isValidUsdPrice(token.entryPrice)) return false;
   if (Number(net?.lastBuyPrice) > 0) return true;
