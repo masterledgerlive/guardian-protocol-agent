@@ -188,14 +188,18 @@ describe("verification: buys are not hallucinated", () => {
 });
 
 describe("verification: new live Uni V3 books are catalogued", () => {
-  it("adds REI and CLANKER as tradeable Uni V3 names", () => {
+  it("keeps CLANKER tradeable and freezes REI exits-only", () => {
     assert.ok(src.includes('symbol: "REI"'));
     assert.ok(src.includes("0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD"));
     assert.ok(src.includes("0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb"));
     const rei = src.indexOf('symbol: "REI"');
     const next = src.indexOf("{ symbol:", rei + 1);
     const row = src.slice(rei, next);
-    assert.ok(!row.includes("frozen: true"), "REI must be tradeable");
+    assert.ok(row.includes("frozen: true"), "REI is thin Uni V3 WETH — exits-only");
+    const clanker = src.indexOf('symbol: "CLANKER"');
+    const clankerNext = src.indexOf("{ symbol:", clanker + 1);
+    const clankerRow = src.slice(clanker, clankerNext);
+    assert.ok(!clankerRow.includes("frozen: true"), "CLANKER stays a deep earner");
   });
 
   it("adds top-100 Uni V3 majors LINK AAVE UNI and thaws VVV ZORA BNKR", () => {
