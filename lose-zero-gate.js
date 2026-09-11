@@ -23,7 +23,12 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * still plus; else HOLD. Never sell red to place code. Unknown-cost bags
  * cannot prove plus vs entry → HOLD (no fake-green recycle). Piggy dust is
  * never sold; soldFrac must match tokens actually sold.
- * Only underwater exception: FORCE EXIT LOCKED recovery (no hitch).
+ * Remaining cost is FIFO/average of lots still on chain
+ * (`ethIn × remainingTokens / tokensIn`), never cash-flow `ethIn − ethOut`.
+ * After a plus partial sell, cash-flow leftover understates the leftover pile
+ * and the plus gate would paint a later FIFO-red exit green. Exits-only /
+ * frozen names still obey this gate. Only underwater exception:
+ * FORCE EXIT LOCKED recovery (no hitch).
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -823,6 +828,107 @@ export function plusAfterHitchEth(leftoverAfterFees = 0, hitchCostThisTxEth = 0)
   return (Number(leftoverAfterFees) || 0) - Math.max(0, Number(hitchCostThisTxEth) || 0);
 }
 
+/**
+ * Cash-flow leftover (ethIn − ethOut). After plus exits this UNDERSTATES
+ * remaining FIFO — do not feed it to the plus gate as entryEth.
+ */
+export function cashFlowNetEth(ethIn = 0, ethOut = 0) {
+  return Math.max(0, (Number(ethIn) || 0) - (Number(ethOut) || 0));
+}
+
+/**
+ * Remaining average/FIFO cost for units still on chain.
+ * remaining = ethIn × remainingTokens / tokensIn.
+ * Never ethIn − ethOut: every plus sell shrinks cash-flow leftover below the
+ * cost of the leftover pile, then always-plus paints a later red exit green.
+ * Extra units beyond recorded buys → unknown (do not sell red to discover).
+ */
+export function fifoRemainingCostEth({
+  ethIn = 0,
+  tokensIn = 0,
+  remainingTokens = 0,
+  persistedInvestedEth = 0,
+} = {}) {
+  const remain = Number(remainingTokens);
+  const spent = Number(ethIn);
+  const bought = Number(tokensIn);
+  const persisted = Number(persistedInvestedEth);
+
+  if (!Number.isFinite(remain) || remain <= 0) {
+    return { unknown: false, investedEth: 0, reason: "empty", proportional: 0 };
+  }
+  if (!Number.isFinite(spent) || spent <= 0) {
+    return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
+  }
+  if (!Number.isFinite(bought) || bought <= 0) {
+    if (Number.isFinite(persisted) && persisted > 0) {
+      return { unknown: false, investedEth: persisted, reason: "persisted", proportional: 0 };
+    }
+    return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
+  }
+  if (remain > bought * 1.02 + 1e-9) {
+    return { unknown: true, investedEth: 0, reason: "unknown-lots", proportional: 0 };
+  }
+  const proportional = spent * Math.min(1, remain / bought);
+  const investedEth = Math.max(
+    proportional,
+    Number.isFinite(persisted) && persisted > 0 ? persisted : 0,
+  );
+  if (!(investedEth > 0)) {
+    return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional };
+  }
+  return { unknown: false, investedEth, reason: "fifo-remaining", proportional };
+}
+
+/** WETH wei floor: fill must return recorded buy cost + 1 wei. */
+export function plusFloorOutWei(entrySoldEth) {
+  const n = Number(entrySoldEth);
+  if (!Number.isFinite(n) || n <= 0) return 0n;
+  const wei = BigInt(Math.round(n * 1e18));
+  return wei > 0n ? wei + 1n : 0n;
+}
+
+/**
+ * After slippage sanitize, never keep a minOut below the FIFO plus floor.
+ * Quote below floor or unknown cost → HOLD (do not send).
+ */
+export function applySellPlusFloorMinOut({
+  minOutWei = 0n,
+  quotedWei = 0n,
+  entrySoldEth = 0,
+} = {}) {
+  const floor = plusFloorOutWei(entrySoldEth);
+  if (floor <= 0n) {
+    return {
+      allow: false,
+      minOutWei: 0n,
+      reason: "unknown-cost",
+      log: "PLUS FLOOR: HOLD — no recorded buy cost (unknown; do not sell red to discover)",
+    };
+  }
+  const quoted = typeof quotedWei === "bigint" ? quotedWei : 0n;
+  if (quoted < floor) {
+    return {
+      allow: false,
+      minOutWei: 0n,
+      reason: "quote-below-cost",
+      log:
+        `PLUS FLOOR: HOLD — quote ${quoted.toString()} wei < FIFO cost+1wei ` +
+        `${floor.toString()} (never send a fill that can print red)`,
+    };
+  }
+  const min = typeof minOutWei === "bigint" ? minOutWei : 0n;
+  const raised = min > floor ? min : floor;
+  return {
+    allow: true,
+    minOutWei: raised,
+    reason: raised > min ? "raised" : "ok",
+    log: raised > min
+      ? `PLUS FLOOR: minOut raised to FIFO cost+1wei ${floor.toString()}`
+      : null,
+  };
+}
+
 export function formatAlwaysPlusLog({
   verdict = "HOLD",
   symbol = "?",
@@ -1002,8 +1108,11 @@ export function evaluateSellGate({
   unknownEntry = false,
   unknownGasEdgeMult = UNKNOWN_COST_GAS_EDGE_MULT,
   leftoverWouldCoverHitch = false,
+  /** Frozen / exits-only leftover bags still obey always-plus. Cannot bypass. */
+  exitsOnly = false,
 } = {}) {
   void leftoverWouldCoverHitch;
+  void exitsOnly;
   const mult = Number.isFinite(Number(multArg)) && Number(multArg) >= 0
     ? Number(multArg)
     : hitchCostMult(env);
@@ -1178,11 +1287,18 @@ export function evaluateSellGate({
     });
   }
 
+  const proceeds = Number(projectedProceedsEth);
+  const proceedsBelowCost = Number.isFinite(proceeds) && proceeds + MIN_PLUS_ETH < entrySold;
+
   // Trade itself loses after fees (piggy dust already reserved in executeSell).
   // STOP LOSS included — emergency floor is not permission to sell underwater.
-  if (leftover <= 0) {
+  // Proceeds < recorded buy cost is the same HOLD (FIFO red) — exits-only included.
+  if (leftover <= 0 || proceedsBelowCost) {
     const stopNote = isStopLossReason(reason) ? " (STOP LOSS floor held)" : "";
-    return pack(false, "trade would lose after fees", {
+    const fifoNote = proceedsBelowCost
+      ? ` — FIFO red proceeds ${Number.isFinite(proceeds) ? proceeds.toExponential(2) : "?"} < entrySold ${entrySold.toExponential(2)}`
+      : "";
+    return pack(false, proceedsBelowCost ? "proceeds below recorded buy cost" : "trade would lose after fees", {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
@@ -1193,7 +1309,7 @@ export function evaluateSellGate({
       sellNow: false,
       verdict: "HOLD",
       netEth: leftover,
-      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money${stopNote}`,
+      log: `LOSE_ZERO: hold sell ${symbol} leftover after fees ≤ 0 — would lose money${stopNote}${fifoNote}`,
     });
   }
 
@@ -1271,6 +1387,7 @@ export function buildSellGateDecision({
   piggyEarningsBufferEth = 0,
   unknownEntry = false,
   leftoverWouldCoverHitch = false,
+  exitsOnly = false,
   env = process.env,
 } = {}) {
   return evaluateSellGate({
@@ -1293,6 +1410,7 @@ export function buildSellGateDecision({
     hitchFeeSource,
     piggyEarningsBufferEth,
     leftoverWouldCoverHitch,
+    exitsOnly,
     reason,
     symbol,
     env,

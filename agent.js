@@ -123,6 +123,9 @@ import {
   conservativeSellProceedsEth,
   wei18ToEth,
   plusAfterHitchEth,
+  fifoRemainingCostEth,
+  applySellPlusFloorMinOut,
+  isForceExitLockedReason,
 } from "./lose-zero-gate.js";
 import {
   tierBookParams,
@@ -6407,6 +6410,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
       unknownEntry: !sellTrustedBasis,
       leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
+      exitsOnly: !!token.frozen,
       ...hitchL1GateArgs(hitchL1),
     });
     logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
@@ -6443,6 +6447,19 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       return null;
     }
     minWeth = sellMinOut.amountOutMinimum;
+    // Slippage sanitize may clamp minOut to 85% of quote — that floor can sit
+    // below FIFO buy cost. Raise back to cost+1wei or HOLD. FORCE EXIT LOCKED
+    // is the only recovery that may send underwater (no hitch).
+    if (!isForceExitLockedReason(reason)) {
+      const plusFloor = applySellPlusFloorMinOut({
+        minOutWei: minWeth,
+        quotedWei: quotedWeth,
+        entrySoldEth: entryEthSold,
+      });
+      if (plusFloor.log) console.log(`   ${plusFloor.log}`);
+      if (!plusFloor.allow) return null;
+      minWeth = plusFloor.minOutWei;
+    }
 
     const sellAmt   = piggy.tokensToSell;
     const ind       = getIndicatorScore(token.symbol);
@@ -11840,11 +11857,12 @@ async function main() {
         for (const t of ledgerData) {
           if (!t.symbol || !t.price || t.price <= 0) continue;
           if (!netPositions[t.symbol]) {
-            netPositions[t.symbol] = { ethIn: 0, ethOut: 0, lastBuyPrice: 0, lastBuyEth: 0, lastBuyTime: 0 };
+            netPositions[t.symbol] = { ethIn: 0, ethOut: 0, tokensIn: 0, lastBuyPrice: 0, lastBuyEth: 0, lastBuyTime: 0 };
           }
           const p = netPositions[t.symbol];
           if (t.type === "BUY") {
             p.ethIn        += parseFloat(t.ethSpent || 0);
+            p.tokensIn     += parseFloat(t.receivedTokens || t.tokensReceived || 0);
             p.lastBuyPrice  = t.price;
             p.lastBuyEth    = parseFloat(t.ethSpent || 0);
             p.lastBuyTime   = new Date(t.timestamp || 0).getTime() || Date.now();
@@ -11927,17 +11945,30 @@ async function main() {
       if (hasRealHolding) {
         found++;
         const netBuy = net?.lastBuyPrice > 0;
-        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog });
+        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog }) && costBasisEth(token) > 0;
         if (netBuy) {
-          const ethNet = Math.max(0, net.ethIn - net.ethOut);
-          token.entryPrice       = net.lastBuyPrice;
-          token.totalInvestedEth = ethNet > 0 ? ethNet : net.lastBuyEth;
-          token.entryTime        = net.lastBuyTime;
-          token.unknownEntry     = false;
-          recovered++;
-          const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
-          console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
-                     `ethIn=${token.totalInvestedEth.toFixed(4)}${shown}`);
+          // Remaining cost is lots still on chain — never cash-flow ethIn−ethOut.
+          // After plus exits that leftover understates FIFO and paints later reds green.
+          const fifo = fifoRemainingCostEth({
+            ethIn: net.ethIn,
+            tokensIn: net.tokensIn,
+            remainingTokens: bal,
+            persistedInvestedEth: token.totalInvestedEth,
+          });
+          if (fifo.unknown || !(fifo.investedEth > 0)) {
+            applyUnknownChainHolding(token, { units: bal, priceUsd: hasQuote ? price : undefined });
+            recovered++;
+            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: ${unknownCostBasisLine(symbol, bal, valueUsd)} (${fifo.reason})`);
+          } else {
+            token.entryPrice       = net.lastBuyPrice;
+            token.totalInvestedEth = fifo.investedEth;
+            token.entryTime        = net.lastBuyTime;
+            token.unknownEntry     = false;
+            recovered++;
+            const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
+            console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
+                       `fifoRemaining=${token.totalInvestedEth.toFixed(6)}ETH${shown}`);
+          }
         } else if (trusted) {
           confirmed++;
         } else {
@@ -12238,8 +12269,12 @@ async function main() {
     console.log("🔗 CHAIN RECONCILIATION — reading live balances from wallet...");
     let reconciled = 0;
     for (const token of tokens) {
-      if (token.frozen || token.disabled) continue;
-      if (shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog })) {
+      if (token.disabled) continue;
+      // Frozen / exits-only leftover bags still need honest FIFO cost.
+      // Skipping BASECAT here left boot cash-flow basis in place and sold red.
+      const reconTrusted = shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog })
+        && costBasisEth(token) > 0;
+      if (reconTrusted) {
         console.log(`   ✓ ${token.symbol}: trusted fill receipt entry $${token.entryPrice.toFixed(8)}`);
         continue;
       }
@@ -12828,6 +12863,7 @@ async function main() {
           piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
           unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
           leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
+          exitsOnly: !!token.frozen,
           ...hitchL1GateArgs(moonL1),
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);

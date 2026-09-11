@@ -55,6 +55,10 @@ import {
   wei18ToEth,
   formatAlwaysPlusLog,
   MIN_PLUS_ETH,
+  cashFlowNetEth,
+  fifoRemainingCostEth,
+  plusFloorOutWei,
+  applySellPlusFloorMinOut,
   isForceExitLockedReason,
   coversHitchAndEntry,
   maxHitchBytesForLeftover,
@@ -1411,5 +1415,218 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
         assert.ok(plusAfterHitchEth(thinPlus.leftover, thinPlus.injectCostEth) > 0);
       }
     }
+  });
+});
+
+describe("always-plus harden — FIFO remaining cost + plus floor (post-#62 reds)", () => {
+  // Live after #62 / deploy 66158bd6: BASECAT/UNI/BASECAT/DRB nonces 5446–5449
+  // hitch-embedded §$STORE§ while FIFO mark was proceeds < buy cost.
+  // Boot used ethIn−ethOut as remaining basis; after plus partials that
+  // leftover is cheaper than the leftover pile, so the gate painted red green.
+
+  it("known-cost red (proceeds < buy cost) HOLDs", () => {
+    const d = evaluateSellGate({
+      symbol: "UNI",
+      reason: "🎯 MAX PEAK",
+      sellPct: 1,
+      entryEth: 0.01,
+      projectedProceedsEth: 0.008,
+      feePct: 0.003,
+      gasCostEth: 0.00002,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /leftover after fees|FIFO red|lose money/i);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("hitch would wipe plus → SKIP_HITCH; still HOLD if leftover is red", () => {
+    const leftover = 1e-7;
+    const hitchWould = leftover + 5.4e-7;
+    const skip = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 PEAK RIDE",
+      symbol: "DRB",
+    });
+    assert.equal(skip.allow, true);
+    assert.ok(skip.verdict === "SKIP_HITCH" || skip.verdict === "PLUS");
+    assert.ok(skip.plusNetEth > 0);
+    if (skip.skipHitch) {
+      assert.equal(skip.verdict, "SKIP_HITCH");
+      assert.equal(skip.injectCostEth, 0);
+    } else {
+      assert.ok(skip.hitchBytes < 400);
+      assert.ok(plusAfterHitchEth(skip.leftover, skip.injectCostEth) > 0);
+    }
+
+    const stillRed = evaluateSellGate({
+      projectedProceedsEth: 0.01 - 5.4e-7,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 PEAK RIDE",
+      symbol: "DRB",
+    });
+    assert.equal(stillRed.allow, false);
+    assert.equal(stillRed.verdict, "HOLD");
+    assert.equal(stillRed.skipHitch, true);
+    assert.match(stillRed.alwaysPlusLog, /HOLD/);
+  });
+
+  it("unknown cost HOLDs — do not sell red to discover", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.004,
+      entryEth: 0,
+      sellPct: 1,
+      unknownEntry: true,
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+      symbol: "BASECAT",
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /unknown cost/);
+  });
+
+  it("exits-only BASECAT cannot bypass always-plus", () => {
+    const d = evaluateSellGate({
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      sellPct: 0.98,
+      entryEth: 0.001,
+      projectedProceedsEth: 0.00070,
+      feePct: 0.010,
+      gasCostEth: 0.00002,
+      impactPct: 0.003,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      exitsOnly: true,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /FIFO red|lose money|unknown cost|exits-only/i);
+
+    const unknownExits = evaluateSellGate({
+      symbol: "BASECAT",
+      reason: "🎯 PEAK RIDE",
+      sellPct: 1,
+      entryEth: 0,
+      projectedProceedsEth: 0.0005,
+      unknownEntry: true,
+      exitsOnly: true,
+      gwei: 0.05,
+    });
+    assert.equal(unknownExits.allow, false);
+    assert.equal(unknownExits.verdict, "HOLD");
+  });
+
+  it("cash-flow leftover after a plus partial must not paint remaining FIFO red as PLUS", () => {
+    const ethIn = 0.01;
+    const tokensIn = 1000;
+    const remaining = 500;
+    const ethOut = 0.008; // sold half for a plus (lot cost 0.005)
+    const lie = cashFlowNetEth(ethIn, ethOut); // 0.002 — understates remaining FIFO 0.005
+    const fifo = fifoRemainingCostEth({ ethIn, tokensIn, remainingTokens: remaining });
+    assert.equal(fifo.unknown, false);
+    assert.ok(Math.abs(fifo.investedEth - 0.005) < 1e-12);
+    assert.ok(lie < fifo.investedEth, "cash-flow leftover is the cheap lie");
+
+    const proceeds = 0.004; // remaining half now below FIFO, above the lie
+    const painted = evaluateSellGate({
+      projectedProceedsEth: proceeds,
+      entryEth: lie,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      exitsOnly: true,
+    });
+    assert.equal(painted.allow, true, "documents the #62 hole: understated entry looks PLUS");
+
+    const honest = evaluateSellGate({
+      projectedProceedsEth: proceeds,
+      entryEth: fifo.investedEth,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      exitsOnly: true,
+    });
+    assert.equal(honest.allow, false);
+    assert.equal(honest.verdict, "HOLD");
+    assert.match(honest.log, /FIFO red|leftover after fees|proceeds/);
+  });
+
+  it("unknown lots (remaining > recorded buys) HOLDs", () => {
+    const fifo = fifoRemainingCostEth({
+      ethIn: 0.01,
+      tokensIn: 100,
+      remainingTokens: 250,
+    });
+    assert.equal(fifo.unknown, true);
+    assert.equal(fifo.reason, "unknown-lots");
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.02,
+      entryEth: fifo.investedEth,
+      unknownEntry: fifo.unknown,
+      sellPct: 1,
+      symbol: "UNI",
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+  });
+
+  it("plus floor HOLDs when quote is below FIFO cost; raises minOut otherwise", () => {
+    const entry = 0.01;
+    const floor = plusFloorOutWei(entry);
+    assert.ok(floor > 0n);
+    const below = applySellPlusFloorMinOut({
+      minOutWei: 1n,
+      quotedWei: floor - 1n,
+      entrySoldEth: entry,
+    });
+    assert.equal(below.allow, false);
+    assert.equal(below.reason, "quote-below-cost");
+
+    const unknown = applySellPlusFloorMinOut({
+      minOutWei: 1n,
+      quotedWei: 10n ** 16n,
+      entrySoldEth: 0,
+    });
+    assert.equal(unknown.allow, false);
+    assert.equal(unknown.reason, "unknown-cost");
+
+    const quote = 12n * 10n ** 15n; // 0.012 ETH
+    const slip = 85n * quote / 100n; // 0.0102 — still above cost
+    const raised = applySellPlusFloorMinOut({
+      minOutWei: slip,
+      quotedWei: quote,
+      entrySoldEth: entry,
+    });
+    assert.equal(raised.allow, true);
+    assert.ok(raised.minOutWei >= floor);
+    assert.ok(raised.minOutWei <= quote);
   });
 });

@@ -175,8 +175,10 @@ describe("cost basis", () => {
   it("excludes UNKNOWN entries from margin math", () => {
     assert.equal(hasUsableCostBasis({ entryPrice: 0.0026, unknownEntry: true }), false);
     assert.equal(hasUsableCostBasis({ entryPrice: 0, unknownEntry: false }), false);
-    assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false }), true);
-    assert.equal(hasUsableCostBasis({ entryPrice: 2.54 }), true);
+    assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false }), false);
+    assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false, totalInvestedEth: 0.0002 }), true);
+    assert.equal(hasUsableCostBasis({ entryPrice: 2.54, totalInvestedEth: 0.01 }), true);
+    assert.equal(hasUsableCostBasis({ entryPrice: 2.54, totalInvestedEth: 0 }), false);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: true, totalInvestedEth: 0.0002 }), 0);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: false, totalInvestedEth: 0.0002 }), 0.0002);
     const invented = { symbol: "TOSHI", entryPrice: 0.000129, totalInvestedEth: 0.0002, unknownEntry: false };
