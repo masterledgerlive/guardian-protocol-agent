@@ -25,6 +25,7 @@ import {
   feeTierCandidates,
   catalogPoolFeePct,
   adoptLivePoolFee,
+  pickQuotedPool,
   isQuoteContractRevert,
   requireLiveQuoterFill,
   plainSaleIfHitchTooThin,
@@ -52,6 +53,39 @@ describe("fee tier candidates", () => {
     assert.equal(token.feeTier, 10000);
     assert.equal(token.poolFeePct, 0.010);
     assert.equal(adoptLivePoolFee(token, 10000).changed, false);
+  });
+});
+
+describe("pickQuotedPool — do not send the first quoting fee", () => {
+  const thin100 = {
+    fee: 100,
+    amountOut: 200n,
+    liquidity: 10n,
+    pool: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  };
+  const deep10000 = {
+    fee: 10000,
+    amountOut: 90n,
+    liquidity: 1000n,
+    pool: GAME_LIVE_FEE_10000_POOL,
+  };
+
+  it("binds to the DexScreener Uni V3 WETH pool even when a thinner fee quoted first", () => {
+    const picked = pickQuotedPool([thin100, deep10000], {
+      preferredPool: GAME_LIVE_FEE_10000_POOL,
+    });
+    assert.equal(picked.fee, 10000);
+    assert.equal(picked.pool.toLowerCase(), GAME_LIVE_FEE_10000_POOL.toLowerCase());
+  });
+
+  it("fails closed when the preferred book did not quote", () => {
+    const picked = pickQuotedPool([thin100], { preferredPool: GAME_LIVE_FEE_10000_POOL });
+    assert.equal(picked, null);
+  });
+
+  it("without a preferred pool, picks the highest factory liquidity (sells / Dex outage)", () => {
+    const picked = pickQuotedPool([thin100, deep10000]);
+    assert.equal(picked.fee, 10000);
   });
 });
 
@@ -239,6 +273,7 @@ describe("agent.js wiring — quote miss never sends", () => {
     const quote = body.indexOf("quoteAtFee");
     assert.ok(liq >= 0 && skip > liq && quote > skip, "liquidity()=0 must skip before quote");
     assert.ok(body.includes("continue"), "ghost fee must not fall through to Quoter");
+    assert.ok(body.includes("pickQuotedPool"), "must not return the first quoting fee");
     const buyFn = src.indexOf("async function executeBuy(");
     const buyEnd = src.indexOf("\nasync function ", buyFn + 1);
     const buyBody = src.slice(buyFn, buyEnd);
@@ -294,6 +329,8 @@ describe("agent.js wiring — quote miss never sends", () => {
       "QUOTE_MISS must count toward N=3, not freeze on first RPC/pool miss"
     );
     assert.ok(src.includes("readV3PoolLiquidity"), "must skip empty Uni V3 fees");
+    assert.ok(src.includes("pickQuotedPool"), "must bind quote to DexScreener pool / deepest factory liq");
+    assert.ok(buyBody.includes("preferredPool"), "buy quote must bind to the DexScreener Uni V3 WETH pair");
     assert.ok(!sellBody.includes("evaluateSwapRouterRoute"), "sells must not freeze on primary-book mismatch");
     assert.ok(!sellBody.includes("isSlippageCooledDown"), "sells stay open during buy cooldown");
     assert.ok(!sellBody.includes("isBuyFrozen"), "buy freeze must not block leftover exits");

@@ -270,6 +270,7 @@ import {
   requireLiveQuoterFill,
   plainSaleIfHitchTooThin,
   adoptLivePoolFee,
+  pickQuotedPool,
   isQuoteContractRevert,
   evaluateSwapRouterRoute,
   requireFactoryLiquidity,
@@ -2126,8 +2127,10 @@ async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
 }
 
 /** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
-async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
+async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferredPool = null } = {}) {
   const fees = feeTierCandidates(feeTier);
+  const wanted = String(preferredPool || "").toLowerCase();
+  const candidates = [];
   for (const fee of fees) {
     const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
     if (depth.empty) {
@@ -2138,22 +2141,30 @@ async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
       }
       continue;
     }
+    const pool = String(depth.pool || "").toLowerCase();
+    // Buy path binds to the DexScreener Uni V3 WETH pair that already passed
+    // $25k / 5%-of-pool. Do not quote a thinner permissionless fee.
+    if (wanted && pool && pool !== wanted && !/^0x0+$/.test(pool)) continue;
     const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
     if (amountOut && amountOut > 0n) {
-      if (fee !== Number(feeTier)) {
-        console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${fee} (factory liq ${depth.liquidity})`);
-      }
-      return { amountOut, fee, liquidity: depth.liquidity, pool: depth.pool };
+      candidates.push({ amountOut, fee, liquidity: depth.liquidity, pool: depth.pool });
     }
   }
-  console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
-  return null;
+  const picked = pickQuotedPool(candidates, { preferredPool });
+  if (!picked) {
+    console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
+    return null;
+  }
+  if (picked.fee !== Number(feeTier)) {
+    console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${picked.fee} (factory liq ${picked.liquidity})`);
+  }
+  return picked;
 }
-async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
-  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier);
+async function getOnChainSellQuote(tokenAddress, amountIn, feeTier, opts) {
+  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier, opts);
 }
-async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
-  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
+async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier, opts) {
+  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier, opts);
 }
 
 function noteSwapPathFail(symbol, { kind = "quote/swap fail", freezeBuys = false } = {}) {
@@ -5771,8 +5782,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
 
-    // SwapRouter02 is Uni V3 WETH/USDC only. GAME's liquid book is Uni V2 VIRTUAL
-    // (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
+    // SwapRouter02 encodeSwap is Uni V3 WETH only. GAME's liquid book is Uni V2
+    // VIRTUAL (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
+    let preferredPool = null;
     {
       const pairs = await fetchDexScreenerPairs(token.address);
       const route = evaluateSwapRouterRoute({
@@ -5791,6 +5803,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         }
         return await skipBuy(reason, token.symbol, route.log);
       }
+      if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
     }
 
     // Slippage guard: factory liquidity then QuoterV2, BEFORE wrap/send.
@@ -5807,7 +5820,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     let swapFee = token.feeTier;
     let factoryLiq = null;
     try {
-      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
+      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, { preferredPool });
       quotedTokens = live?.amountOut ?? null;
       if (live?.fee) swapFee = live.fee;
       if (live?.liquidity != null) factoryLiq = live.liquidity;

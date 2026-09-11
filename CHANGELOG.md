@@ -17,7 +17,7 @@ hitch streak. Fail class was **Quoter vs pool mismatch**, not PRICE_INSANE:
 Live Uni V3 GAME/WETH book is **fee 10000** (`0xE5Ff…77a3`). Harden:
 
 - Require a live QuoterV2 fill before send (no spot-only minOut).
-- Probe other V3 fees when catalog fee misses; remember the fee that quoted.
+- Probe other V3 fees when catalog fee misses; bind the fill to the DexScreener Uni V3 WETH pair (or the highest factory liquidity). A permissionless 100/500 pool cannot steal a clip sized against the deep book.
 - Quote contract revert does not drain the RPC pool.
 - Quote miss / PRICE_INSANE quote / minOut reject increment the fail streak; cooldown after N (still 3) without sending. A single `QUOTE_MISS` does **not** freeze new buys (RPC timeout and pool miss share the same null).
 - Hitch leftover too thin → plain sale (no hitch); orch cannot re-hitch after skip. Missing voice hitch still lets the silo queue ride.

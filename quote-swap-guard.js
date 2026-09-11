@@ -33,7 +33,7 @@ export const MIN_SWAP_POOL_LIQ_USD = 25_000;
 /** Refuse a fill that is this fraction of the SwapRouter pool. */
 export const MAX_TRADE_FRAC_OF_POOL = 0.05;
 /**
- * If the Uni V3 WETH/USDC pool is a small fraction of the deepest DexScreener
+ * If the Uni V3 WETH pool is a small fraction of the deepest DexScreener
  * book, that book is not the SwapRouter path (GAME Uni V2 VIRTUAL ~$2.1M vs
  * V3 WETH ~$2.8k).
  */
@@ -325,6 +325,41 @@ export function feeTierCandidates(preferred) {
   const p = Number(preferred);
   const pref = V3_FEE_TIERS.includes(p) ? p : 3000;
   return [pref, ...V3_FEE_TIERS.filter((f) => f !== pref)];
+}
+
+function poolAddr(v) {
+  const s = String(v || "").toLowerCase();
+  if (!s.startsWith("0x") || /^0x0+$/.test(s)) return null;
+  return s;
+}
+
+/**
+ * Bind the SwapRouter fee to the DexScreener Uni V3 WETH book, not the first
+ * permissionless fee that happens to quote. A 100/500 ghost can quote while
+ * the deep 10000 book is the pair that already passed $25k / 5%-of-pool.
+ *
+ * preferredPool set + known other pools quoted → null (do not steal the clip).
+ * No preferred pool (sells / DexScreener outage) → highest factory liquidity.
+ */
+export function pickQuotedPool(candidates, { preferredPool = null } = {}) {
+  const rows = (Array.isArray(candidates) ? candidates : []).filter((c) => {
+    const out = asBigInt(c?.amountOut);
+    return out != null && out > 0n;
+  });
+  if (!rows.length) return null;
+  const wanted = poolAddr(preferredPool);
+  if (wanted) {
+    const hit = rows.find((c) => poolAddr(c.pool) === wanted);
+    if (hit) return hit;
+    if (rows.some((c) => poolAddr(c.pool))) return null;
+  }
+  let best = rows[0];
+  for (const row of rows.slice(1)) {
+    const a = asBigInt(best.liquidity) ?? -1n;
+    const b = asBigInt(row.liquidity) ?? -1n;
+    if (b > a) best = row;
+  }
+  return best;
 }
 
 /** Catalog poolFeePct convention (0.3% listed as 0.006 RT; 1% as 0.010). */
