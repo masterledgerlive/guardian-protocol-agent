@@ -188,6 +188,21 @@ export function selectUniV3WethUsdcPair(pairs, tokenAddress) {
   return rows[0] || null;
 }
 
+/**
+ * Leftover sells may bind Quoter to a DexScreener Uni V3 WETH pair only when
+ * that book clears the same $25k floor buys use. A GAME-class ~$2.8k V3 must
+ * not steal the exit. Never freezes — caller falls back to catalog/probe.
+ */
+export function sellBindableUniV3Weth(pairs, tokenAddress, minPoolLiqUsd = MIN_SWAP_POOL_LIQ_USD) {
+  const swap = selectUniV3WethUsdcPair(pairs, tokenAddress);
+  if (!swap?.pairAddress) return null;
+  const floor = Number(minPoolLiqUsd);
+  if (!(swap.liqUsd + 1e-9 >= (Number.isFinite(floor) ? floor : MIN_SWAP_POOL_LIQ_USD))) {
+    return null;
+  }
+  return swap;
+}
+
 /** Structural book mismatch — freeze new buys immediately, not after N clips. */
 export function shouldFreezeOnRouteReject(code) {
   return code === "PRIMARY_NOT_V3_WETH"
@@ -245,28 +260,32 @@ export function evaluateSwapRouterRoute({
     return requireFactoryLiquidity({ liquidity: factory, symbol: sym, fee: "quoted" });
   }
 
-  // DexScreener outage must not freeze the whole book — factory + Quoter still gate the send.
+  // DexScreener outage / all-ghost list: skip this buy (do not size a clip
+  // against an aggregated mark). Do not freeze leftover sells.
   if (rows.length === 0) {
     return {
-      allow: true,
+      allow: false,
       code: "NO_DEX_PAIRS",
       freezeBuys: false,
       primary: null,
       swap: null,
-      log: null,
+      log:
+        `🛑 NO DEX PAIRS ${sym} — DexScreener empty/outage. ` +
+        `Not sending a buy without a book.`,
     };
   }
   const primary = deepestDexPair(rows, tokenAddress);
   const swap = selectUniV3WethUsdcPair(rows, tokenAddress);
-  // All DexScreener rows were ghost mega-liq prints — same as an outage.
   if (!primary && !swap) {
     return {
-      allow: true,
+      allow: false,
       code: "NO_DEX_PAIRS",
       freezeBuys: false,
       primary: null,
       swap: null,
-      log: null,
+      log:
+        `🛑 NO DEX PAIRS ${sym} — DexScreener rows were ghost books. ` +
+        `Not sending a buy without a real book.`,
     };
   }
 

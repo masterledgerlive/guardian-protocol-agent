@@ -278,7 +278,7 @@ import {
   poolAddr,
   isQuoteContractRevert,
   evaluateSwapRouterRoute,
-  selectUniV3WethUsdcPair,
+  sellBindableUniV3Weth,
   requireFactoryLiquidity,
   UNISWAP_V3_FACTORY_BASE,
 } from "./quote-swap-guard.js";
@@ -6324,7 +6324,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       // Bind leftover exits to the DexScreener Uni V3 WETH pair when known.
       // Thin/wrong-book must not freeze leftover sells.
       const pairs = await fetchDexScreenerPairs(token.address);
-      sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
+      sellPreferredPool = sellBindableUniV3Weth(pairs, token.address)?.pairAddress || null;
     } catch { sellPreferredPool = null; }
     try {
       const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier, {

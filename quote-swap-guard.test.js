@@ -31,6 +31,7 @@ import {
   requireLiveQuoterFill,
   plainSaleIfHitchTooThin,
   evaluateSwapRouterRoute,
+  sellBindableUniV3Weth,
   requireFactoryLiquidity,
   shouldFreezeOnRouteReject,
   MIN_SWAP_POOL_LIQ_USD,
@@ -369,8 +370,8 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(src.includes("readV3PoolLiquidity"), "must skip empty Uni V3 fees");
     assert.ok(src.includes("pickQuotedPool"), "must bind quote to DexScreener pool or catalog/probe order");
     assert.ok(buyBody.includes("preferredPool"), "buy quote must bind to the DexScreener Uni V3 WETH pair");
-    assert.ok(sellBody.includes("selectUniV3WethUsdcPair"), "sells bind to DexScreener V3 WETH when known");
-    assert.ok(sellBody.includes("preferredPool"), "sell quote must bind when DexScreener V3 WETH exists");
+    assert.ok(sellBody.includes("sellBindableUniV3Weth"), "sells bind only a $25k+ DexScreener V3 WETH book");
+    assert.ok(sellBody.includes("preferredPool"), "sell quote may bind when DexScreener V3 WETH is deep enough");
     assert.ok(buyBody.includes("liveFeeWithinGatedCost"), "buy must not send a live fee costlier than gated RT%");
     assert.ok(
       buyBody.indexOf("getOnChainBuyQuote") < buyBody.indexOf("liveFeeWithinGatedCost"),
@@ -497,16 +498,61 @@ describe("SwapRouter route vs DexScreener primary book", () => {
     assert.equal(r.freezeBuys, false);
   });
 
-  it("does not freeze the book when DexScreener returns no pairs", () => {
+  it("skips the buy without freezing when DexScreener returns no pairs", () => {
     const r = evaluateSwapRouterRoute({
       pairs: [],
       tokenAddress: GAME_TOKEN,
       tradeUsd: 5,
       symbol: "GAME",
     });
-    assert.equal(r.allow, true);
+    assert.equal(r.allow, false);
     assert.equal(r.code, "NO_DEX_PAIRS");
     assert.equal(r.freezeBuys, false);
+  });
+
+  it("skips the buy without freezing when every DexScreener row is a ghost book", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [{
+        chainId: "base",
+        dexId: "pancakeswap",
+        pairAddress: TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+        liquidity: { usd: 69_729_870.52 },
+        volume: { h24: 0 },
+        baseToken: { address: TOSHI_BASE },
+        quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+      }],
+      tokenAddress: TOSHI_BASE,
+      tradeUsd: 5,
+      symbol: "TOSHI",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "NO_DEX_PAIRS");
+    assert.equal(r.freezeBuys, false);
+  });
+
+  it("does not bind leftover sells to a thin Uni V3 WETH book", () => {
+    const thin = sellBindableUniV3Weth([{
+      chainId: "base",
+      dexId: "uniswap",
+      labels: ["v3"],
+      pairAddress: GAME_LIVE_FEE_10000_POOL,
+      liquidity: { usd: 2_800 },
+      volume: { h24: 400 },
+      baseToken: { address: GAME_TOKEN },
+      quoteToken: { address: BASE_WETH, symbol: "WETH" },
+    }], GAME_TOKEN);
+    assert.equal(thin, null);
+    const deep = sellBindableUniV3Weth([{
+      chainId: "base",
+      dexId: "uniswap",
+      labels: ["v3"],
+      pairAddress: TOSHI_UNI_WETH_PAIR,
+      liquidity: { usd: 1_144_685.42 },
+      volume: { h24: 47_634.97 },
+      baseToken: { address: TOSHI_BASE },
+      quoteToken: { address: BASE_WETH, symbol: "WETH" },
+    }], TOSHI_BASE);
+    assert.equal(deep.pairAddress.toLowerCase(), TOSHI_UNI_WETH_PAIR.toLowerCase());
   });
 
   it("refuses factory liquidity=0 even without DexScreener pairs", () => {
