@@ -100,6 +100,7 @@ describe("hitch density — KEY+LOC over Eureka 229 B", () => {
   it("names-only KEY+LOC is the ~69 B class, denser than Eureka leftover", () => {
     const loc = measureKeyLocHitchBytes();
     const eureka = measureEurekaLeftoverBytes();
+    assert.equal(measureKeyLocHitchBytes("n=24|t=a1b2|r=c3d4"), KEY_LOC_HITCH_BYTES_CLASS);
     assert.ok(loc >= 50 && loc <= 80, `KEY+LOC measured ${loc} B, expected ~69`);
     assert.ok(Math.abs(loc - KEY_LOC_HITCH_BYTES_CLASS) <= 20);
     assert.equal(EUREKA_LEFTOVER_BYTES, 229);

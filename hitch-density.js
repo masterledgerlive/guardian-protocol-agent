@@ -37,7 +37,7 @@ export const EUREKA_LEFTOVER_BYTES = 229;
 /** Names-only leftover KEY+LOC class the operator asked to prefer (~69 B). */
 export const KEY_LOC_HITCH_BYTES_CLASS = 69;
 
-export function packKeyLocHitchUtf8(loc = "n=0|t=0000") {
+export function packKeyLocHitchUtf8(loc = "n=24|t=0000|r=0000") {
   const body = packVitaFields(
     projectLeftoverHitchFields({ KEY: VITA_KEY_NAMES, LOC: loc }),
     { dense: true },
@@ -45,7 +45,7 @@ export function packKeyLocHitchUtf8(loc = "n=0|t=0000") {
   return STORE_VOICE_TAG + " " + body;
 }
 
-export function measureKeyLocHitchBytes(loc = "n=0|t=0000") {
+export function measureKeyLocHitchBytes(loc = "n=24|t=0000|r=0000") {
   return utf8ByteLength(packKeyLocHitchUtf8(loc));
 }
 
