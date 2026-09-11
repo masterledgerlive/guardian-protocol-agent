@@ -73,7 +73,35 @@ export function emptyLot(symbol) {
     freshLotAt: 0,
     freshLotCostEth: 0,
     source: "",
+    updatedAt: 0,
+    cleared: false,
   };
+}
+
+/** Viem receipts use "success" / "reverted"; RPC hex uses 0x1 / 0x0. */
+export function receiptSucceeded(receipt) {
+  const st = receipt?.status;
+  if (st === "reverted" || st === "REVERTED" || st === 0 || st === 0n || st === "0x0" || st === false) {
+    return false;
+  }
+  return st === "success" || st === "SUCCESS"
+    || st === 1 || st === 1n || st === "0x1" || st === true;
+}
+
+export function lotUpdatedAt(lot) {
+  if (!lot || typeof lot !== "object") return 0;
+  return Math.max(Number(lot.updatedAt) || 0, Number(lot.lastBuyTime) || 0);
+}
+
+export function isClearedLot(lot) {
+  return !!(lot && lot.cleared === true && lotUpdatedAt(lot) > 0);
+}
+
+/** Apply succeeded: real FIFO ETH is on the token (USD entry is optional). */
+export function lotAppliedOk(token, fifo) {
+  return !!(fifo && !fifo.unknown && Number(fifo.investedEth) > 0
+    && token && token.unknownEntry !== true
+    && (Number(token.totalInvestedEth) > 0 || Number(token.operatorLot?.fillCostEth) > 0));
 }
 
 export function isUsableLot(lot) {
@@ -151,6 +179,8 @@ export function recordBuyFill(lots, {
   lot.source = source;
   rememberBuyTx(lot, { hash: txHash, ethIn: spent || allIn, tokensIn: tok, price, at, source });
   latchFreshLot(lot, { fillCostEth: allIn, tokens: tok, reason, now: lot.lastBuyTime });
+  lot.cleared = false;
+  lot.updatedAt = lot.lastBuyTime;
   return map;
 }
 
@@ -173,7 +203,7 @@ export function recordSellFill(lots, {
     remain = bought - (Number(tokensSold) || 0);
   }
   if (!(remain > 1e-12)) {
-    map[key] = emptyLot(key);
+    map[key] = { ...emptyLot(key), cleared: true, updatedAt: Date.now() };
     return map;
   }
   const fifo = fifoRemainingCostEth({
@@ -201,6 +231,8 @@ export function recordSellFill(lots, {
     };
   }
   if (Number(lot.freshLotCostEth) > 0) lot.freshLotCostEth = fifo.investedEth;
+  lot.cleared = false;
+  lot.updatedAt = Date.now();
   return map;
 }
 
@@ -209,6 +241,15 @@ export function serializeFifoLots(lots) {
   const out = {};
   for (const [sym, lot] of Object.entries(map)) {
     if (!lot || typeof lot !== "object") continue;
+    if (isClearedLot(lot)) {
+      out[String(sym).toUpperCase()] = {
+        symbol: String(sym).toUpperCase(),
+        cleared: true,
+        updatedAt: lotUpdatedAt(lot),
+        source: lot.source || "cleared",
+      };
+      continue;
+    }
     if (!isUsableLot(lot)) continue;
     out[String(sym).toUpperCase()] = {
       symbol: String(sym).toUpperCase(),
@@ -219,6 +260,8 @@ export function serializeFifoLots(lots) {
       lastBuyPrice: Number(lot.lastBuyPrice) || 0,
       lastBuyEth: Number(lot.lastBuyEth) || 0,
       lastBuyTime: Number(lot.lastBuyTime) || 0,
+      updatedAt: lotUpdatedAt(lot),
+      cleared: false,
       buyTxs: (Array.isArray(lot.buyTxs) ? lot.buyTxs : [])
         .map((b) => ({
           hash: normalizeTxHash(b.hash),
@@ -258,8 +301,10 @@ export function deserializeFifoLots(blob) {
       symbol: String(row.symbol || sym).toUpperCase(),
       buyTxs: Array.isArray(row.buyTxs) ? row.buyTxs.filter((b) => normalizeTxHash(b?.hash)) : [],
       source: row.source || "persisted",
+      updatedAt: lotUpdatedAt(row),
+      cleared: !!row.cleared,
     };
-    if (isUsableLot(lot)) lots[lot.symbol] = lot;
+    if (isClearedLot(lot) || isUsableLot(lot)) lots[lot.symbol] = lot;
   }
   return lots;
 }
@@ -269,16 +314,24 @@ export function mergeLotMaps(...maps) {
   for (const map of maps) {
     if (!map || typeof map !== "object") continue;
     for (const [sym, lot] of Object.entries(map)) {
-      if (!isUsableLot(lot)) continue;
       const key = String(sym).toUpperCase();
+      if (!key || (!isUsableLot(lot) && !isClearedLot(lot))) continue;
       const prev = out[key];
-      if (!prev || (Number(lot.lastBuyTime) || 0) >= (Number(prev.lastBuyTime) || 0)) {
-        out[key] = { ...emptyLot(key), ...lot, symbol: key };
-        if (prev?.buyTxs?.length) {
-          for (const b of prev.buyTxs) rememberBuyTx(out[key], b);
+      const t = lotUpdatedAt(lot);
+      const prevT = lotUpdatedAt(prev);
+      if (prev && t < prevT) {
+        if (isUsableLot(lot) && prev.buyTxs && lot.buyTxs?.length) {
+          for (const b of lot.buyTxs) rememberBuyTx(prev, b);
         }
-      } else if (lot.buyTxs?.length) {
-        for (const b of lot.buyTxs) rememberBuyTx(prev, b);
+        continue;
+      }
+      if (isClearedLot(lot)) {
+        out[key] = { ...emptyLot(key), cleared: true, updatedAt: t, source: lot.source || "cleared" };
+        continue;
+      }
+      out[key] = { ...emptyLot(key), ...lot, symbol: key, cleared: false, updatedAt: t };
+      if (prev?.buyTxs?.length && !isClearedLot(prev)) {
+        for (const b of prev.buyTxs) rememberBuyTx(out[key], b);
       }
     }
   }
@@ -309,18 +362,25 @@ export function applyLotToToken(token, lot, { remainingTokens } = {}) {
     ? Number(remainingTokens)
     : Number(lot.tokensIn);
   const ethIn = Number(lot.fillCostEth) > 0 ? Number(lot.fillCostEth) : Number(lot.ethIn);
+  const bought = Number(lot.tokensIn);
+  // Sized leftover (chain < recorded buy): proportional only. Flooring on
+  // remainingCostEth (the full fill) HOLDs a true PLUS on leftover bags.
+  const leftover = Number.isFinite(Number(remainingTokens)) && Number(remainingTokens) > 0
+    && remain < bought * 0.98;
   const fifo = fifoRemainingCostEth({
     ethIn,
-    tokensIn: Number(lot.tokensIn),
+    tokensIn: bought,
     remainingTokens: remain,
-    persistedInvestedEth: Number(lot.remainingCostEth) || 0,
+    persistedInvestedEth: leftover ? 0 : (Number(lot.remainingCostEth) || 0),
   });
   if (fifo.unknown || !(fifo.investedEth > 0)) {
     return fifo;
   }
+  const hadTrustedPx = token.unknownEntry !== true && Number(token.entryPrice) > 0;
   token.totalInvestedEth = fifo.investedEth;
   token.unknownEntry = false;
   if (Number(lot.lastBuyPrice) > 0) token.entryPrice = Number(lot.lastBuyPrice);
+  else if (!hadTrustedPx) token.entryPrice = token.entryPrice || null;
   if (Number(lot.lastBuyTime) > 0) token.entryTime = Number(lot.lastBuyTime);
   if (lot.operatorLot && Number(lot.operatorLot.fillCostEth) > 0) {
     token.operatorLot = { ...lot.operatorLot, fillCostEth: fifo.investedEth };
@@ -407,9 +467,7 @@ export function lotFromBuyReceipt({
   const to = String(wallet || "").toLowerCase();
   const hash = normalizeTxHash(txHash || receipt?.transactionHash || tx?.hash);
   if (!key || !token || !to || !hash || !receipt) return null;
-  const status = receipt.status;
-  const ok = status === 1 || status === 1n || status === "0x1" || status === true;
-  if (!ok) return null;
+  if (!receiptSucceeded(receipt)) return null;
 
   let tokenWei = 0n;
   let wethWei = 0n;

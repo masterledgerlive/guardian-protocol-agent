@@ -30,6 +30,10 @@ import {
   readFifoLotsSync,
   collectRebuildTxs,
   parseLotRebuildTxsEnv,
+  receiptSucceeded,
+  lotAppliedOk,
+  mergeLotMaps,
+  isClearedLot,
 } from "./fifo-lot-store.js";
 import {
   fifoRemainingCostEth,
@@ -369,6 +373,87 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.equal(fifo.unknown, false);
     assert.ok(fifo.investedEth > 0);
   });
+
+  it("accepts viem receipt.status success (live rpcCall shape)", () => {
+    const rec = aeroReceipt();
+    rec.status = "success";
+    assert.equal(receiptSucceeded(rec), true);
+    assert.equal(receiptSucceeded({ status: "reverted" }), false);
+    const lot = lotFromBuyReceipt({
+      symbol: "AERO",
+      tokenAddress: AERO,
+      wallet: WALLET,
+      txHash: AERO_HASH,
+      receipt: rec,
+      tx: { value: "0x0" },
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(isUsableLot(lot), true);
+    assert.ok(lot.ethIn > 0 && lot.tokensIn > 0);
+  });
+
+  it("leftover chain balance uses proportional FIFO, not the full fill floor", () => {
+    const lots = {};
+    recordBuyFill(lots, {
+      symbol: "AERO",
+      ethIn: 0.001,
+      tokensIn: 10,
+      txHash: AERO_HASH,
+      fillCostEth: 0.001,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.ok(lots.AERO.remainingCostEth >= 0.001);
+    const token = { symbol: "AERO" };
+    const fifo = applyLotToToken(token, lots.AERO, { remainingTokens: 4 });
+    assert.equal(fifo.unknown, false);
+    assert.ok(Math.abs(token.totalInvestedEth - 0.0004) < 1e-9);
+    const green = plusGate({ symbol: "AERO", entryEth: token.totalInvestedEth, proceeds: 0.0005 });
+    assert.equal(green.allow, true, "true PLUS on leftover must not HOLD the full-fill floor");
+  });
+
+  it("rebuild without USD entryPrice still applies ETH lot (no unknown wipe)", () => {
+    const token = { symbol: "BNKR", unknownEntry: true, entryPrice: 0.0003, totalInvestedEth: 0 };
+    const lot = lotFromBuyReceipt({
+      symbol: "BNKR",
+      tokenAddress: BNKR,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.BNKR,
+      receipt: bnkrReceipt().receipt,
+      tx: bnkrReceipt().tx,
+      price: 0,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    const fifo = applyLotToToken(token, lot, { remainingTokens: 8449.871739504488 });
+    assert.equal(lotAppliedOk(token, fifo), true);
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > 0);
+    assert.ok(freshLotCostFloor(token) > 0);
+  });
+
+  it("newer sell shrink / sold-all tombstone beats stale positions.json full lot", () => {
+    const stale = {};
+    recordBuyFill(stale, {
+      symbol: "DRB",
+      ethIn: 0.001,
+      tokensIn: 1000,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      fillCostEth: 0.001,
+      reason: "MANUAL BUY (operator) $2",
+      at: 1_000,
+    });
+    const fresh = JSON.parse(JSON.stringify(stale));
+    recordSellFill(fresh, { symbol: "DRB", remainingTokens: 400 });
+    const merged = mergeLotMaps(stale, fresh);
+    assert.ok(merged.DRB.tokensIn < 401);
+    assert.ok(merged.DRB.remainingCostEth < 0.0005);
+
+    const sold = JSON.parse(JSON.stringify(stale));
+    recordSellFill(sold, { symbol: "DRB", remainingTokens: 0 });
+    assert.equal(isClearedLot(sold.DRB), true);
+    const afterClear = mergeLotMaps(stale, deserializeFifoLots(serializeFifoLots(sold)));
+    assert.equal(isUsableLot(afterClear.DRB), false);
+    assert.equal(isClearedLot(afterClear.DRB), true);
+  });
 });
 
 describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
@@ -381,6 +466,7 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes('from "./fifo-lot-store.js"'));
     assert.ok(src.includes("recordBuyFill"));
     assert.ok(src.includes("persistFifoLotsNow"));
+    assert.ok(src.includes("lotAppliedOk"));
     assert.ok(src.includes("rebuildLotsAfterRestart") || src.includes("lotFromBuyReceipt"));
     assert.ok(src.includes("fifoLots"));
     assert.ok(src.includes("DISABLE_DOW_BIAS"));
