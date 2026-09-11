@@ -400,7 +400,11 @@ describe("agent.js wiring — quote miss never sends", () => {
     const qBody = src.slice(qFn, qEnd);
     assert.ok(qFn >= 0 && qEnd > qFn, "quoteAtFee must exist");
     assert.ok(!qBody.includes("rpcCall("), "quote timeout/revert must not walk the RPC pool");
-    assert.ok(src.includes("function raceWithTimeout("), "RPC/quote timeouts must clear the timer");
+    const raceFn = src.indexOf("function raceWithTimeout(");
+    const raceEnd = src.indexOf("async function rpcCall(", raceFn);
+    const raceBody = src.slice(raceFn, raceEnd > raceFn ? raceEnd : raceFn + 500);
+    assert.ok(raceBody.includes("clearTimeout(timer)"), "RPC/quote timeouts must clear the timer");
+    assert.ok(raceBody.includes("work.catch("), "timeout must not leave the original RPC as unhandled rejection");
     assert.ok(!src.includes("using cached price with wider slippage"), "spot fallback send path must die");
   });
 });
@@ -494,6 +498,26 @@ describe("SwapRouter route vs DexScreener primary book", () => {
       symbol: "TOKS",
     });
     assert.equal(r.allow, true);
+    assert.equal(r.freezeBuys, false);
+  });
+
+  it("does not freeze TOSHI when every DexScreener row is a ghost mega-liq print", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [{
+        chainId: "base",
+        dexId: "pancakeswap",
+        pairAddress: TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+        liquidity: { usd: 69_729_870.52 },
+        volume: { h24: 0 },
+        baseToken: { address: TOSHI_BASE },
+        quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+      }],
+      tokenAddress: TOSHI_BASE,
+      tradeUsd: 8,
+      symbol: "TOSHI",
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.code, "NO_DEX_PAIRS");
     assert.equal(r.freezeBuys, false);
   });
 
