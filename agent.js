@@ -79,6 +79,7 @@ import {
   isValidUsdPrice,
   prefetchMarketPrices,
   fetchTokenUsdQuote,
+  fetchDexScreenerPairs,
   hasUsableCostBasis,
   costBasisEth,
   shouldTrustSavedCostBasis,
@@ -265,11 +266,14 @@ import {
   utf8ByteLength,
 } from "./swap-minout.js";
 import {
-  feeTierCandidates,
-  requireLiveQuoterFill,
-  plainSaleIfHitchTooThin,
-  adoptLivePoolFee,
-  isQuoteContractRevert,
+    feeTierCandidates,
+    requireLiveQuoterFill,
+    plainSaleIfHitchTooThin,
+    adoptLivePoolFee,
+    isQuoteContractRevert,
+    evaluateSwapRouterRoute,
+    requireFactoryLiquidity,
+    UNISWAP_V3_FACTORY_BASE,
 } from "./quote-swap-guard.js";
 import {
   BASE_QUOTER_V2,
@@ -287,6 +291,10 @@ import {
   clearSlippageFails,
   slippageFailLog,
   isTooLittleReceived,
+  isBuyFrozen,
+  freezeNewBuys,
+  clearBuyFreeze,
+  buyFrozenLog,
   isSuccessfulSellFill,
   failedFillLog,
   isSuccessfulBuyFill,
@@ -421,6 +429,19 @@ const QUOTER_ABI     = [{
     { name: "initializedTicksCrossed",type: "uint32"  },
     { name: "gasEstimate",            type: "uint256" }
   ]
+}];
+const V3_FACTORY_ABI = [{
+  name: "getPool", type: "function", stateMutability: "view",
+  inputs: [
+    { name: "tokenA", type: "address" },
+    { name: "tokenB", type: "address" },
+    { name: "fee", type: "uint24" },
+  ],
+  outputs: [{ name: "pool", type: "address" }],
+}];
+const V3_POOL_LIQ_ABI = [{
+  name: "liquidity", type: "function", stateMutability: "view",
+  inputs: [], outputs: [{ name: "", type: "uint128" }],
 }];
 
 // ── TIMING ────────────────────────────────────────────────────────────────────
@@ -1721,9 +1742,9 @@ const DEFAULT_TOKENS = [
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
   { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Thin/wrong-pool Uni V3 WETH — liquid book is Uni V2 GAME/VIRTUAL 0xD418dfE7670c21F682E041F34250c114DB5D7789 (~$2.14M); Uni V3 GAME/WETH 3000 0x70fbffe3… liquidity()=0 / ghost; 1% ~$2.8k too thin. SwapRouter02 cannot fill V2 VIRTUAL. Screener CAUTION — not battle-tested. Exits-only (sells + piggy dust still apply).",
+    frozen: true, frozenReason: "Primary book Uni V2 GAME/VIRTUAL 0xD418dfE7…7789 ~$2.14M — SwapRouter02 is Uni V3 WETH-only. V3 GAME/WETH 3000 0x70fbffe3… liquidity()=0 / ghost; 1% ~$2.8k too thin. Freeze new buys; exits remain.",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
-    notes: "GAME by Virtuals — AI gaming agent infra. FROZEN exits-only — thin Uni V3 WETH vs liquid Uni V2 GAME/VIRTUAL." },
+    notes: "GAME by Virtuals — FROZEN exits-only. Liquid book is Uni V2 GAME/VIRTUAL; SwapRouter cannot fill it." },
 
   // ── GREENLIGHT ADDS — liquid Base Uni/Aero books (DexScreener 2026-09-06) ──
   { symbol: "BASECAT", address: "0xB2000000000000000000004c27f6523082f41D01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
@@ -2040,6 +2061,35 @@ async function rpcCall(fn) {
 // outage — do not drain the public list. Probe other V3 fees; if none fill,
 // return null and the swap path MUST NOT send (spot cannot clear an empty pool).
 // ═══════════════════════════════════════════════════════════════════════════════
+async function readV3PoolLiquidity(tokenA, tokenB, fee) {
+  try {
+    const pool = await rpcCall((c) => c.readContract({
+      address: UNISWAP_V3_FACTORY_BASE,
+      abi: V3_FACTORY_ABI,
+      functionName: "getPool",
+      args: [tokenA, tokenB, fee],
+    }));
+    if (!pool || /^0x0+$/.test(String(pool))) {
+      return { pool: null, liquidity: 0n, empty: true };
+    }
+    try {
+      const liquidity = await rpcCall((c) => c.readContract({
+        address: pool,
+        abi: V3_POOL_LIQ_ABI,
+        functionName: "liquidity",
+      }));
+      const liq = typeof liquidity === "bigint" ? liquidity : 0n;
+      return { pool, liquidity: liq, empty: liq <= 0n };
+    } catch {
+      // Pool exists; liquidity read failed — still let Quoter try.
+      return { pool, liquidity: null, empty: false };
+    }
+  } catch {
+    // Factory RPC flake must not skip every fee as "empty".
+    return { pool: undefined, liquidity: null, empty: false };
+  }
+}
+
 async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
   const simulate = (client) => client.simulateContract({
     address: QUOTER_V2,
@@ -2069,16 +2119,18 @@ async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
   }
 }
 
-/** @returns {{ amountOut: bigint, fee: number } | null} */
+/** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
 async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
   const fees = feeTierCandidates(feeTier);
   for (const fee of fees) {
+    const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
+    if (depth.empty) continue;
     const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
     if (amountOut && amountOut > 0n) {
       if (fee !== Number(feeTier)) {
-        console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${fee}`);
+        console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${fee} (factory liq ${depth.liquidity})`);
       }
-      return { amountOut, fee };
+      return { amountOut, fee, liquidity: depth.liquidity, pool: depth.pool };
     }
   }
   console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
@@ -2091,9 +2143,13 @@ async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
   return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
 }
 
-function noteSwapPathFail(symbol, { kind = "quote/swap fail" } = {}) {
+function noteSwapPathFail(symbol, { kind = "quote/swap fail", freezeBuys = false } = {}) {
   const rec = recordSlippageFail(symbol);
   console.log(`   ${slippageFailLog(symbol, rec, { kind })}`);
+  if (freezeBuys) freezeNewBuys(symbol, kind);
+  if (isBuyFrozen(symbol) || rec.buyFrozen) {
+    console.log(`   ${buyFrozenLog(symbol)}`);
+  }
   return rec;
 }
 
@@ -5503,6 +5559,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
+    if (isBuyFrozen(token.symbol)) {
+      return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
+    }
     // Per-token min buy floor — smoke tests must clear the book minimum.
     if (isManualOperatorBuy(reason)) {
       const forcedUsd = (() => {
@@ -5699,6 +5758,28 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
 
+    // SwapRouter02 is Uni V3 WETH/USDC only. GAME's liquid book is Uni V2 VIRTUAL
+    // (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
+    {
+      const pairs = await fetchDexScreenerPairs(token.address);
+      const route = evaluateSwapRouterRoute({
+        pairs,
+        tokenAddress: token.address,
+        tradeUsd: ethToSpend * ethUsd,
+        symbol: token.symbol,
+      });
+      if (route.log) console.log(`   ${route.log}`);
+      if (!route.allow) {
+        if (route.freezeBuys) {
+          noteSwapPathFail(token.symbol, {
+            kind: route.code || "NO_V3_WETH",
+            freezeBuys: true,
+          });
+        }
+        return await skipBuy(reason, token.symbol, route.log);
+      }
+    }
+
     // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
     // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor
     let useWeth = weth >= ethToSpend;
@@ -5728,10 +5809,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     });
     let quotedTokens = null;
     let swapFee = token.feeTier;
+    let factoryLiq = null;
     try {
       const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
       quotedTokens = live?.amountOut ?? null;
       if (live?.fee) swapFee = live.fee;
+      if (live?.liquidity != null) factoryLiq = live.liquidity;
     } catch { quotedTokens = null; }
     const quoteGate = requireLiveQuoterFill({
       quotedOut: quotedTokens,
@@ -5740,8 +5823,22 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       side: "buy",
     });
     if (!quoteGate.allow) {
-      noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
+      noteSwapPathFail(token.symbol, {
+        kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
+        freezeBuys: quoteGate.code === "QUOTE_MISS",
+      });
       return await skipBuy(reason, token.symbol, quoteGate.log);
+    }
+    if (factoryLiq != null) {
+      const depthGate = requireFactoryLiquidity({
+        liquidity: factoryLiq,
+        symbol: token.symbol,
+        fee: swapFee,
+      });
+      if (!depthGate.allow) {
+        noteSwapPathFail(token.symbol, { kind: "EMPTY_V3_POOL", freezeBuys: true });
+        return await skipBuy(reason, token.symbol, depthGate.log);
+      }
     }
     quotedTokens = quoteGate.quotedOut;
     if (swapFee !== token.feeTier) {
@@ -5852,10 +5949,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const rec = recordSlippageFail(token.symbol);
       console.log(`   ${failedBuyFillLog(token.symbol, { receivedTokens, receiptStatus, txHash })}`);
       console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+      if (rec.buyFrozen) console.log(`   ${buyFrozenLog(token.symbol)}`);
       await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\nReceived ${receivedTokens.toFixed(6)} tokens — not a win\nThe letter is not claimed.\n${txHash ? `🔗 ${txHash}` : ""}`);
       return false;
     }
     clearSlippageFails(token.symbol);
+    clearBuyFreeze(token.symbol);
 
     // VITA picture tailwind: seal sparse chunk only after successful buy receipt
     if (buyVoice?.kind === "hat-picture" && buyVoice?.nodeId) {
@@ -6014,14 +6113,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 // ═══════════════════════════════════════════════════════════════════════════════
 async function executeSell(cdp, token, sellPct, reason, price, isProtective = false) {
   try {
-    // NOTE: Sells are NEVER blocked by cooldown — only buys use the cooldown timer.
-    // The cooldown exists to prevent buying the same token twice too fast.
-    // Blocking sells with the same timer was causing AIXBT-style traps where
-    // the position grew through cascades but could never exit.
-    if (isSlippageCooledDown(token.symbol)) {
-      console.log(`   ${slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "sell" })}`);
-      return null;
-    }
+    // NOTE: Sells are NEVER blocked by quote/swap cooldown or buy-freeze.
+    // After N buy fails we freeze *new buys* and arm cooldown; leftover exits
+    // must still be able to hit a live Uni V3 fee. Blocking sells here is what
+    // logged SELL SKIPPED [GAME] while the bag was leftover.
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
@@ -6223,10 +6318,12 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     let quotedWeth = null;
     let minWeth = 0n;
     let swapFee = token.feeTier;
+    let sellFactoryLiq = null;
     try {
       const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
       quotedWeth = live?.amountOut ?? null;
       if (live?.fee) swapFee = live.fee;
+      if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
     } catch (e) {
       console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — not sending`);
       quotedWeth = null;
@@ -6241,6 +6338,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
       console.log(`   ${quoteGate.log}`);
       return null;
+    }
+    if (sellFactoryLiq != null) {
+      const depthGate = requireFactoryLiquidity({
+        liquidity: sellFactoryLiq,
+        symbol: token.symbol,
+        fee: swapFee,
+      });
+      if (!depthGate.allow) {
+        console.log(`   ${depthGate.log || "EMPTY V3 POOL sell — not sending"}`);
+        return null;
+      }
     }
     quotedWeth = quoteGate.quotedOut;
     if (swapFee !== token.feeTier) {
@@ -9409,6 +9517,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         } else {
           t.frozen = false;
           delete t.frozenReason;
+          clearBuyFreeze(sym);
           console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
           await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
         }

@@ -283,6 +283,17 @@ export async function fetchDexScreenerToken(address) {
   }
 }
 
+/** Raw DexScreener pairs for SwapRouter route checks (Uni V3 WETH vs V2/Aero). */
+export async function fetchDexScreenerPairs(address) {
+  if (!isValidEvmAddress(address)) return [];
+  try {
+    const data = await fetchJson(DS_TOKEN + address, 6000);
+    return Array.isArray(data?.pairs) ? data.pairs : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchGeckoTerminalToken(address) {
   if (!isValidEvmAddress(address)) return null;
   try {

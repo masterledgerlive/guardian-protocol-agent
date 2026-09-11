@@ -22,8 +22,20 @@ import {
   QUOTE_INSANE_VS_SPOT,
   encodingDoesNotLoseMoney,
 } from "./swap-minout.js";
+import { BASE_WETH, BASE_USDC, BASE_USDBC, NATIVE_ETH } from "./price-oracle.js";
 
 export const V3_FEE_TIERS = [100, 500, 3000, 10000];
+export const UNISWAP_V3_FACTORY_BASE = "0x33128a8fC17869897dcE68Ed026d694621f6FDfD";
+/** Below this, a $3–11 RISK fill eats the Uni V3 WETH book (GAME 1% ~$2.8k). */
+export const MIN_SWAP_POOL_LIQ_USD = 25_000;
+/** Refuse a fill that is this fraction of the SwapRouter pool. */
+export const MAX_TRADE_FRAC_OF_POOL = 0.05;
+/**
+ * If the Uni V3 WETH/USDC pool is a small fraction of the deepest DexScreener
+ * book, that book is not the SwapRouter path (GAME Uni V2 VIRTUAL ~$2.1M vs
+ * V3 WETH ~$2.8k).
+ */
+export const MIN_SWAP_VS_PRIMARY_FRAC = 0.25;
 
 /** Empty Uni V3 GAME/WETH 0.3% — catalog used to send here. */
 export const GAME_EMPTY_FEE_3000_POOL = "0x70fbffe313d4a40909dba7129e0b2f4a45a645b5";
@@ -42,6 +54,257 @@ export const GAME_FAILED_BUY = {
   gasUsed: 788060,
   gasLimit: 800000,
 };
+
+/** Live DexScreener GAME books — primary is Uni V2 VIRTUAL, not V3 WETH. */
+export const GAME_DEX_PAIRS = [
+  {
+    chainId: "base",
+    dexId: "uniswap",
+    labels: ["v2"],
+    pairAddress: "0xD418dfE7670c21F682E041F34250c114DB5D7789",
+    liquidity: { usd: 2_135_557 },
+    volume: { h24: 35_968 },
+    priceUsd: "0.004953",
+    baseToken: { address: GAME_TOKEN },
+    quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+  },
+  {
+    chainId: "base",
+    dexId: "aerodrome",
+    pairAddress: "0x2A36148a416cBa81699B555120Bd65f4682BDFD2",
+    liquidity: { usd: 6_620 },
+    volume: { h24: 767 },
+    priceUsd: "0.004926",
+    baseToken: { address: GAME_TOKEN },
+    quoteToken: { address: BASE_WETH, symbol: "WETH" },
+  },
+  {
+    chainId: "base",
+    dexId: "uniswap",
+    labels: ["v3"],
+    pairAddress: GAME_LIVE_FEE_10000_POOL,
+    liquidity: { usd: 2_795 },
+    volume: { h24: 25 },
+    priceUsd: "0.005026",
+    baseToken: { address: GAME_TOKEN },
+    quoteToken: { address: BASE_WETH, symbol: "WETH" },
+  },
+];
+
+function pairQuoteAddress(p) {
+  return String(p?.quoteToken?.address || "").toLowerCase();
+}
+
+function pairBaseAddress(p) {
+  return String(p?.baseToken?.address || "").toLowerCase();
+}
+
+export function isUniswapV3Pair(pair) {
+  if (String(pair?.dexId || "").toLowerCase() !== "uniswap") return false;
+  const labels = pair?.labels;
+  if (Array.isArray(labels)) {
+    return labels.some((l) => String(l).toLowerCase() === "v3");
+  }
+  return false;
+}
+
+function isWethOrUsdcAddress(addr) {
+  const q = String(addr || "").toLowerCase();
+  return q === BASE_WETH.toLowerCase()
+    || q === BASE_USDC.toLowerCase()
+    || q === BASE_USDBC.toLowerCase()
+    || q === NATIVE_ETH.toLowerCase();
+}
+
+export function isWethOrUsdcQuotePair(pair) {
+  return isWethOrUsdcAddress(pairQuoteAddress(pair))
+    || isWethOrUsdcAddress(pairBaseAddress(pair));
+}
+
+export function summarizeDexPair(pair) {
+  if (!pair) return null;
+  return {
+    dexId: pair.dexId || null,
+    labels: Array.isArray(pair.labels) ? pair.labels : [],
+    pairAddress: pair.pairAddress || null,
+    quoteAddress: pair.quoteToken?.address || null,
+    quoteSymbol: pair.quoteToken?.symbol || null,
+    baseAddress: pair.baseToken?.address || null,
+    liqUsd: Number(pair.liquidity?.usd) || 0,
+    volUsd: Number(pair.volume?.h24) || 0,
+    uniV3: isUniswapV3Pair(pair),
+    wethUsdc: isWethOrUsdcQuotePair(pair),
+  };
+}
+
+function matchingBasePairs(pairs, tokenAddress) {
+  const wanted = String(tokenAddress || "").toLowerCase();
+  return (Array.isArray(pairs) ? pairs : []).filter((p) => {
+    if (!p) return false;
+    const chain = String(p.chainId || "base").toLowerCase();
+    if (chain && chain !== "base") return false;
+    if (!wanted) return true;
+    const base = pairBaseAddress(p);
+    const quote = pairQuoteAddress(p);
+    if (base && quote) return base === wanted || quote === wanted;
+    if (base) return base === wanted;
+    return true;
+  });
+}
+
+/** Deepest DexScreener book (any DEX) — the "liquid book" humans see. */
+export function deepestDexPair(pairs, tokenAddress) {
+  const rows = matchingBasePairs(pairs, tokenAddress)
+    .map(summarizeDexPair)
+    .filter((r) => r && r.liqUsd > 0);
+  rows.sort((a, b) => b.liqUsd - a.liqUsd);
+  return rows[0] || null;
+}
+
+/** Only a Uni V3 WETH/USDC pool can be filled by SwapRouter02 exactInputSingle. */
+export function selectUniV3WethUsdcPair(pairs, tokenAddress) {
+  const rows = matchingBasePairs(pairs, tokenAddress)
+    .map(summarizeDexPair)
+    .filter((r) => r && r.uniV3 && r.wethUsdc && r.liqUsd > 0);
+  rows.sort((a, b) => b.liqUsd - a.liqUsd);
+  return rows[0] || null;
+}
+
+/** Structural book mismatch — freeze new buys immediately, not after N clips. */
+export function shouldFreezeOnRouteReject(code) {
+  return code === "PRIMARY_NOT_V3_WETH"
+    || code === "THIN_V3_WETH"
+    || code === "NO_V3_WETH"
+    || code === "EMPTY_V3_POOL";
+}
+
+export function requireFactoryLiquidity({ liquidity, symbol = "?", fee = "?" } = {}) {
+  if (liquidity == null || liquidity === "") {
+    return {
+      allow: true,
+      code: "NO_FACTORY_READ",
+      liquidity: null,
+      freezeBuys: false,
+      log: null,
+    };
+  }
+  const liq = asBigInt(liquidity) ?? 0n;
+  const sym = String(symbol || "?").toUpperCase();
+  if (liq <= 0n) {
+    return {
+      allow: false,
+      code: "EMPTY_V3_POOL",
+      liquidity: 0n,
+      freezeBuys: true,
+      log:
+        `🛑 EMPTY V3 POOL buy ${sym} fee ${fee} — factory liquidity=0 ` +
+        `(ghost/uninitialized). Not sending SwapRouter02.`,
+    };
+  }
+  return { allow: true, code: null, liquidity: liq, freezeBuys: false, log: null };
+}
+
+/**
+ * SwapRouter02 can only fill Uni V3 WETH/USDC. Aerodrome / Uni V2 VIRTUAL
+ * books are not a route. A Quoter number on a thin/ghost V3 pool is not enough.
+ */
+export function evaluateSwapRouterRoute({
+  pairs,
+  tokenAddress,
+  tradeUsd = 0,
+  factoryLiquidity = null,
+  symbol = "?",
+  minPoolLiqUsd = MIN_SWAP_POOL_LIQ_USD,
+  maxTradeFrac = MAX_TRADE_FRAC_OF_POOL,
+  minVsPrimary = MIN_SWAP_VS_PRIMARY_FRAC,
+} = {}) {
+  const sym = String(symbol || "?").toUpperCase();
+  const rows = Array.isArray(pairs) ? pairs : [];
+  const trade = Number(tradeUsd) || 0;
+  const factory = asBigInt(factoryLiquidity);
+
+  if (factory != null && factory <= 0n) {
+    return requireFactoryLiquidity({ liquidity: factory, symbol: sym, fee: "quoted" });
+  }
+
+  // DexScreener outage must not freeze the whole book — factory + Quoter still gate the send.
+  if (rows.length === 0) {
+    return {
+      allow: true,
+      code: "NO_DEX_PAIRS",
+      freezeBuys: false,
+      primary: null,
+      swap: null,
+      log: null,
+    };
+  }
+  const primary = deepestDexPair(rows, tokenAddress);
+  const swap = selectUniV3WethUsdcPair(rows, tokenAddress);
+
+  if (!swap) {
+    const via = primary
+      ? `${primary.dexId || "?"} ${primary.quoteSymbol || "?"} $${primary.liqUsd.toFixed(0)}`
+      : "no DexScreener book";
+    return {
+      allow: false,
+      code: "NO_V3_WETH",
+      freezeBuys: true,
+      primary,
+      swap: null,
+      log:
+        `🛑 NO V3 WETH ${sym} — primary book is ${via}. ` +
+        `SwapRouter02 exactInputSingle cannot fill Uni V2 / Aerodrome / VIRTUAL. Freeze new buys.`,
+    };
+  }
+
+  if (swap.liqUsd + 1e-9 < minPoolLiqUsd) {
+    return {
+      allow: false,
+      code: "THIN_V3_WETH",
+      freezeBuys: true,
+      primary,
+      swap,
+      log:
+        `🛑 THIN V3 WETH ${sym} — Uni V3 ${swap.quoteSymbol || "WETH"} pool ` +
+        `$${swap.liqUsd.toFixed(0)} < $${minPoolLiqUsd} (SwapRouter book too thin for RISK). Freeze new buys.`,
+    };
+  }
+
+  if (trade > 0 && swap.liqUsd > 0 && trade > swap.liqUsd * maxTradeFrac) {
+    return {
+      allow: false,
+      code: "TRADE_TOO_BIG",
+      freezeBuys: false,
+      primary,
+      swap,
+      log:
+        `🛑 TRADE TOO BIG ${sym} — $${trade.toFixed(2)} is >${(maxTradeFrac * 100).toFixed(0)}% ` +
+        `of Uni V3 ${swap.quoteSymbol} $${swap.liqUsd.toFixed(0)}. Not sending.`,
+    };
+  }
+
+  if (
+    primary
+    && primary.pairAddress
+    && swap.pairAddress
+    && primary.pairAddress.toLowerCase() !== swap.pairAddress.toLowerCase()
+    && swap.liqUsd < primary.liqUsd * minVsPrimary
+  ) {
+    return {
+      allow: false,
+      code: "PRIMARY_NOT_V3_WETH",
+      freezeBuys: true,
+      primary,
+      swap,
+      log:
+        `🛑 PRIMARY NOT V3 WETH ${sym} — liquid book is ${primary.dexId} ` +
+        `${primary.quoteSymbol || "?"} $${primary.liqUsd.toFixed(0)}, Uni V3 WETH/USDC ` +
+        `only $${swap.liqUsd.toFixed(0)}. Quoter on the thin V3 pool is not the book. Freeze new buys.`,
+    };
+  }
+
+  return { allow: true, code: null, freezeBuys: false, primary, swap, log: null };
+}
 
 export function feeTierCandidates(preferred) {
   const p = Number(preferred);

@@ -222,6 +222,7 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     assert.match(src.slice(vvv, vvv + 200), /feeTier:\s*10000/);
     const game = src.indexOf('symbol: "GAME"');
     assert.match(src.slice(game, game + 200), /feeTier:\s*10000/);
+    assert.match(src.slice(game, game + 500), /frozen:\s*true/);
     assert.ok(src.includes('t.symbol === "AAVE"'), "AAVE high unit-price entry sanity");
   });
 

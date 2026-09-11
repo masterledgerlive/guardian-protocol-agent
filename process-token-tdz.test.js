@@ -167,12 +167,12 @@ describe("processToken hasPosition TDZ", () => {
       assert.ok(!row.includes("frozen: true"), `${sym} must stay tradeable`);
     }
     // CBBTC/AAVE stay catalogued but FROZEN — fractional bags locked the RISK book.
-    for (const sym of ["CBBTC", "AAVE"]) {
+    for (const sym of ["CBBTC", "AAVE", "GAME"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
       assert.ok(base >= 0, `${sym} must remain in catalog`);
       const next = src.indexOf("{ symbol:", base + 1);
       const row = src.slice(base, next > 0 ? next : base + 500);
-      assert.ok(row.includes("frozen: true"), `${sym} must stay frozen (locked majors)`);
+      assert.ok(row.includes("frozen: true"), `${sym} must stay frozen (locked majors / wrong book)`);
     }
   });
 

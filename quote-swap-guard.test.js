@@ -9,6 +9,11 @@ import {
   isSlippageCooledDown,
   slippageCooldownLog,
   slippageFailLog,
+  isBuyFrozen,
+  freezeNewBuys,
+  clearBuyFreeze,
+  clearSlippageFails,
+  buyFrozenLog,
 } from "./price-insane.js";
 import {
   V3_FEE_TIERS,
@@ -16,12 +21,17 @@ import {
   GAME_LIVE_FEE_10000_POOL,
   GAME_TOKEN,
   GAME_FAILED_BUY,
+  GAME_DEX_PAIRS,
   feeTierCandidates,
   catalogPoolFeePct,
   adoptLivePoolFee,
   isQuoteContractRevert,
   requireLiveQuoterFill,
   plainSaleIfHitchTooThin,
+  evaluateSwapRouterRoute,
+  requireFactoryLiquidity,
+  shouldFreezeOnRouteReject,
+  MIN_SWAP_POOL_LIQ_USD,
 } from "./quote-swap-guard.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -125,6 +135,8 @@ describe("quote miss cooldown — stop sending after N fails", () => {
         assert.match(slippageFailLog("GAME", rec, { kind: "QuoterV2 miss" }), /QuoterV2 miss/);
       } else {
         assert.equal(rec.cooled, true);
+        assert.equal(rec.buyFrozen, true);
+        assert.equal(isBuyFrozen("GAME", store), true);
         assert.equal(isSlippageCooledDown("GAME", t0 + i, store), true);
         assert.match(slippageFailLog("GAME", rec, { kind: "QuoterV2 miss" }), /cooldown armed/);
         assert.match(
@@ -196,6 +208,7 @@ describe("agent.js wiring — quote miss never sends", () => {
     const row = src.slice(i, src.indexOf("{ symbol:", i + 1));
     assert.match(row, /feeTier:\s*10000/);
     assert.match(row, /poolFeePct:\s*0\.010/);
+    assert.match(row, /frozen:\s*true/);
     assert.ok(!/feeTier:\s*3000/.test(row), "GAME must not stay on empty 3000");
   });
 
@@ -221,7 +234,176 @@ describe("agent.js wiring — quote miss never sends", () => {
         || buyBody.includes("skipHitch: buySkipHitch|| buyVoice.onChain"),
       "orch must not hitch when leftover skipped hitch"
     );
+    assert.ok(buyBody.includes("evaluateSwapRouterRoute"), "buy must refuse Uni V2 / thin V3 books");
+    assert.ok(buyBody.includes("requireFactoryLiquidity"), "buy must check factory liquidity");
+    assert.ok(buyBody.includes("isBuyFrozen"), "buy must honor per-symbol freeze");
+    assert.ok(buyBody.includes("clearBuyFreeze"), "successful fill may reopen buys");
+    assert.ok(src.includes("readV3PoolLiquidity"), "must skip empty Uni V3 fees");
+    assert.ok(!sellBody.includes("evaluateSwapRouterRoute"), "sells must not freeze on primary-book mismatch");
+    assert.ok(!sellBody.includes("isSlippageCooledDown"), "sells stay open during buy cooldown");
+    assert.ok(!sellBody.includes("isBuyFrozen"), "buy freeze must not block leftover exits");
+    assert.ok(sellBody.includes("requireFactoryLiquidity"), "sell still skips empty V3 fees");
+    assert.ok(src.includes("clearBuyFreeze(sym)"), "/unfreeze must lift runtime buy freeze");
     assert.ok(src.includes("isQuoteContractRevert"), "quote revert must not drain the RPC pool");
     assert.ok(!src.includes("using cached price with wider slippage"), "spot fallback send path must die");
   });
 });
+
+describe("SwapRouter route vs DexScreener primary book", () => {
+  it("refuses GAME — liquid book is Uni V2 VIRTUAL, V3 WETH is a $2.8k ghost", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: GAME_DEX_PAIRS,
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 2,
+      symbol: "GAME",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.freezeBuys, true);
+    assert.ok(
+      r.code === "THIN_V3_WETH" || r.code === "PRIMARY_NOT_V3_WETH",
+      `expected THIN_V3_WETH or PRIMARY_NOT_V3_WETH, got ${r.code}`,
+    );
+    assert.equal(shouldFreezeOnRouteReject(r.code), true);
+    assert.ok(r.primary.liqUsd > 2_000_000);
+    assert.equal(r.primary.quoteSymbol, "VIRTUAL");
+    assert.ok(r.swap.liqUsd < MIN_SWAP_POOL_LIQ_USD);
+    assert.match(r.log, /Freeze new buys/);
+  });
+
+  it("refuses when Uni V3 WETH exists but is a fraction of the V2 VIRTUAL book", () => {
+    const pairs = GAME_DEX_PAIRS.map((p) => {
+      if (p.pairAddress === GAME_LIVE_FEE_10000_POOL) {
+        return { ...p, liquidity: { usd: 80_000 } };
+      }
+      return p;
+    });
+    const r = evaluateSwapRouterRoute({
+      pairs,
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 5,
+      symbol: "GAME",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "PRIMARY_NOT_V3_WETH");
+    assert.equal(r.freezeBuys, true);
+  });
+
+  it("allows a deep Uni V3 WETH book that is the primary DexScreener pair", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [{
+        chainId: "base",
+        dexId: "uniswap",
+        labels: ["v3"],
+        pairAddress: "0x1111111111111111111111111111111111111111",
+        liquidity: { usd: 400_000 },
+        volume: { h24: 50_000 },
+        baseToken: { address: GAME_TOKEN },
+        quoteToken: { address: "0x4200000000000000000000000000000000000006", symbol: "WETH" },
+      }],
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 8,
+      symbol: "TOKS",
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.freezeBuys, false);
+  });
+
+  it("does not freeze the book when DexScreener returns no pairs", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [],
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 5,
+      symbol: "GAME",
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.code, "NO_DEX_PAIRS");
+    assert.equal(r.freezeBuys, false);
+  });
+
+  it("refuses factory liquidity=0 even without DexScreener pairs", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [],
+      tokenAddress: GAME_TOKEN,
+      factoryLiquidity: 0n,
+      symbol: "GAME",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "EMPTY_V3_POOL");
+    assert.equal(r.freezeBuys, true);
+  });
+
+  it("TRADE_TOO_BIG skips the clip without freezing new buys", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [{
+        chainId: "base",
+        dexId: "uniswap",
+        labels: ["v3"],
+        pairAddress: "0x2222222222222222222222222222222222222222",
+        liquidity: { usd: 40_000 },
+        volume: { h24: 10_000 },
+        baseToken: { address: GAME_TOKEN },
+        quoteToken: { address: "0x4200000000000000000000000000000000000006", symbol: "WETH" },
+      }],
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 8_000,
+      symbol: "TOKS",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "TRADE_TOO_BIG");
+    assert.equal(r.freezeBuys, false);
+    assert.equal(shouldFreezeOnRouteReject(r.code), false);
+  });
+});
+
+describe("factory liquidity vs ghost Uni V3 fee", () => {
+  it("refuses liquidity=0 (GAME empty 3000)", () => {
+    const r = requireFactoryLiquidity({ liquidity: 0n, symbol: "GAME", fee: 3000 });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "EMPTY_V3_POOL");
+    assert.equal(r.freezeBuys, true);
+    assert.match(r.log, /liquidity=0/);
+  });
+
+  it("allows a missing factory read so Quoter can still try", () => {
+    const r = requireFactoryLiquidity({ liquidity: null, symbol: "GAME", fee: 3000 });
+    assert.equal(r.allow, true);
+    assert.equal(r.code, "NO_FACTORY_READ");
+  });
+
+  it("allows non-zero factory liquidity", () => {
+    const r = requireFactoryLiquidity({ liquidity: 123456n, symbol: "GAME", fee: 10000 });
+    assert.equal(r.allow, true);
+  });
+});
+
+describe("buy freeze after N quote/swap fails", () => {
+  it("freezes new buys at N=3 and cooldown expiry does not reopen them", () => {
+    const store = Object.create(null);
+    const t0 = 9_000_000;
+    recordSlippageFail("GAME", t0, { max: 3, cooldownMs: 60_000, store });
+    recordSlippageFail("GAME", t0 + 1, { max: 3, cooldownMs: 60_000, store });
+    const rec = recordSlippageFail("GAME", t0 + 2, { max: 3, cooldownMs: 60_000, store });
+    assert.equal(rec.buyFrozen, true);
+    assert.equal(isBuyFrozen("GAME", store), true);
+    assert.match(buyFrozenLog("GAME", store), /BUY FROZEN/);
+    // cooldown window ends — next fail starts a fresh count, freeze sticks
+    const later = recordSlippageFail("GAME", t0 + 70_000, { max: 3, cooldownMs: 60_000, store });
+    assert.equal(later.count, 1);
+    assert.equal(isBuyFrozen("GAME", store), true);
+    clearSlippageFails("GAME", store);
+    assert.equal(isBuyFrozen("GAME", store), true, "successful sell must not reopen buys");
+    clearBuyFreeze("GAME", store);
+    assert.equal(isBuyFrozen("GAME", store), false);
+  });
+
+  it("freezeNewBuys sticks until an operator/successful-buy clear", () => {
+    const store = Object.create(null);
+    freezeNewBuys("GAME", "PRIMARY_NOT_V3_WETH", store);
+    assert.equal(isBuyFrozen("GAME", store), true);
+    clearSlippageFails("GAME", store);
+    assert.equal(isBuyFrozen("GAME", store), true);
+    clearBuyFreeze("GAME", store);
+    assert.equal(isBuyFrozen("GAME", store), false);
+  });
+});
+
