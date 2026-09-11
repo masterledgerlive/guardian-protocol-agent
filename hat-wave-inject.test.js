@@ -42,14 +42,15 @@ describe("hat-wave: transmission error buffer + sizing", () => {
     assert.equal(transmissionErrorBufferEth(0), 0);
   });
 
-  it("earnings fuel increases spendable without wiping error buffer", () => {
+  it("earnings must not increase hitch spendable beyond leftover", () => {
     const thin = spendableForTransmissionEth({ leftoverEth: 0.0001, earningsEth: 0 });
     const rich = spendableForTransmissionEth({
       leftoverEth: 0.0001,
       earningsEth: 0.001,
       useEarningsFraction: 0.5,
     });
-    assert.ok(rich.spendableEth > thin.spendableEth);
+    assert.equal(rich.spendableEth, thin.spendableEth);
+    assert.ok(rich.spendableEth <= 0.0001);
     assert.ok(rich.errorBufferEth > 0);
   });
 
@@ -76,6 +77,38 @@ describe("hat-wave: transmission error buffer + sizing", () => {
       assert.ok(a.costPerBitEth > 0);
     }
   });
+
+  it("large hitch payload cannot cost more than leftover (always-plus)", () => {
+    const leftover = 0.00008;
+    const sized = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      earningsEth: 0.01,
+      gwei: 1,
+      wantedBytes: 10_000,
+      hitchCostMult: 1,
+    });
+    assert.ok(sized.skipHitch || sized.injectCostEth < leftover);
+    assert.ok(sized.spendableEth <= leftover);
+  });
+
+  it("HAT #56: HITCH_COST_MULT=2 does not change wave hitch size (plus gate is leftover-after-plus)", () => {
+    const leftover = 0.001;
+    const one = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      gwei: 0.05,
+      wantedBytes: 10_000,
+      hitchCostMult: 1,
+    });
+    const two = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      gwei: 0.05,
+      wantedBytes: 10_000,
+      hitchCostMult: 2,
+    });
+    assert.equal(one.hitchBytes, two.hitchBytes);
+    assert.equal(one.skipHitch, two.skipHitch);
+    assert.ok(one.skipHitch || one.injectCostEth < leftover);
+  });
 });
 
 describe("hat-wave: sell target hard-codes transmission", () => {
@@ -98,6 +131,22 @@ describe("hat-wave: sell target hard-codes transmission", () => {
     });
     assert.ok(big.sellTargetEth > small.sellTargetEth);
     assert.ok(big.errorBufferEth >= 0);
+  });
+
+  it("HITCH_COST_MULT does not raise wave sell floor (would HOLD green exits)", () => {
+    const args = {
+      entryEth: 0.01,
+      projectedProceedsEth: 0.012,
+      feePct: 0.003,
+      gasCostEth: 0.0001,
+      hitchBytes: 200,
+      gwei: 0.05,
+    };
+    const one = waveSellTargetWithTransmission({ ...args, hitchCostMult: 1 });
+    const two = waveSellTargetWithTransmission({ ...args, hitchCostMult: 2 });
+    assert.equal(one.sellTargetEth, two.sellTargetEth);
+    assert.equal(one.hitchCostMult, 1);
+    assert.equal(two.hitchCostMult, 1);
   });
 });
 

@@ -2,7 +2,7 @@
 
 Snapshot: **2026-09-07 ~19:55 UTC** (top-100 Uni V3 injection pass). Prior: **2026-09-07 ~02:30 UTC** (REI / CLANKER). Source: DexScreener + Uniswap V3 factory `getPool` on Base (publicnode).
 
-Rules in force: **LOSE-ZERO**; sell floor is `sell_target = fair_exit + fees + (HITCH_COST_MULT × hitch)` with **`HITCH_COST_MULT=2`**. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee`. RISK bag ~**$3–11**. Prefer Uniswap V3 WETH (bot routes `exactInputSingle`). Freeze over hard-delete. **TOSHI residual ~4.5k stays tradeable.**
+Rules in force: **LOSE-ZERO**; every exit must print **PLUS** vs `soldFrac×entry + fees + 1× hitch this tx`. `HITCH_COST_MULT=2` is a hitch *size* cushion only. Hitch inject cost prefers live Base `GasPriceOracle.getL1Fee`. RISK bag ~**$3–11**. Prefer Uniswap V3 WETH (bot routes `exactInputSingle`). Freeze over hard-delete. **TOSHI residual ~4.5k stays tradeable.**
 
 Bars used here:
 

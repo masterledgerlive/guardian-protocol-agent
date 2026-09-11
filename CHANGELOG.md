@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+### Fixed — always-plus exit (hitch/HAT cannot flip a green sell red)
+
+RISK bag was still bleeding on exits: leftover after fees looked green, then
+§$STORE§ / HAT / VITA picture bytes (or a Dex mark vs a thinner Uni fill)
+erased profit-from-entry. Unknown-cost recycle and `ALLOW_LOSSY_OPERATOR_SELL`
+could send underwater. Buy hitch is already in cost basis, so charging **2×**
+hitch as a *sell veto* was the wrong lever — it HOLDs then later FORCE EXIT
+sells red, or it sizes a wave that spends the plus.
+
+Hard rule: **every exit prints PLUS** vs `soldFrac × entry + fees + 1× hitch
+on THIS tx` (even 1 wei). If hitch would push net ≤ 0, **SKIP_HITCH** and sell
+plain only when plain is still plus; else **HOLD**. Piggy dust never sold.
+
+- `evaluateSellGate` plus gate is 1× hitch this leg; `HITCH_COST_MULT` sizes
+  payload (`leftover/mult`) only when plus remains
+- Unknown cost → HOLD (cannot prove plus vs entry)
+- Operator cannot sell red; only `FORCE EXIT LOCKED` recovers (no hitch)
+- L1 oracle fallback → SKIP_HITCH (never hitch without live L1)
+- HAT `spendableForTransmissionEth` no longer adds earnings on top of leftover
+- `executeSell` quotes first and uses `min(mark, quote)` proceeds; orch cannot
+  re-hitch after SKIP_HITCH
+- Logs `PLUS` / `HOLD` / `SKIP_HITCH` with leftover, entrySold, fees, hitch, net
+- HAT #56 wave-paid picture: `HITCH_COST_MULT` does not raise sell floor or
+  change hitch size; leftover-after-plus is the budget (10KB is a quote ceiling)
+- VITA #59 leftover hitch cost uses planned KEY+LOC (`leftoverVoiceHitchBytes`),
+  not the 10-byte §$STORE§ tag. L1 oracle fallback SKIPs hitch on **buys and
+  sells** — `leftoverWouldCoverVitaHitch` cannot re-attach KEY+LOC without live L1
+- Hitch-embedded FIFO reds on live tip `977e839` (UNI 10 / DRB 5 / BASECAT 2 /
+  LINK 2; samples 0xadd3b2e4… 0x1d2a7c29… 0x4f8c461a… 0xc304e13a…) are the
+  unmerged tip — **merge #62**. Patch: orch cannot re-embed hitch after plus
+  strip; KEY+LOC planner receives leftover+cost (no hitch-force). Peak-ride /
+  cascade / ripple still only sell through `executeSell`.
+
+FIFO red-sell class (risk desk): 31 sells with proceeds < buy cost — BASECAT 12
+(0xe53b1f70… 0xd42cca53… 0x753ce264…), MORPHO 4, SKI 4, LINK 3, UNI 3, AERO 2,
+VVV 2, DRB 1. Underwater → **HOLD**. DRB hitch-prove 0xb495213f… (−5.4e-7 ETH
+if the full KEY+LOC packet rode) → **size hitch DOWN or SKIP_HITCH**. Tests
+mirror those classes; they do not invent live P&L for the hashes.
+
+Landed on main via #62. Quote-gate (#61) now requires a live Quoter fill before
+the plus send — leftover exits no longer fall back to a Dex mark when Uni misses.
+
 ### Fixed — GAME SwapRouter02 exactInputSingle reverts (empty Uni V3 fee 3000)
 
 RISK bag buys of GAME (`0x50e1…7915`, blocks 51106117–51106192) reverted after a
@@ -20,12 +62,12 @@ Live Uni V3 GAME/WETH book is **fee 10000** (`0xE5Ff…77a3`). Harden:
 - Probe other V3 fees when catalog fee misses (wider fees before 100/500). Bind the fill to the DexScreener Uni V3 WETH pair. Never rank by gameable factory `liquidity()`. Sells bind to that pair when known (no freeze). DexScreener fail-open uses catalog fee, then probe order. Preferred-pool bind fails closed on factory flake. Live fee costlier than gated RT% skips the buy (sell leftover still exits, hitch skipped).
 - Quote contract revert does not drain the RPC pool.
 - Quote miss / PRICE_INSANE quote / minOut reject increment the fail streak; cooldown after N (still 3) without sending. A single `QUOTE_MISS` does **not** freeze new buys (RPC timeout and pool miss share the same null).
-- Hitch leftover too thin → plain sale (no hitch); orch cannot re-hitch after skip. Missing voice hitch still lets the silo queue ride.
+- Hitch leftover too thin → plain sale (no hitch); orch cannot re-hitch after skip. Missing voice hitch still lets the silo queue ride. Always-plus (#62) still HOLDs if proceeds < buy cost and shrinks/SKIPs hitch that would print red.
 - GAME catalog fee 10000 / 1% so exits quote the live Uni V3 book first. Catalog freeze stays from #60 (exits-only) — this change does not re-freeze GAME. `/unfreeze` still works (no sticky freeze).
 - DexScreener primary-book gate: SwapRouter02 `encodeSwap` is Uni V3 **WETH** only (a deep USDC V3 book is not the fill). Uni V2 VIRTUAL / Aerodrome is not a fill. Thin V3 WETH (`<$25k` or `<<` the liquid book) freezes new buys immediately.
 - On-chain factory `liquidity=0` skips that fee **before** QuoterV2 (GAME empty 3000 ghost). Quote/minOut reject before wrap. Quoter amountOut is not enough without a real pool.
 - After N=3 quote/swap fails on the same symbol: cooldown **and** persistent buy freeze. Cooldown expiry does not reopen buys. Successful **buy** fill or `/unfreeze` lifts the runtime freeze (even if the catalog row is already active); successful **sell** does not.
-- Hitch only when leftover covers; plain sale otherwise. LOSE-ZERO unchanged. Uni V4 leftover hitch stays VITA KEY+LOC. No invented P&L.
+- Hitch only when leftover covers; plain sale otherwise. LOSE-ZERO / always-plus unchanged. Uni V4 leftover hitch stays VITA KEY+LOC. No invented P&L.
 
 ### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash
 

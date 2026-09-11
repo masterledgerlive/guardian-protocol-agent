@@ -62,12 +62,23 @@ describe("processToken hasPosition TDZ", () => {
   it("executeSell and moonshot trim use leftover sell gate (hitch or plain)", () => {
     assert.ok(src.includes("buildSellGateDecision"), "sell floor helper must be imported");
     assert.ok(src.includes("HITCH_COST_MULT"), "sell floor must mention HITCH_COST_MULT");
+    assert.ok(src.includes("conservativeSellProceedsEth"), "plus gate must use min(mark, quote)");
+    assert.ok(src.includes("alwaysPlusLog"), "PLUS/HOLD/SKIP_HITCH must be logged");
     const sellFn = src.indexOf("async function executeSell(");
     const moon = src.indexOf("MOONSHOT SELL-DOWN");
     const sellGate = src.indexOf("buildSellGateDecision", sellFn);
     const moonGate = src.indexOf("buildSellGateDecision", moon);
     assert.ok(sellFn >= 0 && sellGate > sellFn, "executeSell must call buildSellGateDecision");
     assert.ok(moon >= 0 && moonGate > moon, "moonshot trim must call buildSellGateDecision");
+    const quote = src.indexOf("getOnChainSellQuote", sellFn);
+    assert.ok(quote > sellFn && quote < sellGate, "executeSell must quote before plus gate");
+    assert.ok(src.includes("leftoverVoiceHitchBytes()"), "wanted hitch must be planned VITA packet, not 10-byte tag");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 8000);
+    assert.ok(sellBody.includes("hitchCostMult: 1"), "sell hitch size is leftover-after-plus, not 2× veto");
+    assert.ok(sellBody.includes("earningsEth: 0"), "earnings must not add hitch fuel on top of leftover");
+    assert.ok(sellBody.includes("sellSkipHitch"), "orch must not re-embed hitch after plus strip");
+    assert.ok(sellBody.includes("leftoverEth"), "KEY+LOC planner must see leftover, not hitch-force");
   });
 
   it("still reaches buy / MANUAL SELL / sellhalf after the armed-idle log", () => {
@@ -136,6 +147,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
     assert.ok(src.includes("evaluatePriceInsane"), "PRICE_INSANE must run before hitch/minOut");
     assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
+    assert.ok(src.includes("buy hitch skipped — L1 fee unknown"), "buy L1 fallback must SKIP hitch, not hitch VITA anyway");
+    assert.ok(!src.includes("hitch VITA anyway"), "leftoverWouldCover must not re-attach VITA without live L1");
     assert.ok(src.includes("planVoiceHitch") && src.includes("appendUtf8Hitch"), "UTF-8 §$STORE§ hitch must ride the swap");
     assert.ok(src.includes("hitchTelegramFooter"), "Telegram must not claim a letter that is not on-chain");
     assert.ok(src.includes("hitchLedgerSignature"), "ledger must not stamp Eureka on a plain swap");

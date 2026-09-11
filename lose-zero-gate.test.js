@@ -50,6 +50,12 @@ import {
   estimateInjectHitchCostEth,
   minSellProceedsEth,
   leftoverAfterFeesEth,
+  plusAfterHitchEth,
+  conservativeSellProceedsEth,
+  wei18ToEth,
+  formatAlwaysPlusLog,
+  MIN_PLUS_ETH,
+  isForceExitLockedReason,
   coversHitchAndEntry,
   maxHitchBytesForLeftover,
   sizeHitchForSell,
@@ -67,6 +73,7 @@ import {
   netAfterSkimEth,
   UNKNOWN_COST_GAS_EDGE_MULT,
 } from "./lose-zero-gate.js";
+import { sizeHatBytesForWave } from "./hat-wave-inject.js";
 
 describe("env flags", () => {
   it("honors yes case-insensitively and ignores other values", () => {
@@ -776,7 +783,7 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.match(d.log, /STOP LOSS floor held/);
   });
 
-  it("STOP LOSS allows plain sale when leftover after fees is green", () => {
+  it("STOP LOSS allows plus sale when leftover after fees is green", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = hitch * 1.2;
     const d = evaluateSellGate({
@@ -789,8 +796,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       symbol: "DEGEN",
     });
     assert.equal(d.allow, true);
-    assert.equal(d.skipHitch, true);
-    assert.match(d.log, /plain|allow sell DEGEN/);
+    assert.ok(d.plusNetEth > 0, "green STOP LOSS must stay plus after 1× hitch or skip");
+    assert.ok(d.verdict === "PLUS" || d.verdict === "SKIP_HITCH");
+    assert.match(d.log, /allow sell DEGEN|plain|hitch \+ edge/);
   });
 
   it("shouldArmStopLoss requires trusted cost — skips unknown/frozen", () => {
@@ -811,9 +819,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     }), false);
   });
 
-  it("sell allowed plain when leftover covers 1× hitch but not 2×", () => {
+  it("sell hitches at 1× when leftover covers 1× hitch but not 2× (buy hitch already in basis)", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
-    // leftover after fees = 1.5× hitch — enough for 1× buy cover, not 2× sell hitch
+    // leftover after fees = 1.5× hitch — enough for 1× this-tx hitch, not 2× size cushion
     const leftover = hitch * 1.5;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01 + leftover,
@@ -827,8 +835,11 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       symbol: "TOSHI",
     });
     assert.equal(d.allow, true);
-    assert.equal(d.skipHitch, true);
-    assert.match(d.log, /plain/);
+    assert.equal(d.skipHitch, false);
+    assert.ok(d.hitchBytes > 0);
+    assert.ok(d.plusNetEth > 0);
+    assert.equal(d.verdict, "PLUS");
+    assert.match(d.alwaysPlusLog, /PLUS/);
   });
 
   it("sell allowed when leftover covers hitch + edge (2×)", () => {
@@ -848,8 +859,11 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.equal(d.allow, true);
     assert.equal(d.sellNow, true);
     assert.ok(d.hitchBytes > 0);
+    assert.ok(d.plusNetEth > 0);
+    assert.equal(d.verdict, "PLUS");
     assert.match(d.log, /leftover covers hitch \+ edge/);
     assert.match(d.log, /sell now/);
+    assert.match(d.alwaysPlusLog, /PLUS/);
   });
 
   it("piggy earnings buffer skips hitch so message cannot wipe listed gains", () => {
@@ -886,20 +900,21 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.ok(2 * sized.injectCostEth <= leftover + 1e-18);
   });
 
-  it("MANUAL SELL (operator) still gated unless ALLOW_LOSSY_OPERATOR_SELL=yes", () => {
+  it("MANUAL SELL (operator) cannot sell red — ALLOW_LOSSY_OPERATOR_SELL is not a plus bypass", () => {
     const blocked = evaluateSellGate({
       ...toshiMoonshot,
       reason: "MANUAL SELL (operator) 50%",
       env: {},
     });
     assert.equal(blocked.allow, false);
-    const allowed = evaluateSellGate({
+    assert.equal(blocked.verdict, "HOLD");
+    const stillHeld = evaluateSellGate({
       ...toshiMoonshot,
       reason: "MANUAL SELL (operator) 50%",
       env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
     });
-    assert.equal(allowed.allow, true);
-    assert.equal(allowed.reason, "lossy-operator");
+    assert.equal(stillHeld.allow, false);
+    assert.equal(stillHeld.verdict, "HOLD");
   });
 
   it("FORCE EXIT LOCKED recovers stranded majors even when underwater", () => {
@@ -909,7 +924,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       env: {},
     });
     assert.equal(d.allow, true);
-    assert.equal(d.reason, "lossy-operator");
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "FORCE_EXIT");
+    assert.ok(isForceExitLockedReason(d.log) || d.reason.includes("FORCE EXIT"));
   });
 
   it("HITCH_COST_MULT=1 lets a 1× leftover sell through (env override)", () => {
@@ -1035,9 +1052,8 @@ describe("never-lose fee/gas leak plugs", () => {
     );
   });
 
-  it("unknown-cost sells hold when leftover cannot clear gas edge", () => {
+  it("unknown-cost sells HOLD — leftover without basis is not plus vs entry", () => {
     const gas = 0.0002;
-    // proceeds barely clear fee+impact+gas → leftover << 2× gas
     const d = evaluateSellGate({
       projectedProceedsEth: 0.00025,
       entryEth: 0, // unknown
@@ -1051,14 +1067,14 @@ describe("never-lose fee/gas leak plugs", () => {
       unknownEntry: true,
     });
     assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
     assert.match(d.log, /unknown cost|lose money|leftover/);
+    assert.match(d.alwaysPlusLog, /HOLD/);
     assert.ok(unknownCostMinLeftoverEth(gas) === gas * UNKNOWN_COST_GAS_EDGE_MULT);
   });
 
-  it("unknown-cost sells allow only when leftover clears 2× gas edge", () => {
+  it("unknown-cost sells HOLD even when leftover would clear 2× gas edge", () => {
     const gas = 0.00002;
-    const fees = 0.01 * 0.006 + 0.01 * 0.003 + gas; // fee+impact+gas on 0.01 proceeds
-    const need = gas * UNKNOWN_COST_GAS_EDGE_MULT;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01,
       entryEth: 0,
@@ -1071,9 +1087,10 @@ describe("never-lose fee/gas leak plugs", () => {
       reason: "🌙 DUST RECYCLE — unknown cost basis",
       unknownEntry: true,
     });
-    // leftover = 0.01 - fees; should exceed 2× gas on this size
-    assert.ok(0.01 - fees > need);
-    assert.equal(d.allow, true);
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /unknown cost/);
+    assert.match(d.alwaysPlusLog, /HOLD/);
   });
 
   it("oracle fallback forces plain sale (never hitch without live L1)", () => {
@@ -1095,7 +1112,7 @@ describe("never-lose fee/gas leak plugs", () => {
     assert.match(d.log, /L1 fee unknown|plain/);
   });
 
-  it("oracle fallback still hitches VITA when leftover already covered a larger Eureka trailer", () => {
+  it("oracle fallback never hitches even if leftoverWouldCoverHitch (L1 undercover hole)", () => {
     const l2Hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = l2Hitch * 2 + 1e-12;
     const d = evaluateSellGate({
@@ -1110,8 +1127,10 @@ describe("never-lose fee/gas leak plugs", () => {
       reason: "MAX PEAK",
     });
     assert.equal(d.allow, true);
-    assert.equal(d.skipHitch, false);
-    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "SKIP_HITCH");
+    assert.match(d.log, /L1 fee unknown|plain/);
+    assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
   });
 
   it("net after skim never lists a wiped edge as profit", () => {
@@ -1133,5 +1152,264 @@ describe("never-lose fee/gas leak plugs", () => {
     assert.equal(unknown.netUsd, 0);
     assert.equal(unknown.unknownCost, true);
     assert.equal(netAfterSkimEth(0.01, 0.0001), 0.0099);
+  });
+});
+
+describe("always-plus exit — large hitch must not flip a green sell red", () => {
+  it("10KB wanted hitch on a thin leftover skips or shrinks — leftover stays plus", () => {
+    const leftover = 0.0002; // green after fees
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 10_000,
+      l1FeeEth: 0.001, // 10KB L1 would wipe leftover many times over
+      l1FeePerByteEth: 0.001 / 10_000,
+      reservedL1FeeEth: 0.001 * 10 / 10_000,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "GAME",
+    });
+    assert.equal(d.allow, true, "green leftover must still sell");
+    assert.ok(d.leftover > 0);
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.equal(d.injectCostEth, 0);
+      assert.ok(d.leftover > 0);
+      assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    } else {
+      assert.ok(d.hitchBytes < 10_000, "must shrink 10KB wave");
+      assert.ok(d.plusNetEth > 0, "1× hitch this tx must leave plus");
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("HAT earnings fuel cannot size hitch past leftover (would flip green red)", () => {
+    const leftover = 0.0001;
+    const sized = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      earningsEth: 0.002, // used to add 50% as extra hitch fuel
+      gwei: 0.05,
+      wantedBytes: 10_000,
+      hitchCostMult: 1,
+    });
+    assert.ok(
+      sized.skipHitch || plusAfterHitchEth(leftover, sized.injectCostEth) > 0,
+      "hitch cost must not exceed leftover",
+    );
+    assert.ok(sized.spendableEth <= leftover + 1e-18);
+  });
+
+  it("conservative proceeds take min(mark, quote) so Dex cannot paint a Uni fill green", () => {
+    assert.equal(conservativeSellProceedsEth({ markEth: 0.01, quotedEth: 0.008 }), 0.008);
+    assert.equal(conservativeSellProceedsEth({ markEth: 0.008, quotedEth: 0.01 }), 0.008);
+    assert.equal(conservativeSellProceedsEth({ markEth: 0.01, quotedEth: 0 }), 0.01);
+    assert.equal(wei18ToEth(10n ** 15n), 0.001);
+    assert.ok(MIN_PLUS_ETH > 0);
+    assert.match(formatAlwaysPlusLog({
+      verdict: "PLUS", symbol: "GAME", leftover: 1e-5, entrySold: 0.01, feesEth: 1e-6, hitchCostEth: 1e-8, netEth: 9.99e-6, hitchBytes: 69,
+    }), /PLUS sell GAME/);
+  });
+});
+
+describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
+  // Risk-desk FIFO: 31 red sells (proceeds < buy cost).
+  // BASECAT 12, MORPHO 4, SKI 4, LINK 3, UNI 3, AERO 2, VVV 2, DRB 1.
+  // Worst BASECAT: 0xe53b1f70… 0xd42cca53… 0x753ce264…
+  // DRB hitch-prove 0xb495213f… tiny red (−5.4e-7 ETH).
+  // Numbers below are class mirrors (proceeds < soldFrac×entry, or hitch would
+  // flip a hair of plus red). Not invented live P&L for those hashes.
+  const FIFO_RED_SYMBOLS = ["BASECAT", "MORPHO", "SKI", "LINK", "UNI", "AERO", "VVV", "DRB"];
+  const basecatUnderwater = {
+    symbol: "BASECAT",
+    reason: "🎯 MAX PEAK",
+    sellPct: 0.98, // piggy leave-behind
+    entryEth: 0.001,
+    projectedProceedsEth: 0.00070, // proceeds < soldFrac × entry
+    feePct: 0.010, // catalog BASECAT Uni v3 1%
+    gasCostEth: 0.00002,
+    impactPct: 0.003,
+    gwei: 0.05,
+    wantedHitchBytes: STORE_HITCH_BYTES,
+  };
+
+  it("BASECAT 0xe53b1f70 / 0xd42cca53 / 0x753ce264 class: proceeds < buy cost HOLDs", () => {
+    const d = evaluateSellGate(basecatUnderwater);
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover <= 0);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("BASECAT STOP LOSS, moonshot trim, and operator ALLOW_LOSSY still HOLD underwater", () => {
+    for (const reason of ["STOP LOSS", "MANUAL SELL (operator) 50%", "🌙 MOONSHOT TRIM — not in active tiers"]) {
+      const d = evaluateSellGate({
+        ...basecatUnderwater,
+        reason,
+        env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      });
+      assert.equal(d.allow, false, reason);
+      assert.equal(d.verdict, "HOLD", reason);
+    }
+  });
+
+  it("Dex mark cannot paint BASECAT green when Uni quote is underwater", () => {
+    const markEth = 0.00120; // looks plus vs 0.001 entry
+    const quotedEth = 0.00072; // fill thinner than soldFrac × entry
+    const proc = conservativeSellProceedsEth({ markEth, quotedEth });
+    assert.equal(proc, quotedEth);
+    const d = evaluateSellGate({
+      ...basecatUnderwater,
+      projectedProceedsEth: proc,
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+  });
+
+  it("FIFO red symbols (31 sells) HOLD the same underwater class", () => {
+    for (const symbol of FIFO_RED_SYMBOLS) {
+      const d = evaluateSellGate({ ...basecatUnderwater, symbol });
+      assert.equal(d.allow, false, symbol);
+      assert.equal(d.verdict, "HOLD", symbol);
+    }
+  });
+
+  it("DRB 0xb495213f class: leftover after fees already −5.4e-7 HOLDs", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 - 5.4e-7,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      impactPct: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover < 0);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("DRB 0xb495213f hitch-prove: hitch that would print −5.4e-7 sizes DOWN or SKIP", () => {
+    // leftover after fees is a hair of plus; planned VITA packet L1 would flip red.
+    const leftover = 1e-7;
+    const hitchWould = leftover + 5.4e-7;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      impactPct: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400, // planned KEY+LOC packet, not 10-byte §$STORE§
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      reservedL1FeeEth: hitchWould * STORE_HITCH_BYTES / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, true, "must still take the plus — never HOLD a green leftover");
+    assert.ok(d.leftover > 0);
+    assert.ok(d.plusNetEth > 0, "net after 1× this-tx hitch (or skip) must stay plus");
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.equal(d.injectCostEth, 0);
+      assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    } else {
+      // size hitch DOWN so the 400B packet cannot print −5.4e-7
+      assert.ok(d.hitchBytes < 400, "must not send the full packet that would go red");
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("VITA planned packet sizes DOWN to leftover-after-plus (not 10-byte tag floor)", () => {
+    const leftover = 0.00005;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: 0.00002,
+      l1FeePerByteEth: 0.00002 / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, true);
+    assert.ok(d.leftover > 0);
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.ok(d.plusNetEth > 0);
+    } else {
+      assert.ok(d.hitchBytes > 0);
+      assert.ok(d.hitchBytes <= 400);
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("hitch-embedded FIFO red (UNI10/DRB5/BASECAT2/LINK2) cannot send — HOLD or SKIP hitch", () => {
+    // Live tip 977e839 after #62 opened: 19 new reds, all hitch-embedded.
+    // Class mirrors — not invented live P&L for 0xadd3b2e4… 0x1d2a7c29…
+    // 0x4f8c461a… 0xc304e13a…
+    const hitchEmbedded = [
+      { symbol: "BASECAT", hash: "0xadd3b2e4", feePct: 0.010 },
+      { symbol: "UNI", hash: "0x1d2a7c29", feePct: 0.003 },
+      { symbol: "DRB", hash: "0x4f8c461a", feePct: 0.010 },
+      { symbol: "LINK", hash: "0xc304e13a", feePct: 0.003 },
+    ];
+    for (const row of hitchEmbedded) {
+      const underwater = evaluateSellGate({
+        ...basecatUnderwater,
+        symbol: row.symbol,
+        feePct: row.feePct,
+        wantedHitchBytes: 400,
+        reason: "🎯 PEAK RIDE",
+      });
+      assert.equal(underwater.allow, false, `${row.hash} ${row.symbol} proceeds < buy cost`);
+      assert.equal(underwater.verdict, "HOLD", row.hash);
+      assert.equal(underwater.skipHitch, true, `${row.hash} must not hitch-embed a red exit`);
+
+      const leftover = 1e-7;
+      const hitchWould = leftover + 5.4e-7;
+      const thinPlus = evaluateSellGate({
+        projectedProceedsEth: 0.01 + leftover,
+        entryEth: 0.01,
+        sellPct: 1,
+        feePct: 0,
+        gasCostEth: 0,
+        gwei: 0.05,
+        wantedHitchBytes: 400,
+        l1FeeEth: hitchWould,
+        l1FeePerByteEth: hitchWould / 400,
+        hitchFeeSource: "getL1Fee",
+        reason: "🎯 PEAK RIDE",
+        symbol: row.symbol,
+      });
+      assert.equal(thinPlus.allow, true, `${row.hash} plain plus must still sell`);
+      assert.ok(thinPlus.plusNetEth > 0, `${row.hash} net after hitch/skip must stay plus`);
+      if (thinPlus.skipHitch) {
+        assert.equal(thinPlus.verdict, "SKIP_HITCH");
+        assert.equal(thinPlus.injectCostEth, 0);
+      } else {
+        assert.ok(thinPlus.hitchBytes < 400, `${row.hash} must not send full KEY+LOC that would go red`);
+        assert.ok(plusAfterHitchEth(thinPlus.leftover, thinPlus.injectCostEth) > 0);
+      }
+    }
   });
 });
