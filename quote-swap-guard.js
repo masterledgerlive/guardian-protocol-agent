@@ -327,7 +327,7 @@ export function feeTierCandidates(preferred) {
   return [pref, ...V3_FEE_TIERS.filter((f) => f !== pref)];
 }
 
-function poolAddr(v) {
+export function poolAddr(v) {
   const s = String(v || "").toLowerCase();
   if (!s.startsWith("0x") || /^0x0+$/.test(s)) return null;
   return s;
@@ -338,8 +338,9 @@ function poolAddr(v) {
  * permissionless fee that happens to quote. A 100/500 ghost can quote while
  * the deep 10000 book is the pair that already passed $25k / 5%-of-pool.
  *
- * preferredPool set + known other pools quoted → null (do not steal the clip).
- * No preferred pool (sells / DexScreener outage) → highest factory liquidity.
+ * preferredPool set → that pool or null (factory flake / mismatch never
+ * falls through to highest-liquidity). No preferred pool (sells /
+ * DexScreener outage) → highest factory liquidity.
  */
 export function pickQuotedPool(candidates, { preferredPool = null } = {}) {
   const rows = (Array.isArray(candidates) ? candidates : []).filter((c) => {
@@ -349,9 +350,7 @@ export function pickQuotedPool(candidates, { preferredPool = null } = {}) {
   if (!rows.length) return null;
   const wanted = poolAddr(preferredPool);
   if (wanted) {
-    const hit = rows.find((c) => poolAddr(c.pool) === wanted);
-    if (hit) return hit;
-    if (rows.some((c) => poolAddr(c.pool))) return null;
+    return rows.find((c) => poolAddr(c.pool) === wanted) || null;
   }
   let best = rows[0];
   for (const row of rows.slice(1)) {
@@ -382,6 +381,24 @@ export function adoptLivePoolFee(token, fee) {
   token.feeTier = f;
   token.poolFeePct = catalogPoolFeePct(f);
   return { changed: true, fee: f, prev };
+}
+
+/** Live Uni V3 fee must not be more expensive than the RT% cost gates already used. */
+export function liveFeeWithinGatedCost(gatedPct, liveFee) {
+  const livePct = catalogPoolFeePct(liveFee);
+  const gated = Number(gatedPct);
+  const gatedOk = Number.isFinite(gated) ? gated : 0;
+  if (livePct <= gatedOk + 1e-12) {
+    return { allow: true, livePct, gatedPct: gatedOk, log: null };
+  }
+  return {
+    allow: false,
+    livePct,
+    gatedPct: gatedOk,
+    log:
+      `🛑 LIVE FEE ${liveFee} poolFeePct ${livePct} > gated ${gatedOk} — ` +
+      `cost gates sized this clip at the cheaper catalog rate. Not sending.`,
+  };
 }
 
 /**

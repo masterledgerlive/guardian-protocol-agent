@@ -270,7 +270,9 @@ import {
   requireLiveQuoterFill,
   plainSaleIfHitchTooThin,
   adoptLivePoolFee,
+  liveFeeWithinGatedCost,
   pickQuotedPool,
+  poolAddr,
   isQuoteContractRevert,
   evaluateSwapRouterRoute,
   requireFactoryLiquidity,
@@ -2129,7 +2131,7 @@ async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
 /** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
 async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferredPool = null } = {}) {
   const fees = feeTierCandidates(feeTier);
-  const wanted = String(preferredPool || "").toLowerCase();
+  const wanted = poolAddr(preferredPool);
   const candidates = [];
   for (const fee of fees) {
     const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
@@ -2141,10 +2143,9 @@ async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferred
       }
       continue;
     }
-    const pool = String(depth.pool || "").toLowerCase();
-    // Buy path binds to the DexScreener Uni V3 WETH pair that already passed
-    // $25k / 5%-of-pool. Do not quote a thinner permissionless fee.
-    if (wanted && pool && pool !== wanted && !/^0x0+$/.test(pool)) continue;
+    // Buy path binds to the DexScreener Uni V3 WETH pair. Factory flake
+    // (no pool address) is not proof this fee is that book — skip it.
+    if (wanted && poolAddr(depth.pool) !== wanted) continue;
     const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
     if (amountOut && amountOut > 0n) {
       candidates.push({ amountOut, fee, liquidity: depth.liquidity, pool: depth.pool });
@@ -5852,11 +5853,16 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       }
     }
     quotedTokens = quoteGate.quotedOut;
+    const gatedPct = token.poolFeePct || 0.006;
+    const feeCost = liveFeeWithinGatedCost(gatedPct, swapFee);
     if (swapFee !== token.feeTier) {
       const adopted = adoptLivePoolFee(token, swapFee);
       if (adopted.changed) {
         console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
       }
+    }
+    if (!feeCost.allow) {
+      return await skipBuy(reason, token.symbol, feeCost.log);
     }
     let minTokens = slippageFloor(quotedTokens, SLIPPAGE_GUARD);
     const buyMinOut = sanitizeAmountOutMinimum({
@@ -6383,11 +6389,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       }
     }
     quotedWeth = quoteGate.quotedOut;
+    const sellFeeCost = liveFeeWithinGatedCost(token.poolFeePct || 0.006, swapFee);
     if (swapFee !== token.feeTier) {
       const adopted = adoptLivePoolFee(token, swapFee);
       if (adopted.changed) {
         console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
       }
+    }
+    if (!sellFeeCost.allow) {
+      // Leftover exits stay open. Hitch leftover was sized at the cheaper catalog RT%.
+      sellGate.skipHitch = true;
+      console.log(`   ${sellFeeCost.log} leftover sell — hitch skipped, encode at live fee`);
     }
     minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
     console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
