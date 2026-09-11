@@ -9,7 +9,7 @@ V4: **deferred** — `/v4` docs link only. Do not expand V4 in this hub.
 
 | Open this | What it is |
 |---|---|
-| **`/board`** | Control Board — V3 hitch surfaces, leftover/hitch capacity, piggy, bot-usage piggy, earn sim, gated live queue |
+| **`/board`** | Control Board — V3 hitch surfaces, outlet KEEP/CUT/CAUTION scoreboard, leftover/hitch capacity, piggy, bot-usage piggy, earn sim, gated live queue |
 | `/engine` | Full wave / surfer / hitch hardware view |
 | `/arena` | Full ledger game + practice sim |
 | `guardian-protocol/` dashboard `:8787` | **Different Arena** — L1 research simulator, not Railway |
@@ -27,7 +27,8 @@ Public JSON: `GET /board/api/inject` (catalog parsed from `agent.js` as text —
 
 | Surface | What to use |
 |---|---|
-| **Tradeable hitch surfaces** | Every catalog name that is not `frozen` / `disabled`. Hitch Eureka only when leftover covers; otherwise plain swap. |
+| **Tradeable hitch surfaces** | Every catalog name that is not `frozen` / `disabled`. Hitch KEY+LOC only when leftover covers; otherwise plain swap. |
+| **Outlet scoreboard** | KEEP / CUT / CAUTION — `GET /board/api/scoreboard`. GAME ghost is **CUT**. Always-plus leftover sells stay open. |
 | **Inject mains** | `LINK` (favorite) `UNI` `VVV` `ZORA` `BNKR` `AERO` `MORPHO` — prefer leftover-covered inject. |
 | **Deferred majors** | `CBBTC` `AAVE` — frozen, not inject seats. |
 | **Leftover / hitch capacity** | Same lose-zero math as production. Demo = labeled assumptions. Authorized snapshot uses leftover from **holding** waves (price vs entry) — still estimated, never `hitchProve` P&L. |
@@ -67,10 +68,50 @@ Dust piggy never sells to pay Grok. Vault never spends.
 | COST_EDGE | **always on** in code (not an env toggle) | checkbox to include/skip in sim |
 | Peak-ride | **always on** (hist-max touch is **not** a sell) | display + sim flag |
 
+## Outlet scoreboard (KEEP / CUT / CAUTION)
+
+Public JSON: `GET /board/api/scoreboard` (also nested on `/board/api/inject`).
+
+Hitch **while traveling** swap routes — only on Uni V3 WETH/USDC that Quoter
+actually fills. Cut outlets that lose; keep ones that can earn. Rates are
+**observed on-chain receipts** or `null`. Never invent P&L.
+
+| Recommend | Meaning |
+|---|---|
+| **KEEP** | Tradeable Uni V3 hitch surface (inject mains first). Hitch KEY+LOC if leftover covers. |
+| **CAUTION** | Frozen exits-only (CBBTC / AAVE / XCN / thin books). No new buys. Leftover-green sells stay open (**always-plus**). |
+| **CUT** | Proven loser / no SwapRouter02 book. GAME ghost is the class: Uni V3 WETH fee 3000 `liquidity()=0`, three mined STF reverts (`0x2644773a…`, `0x2589e0a3…`, `0x280e898e…`). WELL (Aerodrome) and KITE (no pool) are CUT too. |
+
+GAME is catalog-**frozen** CUT. `/unfreeze` must not treat it as a hitch seat.
+Always-plus (#62): CUT freezes **buys**, never leftover-green **sells**. HOLD if proceeds < buy cost; hitch shrinks or SKIP; no orch re-hitch after strip.
+
+### Route awareness (Base Uni V3 fees)
+
+Before a buy, enumerate fee tiers **100 / 500 / 3000 / 10000**. Keep the ones
+Quoter fills. Skip `liquidity()=0`. Pick the deepest/cheapest **effective**
+path (most `amountOut`, then lower fee). Do not send to a ghost pool.
+
+Live submit hardening (Quoter miss never sends) is on main via #61
+`quote-swap-guard.js` — this hub ranks routes and freezes CUT names. Do not
+merge V4 into this V3 injector.
+
+### Cheaper hitch (KEY+LOC ~69 B vs Eureka 229 B)
+
+Leftover hitch stays dense **KEY+LOC** (`VITA_HITCH_MODE=vita`). Eureka 229 B
+leftover is the expensive class (GAME fail hitch). `/prove` keeps the love note.
+
+On a **~$3 liquid bag**, LOSE-ZERO hitch rate is labeled on the board
+(`hitchDensity`): leftover ≈ 2% of bag. If leftover covers KEY+LOC but not
+Eureka, hitch KEY+LOC. If leftover covers neither, **plain** swap. If leftover
+after fees ≤ 0, hitch rate is **0** (always-plus hold).
+
+OP-stack L1 data fee (already `l1-fee-oracle.js`), Arbitrum batch compression,
+and Solana memo are **byte-cost lessons** — live inject stays Base V3.
+
 ## LOSE-ZERO (do not weaken)
 
-- Never sell underwater (leftover after fees ≤ 0 → hold).
-- Hitch Eureka only when leftover covers; otherwise **plain** swap — never lose to insert storage.
+- Never sell underwater (leftover after fees ≤ 0 → hold). **Always-plus** exits.
+- Hitch KEY+LOC only when leftover covers; otherwise **plain** swap — never lose to insert storage. Eureka leftover is `/prove`, not thin leftover.
 - Piggy dust never sells except explicit `/piggyunlock`.
 - Vault never spends.
 - No invented P&L.

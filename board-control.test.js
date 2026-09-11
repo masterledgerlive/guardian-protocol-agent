@@ -9,6 +9,8 @@ import {
   demoBoardSnapshot,
   v4BoardStatus,
   listV3InjectSurfaces,
+  listOutletScoreboard,
+  hitchDensityBoard,
   parseDefaultTokensFromAgentSource,
   leftoverHitchCapacity,
   leftoverInputsFromEngine,
@@ -180,6 +182,8 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(h.boards.l1_arena.mounted, false);
     assert.equal(h.apis.sim.mutate, false);
     assert.equal(BOARD_PATHS.hub, "/board");
+    assert.equal(BOARD_PATHS.scoreboard, "/board/api/scoreboard");
+    assert.equal(h.apis.scoreboard.mutate, false);
   });
 
   it("demo snapshot lists V3 inject surfaces, bot-usage piggy DEMO, and deferred V4 stub", () => {
@@ -190,6 +194,7 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(d.v4.page, "/v4");
     assert.equal(d.v4.sameProcessAsV3, false);
     assert.equal(d.inject.kind, "v3-uniswap-inject-surfaces");
+    assert.equal(d.scoreboard.gameGhost.class, "CUT");
     assert.ok(d.inject.hitchSurfaces.length >= 10);
     assert.equal(d.botPiggy.kind, "demo|example");
     assert.equal(d.botPiggy.grokNowUsdPerMonth, 20);
@@ -265,6 +270,25 @@ describe("V3 inject surfaces (agent.js catalog as text)", () => {
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "AIXBT" && t.frozen));
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "WELL" && t.disabled));
     assert.ok(surf.hitchSurfaces.length >= 14);
+  });
+
+  it("outlet scoreboard marks GAME CUT and never invents hitch P&L", () => {
+    const src = readFileSync(new URL("./agent.js", import.meta.url), "utf8");
+    const board = listOutletScoreboard({ agentSrc: src });
+    assert.equal(board.gameGhost.class, "CUT");
+    assert.ok(board.cut.includes("GAME"));
+    assert.ok(board.cut.includes("WELL"));
+    assert.ok(board.keep.includes("LINK"));
+    const game = board.rows.find((r) => r.symbol === "GAME");
+    assert.equal(game.recommend, "CUT");
+    assert.equal(game.hitchSuccessRate, 0);
+    assert.equal(game.pnlUsd, null);
+    assert.equal(game.alwaysPlusExitOpen, true);
+    assert.equal(board.alwaysPlus.cutClassDoesNotBlockGreenExit, true);
+    const dens = hitchDensityBoard({ bagUsd: 3 });
+    assert.equal(dens.prefer, "key-loc");
+    assert.ok(dens.keyLoc.bytes < dens.eurekaLeftover.bytes);
+    assert.equal(dens.l2Lessons.v4Deferred, true);
   });
 });
 

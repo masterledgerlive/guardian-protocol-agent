@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added — Outlet scoreboard + dense KEY+LOC hitch (Base V3 only)
+
+Faster leftover hitch without losing money: keep outlets that can earn a Uni V3
+fill, cut ghosts, prefer ~69 B KEY+LOC over Eureka 229 B when leftover is thin.
+
+- `outlet-scoreboard.js` — per-symbol KEEP / CUT / CAUTION. GAME ghost
+  (`liquidity()=0` at fee 3000, three mined STF reverts) is the **CUT** class.
+  Hitch success / revert rates are observed receipts only — never invented P&L.
+- Catalog freeze: GAME `frozenReason` is CUT class (exits remain; always-plus).
+  WELL / KITE stay disabled CUT. GET `/board/api/scoreboard`.
+- `v3-fee-routes.js` — enumerate Uni V3 fees 100/500/3000/10000; never pick
+  `liquidity()=0`; deepest/cheapest effective path among Quoter fills. Live
+  send-path quote-gate is on main (#61) — this module ranks, does not fight it.
+- `hitch-density.js` — leftover hitch prefers KEY+LOC when leftover covers it
+  but not Eureka 229 B; documents max inject rate under LOSE-ZERO on a ~$3 bag
+  (labeled). L2 lessons (OP-stack L1 fee, Arbitrum compression, Solana memo)
+  stay research — live injector remains Base V3. V4 deferred.
+- Always-plus coordination: CUT never blocks leftover-green sells. #62 HOLD /
+  hitch shrink-or-SKIP / no orch re-hitch after strip stay in force.
+
+Does **not** merge Uni V4 into the V3 injector. Does **not** invent P&L.
+
 ### Fixed — always-plus exit (hitch/HAT cannot flip a green sell red)
 
 RISK bag was still bleeding on exits: leftover after fees looked green, then
