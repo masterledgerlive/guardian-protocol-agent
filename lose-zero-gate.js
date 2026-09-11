@@ -841,7 +841,10 @@ export function cashFlowNetEth(ethIn = 0, ethOut = 0) {
  * remaining = ethIn × remainingTokens / tokensIn.
  * Never ethIn − ethOut: every plus sell shrinks cash-flow leftover below the
  * cost of the leftover pile, then always-plus paints a later red exit green.
- * Extra units beyond recorded buys → unknown (do not sell red to discover).
+ * Extra units beyond recorded buys, or missing lot sizes (`tokensIn` ≤ 0),
+ * → unknown (do not sell red to discover). Persisted `totalInvestedEth` is
+ * not trusted when lots cannot be allocated — that figure can still be
+ * cash-flow leftover from a prior boot.
  */
 export function fifoRemainingCostEth({
   ethIn = 0,
@@ -861,9 +864,6 @@ export function fifoRemainingCostEth({
     return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
   }
   if (!Number.isFinite(bought) || bought <= 0) {
-    if (Number.isFinite(persisted) && persisted > 0) {
-      return { unknown: false, investedEth: persisted, reason: "persisted", proportional: 0 };
-    }
     return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
   }
   if (remain > bought * 1.02 + 1e-9) {
