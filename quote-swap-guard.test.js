@@ -208,11 +208,11 @@ describe("agent.js wiring — quote miss never sends", () => {
     const row = src.slice(i, src.indexOf("{ symbol:", i + 1));
     assert.match(row, /feeTier:\s*10000/);
     assert.match(row, /poolFeePct:\s*0\.010/);
-    assert.match(row, /frozen:\s*true/);
+    assert.match(row, /frozen:\s*true/, "GAME freeze stays from #60 — do not unfreeze");
     assert.ok(!/feeTier:\s*3000/.test(row), "GAME must not stay on empty 3000");
   });
 
-  it("GAME is catalog-frozen exits-only — no FREEZE_GAME env, injector stays up", () => {
+  it("GAME stays catalog-frozen from #60 — exits-only, not disabled, no sticky /unfreeze lock", () => {
     const i = src.indexOf('symbol: "GAME"');
     assert.ok(i >= 0);
     const row = src.slice(i, src.indexOf("{ symbol:", i + 1));
@@ -220,24 +220,13 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.equal(GAME_TOKEN.toLowerCase(), "0x1c4cca7c5db003824208adda61bd749e55f463a3");
     assert.match(row, /frozen:\s*true/);
     assert.ok(!/disabled:\s*true/.test(row), "GAME must stay exits-capable, not disabled");
-    assert.ok(!/process\.env\.FREEZE_GAME/.test(src) && !/\bFREEZE_GAME\s*=/.test(src),
-      "Railway has no FREEZE_GAME env — catalog is the gate");
-    assert.ok(src.includes("catalogFreezeIsSticky"), "catalog freeze must win over /unfreeze");
-    assert.ok(src.includes("applyStickyCatalogFreeze"), "executeBuy must re-apply catalog freeze");
-    const buyFn = src.indexOf("async function executeBuy(");
+    assert.ok(!src.includes("catalogFreezeIsSticky"), "do not duplicate #60 freeze as sticky /unfreeze lock");
+    assert.ok(!src.includes("applyStickyCatalogFreeze"), "runtime /unfreeze must still be able to lift catalog freeze");
     const sellFn = src.indexOf("async function executeSell(");
-    const buyEnd = src.indexOf("\nasync function ", buyFn + 1);
     const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
-    const buyBody = src.slice(buyFn, buyEnd);
     const sellBody = src.slice(sellFn, sellEnd);
-    assert.ok(buyBody.includes("applyStickyCatalogFreeze"), "new buys cannot arm GAME");
     assert.ok(!sellBody.includes("isCatalogFrozen"), "residual GAME sells stay open");
-    assert.ok(!sellBody.includes("applyStickyCatalogFreeze"), "sticky freeze is buy-side only");
     assert.ok(src.includes('INJECT_MAIN_PLAYERS = ["LINK"'), "do not disable the whole injector");
-    const unfreeze = src.indexOf('text.startsWith("/unfreeze ")');
-    const unfreezeEnd = src.indexOf('text.startsWith("/freeze ")', unfreeze);
-    const unfreezeBody = src.slice(unfreeze, unfreezeEnd > 0 ? unfreezeEnd : unfreeze + 800);
-    assert.ok(unfreezeBody.includes("catalogFreezeIsSticky"), "/unfreeze GAME must refuse");
   });
 
   it("rejects factory liquidity=0 before QuoterV2 (GAME ghost fee 3000)", () => {
@@ -258,10 +247,12 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(route >= 0 && route < liveQuote, "DexScreener book gate before buy quote");
     const wrap = buyBody.indexOf("wrapEth");
     assert.ok(wrap < 0 || liveQuote < wrap, "factory/quote reject before wrap");
-    const row = src.slice(src.indexOf('symbol: "GAME"'), src.indexOf("{ symbol:", src.indexOf('symbol: "GAME"') + 1));
-    assert.match(row, /0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3/);
-    assert.match(row, /0x70fbffe313d4a40909dba7129e0b2f4a45a645b5/);
-    assert.match(row, /liquidity\(\)=0/);
+    assert.equal(
+      GAME_EMPTY_FEE_3000_POOL.toLowerCase(),
+      "0x70fbffe313d4a40909dba7129e0b2f4a45a645b5",
+    );
+    assert.match(src, /0x70fbffe313d4a40909dba7129e0b2f4a45a645b5/);
+    assert.match(src, /liquidity\(\)=0/);
   });
 
   it("executeBuy and executeSell require a live Quoter fill and fee fallback", () => {
@@ -285,6 +276,14 @@ describe("agent.js wiring — quote miss never sends", () => {
       buyBody.includes("skipHitch: buySkipHitch || buyVoice.onChain")
         || buyBody.includes("skipHitch: buySkipHitch|| buyVoice.onChain"),
       "orch must not hitch when leftover skipped hitch"
+    );
+    assert.ok(
+      buyBody.includes('buyVoice.kind === "plain-thin"'),
+      "orch hitch skip must match sell: thin leftover only"
+    );
+    assert.ok(
+      !buyBody.includes("buySkipHitch || !buyVoice.onChain"),
+      "missing voice hitch must not zero orch silo capacity"
     );
     assert.ok(buyBody.includes("evaluateSwapRouterRoute"), "buy must refuse Uni V2 / thin V3 books");
     assert.ok(buyBody.includes("requireFactoryLiquidity"), "buy must check factory liquidity");

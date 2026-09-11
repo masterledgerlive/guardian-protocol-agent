@@ -266,14 +266,14 @@ import {
   utf8ByteLength,
 } from "./swap-minout.js";
 import {
-    feeTierCandidates,
-    requireLiveQuoterFill,
-    plainSaleIfHitchTooThin,
-    adoptLivePoolFee,
-    isQuoteContractRevert,
-    evaluateSwapRouterRoute,
-    requireFactoryLiquidity,
-    UNISWAP_V3_FACTORY_BASE,
+  feeTierCandidates,
+  requireLiveQuoterFill,
+  plainSaleIfHitchTooThin,
+  adoptLivePoolFee,
+  isQuoteContractRevert,
+  evaluateSwapRouterRoute,
+  requireFactoryLiquidity,
+  UNISWAP_V3_FACTORY_BASE,
 } from "./quote-swap-guard.js";
 import {
   BASE_QUOTER_V2,
@@ -1742,9 +1742,9 @@ const DEFAULT_TOKENS = [
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
 
   { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Desk-confirmed ghost: Uni V3 GAME/WETH fee 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 liquidity()=0. Liquid book is Uni V2 GAME/VIRTUAL. Screener CAUTION. Freeze new buys; exits remain. Catalog freeze is the gate (no FREEZE_GAME env).",
+    frozen: true, frozenReason: "Thin/wrong-pool Uni V3 WETH — liquid book is Uni V2 GAME/VIRTUAL 0xD418dfE7670c21F682E041F34250c114DB5D7789 (~$2.14M); Uni V3 GAME/WETH feeTier 3000 0x70fbffe3… liquidity()=0 / ghost (STF buys hit the wrong book). Screener CAUTION — not battle-tested. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
-    notes: "GAME by Virtuals — FROZEN exits-only. Liquid book is Uni V2 GAME/VIRTUAL; SwapRouter cannot fill it." },
+    notes: "GAME by Virtuals — AI gaming agent infra. FROZEN exits-only — thin Uni V3 WETH vs liquid Uni V2 GAME/VIRTUAL." },
 
   // ── GREENLIGHT ADDS — liquid Base Uni/Aero books (DexScreener 2026-09-06) ──
   { symbol: "BASECAT", address: "0xB2000000000000000000004c27f6523082f41D01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
@@ -1889,27 +1889,6 @@ const DEFAULT_TOKENS = [
     score: { liquidity:6, waveQuality:6, fundamentals:5, coinbaseFit:6, community:8, total:31 },
     notes: "FREN. FROZEN — no Base pool." },
 ];
-
-/** Catalog `frozen: true` is the buy gate. Railway has no FREEZE_GAME env. */
-function defaultCatalogRow(symbol) {
-  return DEFAULT_TOKENS.find((t) => t.symbol === String(symbol || "").toUpperCase()) || null;
-}
-
-function catalogFreezeIsSticky(symbol) {
-  const def = defaultCatalogRow(symbol);
-  if (!def) return false;
-  return isCatalogFrozen(applyWethDeadFreeze(def));
-}
-
-/** Re-apply code catalog freeze so runtime /unfreeze cannot arm new buys. Sells stay open. */
-function applyStickyCatalogFreeze(token) {
-  if (!token) return token;
-  if (!catalogFreezeIsSticky(token.symbol)) return token;
-  const def = applyWethDeadFreeze(defaultCatalogRow(token.symbol) || token);
-  token.frozen = true;
-  if (def.frozenReason) token.frozenReason = def.frozenReason;
-  return token;
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔭 WATCHLIST — Future pipeline. Guardian learns prices, never trades.
@@ -5584,8 +5563,6 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
   try {
     // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
     // cascade / ripple) dies here. Sells never call this function.
-    // Catalog frozen:true is sticky (GAME etc.) — no FREEZE_GAME env knob.
-    applyStickyCatalogFreeze(token);
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
@@ -5927,7 +5904,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       hitchCostEth: buyHitchCostEth,
     });
     if (buyVoice.log) console.log(`   ${buyVoice.log}`);
-    const buySkipAllHitch = buySkipHitch || !buyVoice.onChain;
+    // Zero orch hitch only when leftover is too thin (plain-thin) — same as sell.
+    // A missing voice hitch must still let the silo queue ride.
+    const buySkipAllHitch = buySkipHitch || buyVoice.kind === "plain-thin";
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
@@ -5937,7 +5916,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams1, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buySkipHitch || buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain || buyVoice.kind === "plain-thin",
               maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams1),
@@ -5952,7 +5931,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams2, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buySkipHitch || buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain || buyVoice.kind === "plain-thin",
               maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams2),
@@ -7228,7 +7207,6 @@ ${modeLabel}: [${sourceNames}] → [${targetNames}] | ~$${totalSellUsd.toFixed(2
 
 async function processToken(cdp, token, bal) {
   try {
-    applyStickyCatalogFreeze(token);
     // Skip disabled tokens — they have no viable Uniswap pool
     if (token.disabled) {
       // Still track price for signal purposes, just never trade
@@ -9545,9 +9523,6 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const t   = tokens.find(t => t.symbol === sym);
         if (!t) {
           await tg(`❓ Token <b>${sym}</b> not found in token list.`);
-        } else if (catalogFreezeIsSticky(sym)) {
-          applyStickyCatalogFreeze(t);
-          await tg(`❄️ <b>${sym}</b> is catalog-frozen (exits-only).\nCode change required — /unfreeze cannot arm new buys.`);
         } else if (!t.frozen) {
           await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
         } else {
@@ -11443,13 +11418,10 @@ function applyOperatorBuyEnv() {
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
   ]);
-  // Catalog frozen names always stay frozen — runtime /unfreeze cannot reopen OPERATOR_BUY.
-  // No FREEZE_GAME env; DEFAULT_TOKENS.frozen is the gate.
-  const frozen = new Set(
-    DEFAULT_TOKENS.filter((t) => isCatalogFrozen(applyWethDeadFreeze(t))).map((t) => t.symbol),
-  );
+  // Live token.frozen wins (runtime /unfreeze). Catalog defaults fill gaps.
+  const frozen = new Set(DEFAULT_TOKENS.filter(t => isCatalogFrozen(t)).map(t => t.symbol));
   for (const t of tokens) {
-    if (catalogFreezeIsSticky(t.symbol) || isCatalogFrozen(t)) frozen.add(t.symbol);
+    if (isCatalogFrozen(t)) frozen.add(t.symbol);
     else frozen.delete(t.symbol);
   }
   const result = queueOperatorBuyOnce(manualCommands, process.env.OPERATOR_BUY, known, operatorBuyState, frozen);

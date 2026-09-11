@@ -12,6 +12,8 @@
  * (~788k of 800k gas). Cooldown armed after the third mined revert — too late.
  *
  * Live Uni V3 GAME/WETH book is fee 10000 (pool 0xE5Ff…77a3).
+ * GAME catalog freeze (exits-only) landed on main in #60 — this module does
+ * not re-freeze GAME; it stops *other* names from buying a ghost/thin V3 fee.
  *
  * Does not size P&L. Does not touch Uni V4.
  */

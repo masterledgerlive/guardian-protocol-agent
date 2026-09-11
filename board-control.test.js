@@ -247,7 +247,7 @@ describe("V3 inject surfaces (agent.js catalog as text)", () => {
     assert.equal(bySym.LINK.piggyMinUsd, 0.25);
     assert.ok(bySym.TOSHI);
     assert.ok(bySym.UNI);
-    assert.equal(bySym.GAME, undefined, "frozen GAME is not a hitch surface");
+    assert.equal(bySym.GAME, undefined);
     assert.equal(bySym.CBBTC, undefined);
     assert.equal(bySym.WELL, undefined);
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "CBBTC" && t.frozen));
