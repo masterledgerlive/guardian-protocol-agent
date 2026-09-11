@@ -77,6 +77,8 @@ describe("processToken hasPosition TDZ", () => {
     const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 8000);
     assert.ok(sellBody.includes("hitchCostMult: 1"), "sell hitch size is leftover-after-plus, not 2× veto");
     assert.ok(sellBody.includes("earningsEth: 0"), "earnings must not add hitch fuel on top of leftover");
+    assert.ok(sellBody.includes("sellSkipHitch"), "orch must not re-embed hitch after plus strip");
+    assert.ok(sellBody.includes("leftoverEth"), "KEY+LOC planner must see leftover, not hitch-force");
   });
 
   it("still reaches buy / MANUAL SELL / sellhalf after the armed-idle log", () => {

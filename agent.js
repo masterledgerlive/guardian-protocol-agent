@@ -4799,7 +4799,19 @@ function planVoiceHitch(swapData, {
     }
   }
 
-  const planned = planSecondaryHitch({ skipHitch, maxBytes, mode: "vita" });
+  const planned = planSecondaryHitch({
+    skipHitch,
+    maxBytes,
+    leftoverEth,
+    hitchCostEth: (() => {
+      const bytes = maxBytes != null
+        ? Math.max(0, Math.floor(Number(maxBytes) || 0))
+        : leftoverVoiceHitchBytes();
+      if (!(bytes > 0) || !(Number(gwei) > 0)) return undefined;
+      return estimateCalldataHitchEth(bytes, gwei);
+    })(),
+    mode: "vita",
+  });
   if (!planned.utf8) {
     recordHitchAttempt({ skippedLeftover: /leftover|skipHitch/i.test(String(planned.reason || "")) });
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
@@ -6214,12 +6226,15 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
           ? (Number(hitchL1.l1FeeEth) || 0) * (sellVoice.hitchBytes || 0) / wantedHitchBytes
           : 0)
       : 0;
+    let sellSkipHitch = !!sellGate.skipHitch;
     if (sellVoice.onChain && plusAfterHitchEth(sellGate.leftover, voiceHitchCost) <= 0) {
       console.log(
         `   SKIP_HITCH sell ${token.symbol} leftover=${Number(sellGate.leftover).toExponential(2)}` +
         ` hitchWould=${voiceHitchCost.toExponential(2)} — plain sale (wave must not wipe plus)`
       );
       sellVoice = { data: sellSwap, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
+      // Orch must not re-embed hitch after we stripped VITA to keep plus.
+      sellSkipHitch = true;
     }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
@@ -6230,10 +6245,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         ? orch.injectAndSend(_sellTx, {
             isOwnerTrade: true,
             currentGwei: gwei,
-            maxHitchBytes: sellGate.skipHitch
+            maxHitchBytes: sellSkipHitch
               ? 0
               : Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
-            skipHitch: sellGate.skipHitch || sellVoice.onChain,
+            skipHitch: sellSkipHitch || sellVoice.onChain,
           })
         : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))

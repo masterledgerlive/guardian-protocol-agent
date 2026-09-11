@@ -717,7 +717,9 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(src.includes("leftoverStillEureka"), "picture leftover hitch must wait until leftover VITA hitch exists");
     assert.ok(src.includes("isVitaPictureArmed() && !leftoverStillEureka()"), "leftover hitch stays KEY+LOC while leftover is still Eureka");
     assert.ok(src.includes("leftover hitch would clip §KEY§ names"), "must skip hitch rather than clip KEY names off the chain");
-    assert.ok(src.includes("planSecondaryHitch({ skipHitch, maxBytes, mode: \"vita\" })"), "leftover hitch default remains VITA parse, not Eureka leftover");
+    assert.ok(src.includes("planSecondaryHitch({"), "leftover hitch default remains VITA parse, not Eureka leftover");
+    assert.ok(src.includes("leftoverEth"), "KEY+LOC planner must see leftover — hitch cannot force when leftover < cost");
+    assert.ok(src.includes("hitchCostEth:"), "KEY+LOC planner must charge hitch cost, not hitch-force");
     assert.ok(src.includes("leftoverCoveredWantedBytes"), "sell leftover cover must not add orch/BTP extras while leftover is still Eureka");
     assert.ok(src.includes("leftoverCoveredWantBtp"), "BTP leftover cost must wait until leftover VITA hitch exists");
     assert.ok(src.includes("mode: \"vita\""), "leftover hitch UTF-8 and hitch-byte sizing must plan VITA, not Eureka letter length");

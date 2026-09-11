@@ -29,6 +29,11 @@ plain only when plain is still plus; else **HOLD**. Piggy dust never sold.
 - VITA #59 leftover hitch cost uses planned KEY+LOC (`leftoverVoiceHitchBytes`),
   not the 10-byte §$STORE§ tag. L1 oracle fallback SKIPs hitch on **buys and
   sells** — `leftoverWouldCoverVitaHitch` cannot re-attach KEY+LOC without live L1
+- Hitch-embedded FIFO reds on live tip `977e839` (UNI 10 / DRB 5 / BASECAT 2 /
+  LINK 2; samples 0xadd3b2e4… 0x1d2a7c29… 0x4f8c461a… 0xc304e13a…) are the
+  unmerged tip — **merge #62**. Patch: orch cannot re-embed hitch after plus
+  strip; KEY+LOC planner receives leftover+cost (no hitch-force). Peak-ride /
+  cascade / ripple still only sell through `executeSell`.
 
 FIFO red-sell class (risk desk): 31 sells with proceeds < buy cost — BASECAT 12
 (0xe53b1f70… 0xd42cca53… 0x753ce264…), MORPHO 4, SKI 4, LINK 3, UNI 3, AERO 2,

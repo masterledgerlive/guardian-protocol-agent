@@ -1359,4 +1359,54 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
       assert.equal(d.verdict, "PLUS");
     }
   });
+
+  it("hitch-embedded FIFO red (UNI10/DRB5/BASECAT2/LINK2) cannot send — HOLD or SKIP hitch", () => {
+    // Live tip 977e839 after #62 opened: 19 new reds, all hitch-embedded.
+    // Class mirrors — not invented live P&L for 0xadd3b2e4… 0x1d2a7c29…
+    // 0x4f8c461a… 0xc304e13a…
+    const hitchEmbedded = [
+      { symbol: "BASECAT", hash: "0xadd3b2e4", feePct: 0.010 },
+      { symbol: "UNI", hash: "0x1d2a7c29", feePct: 0.003 },
+      { symbol: "DRB", hash: "0x4f8c461a", feePct: 0.010 },
+      { symbol: "LINK", hash: "0xc304e13a", feePct: 0.003 },
+    ];
+    for (const row of hitchEmbedded) {
+      const underwater = evaluateSellGate({
+        ...basecatUnderwater,
+        symbol: row.symbol,
+        feePct: row.feePct,
+        wantedHitchBytes: 400,
+        reason: "🎯 PEAK RIDE",
+      });
+      assert.equal(underwater.allow, false, `${row.hash} ${row.symbol} proceeds < buy cost`);
+      assert.equal(underwater.verdict, "HOLD", row.hash);
+      assert.equal(underwater.skipHitch, true, `${row.hash} must not hitch-embed a red exit`);
+
+      const leftover = 1e-7;
+      const hitchWould = leftover + 5.4e-7;
+      const thinPlus = evaluateSellGate({
+        projectedProceedsEth: 0.01 + leftover,
+        entryEth: 0.01,
+        sellPct: 1,
+        feePct: 0,
+        gasCostEth: 0,
+        gwei: 0.05,
+        wantedHitchBytes: 400,
+        l1FeeEth: hitchWould,
+        l1FeePerByteEth: hitchWould / 400,
+        hitchFeeSource: "getL1Fee",
+        reason: "🎯 PEAK RIDE",
+        symbol: row.symbol,
+      });
+      assert.equal(thinPlus.allow, true, `${row.hash} plain plus must still sell`);
+      assert.ok(thinPlus.plusNetEth > 0, `${row.hash} net after hitch/skip must stay plus`);
+      if (thinPlus.skipHitch) {
+        assert.equal(thinPlus.verdict, "SKIP_HITCH");
+        assert.equal(thinPlus.injectCostEth, 0);
+      } else {
+        assert.ok(thinPlus.hitchBytes < 400, `${row.hash} must not send full KEY+LOC that would go red`);
+        assert.ok(plusAfterHitchEth(thinPlus.leftover, thinPlus.injectCostEth) > 0);
+      }
+    }
+  });
 });
