@@ -1,8 +1,9 @@
 /**
  * 🎩 HAT × WAVE — cost-aware memory inject on the ride up
  * ─────────────────────────────────────────────────────────────────────────────
- * One bit is only the genesis proof. Once leftover + earnings cover transmission
+ * One bit is only the genesis proof. Once leftover covers transmission
  * (plus an error cushion so we actually send), size the next HAT chunk larger.
+ * Earnings are a slice of leftover — they must not add hitch fuel on top.
  *
  * Wave math hard-codes transmission into the sell floor:
  *   sell_target ≥ entry + fees + (mult × hitch_cost(bytes)) + error_buffer
@@ -22,11 +23,13 @@
 import {
   CALLDATA_GAS_PER_NONZERO_BYTE,
   DEFAULT_HITCH_COST_MULT,
+  MIN_PLUS_ETH,
   STORE_HITCH_BYTES,
   estimateCalldataHitchEth,
   estimateInjectHitchCostEth,
   leftoverAfterFeesEth,
   maxHitchBytesForLeftover,
+  plusAfterHitchEth,
   sizeHitchForSell,
 } from "./lose-zero-gate.js";
 import {
@@ -71,22 +74,22 @@ export function transmissionErrorBufferEth(
 }
 
 /**
- * Spendable leftover for hitch bytes after error cushion + optional earnings skim.
- * Earnings can ADD capacity (wave profit pays for more bits) without spending
- * the piggy principal — only the earnings slice is optional fuel.
+ * Spendable leftover for hitch bytes after error cushion.
+ * Leftover already IS profit after entry + fees. Earnings are that same slice —
+ * adding them as extra fuel sizes hitch past leftover and flips a green exit red.
  */
 export function spendableForTransmissionEth({
   leftoverEth = 0,
   earningsEth = 0,
-  useEarningsFraction = 0.5,
+  useEarningsFraction = 0,
   errorPct = TRANSMISSION_ERROR_PCT,
   errorFloorEth = TRANSMISSION_ERROR_ETH_FLOOR,
 } = {}) {
   const left = Math.max(0, Number(leftoverEth) || 0);
   const earn = Math.max(0, Number(earningsEth) || 0);
-  const frac = Math.max(0, Math.min(1, Number(useEarningsFraction) || 0));
-  const earnFuel = earn * frac;
-  const pooled = left + earnFuel;
+  void useEarningsFraction;
+  const earnFuel = 0;
+  const pooled = left;
   const err = transmissionErrorBufferEth(pooled, {
     pct: errorPct,
     floorEth: errorFloorEth,
@@ -111,11 +114,11 @@ export function sizeHatBytesForWave({
   earningsEth = 0,
   gwei = 0,
   wantedBytes = MAX_WAVE_HITCH_BYTES,
-  hitchCostMult: mult = DEFAULT_HITCH_COST_MULT,
+  hitchCostMult: mult = 1,
   providerFeeEth = 0,
   l1FeeEth,
   l1FeePerByteEth,
-  useEarningsFraction = 0.5,
+  useEarningsFraction = 0,
   errorPct = TRANSMISSION_ERROR_PCT,
   headerOverheadBytes = 120, // §HAT§ packet + META approx
 } = {}) {
@@ -146,12 +149,31 @@ export function sizeHatBytesForWave({
     wantedBytes: wanted,
     gwei,
     providerFeeEth,
-    hitchCostMult: mult,
+    hitchCostMult: 1,
+    plusReserveEth: MIN_PLUS_ETH,
     l1FeeEth,
     l1FeePerByteEth,
   });
-
   const hitchBytes = sized.hitchBytes || 0;
+  const injectCostEth = sized.injectCostEth || 0;
+  const left = Math.max(0, Number(leftoverEth) || 0);
+  const wipePlus = injectCostEth > 0 && plusAfterHitchEth(left, injectCostEth) <= 0;
+  if (sized.skipHitch || hitchBytes === 0 || wipePlus) {
+    return {
+      ...fuel,
+      hitchBytes: 0,
+      payloadBytes: 0,
+      payloadBits: 0,
+      injectCostEth: 0,
+      hitchCostMult: 1,
+      skipHitch: true,
+      reason: wipePlus
+        ? "hitch would wipe plus — skip (never sell red to inject)"
+        : sized.skipHitch
+          ? "leftover too thin for hitch after error buffer"
+          : "skip",
+    };
+  }
   const payloadBytes = Math.max(0, hitchBytes - headerOverheadBytes);
   const payloadBits = payloadBytes * 8;
 
@@ -175,7 +197,8 @@ export function sizeHatBytesForWave({
 
 /**
  * Sell floor with transmission hard-coded into the wave.
- * sell_target = entry_slice + fees + (mult × hitch_cost) + error_buffer
+ * sell_target = entry_slice + fees + hitch_cost(1× this tx) + error_buffer
+ * Do not multiply by HITCH_COST_MULT — that raises the floor until green exits HOLD.
  */
 export function waveSellTargetWithTransmission({
   entryEth = 0,
@@ -205,10 +228,6 @@ export function waveSellTargetWithTransmission({
     providerFeeEth,
     l1FeeEth,
   });
-  const m =
-    Number.isFinite(Number(mult)) && Number(mult) >= 0
-      ? Number(mult)
-      : DEFAULT_HITCH_COST_MULT;
   const leftover = leftoverAfterFeesEth({
     projectedProceedsEth,
     entryEth,
@@ -221,7 +240,9 @@ export function waveSellTargetWithTransmission({
     pct: errorPct,
     floorEth: errorFloorEth,
   });
-  const sellTarget = entry + fees + m * hitchCost + err;
+  // 1× hitch this tx + error buffer. Do not raise the floor by HITCH_COST_MULT
+  // — that HOLDs green exits waiting for a wave that never comes.
+  const sellTarget = entry + fees + hitchCost + err;
   const covers =
     Number.isFinite(proceeds) && proceeds + 1e-18 >= sellTarget && leftover > 0;
   return {
@@ -229,13 +250,13 @@ export function waveSellTargetWithTransmission({
     entrySliceEth: entry,
     feesEth: fees,
     hitchCostEth: hitchCost,
-    hitchCoverEth: m * hitchCost,
-    hitchCostMult: m,
+    hitchCoverEth: hitchCost,
+    hitchCostMult: 1,
     hitchBytes: Math.max(0, Number(hitchBytes) || 0),
     errorBufferEth: err,
     leftoverAfterFeesEth: leftover,
     covers,
-    edgeEth: covers ? proceeds - sellTarget : proceeds - sellTarget,
+    edgeEth: proceeds - sellTarget,
   };
 }
 
@@ -282,7 +303,7 @@ export function planWaveHatRide({
   leftoverEth = 0,
   earningsEth = 0,
   gwei = 0,
-  hitchCostMult = DEFAULT_HITCH_COST_MULT,
+  hitchCostMult = 1,
   contentHash = null,
   strandId = null,
   registry = getHatRegistry(),

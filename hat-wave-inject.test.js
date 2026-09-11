@@ -42,14 +42,15 @@ describe("hat-wave: transmission error buffer + sizing", () => {
     assert.equal(transmissionErrorBufferEth(0), 0);
   });
 
-  it("earnings fuel increases spendable without wiping error buffer", () => {
+  it("earnings must not increase hitch spendable beyond leftover", () => {
     const thin = spendableForTransmissionEth({ leftoverEth: 0.0001, earningsEth: 0 });
     const rich = spendableForTransmissionEth({
       leftoverEth: 0.0001,
       earningsEth: 0.001,
       useEarningsFraction: 0.5,
     });
-    assert.ok(rich.spendableEth > thin.spendableEth);
+    assert.equal(rich.spendableEth, thin.spendableEth);
+    assert.ok(rich.spendableEth <= 0.0001);
     assert.ok(rich.errorBufferEth > 0);
   });
 
@@ -75,6 +76,19 @@ describe("hat-wave: transmission error buffer + sizing", () => {
     if (!a.skipHitch && a.bits > 0) {
       assert.ok(a.costPerBitEth > 0);
     }
+  });
+
+  it("large hitch payload cannot cost more than leftover (always-plus)", () => {
+    const leftover = 0.00008;
+    const sized = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      earningsEth: 0.01,
+      gwei: 1,
+      wantedBytes: 10_000,
+      hitchCostMult: 1,
+    });
+    assert.ok(sized.skipHitch || sized.injectCostEth < leftover);
+    assert.ok(sized.spendableEth <= leftover);
   });
 });
 

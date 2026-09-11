@@ -372,7 +372,7 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     assert.ok(src.includes("isPriceInsaneCooledDown"), "PRICE_INSANE backoff must skip re-attempt");
     assert.ok(src.includes("trustedQuote") || src.includes("verifiedPool"), "must honor verified WETH/USDC pool quotes");
     assert.ok(src.includes("isPriceJumpInsane"), "must not cache a 100× fantasy into the mark");
-    assert.ok(src.includes("buildSellGateDecision"), "2× hitch stays");
+    assert.ok(src.includes("buildSellGateDecision"), "always-plus sell gate stays");
     assert.ok(src.includes("isCatalogFrozen(token)"), "frozen buy gate stays");
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut sanitize stays");
     assert.ok(src.includes("applyPiggyToSell"), "piggy dust stays");

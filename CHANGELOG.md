@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Fixed — always-plus exit (hitch/HAT cannot flip a green sell red)
+
+RISK bag was still bleeding on exits: leftover after fees looked green, then
+§$STORE§ / HAT / VITA picture bytes (or a Dex mark vs a thinner Uni fill)
+erased profit-from-entry. Unknown-cost recycle and `ALLOW_LOSSY_OPERATOR_SELL`
+could send underwater. Buy hitch is already in cost basis, so charging **2×**
+hitch as a *sell veto* was the wrong lever — it HOLDs then later FORCE EXIT
+sells red, or it sizes a wave that spends the plus.
+
+Hard rule: **every exit prints PLUS** vs `soldFrac × entry + fees + 1× hitch
+on THIS tx` (even 1 wei). If hitch would push net ≤ 0, **SKIP_HITCH** and sell
+plain only when plain is still plus; else **HOLD**. Piggy dust never sold.
+
+- `evaluateSellGate` plus gate is 1× hitch this leg; `HITCH_COST_MULT` sizes
+  payload (`leftover/mult`) only when plus remains
+- Unknown cost → HOLD (cannot prove plus vs entry)
+- Operator cannot sell red; only `FORCE EXIT LOCKED` recovers (no hitch)
+- L1 oracle fallback → SKIP_HITCH (never hitch without live L1)
+- HAT `spendableForTransmissionEth` no longer adds earnings on top of leftover
+- `executeSell` quotes first and uses `min(mark, quote)` proceeds; orch cannot
+  re-hitch after SKIP_HITCH
+- Logs `PLUS` / `HOLD` / `SKIP_HITCH` with leftover, entrySold, fees, hitch, net
+
+Open PR #61 (quote-gate / GAME fee 10000) is complementary — merge it first so
+GAME Uni V3 actually quotes; this PR still falls back to mark when Quoter misses.
+
 ### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash
 
 Activate VITA as the hitch payload (not the Eureka love-note prose). Uniswap stays the

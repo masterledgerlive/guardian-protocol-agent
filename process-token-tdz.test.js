@@ -62,6 +62,8 @@ describe("processToken hasPosition TDZ", () => {
   it("executeSell and moonshot trim use leftover sell gate (hitch or plain)", () => {
     assert.ok(src.includes("buildSellGateDecision"), "sell floor helper must be imported");
     assert.ok(src.includes("HITCH_COST_MULT"), "sell floor must mention HITCH_COST_MULT");
+    assert.ok(src.includes("conservativeSellProceedsEth"), "plus gate must use min(mark, quote)");
+    assert.ok(src.includes("alwaysPlusLog"), "PLUS/HOLD/SKIP_HITCH must be logged");
     const sellFn = src.indexOf("async function executeSell(");
     const moon = src.indexOf("MOONSHOT SELL-DOWN");
     const sellGate = src.indexOf("buildSellGateDecision", sellFn);
