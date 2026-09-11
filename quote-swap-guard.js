@@ -340,7 +340,8 @@ export function poolAddr(v) {
  * permissionless fee that happens to quote. Factory `liquidity()` is
  * gameable — never rank by it.
  *
- * preferredPool set → that pool or null.
+ * preferredPool set → that pool or null (factory flake / unknown-pool quotes
+ * must not steal a clip sized against the DexScreener book).
  * Else catalog fee if it quoted, else insertion order (wider fees first).
  */
 export function pickQuotedPool(candidates, { preferredPool = null, catalogFee = null } = {}) {

@@ -64,6 +64,7 @@ describe("fee tier candidates", () => {
     assert.equal(ok.allow, true);
     const cheaper = liveFeeWithinGatedCost(0.006, 500);
     assert.equal(cheaper.allow, true);
+    assert.equal(liveFeeWithinGatedCost(undefined, 10000).allow, false);
   });
 });
 
@@ -110,6 +111,12 @@ describe("pickQuotedPool — do not send the first quoting fee", () => {
     const flake = { fee: 100, amountOut: 200n, liquidity: 10n, pool: null };
     const picked = pickQuotedPool([flake], { preferredPool: GAME_LIVE_FEE_10000_POOL });
     assert.equal(picked, null);
+  });
+
+  it("fails closed when preferred pool is set even if every quote lacks a pool address", () => {
+    const a = { fee: 100, amountOut: 200n, liquidity: 10n };
+    const b = { fee: 500, amountOut: 180n, liquidity: 50n };
+    assert.equal(pickQuotedPool([a, b], { preferredPool: GAME_LIVE_FEE_10000_POOL }), null);
   });
 });
 
@@ -354,12 +361,20 @@ describe("agent.js wiring — quote miss never sends", () => {
       "QUOTE_MISS must count toward N=3, not freeze on first RPC/pool miss"
     );
     assert.ok(src.includes("readV3PoolLiquidity"), "must skip empty Uni V3 fees");
-    assert.ok(src.includes("pickQuotedPool"), "must bind quote to DexScreener pool / deepest factory liq");
+    assert.ok(src.includes("pickQuotedPool"), "must bind quote to DexScreener pool or catalog/probe order");
     assert.ok(buyBody.includes("preferredPool"), "buy quote must bind to the DexScreener Uni V3 WETH pair");
     assert.ok(sellBody.includes("selectUniV3WethUsdcPair"), "sells bind to DexScreener V3 WETH when known");
     assert.ok(sellBody.includes("preferredPool"), "sell quote must bind when DexScreener V3 WETH exists");
     assert.ok(buyBody.includes("liveFeeWithinGatedCost"), "buy must not send a live fee costlier than gated RT%");
+    assert.ok(
+      buyBody.indexOf("getOnChainBuyQuote") < buyBody.indexOf("liveFeeWithinGatedCost"),
+      "live-fee cost check must run after the buy quote",
+    );
     assert.ok(sellBody.includes("liveFeeWithinGatedCost"), "sell must strip hitch when live fee exceeds gated RT%");
+    assert.ok(
+      sellBody.includes("skipHitch = true") || sellBody.includes("sellGate.skipHitch = true"),
+      "dearer live fee must strip hitch on leftover sells, not block the exit",
+    );
     assert.ok(!/evaluateSwapRouterRoute\s*\(/.test(sellBody), "sells must not freeze on primary-book mismatch");
     assert.ok(!sellBody.includes("isSlippageCooledDown"), "sells stay open during buy cooldown");
     assert.ok(!sellBody.includes("isBuyFrozen"), "buy freeze must not block leftover exits");
