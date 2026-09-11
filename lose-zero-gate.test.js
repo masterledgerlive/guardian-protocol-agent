@@ -1580,6 +1580,31 @@ describe("always-plus harden — FIFO remaining cost + plus floor (defense in de
     assert.match(honest.log, /FIFO red|leftover after fees|proceeds/);
   });
 
+  it("missing tokensIn does not trust persisted cash-flow leftover", () => {
+    const persistedLie = 0.002; // old boot ethIn−ethOut after a plus partial
+    const fifo = fifoRemainingCostEth({
+      ethIn: 0.01,
+      tokensIn: 0,
+      remainingTokens: 500,
+      persistedInvestedEth: persistedLie,
+    });
+    assert.equal(fifo.unknown, true);
+    assert.equal(fifo.investedEth, 0);
+    assert.equal(fifo.reason, "unknown-cost");
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.004,
+      entryEth: fifo.investedEth,
+      unknownEntry: fifo.unknown,
+      sellPct: 1,
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      exitsOnly: true,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /unknown cost/);
+  });
+
   it("unknown lots (remaining > recorded buys) HOLDs", () => {
     const fifo = fifoRemainingCostEth({
       ethIn: 0.01,
