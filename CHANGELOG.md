@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_BUY / Telegram `/buy` skip COST_EDGE near-term upside
+
+Live after #74: `OPERATOR_BUY=AERO:2` latched and reached `executeBuy`, then
+`COST_EDGE` refused MANUAL BUY — fallback +3% upside < required 2.63% × 1.15
+(~3.02%). Game wants intentional ~$2 KEEP probes (AERO / DRB / BNKR) so hitch
+and cascade can be tested.
+
+- **Operator / Telegram `/buy`** skip the near-term upside check only.
+  Hitch% and round-trip% still refuse a catastrophic insert.
+- **Algo / wave / avenue** still require COST_EDGE (1.35×, or 1.15× on a
+  thin book with cheap hitch).
+- **LOSE-ZERO** buy leftover ≥ 1× hitch and **always-plus** sell gates are
+  unchanged. Operator leftover+edge still never block; hitch rides only when
+  leftover covers 1×.
+
+Does **not** spend capital. Does **not** weaken algo edge or sell-plus.
+
 ### Fixed — processToken `undefined.push` after SKIP_OHLC_SEED; unspent OPERATOR_BUY re-queues
 
 Live after #72 (`a0b8c4ad`, Railway `b0fda674`): `OPERATOR_BUY=AERO:2` +

@@ -5783,6 +5783,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // COST_EDGE — hitch/RT % of *this* fill + near-term upside must clear costs.
     // Catches CBBTC-class: far peak leftover looked fine, insert already ate the bag.
+    // Operator /buy skips the *near-term upside* check only (KEEP ~$2 hitch tests).
+    // Algo / wave / avenue still require COST_EDGE. LOSE-ZERO leftover ≥1× hitch
+    // and always-plus sells are unchanged.
     {
       const readings = (history[token.symbol]?.readings || []).slice(-20).map((r) => r.price).filter((p) => p > 0);
       const recentHigh = readings.length ? Math.max(...readings) : price;
@@ -5804,6 +5807,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         recordCostMistake({ ...edge, source: isCascade ? "cascade" : "buy" });
         return await skipBuy(reason, token.symbol, edge.log || `COST_EDGE blocked ${token.symbol}`);
       }
+      if (edge.log) console.log(`   ${edge.log}`);
     }
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));

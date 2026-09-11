@@ -16,6 +16,9 @@
  *   5. High unit-price demotion — CBBTC/AAVE-class need larger floors.
  *
  * Mistakes are recorded so the agent can learn and tighten caps over time.
+ *
+ * Operator / Telegram /buy skip the near-term upside check so KEEP ~$2
+ * hitch/cascade probes can fill. Algo / wave / avenue still require it.
  */
 
 export const MAX_HITCH_COST_PCT = 0.08;       // hitch alone ≤ 8% of trade
@@ -164,6 +167,11 @@ export function evaluateCostEdgeGate({
   isManualOperator = false,
   /** When false, use nearTermEdgeMult as-is (A/B baseline). Default adapts thin+cheap. */
   adaptiveNearTerm = true,
+  /**
+   * Operator / Telegram /buy: skip the near-term upside (COST_EDGE) check.
+   * Algo / wave / avenue keep the full gate. Hitch% + RT% still apply.
+   */
+  skipNearTermForOperator = true,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const fr = costFractions({ tradeEth, hitchCostEth, gasCostEth, feePct, impactPct });
@@ -190,8 +198,12 @@ export function evaluateCostEdgeGate({
   let reason = "ok";
   let code = "ok";
 
-  // Operator /buy stays a test path for leftover+edge — but still refuse
-  // catastrophic hitch% / high-unit smoke into CBBTC on pennies.
+  // Operator /buy is the hitch/cascade test path: leftover+edge (LOSE-ZERO)
+  // never block, and near-term COST_EDGE does not block either. Still refuse
+  // catastrophic hitch% / RT% and high-unit smoke into CBBTC on pennies
+  // (high-unit floors already waived via isManualOperator).
+  const skipNearTerm = !!(isManualOperator && skipNearTermForOperator);
+  const nearTermClears = nearUpside + 1e-12 >= needMove * edgeMult;
   if (!(fr.tradeEth > 0)) {
     allow = false;
     code = "no_size";
@@ -204,7 +216,7 @@ export function evaluateCostEdgeGate({
     allow = false;
     code = "rt_pct";
     reason = `round-trip ${(fr.roundTripPct * 100).toFixed(1)}% of stake > max ${(maxRoundTripPct * 100).toFixed(0)}%`;
-  } else if (!(nearUpside + 1e-12 >= needMove * edgeMult)) {
+  } else if (!skipNearTerm && !nearTermClears) {
     allow = false;
     code = "near_term";
     reason = `near-term upside ${(nearUpside * 100).toFixed(2)}% < ${(edgeMult).toFixed(2)}× required ${(needMove * 100).toFixed(2)}% — would wait forever on a far peak`;
@@ -237,8 +249,12 @@ export function evaluateCostEdgeGate({
     tradeEth: fr.tradeEth,
     tradeUsd,
     highUnit,
+    skipNearTerm,
+    nearTermClears,
     log: allow
-      ? null
+      ? (skipNearTerm && !nearTermClears
+          ? `COST_EDGE ${sym}: operator skipped near-term (upside ${(nearUpside * 100).toFixed(2)}% < ${(edgeMult).toFixed(2)}× required ${(needMove * 100).toFixed(2)}%)`
+          : null)
       : `🛑 COST_EDGE ${sym}: ${reason}`,
   };
 }

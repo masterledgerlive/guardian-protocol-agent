@@ -208,6 +208,68 @@ describe("cost-edge-gate: round-trip impact ×2", () => {
   });
 });
 
+describe("cost-edge-gate: operator skips near-term, algo does not", () => {
+  /** Live desk: OPERATOR_BUY=AERO:2, fallback +3% upside, thin 1.15× BE. */
+  const aeroTwoUsd = {
+    symbol: "AERO",
+    tradeEth: 2 / 4300,
+    hitchCostEth: 8e-9,
+    gasCostEth: 0.0000018,
+    feePct: 0.006,
+    impactPct: 0.003,
+    price: 1,
+    recentHigh: 1, // flat → short-target +3%
+    ethUsd: 4300,
+    tradeableUsd: 2,
+  };
+
+  it("algo / wave refuses AERO $2 when 3% upside < 1.15× required (~3.02%)", () => {
+    const d = evaluateCostEdgeGate(aeroTwoUsd);
+    assert.equal(d.allow, false);
+    assert.equal(d.code, "near_term");
+    assert.equal(d.skipNearTerm, false);
+    assert.ok(d.nearTermEdgeMult <= 1.15 + 1e-9);
+    assert.ok(d.nearTermUpsidePct + 1e-12 < d.requiredMovePct * d.nearTermEdgeMult);
+    assert.ok(d.log.includes("COST_EDGE"));
+  });
+
+  it("OPERATOR_BUY / Telegram /buy proceeds on the same AERO $2 book", () => {
+    const d = evaluateCostEdgeGate({ ...aeroTwoUsd, isManualOperator: true });
+    assert.equal(d.allow, true);
+    assert.equal(d.code, "ok");
+    assert.equal(d.skipNearTerm, true);
+    assert.equal(d.nearTermClears, false);
+    assert.ok(d.log.includes("operator skipped near-term"));
+  });
+
+  it("operator still refuses catastrophic hitch% (LOSE-ZERO leftover is a separate gate)", () => {
+    const d = evaluateCostEdgeGate({
+      ...aeroTwoUsd,
+      hitchCostEth: 0.0002, // ~43% of a $2 stake
+      isManualOperator: true,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.code, "hitch_pct");
+  });
+
+  it("KEEP DRB/BNKR $2 operator probes also skip near-term", () => {
+    for (const symbol of ["DRB", "BNKR"]) {
+      const algo = evaluateCostEdgeGate({ ...aeroTwoUsd, symbol });
+      const op = evaluateCostEdgeGate({ ...aeroTwoUsd, symbol, isManualOperator: true });
+      assert.equal(algo.allow, false, symbol);
+      assert.equal(algo.code, "near_term", symbol);
+      assert.equal(op.allow, true, symbol);
+    }
+  });
+
+  it("agent passes isManualOperator into COST_EDGE; avenue does not", () => {
+    assert.ok(agentSrc.includes("isManualOperator: isManualOperatorBuy(reason)"));
+    assert.ok(agentSrc.includes("operator skipped near-term") || agentSrc.includes("isManualOperatorBuy(reason)"));
+    const ave = readFileSync(join(root, "avenue-prime.js"), "utf8");
+    assert.ok(!ave.includes("isManualOperator:"));
+  });
+});
+
 describe("cost-edge-gate: agent never-lose wiring", () => {
   it("buys add gas/hitch to cost basis; sells pass unknownEntry; L1 fallback skips hitch", () => {
     assert.ok(agentSrc.includes("investedEthWithCosts"));
