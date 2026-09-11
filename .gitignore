@@ -1,5 +1,7 @@
 .env
 wallet_data.json
+fifo-lots.json
+fifo-lots.json.tmp
 node_modules
 node_modules/
 node_modules/

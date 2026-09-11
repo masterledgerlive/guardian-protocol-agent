@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Fixed — persist / rebuild FIFO lot cost across Railway restart
+
+Live after #78 (`70480110`): operator lots AERO `0x94faa542…` / DRB
+`0xe0f846a8…` / BNKR `0xeef39d62…` logged **unknown cost** /
+`entrySold=0` after restart, so always-plus could never green (cannot
+prove PLUS).
+
+Root cause (verified): `latchFreshLot` / `operatorLot` lived only in
+memory. `saveToGitHub` is 15-min and never wrote `tokensIn` / `ethIn`.
+`ledger.json` on bot-state is stale (last March) and BUY rows omit
+`receivedTokens`, so boot `fifoRemainingCostEth` hits the #69 unknown
+HOLD path forever.
+
+- Persist FIFO lots (`tokensIn` / `ethIn` / remaining / buy hash) to
+  GitHub `fifo-lots.json` + disk immediately on fill (not the 15-min
+  timer), and inside `positions.json`.
+- After restart, rebuild from persisted lots **or** buy-hash
+  Transfer+WETH receipts (evidence hashes seeded; `LOT_REBUILD_TXS` extra).
+- Tokenless ledger BUY rows no longer poison `tokensIn`.
+- Always-plus can HOLD red / green true PLUS with real FIFO after reboot.
+- #78 HOLD + `DISABLE_DOW_BIAS` default ON, #76 COST_EDGE operator
+  bypass, #74 re-queue, LOSE-ZERO, quote-gate, AERO Uni V3 bind — unchanged.
+
+Does **not** invent P&L. Does **not** merge V4 into `agent.js`. No capital.
+
 ### Fixed — operator/fresh-lot FIFO HOLD beats Friday de-risk; DISABLE_DOW_BIAS default ON
 
 Live after #76 (`2d83b26b`): `OPERATOR_BUY=AERO:2` filled (`0x94faa542…`
