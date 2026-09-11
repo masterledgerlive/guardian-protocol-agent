@@ -129,6 +129,8 @@ describe("processToken hasPosition TDZ", () => {
 
   it("executeSell and executeBuy run amountOutMinimum sanity before submit", () => {
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut helper must be imported");
+    assert.ok(src.includes("requireLiveQuoterFill"), "must not send without a live Quoter fill");
+    assert.ok(src.includes("feeTierCandidates"), "must probe other V3 fees when catalog fee misses");
     const sellFn = src.indexOf("async function executeSell(");
     const buyFn = src.indexOf("async function executeBuy(");
     const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
@@ -188,12 +190,13 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes('address: "0xB2000000000000000000004c27f6523082f41D01"'), "BASECAT catalog address");
     assert.match(src, /FIFO 12\/31 red sells/);
     // CBBTC/AAVE stay catalogued but FROZEN — fractional bags locked the RISK book.
-    for (const sym of ["CBBTC", "AAVE"]) {
+    // GAME freeze is #60 (exits-only) — this quote-gate PR must not unfreeze it.
+    for (const sym of ["CBBTC", "AAVE", "GAME"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
       assert.ok(base >= 0, `${sym} must remain in catalog`);
       const next = src.indexOf("{ symbol:", base + 1);
       const row = src.slice(base, next > 0 ? next : base + 500);
-      assert.ok(row.includes("frozen: true"), `${sym} must stay frozen (locked majors)`);
+      assert.ok(row.includes("frozen: true"), `${sym} must stay frozen (locked majors / #60 GAME)`);
     }
   });
 

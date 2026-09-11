@@ -41,8 +41,33 @@ VVV 2, DRB 1. Underwater → **HOLD**. DRB hitch-prove 0xb495213f… (−5.4e-7 
 if the full KEY+LOC packet rode) → **size hitch DOWN or SKIP_HITCH**. Tests
 mirror those classes; they do not invent live P&L for the hashes.
 
-Open PR #61 (quote-gate / GAME fee 10000) is complementary — merge it first so
-GAME Uni V3 actually quotes; this PR still falls back to mark when Quoter misses.
+Landed on main via #62. Quote-gate (#61) now requires a live Quoter fill before
+the plus send — leftover exits no longer fall back to a Dex mark when Uni misses.
+
+### Fixed — GAME SwapRouter02 exactInputSingle reverts (empty Uni V3 fee 3000)
+
+RISK bag buys of GAME (`0x50e1…7915`, blocks 51106117–51106192) reverted after a
+hitch streak. Fail class was **Quoter vs pool mismatch**, not PRICE_INSANE:
+
+- DexScreener mark came from Aerodrome GAME/WETH (`0x2A36…DFD2`).
+- Catalog `feeTier: 3000` pointed at Uni V3 pool `0x70fb…45b5` with **liquidity=0**.
+- QuoterV2 `quoteExactInputSingle` reverted on every RPC (a pool miss, not an outage).
+- `executeBuy` still sent SwapRouter02 with Aerodrome-spot minOut + UTF-8 `§$STORE§`.
+- Txs reverted (~788k of 800k gas): `0x2644773a…`, `0x2589e0a3…`, `0x280e898e…`.
+- Slippage cooldown armed after the **third mined revert** — too late; buy path also logged `SELL SKIPPED`.
+
+Live Uni V3 GAME/WETH book is **fee 10000** (`0xE5Ff…77a3`). Harden:
+
+- Require a live QuoterV2 fill before send (no spot-only minOut).
+- Probe other V3 fees when catalog fee misses (wider fees before 100/500). Bind the fill to the DexScreener Uni V3 WETH pair. Never rank by gameable factory `liquidity()`. Sells bind to that pair when known (no freeze). DexScreener fail-open uses catalog fee, then probe order. Preferred-pool bind fails closed on factory flake. Live fee costlier than gated RT% skips the buy (sell leftover still exits, hitch skipped).
+- Quote contract revert does not drain the RPC pool.
+- Quote miss / PRICE_INSANE quote / minOut reject increment the fail streak; cooldown after N (still 3) without sending. A single `QUOTE_MISS` does **not** freeze new buys (RPC timeout and pool miss share the same null).
+- Hitch leftover too thin → plain sale (no hitch); orch cannot re-hitch after skip. Missing voice hitch still lets the silo queue ride. Always-plus (#62) still HOLDs if proceeds < buy cost and shrinks/SKIPs hitch that would print red.
+- GAME catalog fee 10000 / 1% so exits quote the live Uni V3 book first. Catalog freeze stays from #60 (exits-only) — this change does not re-freeze GAME. `/unfreeze` still works (no sticky freeze).
+- DexScreener primary-book gate: SwapRouter02 `encodeSwap` is Uni V3 **WETH** only (a deep USDC V3 book is not the fill). Uni V2 VIRTUAL / Aerodrome is not a fill. Thin V3 WETH (`<$25k` or `<<` the liquid book) freezes new buys immediately.
+- On-chain factory `liquidity=0` skips that fee **before** QuoterV2 (GAME empty 3000 ghost). Quote/minOut reject before wrap. Quoter amountOut is not enough without a real pool.
+- After N=3 quote/swap fails on the same symbol: cooldown **and** persistent buy freeze. Cooldown expiry does not reopen buys. Successful **buy** fill or `/unfreeze` lifts the runtime freeze (even if the catalog row is already active); successful **sell** does not.
+- Hitch only when leftover covers; plain sale otherwise. LOSE-ZERO / always-plus unchanged. Uni V4 leftover hitch stays VITA KEY+LOC. No invented P&L.
 
 ### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash
 

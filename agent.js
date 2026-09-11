@@ -79,6 +79,7 @@ import {
   isValidUsdPrice,
   prefetchMarketPrices,
   fetchTokenUsdQuote,
+  fetchDexScreenerPairs,
   hasUsableCostBasis,
   costBasisEth,
   shouldTrustSavedCostBasis,
@@ -251,7 +252,7 @@ import {
   formatHitchFeeSplit,
   GAS_PRICE_ORACLE,
 } from "./l1-fee-oracle.js";
-import { buildRpcUrls, withRpcFailover } from "./rpc-pool.js";
+import { buildRpcUrls, withRpcFailover, isRpcFailoverError } from "./rpc-pool.js";
 import {
   encodeExactInputSingle,
   sanitizeAmountOutMinimum,
@@ -268,6 +269,20 @@ import {
   utf8ByteLength,
 } from "./swap-minout.js";
 import {
+  feeTierCandidates,
+  requireLiveQuoterFill,
+  plainSaleIfHitchTooThin,
+  adoptLivePoolFee,
+  liveFeeWithinGatedCost,
+  pickQuotedPool,
+  poolAddr,
+  isQuoteContractRevert,
+  evaluateSwapRouterRoute,
+  selectUniV3WethUsdcPair,
+  requireFactoryLiquidity,
+  UNISWAP_V3_FACTORY_BASE,
+} from "./quote-swap-guard.js";
+import {
   BASE_QUOTER_V2,
   evaluatePriceInsane,
   noteLastSaneUsd,
@@ -283,6 +298,10 @@ import {
   clearSlippageFails,
   slippageFailLog,
   isTooLittleReceived,
+  isBuyFrozen,
+  freezeNewBuys,
+  clearBuyFreeze,
+  buyFrozenLog,
   isSuccessfulSellFill,
   failedFillLog,
   isSuccessfulBuyFill,
@@ -417,6 +436,19 @@ const QUOTER_ABI     = [{
     { name: "initializedTicksCrossed",type: "uint32"  },
     { name: "gasEstimate",            type: "uint256" }
   ]
+}];
+const V3_FACTORY_ABI = [{
+  name: "getPool", type: "function", stateMutability: "view",
+  inputs: [
+    { name: "tokenA", type: "address" },
+    { name: "tokenB", type: "address" },
+    { name: "fee", type: "uint24" },
+  ],
+  outputs: [{ name: "pool", type: "address" }],
+}];
+const V3_POOL_LIQ_ABI = [{
+  name: "liquidity", type: "function", stateMutability: "view",
+  inputs: [], outputs: [{ name: "", type: "uint128" }],
 }];
 
 // ── TIMING ────────────────────────────────────────────────────────────────────
@@ -1720,7 +1752,7 @@ const DEFAULT_TOKENS = [
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:8, community:8, total:36 },
     notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
-  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
+  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     frozen: true, frozenReason: "Thin/wrong-pool Uni V3 WETH — liquid book is Uni V2 GAME/VIRTUAL 0xD418dfE7670c21F682E041F34250c114DB5D7789 (~$2.14M); Uni V3 GAME/WETH feeTier 3000 0x70fbffe3… liquidity()=0 / ghost (STF buys hit the wrong book). Screener CAUTION — not battle-tested. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
     notes: "GAME by Virtuals — AI gaming agent infra. FROZEN exits-only — thin Uni V3 WETH vs liquid Uni V2 GAME/VIRTUAL." },
@@ -2037,27 +2069,117 @@ async function rpcCall(fn) {
 // 🔍 ON-CHAIN QUOTE — live pool out before every swap (buy + sell)
 // minOut is then run through sanitizeAmountOutMinimum so an impossible floor
 // (TOSHI→WETH ~93k WETH) cannot be submitted.
+//
+// Quote revert at the catalog fee is a pool miss (GAME empty 3000), not an RPC
+// outage — do not drain the public list. Probe other V3 fees; if none fill,
+// return null and the swap path MUST NOT send (spot cannot clear an empty pool).
 // ═══════════════════════════════════════════════════════════════════════════════
-async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
+async function readV3PoolLiquidity(tokenA, tokenB, fee) {
   try {
-    const result = await rpcCall(c => c.simulateContract({
-      address: QUOTER_V2,
-      abi: QUOTER_ABI,
-      functionName: "quoteExactInputSingle",
-      args: [{ tokenIn, tokenOut, amountIn, fee: feeTier, sqrtPriceLimitX96: 0n }]
+    const pool = await rpcCall((c) => c.readContract({
+      address: UNISWAP_V3_FACTORY_BASE,
+      abi: V3_FACTORY_ABI,
+      functionName: "getPool",
+      args: [tokenA, tokenB, fee],
     }));
-    const out = result?.result?.[0];
-    return (typeof out === "bigint" && out > 0n) ? out : null;
-  } catch (e) {
-    console.log(`   ⚠️  On-chain quote failed: ${e.message?.slice(0,60)} — using cached price with wider slippage`);
-    return null;
+    if (!pool || /^0x0+$/.test(String(pool))) {
+      return { pool: null, liquidity: 0n, empty: true };
+    }
+    try {
+      const liquidity = await rpcCall((c) => c.readContract({
+        address: pool,
+        abi: V3_POOL_LIQ_ABI,
+        functionName: "liquidity",
+      }));
+      const liq = typeof liquidity === "bigint" ? liquidity : 0n;
+      return { pool, liquidity: liq, empty: liq <= 0n };
+    } catch {
+      // Pool exists; liquidity read failed — still let Quoter try.
+      return { pool, liquidity: null, empty: false };
+    }
+  } catch {
+    // Factory RPC flake must not skip every fee as "empty".
+    return { pool: undefined, liquidity: null, empty: false };
   }
 }
-async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
-  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier);
+
+async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
+  const simulate = (client) => client.simulateContract({
+    address: QUOTER_V2,
+    abi: QUOTER_ABI,
+    functionName: "quoteExactInputSingle",
+    args: [{ tokenIn, tokenOut, amountIn, fee, sqrtPriceLimitX96: 0n }],
+  });
+  const outOf = (result) => {
+    const out = result?.result?.[0];
+    return (typeof out === "bigint" && out > 0n) ? out : null;
+  };
+  try {
+    const result = await Promise.race([
+      simulate(getClient()),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000)),
+    ]);
+    return outOf(result);
+  } catch (e) {
+    if (isQuoteContractRevert(e) && !isRpcFailoverError(e)) return null;
+    try {
+      const result = await rpcCall((c) => simulate(c));
+      return outOf(result);
+    } catch (e2) {
+      if (isQuoteContractRevert(e2)) return null;
+      return null;
+    }
+  }
 }
-async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
-  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
+
+/** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
+async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferredPool = null } = {}) {
+  const fees = feeTierCandidates(feeTier);
+  const wanted = poolAddr(preferredPool);
+  const candidates = [];
+  for (const fee of fees) {
+    const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
+    if (depth.empty) {
+      // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 — liquidity()=0.
+      // Do not call QuoterV2 on a ghost pool (STF / Too little received).
+      if (fee === Number(feeTier)) {
+        console.log(`   🛑 EMPTY V3 POOL fee ${fee} — factory liquidity=0, skip quote (ghost)`);
+      }
+      continue;
+    }
+    // Buy path binds to the DexScreener Uni V3 WETH pair. Factory flake
+    // (no pool address) is not proof this fee is that book — skip it.
+    if (wanted && poolAddr(depth.pool) !== wanted) continue;
+    const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
+    if (amountOut && amountOut > 0n) {
+      candidates.push({ amountOut, fee, liquidity: depth.liquidity, pool: depth.pool });
+    }
+  }
+  const picked = pickQuotedPool(candidates, { preferredPool, catalogFee: feeTier });
+  if (!picked) {
+    console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
+    return null;
+  }
+  if (picked.fee !== Number(feeTier)) {
+    console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${picked.fee} (factory liq ${picked.liquidity})`);
+  }
+  return picked;
+}
+async function getOnChainSellQuote(tokenAddress, amountIn, feeTier, opts) {
+  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier, opts);
+}
+async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier, opts) {
+  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier, opts);
+}
+
+function noteSwapPathFail(symbol, { kind = "quote/swap fail", freezeBuys = false } = {}) {
+  const rec = recordSlippageFail(symbol);
+  console.log(`   ${slippageFailLog(symbol, rec, { kind })}`);
+  if (freezeBuys) freezeNewBuys(symbol, kind);
+  if (isBuyFrozen(symbol) || rec.buyFrozen) {
+    console.log(`   ${buyFrozenLog(symbol)}`);
+  }
+  return rec;
 }
 
 /**
@@ -5478,6 +5600,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
+    if (isBuyFrozen(token.symbol)) {
+      return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
+    }
     // Per-token min buy floor — smoke tests must clear the book minimum.
     if (isManualOperatorBuy(reason)) {
       const forcedUsd = (() => {
@@ -5493,7 +5618,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       return await skipBuy(reason, token.symbol, buyPriceGate.log || `PRICE_INSANE — ${token.symbol} mark refused`);
     }
     if (isSlippageCooledDown(token.symbol)) {
-      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol));
+      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "buy" }));
     }
     if (!canTrade(token.symbol, isCascade)) {
       return await skipBuy(reason, token.symbol, `⏳ ${token.symbol} cooldown`);
@@ -5671,8 +5796,108 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
 
+    // SwapRouter02 encodeSwap is Uni V3 WETH only. GAME's liquid book is Uni V2
+    // VIRTUAL (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
+    let preferredPool = null;
+    {
+      const pairs = await fetchDexScreenerPairs(token.address);
+      const route = evaluateSwapRouterRoute({
+        pairs,
+        tokenAddress: token.address,
+        tradeUsd: ethToSpend * ethUsd,
+        symbol: token.symbol,
+      });
+      if (route.log) console.log(`   ${route.log}`);
+      if (!route.allow) {
+        if (route.freezeBuys) {
+          noteSwapPathFail(token.symbol, {
+            kind: route.code || "NO_V3_WETH",
+            freezeBuys: true,
+          });
+        }
+        return await skipBuy(reason, token.symbol, route.log);
+      }
+      if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
+    }
+
+    // Slippage guard: factory liquidity then QuoterV2, BEFORE wrap/send.
+    // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 liquidity()=0 —
+    // do not quote or wrap into a ghost pool.
+    const tokenDecimals = await getTokenDecimals(token.address);
+    const spotTokens = spotOutWei({
+      amountInHuman: ethToSpend,
+      inUsd: ethUsd,
+      outUsd: price,
+      outDecimals: tokenDecimals,
+    });
+    let quotedTokens = null;
+    let swapFee = token.feeTier;
+    let factoryLiq = null;
+    try {
+      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, { preferredPool });
+      quotedTokens = live?.amountOut ?? null;
+      if (live?.fee) swapFee = live.fee;
+      if (live?.liquidity != null) factoryLiq = live.liquidity;
+    } catch { quotedTokens = null; }
+    const quoteGate = requireLiveQuoterFill({
+      quotedOut: quotedTokens,
+      spotOut: spotTokens,
+      symbol: token.symbol,
+      side: "buy",
+    });
+    if (!quoteGate.allow) {
+      // QUOTE_MISS increments the N=3 streak only. Immediate freeze is for
+      // structural books (EMPTY_V3_POOL / THIN_V3_WETH / PRIMARY_NOT_V3_WETH).
+      // quoteAtFee maps RPC timeout to the same null as a pool miss.
+      noteSwapPathFail(token.symbol, {
+        kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
+      });
+      return await skipBuy(reason, token.symbol, quoteGate.log);
+    }
+    if (factoryLiq != null) {
+      const depthGate = requireFactoryLiquidity({
+        liquidity: factoryLiq,
+        symbol: token.symbol,
+        fee: swapFee,
+      });
+      if (!depthGate.allow) {
+        noteSwapPathFail(token.symbol, { kind: "EMPTY_V3_POOL", freezeBuys: true });
+        return await skipBuy(reason, token.symbol, depthGate.log);
+      }
+    }
+    quotedTokens = quoteGate.quotedOut;
+    const gatedPct = token.poolFeePct || 0.006;
+    const feeCost = liveFeeWithinGatedCost(gatedPct, swapFee);
+    if (swapFee !== token.feeTier) {
+      const adopted = adoptLivePoolFee(token, swapFee);
+      if (adopted.changed) {
+        console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
+      }
+    }
+    if (!feeCost.allow) {
+      return await skipBuy(reason, token.symbol, feeCost.log);
+    }
+    let minTokens = slippageFloor(quotedTokens, SLIPPAGE_GUARD);
+    const buyMinOut = sanitizeAmountOutMinimum({
+      minOut: minTokens,
+      expectedOut: quotedTokens,
+      spotOut: spotTokens,
+      slippage: SLIPPAGE_GUARD,
+      side: "buy",
+      symbol: token.symbol,
+      requireQuote: true,
+    });
+    if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
+    if (!buyMinOut.allow) {
+      noteSwapPathFail(token.symbol, { kind: "minOut reject" });
+      return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
+    }
+    minTokens = buyMinOut.amountOutMinimum;
+    console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+
     // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
-    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor
+    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor.
+    // Wrap only after a live non-empty Uni V3 quote.
     let useWeth = weth >= ethToSpend;
     if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
       // Have enough ETH to cover — use ETH directly (no wrap needed)
@@ -5687,38 +5912,6 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const wrapped = await wrapEth(cdp, wrapAmount);
       if (wrapped) useWeth = true;
       else useWeth = false; // fall back to direct ETH if wrap fails
-    }
-
-    // Slippage guard: quote (preferred) + USD spot, then minOut sanity.
-    // Always use the token's real decimals — 1e18 on an 8-dec token bricks the buy.
-    const tokenDecimals = await getTokenDecimals(token.address);
-    const spotTokens = spotOutWei({
-      amountInHuman: ethToSpend,
-      inUsd: ethUsd,
-      outUsd: price,
-      outDecimals: tokenDecimals,
-    });
-    let quotedTokens = null;
-    try {
-      quotedTokens = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
-    } catch { quotedTokens = null; }
-    const expectedTokens = quotedTokens && quotedTokens > 0n ? quotedTokens : spotTokens;
-    let minTokens = slippageFloor(expectedTokens, quotedTokens && quotedTokens > 0n ? SLIPPAGE_GUARD : 0.75);
-    const buyMinOut = sanitizeAmountOutMinimum({
-      minOut: minTokens,
-      expectedOut: quotedTokens,
-      spotOut: spotTokens,
-      slippage: SLIPPAGE_GUARD,
-      side: "buy",
-      symbol: token.symbol,
-    });
-    if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
-    if (!buyMinOut.allow) {
-      return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
-    }
-    minTokens = buyMinOut.amountOutMinimum;
-    if (quotedTokens && quotedTokens > 0n) {
-      console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
     }
 
     const ind = getIndicatorScore(token.symbol);
@@ -5736,7 +5929,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const tokensBefore = await getTokenBalance(token.address);
-    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
+    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
@@ -5745,6 +5938,15 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       gwei,
       hitchCostMult: 1,
     });
+    const buyHitchCostEth = estimateCalldataHitchEth(buyVoice.hitchBytes || 0, gwei);
+    buyVoice = plainSaleIfHitchTooThin(buyVoice, buySwap, {
+      leftoverEth: buyLeftoverEth,
+      hitchCostEth: buyHitchCostEth,
+    });
+    if (buyVoice.log) console.log(`   ${buyVoice.log}`);
+    // Zero orch hitch only when leftover is too thin (plain-thin) — same as sell.
+    // A missing voice hitch must still let the silo queue ride.
+    const buySkipAllHitch = buySkipHitch || buyVoice.kind === "plain-thin";
     if (useWeth) {
       await ensureApproved(cdp, WETH_ADDRESS, amountIn);
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
@@ -5754,7 +5956,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams1, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buySkipHitch || buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain || buyVoice.kind === "plain-thin",
+              maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams1),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5768,7 +5971,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           ? orch.injectAndSend(_txParams2, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buySkipHitch || buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain || buyVoice.kind === "plain-thin",
+              maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams2),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5796,10 +6000,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const rec = recordSlippageFail(token.symbol);
       console.log(`   ${failedBuyFillLog(token.symbol, { receivedTokens, receiptStatus, txHash })}`);
       console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+      if (rec.buyFrozen) console.log(`   ${buyFrozenLog(token.symbol)}`);
       await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\nReceived ${receivedTokens.toFixed(6)} tokens — not a win\nThe letter is not claimed.\n${txHash ? `🔗 ${txHash}` : ""}`);
       return false;
     }
     clearSlippageFails(token.symbol);
+    clearBuyFreeze(token.symbol);
 
     // VITA picture tailwind: seal sparse chunk only after successful buy receipt
     if (buyVoice?.kind === "hat-picture" && buyVoice?.nodeId) {
@@ -5945,9 +6151,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     return ethToSpend;
   } catch (e) {
     console.log(`      ❌ BUY FAILED: ${e.message}`);
-    if (isTooLittleReceived(e)) {
-      const rec = recordSlippageFail(token.symbol);
-      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
+      noteSwapPathFail(token.symbol, { kind: "Too little received" });
     }
     await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\n${e.message}\nThe letter is not claimed.`);
     return false;
@@ -5959,14 +6164,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 // ═══════════════════════════════════════════════════════════════════════════════
 async function executeSell(cdp, token, sellPct, reason, price, isProtective = false) {
   try {
-    // NOTE: Sells are NEVER blocked by cooldown — only buys use the cooldown timer.
-    // The cooldown exists to prevent buying the same token twice too fast.
-    // Blocking sells with the same timer was causing AIXBT-style traps where
-    // the position grew through cascades but could never exit.
-    if (isSlippageCooledDown(token.symbol)) {
-      console.log(`   ${slippageCooldownLog(token.symbol)}`);
-      return null;
-    }
+    // NOTE: Sells are NEVER blocked by quote/swap cooldown or buy-freeze.
+    // After N buy fails we freeze *new buys* and arm cooldown; leftover exits
+    // must still be able to hit a live Uni V3 fee. Blocking sells here is what
+    // logged SELL SKIPPED [GAME] while the bag was leftover.
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
@@ -6110,6 +6311,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     // Quote BEFORE the plus gate so leftover cannot look green on a Dex mark
     // while Uni V3 fills thinner (GAME Aerodrome vs empty fee-3000 lesson).
+    // Live QuoterV2 + factory liquidity required — spot cannot clear a ghost pool.
     const spotWeth = spotOutWei({
       amountInHuman: amtHuman,
       inUsd: price,
@@ -6118,19 +6320,51 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     let quotedWeth = null;
     let minWeth = 0n;
+    let swapFee = token.feeTier;
+    let sellFactoryLiq = null;
+    let sellPreferredPool = null;
     try {
-      quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
-      if (quotedWeth && quotedWeth > 0n) {
-        minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
-        console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
-      } else {
-        minWeth = slippageFloor(spotWeth, 0.75);
-        console.log(`   📐 Quote fallback: estimated ${formatWei18(spotWeth)} WETH → floor ${formatWei18(minWeth)} (75%)`);
-      }
+      // Bind leftover exits to the DexScreener Uni V3 WETH pair when known.
+      // Thin/wrong-book must not freeze leftover sells.
+      const pairs = await fetchDexScreenerPairs(token.address);
+      sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
+    } catch { sellPreferredPool = null; }
+    try {
+      const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier, {
+        preferredPool: sellPreferredPool,
+      });
+      quotedWeth = live?.amountOut ?? null;
+      if (live?.fee) swapFee = live.fee;
+      if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
     } catch (e) {
-      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — using mark proceeds for plus gate`);
-      minWeth = 0n;
+      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — not sending`);
+      quotedWeth = null;
     }
+    const quoteGate = requireLiveQuoterFill({
+      quotedOut: quotedWeth,
+      spotOut: spotWeth,
+      symbol: token.symbol,
+      side: "sell",
+    });
+    if (!quoteGate.allow) {
+      noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
+      console.log(`   ${quoteGate.log}`);
+      return null;
+    }
+    if (sellFactoryLiq != null) {
+      const depthGate = requireFactoryLiquidity({
+        liquidity: sellFactoryLiq,
+        symbol: token.symbol,
+        fee: swapFee,
+      });
+      if (!depthGate.allow) {
+        console.log(`   ${depthGate.log || "EMPTY V3 POOL sell — not sending"}`);
+        return null;
+      }
+    }
+    quotedWeth = quoteGate.quotedOut;
+    minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
+    console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
     const quotedEth = wei18ToEth(quotedWeth);
     const procEth = conservativeSellProceedsEth({ markEth: markProcEth, quotedEth });
     if (quotedEth > 0 && quotedEth + 1e-18 < markProcEth) {
@@ -6182,6 +6416,19 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (sellGate.alwaysPlusLog) console.log(`   ${sellGate.alwaysPlusLog}`);
     if (!sellGate.allow) return null;
 
+    const sellFeeCost = liveFeeWithinGatedCost(token.poolFeePct || 0.006, swapFee);
+    if (swapFee !== token.feeTier) {
+      const adopted = adoptLivePoolFee(token, swapFee);
+      if (adopted.changed) {
+        console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
+      }
+    }
+    if (!sellFeeCost.allow) {
+      // Leftover exits stay open. Hitch leftover was sized at the cheaper catalog RT%.
+      sellGate.skipHitch = true;
+      console.log(`   ${sellFeeCost.log} leftover sell — hitch skipped, encode at live fee`);
+    }
+
     const sellMinOut = sanitizeAmountOutMinimum({
       minOut: minWeth,
       expectedOut: quotedWeth,
@@ -6189,9 +6436,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       slippage: SLIPPAGE_GUARD,
       side: "sell",
       symbol: token.symbol,
+      requireQuote: true,
     });
     if (sellMinOut.log) console.log(`   ${sellMinOut.log}`);
     if (!sellMinOut.allow) {
+      noteSwapPathFail(token.symbol, { kind: "minOut reject" });
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
       return null;
     }
@@ -6207,7 +6456,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
-    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
+    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, swapFee, minWeth);
     // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
     // or VITA KEY+LOC parse. Earnings are NOT extra hitch fuel (leftover already
     // is profit-from-entry). If hitch would wipe plus, strip to plain sale.
@@ -6220,13 +6469,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       gwei,
       hitchCostMult: 1,
     });
+    sellVoice = plainSaleIfHitchTooThin(sellVoice, sellSwap, {
+      leftoverEth: Math.max(0, Number(sellGate.leftover) || 0),
+      hitchCostEth: Math.max(
+        0,
+        Number(sellGate.injectCostEth) || estimateCalldataHitchEth(sellVoice.hitchBytes || 0, gwei),
+      ),
+    });
+    if (sellVoice.log) console.log(`   ${sellVoice.log}`);
     const voiceHitchCost = sellVoice.onChain
       ? estimateCalldataHitchEth(sellVoice.hitchBytes || 0, gwei)
         + (hitchL1?.ok && wantedHitchBytes > 0
           ? (Number(hitchL1.l1FeeEth) || 0) * (sellVoice.hitchBytes || 0) / wantedHitchBytes
           : 0)
       : 0;
-    let sellSkipHitch = !!sellGate.skipHitch;
+    let sellSkipHitch = !!sellGate.skipHitch || sellVoice.kind === "plain-thin";
     if (sellVoice.onChain && plusAfterHitchEth(sellGate.leftover, voiceHitchCost) <= 0) {
       console.log(
         `   SKIP_HITCH sell ${token.symbol} leftover=${Number(sellGate.leftover).toExponential(2)}` +
@@ -6248,7 +6505,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
             maxHitchBytes: sellSkipHitch
               ? 0
               : Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
-            skipHitch: sellSkipHitch || sellVoice.onChain,
+            skipHitch: sellSkipHitch || sellVoice.onChain || sellVoice.kind === "plain-thin",
           })
         : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -6565,9 +6822,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     return Math.max(received - skim, 0);
   } catch (e) {
     console.log(`      ❌ SELL FAILED: ${e.message}`);
-    if (isTooLittleReceived(e)) {
-      const rec = recordSlippageFail(token.symbol);
-      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
+      noteSwapPathFail(token.symbol, { kind: "Too little received" });
     }
     await tg(`⚠️ <b>${token.symbol} SELL FAILED</b>\n${e.message}`);
     return null;
@@ -9339,13 +9595,20 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const t   = tokens.find(t => t.symbol === sym);
         if (!t) {
           await tg(`❓ Token <b>${sym}</b> not found in token list.`);
-        } else if (!t.frozen) {
-          await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
         } else {
-          t.frozen = false;
-          delete t.frozenReason;
-          console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
-          await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
+          const runtimeFrozen = isBuyFrozen(sym);
+          if (!t.frozen && !runtimeFrozen) {
+            await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
+          } else {
+            if (t.frozen) {
+              t.frozen = false;
+              delete t.frozenReason;
+            }
+            clearBuyFreeze(sym);
+            clearSlippageFails(sym);
+            console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
+            await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
+          }
         }
 
       } else if (text.startsWith("/freeze ")) {

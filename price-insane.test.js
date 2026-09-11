@@ -34,6 +34,10 @@ import {
   isSlippageCooledDown,
   recordSlippageFail,
   clearSlippageFails,
+  isBuyFrozen,
+  freezeNewBuys,
+  clearBuyFreeze,
+  buyFrozenLog,
   slippageFailLog,
   slippageCooldownLog,
   isSuccessfulSellFill,
@@ -281,14 +285,18 @@ describe("Too little received retry cooldown", () => {
     assert.equal(c.cooled, true);
     assert.equal(isSlippageCooledDown("TOSHI", t0 + 2000, store), true);
     assert.match(slippageCooldownLog("TOSHI", t0 + 2000, store), /cooldown/);
+    assert.match(slippageCooldownLog("GAME", t0 + 2000, store, { side: "buy" }), /BUY SKIPPED/);
     assert.match(slippageFailLog("TOSHI", c), /cooldown armed/);
     // still cooled mid-window
     assert.equal(isSlippageCooledDown("TOSHI", t0 + 30_000, store), true);
+    assert.equal(c.buyFrozen, true);
     // after window (armed at t0+2000 for 60s → expires t0+62000), next fail starts fresh
+    // but buyFrozen sticks — cooldown lifting must not reopen the bad book
     const d = recordSlippageFail("TOSHI", t0 + 63_000, { max: 3, cooldownMs: 60_000, store });
     assert.equal(d.count, 1);
     assert.equal(d.cooled, false);
     assert.equal(isSlippageCooledDown("TOSHI", t0 + 63_000, store), false);
+    assert.equal(isBuyFrozen("TOSHI", store), true);
   });
 
   it("clears on a successful fill so a later isolated revert does not inherit the streak", () => {
@@ -364,7 +372,8 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     assert.ok(sellInsane < sellMin, "sell PRICE_INSANE before minOut");
     assert.ok(buyInsane >= 0 && buyInsane < buyHitch, "buy PRICE_INSANE before hitch");
     assert.ok(buyInsane < buyMin, "buy PRICE_INSANE before minOut");
-    assert.ok(sellBody.includes("isSlippageCooledDown"), "sell must honor Too-little-received cooldown");
+    assert.ok(buyBody.includes("isSlippageCooledDown"), "buy must honor Too-little-received cooldown");
+    assert.ok(!sellBody.includes("isSlippageCooledDown"), "sell leftover must not die on buy cooldown");
     assert.ok(sellBody.includes("isSuccessfulSellFill"), "sell must refuse 0-ETH success");
     assert.ok(buyBody.includes("isSuccessfulBuyFill"), "buy must refuse 0-token success");
     assert.ok(buyBody.includes("getSwapReceiptStatus"), "buy must wait for receipt");
@@ -374,6 +383,10 @@ describe("agent.js wiring — PRICE_INSANE before hitch / minOut, no 0-ETH win",
     assert.ok(src.includes("isPriceJumpInsane"), "must not cache a 100× fantasy into the mark");
     assert.ok(src.includes("buildSellGateDecision"), "always-plus sell gate stays");
     assert.ok(src.includes("isCatalogFrozen(token)"), "frozen buy gate stays");
+    assert.ok(src.includes("requireLiveQuoterFill"), "must import requireLiveQuoterFill");
+    assert.ok(src.includes("feeTierCandidates"), "must probe V3 fees");
+    assert.ok(buyBody.includes("requireQuote: true"), "buy minOut requires live quote");
+    assert.ok(sellBody.includes("requireQuote: true"), "sell minOut requires live quote");
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut sanitize stays");
     assert.ok(src.includes("applyPiggyToSell"), "piggy dust stays");
   });

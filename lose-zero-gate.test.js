@@ -457,11 +457,14 @@ describe("catalog freeze — buy-side gate", () => {
 
   it("OPERATOR_BUY refuses to queue a frozen catalog name", () => {
     const commands = [];
-    const known = new Set(["STONKEX", "TOSHI"]);
-    const frozen = new Set(["STONKEX"]);
+    const known = new Set(["STONKEX", "TOSHI", "GAME"]);
+    const frozen = new Set(["STONKEX", "GAME"]);
     const result = queueOperatorBuyOnce(commands, "STONKEX:3", known, { done: false }, frozen);
     assert.equal(result.queued, false);
     assert.equal(result.reason, "frozen");
+    const game = queueOperatorBuyOnce(commands, "GAME:3", known, { done: false }, frozen);
+    assert.equal(game.queued, false);
+    assert.equal(game.reason, "frozen");
     assert.equal(commands.length, 0);
   });
 
