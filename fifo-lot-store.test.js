@@ -46,6 +46,8 @@ import {
   freshLotCostFloor,
   sellEntryEthWithLotFloor,
 } from "./lose-zero-gate.js";
+import { hasUsableCostBasis, costBasisEth } from "./price-oracle.js";
+import { classifyRecycleBag } from "./inject-revenue.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
@@ -523,6 +525,107 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("isManualOperatorBuy(reason)"));
     assert.ok(src.includes("settleFlushedOperatorBuy"));
     assert.ok(src.includes("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"));
+    assert.ok(src.includes("classifyRecycleBag"));
     assert.ok(!src.includes("from \"./guardian-v4/agent.js\""), "must not merge V4 into agent.js");
+  });
+});
+
+describe("fifo-lot-store — live DRB/BNKR seed + dust-recycle FIFO eth", () => {
+  /** Live wallet leftovers 2026-09-11 after the evidence buys / AERO+DRB reds. */
+  const LIVE_REMAIN = Object.freeze({
+    AERO: 1.1900154729310743,
+    DRB: 2844.726394849007,
+    BNKR: 8449.911994345815,
+  });
+
+  it("seeded DRB+BNKR rebuild from buy hashes yields usable FIFO cost (no USD entry)", () => {
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: {},
+      remainingBySymbol: LIVE_REMAIN,
+      receipts: [
+        {
+          symbol: "AERO",
+          tokenAddress: AERO,
+          wallet: WALLET,
+          txHash: AERO_HASH,
+          receipt: aeroReceipt(),
+          tx: { hash: AERO_HASH, value: "0x0" },
+        },
+        drbReceipt(),
+        bnkrReceipt(),
+      ],
+      tokens: [
+        { symbol: "AERO", address: AERO },
+        { symbol: "DRB", address: DRB },
+        { symbol: "BNKR", address: BNKR },
+      ],
+    });
+    assert.deepEqual(rebuilt.unknown, []);
+    for (const sym of ["DRB", "BNKR"]) {
+      const token = rebuilt.applied[sym];
+      assert.ok(isUsableLot(rebuilt.lots[sym]), `${sym} lot`);
+      assert.equal(token.unknownEntry, false);
+      assert.ok(token.totalInvestedEth > 0, `${sym} FIFO eth`);
+      assert.ok(token.entryPrice == null || !(token.entryPrice > 0), `${sym} must not invent USD entry`);
+      assert.equal(hasUsableCostBasis(token), true, `${sym} usable without USD entryPrice`);
+      assert.equal(costBasisEth(token), token.totalInvestedEth);
+      assert.equal(tokenHasKnownFifoCost(token, rebuilt.lots[sym]), true);
+    }
+    // AERO leftover after nonce-5451 red still proportions (half-works class).
+    assert.ok(rebuilt.applied.AERO.totalInvestedEth > 0);
+    assert.ok(rebuilt.applied.AERO.totalInvestedEth < rebuilt.lots.AERO.fillCostEth);
+    assert.ok(rebuilt.applied.DRB.totalInvestedEth < rebuilt.lots.DRB.fillCostEth);
+    assert.ok(Math.abs(rebuilt.applied.BNKR.totalInvestedEth - rebuilt.lots.BNKR.fillCostEth) < 1e-9);
+  });
+
+  it("dust-recycle with FIFO eth present proceeds and does not say unknown", () => {
+    const token = { symbol: "DRB", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const lot = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      receipt: drbReceipt().receipt,
+      tx: drbReceipt().tx,
+      price: 0,
+    });
+    const fifo = applyLotToToken(token, lot, { remainingTokens: LIVE_REMAIN.DRB });
+    assert.equal(lotAppliedOk(token, fifo), true);
+    assert.equal(token.entryPrice == null || !(Number(token.entryPrice) > 0), true);
+
+    const kind = classifyRecycleBag({
+      unknownEntry: token.unknownEntry,
+      totalInvestedEth: token.totalInvestedEth,
+      entryPrice: token.entryPrice,
+      hasUsdBasis: hasUsableCostBasis(token),
+      operatorLotEth: token.operatorLot?.fillCostEth,
+    });
+    assert.equal(kind.unknownBag, false);
+    assert.equal(kind.hasKnownPos, true);
+    assert.ok(kind.fifoEth > 0);
+
+    const reason = kind.hasKnownPos
+      ? "🌙 INJECT FUEL — recycle known bag for cascade"
+      : "🌙 DUST RECYCLE — unknown cost basis";
+    assert.ok(!/unknown cost basis/.test(reason));
+
+    const green = plusGate({
+      symbol: "DRB",
+      entryEth: kind.fifoEth,
+      proceeds: kind.fifoEth * 1.2,
+    });
+    assert.equal(green.allow, true);
+    assert.ok(!/unknown cost/i.test(green.log || ""));
+
+    const blockedUnknown = classifyRecycleBag({
+      unknownEntry: true,
+      totalInvestedEth: 0,
+      entryPrice: null,
+    });
+    assert.equal(blockedUnknown.unknownBag, true);
+    assert.match(
+      blockedUnknown.unknownBag ? "🌙 DUST RECYCLE — unknown cost basis" : "",
+      /unknown cost basis/,
+    );
   });
 });

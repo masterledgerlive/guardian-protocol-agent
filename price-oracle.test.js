@@ -181,6 +181,9 @@ describe("cost basis", () => {
     assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false, totalInvestedEth: 0.0002 }), true);
     assert.equal(hasUsableCostBasis({ entryPrice: 2.54, totalInvestedEth: 0.01 }), true);
     assert.equal(hasUsableCostBasis({ entryPrice: 2.54, totalInvestedEth: 0 }), false);
+    // FIFO ETH without USD entryPrice is still usable (DRB/BNKR after #81).
+    assert.equal(hasUsableCostBasis({ entryPrice: null, unknownEntry: false, totalInvestedEth: 0.00027 }), true);
+    assert.equal(costBasisEth({ entryPrice: null, unknownEntry: false, totalInvestedEth: 0.00027 }), 0.00027);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: true, totalInvestedEth: 0.0002 }), 0);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: false, totalInvestedEth: 0.0002 }), 0.0002);
     const invented = { symbol: "TOSHI", entryPrice: 0.000129, totalInvestedEth: 0.0002, unknownEntry: false };

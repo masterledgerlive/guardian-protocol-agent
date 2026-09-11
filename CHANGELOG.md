@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Fixed — DRB/BNKR FIFO eth is usable; dust-recycle honors known FIFO
+
+Live after #80+#81 (`085d25d`): AERO FIFO half-worked (leftover + saved USD
+`entryPrice` in `tokens.json`). DRB `0xe0f846a8…` / BNKR `0xeef39d62…`
+never showed usable cost. Dust-recycle still logged **unknown** when FIFO
+ETH was already on the token.
+
+Root cause (verified on Base): receipt legs parse (DRB native `tx.value`,
+BNKR WETH-from-wallet — same path as AERO). Live leftovers
+DRB 2844 / 8238 buy and BNKR 8449.91 ≈ buy are allocatable FIFO. Storage
+hourly and dust-recycle required a USD `entryPrice` (`hasUsableCostBasis`
++ `hasKnownPos && entryPrice`), so ETH-only lots stayed unknown.
+
+- Proven FIFO ETH (`totalInvestedEth > 0`, `unknownEntry !== true`) is
+  usable cost without inventing a USD `entryPrice`.
+- Dust-recycle / inject-fuel read that FIFO eth (`classifyRecycleBag`);
+  do not block as unknown solely for missing USD.
+- Seeded rebuild applies an already-persisted lot onto the token (AERO
+  latch must not skip DRB/BNKR apply). Dust / sold-all still skipped.
+- #81 401 rebuild, #80 viem/leftover/tombstone, #78 HOLD +
+  `DISABLE_DOW_BIAS` default ON, #76 / #74 — unchanged.
+
+Does **not** invent P&L. Does **not** merge V4. No capital.
+
 ### Fixed — GitHub 401 must not block seeded FIFO rebuild
 
 Live after #79 (`1d73c1bc`, Railway `156ec757`): boot logged

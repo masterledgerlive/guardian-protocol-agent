@@ -117,6 +117,31 @@ export function nearEntryScoreBoost({ isInjectMain = false, pullback = false } =
 }
 
 /**
+ * Dust-recycle / inject-fuel: proven FIFO ETH is known cost even with no
+ * USD entryPrice. Do not block recycle as "unknown" solely for missing USD.
+ */
+export function classifyRecycleBag({
+  unknownEntry = false,
+  totalInvestedEth = 0,
+  entryPrice = null,
+  hasUsdBasis = false,
+  operatorLotEth = 0,
+} = {}) {
+  const fifoEth = Number(totalInvestedEth) > 0
+    ? Number(totalInvestedEth)
+    : (Number(operatorLotEth) > 0 ? Number(operatorLotEth) : 0);
+  const fifoKnown = unknownEntry !== true && fifoEth > 0;
+  const usdKnown = unknownEntry !== true && !!hasUsdBasis && Number(entryPrice) > 0;
+  const hasKnownPos = fifoKnown || usdKnown;
+  return {
+    unknownBag: !hasKnownPos,
+    hasKnownPos,
+    fifoKnown,
+    fifoEth: fifoKnown ? fifoEth : 0,
+  };
+}
+
+/**
  * Unknown-cost dust recycle: free ETH for inject trades without inventing P&L.
  * Bag must clear fees (caller enforces sell gate); we only decide if size qualifies.
  */

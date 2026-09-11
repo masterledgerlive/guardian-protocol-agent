@@ -184,6 +184,7 @@ import {
   nearEntryScoreBoost,
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
+  classifyRecycleBag,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
@@ -8494,9 +8495,14 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
   let n = 0;
   for (const token of tokens) {
     if (!hashes[token.symbol]?.length) continue;
-    if (isUsableLot(fifoLots[token.symbol])) continue;
     const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
-    if (remain == null) continue;
+    if (remain == null) continue; // dust / sold-all / cache miss — do not invent
+    if (isUsableLot(fifoLots[token.symbol])) {
+      // Persist may already have the lot (AERO) while DRB/BNKR still need apply.
+      const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: remain });
+      if (lotAppliedOk(token, fifo)) n++;
+      continue;
+    }
     const rebuilt = await tryRebuildLotFromReceipts(token, remain);
     if (isUsableLot(rebuilt)) n++;
   }
@@ -13108,8 +13114,15 @@ async function main() {
           if (!price) continue;
           const balance = getCachedBalance(token.symbol);
           if (!(balance > 0.001)) continue;
-          const unknownBag = !!(token.unknownEntry || !hasUsableCostBasis(token));
-          const hasKnownPos = hasUsableCostBasis(token) && !!token.entryPrice;
+          const recycleKind = classifyRecycleBag({
+            unknownEntry: token.unknownEntry,
+            totalInvestedEth: token.totalInvestedEth,
+            entryPrice: token.entryPrice,
+            hasUsdBasis: hasUsableCostBasis(token),
+            operatorLotEth: token.operatorLot?.fillCostEth,
+          });
+          const unknownBag = recycleKind.unknownBag;
+          const hasKnownPos = recycleKind.hasKnownPos;
           if (!hasKnownPos && !unknownBag) continue;
           if (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol)) continue; // in a tier — leave it
           const posUsd = balance * price;
@@ -13132,12 +13145,12 @@ async function main() {
           });
           if (!recycleUnknown && !recycleKnown && posUsd <= MOONSHOT_HOLD_USD * 1.5) continue;
           recycleCandidates.push({
-            token, price, balance, posUsd, unknownBag, hasKnownPos, recycleUnknown, recycleKnown,
+            token, price, balance, posUsd, unknownBag, hasKnownPos, recycleUnknown, recycleKnown, recycleKind,
           });
         }
 
         for (const cand of sortRecycleCandidatesByUsd(recycleCandidates)) {
-        const { token, price, balance, posUsd, unknownBag, recycleUnknown, recycleKnown } = cand;
+        const { token, price, balance, posUsd, unknownBag, recycleUnknown, recycleKnown, recycleKind } = cand;
         const moonPriceGate = await gatePriceInsane(token, price, "sell", balance);
         if (!moonPriceGate.allow) continue;
         const recycleFuel = !!(recycleUnknown || recycleKnown);
@@ -13195,7 +13208,8 @@ async function main() {
           tokensToSell: moonPiggy.tokensToSell,
         });
         const moonLotCost = freshLotCostFloor(token);
-        const moonEntryEth = sellEntryEthWithLotFloor(costBasisEth(token), token);
+        const moonFifoEth = recycleKind.fifoEth || costBasisEth(token);
+        const moonEntryEth = sellEntryEthWithLotFloor(moonFifoEth, token);
         const moonMarkEth = (moonPiggy.tokensToSell * price) / ethUsd;
         const moonGate = buildSellGateDecision({
           symbol: token.symbol,

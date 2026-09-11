@@ -366,14 +366,18 @@ export async function fetchTokenUsdQuote(address) {
 
 export function hasUsableCostBasis(token) {
   if (!token || token.unknownEntry) return false;
-  if (!isValidUsdPrice(token.entryPrice)) return false;
   const invested = Number(token.totalInvestedEth);
-  return Number.isFinite(invested) && invested > 0;
+  // Proven FIFO ETH is enough. Do not require a USD entryPrice — storage
+  // hourly / dust-recycle treated DRB/BNKR as unknown after #81 while AERO
+  // only looked "usable" because tokens.json still had a fill USD.
+  if (Number.isFinite(invested) && invested > 0) return true;
+  return false;
 }
 
 /**
  * Invested ETH used by leftover / P&L. Unknown bags (chain truth, no fill
  * receipt) contribute 0 — never a live mark invented as "what we paid."
+ * USD entryPrice is optional; FIFO ETH is the cost.
  */
 export function costBasisEth(token) {
   if (!hasUsableCostBasis(token)) return 0;
