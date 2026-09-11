@@ -24,6 +24,11 @@ plain only when plain is still plus; else **HOLD**. Piggy dust never sold.
 - `executeSell` quotes first and uses `min(mark, quote)` proceeds; orch cannot
   re-hitch after SKIP_HITCH
 - Logs `PLUS` / `HOLD` / `SKIP_HITCH` with leftover, entrySold, fees, hitch, net
+- HAT #56 wave-paid picture: `HITCH_COST_MULT` does not raise sell floor or
+  change hitch size; leftover-after-plus is the budget (10KB is a quote ceiling)
+- VITA #59 leftover hitch cost uses planned KEY+LOC (`leftoverVoiceHitchBytes`),
+  not the 10-byte §$STORE§ tag. L1 oracle fallback SKIPs hitch on **buys and
+  sells** — `leftoverWouldCoverVitaHitch` cannot re-attach KEY+LOC without live L1
 
 FIFO red-sell class (risk desk): BASECAT/MORPHO/SKI/LINK/UNI/AERO/VVV/DRB
 proceeds < buy cost → **HOLD**. DRB hitch-prove tiny leftover → **SKIP_HITCH**

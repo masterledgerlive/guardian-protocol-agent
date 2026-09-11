@@ -143,6 +143,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("isCatalogFrozen(token)"), "must not drop the frozen buy gate");
     assert.ok(src.includes("evaluatePriceInsane"), "PRICE_INSANE must run before hitch/minOut");
     assert.ok(src.includes("quoteHitchL1ForGates") || src.includes("estimateHitchL1FeeEth"), "live L1 hitch fee must be quoted");
+    assert.ok(src.includes("buy hitch skipped — L1 fee unknown"), "buy L1 fallback must SKIP hitch, not hitch VITA anyway");
+    assert.ok(!src.includes("hitch VITA anyway"), "leftoverWouldCover must not re-attach VITA without live L1");
     assert.ok(src.includes("planVoiceHitch") && src.includes("appendUtf8Hitch"), "UTF-8 §$STORE§ hitch must ride the swap");
     assert.ok(src.includes("hitchTelegramFooter"), "Telegram must not claim a letter that is not on-chain");
     assert.ok(src.includes("hitchLedgerSignature"), "ledger must not stamp Eureka on a plain swap");

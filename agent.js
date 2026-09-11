@@ -5584,14 +5584,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       if (decision.log) console.log(`   ${decision.log}`);
       buySkipHitch = !!decision.skipHitch;
       buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
-      // L1 oracle down: skip hitch unless leftover already covered a larger Eureka trailer.
+      // L1 oracle down: never hitch (plain buy). leftoverWouldCoverVitaHitch used
+      // to re-attach KEY+LOC without live L1 and undercover the insert.
       if (!hitchL1.ok) {
-        if (leftoverWouldCoverVitaHitch()) {
-          console.log(`   LOSE_ZERO: L1 fee unknown — hitch VITA anyway (leftover already covered Eureka hitch bytes)`);
-        } else {
-          buySkipHitch = true;
-          console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
-        }
+        buySkipHitch = true;
+        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`);
       }
       if (!decision.allow) {
         return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");

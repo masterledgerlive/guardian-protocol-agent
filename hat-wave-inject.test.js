@@ -90,6 +90,25 @@ describe("hat-wave: transmission error buffer + sizing", () => {
     assert.ok(sized.skipHitch || sized.injectCostEth < leftover);
     assert.ok(sized.spendableEth <= leftover);
   });
+
+  it("HAT #56: HITCH_COST_MULT=2 does not change wave hitch size (plus gate is leftover-after-plus)", () => {
+    const leftover = 0.001;
+    const one = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      gwei: 0.05,
+      wantedBytes: 10_000,
+      hitchCostMult: 1,
+    });
+    const two = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      gwei: 0.05,
+      wantedBytes: 10_000,
+      hitchCostMult: 2,
+    });
+    assert.equal(one.hitchBytes, two.hitchBytes);
+    assert.equal(one.skipHitch, two.skipHitch);
+    assert.ok(one.skipHitch || one.injectCostEth < leftover);
+  });
 });
 
 describe("hat-wave: sell target hard-codes transmission", () => {
