@@ -35,6 +35,12 @@ import {
   shouldFreezeOnRouteReject,
   MIN_SWAP_POOL_LIQ_USD,
 } from "./quote-swap-guard.js";
+import {
+  TOSHI_BASE,
+  TOSHI_UNI_WETH_PAIR,
+  TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+  BASE_WETH,
+} from "./price-oracle.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
@@ -389,6 +395,16 @@ describe("agent.js wiring — quote miss never sends", () => {
       "/unfreeze must not return early when catalog is already active"
     );
     assert.ok(src.includes("isQuoteContractRevert"), "quote revert must not drain the RPC pool");
+    const qFn = src.indexOf("async function quoteAtFee(");
+    const qEnd = src.indexOf("async function getOnChainQuote(");
+    const qBody = src.slice(qFn, qEnd);
+    assert.ok(qFn >= 0 && qEnd > qFn, "quoteAtFee must exist");
+    assert.ok(!qBody.includes("rpcCall("), "quote timeout/revert must not walk the RPC pool");
+    const raceFn = src.indexOf("function raceWithTimeout(");
+    const raceEnd = src.indexOf("async function rpcCall(", raceFn);
+    const raceBody = src.slice(raceFn, raceEnd > raceFn ? raceEnd : raceFn + 500);
+    assert.ok(raceBody.includes("clearTimeout(timer)"), "RPC/quote timeouts must clear the timer");
+    assert.ok(raceBody.includes("work.catch("), "timeout must not leave the original RPC as unhandled rejection");
     assert.ok(!src.includes("using cached price with wider slippage"), "spot fallback send path must die");
   });
 });
@@ -412,6 +428,39 @@ describe("SwapRouter route vs DexScreener primary book", () => {
     assert.equal(r.primary.quoteSymbol, "VIRTUAL");
     assert.ok(r.swap.liqUsd < MIN_SWAP_POOL_LIQ_USD);
     assert.match(r.log, /Freeze new buys/);
+  });
+
+  it("does not freeze TOSHI on a Pancake VIRTUAL ghost when Uni V3 WETH is the real book", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [
+        {
+          chainId: "base",
+          dexId: "pancakeswap",
+          pairAddress: TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+          liquidity: { usd: 69_729_870.52 },
+          volume: { h24: 0 },
+          baseToken: { address: TOSHI_BASE },
+          quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+        },
+        {
+          chainId: "base",
+          dexId: "uniswap",
+          labels: ["v3"],
+          pairAddress: TOSHI_UNI_WETH_PAIR,
+          liquidity: { usd: 1_144_685.42 },
+          volume: { h24: 47_634.97 },
+          baseToken: { address: TOSHI_BASE },
+          quoteToken: { address: BASE_WETH, symbol: "WETH" },
+        },
+      ],
+      tokenAddress: TOSHI_BASE,
+      tradeUsd: 8,
+      symbol: "TOSHI",
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.freezeBuys, false);
+    assert.equal(r.swap.pairAddress.toLowerCase(), TOSHI_UNI_WETH_PAIR.toLowerCase());
+    assert.equal(r.primary.pairAddress.toLowerCase(), TOSHI_UNI_WETH_PAIR.toLowerCase());
   });
 
   it("refuses when Uni V3 WETH exists but is a fraction of the V2 VIRTUAL book", () => {
@@ -449,6 +498,26 @@ describe("SwapRouter route vs DexScreener primary book", () => {
       symbol: "TOKS",
     });
     assert.equal(r.allow, true);
+    assert.equal(r.freezeBuys, false);
+  });
+
+  it("does not freeze TOSHI when every DexScreener row is a ghost mega-liq print", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [{
+        chainId: "base",
+        dexId: "pancakeswap",
+        pairAddress: TOSHI_CAKE_VIRTUAL_JUNK_PAIR,
+        liquidity: { usd: 69_729_870.52 },
+        volume: { h24: 0 },
+        baseToken: { address: TOSHI_BASE },
+        quoteToken: { address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", symbol: "VIRTUAL" },
+      }],
+      tokenAddress: TOSHI_BASE,
+      tradeUsd: 8,
+      symbol: "TOSHI",
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.code, "NO_DEX_PAIRS");
     assert.equal(r.freezeBuys, false);
   });
 
