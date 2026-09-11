@@ -19,12 +19,12 @@ Live Uni V3 GAME/WETH book is **fee 10000** (`0xE5Ff…77a3`). Harden:
 - Require a live QuoterV2 fill before send (no spot-only minOut).
 - Probe other V3 fees when catalog fee misses; remember the fee that quoted.
 - Quote contract revert does not drain the RPC pool.
-- Quote miss / PRICE_INSANE quote / minOut reject increment the fail streak; cooldown after N (still 3) without sending.
+- Quote miss / PRICE_INSANE quote / minOut reject increment the fail streak; cooldown after N (still 3) without sending. A single `QUOTE_MISS` does **not** freeze new buys (RPC timeout and pool miss share the same null).
 - Hitch leftover too thin → plain sale (no hitch); orch cannot re-hitch after skip. Missing voice hitch still lets the silo queue ride.
 - GAME catalog fee 10000 / 1% so exits quote the live Uni V3 book first. Catalog freeze stays from #60 (exits-only) — this change does not re-freeze GAME. `/unfreeze` still works (no sticky freeze).
-- DexScreener primary-book gate: SwapRouter02 is Uni V3 WETH/USDC only. Uni V2 VIRTUAL / Aerodrome is not a fill. Thin V3 WETH (`<$25k` or `<<` the liquid book) freezes new buys immediately.
+- DexScreener primary-book gate: SwapRouter02 `encodeSwap` is Uni V3 **WETH** only (a deep USDC V3 book is not the fill). Uni V2 VIRTUAL / Aerodrome is not a fill. Thin V3 WETH (`<$25k` or `<<` the liquid book) freezes new buys immediately.
 - On-chain factory `liquidity=0` skips that fee **before** QuoterV2 (GAME empty 3000 ghost). Quote/minOut reject before wrap. Quoter amountOut is not enough without a real pool.
-- After N=3 quote/swap fails on the same symbol: cooldown **and** persistent buy freeze. Cooldown expiry does not reopen buys. Successful **buy** fill or `/unfreeze` lifts the runtime freeze; successful **sell** does not.
+- After N=3 quote/swap fails on the same symbol: cooldown **and** persistent buy freeze. Cooldown expiry does not reopen buys. Successful **buy** fill or `/unfreeze` lifts the runtime freeze (even if the catalog row is already active); successful **sell** does not.
 - Hitch only when leftover covers; plain sale otherwise. LOSE-ZERO unchanged. Uni V4 leftover hitch stays VITA KEY+LOC. No invented P&L.
 
 ### Added — VITA secondary router: leftover hitch switches to §TOKEN§ parse + loc squash

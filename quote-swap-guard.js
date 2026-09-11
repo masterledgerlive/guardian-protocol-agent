@@ -110,12 +110,21 @@ export function isUniswapV3Pair(pair) {
   return false;
 }
 
+function isWethAddress(addr) {
+  const q = String(addr || "").toLowerCase();
+  return q === BASE_WETH.toLowerCase() || q === NATIVE_ETH.toLowerCase();
+}
+
 function isWethOrUsdcAddress(addr) {
   const q = String(addr || "").toLowerCase();
-  return q === BASE_WETH.toLowerCase()
+  return isWethAddress(addr)
     || q === BASE_USDC.toLowerCase()
-    || q === BASE_USDBC.toLowerCase()
-    || q === NATIVE_ETH.toLowerCase();
+    || q === BASE_USDBC.toLowerCase();
+}
+
+export function isWethQuotePair(pair) {
+  return isWethAddress(pairQuoteAddress(pair))
+    || isWethAddress(pairBaseAddress(pair));
 }
 
 export function isWethOrUsdcQuotePair(pair) {
@@ -135,6 +144,7 @@ export function summarizeDexPair(pair) {
     liqUsd: Number(pair.liquidity?.usd) || 0,
     volUsd: Number(pair.volume?.h24) || 0,
     uniV3: isUniswapV3Pair(pair),
+    weth: isWethQuotePair(pair),
     wethUsdc: isWethOrUsdcQuotePair(pair),
   };
 }
@@ -163,11 +173,14 @@ export function deepestDexPair(pairs, tokenAddress) {
   return rows[0] || null;
 }
 
-/** Only a Uni V3 WETH/USDC pool can be filled by SwapRouter02 exactInputSingle. */
+/**
+ * SwapRouter02 encodeSwap is WETH↔token only. A deep Uni V3 USDC book is not
+ * the pool that exactInputSingle will hit — do not treat USDC as the route.
+ */
 export function selectUniV3WethUsdcPair(pairs, tokenAddress) {
   const rows = matchingBasePairs(pairs, tokenAddress)
     .map(summarizeDexPair)
-    .filter((r) => r && r.uniV3 && r.wethUsdc && r.liqUsd > 0);
+    .filter((r) => r && r.uniV3 && r.weth && r.liqUsd > 0);
   rows.sort((a, b) => b.liqUsd - a.liqUsd);
   return rows[0] || null;
 }
@@ -207,8 +220,8 @@ export function requireFactoryLiquidity({ liquidity, symbol = "?", fee = "?" } =
 }
 
 /**
- * SwapRouter02 can only fill Uni V3 WETH/USDC. Aerodrome / Uni V2 VIRTUAL
- * books are not a route. A Quoter number on a thin/ghost V3 pool is not enough.
+ * SwapRouter02 can only fill Uni V3 WETH. Aerodrome / Uni V2 VIRTUAL / Uni V3
+ * USDC books are not a route. A Quoter number on a thin/ghost V3 pool is not enough.
  */
 export function evaluateSwapRouterRoute({
   pairs,
@@ -300,7 +313,7 @@ export function evaluateSwapRouterRoute({
       swap,
       log:
         `🛑 PRIMARY NOT V3 WETH ${sym} — liquid book is ${primary.dexId} ` +
-        `${primary.quoteSymbol || "?"} $${primary.liqUsd.toFixed(0)}, Uni V3 WETH/USDC ` +
+        `${primary.quoteSymbol || "?"} $${primary.liqUsd.toFixed(0)}, Uni V3 WETH ` +
         `only $${swap.liqUsd.toFixed(0)}. Quoter on the thin V3 pool is not the book. Freeze new buys.`,
     };
   }

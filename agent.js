@@ -5813,9 +5813,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       side: "buy",
     });
     if (!quoteGate.allow) {
+      // QUOTE_MISS increments the N=3 streak only. Immediate freeze is for
+      // structural books (EMPTY_V3_POOL / THIN_V3_WETH / PRIMARY_NOT_V3_WETH).
+      // quoteAtFee maps RPC timeout to the same null as a pool miss.
       noteSwapPathFail(token.symbol, {
         kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
-        freezeBuys: quoteGate.code === "QUOTE_MISS",
       });
       return await skipBuy(reason, token.symbol, quoteGate.log);
     }
@@ -9523,14 +9525,20 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const t   = tokens.find(t => t.symbol === sym);
         if (!t) {
           await tg(`❓ Token <b>${sym}</b> not found in token list.`);
-        } else if (!t.frozen) {
-          await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
         } else {
-          t.frozen = false;
-          delete t.frozenReason;
-          clearBuyFreeze(sym);
-          console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
-          await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
+          const runtimeFrozen = isBuyFrozen(sym);
+          if (!t.frozen && !runtimeFrozen) {
+            await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
+          } else {
+            if (t.frozen) {
+              t.frozen = false;
+              delete t.frozenReason;
+            }
+            clearBuyFreeze(sym);
+            clearSlippageFails(sym);
+            console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
+            await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
+          }
         }
 
       } else if (text.startsWith("/freeze ")) {

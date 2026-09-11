@@ -289,12 +289,24 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(buyBody.includes("requireFactoryLiquidity"), "buy must check factory liquidity");
     assert.ok(buyBody.includes("isBuyFrozen"), "buy must honor per-symbol freeze");
     assert.ok(buyBody.includes("clearBuyFreeze"), "successful fill may reopen buys");
+    assert.ok(
+      !buyBody.includes('freezeBuys: quoteGate.code === "QUOTE_MISS"'),
+      "QUOTE_MISS must count toward N=3, not freeze on first RPC/pool miss"
+    );
     assert.ok(src.includes("readV3PoolLiquidity"), "must skip empty Uni V3 fees");
     assert.ok(!sellBody.includes("evaluateSwapRouterRoute"), "sells must not freeze on primary-book mismatch");
     assert.ok(!sellBody.includes("isSlippageCooledDown"), "sells stay open during buy cooldown");
     assert.ok(!sellBody.includes("isBuyFrozen"), "buy freeze must not block leftover exits");
     assert.ok(sellBody.includes("requireFactoryLiquidity"), "sell still skips empty V3 fees");
-    assert.ok(src.includes("clearBuyFreeze(sym)"), "/unfreeze must lift runtime buy freeze");
+    const unfreeze = src.indexOf('text.startsWith("/unfreeze ")');
+    const unfreezeEnd = src.indexOf('text.startsWith("/freeze ")', unfreeze);
+    const unfreezeBody = src.slice(unfreeze, unfreezeEnd > 0 ? unfreezeEnd : unfreeze + 1200);
+    assert.ok(unfreezeBody.includes("isBuyFrozen(sym)"), "/unfreeze must see runtime buy freeze");
+    assert.ok(unfreezeBody.includes("clearBuyFreeze(sym)"), "/unfreeze must lift runtime buy freeze");
+    assert.ok(
+      !/else if \(!t\.frozen\) \{/.test(unfreezeBody),
+      "/unfreeze must not return early when catalog is already active"
+    );
     assert.ok(src.includes("isQuoteContractRevert"), "quote revert must not drain the RPC pool");
     assert.ok(!src.includes("using cached price with wider slippage"), "spot fallback send path must die");
   });
@@ -383,6 +395,63 @@ describe("SwapRouter route vs DexScreener primary book", () => {
     assert.equal(r.freezeBuys, true);
   });
 
+  it("refuses a deep Uni V3 USDC book when WETH V3 is thin — encodeSwap is WETH", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [
+        {
+          chainId: "base",
+          dexId: "uniswap",
+          labels: ["v3"],
+          pairAddress: "0x3333333333333333333333333333333333333333",
+          liquidity: { usd: 500_000 },
+          volume: { h24: 40_000 },
+          baseToken: { address: GAME_TOKEN },
+          quoteToken: { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", symbol: "USDC" },
+        },
+        {
+          chainId: "base",
+          dexId: "uniswap",
+          labels: ["v3"],
+          pairAddress: GAME_LIVE_FEE_10000_POOL,
+          liquidity: { usd: 2_795 },
+          volume: { h24: 25 },
+          baseToken: { address: GAME_TOKEN },
+          quoteToken: { address: "0x4200000000000000000000000000000000000006", symbol: "WETH" },
+        },
+      ],
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 5,
+      symbol: "TOKS",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "THIN_V3_WETH");
+    assert.equal(r.freezeBuys, true);
+    assert.equal(r.swap.quoteSymbol, "WETH");
+    assert.ok(r.swap.liqUsd < MIN_SWAP_POOL_LIQ_USD);
+  });
+
+  it("refuses Uni V3 USDC-only — SwapRouter encodeSwap is WETH", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: [{
+        chainId: "base",
+        dexId: "uniswap",
+        labels: ["v3"],
+        pairAddress: "0x3333333333333333333333333333333333333333",
+        liquidity: { usd: 500_000 },
+        volume: { h24: 40_000 },
+        baseToken: { address: GAME_TOKEN },
+        quoteToken: { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", symbol: "USDC" },
+      }],
+      tokenAddress: GAME_TOKEN,
+      tradeUsd: 5,
+      symbol: "TOKS",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.code, "NO_V3_WETH");
+    assert.equal(r.freezeBuys, true);
+    assert.equal(r.swap, null);
+  });
+
   it("TRADE_TOO_BIG skips the clip without freezing new buys", () => {
     const r = evaluateSwapRouterRoute({
       pairs: [{
@@ -455,6 +524,18 @@ describe("buy freeze after N quote/swap fails", () => {
     assert.equal(isBuyFrozen("GAME", store), true);
     clearBuyFreeze("GAME", store);
     assert.equal(isBuyFrozen("GAME", store), false);
+  });
+
+  it("operator /unfreeze lifts runtime freeze even when catalog is already active", () => {
+    const store = Object.create(null);
+    recordSlippageFail("LINK", 1, { max: 3, cooldownMs: 60_000, store });
+    recordSlippageFail("LINK", 2, { max: 3, cooldownMs: 60_000, store });
+    recordSlippageFail("LINK", 3, { max: 3, cooldownMs: 60_000, store });
+    assert.equal(isBuyFrozen("LINK", store), true);
+    clearBuyFreeze("LINK", store);
+    clearSlippageFails("LINK", store);
+    assert.equal(isBuyFrozen("LINK", store), false);
+    assert.equal(isSlippageCooledDown("LINK", 4, store), false);
   });
 });
 
