@@ -542,6 +542,26 @@ export function mergeLedgerBuysIntoLots(lots, trades) {
 }
 
 /**
+ * GitHub ledger / fifo-lots / positions 401 (or unreadable): ignore remote
+ * trades and rebuild from disk persist + seeded buy-hash receipts only.
+ * Do not invent P&L — missing persist and missing receipt → unknown.
+ */
+export function recoverLotsAfterGithubReadFailure({
+  persisted = {},
+  receipts = [],
+  remainingBySymbol = {},
+  tokens = [],
+} = {}) {
+  return rebuildLotsAfterRestart({
+    persisted,
+    ledgerTrades: [],
+    receipts,
+    remainingBySymbol,
+    tokens,
+  });
+}
+
+/**
  * After a simulated / real restart: rebuild lots from persist, then receipts.
  * Missing both → unknown (do not invent).
  */
