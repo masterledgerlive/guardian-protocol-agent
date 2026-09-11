@@ -224,4 +224,10 @@ describe("outlet scoreboard — GAME ghost is CUT", () => {
     assert.match(row, /feeTier:\s*10000/, "catalog quotes live 1% book first (#61)");
     assert.ok(!/disabled:\s*true/.test(row), "GAME exits must stay open");
   });
+
+  it("v3-fee-routes ranks only — agent.js submit path stays quote-swap-guard (#61)", () => {
+    assert.ok(agentSrc.includes('from "./quote-swap-guard.js"'));
+    assert.ok(!agentSrc.includes('from "./v3-fee-routes.js"'), "do not wire ranking into the live send path");
+    assert.ok(!agentSrc.includes("guardian-v4"), "do not merge Uni V4 into agent.js");
+  });
 });

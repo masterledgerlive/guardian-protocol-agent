@@ -19,6 +19,7 @@ before(async () => {
 });
 
 after(async () => {
+  if (typeof server.closeAllConnections === "function") server.closeAllConnections();
   await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
 });
 
