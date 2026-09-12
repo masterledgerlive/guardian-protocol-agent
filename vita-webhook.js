@@ -27,6 +27,10 @@
 //   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
 //   GET  /vita/locations     — squashed location depository
 //   GET  /vita/leftover     — public leftover hitch scan (hashes + class, no utf8)
+//   GET  /vita/xmem/spec    — public XMEM v1 agent spec + instructions
+//   GET  /vita/lib/xmem.js  — same XMEM parser as the bot
+//   GET|POST /vita/xmem/decode — parse/search provided utf8/hex (no chain fetch)
+//   GET  /vita/xmem?q=      — x402 wallet scan + XMEM search (auth)
 //   GET  /vita/course        — hourly inject-without-loss scorecard
 //   GET  /vita/inject       — recursive §TOKEN§ memory for session start
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
@@ -35,7 +39,7 @@
 //   POST /vita/save           — trigger vitasave programmatically
 //
 // Auth: VITA_WEBHOOK_SECRET header must match env var
-// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover do not require the secret.
+// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover + XMEM spec/decode do not require the secret.
 // Live queue / vita/* still require the secret. No unauthenticated mutate of env.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -68,6 +72,12 @@ import {
   publicLeftoverScanView,
   pullLocationFromChain,
 } from "./vita-chain-reader.js";
+import {
+  AGENT_INSTRUCTIONS,
+  AGENT_SPEC,
+  extractMemoryRecords,
+  retrieveXmem,
+} from "./xmem.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -85,6 +95,7 @@ const V4_HTML = join(ROOT, "public", "v4.html");
 const VITA_HTML = join(ROOT, "public", "vita.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
+const XMEM_JS = join(ROOT, "xmem.js");
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 function isAuthorized(req) {
@@ -319,6 +330,26 @@ async function handleVitaRequest(req, res) {
     if (path === "/vita/lib/vita-parse.js" && req.method === "GET") {
       return servePublicFile(res, VITA_PARSE_JS, "text/javascript; charset=utf-8", "vita parse");
     }
+    if (path === "/vita/lib/xmem.js" && req.method === "GET") {
+      return servePublicFile(res, XMEM_JS, "text/javascript; charset=utf-8", "xmem");
+    }
+    if (path === "/vita/xmem/spec" && req.method === "GET") {
+      return json(res, {
+        ok: true,
+        ...AGENT_SPEC,
+        instructions: AGENT_INSTRUCTIONS,
+        liveHitch: AGENT_SPEC.liveHitch,
+      });
+    }
+    if (path === "/vita/xmem/decode" && (req.method === "GET" || req.method === "POST")) {
+      const body = req.method === "POST" ? (await readBody(req) || {}) : {};
+      const utf8 = String(url.searchParams.get("utf8") || body.utf8 || body.text || "");
+      const hex = String(url.searchParams.get("hex") || body.hex || "");
+      const q = String(url.searchParams.get("q") || url.searchParams.get("query") || body.q || body.query || "");
+      if (!utf8 && !hex) return err(res, "missing utf8 or hex");
+      const records = extractMemoryRecords(hex || utf8);
+      return json(res, retrieveXmem(records, q));
+    }
     if (path === "/vita/leftover" && req.method === "GET") {
       try {
         const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3, wait: false });
@@ -452,6 +483,18 @@ async function handleVitaRequest(req, res) {
     } else if (path === "/vita/inject" && req.method === "GET") {
       return json(res, { ok: true, ...buildVitaInjectContext() });
 
+    } else if (path === "/vita/xmem" && req.method === "GET") {
+      const q = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
+      try {
+        const scan = await getCachedLeftoverScan({ limit: 80, maxPages: 3 });
+        if (isPendingLeftoverScan(scan)) {
+          return json(res, { ok: true, protocol: "x402", found: false, scanning: true, count: 0, records: [] });
+        }
+        return json(res, retrieveXmem(scan.xmemRecords || [], q, { protocol: "x402" }));
+      } catch (e) {
+        return err(res, "xmem scan failed: " + (e.message || e), 502);
+      }
+
     } else if (path === "/vita/pull" && req.method === "GET") {
       const tx = String(url.searchParams.get("tx") || url.searchParams.get("hash") || "").trim();
       const result = await pullLocationFromChain(tx, fetchTxCalldataHex);
@@ -512,7 +555,7 @@ async function handleVitaRequest(req, res) {
         "engine-board.js","peak-ride.js","second-inject.js","piggy-bank.js",
         "board-control.js","BOARD.md",
         "vita-parse.js","vita-locations.js","vita-router.js","vita-course.js",
-        "vita-router-state.json",
+        "vita-router-state.json","xmem.js","XMEM.md",
       ];
       if (!allowed.includes(filename)) return err(res, "file not in allowed list");
 
@@ -597,6 +640,8 @@ export function startVitaWebhook() {
     console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
     console.log("   /vita/locations — squashed location depository");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
+    console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
+    console.log("   /vita/xmem     — x402 wallet memory search (auth)");
     console.log("   /vita/course   — hourly inject-without-loss scorecard");
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/read     — read GitHub files");

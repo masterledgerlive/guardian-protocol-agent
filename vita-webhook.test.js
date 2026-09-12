@@ -222,6 +222,40 @@ describe("control board HTTP", () => {
     assert.equal(parse.res.status, 200);
     assert.match(parse.text, /projectLeftoverHitchFields/);
     assert.match(parse.text, /VITA_LOVE_KEY/);
+    const xmemLib = await get("/vita/lib/xmem.js");
+    assert.equal(xmemLib.res.status, 200);
+    assert.match(xmemLib.text, /XMEM\|v1/);
+  });
+
+  it("GET /vita/xmem/spec is public agent handoff; decode finds STORE KEY names", async () => {
+    const spec = await get("/vita/xmem/spec");
+    assert.equal(spec.res.status, 200);
+    assert.equal(spec.json.protocol, "XMEM");
+    assert.equal(spec.json.version, "v1");
+    assert.match(spec.json.instructions, /Do not invent missing values/);
+    assert.equal(spec.json.links.x404.includes("unresolved"), true);
+
+    const hitch = "§$STORE§ §KEY§eureka♥Krystian,Kai,Koda§LOC§n=161|t=7cfa|r=d982";
+    const decoded = await fetch(base + "/vita/xmem/decode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ utf8: hitch, q: "koda krystian" }),
+    });
+    const json = await decoded.json();
+    assert.equal(decoded.status, 200);
+    assert.equal(json.found, true);
+    assert.ok(json.records[0].tags.includes("koda"));
+    assert.equal(json.records[0].id, undefined);
+
+    const miss = await fetch(base + "/vita/xmem/decode", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ utf8: hitch, q: "id=does-not-exist" }),
+    });
+    const missJson = await miss.json();
+    assert.equal(missJson.found, false);
+    assert.equal(missJson.protocol, "x404");
+    assert.equal(missJson.records.length, 0);
   });
 
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
@@ -250,6 +284,7 @@ describe("control board HTTP", () => {
       assert.equal(typeof json.counts.vita, "number");
       assert.equal(Array.isArray(json.rows), true);
       assert.equal(json.rows.every((r) => r.utf8 === undefined), true);
+      assert.equal(json.xmemRecords, undefined);
       assert.ok(json.rows.length <= 80);
       assert.equal(typeof json.hitchBytes, "object");
       if (json.counts.eureka > 0) {

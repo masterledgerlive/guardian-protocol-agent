@@ -14,6 +14,12 @@ import {
   refineVitaPacket,
   vitaQuality,
 } from "/vita/lib/vita-parse.js";
+import {
+  extractMemoryRecords,
+  formatXmemMatches,
+  retrieveXmem,
+  xmemHelpText,
+} from "/vita/lib/xmem.js";
 
 export const KEYCAT_TX = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
 export const EUREKA_ONCHAIN_TX = "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73";
@@ -209,6 +215,7 @@ function helpText() {
     "/inject           pull known Base locations + leftover hitch hashes → reader reconstructs",
     "/vitapull 0xHASH  pull one hitch from Base",
     "/vitascan         leftover hitch eureka vs VITA (reader pulls locations)",
+    "/xmem [query]     search pulled hitch UTF-8 (XMEM / STORE KEY / tags)",
     "/reader           show reconstructed packet from locations",
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/zk  locations-only preview (future ZK path)",
@@ -370,6 +377,19 @@ export async function handleCommand(state, raw) {
     } catch (e) {
       return say("leftover scan failed: " + (e.message || e));
     }
+  }
+  if (low === "/xmem" || low.startsWith("/xmem ")) {
+    const arg = input.slice("/xmem".length).trim();
+    if (!arg || /^help$/i.test(arg)) return say(xmemHelpText());
+    if (/^decode\s+/i.test(arg)) {
+      return say(formatXmemMatches(retrieveXmem(extractMemoryRecords(arg.replace(/^decode\s+/i, "")), "")));
+    }
+    const payloads = [
+      ...(state.nodes || []).map((n) => n.utf8),
+      state.packet,
+    ].filter(Boolean);
+    const records = payloads.flatMap((p) => extractMemoryRecords(p));
+    return say(formatXmemMatches(retrieveXmem(records, arg)));
   }
   if (low.startsWith("/vitanote ")) {
     const note = input.slice(10).trim();

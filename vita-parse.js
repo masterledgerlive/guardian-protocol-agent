@@ -259,17 +259,21 @@ export function vitaQuality(packetOrFields) {
  */
 export function detectHitchKind(utf8) {
   const s = String(utf8 || "");
-  if (!s.trim()) return { kind: "none", eureka: false, vita: false, hat: false, storeTag: false };
+  if (!s.trim()) {
+    return { kind: "none", eureka: false, vita: false, hat: false, storeTag: false, xmem: false };
+  }
   const storeTag = s.includes("§$STORE§");
   const hat = s.includes("§HAT§");
   const vita = /§(SESS|WHO|STACK|BUILT|PROVED|ARCH|VISION|NEXT|KEY|LEARN|LOC)§/.test(s);
   const eureka = /Eureka!/i.test(s) || /love you Krystian/i.test(s);
+  const xmem = /XMEM\|v\d+/i.test(s) || /CUBORG-MEMORY\|/i.test(s);
   let kind = "unknown";
   if (hat) kind = "hat";
   else if (vita) kind = "vita";
   else if (eureka) kind = "eureka";
+  else if (xmem) kind = "xmem";
   else if (storeTag) kind = "tag";
-  return { kind, eureka, vita, hat, storeTag };
+  return { kind, eureka, vita, hat, storeTag, xmem };
 }
 
 export function buildGenesisFields(extra = {}) {

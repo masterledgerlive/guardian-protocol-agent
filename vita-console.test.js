@@ -43,6 +43,17 @@ describe("vita HTML console", () => {
     assert.match(r.text, /Koda/);
   });
 
+  it("searches genesis KEY via /xmem without inventing an id", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/xmem koda krystian");
+    assert.match(r.text, /XMEM/);
+    assert.doesNotMatch(r.text, /x404/);
+    assert.match(r.text, /koda/);
+    assert.doesNotMatch(r.text, /id=20260912/);
+    const miss = await handleVitaConsole(state, "/xmem id=does-not-exist");
+    assert.match(miss.text, /x404/);
+  });
+
   it("pulls mocked locations and reconstructs reader output without KEY loss", async () => {
     resetLocationDepository();
     clearHitchModeOverride();
@@ -185,6 +196,7 @@ describe("vita HTML artifacts", () => {
     assert.match(client, /handleCommand/);
     assert.match(client, /KEYCAT_TX/);
     assert.match(client, /vitascan/);
+    assert.match(client, /\/xmem/);
     assert.match(client, /fetchLeftoverScanJson|\/vita\/leftover/);
     assert.match(client, /leftoverScanIncomplete/);
     assert.match(client, /scan\.scanning/);

@@ -31,6 +31,7 @@ import {
   ingestLocationFromChain,
 } from "./vita-locations.js";
 import { recordLeftoverKinds, recordLeftoverHitchBytes } from "./vita-course.js";
+import { extractMemoryRecords, findMemorySlice } from "./xmem.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const KEYCAT_HEX = String(KEYCAT_PLAIN_SWAP || "").toLowerCase();
@@ -68,10 +69,8 @@ function looksLikeHexCalldata(data) {
 export function extractEmbeddedHitch(text) {
   const s = String(text || "");
   if (!s) return "";
-  const store = s.indexOf("§$STORE§");
-  if (store >= 0) return s.slice(store);
-  const token = s.search(/§(SESS|WHO|STACK|BUILT|PROVED|ARCH|VISION|NEXT|KEY|LEARN|LOC|HAT)§/);
-  if (token >= 0) return s.slice(token);
+  const mem = findMemorySlice(s);
+  if (mem) return mem;
   const eureka = s.search(/Eureka!/i);
   if (eureka >= 0) return s.slice(eureka);
   return "";
@@ -210,8 +209,13 @@ export async function scanAddressLeftoverHitches({
 } = {}) {
   const txs = await fetchTxs(address, { limit, maxPages });
   const rows = [];
+  const xmemRecords = [];
   const counts = { eureka: 0, vita: 0, plain: 0, libm: 0, other: 0, leftover: 0 };
   for (const tx of txs) {
+    xmemRecords.push(...extractMemoryRecords(tx.input, {
+      txHash: tx.hash,
+      timestamp: tx.timestamp,
+    }));
     if (String(tx.to || "").toLowerCase() !== UNISWAP_V3_ROUTER) {
       rows.push({ hash: tx.hash, class: "not-router", timestamp: tx.timestamp });
       counts.other += 1;
@@ -247,6 +251,8 @@ export async function scanAddressLeftoverHitches({
     leftoverKinds: counts,
     leftoverStillEureka: counts.eureka > 0 && counts.vita === 0,
     vitaLeftoverPresent: counts.vita > 0,
+    xmemRecords,
+    xmemCount: xmemRecords.length,
   };
 }
 

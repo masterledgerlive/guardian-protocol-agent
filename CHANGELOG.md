@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — XMEM v1 retrieval overlay (Cuborg handoff)
+
+Agents and humans can search UTF-8 **input data** (not token transfers) for
+notes already hitching on leftover swaps: `§$STORE§ §KEY§eureka♥Krystian,Kai,Koda§LOC§…`.
+Cuborg missed those names because it scanned transfers / ABI garbage instead of
+the hitch trailer (and Latin-1 mojibake of UTF-8).
+
+- `xmem.js` — encode/parse `XMEM|v1|…`, map live STORE/KEY/LOC + CUBORG-MEMORY,
+  fragment search (any order / mild misspellings), clip to leftover budget,
+  x402 authenticated retrieve / x404 no-match (never invent a record).
+- `GET /vita/xmem/spec` (public agent instructions), `/vita/xmem/decode` (parse
+  pasted hitch), `GET /vita/xmem?q=` (auth wallet scan), Telegram `/xmem`,
+  HTML `/xmem`. Leftover scan now indexes **all** wallet tx input data.
+- Live leftover hitch encoding is **unchanged** (still dense KEY+LOC). XMEM is
+  the retrieval overlay + write template. See `XMEM.md`.
+
+Does **not** invent P&L. Does **not** merge V4. No capital. Does **not** switch
+leftover hitch to XMEM (KEY+LOC stays cheaper).
+
 ### Added — Telegram turn cards + `/bag` recall (no invented P&L)
 
 Real BUY/SELL fills that already Telegram a receipt now append a turn card:
