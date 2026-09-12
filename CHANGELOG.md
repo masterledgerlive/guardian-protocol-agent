@@ -21,6 +21,12 @@ Sits on #84 (`bb6efa4`). `ALLOW_ADD_ON_FIFO_RED` default OFF / block —
 this PR does not weaken that gate. Always-plus / LOSE-ZERO / no V4 merge /
 no capital.
 
+Reload keeps leftover vs PLUS, closed-leg USD mark, and hitchClass —
+`sanitizeTurn` writes `leftoverEth` / `usdMark` / `hitchUtf8` / `hitchKind`
+so deserialize does not drop them. `/bag` hitch spent sums only per-turn
+`hitchCostEth` in the last-N window (bytes-only when cost unknown) — never
+lifetime ETH against window bytes.
+
 ### Fixed — block add-on buys into FIFO-red lots unless Game OK
 
 Live after #83 (`474d220`): auto DRB trough / inject-pullback add-on fired

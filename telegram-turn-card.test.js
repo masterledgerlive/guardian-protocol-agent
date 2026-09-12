@@ -17,6 +17,7 @@ import {
   resetTurnRecallStore,
   writeTurnRecallSync,
   readTurnRecallSync,
+  deserializeTurnRecallStore,
   parseBagOrRecallCommand,
   buildRecallPayload,
   formatTurnCardHtml,
@@ -339,6 +340,174 @@ describe("recall payload + /bag /recall parse", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("reload keeps leftover vs PLUS, usdMark, hitchClass through sanitize/deserialize", () => {
+    const dir = mkdtempSync(join(tmpdir(), "turn-recall-reload-"));
+    const file = join(dir, "turn-recall.json");
+    try {
+      recordTurnFill({
+        side: "SELL",
+        symbol: "DRB",
+        txHash: "0xe0f846a80fe8d5c541b500e51b9cf365866cd97eb5d84a47c674100fac7da6e9",
+        fifoKnown: true,
+        fifoEthIn: 0.01,
+        fifoEthOut: 0.012,
+        leftoverEth: 0.002,
+        usdMark: 4.2,
+        hitchOnChain: true,
+        hitchBytes: 69,
+        hitchUtf8: "§$STORE§ Eureka!",
+        hitchKind: "eureka",
+      }, { persist: true, filePath: file });
+      const loaded = readTurnRecallSync(file);
+      const t = loaded.turns[0];
+      assert.equal(t.leftoverEth, 0.002);
+      assert.equal(t.leftoverVsPlus.verdict, "PLUS");
+      assert.equal(t.usdMark, 4.2);
+      assert.equal(t.closedPnl.usdMark, 4.2);
+      assert.equal(t.hitchUtf8, "§$STORE§ Eureka!");
+      assert.equal(t.hitchKind, "eureka");
+      assert.equal(t.hitchClass, "§$STORE§", "must not reclassify 69 B Eureka as KEY+LOC");
+      const again = deserializeTurnRecallStore(JSON.parse(readFileSync(file, "utf8")));
+      assert.equal(again.turns[0].leftoverVsPlus.verdict, "PLUS");
+      assert.equal(again.turns[0].closedPnl.usdMark, 4.2);
+      assert.equal(again.turns[0].hitchClass, "§$STORE§");
+      const card = formatTurnCardHtml(again.turns[0]);
+      assert.match(card, /leftover .* vs PLUS · PLUS/);
+      assert.match(card, /\$4\.20/);
+      assert.match(card, /§\$STORE§/);
+      const html = formatRecallHtml(buildRecallPayload({ store: again, n: 8 }));
+      assert.match(html, /PLUS/);
+      assert.match(html, /§\$STORE§/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("deserialize recovers leftover / usdMark / hitchClass from already-sanitized JSON", () => {
+    const store = deserializeTurnRecallStore({
+      turns: [{
+        side: "SELL",
+        symbol: "AERO",
+        txHash: "0x94faa542b54eb06804bfde79354701cd0a7fa4964cf230791bfd07fc10a22b25",
+        fifoKnown: true,
+        fifoEthIn: 0.01,
+        fifoEthOut: 0.012,
+        hitchOnChain: true,
+        hitchBytes: 69,
+        hitchClass: "§$STORE§",
+        leftoverVsPlus: { leftoverEth: 0.002, deltaEth: 0.002, verdict: "PLUS" },
+        closedPnl: { fifoDeltaEth: 0.002, usdMark: 4.2, known: true },
+      }],
+      fills: 1,
+      hitchEvents: 1,
+      hitchBytes: 69,
+      hitchCostEth: 0,
+      updatedAt: 1,
+    });
+    const t = store.turns[0];
+    assert.equal(t.leftoverEth, 0.002);
+    assert.equal(t.leftoverVsPlus.verdict, "PLUS");
+    assert.equal(t.usdMark, 4.2);
+    assert.equal(t.closedPnl.usdMark, 4.2);
+    assert.equal(t.hitchClass, "§$STORE§");
+  });
+
+  it("recall hitch cost sums only per-turn hitchCostEth in the window — never lifetime ETH", () => {
+    resetTurnRecallStore({
+      turns: [
+        buildTurnRecord({
+          side: "BUY",
+          symbol: "AERO",
+          txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+          fifoKnown: true,
+          fifoEthIn: 0.001,
+          hitchOnChain: true,
+          hitchBytes: 200,
+          hitchCostEth: 0.009,
+        }),
+        buildTurnRecord({
+          side: "BUY",
+          symbol: "DRB",
+          txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+          fifoKnown: true,
+          fifoEthIn: 0.001,
+          hitchOnChain: true,
+          hitchBytes: 69,
+        }),
+        buildTurnRecord({
+          side: "BUY",
+          symbol: "BNKR",
+          txHash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+          fifoKnown: true,
+          fifoEthIn: 0.001,
+          hitchOnChain: true,
+          hitchBytes: 69,
+        }),
+      ],
+      fills: 3,
+      hitchEvents: 3,
+      hitchBytes: 338,
+      hitchCostEth: 0.009,
+    });
+    const unknown = buildRecallPayload({ n: 2 });
+    assert.equal(unknown.turns.length, 2);
+    assert.equal(unknown.hitchBytes, 138);
+    assert.equal(unknown.hitchCostEth, null);
+    assert.equal(unknown.usage.hitchCostEth, null);
+    const unknownHtml = formatRecallHtml(unknown);
+    assert.match(unknownHtml, /hitch spent: 138 B/);
+    assert.doesNotMatch(unknownHtml, /0\.009/);
+    assert.doesNotMatch(unknownHtml, /9\.00e/);
+    assert.doesNotMatch(unknownHtml, /ETH/);
+
+    resetTurnRecallStore({
+      turns: [
+        buildTurnRecord({
+          side: "BUY",
+          symbol: "AERO",
+          txHash: "0x4444444444444444444444444444444444444444444444444444444444444444",
+          fifoKnown: true,
+          fifoEthIn: 0.001,
+          hitchOnChain: true,
+          hitchBytes: 200,
+          hitchCostEth: 0.009,
+        }),
+        buildTurnRecord({
+          side: "BUY",
+          symbol: "DRB",
+          txHash: "0x5555555555555555555555555555555555555555555555555555555555555555",
+          fifoKnown: true,
+          fifoEthIn: 0.001,
+          hitchOnChain: true,
+          hitchBytes: 69,
+          hitchCostEth: 0.000001,
+        }),
+        buildTurnRecord({
+          side: "BUY",
+          symbol: "BNKR",
+          txHash: "0x6666666666666666666666666666666666666666666666666666666666666666",
+          fifoKnown: true,
+          fifoEthIn: 0.001,
+          hitchOnChain: true,
+          hitchBytes: 69,
+          hitchCostEth: 0.000002,
+        }),
+      ],
+      fills: 3,
+      hitchEvents: 3,
+      hitchBytes: 338,
+      hitchCostEth: 0.009003,
+    });
+    const known = buildRecallPayload({ n: 2 });
+    assert.equal(known.hitchBytes, 138);
+    assert.ok(Math.abs(known.hitchCostEth - 0.000003) < 1e-12);
+    assert.ok(Math.abs(known.usage.hitchCostEth - 0.000003) < 1e-12);
+    const knownHtml = formatRecallHtml(known);
+    assert.match(knownHtml, /138 B · /);
+    assert.match(knownHtml, /ETH/);
+    assert.doesNotMatch(knownHtml, /0\.009/);
   });
 });
 

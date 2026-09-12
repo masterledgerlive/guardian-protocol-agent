@@ -200,6 +200,11 @@ export function emptyTurnRecallStore() {
   };
 }
 
+function storedHitchClass(value) {
+  const klass = String(value || "");
+  return klass === "KEY+LOC" || klass === "§$STORE§" ? klass : "";
+}
+
 function sanitizeTurn(raw = {}) {
   const side = String(raw.side || "").toUpperCase() === "SELL" ? "SELL" : "BUY";
   const hitchBytes = Math.max(0, Math.floor(Number(raw.hitchBytes) || 0));
@@ -207,17 +212,34 @@ function sanitizeTurn(raw = {}) {
   const fifoKnown = raw.fifoKnown === true;
   const fifoEthIn = fifoKnown ? finiteEth(raw.fifoEthIn) : null;
   const fifoEthOut = fifoKnown ? finiteEth(raw.fifoEthOut) : null;
+  // Persist leftover/usdMark/hitch utf8+kind so a later deserialize→sanitize
+  // does not drop leftover vs PLUS, closed-leg USD mark, or hitchClass.
+  const leftoverEth = side === "SELL"
+    ? finiteEth(raw.leftoverEth ?? raw.leftoverVsPlus?.leftoverEth ?? raw.leftoverVsPlus?.deltaEth)
+    : null;
+  const usdMark = side === "SELL"
+    ? finiteEth(raw.usdMark ?? raw.closedPnl?.usdMark)
+    : null;
   const leftover = leftoverVsPlus({
-    leftoverEth: side === "SELL" ? finiteEth(raw.leftoverEth) : null,
+    leftoverEth,
     fifoKnown: fifoKnown && side === "SELL",
   });
   const pnl = closedLegPnl({
     side,
     fifoEthIn,
     fifoEthOut,
-    usdMark: raw.usdMark,
+    usdMark,
     fifoKnown: fifoKnown && side === "SELL",
   });
+  const hitchUtf8 = hitchOnChain ? String(raw.hitchUtf8 || "") : "";
+  const hitchKind = hitchOnChain ? String(raw.hitchKind || "") : "";
+  let hitchClass = "";
+  if (hitchOnChain) {
+    hitchClass = hitchClassLabel({ utf8: hitchUtf8, hitchBytes, kind: hitchKind });
+    if (!hitchUtf8 && !hitchKind) {
+      hitchClass = storedHitchClass(raw.hitchClass) || hitchClass;
+    }
+  }
   return {
     side,
     symbol: String(raw.symbol || "?").toUpperCase(),
@@ -226,12 +248,14 @@ function sanitizeTurn(raw = {}) {
     fifoKnown,
     fifoEthIn,
     fifoEthOut,
+    leftoverEth,
+    usdMark,
     hitchOnChain,
     hitchBytes: hitchOnChain ? hitchBytes : 0,
     hitchCostEth: hitchOnChain ? knownPositiveEth(raw.hitchCostEth) : null,
-    hitchClass: hitchOnChain
-      ? hitchClassLabel({ utf8: raw.hitchUtf8, hitchBytes, kind: raw.hitchKind })
-      : "",
+    hitchUtf8,
+    hitchKind,
+    hitchClass,
     leftoverVsPlus: leftover,
     closedPnl: pnl,
     liquidEth: finiteEth(raw.liquidEth),
@@ -381,16 +405,15 @@ export function buildRecallPayload({
   const windowUsage = usageFromTurns(turns);
   const life = usageUnitsFrom({ fills: store?.fills, hitchEvents: store?.hitchEvents });
   const hitchBytes = Math.max(windowUsage.hitchBytes, 0);
-  const hitchCost = windowUsage.hitchCostEth != null
-    ? windowUsage.hitchCostEth
-    : (Number(store?.hitchCostEth) > 0 ? Number(store.hitchCostEth) : null);
+  // Window hitch cost is only the per-turn hitchCostEth recorded in last N.
+  // Never pair window bytes with lifetime store.hitchCostEth (invents cost).
   return {
     n: take,
     turns,
     usage: windowUsage,
     lifetime: life,
     hitchBytes,
-    hitchCostEth: hitchCost,
+    hitchCostEth: windowUsage.hitchCostEth,
     liquidEth: finiteEth(liquidEth),
     liquidWeth: finiteEth(liquidWeth),
     sleeves: Array.isArray(sleeves) ? sleeves : [],
