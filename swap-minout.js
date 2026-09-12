@@ -95,7 +95,7 @@ export function needsSpenderApprove({ allowanceWei = 0n, amountInWei = 0n } = {}
   return asWei(allowanceWei) < need;
 }
 
-export function sellApproveSpenders({ usePermit2 = false } = {}) {
+export function sellApproveSpenders({ usePermit2 = true } = {}) {
   const list = [UNISWAP_SWAP_ROUTER02_BASE];
   if (usePermit2) list.push(UNISWAP_PERMIT2_BASE);
   return list;
