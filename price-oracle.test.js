@@ -7,6 +7,7 @@ import {
   selectBestDexScreenerPair,
   parseGeckoTerminalPrices,
   hasUsableCostBasis,
+  fifoImpliedEntryUsd,
   blendUsdEntryOnAddOnBuy,
   GECKO_TERMINAL_CHUNK,
   costBasisEth,
@@ -185,6 +186,12 @@ describe("cost basis", () => {
     // FIFO ETH without USD entryPrice is still usable (DRB/BNKR after #81).
     assert.equal(hasUsableCostBasis({ entryPrice: null, unknownEntry: false, totalInvestedEth: 0.00027 }), true);
     assert.equal(costBasisEth({ entryPrice: null, unknownEntry: false, totalInvestedEth: 0.00027 }), 0.00027);
+    assert.equal(
+      fifoImpliedEntryUsd({ fifoEth: 0.000209, balance: 2, ethUsd: 2500 }),
+      (0.000209 * 2500) / 2,
+    );
+    assert.equal(fifoImpliedEntryUsd({ fifoEth: 0, balance: 2, ethUsd: 2500 }), null);
+    assert.equal(fifoImpliedEntryUsd({ fifoEth: 0.000209, balance: 0, ethUsd: 2500 }), null);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: true, totalInvestedEth: 0.0002 }), 0);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: false, totalInvestedEth: 0.0002 }), 0.0002);
     const invented = { symbol: "TOSHI", entryPrice: 0.000129, totalInvestedEth: 0.0002, unknownEntry: false };

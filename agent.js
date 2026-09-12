@@ -82,6 +82,7 @@ import {
   fetchDexScreenerPairs,
   hasUsableCostBasis,
   costBasisEth,
+  fifoImpliedEntryUsd,
   blendUsdEntryOnAddOnBuy,
   shouldTrustSavedCostBasis,
   applyUnknownChainHolding,
@@ -196,6 +197,8 @@ import {
   injectFuelKeepUsd,
   injectVelocityScoreBoost,
   sortRecycleCandidatesByUsd,
+  fillTier1Seats,
+  recycleSkipsActiveTier,
 } from "./inject-revenue.js";
 import {
   effectiveMinEntryEth,
@@ -764,14 +767,16 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
     }
   }
 
-  const tier1 = [];
-  if (reservedMain) tier1.push(reservedMain);
-  for (const s of scored) {
-    if (tier1.length >= book.tier1Count) break;
-    if (tier1.includes(s.symbol)) continue;
-    // Inject-all: first seat = best scorer (velocity / pullback), not a dead UNI
-    tier1.push(s.symbol);
-  }
+  // Inject-all: first seat = best scorer (velocity / pullback), not a dead UNI.
+  // Sub-min liquid must not still pick AERO — that fake seat skipped recycle.
+  const filled = fillTier1Seats({
+    scored,
+    reservedMain,
+    tier1Count: book.tier1Count,
+    injectAll: !!book.injectAll,
+    reserveOk,
+  });
+  const tier1 = filled.tier1;
 
   // Tier 2: how many slots can we afford?
   const tier2Capital   = totalTradeableUsd * book.tier2Pct;
@@ -779,7 +784,7 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
   const tier2Candidates = scored.filter(s => !tier1.includes(s.symbol));
   const tier2 = tier2Candidates.slice(0, maxTier2Slots).map(s => s.symbol);
 
-  return { tier1, tier2, scored, reservedMain, book };
+  return { tier1, tier2, scored, reservedMain, book, injectSeatViable: reserveOk, tier1Blocked: !!filled.blocked };
 }
 
 /**
@@ -942,6 +947,7 @@ let currentTier1 = [];
 let currentTier2 = [];
 let currentScores = []; // [{ symbol, score }] sorted best first
 let currentPrimedAvenues = []; // top 2–3 cost-projected cascade seats
+let currentDeployedUsd = 0; // bag mark USD this cycle — max-position vs total book, not leftover liquid
 let currentTierBook = tierBookParams(Infinity, {
   tier1Count: TIER1_COUNT,
   tier1Pct: TIER1_PCT,
@@ -7600,7 +7606,9 @@ async function processToken(cdp, token, bal) {
         } catch {}
       }
     }
-    const entry    = token.entryPrice;
+    const fifoEth  = costBasisEth(token);
+    const impliedEntry = fifoImpliedEntryUsd({ fifoEth, balance, ethUsd });
+    const entry    = isValidUsdPrice(token.entryPrice) ? token.entryPrice : impliedEntry;
     const maxPeak  = getMaxPeak(token.symbol);
     const minTrghRaw = getMinTrough(token.symbol);
     const peakCnt  = getPeakCount(token.symbol);
@@ -7672,17 +7680,19 @@ async function processToken(cdp, token, bal) {
     // Peak / early / fib gates: charge only the sellable slice of entry + fees.
     // Leaving piggy dust behind must leave that cost behind too — otherwise
     // succession never fires even when math + profits are met.
-    const sellPreview  = entry
+    // ETH-only FIFO (no fill USD) still previews real net — never invent netUsd=1
+    // (live AERO AT MAX PEAK then always-plus HOLD on FIFO red).
+    const sellPreview  = (entry || fifoEth > 0)
       ? previewPiggySellNetUsd({
           balance,
           sellable,
-          investedEth: token.totalInvestedEth || 0,
+          investedEth: fifoEth || token.totalInvestedEth || 0,
           priceUsd: price,
           ethUsd,
           feePct: token.poolFeePct || 0.006,
           skimPct: PIGGY_SKIM_PCT,
         })
-      : { netUsd: 1, soldFrac: 1 };
+      : { netUsd: 0, soldFrac: 0 };
     const netIfSellNow = sellPreview.netUsd;
     const breakEvenBuffer = entry
       ? costBasisForSoldFraction(token.totalInvestedEth || 0, sellPreview.soldFrac) * ethUsd * PROFIT_ERROR_BUFFER
@@ -7876,7 +7886,9 @@ async function processToken(cdp, token, bal) {
 
     const indConfirmed = ind.score >= 1;
     const positionSizeEth = (token.totalInvestedEth || 0);
-    const atMaxPosition   = positionSizeEth > bal.tradeableWithWeth * 0.60;
+    const bagsEth = ethUsd > 0 ? (Number(currentDeployedUsd) || 0) / ethUsd : 0;
+    const totalBookEth = (bal.tradeableWithWeth || 0) + bagsEth;
+    const atMaxPosition   = totalBookEth > 0 && positionSizeEth > totalBookEth * 0.60;
 
     // Prediction-enhanced buy: fires at confirmed trough OR when cycle says trough is imminent
     const predBuy   = pred.ready && pred.action === "pre-buy"
@@ -13239,7 +13251,11 @@ async function main() {
 
       // Log tier state every cycle (compact)
       const book = tAssign.book || currentTierBook;
-      const t1Str = currentTier1.join(" > ");
+      const t1Str = currentTier1.join(" > ") || (
+        tAssign.tier1Blocked
+          ? "none (sub-min liquid — recycle PLUS bags, do not fake a seat)"
+          : "none"
+      );
       const t2Str = currentTier2.join(" | ") || "none";
       const tier1Usd = (bal.tradeableWithWeth * ethUsd * book.tier1Pct / book.tier1Count).toFixed(2);
       const tier2Slots = currentTier2.length;
@@ -13299,6 +13315,17 @@ async function main() {
         });
         const liquidStarved = !!starveStatus.liquidStarved;
         const injectAllBook = !!currentTierBook?.injectAll;
+        const injectSeatViable = injectReserveViable({
+          tradeableUsd: starveStatus.tradeableUsd,
+          minEntryUsd: injectAllBook ? 2 : 0,
+          injectAll: injectAllBook,
+        });
+        const primedAllowCount = (currentPrimedAvenues || []).filter((a) => a && a.allow).length;
+        const skipActiveTier = recycleSkipsActiveTier({
+          liquidStarved,
+          injectSeatViable,
+          primedAllowCount,
+        });
 
         const recycleCandidates = [];
         for (const token of tokens) {
@@ -13316,7 +13343,7 @@ async function main() {
           const unknownBag = recycleKind.unknownBag;
           const hasKnownPos = recycleKind.hasKnownPos;
           if (!hasKnownPos && !unknownBag) continue;
-          if (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol)) continue; // in a tier — leave it
+          if (skipActiveTier && (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol))) continue; // in a real seat — leave it
           const posUsd = balance * price;
           const recycleUnknown = shouldRecycleForCascadeFuel({
             unknownEntry: unknownBag,
@@ -13450,6 +13477,13 @@ async function main() {
           }
         } catch (e) { console.log(`⚠️ Moonshot trim ${token.symbol}: ${e.message}`); }
       }
+      }
+
+      currentDeployedUsd = 0;
+      for (const t of tokens) {
+        const p = history[t.symbol]?.lastPrice;
+        const b = getCachedBalance(t.symbol);
+        if (isValidUsdPrice(p) && b > 0.001) currentDeployedUsd += b * p;
       }
 
       // ── BATCH PRICE PREFETCH — DexScreener first, GT in chunks of 10 ────────

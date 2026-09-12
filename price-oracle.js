@@ -412,6 +412,20 @@ export function costBasisEth(token) {
 }
 
 /**
+ * USD per token implied by proven FIFO ETH. Not invented P&L — converts the
+ * on-chain fill cost. Used when peak-ride has FIFO ETH but no fill USD
+ * (live: fake netUsd=1 fired AT MAX PEAK then always-plus HOLD on AERO).
+ */
+export function fifoImpliedEntryUsd({ fifoEth = 0, balance = 0, ethUsd = 0 } = {}) {
+  const fifo = Number(fifoEth);
+  const bal = Number(balance);
+  const px = Number(ethUsd);
+  if (!(fifo > 0) || !(bal > 0) || !(px > 0)) return null;
+  const usd = (fifo * px) / bal;
+  return isValidUsdPrice(usd) ? usd : null;
+}
+
+/**
  * Trust a saved entry only when a fill receipt / ledger buy exists.
  * Live-market "UNKNOWN ENTRY" copies are not cost basis.
  */
