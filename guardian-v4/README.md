@@ -39,20 +39,37 @@ Live broadcast needs a **dedicated** key and Permit2 approvals — do not casual
 | `GUARDIAN_V4_CYCLE_MS` | Loop interval |
 | `GUARDIAN_V4_TELEGRAM_BOT_TOKEN` | Preferred V4 Telegram bot token |
 | `GUARDIAN_V4_TELEGRAM_CHAT_ID` | Preferred V4 Telegram chat id |
-| `GUARDIAN_V4_SHARE_ROOT_ENV` | `yes` only if you intentionally share root env names (Telegram fallback: `VAULT_TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`) |
+| `GUARDIAN_V4_SHARE_ROOT_ENV` | `yes` only if you intentionally share root env names |
+| `GUARDIAN_V4_PRIVATE_KEY` | Dedicated V4 hot wallet (live only) |
+| `DECRYPT_PASSWORD` | With `SHARE_ROOT_ENV=yes`, decrypts `VAULT_TELEGRAM_*` into plaintext `TELEGRAM_*` (never send the vault tx hash as the bot token) |
 
 State: `guardian-v4/state/` (`tokens.json`, lockfile). Root `tokens.json` / `positions.json` are untouched.
+
+## Fund split (V3 RISK → V4 wallet)
+
+Dedicated V4 address stays separate from RISK `0x50e1…7915`. One-shot on V3 boot:
+
+| Env (on **V3** service) | Purpose |
+|---|---|
+| `GUARDIAN_V4_FUND_TO` | V4 wallet address |
+| `GUARDIAN_V4_FUND_ETH` | ETH to send (default: half surplus, max `0.002`) |
+| `GUARDIAN_V4_FUND_KEEP_GAS` | Leave on RISK (default `0.0008`) |
+| `GUARDIAN_V4_FUND_ONCE` | `yes` (default) — latch so restarts do not re-send |
+
+Latched at `guardian-v4/state/v3-fund-once.latch.json`. Does **not** touch piggy/vault.
 
 ## Telegram + Railway
 
 Game-facing cards are first-line or prefix **`[V4]`** (buys / sells / skips / dry-run cycle). Fields: token, `dry-run yes`, planned hitch skip/bank, leftover vs hitch floor. No invented P&L, no fake tx hashes. A sell SKIP_HITCH banks unused hitch room toward the next message (#89 micro-extract note) if a V4 sell path reports a skip.
 
+**Important:** `VAULT_TELEGRAM_BOT_TOKEN` is a **Base tx hash** of ciphertext, not the bot token. V4 must either set plaintext `GUARDIAN_V4_TELEGRAM_BOT_TOKEN`, or set `SHARE_ROOT_ENV=yes` + `DECRYPT_PASSWORD` so vault-loader fills `TELEGRAM_BOT_TOKEN`.
+
 **Railway** (separate service from live V3 — do not use `npm start` / `node agent.js` here):
 
 1. Start command: `npm run start:v4`
-2. `GUARDIAN_V4_DRY_RUN=yes` (leave default unless you intend a dedicated live V4 key)
+2. `GUARDIAN_V4_DRY_RUN=yes` until funded; then `no` with `GUARDIAN_V4_PRIVATE_KEY`
 3. Preferred Telegram: `GUARDIAN_V4_TELEGRAM_BOT_TOKEN` + `GUARDIAN_V4_TELEGRAM_CHAT_ID`
-4. Or set `GUARDIAN_V4_SHARE_ROOT_ENV=yes` and reuse root `VAULT_TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`
+4. Or `GUARDIAN_V4_SHARE_ROOT_ENV=yes` + `DECRYPT_PASSWORD` + `VAULT_TELEGRAM_BOT_TOKEN` (hash) → decrypts to `TELEGRAM_BOT_TOKEN`
 
 ### V3 vs V4 race scoreboard
 

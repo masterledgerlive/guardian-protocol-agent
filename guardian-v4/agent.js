@@ -29,6 +29,7 @@ import {
   TOKENS_STATE,
   RACE_STATE,
   env,
+  telegramBotToken,
 } from "./config.js";
 import { acquireLock, ensureStateDir } from "./lock.js";
 import { injectAllBookParams, injectProveStatus, rankAvenues } from "./inject-v4.js";
@@ -58,6 +59,14 @@ import {
   persistV4RaceSnapshot,
   sendRaceScoreboardIfDue,
 } from "../race-scoreboard.js";
+import { resolveV4TradeableUsd } from "./fund-split.js";
+import {
+  broadcastV4Swap,
+  loadV4Account,
+  makePublicClient,
+  readNativeEth,
+} from "./wallet.js";
+import { loadVaultKeys } from "../vault-loader.js";
 
 ensureStateDir();
 const releaseLock = acquireLock();
@@ -65,6 +74,8 @@ const releaseLock = acquireLock();
 let hitchInjectCount = 0;
 let hitchInjectProfitUsd = 0;
 let cycle = 0;
+let v4Account = null;
+let publicClient = null;
 
 function log(...args) {
   console.log(`[guardian-v4 ${new Date().toISOString()}]`, ...args);
@@ -129,8 +140,26 @@ function printAvenueBoard() {
   }
 }
 
-async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
+async function resolveTradeableUsd() {
+  const paper = Number(env("PAPER_USD", "8")) || 8;
+  if (!v4Account || !publicClient) {
+    return resolveV4TradeableUsd({ paperUsd: paper });
+  }
+  try {
+    const { eth } = await readNativeEth(publicClient, v4Account.address);
+    return resolveV4TradeableUsd({ paperUsd: paper, walletEth: eth });
+  } catch (err) {
+    log(`wallet balance read failed: ${err?.message || err} — paper $${paper}`);
+    return resolveV4TradeableUsd({ paperUsd: paper });
+  }
+}
+
+async function cycleOnce(tradeableUsdOpt = null) {
   cycle += 1;
+  const sized = tradeableUsdOpt != null
+    ? { tradeableUsd: tradeableUsdOpt, source: "arg", tradeableEth: null }
+    : await resolveTradeableUsd();
+  const tradeableUsd = sized.tradeableUsd;
   const book = injectAllBookParams(tradeableUsd);
   const ranked = rankAvenues(injectableAvenues(), { tradeableUsd });
   const prove = injectProveStatus({
@@ -138,7 +167,11 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
     netProfitUsd: hitchInjectProfitUsd,
   });
 
-  log(`── cycle ${cycle} tradeable~$${tradeableUsd.toFixed(2)} injectAll=${book.injectAll} ──`);
+  log(
+    `── cycle ${cycle} tradeable~$${tradeableUsd.toFixed(2)} (${sized.source}` +
+      `${sized.tradeableEth != null ? ` eth=${sized.tradeableEth.toFixed(6)}` : ""})` +
+      ` injectAll=${book.injectAll} dryRun=${DRY_RUN} ──`,
+  );
   log(prove.message);
   log(
     `primed: ${ranked.primed.map((t) => t.symbol).join(", ") || "none"} | watch-queue: ${ranked.watch
@@ -148,12 +181,15 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
   );
 
   for (const token of ranked.primed) {
+    const ethUsd = Number(env("ETH_USD", "2500")) || 2500;
     const demo = buildDemoInject(token, {
-      tradeEth: book.injectAll ? Math.max(0.0015, tradeableUsd / 2500) : 0.0015,
+      tradeEth: book.injectAll
+        ? Math.max(0.0008, Math.min(0.002, tradeableUsd / ethUsd))
+        : 0.0015,
     });
     if (demo.hitched.onChain) {
       hitchInjectCount += 1;
-      hitchInjectProfitUsd += MIN_NET_MARGIN * (demo.tradeEth * 2500) * 0.05;
+      hitchInjectProfitUsd += MIN_NET_MARGIN * (demo.tradeEth * ethUsd) * 0.05;
       if (demo.hitched.utf8) ingestSealedUtf8(demo.hitched.utf8);
     }
     log(
@@ -161,17 +197,28 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
         `hitch=${demo.hitched.onChain ? `${demo.hitched.hitchBytes}B` : "SKIP"} ` +
         `${demo.hitched.onChain ? `"${demo.hitched.utf8.slice(0, 48)}…"` : demo.hitched.reason}`,
     );
+
+    let txHash = null;
     if (DRY_RUN) {
       log(`  DRY_RUN — calldata ${demo.hitched.data.length} hex chars (not broadcast)`);
     } else {
-      log(
-        "  LIVE mode stub — wire CDP/viem wallet + Permit2 approvals before broadcasting. " +
-          "Keep a separate key from root V3.",
-      );
+      const sent = await broadcastV4Swap({
+        to: demo.encoded.to,
+        data: demo.hitched.data,
+        value: demo.encoded.value,
+        account: v4Account,
+        publicClient,
+      });
+      if (sent.sent) {
+        txHash = sent.hash;
+        log(`  LIVE broadcast ${txHash}`);
+      } else {
+        log(`  LIVE skip — ${sent.reason}`);
+      }
     }
 
     // Dry-run still Telegrams Game — planned calldata / hitch skip-bank / skip reasons.
-    // Never broadcast. Never invent P&L or a fake tx hash.
+    // Never invent P&L or a fake tx hash.
     const hitchPlan = planHitchMessaging({
       leftoverEth: demo.leftoverEth,
       hitchCostEth: demo.hitchCost,
@@ -193,6 +240,7 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
       tradeEth: demo.tradeEth,
       hitchPlan,
       calldataChars: demo.hitched.data?.length || 0,
+      txHash,
     }));
   }
 
@@ -223,10 +271,35 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
   });
 }
 
+async function maybeLoadSharedVaultTelegram() {
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV !== "yes") return;
+  if (telegramBotToken()) return;
+  if (!process.env.DECRYPT_PASSWORD) {
+    log("Telegram: SHARE_ROOT_ENV set but DECRYPT_PASSWORD missing — cannot resolve VAULT_TELEGRAM_*");
+    return;
+  }
+  // VAULT_TELEGRAM_BOT_TOKEN is a Base tx hash; loadVaultKeys decrypts into TELEGRAM_BOT_TOKEN.
+  try {
+    await loadVaultKeys();
+  } catch (err) {
+    log(`vault load failed: ${err?.message || err}`);
+  }
+}
+
 async function main() {
   log("Guardian V4 offshoot starting — isolated from root Uniswap V3 agent.js");
   log(`RPCs: ${DEFAULT_RPCS.join(" | ")}`);
   log(`state: ${STATE_DIR}`);
+  await maybeLoadSharedVaultTelegram();
+  v4Account = loadV4Account();
+  publicClient = makePublicClient();
+  if (v4Account) {
+    log(`V4 wallet ${v4Account.address} dryRun=${DRY_RUN}`);
+  } else if (!DRY_RUN) {
+    log("LIVE requested but GUARDIAN_V4_PRIVATE_KEY missing — refusing broadcasts");
+  } else {
+    log("no GUARDIAN_V4_PRIVATE_KEY — paper/dry-run only");
+  }
   printAvenueBoard();
   persistCatalog();
 

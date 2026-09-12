@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added — V3→V4 fund split + live V4 wallet + Telegram vault fix
+
+Game: funds ready on RISK; start isolated Uniswap V4 beside V3.
+
+- Dedicated V4 hot wallet via `GUARDIAN_V4_PRIVATE_KEY` (viem broadcast when
+  `GUARDIAN_V4_DRY_RUN=no`). Sizes from on-chain balance when funded.
+- One-shot V3 fund: `GUARDIAN_V4_FUND_TO` + `GUARDIAN_V4_FUND_ETH` on V3 boot
+  (`v4-fund-once.js`). Keeps gas on RISK. Latch prevents re-send. No piggy/vault.
+- Telegram: never treat `VAULT_TELEGRAM_BOT_TOKEN` (Base tx hash) as the bot
+  token — that caused `[guardian-v4] Telegram send failed: Not Found`. V4 loads
+  vault plaintext when `SHARE_ROOT_ENV=yes` + `DECRYPT_PASSWORD`.
+- Does **not** merge V4 encoder into `executeBuy` / `executeSell`.
+
 ### Fixed — ALLOW_LOSSY / FORCE_EXIT bypass always-plus; clamp amountIn; approve
 
 Game fresh-start: always-plus HOLDed DRB/BNKR operator lots

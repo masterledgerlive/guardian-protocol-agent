@@ -19,6 +19,8 @@ import {
   clearVaultSession,
 } from "./vault-loader.js";
 
+import { maybeFundV4FromV3 } from "./v4-fund-once.js";
+
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
 import { startVitaWebhook, injectBotState } from "./vita-webhook.js";
 
@@ -13017,6 +13019,24 @@ async function main() {
   } catch (e) {
     console.log(`⚠️  Boot wallet read failed: ${e.message} — continuing with zeros`);
     balInit = { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 };
+  }
+
+  // One-shot V3 → dedicated V4 wallet fund (GUARDIAN_V4_FUND_TO + GUARDIAN_V4_FUND_ETH).
+  // Latched — restarts do not re-send. Leaves keep-gas on RISK. Does not touch piggy/vault.
+  try {
+    if (process.env.GUARDIAN_V4_FUND_TO || process.env.V4_FUND_TO) {
+      await maybeFundV4FromV3({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        getNativeEth: async () => Number((await getFullBalance()).eth) || 0,
+        getWethEth: async () => Number((await getFullBalance()).weth) || 0,
+        ethUsd: ethUsdInit,
+        log: console.log,
+        tg,
+      });
+    }
+  } catch (fundErr) {
+    console.log(`⚠️  V4 fund split failed (non-fatal): ${fundErr.message}`);
   }
   console.log(`✅ CDP ready | ETH: ${balInit.eth.toFixed(6)} | WETH: ${balInit.weth.toFixed(6)} | ETH=$${ethUsdInit.toFixed(2)}\n`);
   if (liveStateBranch() === liveGithubBranch()) {
