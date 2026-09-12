@@ -162,7 +162,7 @@ import {
   lotFromBuyReceipt,
   ledgerBuyHasLotSizes,
   collectRebuildTxs,
-  lotHasBuyTx,
+  shouldLatchBuyReceipt,
   mergeBuyReceiptIntoLots,
   writeFifoLotsSync,
   readFifoLotsSync,
@@ -8578,7 +8578,7 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
   if (!hashes.length) return null;
   let latchedHash = "";
   for (const hash of hashes) {
-    if (lotHasBuyTx(fifoLots[token.symbol], hash)) continue;
+    if (!shouldLatchBuyReceipt(fifoLots[token.symbol], hash, { remainingTokens })) continue;
     try {
       const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
       const tx = await rpcCall((c) => c.getTransaction({ hash }));
@@ -8623,7 +8623,9 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
     if (!hashes[token.symbol]?.length) continue;
     const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
     if (remain == null) continue; // dust / sold-all / cache miss — do not invent
-    const missingAddon = (hashes[token.symbol] || []).some((h) => !lotHasBuyTx(fifoLots[token.symbol], h));
+    const missingAddon = (hashes[token.symbol] || []).some((h) =>
+      shouldLatchBuyReceipt(fifoLots[token.symbol], h, { remainingTokens: remain }),
+    );
     if (isUsableLot(fifoLots[token.symbol]) && !missingAddon) {
       // Persist may already have the lot (AERO) while DRB/BNKR still need apply.
       // Missing evidence/add-on hashes (DRB trough 0x53a00788) still fetch+merge.

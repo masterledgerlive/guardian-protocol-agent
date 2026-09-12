@@ -14,8 +14,10 @@ dust-recycle / `classifyRecycleBag` / `entrySold` missed the add-on FIFO eth
 - Seed the trough hash next to the #78 evidence fills. Amounts still come
   from Transfer+WETH receipts — never invented.
 - Merge an add-on receipt onto an already-usable lot (do not skip or
-  replace). Duplicate hashes are no-ops. Proportional remaining after
-  sells is unchanged.
+  replace) only for the same cycle (parent first-buy hash, or persist
+  with no buyTxs and remaining > tokensIn). Duplicate hashes are no-ops.
+  Later sold-all-then-new-buy lots do not rematerialize #78 first fills.
+  Proportional remaining after sells is unchanged.
 - After latch, dust-recycle / `entrySold` see known FIFO eth for DRB.
 - `ALLOW_ADD_ON_FIFO_RED` default OFF / block — this PR does not weaken
   that gate. Always-plus / LOSE-ZERO / #83 / #85 / #86 unchanged.

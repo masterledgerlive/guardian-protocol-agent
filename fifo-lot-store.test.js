@@ -41,6 +41,7 @@ import {
   mergeLotMaps,
   isClearedLot,
   lotHasBuyTx,
+  shouldLatchBuyReceipt,
   mergeBuyReceiptIntoLots,
 } from "./fifo-lot-store.js";
 import {
@@ -558,7 +559,7 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("classifyRecycleBag"));
     assert.ok(src.includes("blendUsdEntryOnAddOnBuy"));
     assert.ok(src.includes("evaluateAddOnFifoRedGate"), "must not add-on into FIFO-red lots");
-    assert.ok(src.includes("lotHasBuyTx"), "must skip already-latched buy hashes");
+    assert.ok(src.includes("shouldLatchBuyReceipt"), "must not rematerialize closed-cycle fills");
     assert.ok(src.includes("mergeBuyReceiptIntoLots"), "must merge trough add-on onto first lot");
     assert.ok(!src.includes("from \"./guardian-v4/agent.js\""), "must not merge V4 into agent.js");
   });
@@ -806,6 +807,55 @@ describe("fifo-lot-store — latch DRB trough 0x53a00788 FIFO", () => {
     });
     assert.equal(green.allow, true);
     assert.ok(!/unknown cost/i.test(green.log || ""));
+  });
+
+  it("does not rematerialize #78 first fills onto a later usable lot", () => {
+    const later = {};
+    recordBuyFill(later, {
+      symbol: "DRB",
+      ethIn: 0.0004,
+      tokensIn: 900,
+      txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+      fillCostEth: 0.0004,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    const first = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      receipt: drbReceipt().receipt,
+      tx: drbReceipt().tx,
+    });
+    const trough = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: DRB_TROUGH_BUY_TX,
+      receipt: drbTroughReceipt().receipt,
+      tx: drbTroughReceipt().tx,
+    });
+    assert.equal(shouldLatchBuyReceipt(later.DRB, EVIDENCE_BUY_TXS.DRB, { remainingTokens: 900 }), false);
+    assert.equal(shouldLatchBuyReceipt(later.DRB, DRB_TROUGH_BUY_TX, { remainingTokens: 900 }), false);
+    const beforeEth = later.DRB.ethIn;
+    const beforeTok = later.DRB.tokensIn;
+    mergeBuyReceiptIntoLots(later, first, { remainingTokens: 900 });
+    mergeBuyReceiptIntoLots(later, trough, { remainingTokens: 900 });
+    assert.equal(later.DRB.ethIn, beforeEth);
+    assert.equal(later.DRB.tokensIn, beforeTok);
+    assert.equal(lotHasBuyTx(later.DRB, EVIDENCE_BUY_TXS.DRB), false);
+    assert.equal(lotHasBuyTx(later.DRB, DRB_TROUGH_BUY_TX), false);
+
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(later),
+      remainingBySymbol: { DRB: 900 },
+      receipts: [drbReceipt(), drbTroughReceipt()],
+      tokens: [{ symbol: "DRB", address: DRB }],
+    });
+    assert.equal(rebuilt.applied.DRB.unknownEntry, false);
+    assert.ok(Math.abs(rebuilt.lots.DRB.ethIn - beforeEth) < 1e-15);
+    assert.ok(Math.abs(rebuilt.lots.DRB.tokensIn - beforeTok) < 1e-9);
+    assert.equal(lotHasBuyTx(rebuilt.lots.DRB, EVIDENCE_BUY_TXS.DRB), false);
   });
 
   it("ALLOW_ADD_ON_FIFO_RED stays default OFF — latch does not weaken #84", () => {

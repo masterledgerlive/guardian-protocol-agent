@@ -462,6 +462,49 @@ export function lotHasBuyTx(lot, hash) {
     .some((b) => normalizeTxHash(b.hash) === h);
 }
 
+export function lotHasAnyBuyTx(lot) {
+  return (Array.isArray(lot?.buyTxs) ? lot.buyTxs : [])
+    .some((b) => normalizeTxHash(b.hash));
+}
+
+function evidenceHashForSymbol(map, symbol) {
+  const key = String(symbol || "").toUpperCase();
+  const val = map && typeof map === "object" ? map[key] : null;
+  if (Array.isArray(val)) return val.map((h) => normalizeTxHash(h)).filter(Boolean);
+  const h = normalizeTxHash(val);
+  return h ? [h] : [];
+}
+
+export function isSeededAddonBuyTx(symbol, hash, extras = EVIDENCE_ADDON_BUY_TXS) {
+  const h = normalizeTxHash(hash);
+  return !!h && evidenceHashForSymbol(extras, symbol).includes(h);
+}
+
+/**
+ * Latch a receipt onto persist only when it belongs to this cycle.
+ * Empty / unusable → seed (same as #79). Already-usable → merge seeded
+ * add-ons onto the same first lot only. Never rematerialize #78 first
+ * fills onto a later sold-all-then-new-buy lot.
+ */
+export function shouldLatchBuyReceipt(existing, hash, {
+  remainingTokens,
+  evidence = EVIDENCE_BUY_TXS,
+  extras = EVIDENCE_ADDON_BUY_TXS,
+} = {}) {
+  const h = normalizeTxHash(hash);
+  if (!h) return false;
+  if (lotHasBuyTx(existing, h)) return false;
+  if (!isUsableLot(existing)) return true;
+  const key = String(existing.symbol || "").toUpperCase();
+  if (!isSeededAddonBuyTx(key, h, extras)) return false;
+  const parent = evidenceHashForSymbol(evidence, key)[0];
+  if (parent && lotHasBuyTx(existing, parent)) return true;
+  if (lotHasAnyBuyTx(existing)) return false;
+  const remain = Number(remainingTokens);
+  const bought = Number(existing.tokensIn);
+  return Number.isFinite(remain) && bought > 0 && remain > bought * 1.02;
+}
+
 /** String or array of hashes per symbol (evidence + trough add-ons). */
 export function addEvidenceHashes(add, evidence) {
   if (typeof add !== "function" || !evidence || typeof evidence !== "object") return;
@@ -479,7 +522,11 @@ export function addEvidenceHashes(add, evidence) {
  * latched. An already-usable first lot must still accept the add-on slice
  * (DRB 0x53a00788 onto 0xe0f846a8) — do not replace or invent.
  */
-export function mergeBuyReceiptIntoLots(lots, receiptLot) {
+export function mergeBuyReceiptIntoLots(lots, receiptLot, {
+  remainingTokens,
+  evidence = EVIDENCE_BUY_TXS,
+  extras = EVIDENCE_ADDON_BUY_TXS,
+} = {}) {
   const map = lots && typeof lots === "object" ? lots : {};
   if (!isUsableLot(receiptLot)) return map;
   const key = String(receiptLot.symbol || "").toUpperCase();
@@ -489,7 +536,7 @@ export function mergeBuyReceiptIntoLots(lots, receiptLot) {
       .find((h) => normalizeTxHash(h)),
   );
   if (!key || !hash) return map;
-  if (lotHasBuyTx(map[key], hash)) return map;
+  if (!shouldLatchBuyReceipt(map[key], hash, { remainingTokens, evidence, extras })) return map;
   if (isUsableLot(map[key])) {
     recordBuyFill(map, {
       symbol: key,
@@ -686,7 +733,12 @@ export function rebuildLotsAfterRestart({
       price: row.price || 0,
       reason: row.reason || "MANUAL BUY (operator)",
     });
-    if (isUsableLot(rebuilt)) mergeBuyReceiptIntoLots(lots, rebuilt);
+    if (isUsableLot(rebuilt)) {
+      const remain = Number(remainingBySymbol?.[sym]);
+      mergeBuyReceiptIntoLots(lots, rebuilt, {
+        remainingTokens: Number.isFinite(remain) && remain > 0 ? remain : undefined,
+      });
+    }
   }
 
   const applied = {};
