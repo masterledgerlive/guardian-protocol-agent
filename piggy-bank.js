@@ -1,3 +1,5 @@
+import { formatTurnCardHtml } from "./telegram-turn-card.js";
+
 /**
  * Per-token piggy-bank dust reserve.
  *
@@ -270,6 +272,7 @@ export function formatBuyReceiptHtml({
   hitchOnChain = false,
   txHash = "",
   hitchFooter = "",
+  turnCard = null,
 } = {}) {
   const sym = String(symbol || "?");
   const entry = Number(entryPrice) || 0;
@@ -307,6 +310,7 @@ export function formatBuyReceiptHtml({
       ? `🔗 <a href="https://basescan.org/tx/${txHash}">Basescan ↗</a>`
       : `🔗 <a href="https://basescan.org/tx/${txHash}">Basescan ↗</a>\n⚠️ No UTF-8 hitch on this buy`);
   }
+  if (turnCard) lines.push(formatTurnCardHtml(turnCard));
   return lines.join("\n");
 }
 
@@ -343,6 +347,7 @@ export function formatSellReceiptHtml({
   hitchFooter = "",
   hatInjectReceipt = "",
   waveBar = "",
+  turnCard = null,
 } = {}) {
   const sym = String(symbol || "?");
   const title = wipeout ? "WIPEOUT" : "WAVE COMPLETE";
@@ -386,6 +391,7 @@ export function formatSellReceiptHtml({
   if (hatInjectReceipt) {
     lines.push(`━━━━━━━━━━━━━━━━━━━━`, String(hatInjectReceipt).trimEnd());
   }
+  if (turnCard) lines.push(formatTurnCardHtml(turnCard));
   return lines.join("\n");
 }
 

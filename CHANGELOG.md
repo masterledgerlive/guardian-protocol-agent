@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — Telegram turn cards + `/bag` recall (no invented P&L)
+
+Real BUY/SELL fills that already Telegram a receipt now append a turn card:
+token, short tx, FIFO eth in (buy) / out (sell) when known, hitch bytes +
+cost when KEY+LOC / §$STORE§ rode, leftover vs PLUS on sells, liquid
+ETH+WETH after fill (last chain ping is ok).
+
+Closed-leg / cascade P&L is FIFO eth delta only (USD mark only if already
+computed). Usage is fills + hitch events labeled **usage units** toward
+piggy cover — no fake dollar Grok costs.
+
+`/bag` and bare `/recall` [n] list last N turns (default 8), hitch spent,
+liquid, and distance-to-PLUS for open AERO/DRB/BNKR when FIFO is known.
+`/recall topic` still searches memories.
+
+Sits on #84 (`bb6efa4`). `ALLOW_ADD_ON_FIFO_RED` default OFF / block —
+this PR does not weaken that gate. Always-plus / LOSE-ZERO / no V4 merge /
+no capital.
+
 ### Fixed — block add-on buys into FIFO-red lots unless Game OK
 
 Live after #83 (`474d220`): auto DRB trough / inject-pullback add-on fired

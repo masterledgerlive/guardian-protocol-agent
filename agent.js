@@ -296,6 +296,17 @@ import {
   piggyCoInvestMarkUsd,
 } from "./piggy-bank.js";
 import {
+  buildTurnRecord,
+  recordTurnFill,
+  loadTurnRecallStore,
+  parseBagOrRecallCommand,
+  buildRecallPayload,
+  formatRecallHtml,
+  sleeveDistanceToPlus,
+  RECALL_SLEEVES,
+  TURN_RECALL_FILENAME,
+} from "./telegram-turn-card.js";
+import {
   decodeErc20Balance,
   resolveFailedBalanceRead,
   sanitizeTelegramHtml,
@@ -5040,6 +5051,39 @@ function hitchTelegramFooter(hitch, txHash) {
   return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
 }
 
+/** ETH+WETH after a real fill — last ping is ok if a live read fails. */
+async function liquidAfterFillApprox() {
+  let eth = Number.isFinite(lastEthBalance) ? lastEthBalance : null;
+  let weth = Number.isFinite(lastWethBalance) ? lastWethBalance : null;
+  try { eth = await getEthBalance(); } catch { /* keep last ping */ }
+  try { weth = await getWethBalance(); } catch { /* keep last ping */ }
+  return { eth, weth };
+}
+
+function openSleeveRecallRows() {
+  const ethUsd = Number(cachedEthUsd) || 0;
+  return RECALL_SLEEVES.map((sym) => {
+    const t = tokens.find((x) => x.symbol === sym);
+    const lot = fifoLots[sym];
+    const fifoKnown = !!(t && (hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, lot)) && t.unknownEntry !== true);
+    const remainingFifoEth = fifoKnown
+      ? (Number(t.totalInvestedEth) || Number(lot?.remainingCostEth) || Number(lot?.fillCostEth) || Number(lot?.ethIn) || 0)
+      : 0;
+    const px = history[sym]?.lastPrice;
+    const units = getCachedBalance(sym);
+    let markProceedsEth = null;
+    if (fifoKnown && Number(px) > 0 && Number(units) > 0 && ethUsd > 0) {
+      markProceedsEth = (Number(units) * Number(px)) / ethUsd;
+    }
+    return sleeveDistanceToPlus({
+      symbol: sym,
+      remainingFifoEth: remainingFifoEth > 0 ? remainingFifoEth : null,
+      markProceedsEth,
+      fifoKnown: fifoKnown && remainingFifoEth > 0,
+    });
+  });
+}
+
 /**
  * Exit inject receipt when hitch landed + chain receipt succeeded.
  * Includes spaced-location count for HAT picture assembly when registry has seals.
@@ -6231,6 +6275,22 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       token.minSellPrice = plan.sellAtMin;
       token.savedEarningsUsd = priorSaved;
       console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct(process.env, opts) * 100).toFixed(0)}% / $${piggyBankMinUsd(process.env, opts).toFixed(2)} floor) | sell≥$${plan.sellAtMin.toFixed(8)} earn+$${plan.projectedEarningsUsd.toFixed(3)}`);
+      const liquidBuy = await liquidAfterFillApprox();
+      const buyTurn = buildTurnRecord({
+        side: "BUY",
+        symbol: token.symbol,
+        txHash,
+        fifoKnown: Number(ethToSpend) > 0,
+        fifoEthIn: Number(ethToSpend) > 0 ? ethToSpend : null,
+        hitchOnChain: !!buyVoice.onChain,
+        hitchBytes: buyVoice.hitchBytes || 0,
+        hitchUtf8: buyVoice.utf8 || "",
+        hitchKind: buyVoice.kind || buyVoice.vitaKind || "",
+        hitchCostEth: buyVoice.onChain && Number(hitchCostEst) > 0 ? hitchCostEst : null,
+        liquidEth: liquidBuy.eth,
+        liquidWeth: liquidBuy.weth,
+      });
+      recordTurnFill(buyTurn);
       await tg(formatBuyReceiptHtml({
         symbol: token.symbol,
         tradeNum: tradeCount,
@@ -6242,6 +6302,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         hitchOnChain: !!buyVoice.onChain,
         txHash,
         hitchFooter: hitchTelegramFooter(buyVoice, txHash),
+        turnCard: buyTurn,
       }));
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
@@ -6911,6 +6972,26 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       `   🌊 Biggest: ${bigWave} | ⚡ Fastest: ${fastWave}\n` +
       `   🐷 Contrib to piggy: $${(tws.piggyContrib*ethUsd).toFixed(3)}`;
 
+    const fifoSellKnown = trustedBasis && Number(entryEthSold) > 0 && Number(received) > 0;
+    const leftoverEth = fifoSellKnown ? received - entryEthSold : null;
+    const sellTurn = buildTurnRecord({
+      side: "SELL",
+      symbol: token.symbol,
+      txHash: transactionHash,
+      fifoKnown: fifoSellKnown,
+      fifoEthIn: fifoSellKnown ? entryEthSold : null,
+      fifoEthOut: Number(received) > 0 ? received : null,
+      leftoverEth,
+      usdMark: fifoSellKnown && Number.isFinite(Number(netUsd)) ? netUsd : null,
+      hitchOnChain: !!sellVoice.onChain,
+      hitchBytes: sellVoice.hitchBytes || 0,
+      hitchUtf8: sellVoice.utf8 || "",
+      hitchKind: sellVoice.kind || sellVoice.vitaKind || "",
+      hitchCostEth: sellVoice.onChain && Number(hitchCostEth) > 0 ? hitchCostEth : null,
+      liquidEth: Number.isFinite(eAfter) ? eAfter : null,
+      liquidWeth: Number.isFinite(wAfter) ? wAfter : null,
+    });
+    recordTurnFill(sellTurn);
     await tg(formatSellReceiptHtml({
       symbol: token.symbol,
       tradeNum: tradeCount,
@@ -6947,6 +7028,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         sellVoice,
       }),
       waveBar,
+      turnCard: sellTurn,
     }));
     if (sellVoice.onChain) console.log(`      💌 ${sellVoice.utf8}`);
     else console.log(`      ⚠️ No UTF-8 hitch on this sell`);
@@ -8765,6 +8847,12 @@ async function loadFromGitHub() {
     applyLotToNet(netPositions, fifoLots[t.symbol]);
     applyLotToToken(t, fifoLots[t.symbol]);
   }
+  try {
+    const recall = loadTurnRecallStore(TURN_RECALL_FILENAME);
+    if (recall.fills > 0) {
+      console.log(`   🎒 turn recall: ${recall.fills} fills · ${recall.hitchEvents} hitch (usage units, no invented $)`);
+    }
+  } catch { /* optional disk */ }
 
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
@@ -11409,6 +11497,16 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           await tg("❌ Session save failed: " + e.message);
         }
 
+      } else if (parseBagOrRecallCommand(raw)) {
+        const parsed = parseBagOrRecallCommand(raw);
+        const payload = buildRecallPayload({
+          n: parsed.n,
+          liquidEth: bal?.eth,
+          liquidWeth: bal?.weth,
+          sleeves: openSleeveRecallRows(),
+        });
+        await tg(formatRecallHtml(payload));
+
       } else if (text && text.startsWith("/recall ")) {
         // Search memory by topic or date
         const query   = raw.slice("/recall ".length).trim();
@@ -11621,6 +11719,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `SIM default — live buttons need VITA_WEBHOOK_SECRET. Tune params in sim or Railway env, not an open POST.\n\n` +
           `<b>📊 Status & Info:</b>\n` +
           `/status — full portfolio status\n` +
+          `/bag [n] — last N real fills (FIFO / hitch / liquid / distance-to-PLUS)\n` +
+          `/recall — same as /bag (use /recall topic to search memories)\n` +
           `/bank — complete money statement (LIVE chain)\n` +
           `/freeze SYMBOL — freeze token (data only, no trades)\n` +
           `/unfreeze SYMBOL — reactivate frozen token\n` +

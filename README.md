@@ -266,6 +266,8 @@ When `DECRYPT_PASSWORD` is removed from Railway:
 ### Trading
 ```
 /status          full portfolio status
+/bag [n]         last N real fills — FIFO / hitch / liquid / distance-to-PLUS (no invented P&L)
+/recall          same as /bag; /recall topic still searches memories
 /bank            complete money statement
 /surf            current riding positions
 /tiers           live tier leaderboard + scores
