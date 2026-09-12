@@ -1,0 +1,49 @@
+{
+  "chain": "base",
+  "chainId": 8453,
+  "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+  "swapRouter02": "0x2626664c2603336e57b271c5c0b26f421741e481",
+  "weth": "0x4200000000000000000000000000000000000006",
+  "gasPriceOracle": "0x420000000000000000000000000000000000000F",
+  "neverInventHashes": true,
+  "anchors": [
+    {
+      "id": "keycat-plain",
+      "tx": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none",
+      "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+      "lesson": "never claim UTF-8 hitch without trailer bytes"
+    },
+    {
+      "id": "eureka-prove",
+      "tx": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka",
+      "label": "Eureka love note on Base (/prove class)",
+      "lesson": "dedicated 0-ETH self-tx is the love-note genesis"
+    },
+    {
+      "id": "vita-strand",
+      "tx": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita",
+      "label": "VITA §TOKEN§ strand chunk on Base",
+      "lesson": "sparse strand inject — reader reconstructs from sealed locations"
+    }
+  ],
+  "basescanTx": "https://basescan.org/tx/",
+  "filingRoots": [
+    "vita/ORIGINAL_FORMULA.md",
+    "vita/FILING.md",
+    "vita/AGENTS.md",
+    "vita/README.md",
+    "vita/mainframe.js",
+    "vita/anchors.json",
+    "vita/memory/",
+    "vita/strands/",
+    "public/vita.html",
+    "public/vita-client.js",
+    "vita-console.js",
+    "vita-memory.js",
+    "vita-chain-reader.js",
+    "vita-locations.js"
+  ]
+}

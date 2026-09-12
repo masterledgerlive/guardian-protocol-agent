@@ -21,14 +21,37 @@ import {
   xmemHelpText,
 } from "/vita/lib/xmem.js";
 
-export const KEYCAT_TX = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
-export const EUREKA_ONCHAIN_TX = "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73";
-export const VITA_STRAND_TX = "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db";
-export const ANCHORS = Object.freeze([
-  { tx: KEYCAT_TX, expect: "none", note: "KEYCAT plain swap — no hitch" },
-  { tx: EUREKA_ONCHAIN_TX, expect: "eureka", note: "Eureka love note on Base" },
-  { tx: VITA_STRAND_TX, expect: "vita", note: "VITA §TOKEN§ strand on Base" },
-]);
+/** Prefer infected HTML mainframe anchors when present; else hardcoded genesis. */
+function readInfectedMainframe() {
+  try {
+    if (typeof document === "undefined") return null;
+    const el = document.getElementById("vita-mainframe");
+    return el ? JSON.parse(el.textContent) : null;
+  } catch {
+    return null;
+  }
+}
+
+const FALLBACK_KEYCAT_TX = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
+const FALLBACK_EUREKA_TX = "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73";
+const FALLBACK_VITA_TX = "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db";
+
+const infected = readInfectedMainframe();
+export const KEYCAT_TX = infected?.anchors?.keycatPlainTx || FALLBACK_KEYCAT_TX;
+export const EUREKA_ONCHAIN_TX = infected?.anchors?.eurekaProveTx || FALLBACK_EUREKA_TX;
+export const VITA_STRAND_TX = infected?.anchors?.vitaStrandTx || FALLBACK_VITA_TX;
+export const MAINFRAME = infected;
+export const ANCHORS = Object.freeze(
+  (infected?.anchors?.known || [
+    { tx: KEYCAT_TX, expect: "none", note: "KEYCAT plain swap — no hitch" },
+    { tx: EUREKA_ONCHAIN_TX, expect: "eureka", note: "Eureka love note on Base" },
+    { tx: VITA_STRAND_TX, expect: "vita", note: "VITA §TOKEN§ strand on Base" },
+  ]).map((a) => ({
+    tx: a.tx,
+    expect: a.expect || a.kind || "vita",
+    note: a.note || a.label || a.id || "",
+  })),
+);
 
 const STORE_TAG = "§$STORE§";
 const TX_RE = /^0x[0-9a-fA-F]{64}$/;

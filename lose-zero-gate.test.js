@@ -893,9 +893,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     }), false);
   });
 
-  it("micro-green leftover that covers 1× hitch but not 2× sells plain and banks hitch", () => {
+  it("original message-first: 1.5× hitch covers KEY+LOC → hitch (not mute for micro)", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
-    // leftover after fees = 1.5× hitch — micro extract, not hitch floor (2×)
+    // leftover after fees = 1.5× hitch — below 2× cushion, above 1× cover
     const leftover = hitch * 1.5;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01 + leftover,
@@ -907,6 +907,31 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       wantedHitchBytes: STORE_HITCH_BYTES,
       reason: "🌙 MOONSHOT TRIM — not in active tiers",
       symbol: "TOSHI",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.verdict, "PLUS");
+    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.hitchBankedEth, 0);
+    assert.ok(d.plusNetEth > 0);
+    assert.match(d.log, /message-first|KEY\+LOC 1×/i);
+    assert.match(d.alwaysPlusLog, /PLUS/);
+  });
+
+  it("VITA_MESSAGE_FIRST=no: 1.5× hitch sells plain and banks hitch", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.5;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+      symbol: "TOSHI",
+      env: { VITA_MESSAGE_FIRST: "no" },
     });
     assert.equal(d.allow, true);
     assert.equal(d.skipHitch, true);
@@ -2208,7 +2233,7 @@ describe("micro extract vs hitch floor — hitch optional, red still HOLD", () =
     assert.match(d.log, /leftover after fees|lose money/i);
   });
 
-  it("micro-green sells without hitch and logs hitch-bank skip", () => {
+  it("message-first: micro-green that covers 1× hitch sends hitch", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = hitch * 1.2;
     const d = evaluateSellGate({
@@ -2221,6 +2246,30 @@ describe("micro extract vs hitch floor — hitch optional, red still HOLD", () =
       wantedHitchBytes: STORE_HITCH_BYTES,
       symbol: "DRB",
       reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.verdict, "PLUS");
+    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.hitchBankedEth, 0);
+    assert.match(d.log, /message-first|KEY\+LOC 1×/i);
+    assert.match(d.alwaysPlusLog, /PLUS/);
+  });
+
+  it("VITA_MESSAGE_FIRST=no: micro-green sells without hitch and logs hitch-bank skip", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.2;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "DRB",
+      reason: "🎯 PEAK RIDE",
+      env: { VITA_MESSAGE_FIRST: "no" },
     });
     assert.equal(d.allow, true);
     assert.equal(d.skipHitch, true);
