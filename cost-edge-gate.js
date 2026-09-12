@@ -16,7 +16,10 @@
  *   5. High unit-price demotion — CBBTC/AAVE-class need larger floors.
  *
  * Mistakes are recorded so the agent can learn and tighten caps over time.
+ * Each refuse also files into finetune-memory (sixth lobe / hypothesis graph).
  */
+
+import { ingestCostMistake } from "./finetune-memory.js";
 
 export const MAX_HITCH_COST_PCT = 0.08;       // hitch alone ≤ 8% of trade
 export const MAX_ROUND_TRIP_COST_PCT = 0.22;  // full RT ≤ 22% of stake (was 95%!)
@@ -271,6 +274,8 @@ export function hasSellableUsd(balance, priceUsd, minUsd = SELLABLE_MIN_USD) {
 
 /**
  * Record a refused or realized bad entry for forward learning.
+ * Also files into the FINETUNE hypothesis graph (sixth lobe) so the next
+ * cycle does not restart from zero — see finetune-memory.js / antpalkin loop.
  */
 export function recordCostMistake(entry = {}) {
   const row = {
@@ -286,6 +291,9 @@ export function recordCostMistake(entry = {}) {
   };
   costMistakeLog.push(row);
   while (costMistakeLog.length > MISTAKE_RING_MAX) costMistakeLog.shift();
+  try {
+    ingestCostMistake(row);
+  } catch { /* finetune optional — never block the gate */ }
   return row;
 }
 

@@ -656,6 +656,8 @@ describe("recursive memory persist + inject", () => {
     assert.equal(inj.kind, "vita-inject-context");
     assert.ok(inj.fields.KEY.includes("Kai"));
     assert.match(inj.context, /VITA INJECT/);
+    assert.match(inj.context, /FINETUNE/);
+    assert.ok(inj.finetune?.kind === "finetune-inject-context");
     assert.doesNotMatch(inj.packet, /We did it! xoxo/);
     assert.equal(inj.quality.lossy, false);
   });

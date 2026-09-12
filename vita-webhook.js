@@ -33,6 +33,8 @@
 //   GET  /vita/xmem?q=      — x402 wallet scan + XMEM search (auth)
 //   GET  /vita/course        — hourly inject-without-loss scorecard
 //   GET  /vita/inject       — recursive §TOKEN§ memory for session start
+//   GET  /vita/brain        — six-lobe brain + finetune hypothesis graph (auth)
+//   GET  /vita/hypotheses   — hypothesis graph query (?q=&status=&symbol=) (auth)
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
 //   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -62,8 +64,15 @@ import {
   boardWaveTile,
   v4BoardStatus,
 } from "./board-control.js";
-import { vitaRouterStatus, buildVitaInjectContext } from "./vita-router.js";
+import { vitaRouterStatus, buildVitaInjectContext, getLastVitaPacket } from "./vita-router.js";
 import { locDepositoryStatus } from "./vita-locations.js";
+import {
+  buildBrainStatus,
+  queryHypotheses,
+  getHypothesisGraph,
+  hypothesisToXmem,
+} from "./finetune-memory.js";
+import { vitaQuality } from "./vita-parse.js";
 import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
 import {
   fetchTxCalldataHex,
@@ -483,6 +492,38 @@ async function handleVitaRequest(req, res) {
     } else if (path === "/vita/inject" && req.method === "GET") {
       return json(res, { ok: true, ...buildVitaInjectContext() });
 
+    } else if (path === "/vita/brain" && req.method === "GET") {
+      const loc = locDepositoryStatus();
+      const quality = vitaQuality(getLastVitaPacket() || "");
+      const status = buildBrainStatus({
+        hasKey: quality.hasKey,
+        sealedCount: loc.sealed ?? 0,
+        tapeCount: getHypothesisGraph().length,
+        judgeLessons: getHypothesisGraph().filter((h) => h.status === "failed").length,
+        burstAlign: 0,
+        provenanceNote: `§LOC§ ${loc.token || "?"}`,
+      });
+      return json(res, {
+        ok: true,
+        ...status,
+        hypotheses: getHypothesisGraph().slice(-20).map((h) => ({
+          ...h,
+          xmem: hypothesisToXmem(h),
+        })),
+      });
+
+    } else if (path === "/vita/hypotheses" && req.method === "GET") {
+      const q = String(url.searchParams.get("q") || "").trim();
+      const status = url.searchParams.get("status") || null;
+      const symbol = url.searchParams.get("symbol") || null;
+      const regime = url.searchParams.get("regime") || null;
+      const rows = queryHypotheses({ q, status, symbol, regime, limit: 40 });
+      return json(res, {
+        ok: true,
+        count: rows.length,
+        hypotheses: rows.map((h) => ({ ...h, xmem: hypothesisToXmem(h) })),
+      });
+
     } else if (path === "/vita/xmem" && req.method === "GET") {
       const q = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
       try {
@@ -644,6 +685,8 @@ export function startVitaWebhook() {
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");
     console.log("   /vita/course   — hourly inject-without-loss scorecard");
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
+    console.log("   /vita/brain    — six-lobe brain + finetune hypothesis graph");
+    console.log("   /vita/hypotheses — query hypothesis graph");
     console.log("   /vita/read     — read GitHub files");
     console.log("   /vita/status   — live bot status");
   });

@@ -228,6 +228,17 @@ import {
   SELLABLE_MIN_USD,
 } from "./cost-edge-gate.js";
 import {
+  fileHypothesis,
+  resolveHypothesis,
+  queryHypotheses,
+  buildBrainStatus,
+  formatBrainTelegram,
+  shouldAvoid,
+  hypothesisToXmem,
+  getHypothesisGraph,
+} from "./finetune-memory.js";
+import { vitaQuality } from "./vita-parse.js";
+import {
   queueForcedLockedExits,
   markForcedExitExecuted,
   forceExitLockedEnabled,
@@ -418,7 +429,7 @@ import {
   setLastVitaPacket,
   ingestSealedUtf8,
 } from "./vita-router.js";
-import { recordLocation } from "./vita-locations.js";
+import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -9428,13 +9439,96 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const recent = costMistakeLog.slice(-8).map((r) =>
           `${r.symbol} [${r.code}] $${(r.tradeUsd || 0).toFixed(2)} — ${(r.reason || "").slice(0, 80)}`
         ).join("\n") || "none yet";
+        const avoid = shouldAvoid({ minConviction: 0.35 }).slice(0, 5)
+          .map((h) => `${h.symbol || "*"} @${h.regime} c=${h.conviction.toFixed(2)}`)
+          .join("\n") || "none yet";
         await tg(
           `🧠 <b>COST-EDGE LESSONS</b>\n` +
           `${sum.message}\n\n` +
           `Deferred inject-mains: ${INJECT_MAIN_MAJORS_DEFERRED.join(", ")}\n` +
           `Active inject-mains: ${INJECT_MAIN_PLAYERS.join(", ")}\n\n` +
-          `<b>Recent refusals / lessons</b>\n${recent}`
+          `<b>Recent refusals / lessons</b>\n${recent}\n\n` +
+          `<b>Finetune avoid (sixth lobe)</b>\n${avoid}`
         );
+      } else if (text === "/brain" || text === "/lobes") {
+        const loc = locDepositoryStatus();
+        const quality = vitaQuality(getLastVitaPacket() || "");
+        const status = buildBrainStatus({
+          hasKey: quality.hasKey,
+          sealedCount: loc.sealed ?? 0,
+          tapeCount: getHypothesisGraph().length,
+          judgeLessons: costMistakeLog.length,
+          burstAlign: Number(process.env.CYCLE_ALIGN_MIN) || 2,
+          tapeNote: `graph=${getHypothesisGraph().length} · costMistakes=${costMistakeLog.length}`,
+          provenanceNote: `§LOC§ ${loc.token || "?"} · sealed=${loc.sealed ?? "?"}`,
+          judgeNote: summarizeCostMistakes(costMistakeLog).message,
+          burstNote: "align gate + smart money (live cycle)",
+        });
+        await tg(formatBrainTelegram(status));
+      } else if (text && text.startsWith("/hyp ")) {
+        const body = text.slice(5).trim();
+        if (!body) {
+          await tg("Usage: <code>/hyp [thesis]</code> or <code>/hyp SYMBOL|regime|thesis</code>");
+        } else {
+          const parts = body.split("|").map((p) => p.trim()).filter(Boolean);
+          let symbol = "";
+          let regime = "general";
+          let thesis = body;
+          if (parts.length >= 3) {
+            symbol = parts[0];
+            regime = parts[1];
+            thesis = parts.slice(2).join("|");
+          } else if (parts.length === 2) {
+            symbol = parts[0];
+            thesis = parts[1];
+          }
+          const hyp = fileHypothesis({
+            thesis,
+            symbol,
+            regime,
+            source: "telegram",
+            status: "pending",
+            tags: ["manual", "operator"],
+          });
+          const xmem = hypothesisToXmem(hyp);
+          await tg(
+            `🧩 <b>HYPOTHESIS FILED</b>\n` +
+            `id: <code>${hyp.id}</code>\n` +
+            `${hyp.symbol || "*"} @${hyp.regime} · ${hyp.status}\n` +
+            `${hyp.thesis}\n\n` +
+            `XMEM overlay: ns=${xmem.ns} type=${xmem.type}\n` +
+            `<i>/hypok ${hyp.id} · /hypfail ${hyp.id} · /brain</i>`
+          );
+          try { await persistVitaRouterState(); } catch { /* non-critical */ }
+        }
+      } else if (text && (text.startsWith("/hypfail ") || text.startsWith("/hypok "))) {
+        const fail = text.startsWith("/hypfail ");
+        const id = text.split(/\s+/)[1];
+        const hyp = resolveHypothesis(id, fail ? "failed" : "confirmed", {
+          kind: fail ? "fail" : "confirm",
+          score: 85,
+          note: fail ? "operator marked failed" : "operator marked confirmed",
+        });
+        if (!hyp) {
+          await tg(`❓ Unknown hypothesis id: <code>${id || "?"}</code>`);
+        } else {
+          await tg(
+            `${fail ? "🛑" : "✅"} <b>${hyp.id}</b> → ${hyp.status}\n` +
+            `${hyp.symbol || "*"} @${hyp.regime} c=${hyp.conviction.toFixed(2)}\n` +
+            `${hyp.thesis}`
+          );
+          try { await persistVitaRouterState(); } catch { /* non-critical */ }
+        }
+      } else if (text === "/hyps" || text === "/hypotheses") {
+        const rows = queryHypotheses({ limit: 12 });
+        if (!rows.length) {
+          await tg("🧩 No hypotheses yet — COST_EDGE refusals auto-file, or <code>/hyp thesis</code>");
+        } else {
+          const lines = rows.map((h) =>
+            `· <code>${h.id}</code> [${h.status}] ${h.symbol || "*"} @${h.regime} c=${h.conviction.toFixed(2)}\n  ${h.thesis.slice(0, 90)}`
+          );
+          await tg(`🧩 <b>HYPOTHESIS GRAPH</b> (${rows.length})\n\n` + lines.join("\n"));
+        }
       } else if (text === "/turbo") {
         // Turbo mode: already the new default — confirm current settings
         await tg(
@@ -11905,6 +11999,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/cycles — no-loss succession streaks + per-token min buys\n` +
           `/injectprove — hitch injection count toward 20 + profit (capital gate)\n` +
           `/costedge — COST_EDGE refusals + CBBTC-class lessons learned\n` +
+          `/brain — six-lobe brain status (FOMO radar + fine-tune graph)\n` +
+          `/hyp [thesis] — file hypothesis · /hyps · /hypok|/hypfail id\n` +
           `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +

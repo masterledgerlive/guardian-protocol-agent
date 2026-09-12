@@ -112,8 +112,10 @@ describe("cost-edge-gate: USD bag exits", () => {
 });
 
 describe("cost-edge-gate: mistake learning", () => {
-  it("records and summarizes refusals", () => {
+  it("records and summarizes refusals", async () => {
+    const { resetHypothesisGraph, queryHypotheses } = await import("./finetune-memory.js");
     costMistakeLog.length = 0;
+    resetHypothesisGraph();
     recordCostMistake({
       symbol: "CBBTC",
       code: "hitch_pct",
@@ -125,6 +127,7 @@ describe("cost-edge-gate: mistake learning", () => {
     assert.equal(s.count, 1);
     assert.equal(s.topSymbol, "CBBTC");
     assert.ok(s.message.includes("CBBTC"));
+    assert.ok(queryHypotheses({ symbol: "CBBTC", status: "failed" }).length >= 1);
   });
 });
 
