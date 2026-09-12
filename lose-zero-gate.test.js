@@ -979,31 +979,32 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
   });
 
   it("red FIFO operator sell is allowed only when ALLOW_LOSSY_OPERATOR_SELL=yes", () => {
+    const drbRed = { ...toshiMoonshot, symbol: "DRB" };
     const blocked = evaluateSellGate({
-      ...toshiMoonshot,
+      ...drbRed,
       reason: "MANUAL SELL (operator) 50%",
-      env: {},
+      env: { FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
     assert.equal(blocked.allow, false);
     assert.equal(blocked.verdict, "HOLD");
     const lossy = evaluateSellGate({
-      ...toshiMoonshot,
+      ...drbRed,
       reason: "MANUAL SELL (operator) 50%",
       operatorLot: true,
       freshLot: true,
-      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
     assert.equal(lossy.allow, true);
     assert.equal(lossy.skipHitch, true);
     assert.equal(lossy.verdict, "LOSSY_OPERATOR");
     assert.match(lossy.log, /ALLOW_LOSSY_OPERATOR_SELL/);
-    const autoStillHeld = evaluateSellGate({
+    const toshiStillHeld = evaluateSellGate({
       ...toshiMoonshot,
-      reason: "🌙 MOONSHOT TRIM — not in active tiers",
-      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      reason: "MANUAL SELL (operator) 50%",
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
-    assert.equal(autoStillHeld.allow, false);
-    assert.equal(autoStillHeld.verdict, "HOLD");
+    assert.equal(toshiStillHeld.allow, false);
+    assert.equal(toshiStillHeld.verdict, "HOLD");
   });
 
   it("FORCE EXIT LOCKED recovers stranded majors even when underwater", () => {
@@ -1348,11 +1349,10 @@ describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
     const op = evaluateSellGate({
       ...basecatUnderwater,
       reason: "MANUAL SELL (operator) 50%",
-      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
-    assert.equal(op.allow, true);
-    assert.equal(op.skipHitch, true);
-    assert.equal(op.verdict, "LOSSY_OPERATOR");
+    assert.equal(op.allow, false, "dust BASECAT is not Game FORCE_EXIT priority");
+    assert.equal(op.verdict, "HOLD");
   });
 
   it("Dex mark cannot paint BASECAT green when Uni quote is underwater", () => {
@@ -1839,12 +1839,9 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
       feePct: 0,
       gasCostEth: 0,
       gwei: 0.05,
-      env: {
-        ALLOW_LOSSY_OPERATOR_SELL: "yes",
-        OPERATOR_SELL: "AERO:all,DRB:100",
-      },
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
-    assert.equal(lossyDrb.allow, true, "OPERATOR_SELL + ALLOW_LOSSY must unwind FIFO-red operator lot");
+    assert.equal(lossyDrb.allow, true, "AERO/DRB/BNKR + ALLOW_LOSSY must unwind FIFO-red operator lot");
     assert.equal(lossyDrb.skipHitch, true);
     assert.equal(lossyDrb.verdict, "LOSSY_OPERATOR");
 
@@ -1862,20 +1859,44 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
       gwei: 0.05,
       env: {
         FORCE_EXIT_LOCKED_MAJORS: "yes",
-        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR,BASECAT",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR",
       },
     });
-    assert.equal(forceBnkr.allow, true, "FORCE_EXIT_SYMBOLS must unwind FIFO-red operator lot");
+    assert.equal(forceBnkr.allow, true, "FORCE_EXIT_SYMBOLS AERO/DRB/BNKR must unwind");
     assert.equal(forceBnkr.skipHitch, true);
     assert.equal(forceBnkr.verdict, "FORCE_EXIT");
 
+    const dustSkipped = evaluateSellGate({
+      symbol: "BASECAT",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      env: {
+        ALLOW_LOSSY_OPERATOR_SELL: "yes",
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR,BASECAT",
+      },
+    });
+    assert.equal(dustSkipped.allow, false, "dust names are not Game FORCE_EXIT priority");
+
     assert.equal(
-      canBypassSellLossGate("MANUAL SELL (operator)", {}, "DRB"),
+      canBypassSellLossGate("MANUAL SELL (operator)", { FORCE_EXIT_LOCKED_MAJORS: "no" }, "DRB"),
       false,
     );
     assert.equal(
       canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "DRB"),
       true,
+    );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "TOSHI"),
+      false,
     );
   });
 

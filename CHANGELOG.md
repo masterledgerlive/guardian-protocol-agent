@@ -9,8 +9,9 @@ Game fresh-start: always-plus HOLDed DRB/BNKR operator lots
 `ALLOW_LOSSY_OPERATOR_SELL=yes`. FORCE_EXIT AERO/DRB/BASECAT reverted
 SwapRouter02 STF (`0xd78e0001…`) — float size > live wei / short allowance.
 
-- Honor ALLOW_LOSSY_OPERATOR_SELL + FORCE EXIT LOCKED / FORCE_EXIT_SYMBOLS /
-  OPERATOR_SELL (`AERO:all`, `DRB:100`). Hitch SKIP. Auto HOLD when flags off.
+- Game FORCE_EXIT priority is **AERO / DRB / BNKR** only (bags >$0.30).
+  ALLOW_LOSSY or FORCE_EXIT_SYMBOLS / FORCE EXIT LOCKED bypass always-plus
+  HOLD for those names. Hitch SKIP. Dust names stay always-plus.
 - amountIn ≤ live ERC20 wei (minus piggy unless unlock).
 - Re-read SwapRouter allowance ≥ amountIn before swap.
 - AERO sells pin Uni V3 WETH `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf` (catalog fee 3000 must not send the wrong book).
