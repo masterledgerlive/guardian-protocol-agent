@@ -55,6 +55,12 @@ import {
   freshLotCostFloor,
   sellEntryEthWithLotFloor,
   usdMarkBelowBreakeven,
+  isAllowAddOnFifoRed,
+  bagMarkProceedsEth,
+  isExistingKnownFifoBag,
+  isFifoRedLot,
+  evaluateAddOnFifoRedGate,
+  addOnRemainingFifoEth,
   estimateCalldataHitchEth,
   estimateBtpInscribeEth,
   estimateInjectHitchCostEth,
@@ -1813,5 +1819,197 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
     clearFreshLot({ operatorLot: { fillCostEth: 1 } });
     assert.equal(usdMarkBelowBreakeven({ markProceedsEth: 0.001, entrySoldEth: 0.002 }), true);
     assert.equal(usdMarkBelowBreakeven({ markProceedsEth: 0.002, entrySoldEth: 0.001 }), false);
+  });
+});
+
+describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
+  // Live after #83: auto DRB trough add-on filled 0x53a00788… into a
+  // FIFO-red bag. Game wants wait PLUS+hitch only unless override.
+
+  const redBag = {
+    symbol: "DRB",
+    tokenBal: 2844,
+    remainingFifoEth: 0.00045,
+    markProceedsEth: 0.00045 * 0.70,
+    unknownEntry: false,
+  };
+
+  it("ALLOW_ADD_ON_FIFO_RED defaults OFF (unset / no block; yes/true/1/on allow)", () => {
+    assert.equal(isAllowAddOnFifoRed({}), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "no" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "false" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "0" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "off" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "yes" }), true);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "true" }), true);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "1" }), true);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "on" }), true);
+  });
+
+  it("bag mark proceeds is units × USD / ETHUSD (same as executeSell)", () => {
+    assert.equal(bagMarkProceedsEth({ tokenBal: 100, priceUsd: 2, ethUsd: 4000 }), 0.05);
+    assert.equal(bagMarkProceedsEth({ tokenBal: 0, priceUsd: 2, ethUsd: 4000 }), 0);
+    assert.equal(bagMarkProceedsEth({ tokenBal: 100, priceUsd: 0, ethUsd: 4000 }), 0);
+  });
+
+  it("FIFO-red inject-pullback add-on is blocked by default", () => {
+    const d = evaluateAddOnFifoRedGate({
+      ...redBag,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.blocked, true);
+    assert.equal(d.reason, "fifo-red");
+    assert.match(d.log, /ADD_ON_FIFO_RED: skip add-on DRB/);
+    assert.match(d.log, /existing FIFO lot is red/);
+    assert.match(d.log, /wait PLUS\+hitch/);
+    assert.equal(isFifoRedLot({
+      markProceedsEth: redBag.markProceedsEth,
+      remainingFifoEth: redBag.remainingFifoEth,
+    }), true);
+  });
+
+  it("FIFO-red OPERATOR_BUY / Telegram /buy add-on is blocked (operator leftover bypass does not apply)", () => {
+    const d = evaluateAddOnFifoRedGate({
+      ...redBag,
+      reason: "MANUAL BUY (operator) $2",
+      env: {},
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.blocked, true);
+    assert.equal(d.reason, "fifo-red");
+    assert.match(d.log, /skip add-on DRB/);
+    // leftover+edge still allows operator first-buys; this gate is separate.
+    const leftover = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "DRB",
+      reason: "MANUAL BUY (operator) $2",
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(leftover.allow, true);
+  });
+
+  it("first buy into empty/flat is allowed", () => {
+    const empty = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0,
+      remainingFifoEth: 0,
+      markProceedsEth: 0,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(empty.allow, true);
+    assert.equal(empty.reason, "flat-or-empty");
+    assert.equal(empty.log, null);
+
+    const dust = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0.0004,
+      remainingFifoEth: 0,
+      markProceedsEth: 0,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(dust.allow, true);
+    assert.equal(dust.reason, "flat-or-empty");
+
+    const unknown = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 2844,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.0002,
+      unknownEntry: true,
+      reason: "MANUAL BUY (operator) $2",
+      env: {},
+    });
+    assert.equal(unknown.allow, true);
+    assert.equal(unknown.reason, "flat-or-empty");
+    assert.equal(isExistingKnownFifoBag({
+      tokenBal: 2844,
+      remainingFifoEth: 0,
+      unknownEntry: true,
+    }), false);
+  });
+
+  it("green / not-red known FIFO lot may still add on", () => {
+    const d = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 2844,
+      remainingFifoEth: 0.00045,
+      markProceedsEth: 0.00055,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.blocked, false);
+    assert.equal(d.reason, "fifo-not-red");
+    assert.equal(d.log, null);
+  });
+
+  it("ALLOW_ADD_ON_FIFO_RED override allows add-on into a red lot", () => {
+    const d = evaluateAddOnFifoRedGate({
+      ...redBag,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: { ALLOW_ADD_ON_FIFO_RED: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.blocked, false);
+    assert.equal(d.reason, "override");
+    assert.match(d.log, /Game override ALLOW_ADD_ON_FIFO_RED/);
+  });
+
+  it("leftover after plus partial uses remaining FIFO, not unshrunk lot floor", () => {
+    const leftover = latchFreshLot({
+      totalInvestedEth: 0.000045,
+      unknownEntry: false,
+    }, {
+      fillCostEth: 0.00045,
+      tokens: 284,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(sellEntryEthWithLotFloor(leftover.totalInvestedEth, leftover), 0.00045);
+    assert.equal(addOnRemainingFifoEth(leftover), 0.000045);
+    const leftoverMark = 0.00005;
+    const vsFloor = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 284,
+      remainingFifoEth: sellEntryEthWithLotFloor(leftover.totalInvestedEth, leftover),
+      markProceedsEth: leftoverMark,
+      env: {},
+    });
+    assert.equal(vsFloor.allow, false, "unshrunk floor would wrongly paint leftover red");
+    const vsRemain = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 284,
+      remainingFifoEth: addOnRemainingFifoEth(leftover),
+      markProceedsEth: leftoverMark,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(vsRemain.allow, true);
+    assert.equal(vsRemain.reason, "fifo-not-red");
+
+    const dustCleared = latchFreshLot({
+      totalInvestedEth: 0,
+      unknownEntry: false,
+    }, {
+      fillCostEth: 0.00045,
+      tokens: 2,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(addOnRemainingFifoEth(dustCleared), 0);
+    const dust = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0.0004,
+      remainingFifoEth: addOnRemainingFifoEth(dustCleared),
+      markProceedsEth: 1e-6,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(dust.allow, true);
+    assert.equal(dust.reason, "flat-or-empty");
   });
 });

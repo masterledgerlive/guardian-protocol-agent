@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Fixed — block add-on buys into FIFO-red lots unless Game OK
+
+Live after #83 (`474d220`): auto DRB trough / inject-pullback add-on fired
+while the lot was already FIFO-red (buy hash `0x53a00788…`). Stacking size
+into an underwater bag spends RISK while always-plus HOLDs exits.
+
+- `evaluateAddOnFifoRedGate` in `executeBuy` — inject-pullback, auto trough,
+  OPERATOR_BUY, and Telegram `/buy` cannot ADD to an existing known FIFO
+  lot when mark/proceeds sit below remaining FIFO eth / entrySold.
+- `ALLOW_ADD_ON_FIFO_RED` default OFF / block (`no` / unset). Game override
+  `yes` / `true` / `1` / `on` allows the add-on and logs why.
+- First buy into empty/flat is OK. Unknown bags are not treated as known
+  FIFO-red. Remaining FIFO is bag `totalInvestedEth` only — not the
+  sell-side lot floor (leftover/piggy after a plus partial must not look
+  red vs the unshrunk last fill). When blocked: log why and skip (do not fill).
+- Always-plus HOLD / LOSE-ZERO / `DISABLE_DOW_BIAS` / dust-recycle known
+  FIFO / #83 usable ETH cost — unchanged.
+
+Does **not** invent P&L. Does **not** merge V4. No capital.
+
 ### Fixed — DRB/BNKR FIFO eth is usable; dust-recycle honors known FIFO
 
 Live after #80+#81 (`085d25d`): AERO FIFO half-worked (leftover + saved USD

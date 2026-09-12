@@ -221,6 +221,7 @@ REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys eve
 HITCH_COST_MULT           ← sell-side hitch SIZE budget leftover/mult (default 2). Plus gate is 1× hitch on THIS sell (buy hitch already in cost basis). inject_hitch_cost = live Base L1 data fee (GasPriceOracle 0x420…000F getL1Fee / getL1FeeUpperBound) + L2 calldata-gas; oracle failure → SKIP_HITCH (plain plus). Buys stay 1×.
 ALLOW_LOSSY_OPERATOR_BUY  ← legacy alias; operator /buy already bypasses leftover+edge (hitch-or-plain)
 ALLOW_LOSSY_OPERATOR_SELL ← ignored for plus — operator cannot sell red. Only FORCE EXIT LOCKED recovers stranded majors (no hitch).
+ALLOW_ADD_ON_FIFO_RED     ← yes / true / 1 / on = Game override to ADD into an existing known FIFO-red lot. Default OFF / block (`no` / unset). First buy into empty/flat is OK. Auto trough / inject-pullback / OPERATOR_BUY / Telegram `/buy` skip and log when blocked.
 PIGGY_BANK_PCT            ← per-token never-sell dust as a fraction (0.05) or percent (5). Default 5% of current units.
 PIGGY_BANK_MIN_USD        ← USD floor converted to token units via live price (default $0.15). Applies only when bag USD ≥ floor; crumbs use pct only. Set 0 to disable. Reserve = max(pct × balance, minUsd / price) and never auto-shrinks.
 PIGGY_EARNINGS_BUFFER_PCT ← fraction of proceeds that must remain after fees/skim/hitch before Eureka may ride (default 5%). Thin leftover → plain sale.

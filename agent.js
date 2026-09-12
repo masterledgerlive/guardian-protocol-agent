@@ -143,6 +143,9 @@ import {
   clearFreshLot,
   freshLotCostFloor,
   sellEntryEthWithLotFloor,
+  evaluateAddOnFifoRedGate,
+  bagMarkProceedsEth,
+  addOnRemainingFifoEth,
 } from "./lose-zero-gate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -5692,6 +5695,30 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const gasCost  = await estimateGasCostEth();
     // FIX: gwei must be fetched locally — the main-loop `gwei` is not in scope here
     const gwei     = await getCurrentGasGwei();
+
+    // Add-on into a known FIFO-red lot spends RISK while always-plus HOLDs
+    // exits (live DRB trough add-on after #83, buy 0x53a00788). First buy
+    // into empty/flat is OK. Game override: ALLOW_ADD_ON_FIFO_RED=yes.
+    {
+      const existingBal = getCachedBalance(token.symbol) || 0;
+      const remainingFifoEth = addOnRemainingFifoEth(token);
+      const addOnGate = evaluateAddOnFifoRedGate({
+        symbol: token.symbol,
+        tokenBal: existingBal,
+        remainingFifoEth,
+        markProceedsEth: bagMarkProceedsEth({
+          tokenBal: existingBal,
+          priceUsd: price,
+          ethUsd,
+        }),
+        unknownEntry: token.unknownEntry,
+        reason,
+      });
+      if (!addOnGate.allow) {
+        return await skipBuy(reason, token.symbol, addOnGate.log || `ADD_ON_FIFO_RED blocked ${token.symbol}`);
+      }
+      if (addOnGate.log) console.log(`   ${addOnGate.log}`);
+    }
 
     // Unified balance early — tier gate must die BEFORE hitch L1 fee RPC.
     // Live Railway: SKI/DRB passed LOSE_ZERO every ~60s then "not in active tiers".

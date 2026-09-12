@@ -9,6 +9,8 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * Operator Telegram /buy is an explicit test: leftover+edge never block it.
  * Hitch VITA KEY+LOC if leftover covers 1× hitch; otherwise send a plain swap.
  * Frozen / PRICE_INSANE / insufficient ETH / fill honesty still apply.
+ * Add-on into a known FIFO-red lot is blocked by default
+ * (`ALLOW_ADD_ON_FIFO_RED`); first buy into empty/flat is OK.
  * Sell always-plus (hard rule): expected net proceeds must beat
  *   entry_basis_for_sold_frac + fees + hitch_cost_for_THIS_tx
  * even by 1 wei. Buy hitch is already in cost basis (`investedEthWithCosts`);
@@ -138,6 +140,106 @@ export function usdMarkBelowBreakeven({ markProceedsEth = 0, entrySoldEth = 0 } 
   const entry = Number(entrySoldEth);
   if (!(mark > 0) || !(entry > 0)) return false;
   return mark + MIN_PLUS_ETH < entry;
+}
+
+/**
+ * Add-on into a known FIFO-red lot (DRB 0x53a00788 class after #83 latch).
+ * Stacking size into an underwater bag spends RISK while always-plus HOLDs
+ * exits. Default OFF / block. Game override: ALLOW_ADD_ON_FIFO_RED=yes.
+ * First buy into empty/flat is OK. Unknown bags are not "known FIFO red."
+ */
+export const ADD_ON_BAG_MIN_TOKENS = 0.001;
+
+export function isAllowAddOnFifoRed(env = process.env) {
+  return envFlagOn("ALLOW_ADD_ON_FIFO_RED", env);
+}
+
+/**
+ * Remaining FIFO eth of the bag still on chain. Do **not** raise to the
+ * sell-side lot floor (`sellEntryEthWithLotFloor` / `operatorLot`) — that
+ * floor is the last fill so Friday cannot sell red. After a plus partial,
+ * leftover/piggy mark vs the unshrunk fill is almost always "red" and
+ * would skip a first buy into empty/dust.
+ */
+export function addOnRemainingFifoEth(token) {
+  if (!token || token.unknownEntry === true) return 0;
+  const n = Number(token.totalInvestedEth);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** Same bag ETH mark executeSell uses: units × USD / ETHUSD. */
+export function bagMarkProceedsEth({ tokenBal = 0, priceUsd = 0, ethUsd = 0 } = {}) {
+  const bal = Number(tokenBal);
+  const px = Number(priceUsd);
+  const eth = Number(ethUsd);
+  if (!(bal > 0) || !(px > 0) || !(eth > 0)) return 0;
+  return (bal * px) / eth;
+}
+
+export function isExistingKnownFifoBag({
+  tokenBal = 0,
+  remainingFifoEth = 0,
+  unknownEntry = false,
+} = {}) {
+  if (unknownEntry === true) return false;
+  const bal = Number(tokenBal);
+  const fifo = Number(remainingFifoEth);
+  return Number.isFinite(bal) && bal > ADD_ON_BAG_MIN_TOKENS
+    && Number.isFinite(fifo) && fifo > 0;
+}
+
+export function isFifoRedLot({
+  markProceedsEth = 0,
+  remainingFifoEth = 0,
+} = {}) {
+  return usdMarkBelowBreakeven({
+    markProceedsEth,
+    entrySoldEth: remainingFifoEth,
+  });
+}
+
+/**
+ * Block inject-pullback / auto trough / OPERATOR_BUY / Telegram /buy add-ons
+ * when the existing known FIFO lot is already red (mark < remaining FIFO).
+ * @returns {{ allow: boolean, blocked: boolean, reason: string, log: string|null }}
+ */
+export function evaluateAddOnFifoRedGate({
+  symbol = "?",
+  tokenBal = 0,
+  remainingFifoEth = 0,
+  markProceedsEth = 0,
+  unknownEntry = false,
+  reason = "",
+  env = process.env,
+} = {}) {
+  void reason;
+  const existing = isExistingKnownFifoBag({ tokenBal, remainingFifoEth, unknownEntry });
+  if (!existing) {
+    return { allow: true, blocked: false, reason: "flat-or-empty", log: null };
+  }
+  const red = isFifoRedLot({ markProceedsEth, remainingFifoEth });
+  if (!red) {
+    return { allow: true, blocked: false, reason: "fifo-not-red", log: null };
+  }
+  const mark = Number(markProceedsEth);
+  const fifo = Number(remainingFifoEth);
+  const cmp = `mark ${mark.toExponential(2)} < remaining FIFO ${fifo.toExponential(2)}`;
+  if (isAllowAddOnFifoRed(env)) {
+    return {
+      allow: true,
+      blocked: false,
+      reason: "override",
+      log: `ADD_ON_FIFO_RED: allow add-on ${symbol} Game override ALLOW_ADD_ON_FIFO_RED (${cmp})`,
+    };
+  }
+  return {
+    allow: false,
+    blocked: true,
+    reason: "fifo-red",
+    log:
+      `ADD_ON_FIFO_RED: skip add-on ${symbol} — existing FIFO lot is red (${cmp}); ` +
+      `wait PLUS+hitch. Set ALLOW_ADD_ON_FIFO_RED=yes to override.`,
+  };
 }
 
 export function isLoseZeroMode(env = process.env) {

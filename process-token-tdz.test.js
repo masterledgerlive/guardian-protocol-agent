@@ -136,6 +136,15 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(!prelude.includes("!isCascade &&"), "cascade/ripple must not skip the buy hitch-cover gate");
     assert.ok(body.includes("isLoseZeroMode() || isInjectCoverRequired()"), "gate must run whenever LOSE_ZERO / REQUIRE_INJECT_COVER is on");
     assert.ok(body.includes("isManualOperatorBuy"), "operator /buy is the leftover+edge test bypass");
+    assert.ok(body.includes("evaluateAddOnFifoRedGate"), "executeBuy must block add-on into FIFO-red lots");
+    assert.ok(body.includes("addOnRemainingFifoEth"), "add-on FIFO must be remaining bag cost, not sell lot floor");
+    const addOn = body.indexOf("evaluateAddOnFifoRedGate");
+    const encode = body.indexOf("encodeSwap(");
+    assert.ok(addOn >= 0 && encode > addOn, "FIFO-red add-on gate must skip before encodeSwap");
+    const addOnRemain = body.indexOf("addOnRemainingFifoEth");
+    const addOnFloor = body.indexOf("sellEntryEthWithLotFloor");
+    assert.ok(addOnRemain >= 0, "executeBuy add-on path must call addOnRemainingFifoEth");
+    assert.ok(addOnFloor < 0, "executeBuy must not raise add-on FIFO to sell lot floor");
   });
 
   it("executeSell and executeBuy run amountOutMinimum sanity before submit", () => {

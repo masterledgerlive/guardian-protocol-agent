@@ -294,6 +294,7 @@ describe("verification: operator /buy is honest and chain is the ledger", () => 
     assert.ok(src.includes("fifoRemainingCostEth"));
     assert.ok(src.includes("fifo-lot-store"));
     assert.ok(src.includes("persistFifoLotsNow"));
+    assert.ok(src.includes("evaluateAddOnFifoRedGate"), "must not stack into FIFO-red lots");
     assert.ok(!src.includes("UNKNOWN ENTRY resolved from live market"));
     assert.ok(!src.includes("ethIn - ethOut"), "cash-flow leftover is not remaining FIFO cost");
   });
