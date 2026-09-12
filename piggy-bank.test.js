@@ -497,6 +497,8 @@ describe("agent.js wires piggy into every sell path", () => {
 
   it("peak gates use previewPiggySellNetUsd so dust cost stays behind", () => {
     assert.ok(src.includes("previewPiggySellNetUsd"), "processToken must preview piggy-aligned net");
+    assert.ok(src.includes("fifoImpliedEntryUsd"), "ETH-only FIFO must not skip the preview");
+    assert.ok(!src.includes("netUsd: 1"), "must not invent $1 profit for missing USD entry");
     assert.ok(src.includes("PIGGY_COINVEST_ENABLED"), "co-invest must be gated for AI reserve");
     assert.ok(src.includes("tokenPiggyLedgers"), "nested per-token piggy ledger required");
     assert.ok(src.includes("piggyCoInvestMarkUsd"), "/piggy must mark co-invest with tokens×price");

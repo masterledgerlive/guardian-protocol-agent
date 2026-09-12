@@ -19,6 +19,8 @@ import {
   injectFuelKeepUsd,
   injectVelocityScoreBoost,
   sortRecycleCandidatesByUsd,
+  fillTier1Seats,
+  recycleSkipsActiveTier,
   SMALL_BOOK_USD,
   INJECT_FUEL_MIN_USD,
 } from "./inject-revenue.js";
@@ -201,6 +203,48 @@ describe("inject-revenue: capital velocity snowball", () => {
     assert.equal(injectReserveViable({ tradeableUsd: 20, minEntryUsd: 0, injectAll: false }), true);
   });
 
+  it("does not velocity-fill T1 AERO when inject-all cannot fund the seat", () => {
+    const scored = [{ symbol: "AERO", score: 90 }, { symbol: "DEGEN", score: 80 }];
+    const dead = fillTier1Seats({
+      scored,
+      reservedMain: null,
+      tier1Count: 1,
+      injectAll: true,
+      reserveOk: false,
+    });
+    assert.deepEqual(dead.tier1, []);
+    assert.equal(dead.blocked, true);
+    assert.equal(dead.reason, "sub-min-inject-all");
+    const live = fillTier1Seats({
+      scored,
+      reservedMain: null,
+      tier1Count: 1,
+      injectAll: true,
+      reserveOk: true,
+    });
+    assert.deepEqual(live.tier1, ["AERO"]);
+    assert.equal(live.blocked, false);
+  });
+
+  it("recycles former T1 when starved with no primed/fundable seat", () => {
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: true, injectSeatViable: false, primedAllowCount: 0 }),
+      false,
+    );
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: true, injectSeatViable: true, primedAllowCount: 0 }),
+      false,
+    );
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: false, injectSeatViable: true, primedAllowCount: 0 }),
+      true,
+    );
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: true, injectSeatViable: true, primedAllowCount: 1 }),
+      true,
+    );
+  });
+
   it("shrinks keep floor when recycling inject fuel", () => {
     assert.equal(
       injectFuelKeepUsd({ liquidStarved: true, recycleFuel: true, moonshotHoldUsd: 0.5, piggyMinUsd: 0.05 }),
@@ -250,7 +294,13 @@ describe("inject-revenue: wired into agent.js", () => {
     assert.ok(src.includes("shouldRecycleKnownForInjectFuel"));
     assert.ok(src.includes("sellFractionAfterPiggy"));
     assert.ok(src.includes("injectReserveViable"));
+    assert.ok(src.includes("fillTier1Seats"));
+    assert.ok(src.includes("recycleSkipsActiveTier"));
     assert.ok(src.includes("INJECT FUEL"));
     assert.ok(src.includes("sortRecycleCandidatesByUsd"));
+    assert.ok(src.includes("fifoImpliedEntryUsd"), "ETH-only FIFO must imply USD entry for peak gates");
+    assert.ok(!src.includes("netUsd: 1"), "must not invent $1 profit when USD entry is missing");
+    assert.ok(src.includes("totalBookEth"), "max-position must use liquid+bags");
+    assert.ok(!src.includes("tradeableWithWeth * 0.60"), "starved liquid must not mark every bag maxed");
   });
 });

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed — unstick inject-all deadlock so PLUS bags can recycle
+
+Live after #87 (`f041cf33`): Railway looped `liquid thin ($0.14) — $8.00 in bags`,
+`PRIMED: none`, `T1 INJECT-ALL: AERO` while AERO/DRB/BNKR were FIFO-red HOLD
+and AERO sat in T1 so recycle never considered it. ETH-only FIFO bags also
+invented `netUsd: 1`, so processToken printed `AT MAX PEAK — SELLING` then
+always-plus HOLD (AERO proceeds 2.05e-4 < entrySold 2.09e-4).
+
+- Sub-min inject-all (`injectReserveViable` false) no longer velocity-fills a
+  fake T1 seat. Log `none (sub-min liquid — recycle PLUS bags…)`.
+- When liquid is starved and there is no fundable/primed seat, recycle no
+  longer skips T1/T2. FIFO-red still HOLDs. PLUS bags can free ETH for cascade.
+- Peak gates use proven FIFO ETH (implied USD entry) instead of fake $1 net.
+- `atMaxPosition` is vs liquid+bags, not leftover liquid (starved books made
+  every bag look maxed).
+
+Does **not** invent P&L. Does **not** sell red. Does **not** merge V4. No capital.
+
 ### Fixed — micro extract vs hitch-bank (green exit without message cost)
 
 Live after #87 (`f041cf33`): RISK AERO/DRB/BNKR sit FIFO-red HOLD (correct).
