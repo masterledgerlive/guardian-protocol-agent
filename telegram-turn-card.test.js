@@ -25,7 +25,6 @@ import {
   RECALL_SLEEVES,
 } from "./telegram-turn-card.js";
 import { formatBuyReceiptHtml, formatSellReceiptHtml } from "./piggy-bank.js";
-import { MIN_PLUS_ETH } from "./lose-zero-gate.js";
 
 const body = readFileSync(new URL("./agent.js", import.meta.url), "utf8");
 const piggySrc = readFileSync(new URL("./piggy-bank.js", import.meta.url), "utf8");
@@ -60,7 +59,7 @@ describe("turn card formatters — no invented P&L", () => {
     assert.equal(plus.leftoverEth, 1e-6);
     const short = leftoverVsPlus({ leftoverEth: 0, fifoKnown: true });
     assert.equal(short.verdict, "SHORT");
-    assert.ok(MIN_PLUS_ETH > 0);
+    assert.equal(leftoverVsPlus({ leftoverEth: 1e-19, fifoKnown: true }).verdict, "SHORT");
   });
 
   it("closed-leg P&L only from SELL + known FIFO", () => {

@@ -13,7 +13,9 @@
 import { writeFileSync, readFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 import { detectHitchKind } from "./vita-parse.js";
-import { MIN_PLUS_ETH } from "./lose-zero-gate.js";
+
+/** Same 1 wei floor as always-plus — do not import the gate (keeps receipts viem-free). */
+const MIN_PLUS_ETH = 1e-18;
 
 export const DEFAULT_RECALL_N = 8;
 export const MAX_RECALL_N = 20;
@@ -22,6 +24,7 @@ export const RECALL_SLEEVES = Object.freeze(["AERO", "DRB", "BNKR"]);
 export const TURN_RECALL_FILENAME = "turn-recall.json";
 
 export function finiteEth(value) {
+  if (value == null || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
@@ -98,7 +101,8 @@ export function closedLegPnl({
   }
   const inn = finiteEth(fifoEthIn);
   const out = finiteEth(fifoEthOut);
-  if (inn == null || out == null) {
+  // Zero/missing entry is unknown — do not list proceeds as a closed-leg win.
+  if (inn == null || out == null || !(inn > 0)) {
     return { fifoDeltaEth: null, usdMark: null, known: false };
   }
   const usd = finiteEth(usdMark);
@@ -456,9 +460,11 @@ function formatSleeveLine(row) {
   if (row.status === "mark-unknown") {
     return `${sym}: FIFO ${rem} ETH · mark unknown`;
   }
-  const dist = fmtSignedEth(row.distanceEth);
-  const tag = row.status === "plus" ? "PLUS" : "to PLUS";
-  return `${sym}: ${dist} ETH ${tag} (FIFO ${rem})`;
+  if (row.status === "plus") {
+    return `${sym}: PLUS (mark covers FIFO ${rem})`;
+  }
+  const need = formatEthAmt(row.distanceEth);
+  return `${sym}: need ${need} ETH to PLUS (FIFO ${rem})`;
 }
 
 /** Telegram HTML for `/bag` / `/recall` (no topic). */
