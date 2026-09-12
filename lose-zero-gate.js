@@ -582,6 +582,13 @@ export function isListedForceExitSymbol(symbol, env = process.env) {
   return forceExitSymbols(env).includes(sym);
 }
 
+/** Game/desk FORCE_EXIT priority — bags >$0.30. Dust names are not this unwind. */
+export const GAME_FORCE_EXIT_PRIORITY = Object.freeze(["AERO", "DRB", "BNKR"]);
+
+export function isGameForceExitPriority(symbol) {
+  return GAME_FORCE_EXIT_PRIORITY.includes(String(symbol || "").toUpperCase());
+}
+
 /** Live-queue size for a sell command. Missing pct on `sell` = full. */
 export function commandSellPct(cmd) {
   if (!cmd) return 0;
@@ -908,10 +915,9 @@ export function isForceExitLockedReason(reason = "") {
 
 export function canBypassSellLossGate(reason = "", env = process.env, symbol = "") {
   if (isForceExitLockedReason(reason)) return true;
+  if (!isGameForceExitPriority(symbol)) return false;
   if (isListedForceExitSymbol(symbol, env)) return true;
-  if (!isAllowLossyOperatorSell(env)) return false;
-  if (isManualOperatorSell(reason)) return true;
-  return isOperatorSellEnvSymbol(symbol, env);
+  return isAllowLossyOperatorSell(env);
 }
 
 export function isStopLossReason(reason = "") {
