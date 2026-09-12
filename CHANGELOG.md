@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added — Arena player offshoot (agent-arena takeaways + 1h credit gate)
+
+Studied friend’s [zostaff/agent-arena](https://github.com/zostaff/agent-arena) (DEGEN VILLAGE).
+Took the durable parts into `guardian-arena-player/`:
+
+- Never-throw `decide()` → SKIP; stat compiler; paper virtual ETH; FLY heuristic.
+- **Agent hour-budget:** ~1h assist window; when burned, player stays on
+  heuristic brain. V3/V4 trading bots keep running without agents.
+- Activate with `ARENA_PLAYER=yes` (`npm run arena:player`). Default idle.
+- Thinking notes: `thinking/AGENT_ARENA_TAKEAWAYS.md`.
+
+Race (V3↔V4) may restart after merge — bots already learning on Railway dry/live loops.
+
 ### Added — V3→V4 fund split + live V4 wallet + Telegram vault fix
 
 Game: funds ready on RISK; start isolated Uniswap V4 beside V3.

@@ -8,3 +8,7 @@ node_modules
 node_modules/
 node_modules/
 artifacts/
+guardian-arena-player/state/
+guardian-v4/state/*.latch.json
+guardian-arena-player/state/
+guardian-v4/state/*.latch.json
