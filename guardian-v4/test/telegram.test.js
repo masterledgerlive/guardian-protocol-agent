@@ -18,8 +18,6 @@ import {
   V4_TELEGRAM_TAG,
 } from "../telegram.js";
 import { telegramBotToken, telegramChatId, env } from "../config.js";
-import { hitchSwapIfCovered, encodeV4ExactInSwap } from "../swap-v4.js";
-import { NATIVE_ETH } from "../config.js";
 
 const agentSrc = readFileSync(new URL("../agent.js", import.meta.url), "utf8");
 const configSrc = readFileSync(new URL("../config.js", import.meta.url), "utf8");
@@ -210,28 +208,17 @@ describe("guardian-v4 #89 SKIP_HITCH hitch-bank (sell path note)", () => {
     assert.match(bank.log, /not P&L/);
   });
 
-  it("hitchSwapIfCovered skip reason feeds the dry-run card", () => {
-    const enc = encodeV4ExactInSwap({
-      tokenIn: NATIVE_ETH,
-      tokenOut: "0x23a2847d772803f9efc64b4277b782b06296fe51",
-      fee: 10000,
-      amountIn: 10n ** 15n,
-    });
-    const r = hitchSwapIfCovered({
-      swapData: enc.data,
-      leftoverEth: 0,
-      hitchCostEth: 0.001,
-    });
-    assert.equal(r.skipped, true);
+  it("hitch skip reason from leftover-cover miss feeds the dry-run card", () => {
     const plan = planHitchMessaging({
       leftoverEth: 0,
       hitchCostEth: 0.001,
-      hitchOnChain: r.onChain,
-      skipReason: r.reason,
+      hitchOnChain: false,
+      skipReason: "leftover cannot cover hitch — plain swap (letter skipped, no loss)",
     });
     const card = formatV4DryRunCard({ symbol: "DOT", dryRun: true, hitchPlan: plan });
     assert.match(card, /SKIP_HITCH/);
     assert.match(card, /plain swap/);
+    assert.match(card, /leftover .* vs hitch floor .* · SHORT/);
   });
 });
 

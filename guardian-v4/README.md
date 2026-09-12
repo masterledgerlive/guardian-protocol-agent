@@ -64,9 +64,9 @@ cycle 1
 tx — (not broadcast)
 FIFO — unknown (not invented)
 planned size 0.001500 ETH
-hitch planned 69 B KEY+LOC
-leftover 1.25e-5 ETH vs hitch floor 1.00e-5 · COVER
-calldata planned 1234 hex chars (not broadcast)
+hitch planned 61 B KEY+LOC · 2.20e-6 ETH
+leftover 2.75e-6 ETH vs hitch floor 2.20e-6 · COVER
+calldata planned 2308 hex chars (not broadcast)
 ```
 
 ## Avenue catalog (popular V4 inject surfaces)
