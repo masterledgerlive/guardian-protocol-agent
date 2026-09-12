@@ -215,6 +215,9 @@ describe("UTF-8 §$STORE§ hitch (Genesis voice)", () => {
     assert.match(r.utf8, /§\$STORE§/);
     assert.match(r.utf8, /Eureka! VITA lives/);
     assert.match(r.utf8, /Krystian, Kai & Koda/);
+    assert.match(r.utf8, /Living Network/);
+    assert.match(r.utf8, /IKN/);
+    assert.equal(r.hitchBytes, 229);
     assert.equal(decodeTrailingUtf8(r.data), voice);
     assert.equal(hitchPreservesSwapPrefix(KEYCAT_PLAIN_SWAP, r.data).ok, true);
     assert.equal(decodeExactInputSingle(r.data).amountOutMinimum, decodeExactInputSingle(KEYCAT_PLAIN_SWAP).amountOutMinimum);

@@ -105,6 +105,7 @@ describe("hitch density — KEY+LOC over Eureka 229 B", () => {
     assert.ok(Math.abs(loc - KEY_LOC_HITCH_BYTES_CLASS) <= 20);
     assert.equal(EUREKA_LEFTOVER_BYTES, 229);
     assert.ok(loc < EUREKA_LEFTOVER_BYTES);
+    assert.equal(eureka, EUREKA_LEFTOVER_BYTES);
     assert.ok(eureka >= 60);
     assert.match(packKeyLocHitchUtf8(), /§KEY§/);
     assert.match(packKeyLocHitchUtf8(), /§LOC§/);
