@@ -14,6 +14,7 @@ export const LOCK_FILE = path.join(STATE_DIR, "guardian-v4.lock");
 export const TOKENS_STATE = path.join(STATE_DIR, "tokens.json");
 export const POSITIONS_STATE = path.join(STATE_DIR, "positions.json");
 export const HISTORY_STATE = path.join(STATE_DIR, "history.json");
+export const RACE_STATE = path.join(STATE_DIR, "race.json");
 
 /** Env prefix — never read root bot secrets by accident unless mirrored. */
 export const ENV_PREFIX = "GUARDIAN_V4_";

@@ -260,8 +260,8 @@ export function telegramConfigured() {
  * Send HTML Telegram. Always prefixes [V4]. Dry-run callers still send.
  * Missing credentials → no-op (logged), never throws.
  */
-export async function sendV4Telegram(text, { fetchImpl = globalThis.fetch } = {}) {
-  const body = prefixV4(text);
+export async function sendV4Telegram(text, { fetchImpl = globalThis.fetch, prefix = true } = {}) {
+  const body = prefix === false ? String(text ?? "") : prefixV4(text);
   const tok = telegramBotToken();
   const cid = telegramChatId();
   if (!tok || !cid) {

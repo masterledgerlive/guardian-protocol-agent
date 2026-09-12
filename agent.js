@@ -313,6 +313,7 @@ import {
   RECALL_SLEEVES,
   TURN_RECALL_FILENAME,
 } from "./telegram-turn-card.js";
+import { sendRaceScoreboardIfDue } from "./race-scoreboard.js";
 import {
   decodeErc20Balance,
   resolveFailedBalanceRead,
@@ -13550,6 +13551,17 @@ async function main() {
       if (Date.now() - lastReportTime > REPORT_INTERVAL) {
         lastReportTime = Date.now();
         await sendFullReport(bal, ethUsd, "⏰ 10 MIN REPORT");
+        // Thrift race card — not in executeBuy/executeSell. File snapshots only.
+        try {
+          const race = await sendRaceScoreboardIfDue({
+            send: tg,
+            v3LiquidEth: bal?.eth,
+            v3LiquidWeth: bal?.weth ?? bal?.wethBalance,
+          });
+          if (race?.sent) console.log("🏁 V3 vs V4 race scoreboard sent");
+        } catch (raceErr) {
+          console.log(`⚠️  V3 vs V4 race card (non-critical): ${raceErr.message}`);
+        }
       }
       if (Date.now() - lastMiniUpdate > MINI_UPDATE_INT) {
         lastMiniUpdate = Date.now();

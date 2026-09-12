@@ -54,6 +54,52 @@ Game-facing cards are first-line or prefix **`[V4]`** (buys / sells / skips / dr
 3. Preferred Telegram: `GUARDIAN_V4_TELEGRAM_BOT_TOKEN` + `GUARDIAN_V4_TELEGRAM_CHAT_ID`
 4. Or set `GUARDIAN_V4_SHARE_ROOT_ENV=yes` and reuse root `VAULT_TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`
 
+### V3 vs V4 race scoreboard
+
+Periodic Telegram card `V3 vs V4 RACE` so Game can see who is ahead on **real closed-leg FIFO** only (no invented P&L). Built by repo-root `race-scoreboard.js` from file snapshots (`turn-recall.json` + `guardian-v4/state/race.json`) — safe across processes, does not import live `agent.js`.
+
+| Env | Purpose |
+|---|---|
+| `GUARDIAN_RACE_REPORT_MS` | Wall-clock cadence (default `600000` = 10 min) |
+| `GUARDIAN_RACE_EVERY_CYCLES` | Also fire every N V4 cycles (default `10`) |
+
+**Who sends it**
+- V4 loop (`npm run start:v4`) — after each cycle, if due
+- V3 **thrift / 10-min report** (`⏰ 10 MIN REPORT` in `agent.js`) — same helper, not in `executeBuy` / `executeSell`
+- Hourly VITA course or a Railway cron can call the same card:
+
+```bash
+node race-scoreboard.js          # print HTML
+# from V3 hourly/thrift JS:
+#   import { sendRaceScoreboardIfDue } from "./race-scoreboard.js";
+#   await sendRaceScoreboardIfDue({ send: tg, v3LiquidEth, v3LiquidWeth });
+```
+
+If V3 and V4 are **separate Railway services** without a shared volume, the other side shows `unavailable (separate process / no snapshot)` until they share `turn-recall.json` / `guardian-v4/state/`.
+
+Sample race card (zeros / dry-run V4):
+
+```
+🏁 <b>V3 vs V4 RACE</b>
+━━━━━━━━━━━━━━━━━━━━
+[V3] liquid 0.002000 ETH + 0.001000 WETH
+[V3] 2 fills · 2 closed-leg
+[V3] closed-leg +0.002200 ETH · +$4.20
+[V3] hitch sent 1 · banked 4.00e-6 ETH
+[V3] AERO 1 fills · closed +0.002000 ETH · hitch sent 1 / banked 0
+[V3] DRB 1 fills · closed +2.00e-4 ETH · hitch sent 0 / banked 4.00e-6
+[V3] best AERO +0.002000 ETH
+━━━━━━━━━━━━━━━━━━━━
+[V4] dry-run yes — liquid unknown (not invented)
+[V4] 8 cycles · 0 closed-leg
+[V4] closed-leg — unknown (not invented)
+[V4] hitch planned 8 · banked 0 ETH
+[V4] no closed-leg tokens yet
+[V4] best — none (no closed-leg)
+━━━━━━━━━━━━━━━━━━━━
+🏆 winner: [V3] ahead on real closed-leg plus (V4 no closed-leg yet)
+```
+
 Sample dry-run card:
 
 ```

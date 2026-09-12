@@ -27,6 +27,7 @@ import {
   NATIVE_ETH,
   STATE_DIR,
   TOKENS_STATE,
+  RACE_STATE,
   env,
 } from "./config.js";
 import { acquireLock, ensureStateDir } from "./lock.js";
@@ -49,9 +50,14 @@ import {
   applyHitchBank,
   formatV4DryRunCard,
   formatV4SkipCard,
+  hitchBudgetBalanceEth,
   planHitchMessaging,
   sendV4Telegram,
 } from "./telegram.js";
+import {
+  persistV4RaceSnapshot,
+  sendRaceScoreboardIfDue,
+} from "../race-scoreboard.js";
 
 ensureStateDir();
 const releaseLock = acquireLock();
@@ -203,6 +209,18 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
   log(`  /prove-ready data-only bytes=${(proveData.length - 2) / 2} (use only when no leftover swap)`);
 
   persistCatalog();
+  persistV4RaceSnapshot({
+    dryRun: DRY_RUN,
+    cycles: cycle,
+    hitchPlanned: hitchInjectCount,
+    hitchBankedEth: hitchBudgetBalanceEth(),
+  }, { racePath: RACE_STATE });
+  await sendRaceScoreboardIfDue({
+    send: (html) => sendV4Telegram(html, { prefix: false }),
+    cycles: cycle,
+    v3LiquidEth: null,
+    v3LiquidWeth: null,
+  });
 }
 
 async function main() {

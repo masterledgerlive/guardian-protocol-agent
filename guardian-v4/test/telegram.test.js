@@ -272,6 +272,7 @@ describe("guardian-v4 agent wires telegram without touching V3", () => {
     assert.ok(agentSrc.includes("formatV4SkipCard"), "skip reasons telegram");
     assert.ok(agentSrc.includes("planHitchMessaging"), "planned hitch skip/bank");
     assert.ok(agentSrc.includes("applyHitchBank"), "SKIP_HITCH banks hitch room");
+    assert.ok(agentSrc.includes("sendRaceScoreboardIfDue"), "V4 cycle may send the race digest");
     assert.ok(agentSrc.includes("not broadcast"), "dry-run must not claim a broadcast");
     assert.ok(!agentSrc.includes("sendTransaction"), "V4 agent must not broadcast swaps");
     assert.ok(!agentSrc.includes("../agent.js"), "must not import live V3 agent");
