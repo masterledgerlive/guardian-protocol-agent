@@ -5,7 +5,12 @@
  * Run:  npm run start:v4
  * Env:  GUARDIAN_V4_DRY_RUN=yes (default) | no
  *       GUARDIAN_V4_RPC_URL=...
+ *       GUARDIAN_V4_TELEGRAM_BOT_TOKEN / GUARDIAN_V4_TELEGRAM_CHAT_ID
+ *         (or GUARDIAN_V4_SHARE_ROOT_ENV=yes → VAULT_TELEGRAM_BOT_TOKEN / TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)
  *       GUARDIAN_V4_PRIVATE_KEY=...   (live only; do NOT reuse V3 hot wallet casually)
+ *
+ * Dry-run still Telegrams [V4] turn cards (calldata planned / hitch banked / skips).
+ * It does not broadcast swaps.
  *
  * Goal: inject capital on Base Uni V4 avenues (DOT, Polkadot-base, majors, popular
  * V4 names) and hitch VITA §TOKEN§ on leftover-covered swaps — never as
@@ -40,6 +45,13 @@ import {
   utf8ByteLength,
 } from "./swap-v4.js";
 import { planSecondaryHitch, ingestSealedUtf8 } from "../vita-router.js";
+import {
+  applyHitchBank,
+  formatV4DryRunCard,
+  formatV4SkipCard,
+  planHitchMessaging,
+  sendV4Telegram,
+} from "./telegram.js";
 
 ensureStateDir();
 const releaseLock = acquireLock();
@@ -151,6 +163,39 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
           "Keep a separate key from root V3.",
       );
     }
+
+    // Dry-run still Telegrams Game — planned calldata / hitch skip-bank / skip reasons.
+    // Never broadcast. Never invent P&L or a fake tx hash.
+    const hitchPlan = planHitchMessaging({
+      leftoverEth: demo.leftoverEth,
+      hitchCostEth: demo.hitchCost,
+      hitchOnChain: demo.hitched.onChain,
+      hitchBytes: demo.hitched.hitchBytes,
+      hitchUtf8: demo.hitched.utf8,
+      skipReason: demo.hitched.reason,
+      side: "BUY",
+    });
+    if (hitchPlan.hitchSkipped) {
+      const bank = applyHitchBank(hitchPlan, token.symbol);
+      if (bank.log) log(bank.log);
+    }
+    await sendV4Telegram(formatV4DryRunCard({
+      symbol: token.symbol,
+      side: "BUY",
+      dryRun: DRY_RUN,
+      cycle,
+      tradeEth: demo.tradeEth,
+      hitchPlan,
+      calldataChars: demo.hitched.data?.length || 0,
+    }));
+  }
+
+  if (ranked.primed.length === 0) {
+    await sendV4Telegram(formatV4SkipCard({
+      reason: "no primed V4 avenue this cycle — nothing broadcast",
+      dryRun: DRY_RUN,
+      cycle,
+    }));
   }
 
   // Always keep a data-only prove path available (operator), but prefer hitch-on-swap.
@@ -186,4 +231,4 @@ main().catch((err) => {
   process.exit(1);
 });
 
-export { buildDemoInject, avenueSummary };
+export { buildDemoInject, avenueSummary, cycleOnce };

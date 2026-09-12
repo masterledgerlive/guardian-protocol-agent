@@ -27,19 +27,47 @@ npm run start:v4 -- --once
 npm run test:v4
 ```
 
-Defaults to **`GUARDIAN_V4_DRY_RUN=yes`** (builds calldata + hitch, does not broadcast).
+Defaults to **`GUARDIAN_V4_DRY_RUN=yes`** (builds calldata + hitch, does not broadcast). Dry-run **still sends Telegram** when a bot token + chat id are set — Game sees the same-style turn cards as V3, each prefixed `[V4]`.
 
 Live broadcast needs a **dedicated** key and Permit2 approvals — do not casually share the V3 hot wallet.
 
 | Env | Purpose |
 |---|---|
-| `GUARDIAN_V4_DRY_RUN` | `yes` (default) / `no` |
+| `GUARDIAN_V4_DRY_RUN` | `yes` (default) / `no` — dry-run still Telegrams status |
 | `GUARDIAN_V4_RPC_URL` | Base RPC |
 | `GUARDIAN_V4_PAPER_USD` | Paper book size for ranking |
 | `GUARDIAN_V4_CYCLE_MS` | Loop interval |
-| `GUARDIAN_V4_SHARE_ROOT_ENV` | `yes` only if you intentionally share root env names |
+| `GUARDIAN_V4_TELEGRAM_BOT_TOKEN` | Preferred V4 Telegram bot token |
+| `GUARDIAN_V4_TELEGRAM_CHAT_ID` | Preferred V4 Telegram chat id |
+| `GUARDIAN_V4_SHARE_ROOT_ENV` | `yes` only if you intentionally share root env names (Telegram fallback: `VAULT_TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`) |
 
 State: `guardian-v4/state/` (`tokens.json`, lockfile). Root `tokens.json` / `positions.json` are untouched.
+
+## Telegram + Railway
+
+Game-facing cards are first-line or prefix **`[V4]`** (buys / sells / skips / dry-run cycle). Fields: token, `dry-run yes`, planned hitch skip/bank, leftover vs hitch floor. No invented P&L, no fake tx hashes. A sell SKIP_HITCH banks unused hitch room toward the next message (#89 micro-extract note) if a V4 sell path reports a skip.
+
+**Railway** (separate service from live V3 — do not use `npm start` / `node agent.js` here):
+
+1. Start command: `npm run start:v4`
+2. `GUARDIAN_V4_DRY_RUN=yes` (leave default unless you intend a dedicated live V4 key)
+3. Preferred Telegram: `GUARDIAN_V4_TELEGRAM_BOT_TOKEN` + `GUARDIAN_V4_TELEGRAM_CHAT_ID`
+4. Or set `GUARDIAN_V4_SHARE_ROOT_ENV=yes` and reuse root `VAULT_TELEGRAM_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`
+
+Sample dry-run card:
+
+```
+[V4]
+<b>TURN CARD — BUY DOT</b>
+dry-run yes
+cycle 1
+tx — (not broadcast)
+FIFO — unknown (not invented)
+planned size 0.001500 ETH
+hitch planned 69 B KEY+LOC
+leftover 1.25e-5 ETH vs hitch floor 1.00e-5 · COVER
+calldata planned 1234 hex chars (not broadcast)
+```
 
 ## Avenue catalog (popular V4 inject surfaces)
 

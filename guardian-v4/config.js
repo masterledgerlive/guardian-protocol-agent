@@ -29,6 +29,49 @@ export function env(name, fallback = undefined) {
   return fallback;
 }
 
+function firstNonEmpty(...values) {
+  for (const v of values) {
+    if (v != null && String(v) !== "") return v;
+  }
+  return undefined;
+}
+
+/**
+ * Telegram bot token: prefer GUARDIAN_V4_TELEGRAM_BOT_TOKEN.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to
+ * VAULT_TELEGRAM_BOT_TOKEN then TELEGRAM_BOT_TOKEN.
+ */
+export function telegramBotToken() {
+  const preferred = env("TELEGRAM_BOT_TOKEN");
+  if (process.env.GUARDIAN_V4_TELEGRAM_BOT_TOKEN) return preferred;
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
+    return firstNonEmpty(
+      process.env.VAULT_TELEGRAM_BOT_TOKEN,
+      preferred,
+      process.env.TELEGRAM_BOT_TOKEN,
+    );
+  }
+  return preferred;
+}
+
+/**
+ * Telegram chat id: prefer GUARDIAN_V4_TELEGRAM_CHAT_ID.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to TELEGRAM_CHAT_ID
+ * (then VAULT_TELEGRAM_CHAT_ID if the root vault alias is the only one set).
+ */
+export function telegramChatId() {
+  const preferred = env("TELEGRAM_CHAT_ID");
+  if (process.env.GUARDIAN_V4_TELEGRAM_CHAT_ID) return preferred;
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
+    return firstNonEmpty(
+      preferred,
+      process.env.TELEGRAM_CHAT_ID,
+      process.env.VAULT_TELEGRAM_CHAT_ID,
+    );
+  }
+  return preferred;
+}
+
 export const CHAIN_ID = 8453;
 export const NATIVE_ETH = "0x0000000000000000000000000000000000000000";
 export const WETH = "0x4200000000000000000000000000000000000006";
