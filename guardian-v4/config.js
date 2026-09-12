@@ -14,6 +14,7 @@ export const LOCK_FILE = path.join(STATE_DIR, "guardian-v4.lock");
 export const TOKENS_STATE = path.join(STATE_DIR, "tokens.json");
 export const POSITIONS_STATE = path.join(STATE_DIR, "positions.json");
 export const HISTORY_STATE = path.join(STATE_DIR, "history.json");
+export const RACE_STATE = path.join(STATE_DIR, "race.json");
 
 /** Env prefix — never read root bot secrets by accident unless mirrored. */
 export const ENV_PREFIX = "GUARDIAN_V4_";
@@ -27,6 +28,49 @@ export function env(name, fallback = undefined) {
     if (v != null && v !== "") return v;
   }
   return fallback;
+}
+
+function firstNonEmpty(...values) {
+  for (const v of values) {
+    if (v != null && String(v) !== "") return v;
+  }
+  return undefined;
+}
+
+/**
+ * Telegram bot token: prefer GUARDIAN_V4_TELEGRAM_BOT_TOKEN.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to
+ * VAULT_TELEGRAM_BOT_TOKEN then TELEGRAM_BOT_TOKEN.
+ */
+export function telegramBotToken() {
+  const preferred = env("TELEGRAM_BOT_TOKEN");
+  if (process.env.GUARDIAN_V4_TELEGRAM_BOT_TOKEN) return preferred;
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
+    return firstNonEmpty(
+      process.env.VAULT_TELEGRAM_BOT_TOKEN,
+      preferred,
+      process.env.TELEGRAM_BOT_TOKEN,
+    );
+  }
+  return preferred;
+}
+
+/**
+ * Telegram chat id: prefer GUARDIAN_V4_TELEGRAM_CHAT_ID.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to TELEGRAM_CHAT_ID
+ * (then VAULT_TELEGRAM_CHAT_ID if the root vault alias is the only one set).
+ */
+export function telegramChatId() {
+  const preferred = env("TELEGRAM_CHAT_ID");
+  if (process.env.GUARDIAN_V4_TELEGRAM_CHAT_ID) return preferred;
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
+    return firstNonEmpty(
+      preferred,
+      process.env.TELEGRAM_CHAT_ID,
+      process.env.VAULT_TELEGRAM_CHAT_ID,
+    );
+  }
+  return preferred;
 }
 
 export const CHAIN_ID = 8453;
