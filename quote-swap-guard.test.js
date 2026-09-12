@@ -374,6 +374,7 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(buyBody.includes("preferredPool"), "buy quote must bind to the DexScreener Uni V3 WETH pair");
     assert.ok(sellBody.includes("selectUniV3WethUsdcPair"), "sells bind to DexScreener V3 WETH when known");
     assert.ok(sellBody.includes("preferredPool"), "sell quote must bind when DexScreener V3 WETH exists");
+    assert.ok(sellBody.includes("AERO_UNI_V3_WETH_POOL"), "AERO FORCE_EXIT must pin Uni V3 WETH 0x3d5D1433");
     assert.ok(buyBody.includes("liveFeeWithinGatedCost"), "buy must not send a live fee costlier than gated RT%");
     assert.ok(
       buyBody.indexOf("getOnChainBuyQuote") < buyBody.indexOf("liveFeeWithinGatedCost"),

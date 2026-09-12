@@ -1,4 +1,5 @@
 import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
+import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
 
 /**
  * LOSE-ZERO / inject-cover gate for speculative buys AND lose-zero sells.
@@ -30,8 +31,10 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * (`ethIn × remainingTokens / tokensIn`), never cash-flow `ethIn − ethOut`.
  * After a plus partial sell, cash-flow leftover understates the leftover pile
  * and the plus gate would paint a later FIFO-red exit green. Exits-only /
- * frozen names still obey this gate. Only underwater exception:
- * FORCE EXIT LOCKED recovery (no hitch).
+ * frozen names still obey this gate. Underwater exceptions (hitch SKIP):
+ * FORCE EXIT LOCKED, FORCE_EXIT_SYMBOLS (when force-exit is on), and
+ * ALLOW_LOSSY_OPERATOR_SELL=yes for MANUAL SELL (operator) / OPERATOR_SELL
+ * listed names. Auto sells stay HOLD when those flags are off.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -525,18 +528,65 @@ export function parseManualSellCommand(raw) {
 }
 
 /**
- * Native Railway env: `OPERATOR_SELL=TOSHI:50`
- * Also accepts `TOSHI:50%`, `TOSHI:all`, `TOSHI:half`. Invalid / empty → null.
+ * One OPERATOR_SELL entry: `TOSHI:50`, `AERO:all`, `DRB:100`, or bare `BNKR`
+ * (bare = 100% / all). Invalid / empty → null.
  */
-export function parseOperatorSellEnv(raw) {
+export function parseOperatorSellEntry(raw) {
   const s = String(raw ?? "").trim();
   if (!s) return null;
   const colon = s.indexOf(":");
-  if (colon <= 0) return null;
+  if (colon <= 0) {
+    const symbol = s.toUpperCase();
+    if (!/^[A-Z0-9._-]+$/.test(symbol)) return null;
+    return { symbol, pct: 1 };
+  }
   const symbol = s.slice(0, colon).trim().toUpperCase();
   const pct = parseSellPctArg(s.slice(colon + 1), { required: true });
   if (!symbol || !pct) return null;
   return { symbol, pct };
+}
+
+/**
+ * Native Railway env: `OPERATOR_SELL=TOSHI:50` or `AERO:all,DRB:100,BNKR`.
+ * First entry for the legacy single-symbol helper.
+ */
+export function parseOperatorSellEnv(raw) {
+  const list = parseOperatorSellList(raw);
+  return list[0] || null;
+}
+
+/** Comma/semicolon list of OPERATOR_SELL entries. Dedupes by symbol. */
+export function parseOperatorSellList(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return [];
+  const out = [];
+  const seen = new Set();
+  for (const part of s.split(/[,;]+/)) {
+    const parsed = parseOperatorSellEntry(part);
+    if (!parsed || seen.has(parsed.symbol)) continue;
+    seen.add(parsed.symbol);
+    out.push(parsed);
+  }
+  return out;
+}
+
+export function isOperatorSellEnvSymbol(symbol, env = process.env) {
+  const sym = String(symbol || "").toUpperCase();
+  if (!sym) return false;
+  return parseOperatorSellList(env?.OPERATOR_SELL).some((p) => p.symbol === sym);
+}
+
+export function isListedForceExitSymbol(symbol, env = process.env) {
+  const sym = String(symbol || "").toUpperCase();
+  if (!sym || !forceExitLockedEnabled(env)) return false;
+  return forceExitSymbols(env).includes(sym);
+}
+
+/** Game/desk FORCE_EXIT priority — bags >$0.30. Dust names are not this unwind. */
+export const GAME_FORCE_EXIT_PRIORITY = Object.freeze(["AERO", "DRB", "BNKR"]);
+
+export function isGameForceExitPriority(symbol) {
+  return GAME_FORCE_EXIT_PRIORITY.includes(String(symbol || "").toUpperCase());
 }
 
 /** Live-queue size for a sell command. Missing pct on `sell` = full. */
@@ -570,12 +620,12 @@ export function operatorSellCommand(parsed) {
   return { symbol: parsed.symbol, action: "sell", pct: parsed.pct, source: "OPERATOR_SELL" };
 }
 
-/** executeSell fraction: full manual sells keep the 0.98 lottery reserve. */
-export function resolveManualSellPct(cmd) {
+/** executeSell fraction: full manual sells keep the 0.98 lottery reserve unless unwind-all. */
+export function resolveManualSellPct(cmd, { fullUnwind = false } = {}) {
   const pct = commandSellPct(cmd);
   if (isHalfSellPct(pct)) return 0.5;
   if (pct > 0 && pct < 1) return pct;
-  return 0.98;
+  return fullUnwind ? 1 : 0.98;
 }
 
 /**
@@ -587,27 +637,65 @@ export function resolveManualSellPct(cmd) {
  * @returns {{ queued: boolean, reason: string, symbol?: string, pct?: number }}
  */
 export function queueOperatorSellOnce(commands, rawEnv, knownSymbols, state = { done: false }) {
-  if (state.done) return { queued: false, reason: "already-applied" };
-  const parsed = parseOperatorSellEnv(rawEnv);
-  if (!parsed) {
+  if (state.done === true && !(state.doneBySymbol && typeof state.doneBySymbol === "object")) {
+    return { queued: false, reason: "already-applied" };
+  }
+  const list = parseOperatorSellList(rawEnv);
+  if (!list.length) {
     return { queued: false, reason: String(rawEnv ?? "").trim() ? "invalid" : "unset" };
   }
-  if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
-    return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, pct: parsed.pct };
+  if (!state.doneBySymbol || typeof state.doneBySymbol !== "object") state.doneBySymbol = {};
+  const queuedItems = [];
+  let unknown;
+  let already;
+  for (const parsed of list) {
+    if (state.doneBySymbol[parsed.symbol]) continue;
+    if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
+      unknown = parsed;
+      continue;
+    }
+    if (commands.some((c) => isMatchingManualSell(c, parsed))) {
+      already = parsed;
+      continue;
+    }
+    commands.push(operatorSellCommand(parsed));
+    queuedItems.push(parsed);
   }
-  if (commands.some((c) => isMatchingManualSell(c, parsed))) {
-    return { queued: false, reason: "already-queued", symbol: parsed.symbol, pct: parsed.pct };
+  if (queuedItems.length) {
+    return {
+      queued: true,
+      reason: "queued",
+      symbol: queuedItems[0].symbol,
+      pct: queuedItems[0].pct,
+      items: queuedItems,
+    };
   }
-  commands.push(operatorSellCommand(parsed));
-  return { queued: true, reason: "queued", symbol: parsed.symbol, pct: parsed.pct };
+  if (list.every((p) => state.doneBySymbol[p.symbol])) {
+    return { queued: false, reason: "already-applied", symbol: list[0].symbol, pct: list[0].pct };
+  }
+  if (unknown && !already) {
+    return { queued: false, reason: "unknown-symbol", symbol: unknown.symbol, pct: unknown.pct };
+  }
+  if (already) {
+    return { queued: false, reason: "already-queued", symbol: already.symbol, pct: already.pct };
+  }
+  if (unknown) {
+    return { queued: false, reason: "unknown-symbol", symbol: unknown.symbol, pct: unknown.pct };
+  }
+  return { queued: false, reason: "invalid" };
 }
 
-/** Latch only after executeSell actually sends the swap. */
-export function markOperatorSellExecuted(state) {
-  if (state) {
-    state.done = true;
-    state.executed = true;
+/** Latch only after executeSell actually sends the swap. Per-symbol when `symbol` is set. */
+export function markOperatorSellExecuted(state, symbol) {
+  if (!state) return state;
+  state.executed = true;
+  const sym = String(symbol || "").toUpperCase();
+  if (sym) {
+    if (!state.doneBySymbol || typeof state.doneBySymbol !== "object") state.doneBySymbol = {};
+    state.doneBySymbol[sym] = true;
+    return state;
   }
+  state.done = true;
   return state;
 }
 
@@ -825,11 +913,11 @@ export function isForceExitLockedReason(reason = "") {
   return /FORCE EXIT LOCKED/i.test(String(reason || ""));
 }
 
-export function canBypassSellLossGate(reason = "", env = process.env) {
-  void env;
-  // ALLOW_LOSSY_OPERATOR_SELL used to send red operator exits. Always-plus
-  // forbids that — only FORCE EXIT LOCKED may recover stranded majors.
-  return isForceExitLockedReason(reason);
+export function canBypassSellLossGate(reason = "", env = process.env, symbol = "") {
+  if (isForceExitLockedReason(reason)) return true;
+  if (!isGameForceExitPriority(symbol)) return false;
+  if (isListedForceExitSymbol(symbol, env)) return true;
+  return isAllowLossyOperatorSell(env);
 }
 
 export function isStopLossReason(reason = "") {
@@ -1366,8 +1454,9 @@ export function sizeHitchForSell({
  * hitch_cost × HITCH_COST_MULT (default 2× Eureka cushion). Otherwise
  * SKIP_HITCH, sell plain, and bank unused hitch room. Never HOLD a green
  * leftover waiting for hitch. STOP LOSS is NOT a loss bypass. Unknown-cost
- * is HOLD. Operator cannot sell red. Only FORCE EXIT LOCKED recovers
- * stranded majors (no hitch).
+ * is HOLD. Auto cannot sell red. Game unwind (hitch SKIP): FORCE EXIT LOCKED,
+ * FORCE_EXIT_SYMBOLS, or ALLOW_LOSSY_OPERATOR_SELL=yes on operator /
+ * OPERATOR_SELL names. Flags off → always-plus HOLD stays.
  */
 export function evaluateSellGate({
   projectedProceedsEth = 0,
@@ -1435,6 +1524,7 @@ export function evaluateSellGate({
   const earningsBuf = Math.max(0, Number(piggyEarningsBufferEth) || 0);
   const hitchBudget = leftover - earningsBuf;
   const forceExit = isForceExitLockedReason(reason);
+  const overrideSell = canBypassSellLossGate(reason, env, symbol);
   const treatUnknown = !!unknownEntry || !(Number(entryEth) > 0);
 
   const wanted = Math.max(0, Number(wantedHitchBytes) || 0);
@@ -1527,7 +1617,8 @@ export function evaluateSellGate({
       || (allow ? (extra.skipHitch ? "SKIP_HITCH" : "PLUS") : "HOLD");
     const hitchCost = extra.injectCostEth ?? (extra.skipHitch ? 0 : sized.injectCostEth);
     const net = extra.netEth ?? plusAfterHitchEth(leftover, extra.skipHitch ? 0 : hitchCost);
-    const banked = allow && extra.skipHitch && verdict !== "FORCE_EXIT" && verdict !== "HOLD"
+    const banked = allow && extra.skipHitch
+      && verdict !== "FORCE_EXIT" && verdict !== "LOSSY_OPERATOR" && verdict !== "HOLD"
       ? (extra.hitchBankedEth ?? hitchBanked)
       : 0;
     return {
@@ -1577,10 +1668,15 @@ export function evaluateSellGate({
     };
   };
 
-  // FORCE EXIT LOCKED — only underwater recovery. Never hitch on a red exit.
-  if (forceExit) {
+  // FORCE EXIT / lossy operator / listed unwind — hitch SKIP. Never HOLD red
+  // when Game armed ALLOW_LOSSY_OPERATOR_SELL or FORCE_EXIT_SYMBOLS.
+  if (overrideSell) {
     const red = leftover <= 0;
-    return pack(true, red ? "FORCE EXIT LOCKED" : "FORCE EXIT LOCKED plus", {
+    const viaForce = forceExit || isListedForceExitSymbol(symbol, env);
+    const why = viaForce
+      ? (red ? "FORCE EXIT LOCKED" : "FORCE EXIT LOCKED plus")
+      : (red ? "lossy operator unwind" : "lossy operator plus");
+    return pack(true, why, {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
@@ -1589,11 +1685,15 @@ export function evaluateSellGate({
       hitchCoverEth: reservedCover.hitchCoverEth,
       edge: leftover,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
-      verdict: red ? "FORCE_EXIT" : "PLUS",
+      verdict: viaForce ? (red ? "FORCE_EXIT" : "PLUS") : (red ? "LOSSY_OPERATOR" : "PLUS"),
       netEth: leftover,
       log: red
-        ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
-        : `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — skip hitch (recovery)`,
+        ? (viaForce
+          ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
+          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL — FIFO red operator unwind (hitch SKIP)`)
+        : (viaForce
+          ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — skip hitch (recovery)`
+          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — skip hitch`),
     });
   }
 

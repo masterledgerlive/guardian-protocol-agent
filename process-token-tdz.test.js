@@ -66,6 +66,10 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("alwaysPlusLog"), "PLUS/HOLD/SKIP_HITCH must be logged");
     assert.ok(src.includes("fifoRemainingCostEth"), "boot must recover FIFO remaining, not cash-flow leftover");
     assert.ok(src.includes("applySellPlusFloorMinOut"), "executeSell must raise minOut to FIFO plus floor");
+    assert.ok(src.includes("canBypassSellLossGate"), "lossy / FORCE_EXIT must bypass plus floor");
+    assert.ok(src.includes("clampAmountInToLiveBalance"), "amountIn must clamp to live ERC20 wei");
+    assert.ok(src.includes("getTokenBalanceWei"), "sell size must read live balanceOf wei");
+    assert.ok(src.includes("needsSpenderApprove"), "approve must compare live allowance to amountIn");
     assert.ok(src.includes("sellEntryEthWithLotFloor"), "operator/fresh lot floor must raise sell entry");
     assert.ok(src.includes("usdMarkProceedsEth"), "plus gate must see USD-mark proceeds");
     assert.ok(src.includes("isFridayCloseWindow"), "Fri-close must honor DISABLE_DOW_BIAS");

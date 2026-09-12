@@ -25,6 +25,12 @@ import {
   encodeStoreVoiceCalldata,
   decodeStoreVoiceCalldata,
   encodingDoesNotLoseMoney,
+  clampAmountInToLiveBalance,
+  needsSpenderApprove,
+  sellApproveSpenders,
+  DRB_STF_FAIL_AMOUNT_IN,
+  UNISWAP_SWAP_ROUTER02_BASE,
+  UNISWAP_PERMIT2_BASE,
 } from "./swap-minout.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
@@ -40,7 +46,58 @@ describe("toWei / spotOutWei", () => {
     assert.equal(toWei(0, 18), 0n);
     assert.equal(toWei(-1, 18), 0n);
   });
+});
 
+describe("amountIn clamp + approve path (live DRB STF)", () => {
+  it("clamps oversize FORCE_EXIT amountIn to live ERC20 wei", () => {
+    const live = DRB_STF_FAIL_AMOUNT_IN - 1n;
+    const sized = clampAmountInToLiveBalance({
+      amountInWei: DRB_STF_FAIL_AMOUNT_IN,
+      liveBalanceWei: live,
+      piggyReserveWei: 0n,
+      unlockPiggy: true,
+    });
+    assert.equal(sized.amountInWei, live);
+    assert.equal(sized.clamped, true);
+    assert.equal(sized.blocked, false);
+    assert.ok(sized.amountInWei <= live);
+  });
+
+  it("subtracts reserved piggy unless unlocked", () => {
+    const live = 1000n;
+    const reserved = 50n;
+    const held = clampAmountInToLiveBalance({
+      amountInWei: 1000n,
+      liveBalanceWei: live,
+      piggyReserveWei: reserved,
+      unlockPiggy: false,
+    });
+    assert.equal(held.amountInWei, 950n);
+    assert.equal(held.spendableWei, 950n);
+    const unlocked = clampAmountInToLiveBalance({
+      amountInWei: 1000n,
+      liveBalanceWei: live,
+      piggyReserveWei: reserved,
+      unlockPiggy: true,
+    });
+    assert.equal(unlocked.amountInWei, 1000n);
+    assert.equal(unlocked.piggyReserveWei, 0n);
+  });
+
+  it("approve path fires only when allowance < amountIn", () => {
+    assert.equal(needsSpenderApprove({ allowanceWei: 0n, amountInWei: 1n }), true);
+    assert.equal(needsSpenderApprove({ allowanceWei: 5n, amountInWei: 5n }), false);
+    assert.equal(needsSpenderApprove({ allowanceWei: 4n, amountInWei: 5n }), true);
+    assert.equal(needsSpenderApprove({ allowanceWei: 10n, amountInWei: 0n }), false);
+    const spenders = sellApproveSpenders();
+    assert.ok(spenders.includes(UNISWAP_SWAP_ROUTER02_BASE));
+    assert.ok(spenders.includes(UNISWAP_PERMIT2_BASE));
+    const routerOnly = sellApproveSpenders({ usePermit2: false });
+    assert.deepEqual(routerOnly, [UNISWAP_SWAP_ROUTER02_BASE]);
+  });
+});
+
+describe("toWei / spotOutWei leftover", () => {
   it("spot sell ~4424 TOSHI @ $0.00021 / ETH $3500 is ~0.000265 WETH", () => {
     const spot = spotOutWei({
       amountInHuman: 4424.634735,
