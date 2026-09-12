@@ -318,6 +318,11 @@ import {
 } from "./telegram-turn-card.js";
 import { sendRaceScoreboardIfDue } from "./race-scoreboard.js";
 import {
+  planRaceStartEureka,
+  markRaceEurekaWritten,
+  raceEurekaBytes,
+} from "./race-eureka.js";
+import {
   decodeErc20Balance,
   resolveFailedBalanceRead,
   sanitizeTelegramHtml,
@@ -5009,9 +5014,46 @@ function planVoiceHitch(swapData, {
   earningsEth = 0,
   gwei = 0,
   hitchCostMult = 1,
+  /** Race-start first buy — only then may hitch full Eureka when opportune. */
+  purchasedFirstOrder = false,
+  raceStarted = true,
 } = {}) {
   if (!enabled || skipHitch || !swapData) {
     return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
+  }
+
+  // Race start + first order: full family Eureka when leftover covers; else leave alone.
+  {
+    const eurekaBytes = raceEurekaBytes();
+    const eurekaCost = Number(gwei) > 0
+      ? estimateCalldataHitchEth(eurekaBytes, gwei) * (Number(hitchCostMult) > 0 ? Number(hitchCostMult) : 1)
+      : 0;
+    const racePlan = planRaceStartEureka({
+      raceStarted,
+      purchasedFirstOrder,
+      leftoverEth,
+      hitchCostEth: eurekaCost,
+    });
+    if (racePlan.attempt && racePlan.utf8) {
+      const hitch = appendUtf8Hitch(swapData, racePlan.utf8);
+      if (hitch.ok && hitch.onChain) {
+        const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
+        if (prefix.ok && hitch.utf8.includes("Living Network") && hitch.utf8.includes("Krystian")) {
+          recordHitchAttempt({});
+          console.log(`   📡 Race-start full Eureka ${hitch.hitchBytes} B — Basescan Input Data → View as UTF-8`);
+          console.log(`      "${hitch.utf8}"`);
+          return {
+            ...hitch,
+            vitaMode: "eureka",
+            vitaKind: "eureka",
+            kind: "eureka",
+            raceStartEureka: true,
+          };
+        }
+      }
+      // Not opportune / pack failed — leave alone (fall through to KEY+LOC).
+      console.log(`   💌 Race Eureka leave-alone: ${racePlan.reason || "pack miss"} — KEY+LOC if covered`);
+    }
   }
 
   if (isVitaPictureArmed() && !leftoverStillEureka()) {
@@ -6138,6 +6180,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       leftoverEth: buyLeftoverEth,
       gwei,
       hitchCostMult: 1,
+      // First-order purchase of the V3↔V4 race — full Eureka only when opportune.
+      purchasedFirstOrder: true,
+      raceStarted: true,
     });
     const buyHitchCostEth = estimateCalldataHitchEth(buyVoice.hitchBytes || 0, gwei);
     buyVoice = plainSaleIfHitchTooThin(buyVoice, buySwap, {
@@ -6377,6 +6422,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol, txHash, utf8: buyVoice.utf8 || "" });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
+    if (buyVoice.raceStartEureka && buyVoice.onChain) {
+      markRaceEurekaWritten({ txHash, track: "v3" });
+      console.log(`   💌 Race-start Eureka latched (full IKN love note on-chain)`);
+    }
     if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
     else console.log(`      ⚠️ No UTF-8 hitch on this buy`);
     return ethToSpend;
@@ -11798,7 +11847,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "🔄 VITA inscription rides every trade\n" +
             "💰 Cost per trade: ~$" + btpCostUsd.toFixed(4) + " included in margin gate\n" +
             "📊 Min margin gate: " + (MIN_NET_MARGIN * 100).toFixed(1) + "%\n\n" +
-            "<i>" + INSCRIPTION_MESSAGE.slice(0, 80) + "...</i>\n\n" +
+            "<i>" + INSCRIPTION_MESSAGE + "</i>\n\n" +
             "Toggle: /btpoff to save gas | /transmit [msg] to queue custom"
           );
         } else {

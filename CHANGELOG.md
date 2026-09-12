@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed — race start shows full Eureka love note (IKN Living Network)
+
+Game: race cards / first-order hitch had been cutting off before
+`INFINITUM × IKN × The Living Network`.
+
+- `buildStoreVoice()` defaults to `VITA_PROOF_FULL` (229 B) — same letter as `/prove`.
+- Race Telegram scoreboard opens with the full family love note (no 80-char cut).
+- First race purchase hitches full Eureka **only when leftover covers** (opportune);
+  latch then leaves opportunistic KEY+LOC alone. Thin leftover → leave alone.
+- V3 + V4 share `race-eureka.js` latch under `guardian-v4/state/`.
+
 ### Added — V3→V4 fund split + live V4 wallet + Telegram vault fix
 
 Game: funds ready on RISK; start isolated Uniswap V4 beside V3.
