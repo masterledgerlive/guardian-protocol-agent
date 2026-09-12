@@ -572,6 +572,14 @@ describe("agent wires turn cards + /bag without weakening gates", () => {
     assert.ok(body.includes("ALWAYS_PLUS_EXIT") || body.includes("buildSellGateDecision"), "always-plus stays");
     assert.ok(body.includes("buildSellGateDecision"), "LOSE-ZERO sell gate stays");
     assert.doesNotMatch(body, /guardian-v4\/agent/, "does not merge V4 into live agent");
+    const buyFnRace = body.indexOf("async function executeBuy(");
+    const buyEndRace = body.indexOf("\nasync function ", buyFnRace + 1);
+    const buySlice = body.slice(buyFnRace, buyEndRace > 0 ? buyEndRace : buyFnRace + 9000);
+    const sellFnRace = body.indexOf("async function executeSell(");
+    const sellEndRace = body.indexOf("\nasync function ", sellFnRace + 1);
+    const sellSlice = body.slice(sellFnRace, sellEndRace > 0 ? sellEndRace : sellFnRace + 14000);
+    assert.ok(!buySlice.includes("sendRaceScoreboardIfDue"), "race card is not inside executeBuy");
+    assert.ok(!sellSlice.includes("sendRaceScoreboardIfDue"), "race card is not inside executeSell");
     assert.ok(body.includes("evaluateAddOnFifoRedGate"), "ALLOW_ADD_ON_FIFO_RED gate from #84 stays");
     assert.ok(body.includes("ALLOW_ADD_ON_FIFO_RED"), "Game override env stays");
     const buyFn = body.indexOf("async function executeBuy(");
