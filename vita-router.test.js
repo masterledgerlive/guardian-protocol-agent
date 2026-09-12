@@ -726,6 +726,7 @@ describe("agent.js wires the secondary router into leftover hitch", () => {
     assert.ok(!/recordHitchAttempt\(\{\}\);\s*\n\s*const hitch = appendUtf8Hitch/.test(src), "must not count a hitch attempt before append can clip KEY names");
     assert.ok(/leftoverVoiceHitchBytes[\s\S]*return 0/.test(src), "leftover hitch-byte fallback must not reserve Eureka letter length");
     assert.ok(src.includes("/vitascan"), "Telegram /vitascan must exist");
+    assert.ok(src.includes("/xmem"), "Telegram /xmem must search UTF-8 input data");
     assert.ok(src.includes("registry folded after restore"), "registry must fold after router-state restore");
     assert.ok(src.includes("/vitapull"), "Telegram /vitapull must exist");
     assert.ok(src.includes("HTML console /vita"), "Telegram help must point at the HTML console");

@@ -157,6 +157,7 @@ vita-hat.js           — Append-only encoded site preservation (1-bit genesis +
 hat-wave-inject.js    — Wave-paid HAT sizing, confirm seal, exit-up without crash
 hat-smile-demo.js     — 8×8×8-bit smile encode → locations → reader proof (`npm run hat:smile`)
 vita-parse.js         — §TOKEN§ agentic parse / refine (2000-char budget, KEY+LOC first)
+xmem.js               — XMEM v1 overlay: search UTF-8 input data (STORE/KEY/LOC + XMEM|v1)
 vita-locations.js     — Append-only location depository; hitch carries squashed §LOC§
 vita-router.js        — Secondary hitch router (vita|eureka|hat|auto); leftover defaults to VITA
 vita-course.js        — Hourly inject-without-loss scorecard
@@ -312,6 +313,7 @@ Trading gates: `LOSE_ZERO=yes` / `HALT_NEW_ENTRIES=yes` refuse **auto / cascade 
 ```
 /transmit [msg]  send message on-chain via trades
 /prove           dedicated 0-ETH UTF-8 Eureka letter (Basescan Input Data → UTF-8)
+/xmem [query]    search wallet UTF-8 input data (XMEM / STORE KEY / tags — not token transfers)
 /voiceon /voiceoff  hitch the letter on leftover swaps
 /models          VITA model cycle
 /btpstatus       show pending transmissions

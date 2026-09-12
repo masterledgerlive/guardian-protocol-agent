@@ -406,6 +406,15 @@ import {
 import { recordLocation } from "./vita-locations.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
+  AGENT_INSTRUCTIONS,
+  encodeXmem,
+  extractMemoryRecords,
+  formatXmemMatches,
+  parseEncodeCommand,
+  retrieveXmem,
+  xmemHelpText,
+} from "./xmem.js";
+import {
   evaluateVitaCourse,
   leftoverWouldCoverVitaHitch,
   leftoverStillEureka,
@@ -10403,6 +10412,36 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           await tg("❌ leftover scan failed: " + e.message);
         }
 
+      } else if (text === "/xmem" || text.startsWith("/xmem ")) {
+        const arg = raw.slice("/xmem".length).trim();
+        if (!arg || /^help$/i.test(arg)) {
+          await tg("<pre>" + esc(xmemHelpText()) + "</pre>");
+        } else if (/^spec$/i.test(arg)) {
+          await tg("<pre>" + esc(AGENT_INSTRUCTIONS.slice(0, 3500)) + "</pre>");
+        } else if (/^encode\s+/i.test(arg)) {
+          const packed = encodeXmem(parseEncodeCommand(arg.replace(/^encode\s+/i, "")));
+          if (!packed.ok) {
+            await tg("❌ " + packed.error + "\nDo not invent an id.");
+          } else {
+            await tg(
+              "<code>" + esc(packed.packed) + "</code>\n" +
+              packed.bytes + " bytes. Live leftover hitch stays KEY+LOC — this is the write template, not a sent tx."
+            );
+          }
+        } else if (/^decode\s+/i.test(arg)) {
+          const recs = extractMemoryRecords(arg.replace(/^decode\s+/i, ""));
+          await tg("<pre>" + esc(formatXmemMatches(retrieveXmem(recs, ""))) + "</pre>");
+        } else {
+          await tg("⛓️ Scanning Base input data for XMEM / STORE KEY…");
+          try {
+            const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+            const result = retrieveXmem(leftoverScan.xmemRecords || [], arg, { protocol: "x402" });
+            await tg("<pre>" + esc(formatXmemMatches(result)) + "</pre>");
+          } catch (e) {
+            await tg("❌ XMEM scan failed: " + e.message);
+          }
+        }
+
       } else if (text && text.startsWith("/vitamode ")) {
         const mode = raw.slice("/vitamode ".length).trim().toLowerCase();
         const r = setHitchModeOverride(mode);
@@ -11770,6 +11809,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
           `/vitacourse — hourly memory/inject scorecard\n` +
           `/vitascan — leftover hitch kinds on recent Uniswap swaps\n` +
+          `/xmem [query] — search UTF-8 input data (XMEM / STORE KEY / tags)\n` +
           `/vitapull 0xHASH — re-read hitch UTF-8 from Base into §TOKEN§ memory\n` +
           `HTML console /vita — same commands, local memory until the reader pulls locations\n` +
           `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
@@ -11807,6 +11847,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitarouter — hitch payload switch + location squash\n` +
           `/vitacourse — hourly inject-without-loss scorecard\n` +
           `/vitascan — leftover hitch eureka vs VITA on Base\n` +
+          `/xmem [query] — find XMEM / STORE KEY notes in wallet input data\n` +
           `/vitapull 0xHASH — inject sealed hitch from Base without KEY loss\n\n` +
           `/remember [text] — save cliff note, rides next trade\n` +
           `/savesession — inscribe full session summary on Base\n` +

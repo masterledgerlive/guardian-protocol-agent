@@ -32,6 +32,12 @@ import {
   scanAddressLeftoverHitches,
   shouldIngestHitchKind,
 } from "./vita-chain-reader.js";
+import {
+  extractMemoryRecords,
+  formatXmemMatches,
+  retrieveXmem,
+  xmemHelpText,
+} from "./xmem.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -42,6 +48,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/vitamode",
   "/vitacourse",
   "/vitascan",
+  "/xmem",
   "/vitapull",
   "/vitanote",
   "/vitaqueue",
@@ -306,6 +313,7 @@ function helpText() {
     "/inject — pull known Base locations + leftover hitch hashes and reconstruct",
     "/vitapull 0xHASH — pull one hitch from Base",
     "/vitascan — leftover hitch eureka vs VITA on recent Uniswap swaps",
+    "/xmem [query] — search pulled hitch UTF-8 for XMEM / STORE KEY / tags",
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
@@ -393,6 +401,21 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     } catch (e) {
       return reply("leftover scan failed: " + (e.message || e));
     }
+  }
+
+  if (text === "/xmem" || text.startsWith("/xmem ")) {
+    const arg = raw.slice("/xmem".length).trim();
+    if (!arg || /^help$/i.test(arg)) return reply(xmemHelpText());
+    if (/^decode\s+/i.test(arg)) {
+      const recs = extractMemoryRecords(arg.replace(/^decode\s+/i, ""));
+      return reply(formatXmemMatches(retrieveXmem(recs, "")));
+    }
+    const payloads = [
+      ...(state.nodes || []).map((n) => n.utf8),
+      state.packet,
+    ].filter(Boolean);
+    const records = payloads.flatMap((p) => extractMemoryRecords(p));
+    return reply(formatXmemMatches(retrieveXmem(records, arg)));
   }
 
   if (text.startsWith("/vitanote ")) {
