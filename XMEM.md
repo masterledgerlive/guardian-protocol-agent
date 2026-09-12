@@ -110,8 +110,15 @@ Missing fields are **absent**, not empty. Do not invent values. Do not assume a 
 | Telegram `/xmem [query]` | Operator search of recent wallet input data |
 | HTML `/xmem` | Search sealed hitch already pulled into the console |
 | `GET /vita/lib/xmem.js` | Same module the bot uses |
+| `finetune-memory.js` | Sixth-lobe hypothesis graph → XMEM overlay (`ns=finetune`) |
+| `GET /vita/brain` | Six-lobe brain status + graph (auth) |
+| Telegram `/brain` `/hyp*` | Operator fine-tune loop |
 
 Machine instruction block: `AGENT_INSTRUCTIONS` in `xmem.js`.
+
+**Finetune link:** COST_EDGE refusals and operator `/hyp` rows encode as XMEM
+`type=warning|summary|note` via `hypothesisToXmem` — append-only retrieval
+overlay, never invents chain history. See `finetune-memory.js`.
 
 ---
 

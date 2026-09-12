@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added — Finetune memory (sixth lobe / hypothesis graph)
+
+Closes the self-improving loop from [@antpalkin](https://x.com/antpalkin/status/2085431604906766385)
+and maps [fomoradar.app](https://fomoradar.app) "six lobes · one mind" + conviction
+scoring onto Guardian recursive memory.
+
+- `finetune-memory.js` — hypothesis graph: pending/confirmed/failed/invalidated,
+  regime tags, FOMO-style conviction `(score/100)²`, `shouldAvoid` before the
+  next cycle. Negative results are first-class assets.
+- COST_EDGE `recordCostMistake` auto-files failed lessons into the graph.
+- VITA inject (`buildVitaInjectContext`) appends FINETUNE avoid/confirmed block
+  + densifies `§LEARN§`. Persists inside `vita-router-state.json`.
+- Telegram: `/brain`, `/hyp`, `/hyps`, `/hypok`, `/hypfail`.
+- Auth API: `GET /vita/brain`, `GET /vita/hypotheses`.
+- XMEM overlay helper `hypothesisToXmem` (ns=finetune) — retrieval only.
+
 ### Added — V3→V4 fund split + live V4 wallet + Telegram vault fix
 
 Game: funds ready on RISK; start isolated Uniswap V4 beside V3.
