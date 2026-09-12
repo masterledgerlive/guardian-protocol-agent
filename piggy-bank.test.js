@@ -33,6 +33,10 @@ import {
   creditPiggySavedEarnings,
   formatBuyReceiptHtml,
   formatSellReceiptHtml,
+  hitchBudgetBalanceEth,
+  resetHitchBudget,
+  creditHitchBank,
+  consumeHitchBankOnSend,
 } from "./piggy-bank.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -548,5 +552,26 @@ describe("agent.js wires piggy into every sell path", () => {
     assert.ok(body.includes("creditPiggySavedEarnings"), "sell must credit saved earnings ledger");
     assert.ok(body.includes("formatSellReceiptHtml"), "sell Telegram must be a bought→sold receipt");
     assert.ok(body.includes("savedEarningsUsd"), "piggy sizing must include saved earnings target");
+    assert.ok(body.includes("creditHitchBank"), "skip hitch must credit hitch-bank");
+    assert.ok(body.includes("consumeHitchBankOnSend"), "hitch send must clear hitch-bank");
+  });
+});
+
+describe("hitch-bank piggy — skip credits, send clears, not P&L", () => {
+  it("credits skipped hitch room and clears on send without inventing earnings", () => {
+    resetHitchBudget(0);
+    assert.equal(hitchBudgetBalanceEth(), 0);
+    const a = creditHitchBank(0.000004, { symbol: "AERO", reason: "skip" });
+    assert.equal(a.credited, 0.000004);
+    assert.equal(a.total, 0.000004);
+    assert.match(a.log, /HITCH_BANK: skip AERO/);
+    assert.match(a.log, /not P&L/);
+    const b = creditHitchBank(0.000003, { symbol: "DRB" });
+    assert.ok(Math.abs(b.total - 0.000007) < 1e-18);
+    const sent = consumeHitchBankOnSend({ symbol: "BNKR" });
+    assert.ok(Math.abs(sent.spent - 0.000007) < 1e-18);
+    assert.equal(hitchBudgetBalanceEth(), 0);
+    assert.match(sent.log, /cleared bank/);
+    resetHitchBudget(0);
   });
 });

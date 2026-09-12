@@ -77,6 +77,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("mergeBuyReceiptIntoLots"), "DRB trough add-on must merge onto first FIFO lot");
     assert.ok(src.includes("shouldLatchBuyReceipt"), "seeded first-lot hashes must not stack on a later bag");
     assert.ok(src.includes("evaluateAddOnFifoRedGate"), "ALLOW_ADD_ON_FIFO_RED gate stays");
+    assert.ok(src.includes("creditHitchBank"), "SKIP_HITCH must credit hitch-bank");
+    assert.ok(src.includes("hitchSkipped"), "turn cards must record hitch skipped");
     assert.ok(!src.includes("ethIn - ethOut"), "boot must not use cash-flow leftover as remaining cost");
     const sellFn = src.indexOf("async function executeSell(");
     const moon = src.indexOf("MOONSHOT SELL-DOWN");

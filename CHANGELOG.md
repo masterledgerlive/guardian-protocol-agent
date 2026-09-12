@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Fixed — micro extract vs hitch-bank (green exit without message cost)
+
+Live after #87 (`f041cf33`): RISK AERO/DRB/BNKR sit FIFO-red HOLD (correct).
+When a lot *is* FIFO-green after gas+swap fees, hitch still rode at 1× leftover
+and burned the hair of plus — or the sell waited on a fat hitch floor. Zero
+micro profit, zero messages.
+
+Split floors (hypothesis verified, then narrowed):
+- **micro_floor** = soldFrac×entry + fees + 1 wei. Green leftover sells **without hitch**.
+- **hitch_floor** = micro_floor + hitch_cost × `HITCH_COST_MULT` (default 2×,
+  packet capped at Eureka 229 B — picture 10KB is not a sell floor).
+- Hitch only when leftover after piggy buffer also clears hitch_floor.
+  Otherwise SKIP_HITCH, credit hitch-bank toward the next worth-sending
+  message (not invented P&L), and still take the micro ETH.
+- FIFO-red / unknown-cost / piggy dust / `ALLOW_ADD_ON_FIFO_RED` unchanged.
+  LOSE-ZERO never sells underwater.
+
+Telegram turn cards + `/bag`: **micro P&L**, hitch skipped (banked), hitch
+sent when it fires.
+
+Does **not** invent P&L. Does **not** merge V4. No capital. Bugbot off.
+
 ### Fixed — latch DRB trough `0x53a00788` FIFO for dust-recycle
 
 Live after #85 (`e2235b0`); sits on #86 (`de58ed19`): DRB trough add-on buy
