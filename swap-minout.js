@@ -45,6 +45,62 @@ export function toWei(human, decimals = 18) {
   return BigInt(Math.floor(n * 10 ** d));
 }
 
+/** SwapRouter02 on Base — exactInputSingle transferFrom spender. */
+export const UNISWAP_SWAP_ROUTER02_BASE = "0x2626664c2603336E57B271c5C0b26F421741e481";
+/** Permit2 — only needed if the send path uses Universal Router / permit. */
+export const UNISWAP_PERMIT2_BASE = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+
+/**
+ * Live DRB FORCE_EXIT 0xd78e0001… — packed amountIn from float toWei.
+ * Number(balanceOf)/1e18 then toWei can exceed live wei → SwapRouter02 STF.
+ */
+export const DRB_STF_FAIL_AMOUNT_IN = 16214400904237168984064n;
+export const DRB_STF_FAIL_TX = "0xd78e0001b9b9a36f29f23ef08770e5ba87cebcb82f5881bb4f7e5c01e0251de9";
+
+export function asWei(v) {
+  const n = asBigInt(v);
+  if (n == null || n < 0n) return 0n;
+  return n;
+}
+
+/**
+ * amountIn must be ≤ live ERC20 balance, minus piggy dust unless unlocked.
+ * Prevents SwapRouter02 STF (transferFrom) on float-rounded FORCE_EXIT sizes.
+ */
+export function clampAmountInToLiveBalance({
+  amountInWei = 0n,
+  liveBalanceWei = 0n,
+  piggyReserveWei = 0n,
+  unlockPiggy = false,
+} = {}) {
+  const live = asWei(liveBalanceWei);
+  const want = asWei(amountInWei);
+  const reserved = unlockPiggy ? 0n : asWei(piggyReserveWei);
+  const cappedReserve = reserved > live ? live : reserved;
+  const spendable = live > cappedReserve ? live - cappedReserve : 0n;
+  const amountIn = want < spendable ? want : spendable;
+  return {
+    amountInWei: amountIn,
+    liveBalanceWei: live,
+    piggyReserveWei: cappedReserve,
+    spendableWei: spendable,
+    clamped: want > spendable,
+    blocked: amountIn <= 0n,
+  };
+}
+
+export function needsSpenderApprove({ allowanceWei = 0n, amountInWei = 0n } = {}) {
+  const need = asWei(amountInWei);
+  if (need <= 0n) return false;
+  return asWei(allowanceWei) < need;
+}
+
+export function sellApproveSpenders({ usePermit2 = false } = {}) {
+  const list = [UNISWAP_SWAP_ROUTER02_BASE];
+  if (usePermit2) list.push(UNISWAP_PERMIT2_BASE);
+  return list;
+}
+
 /**
  * Spot expected out in wei: inAmount * inUsd / outUsd.
  * Sell: token human * tokenUsd / ethUsd → WETH wei (18).

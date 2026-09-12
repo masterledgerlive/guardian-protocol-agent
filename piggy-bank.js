@@ -541,6 +541,7 @@ export function applyPiggyToSell({
   piggyBankMinUsd: catalogMinUsd,
   savedEarningsUsd = 0,
   token,
+  forceUnlock = false,
 } = {}) {
   const opts = piggyOptsFromToken(token || {}, {
     symbol: symbol || token?.symbol,
@@ -550,7 +551,7 @@ export function applyPiggyToSell({
   });
   const bal = Math.max(0, Number(balance) || 0);
   const pct = Math.max(0, Math.min(1, Number(sellPct) || 0));
-  const unlock = isPiggyUnlock(reason);
+  const unlock = !!forceUnlock || isPiggyUnlock(reason);
   const reserve = ratchetPiggyReserve(piggyReserve, bal, priceUsd, env, opts);
   const sellable = computeSellable(bal, reserve, { unlock });
   const tokensToSell = sellable * pct;

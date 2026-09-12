@@ -137,6 +137,7 @@ import {
   fifoRemainingCostEth,
   applySellPlusFloorMinOut,
   isForceExitLockedReason,
+  canBypassSellLossGate,
   isDisableDowBias,
   applyDowBiasDisable,
   isFridayCloseWindow,
@@ -336,6 +337,9 @@ import {
   slippageFloor,
   toWei,
   formatWei18,
+  clampAmountInToLiveBalance,
+  needsSpenderApprove,
+  sellApproveSpenders,
   hitchPreservesSwapPrefix,
   appendUtf8Hitch,
   buildStoreVoice,
@@ -4679,6 +4683,21 @@ async function getTokenBalance(address) {
   }
 }
 
+/** Live ERC20 wei — never size amountIn from float/stale human cache. */
+async function getTokenBalanceWei(address) {
+  const addr = String(address || "").toLowerCase();
+  const raw = await rpcCall(c => c.readContract({
+    address: addr,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [WALLET_ADDRESS],
+  }));
+  if (typeof raw === "bigint") return raw >= 0n ? raw : 0n;
+  if (raw == null || raw === "") throw new Error(`balanceOf ${addr.slice(0, 10)}… empty`);
+  const n = BigInt(raw);
+  return n >= 0n ? n : 0n;
+}
+
 // Returns { eth, weth, total, tradeable } — WETH is always included
 async function getFullBalance() {
   let eth = Number.isFinite(lastEthBalance) ? lastEthBalance : 0, weth = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
@@ -5261,19 +5280,44 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
 function encodeApprove(spender, amount) {
   return "0x095ea7b3" + spender.slice(2).padStart(64,"0") + amount.toString(16).padStart(64,"0");
 }
-async function ensureApproved(cdp, tokenAddress, amountIn) {
+async function ensureApproved(cdp, tokenAddress, amountIn, spenders = sellApproveSpenders()) {
   const MAX = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-  const key = tokenAddress.toLowerCase();
-  if (approvedTokens.has(key)) return;
-  const al = await rpcCall(c => c.readContract({ address: tokenAddress.toLowerCase(), abi: ERC20_ABI, functionName: "allowance", args: [WALLET_ADDRESS, SWAP_ROUTER] }));
-  if (al >= amountIn) { approvedTokens.add(key); return; }
-  console.log(`      🔓 Approving ${tokenAddress.slice(0,10)}...`);
-  await Promise.race([
-    cdp.evm.sendTransaction({ address: WALLET_ADDRESS, network: "base", transaction: { to: tokenAddress.toLowerCase(), data: encodeApprove(SWAP_ROUTER, MAX) } }),
-    new Promise((_, r) => setTimeout(() => r(new Error(`Approve tx timeout 45s`)), TX_TIMEOUT_MS))
-  ]);
-  approvedTokens.add(key);
-  await sleep(4000); // reduced from 8s
+  const need = typeof amountIn === "bigint" ? amountIn : 0n;
+  if (need <= 0n) return;
+  const token = String(tokenAddress || "").toLowerCase();
+  for (const spender of spenders) {
+    const who = String(spender || "").toLowerCase();
+    const al = await rpcCall(c => c.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [WALLET_ADDRESS, who],
+    }));
+    if (!needsSpenderApprove({ allowanceWei: al, amountInWei: need })) {
+      if (who === SWAP_ROUTER.toLowerCase()) approvedTokens.add(token);
+      continue;
+    }
+    console.log(`      🔓 Approving ${who.slice(0, 10)}… for ${token.slice(0, 10)}… (allowance ${al} < ${need})`);
+    await Promise.race([
+      cdp.evm.sendTransaction({
+        address: WALLET_ADDRESS,
+        network: "base",
+        transaction: { to: token, data: encodeApprove(who, MAX) },
+      }),
+      new Promise((_, r) => setTimeout(() => r(new Error(`Approve tx timeout 45s`)), TX_TIMEOUT_MS)),
+    ]);
+    await sleep(4000);
+    const al2 = await rpcCall(c => c.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [WALLET_ADDRESS, who],
+    }));
+    if (needsSpenderApprove({ allowanceWei: al2, amountInWei: need })) {
+      throw new Error(`Approve did not stick: ${who.slice(0, 10)}… allowance ${al2} < amountIn ${need}`);
+    }
+    if (who === SWAP_ROUTER.toLowerCase()) approvedTokens.add(token);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -6463,6 +6507,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     const targetSaved = priorSaved + projectedBank;
 
+    const overrideSell = canBypassSellLossGate(reason, process.env, token.symbol);
     const piggy = applyPiggyToSell({
       balance: totalBal,
       sellPct,
@@ -6471,6 +6516,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       reason,
       token,
       savedEarningsUsd: targetSaved,
+      forceUnlock: overrideSell,
     });
     token.piggyReserve = piggy.reserve;
     if (piggy.blocked) {
@@ -6489,8 +6535,29 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const tokenDecimals = await getTokenDecimals(token.address);
     const amtHuman = piggy.tokensToSell;
-    const amtToSell = toWei(amtHuman, tokenDecimals);
+    let amtToSell = toWei(amtHuman, tokenDecimals);
     if (amtToSell === 0n) return null;
+    let liveBalWei;
+    try {
+      liveBalWei = await getTokenBalanceWei(token.address);
+    } catch (e) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: live ERC20 wei unread (${e.message}) — not sending oversize`);
+      return null;
+    }
+    const sized = clampAmountInToLiveBalance({
+      amountInWei: amtToSell,
+      liveBalanceWei: liveBalWei,
+      piggyReserveWei: toWei(piggy.reserve, tokenDecimals),
+      unlockPiggy: !!(piggy.unlock || overrideSell),
+    });
+    if (sized.blocked) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountIn 0 after live-balance clamp (bal=${sized.liveBalanceWei} reserved=${sized.piggyReserveWei})`);
+      return null;
+    }
+    if (sized.clamped) {
+      console.log(`   📐 amountIn clamped to live ERC20 ${sized.amountInWei} (wanted ${amtToSell}; spendable ${sized.spendableWei})`);
+    }
+    amtToSell = sized.amountInWei;
 
     // Quote BEFORE the plus gate so leftover cannot look green on a Dex mark
     // while Uni V3 fills thinner (GAME Aerodrome vs empty fee-3000 lesson).
@@ -6638,9 +6705,9 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     minWeth = sellMinOut.amountOutMinimum;
     // Slippage sanitize may clamp minOut to 85% of quote — that floor can sit
-    // below FIFO buy cost. Raise back to cost+1wei or HOLD. FORCE EXIT LOCKED
-    // is the only recovery that may send underwater (no hitch).
-    if (!isForceExitLockedReason(reason)) {
+    // below FIFO buy cost. Raise back to cost+1wei or HOLD. FORCE EXIT /
+    // ALLOW_LOSSY_OPERATOR_SELL may send underwater (hitch already SKIP).
+    if (!overrideSell && !isForceExitLockedReason(reason)) {
       const plusFloor = applySellPlusFloorMinOut({
         minOutWei: minWeth,
         quotedWei: quotedWeth,
@@ -8183,13 +8250,15 @@ async function processToken(cdp, token, bal) {
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
-        const sellPct = resolveManualSellPct(cmd);
         const reason = cmd.source === "OPERATOR_SELL"
           ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
           : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL");
+        const sellPct = resolveManualSellPct(cmd, {
+          fullUnwind: canBypassSellLossGate(reason, process.env, token.symbol),
+        });
         const p = await executeSell(cdp, token, sellPct, reason, price, true);
         if (p > 0) {
-          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
+          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
           const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
         }
       } else if (cmd.action === "sellhalf") {
@@ -8200,7 +8269,7 @@ async function processToken(cdp, token, bal) {
           : "MANUAL SELL HALF";
         const p = await executeSell(cdp, token, 0.50, reason, price, true);
         if (p > 0) {
-          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
+          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
           const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
         }
       } else if (cmd.action === "piggyunlock") {
@@ -12021,14 +12090,18 @@ function applyOperatorSellEnv() {
   ]);
   const result = queueOperatorSellOnce(manualCommands, process.env.OPERATOR_SELL, known, operatorSellState);
   if (result.queued) {
-    const pctLabel = result.pct === 1 ? "all" : `${(result.pct * 100).toFixed(0)}%`;
-    const halfNote = Math.abs(result.pct - 0.5) < 1e-9 ? " (MANUAL SELL HALF)" : "";
-    console.log(`📱 OPERATOR_SELL queued: ${result.symbol} ${pctLabel}${halfNote} — MANUAL SELL operator, bypasses wave gates`);
-    tg(`📱 <b>OPERATOR_SELL queued</b>\n${result.symbol} ${pctLabel}${halfNote}\nFires on next cycle — MANUAL SELL (operator), bypasses wave gates.`).catch(() => {});
+    const items = result.items?.length ? result.items : [{ symbol: result.symbol, pct: result.pct }];
+    const labels = items.map((it) => {
+      const pctLabel = it.pct === 1 ? "all" : `${(it.pct * 100).toFixed(0)}%`;
+      const halfNote = Math.abs(it.pct - 0.5) < 1e-9 ? " (MANUAL SELL HALF)" : "";
+      return `${it.symbol} ${pctLabel}${halfNote}`;
+    });
+    console.log(`📱 OPERATOR_SELL queued: ${labels.join(", ")} — MANUAL SELL operator, bypasses wave gates`);
+    tg(`📱 <b>OPERATOR_SELL queued</b>\n${labels.join("\n")}\nFires on next cycle — MANUAL SELL (operator), bypasses wave gates.`).catch(() => {});
   } else if (result.reason === "unknown-symbol") {
     console.log(`⚠️  OPERATOR_SELL: unknown symbol ${result.symbol}`);
   } else if (result.reason === "invalid") {
-    console.log(`⚠️  OPERATOR_SELL: invalid value "${process.env.OPERATOR_SELL}" — expected SYMBOL:pct (e.g. TOSHI:50)`);
+    console.log(`⚠️  OPERATOR_SELL: invalid value "${process.env.OPERATOR_SELL}" — expected SYMBOL:pct or SYMBOL:all (e.g. AERO:all, DRB:100)`);
   } else if (result.reason === "already-queued" || result.reason === "already-applied") {
     // idempotent no-op
   }
