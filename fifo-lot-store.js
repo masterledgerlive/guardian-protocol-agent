@@ -482,9 +482,9 @@ export function isSeededAddonBuyTx(symbol, hash, extras = EVIDENCE_ADDON_BUY_TXS
 
 /**
  * Latch a receipt onto persist only when it belongs to this cycle.
- * Empty / unusable → seed (same as #79). Already-usable → merge seeded
- * add-ons onto the same first lot only. Never rematerialize #78 first
- * fills onto a later sold-all-then-new-buy lot.
+ * Empty / unusable → seed (same as #79). Sold-all `cleared` tombstone is
+ * not an empty seed. Already-usable → merge seeded add-ons onto the same
+ * first lot only. Never rematerialize #78 first fills onto a later bag.
  */
 export function shouldLatchBuyReceipt(existing, hash, {
   remainingTokens,
@@ -494,6 +494,7 @@ export function shouldLatchBuyReceipt(existing, hash, {
   const h = normalizeTxHash(hash);
   if (!h) return false;
   if (lotHasBuyTx(existing, h)) return false;
+  if (isClearedLot(existing)) return false;
   if (!isUsableLot(existing)) return true;
   const key = String(existing.symbol || "").toUpperCase();
   if (!isSeededAddonBuyTx(key, h, extras)) return false;

@@ -17,6 +17,7 @@ dust-recycle / `classifyRecycleBag` / `entrySold` missed the add-on FIFO eth
   replace) only for the same cycle (parent first-buy hash, or persist
   with no buyTxs and remaining > tokensIn). Duplicate hashes are no-ops.
   Later sold-all-then-new-buy lots do not rematerialize #78 first fills.
+  A sold-all `cleared` tombstone is not treated as an empty seed.
   Proportional remaining after sells is unchanged.
 - After latch, dust-recycle / `entrySold` see known FIFO eth for DRB.
 - `ALLOW_ADD_ON_FIFO_RED` default OFF / block — this PR does not weaken

@@ -894,6 +894,53 @@ describe("fifo-lot-store — latch DRB trough 0x53a00788 FIFO", () => {
     assert.ok(after.investedEth > 0);
   });
 
+  it("cleared sold-all lot does not rematerialize #78 fills or trough", () => {
+    const live = {};
+    recordBuyFill(live, {
+      symbol: "DRB",
+      ethIn: 0.000785582981130297,
+      tokensIn: 8238.193475842487,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      fillCostEth: 0.000785582981130297,
+    });
+    recordSellFill(live, { symbol: "DRB", remainingTokens: 0 });
+    assert.equal(isClearedLot(live.DRB), true);
+    assert.equal(shouldLatchBuyReceipt(live.DRB, EVIDENCE_BUY_TXS.DRB, { remainingTokens: 4100 }), false);
+    assert.equal(shouldLatchBuyReceipt(live.DRB, DRB_TROUGH_BUY_TX, { remainingTokens: 4100 }), false);
+
+    const first = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      receipt: drbReceipt().receipt,
+      tx: drbReceipt().tx,
+    });
+    const trough = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: DRB_TROUGH_BUY_TX,
+      receipt: drbTroughReceipt().receipt,
+      tx: drbTroughReceipt().tx,
+    });
+    mergeBuyReceiptIntoLots(live, first, { remainingTokens: 4100 });
+    mergeBuyReceiptIntoLots(live, trough, { remainingTokens: 4100 });
+    assert.equal(isClearedLot(live.DRB), true);
+    assert.equal(isUsableLot(live.DRB), false);
+
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(live),
+      remainingBySymbol: { DRB: 4100 },
+      receipts: [drbReceipt(), drbTroughReceipt()],
+      tokens: [{ symbol: "DRB", address: DRB }],
+    });
+    assert.ok(rebuilt.unknown.includes("DRB"));
+    assert.equal(isUsableLot(rebuilt.lots.DRB), false);
+    assert.equal(lotHasBuyTx(rebuilt.lots.DRB, EVIDENCE_BUY_TXS.DRB), false);
+    assert.equal(lotHasBuyTx(rebuilt.lots.DRB, DRB_TROUGH_BUY_TX), false);
+  });
+
   it("ALLOW_ADD_ON_FIFO_RED stays default OFF — latch does not weaken #84", () => {
     assert.equal(isAllowAddOnFifoRed({}), false);
     assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "" }), false);
