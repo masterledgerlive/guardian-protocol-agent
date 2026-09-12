@@ -162,6 +162,8 @@ import {
   lotFromBuyReceipt,
   ledgerBuyHasLotSizes,
   collectRebuildTxs,
+  shouldLatchBuyReceipt,
+  mergeBuyReceiptIntoLots,
   writeFifoLotsSync,
   readFifoLotsSync,
   lotAppliedOk,
@@ -8574,7 +8576,9 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
     evidence: EVIDENCE_BUY_TXS,
   })[token.symbol] || [];
   if (!hashes.length) return null;
+  let latchedHash = "";
   for (const hash of hashes) {
+    if (!shouldLatchBuyReceipt(fifoLots[token.symbol], hash, { remainingTokens })) continue;
     try {
       const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
       const tx = await rpcCall((c) => c.getTransaction({ hash }));
@@ -8590,17 +8594,21 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
         reason: "MANUAL BUY (operator)",
       });
       if (!isUsableLot(lot)) continue;
-      fifoLots[token.symbol] = lot;
-      applyLotToNet(netPositions, lot);
-      const fifo = applyLotToToken(token, lot, { remainingTokens });
-      if (!lotAppliedOk(token, fifo)) continue;
-      console.log(`   🔗 ${token.symbol}: FIFO lot rebuilt from buy ${hash.slice(0, 10)}… remaining=${fifo.investedEth.toFixed(6)}ETH`);
-      return lot;
+      mergeBuyReceiptIntoLots(fifoLots, lot, { remainingTokens });
+      latchedHash = hash;
     } catch (e) {
       console.log(`   ⚠️  ${token.symbol}: receipt rebuild ${hash.slice(0, 10)}… ${e.message}`);
     }
   }
-  return null;
+  const current = fifoLots[token.symbol];
+  if (!isUsableLot(current)) return null;
+  applyLotToNet(netPositions, current);
+  const fifo = applyLotToToken(token, current, { remainingTokens });
+  if (!lotAppliedOk(token, fifo)) return null;
+  if (latchedHash) {
+    console.log(`   🔗 ${token.symbol}: FIFO lot rebuilt from buy ${latchedHash.slice(0, 10)}… remaining=${fifo.investedEth.toFixed(6)}ETH`);
+  }
+  return current;
 }
 
 /** Seeded evidence hashes → chain receipts. Runs even when GitHub 401s. */
@@ -8615,8 +8623,12 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
     if (!hashes[token.symbol]?.length) continue;
     const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
     if (remain == null) continue; // dust / sold-all / cache miss — do not invent
-    if (isUsableLot(fifoLots[token.symbol])) {
+    const missingAddon = (hashes[token.symbol] || []).some((h) =>
+      shouldLatchBuyReceipt(fifoLots[token.symbol], h, { remainingTokens: remain }),
+    );
+    if (isUsableLot(fifoLots[token.symbol]) && !missingAddon) {
       // Persist may already have the lot (AERO) while DRB/BNKR still need apply.
+      // Missing evidence/add-on hashes (DRB trough 0x53a00788) still fetch+merge.
       const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: remain });
       if (lotAppliedOk(token, fifo)) n++;
       continue;

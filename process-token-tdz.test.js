@@ -74,6 +74,9 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
     assert.ok(src.includes("blendUsdEntryOnAddOnBuy"), "add-on buy must not blend missing USD as 0");
     assert.ok(src.includes("lotFromBuyReceipt") || src.includes("tryRebuildLotFromReceipts"), "boot must rebuild lots from buy hash");
+    assert.ok(src.includes("mergeBuyReceiptIntoLots"), "DRB trough add-on must merge onto first FIFO lot");
+    assert.ok(src.includes("shouldLatchBuyReceipt"), "seeded first-lot hashes must not stack on a later bag");
+    assert.ok(src.includes("evaluateAddOnFifoRedGate"), "ALLOW_ADD_ON_FIFO_RED gate stays");
     assert.ok(!src.includes("ethIn - ethOut"), "boot must not use cash-flow leftover as remaining cost");
     const sellFn = src.indexOf("async function executeSell(");
     const moon = src.indexOf("MOONSHOT SELL-DOWN");
