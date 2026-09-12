@@ -377,9 +377,16 @@ describe("agent wires turn cards + /bag without weakening gates", () => {
     assert.ok(body.includes("ALWAYS_PLUS_EXIT") || body.includes("buildSellGateDecision"), "always-plus stays");
     assert.ok(body.includes("buildSellGateDecision"), "LOSE-ZERO sell gate stays");
     assert.doesNotMatch(body, /guardian-v4\/agent/, "does not merge V4 into live agent");
-    if (body.includes("ALLOW_ADD_ON_FIFO_RED") || body.includes("evaluateAddOnFifoRedGate")) {
-      assert.ok(body.includes("evaluateAddOnFifoRedGate"), "add-on FIFO-red gate stays if present");
-    }
+    assert.ok(body.includes("evaluateAddOnFifoRedGate"), "ALLOW_ADD_ON_FIFO_RED gate from #84 stays");
+    assert.ok(body.includes("ALLOW_ADD_ON_FIFO_RED"), "Game override env stays");
+    const buyFn = body.indexOf("async function executeBuy(");
+    const buyEnd = body.indexOf("\nasync function ", buyFn + 1);
+    const buy = body.slice(buyFn, buyEnd > 0 ? buyEnd : buyFn + 9000);
+    const gate = buy.indexOf("evaluateAddOnFifoRedGate");
+    const encode = buy.indexOf("encodeSwap(");
+    const turn = buy.indexOf("recordTurnFill");
+    assert.ok(gate >= 0 && encode > gate, "add-on FIFO-red gate still runs before encodeSwap");
+    assert.ok(turn > encode, "turn card records only after a real fill, not instead of the gate");
     assert.ok(piggySrc.includes("turnCard") && piggySrc.includes("formatTurnCardHtml"), "receipts extend, not replace");
     assert.equal(formatEthAmt(0), "0");
   });
