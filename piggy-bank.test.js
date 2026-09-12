@@ -188,6 +188,30 @@ describe("unlock path works", () => {
     assert.equal(d.blocked, false);
   });
 
+  it("forceUnlock sells the full bag for Game FORCE_EXIT / lossy operator unwind", () => {
+    const d = applyPiggyToSell({
+      balance: 1000,
+      sellPct: 1,
+      piggyReserve: 20,
+      priceUsd: 1,
+      reason: "MANUAL SELL (operator)",
+      env,
+      forceUnlock: true,
+    });
+    assert.equal(d.unlock, true);
+    assert.equal(d.tokensToSell, 1000);
+    const held = applyPiggyToSell({
+      balance: 1000,
+      sellPct: 1,
+      piggyReserve: 20,
+      priceUsd: 1,
+      reason: "MANUAL SELL (operator)",
+      env,
+    });
+    assert.equal(held.unlock, false);
+    assert.equal(held.tokensToSell, 980);
+  });
+
   it("unlock partial sell may shrink reserve to remaining units", () => {
     const d = applyPiggyToSell({
       balance: 20,
