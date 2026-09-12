@@ -41,6 +41,7 @@ import {
   mergeLotMaps,
   isClearedLot,
   lotHasBuyTx,
+  lotHasAnyBuyTx,
   shouldLatchBuyReceipt,
   mergeBuyReceiptIntoLots,
 } from "./fifo-lot-store.js";
@@ -856,6 +857,41 @@ describe("fifo-lot-store — latch DRB trough 0x53a00788 FIFO", () => {
     assert.ok(Math.abs(rebuilt.lots.DRB.ethIn - beforeEth) < 1e-15);
     assert.ok(Math.abs(rebuilt.lots.DRB.tokensIn - beforeTok) < 1e-9);
     assert.equal(lotHasBuyTx(rebuilt.lots.DRB, EVIDENCE_BUY_TXS.DRB), false);
+  });
+
+  it("hashless first-lot persist still merges trough when remaining exceeds tokensIn", () => {
+    const first = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      receipt: drbReceipt().receipt,
+      tx: drbReceipt().tx,
+    });
+    const hashless = { ...first, buyTxs: [] };
+    const trough = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: DRB_TROUGH_BUY_TX,
+      receipt: drbTroughReceipt().receipt,
+      tx: drbTroughReceipt().tx,
+    });
+    assert.equal(lotHasAnyBuyTx(hashless), false);
+    assert.equal(
+      shouldLatchBuyReceipt(hashless, DRB_TROUGH_BUY_TX, { remainingTokens: AFTER_TROUGH }),
+      true,
+    );
+    const lots = { DRB: { ...hashless } };
+    mergeBuyReceiptIntoLots(lots, trough, { remainingTokens: AFTER_TROUGH });
+    assert.equal(lotHasBuyTx(lots.DRB, DRB_TROUGH_BUY_TX), true);
+    const after = applyLotToToken(
+      { symbol: "DRB", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 },
+      lots.DRB,
+      { remainingTokens: AFTER_TROUGH },
+    );
+    assert.equal(after.unknown, false);
+    assert.ok(after.investedEth > 0);
   });
 
   it("ALLOW_ADD_ON_FIFO_RED stays default OFF — latch does not weaken #84", () => {

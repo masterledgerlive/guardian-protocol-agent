@@ -8594,7 +8594,7 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
         reason: "MANUAL BUY (operator)",
       });
       if (!isUsableLot(lot)) continue;
-      mergeBuyReceiptIntoLots(fifoLots, lot);
+      mergeBuyReceiptIntoLots(fifoLots, lot, { remainingTokens });
       latchedHash = hash;
     } catch (e) {
       console.log(`   ⚠️  ${token.symbol}: receipt rebuild ${hash.slice(0, 10)}… ${e.message}`);
