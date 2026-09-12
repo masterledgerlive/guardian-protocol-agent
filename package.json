@@ -11,7 +11,7 @@
     "hat:plan": "node vita-hat.js",
     "hat:bit": "node vita-hat.js --bit-only",
     "hat:smile": "node hat-smile-demo.js",
-    "test:v4": "node --test guardian-v4/test/*.test.js",
+    "test:v4": "node --test guardian-v4/test/*.test.js v4-fund-once.test.js",
     "test:quotes": "node verify-quotes.js",
     "sim:revenue": "node revenue-sim.js"
   },

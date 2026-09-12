@@ -68,14 +68,14 @@ describe("guardian-v4 telegram env via config.env()", () => {
     });
   });
 
-  it("SHARE_ROOT_ENV=yes falls back to VAULT_TELEGRAM_BOT_TOKEN then TELEGRAM_BOT_TOKEN", async () => {
+  it("SHARE_ROOT_ENV=yes uses plaintext TELEGRAM_BOT_TOKEN — never VAULT_* tx hash", async () => {
     await withEnv({
       GUARDIAN_V4_SHARE_ROOT_ENV: "yes",
-      VAULT_TELEGRAM_BOT_TOKEN: "vault-bot",
+      VAULT_TELEGRAM_BOT_TOKEN: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       TELEGRAM_BOT_TOKEN: "root-bot",
       TELEGRAM_CHAT_ID: "root-chat",
     }, () => {
-      assert.equal(telegramBotToken(), "vault-bot");
+      assert.equal(telegramBotToken(), "root-bot");
       assert.equal(telegramChatId(), "root-chat");
     });
     await withEnv({
@@ -85,6 +85,17 @@ describe("guardian-v4 telegram env via config.env()", () => {
     }, () => {
       assert.equal(env("TELEGRAM_BOT_TOKEN"), "root-bot");
       assert.equal(telegramBotToken(), "root-bot");
+      assert.equal(telegramChatId(), "root-chat");
+    });
+  });
+
+  it("SHARE_ROOT_ENV=yes ignores vault hash when plaintext token missing", async () => {
+    await withEnv({
+      GUARDIAN_V4_SHARE_ROOT_ENV: "yes",
+      VAULT_TELEGRAM_BOT_TOKEN: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      TELEGRAM_CHAT_ID: "root-chat",
+    }, () => {
+      assert.equal(telegramBotToken(), undefined);
       assert.equal(telegramChatId(), "root-chat");
     });
   });

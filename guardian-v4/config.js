@@ -37,19 +37,30 @@ function firstNonEmpty(...values) {
   return undefined;
 }
 
+/** VAULT_* holds a Base tx hash of ciphertext — never a live Telegram bot token. */
+export function looksLikeVaultTxHash(value) {
+  return /^0x[a-fA-F0-9]{64}$/.test(String(value ?? "").trim());
+}
+
+function usableTelegramSecret(value) {
+  if (value == null || String(value) === "") return undefined;
+  if (looksLikeVaultTxHash(value)) return undefined;
+  return value;
+}
+
 /**
  * Telegram bot token: prefer GUARDIAN_V4_TELEGRAM_BOT_TOKEN.
- * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to
- * VAULT_TELEGRAM_BOT_TOKEN then TELEGRAM_BOT_TOKEN.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to plaintext TELEGRAM_BOT_TOKEN
+ * (after vault-loader decrypt). Never treat VAULT_TELEGRAM_BOT_TOKEN (tx hash)
+ * as the bot token — that caused Telegram "Not Found" on the V4 service.
  */
 export function telegramBotToken() {
-  const preferred = env("TELEGRAM_BOT_TOKEN");
+  const preferred = usableTelegramSecret(env("TELEGRAM_BOT_TOKEN"));
   if (process.env.GUARDIAN_V4_TELEGRAM_BOT_TOKEN) return preferred;
   if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
     return firstNonEmpty(
-      process.env.VAULT_TELEGRAM_BOT_TOKEN,
       preferred,
-      process.env.TELEGRAM_BOT_TOKEN,
+      usableTelegramSecret(process.env.TELEGRAM_BOT_TOKEN),
     );
   }
   return preferred;
@@ -58,16 +69,15 @@ export function telegramBotToken() {
 /**
  * Telegram chat id: prefer GUARDIAN_V4_TELEGRAM_CHAT_ID.
  * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to TELEGRAM_CHAT_ID
- * (then VAULT_TELEGRAM_CHAT_ID if the root vault alias is the only one set).
+ * (plaintext after vault load). Skip VAULT_TELEGRAM_CHAT_ID tx hashes.
  */
 export function telegramChatId() {
-  const preferred = env("TELEGRAM_CHAT_ID");
+  const preferred = usableTelegramSecret(env("TELEGRAM_CHAT_ID"));
   if (process.env.GUARDIAN_V4_TELEGRAM_CHAT_ID) return preferred;
   if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
     return firstNonEmpty(
       preferred,
-      process.env.TELEGRAM_CHAT_ID,
-      process.env.VAULT_TELEGRAM_CHAT_ID,
+      usableTelegramSecret(process.env.TELEGRAM_CHAT_ID),
     );
   }
   return preferred;
