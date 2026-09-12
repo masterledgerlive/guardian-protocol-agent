@@ -6579,6 +6579,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       const pairs = await fetchDexScreenerPairs(token.address);
       sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
     } catch { sellPreferredPool = null; }
+    if (token.symbol === "AERO") sellPreferredPool = AERO_UNI_V3_WETH_POOL;
     try {
       const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier, {
         preferredPool: sellPreferredPool,

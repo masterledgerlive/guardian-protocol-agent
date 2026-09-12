@@ -90,10 +90,10 @@ describe("amountIn clamp + approve path (live DRB STF)", () => {
     assert.equal(needsSpenderApprove({ allowanceWei: 4n, amountInWei: 5n }), true);
     assert.equal(needsSpenderApprove({ allowanceWei: 10n, amountInWei: 0n }), false);
     const spenders = sellApproveSpenders();
-    assert.deepEqual(spenders, [UNISWAP_SWAP_ROUTER02_BASE]);
-    const withPermit = sellApproveSpenders({ usePermit2: true });
-    assert.ok(withPermit.includes(UNISWAP_PERMIT2_BASE));
-    assert.ok(withPermit.includes(UNISWAP_SWAP_ROUTER02_BASE));
+    assert.ok(spenders.includes(UNISWAP_SWAP_ROUTER02_BASE));
+    assert.ok(spenders.includes(UNISWAP_PERMIT2_BASE));
+    const routerOnly = sellApproveSpenders({ usePermit2: false });
+    assert.deepEqual(routerOnly, [UNISWAP_SWAP_ROUTER02_BASE]);
   });
 });
 
