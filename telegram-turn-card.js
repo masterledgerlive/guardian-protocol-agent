@@ -172,19 +172,27 @@ export function usageUnitsFrom({ fills = 0, hitchEvents = 0 } = {}) {
 export function formatUsageRecallLine({
   fills = 0,
   hitchEvents = 0,
+  hitchSkipped = 0,
   hitchBytes = 0,
   hitchCostEth = null,
+  hitchBankedEth = null,
 } = {}) {
   const u = usageUnitsFrom({ fills, hitchEvents });
+  const skipped = Math.max(0, Math.floor(Number(hitchSkipped) || 0));
+  const skipBit = skipped > 0 ? ` · ${skipped} hitch skipped` : "";
   const parts = [
-    `usage: ${u.fills} fills · ${u.hitchEvents} hitch · ${u.units} units toward piggy cover`,
+    `usage: ${u.fills} fills · ${u.hitchEvents} hitch${skipBit} · ${u.units} units toward piggy cover`,
   ];
   const bytes = Math.max(0, Number(hitchBytes) || 0);
   const cost = knownPositiveEth(hitchCostEth);
   if (bytes > 0 && cost != null) {
-    parts.push(`hitch spent: ${bytes} B · ${formatEthAmt(cost)} ETH`);
+    parts.push(`hitch sent: ${bytes} B · ${formatEthAmt(cost)} ETH`);
   } else if (bytes > 0) {
-    parts.push(`hitch spent: ${bytes} B`);
+    parts.push(`hitch sent: ${bytes} B`);
+  }
+  const banked = knownPositiveEth(hitchBankedEth);
+  if (banked != null) {
+    parts.push(`hitch banked: ${formatEthAmt(banked)} ETH (next message; not P&L)`);
   }
   return parts.join("\n");
 }
@@ -194,8 +202,10 @@ export function emptyTurnRecallStore() {
     turns: [],
     fills: 0,
     hitchEvents: 0,
+    hitchSkipped: 0,
     hitchBytes: 0,
     hitchCostEth: 0,
+    hitchBankedEth: 0,
     updatedAt: 0,
   };
 }
@@ -240,6 +250,8 @@ function sanitizeTurn(raw = {}) {
       hitchClass = storedHitchClass(raw.hitchClass) || hitchClass;
     }
   }
+  const hitchSkipped = !hitchOnChain && (raw.hitchSkipped === true || raw.verdict === "SKIP_HITCH");
+  const hitchBankedEth = hitchSkipped ? knownPositiveEth(raw.hitchBankedEth) : null;
   return {
     side,
     symbol: String(raw.symbol || "?").toUpperCase(),
@@ -256,6 +268,8 @@ function sanitizeTurn(raw = {}) {
     hitchUtf8,
     hitchKind,
     hitchClass,
+    hitchSkipped,
+    hitchBankedEth,
     leftoverVsPlus: leftover,
     closedPnl: pnl,
     liquidEth: finiteEth(raw.liquidEth),
@@ -285,8 +299,10 @@ export function serializeTurnRecallStore(store = _store) {
     turns: Array.isArray(s.turns) ? s.turns.slice(-MAX_TURN_HISTORY) : [],
     fills: Math.max(0, Math.floor(Number(s.fills) || 0)),
     hitchEvents: Math.max(0, Math.floor(Number(s.hitchEvents) || 0)),
+    hitchSkipped: Math.max(0, Math.floor(Number(s.hitchSkipped) || 0)),
     hitchBytes: Math.max(0, Math.floor(Number(s.hitchBytes) || 0)),
     hitchCostEth: Math.max(0, Number(s.hitchCostEth) || 0),
+    hitchBankedEth: Math.max(0, Number(s.hitchBankedEth) || 0),
     updatedAt: Number(s.updatedAt) || 0,
   };
 }
@@ -298,8 +314,10 @@ export function deserializeTurnRecallStore(raw) {
     turns: turns.slice(-MAX_TURN_HISTORY),
     fills: Math.max(0, Math.floor(Number(raw.fills) || turns.length)),
     hitchEvents: Math.max(0, Math.floor(Number(raw.hitchEvents) || 0)),
+    hitchSkipped: Math.max(0, Math.floor(Number(raw.hitchSkipped) || 0)),
     hitchBytes: Math.max(0, Math.floor(Number(raw.hitchBytes) || 0)),
     hitchCostEth: Math.max(0, Number(raw.hitchCostEth) || 0),
+    hitchBankedEth: Math.max(0, Number(raw.hitchBankedEth) || 0),
     updatedAt: Number(raw.updatedAt) || 0,
   };
 }
@@ -342,6 +360,11 @@ export function recordTurnFill(raw, { persist = true, filePath = TURN_RECALL_FIL
     if (turn.hitchCostEth != null) {
       _store.hitchCostEth = (Number(_store.hitchCostEth) || 0) + turn.hitchCostEth;
     }
+  } else if (turn.hitchSkipped) {
+    _store.hitchSkipped = (Number(_store.hitchSkipped) || 0) + 1;
+    if (turn.hitchBankedEth != null) {
+      _store.hitchBankedEth = (Number(_store.hitchBankedEth) || 0) + turn.hitchBankedEth;
+    }
   }
   _store.updatedAt = turn.at;
   if (persist) {
@@ -359,9 +382,12 @@ export function lastTurns(n = DEFAULT_RECALL_N, store = _store) {
 export function usageFromTurns(turns = []) {
   let fills = 0;
   let hitchEvents = 0;
+  let hitchSkipped = 0;
   let hitchBytes = 0;
   let hitchCostEth = 0;
+  let hitchBankedEth = 0;
   let costKnown = false;
+  let bankKnown = false;
   for (const t of turns) {
     fills += 1;
     if (t?.hitchOnChain && Number(t.hitchBytes) > 0) {
@@ -371,13 +397,21 @@ export function usageFromTurns(turns = []) {
         hitchCostEth += Number(t.hitchCostEth);
         costKnown = true;
       }
+    } else if (t?.hitchSkipped) {
+      hitchSkipped += 1;
+      if (t.hitchBankedEth != null && Number.isFinite(Number(t.hitchBankedEth))) {
+        hitchBankedEth += Number(t.hitchBankedEth);
+        bankKnown = true;
+      }
     }
   }
   return {
     fills,
     hitchEvents,
+    hitchSkipped,
     hitchBytes,
     hitchCostEth: costKnown ? hitchCostEth : null,
+    hitchBankedEth: bankKnown ? hitchBankedEth : null,
     ...usageUnitsFrom({ fills, hitchEvents }),
   };
 }
@@ -414,6 +448,8 @@ export function buildRecallPayload({
     lifetime: life,
     hitchBytes,
     hitchCostEth: windowUsage.hitchCostEth,
+    hitchSkipped: windowUsage.hitchSkipped,
+    hitchBankedEth: windowUsage.hitchBankedEth,
     liquidEth: finiteEth(liquidEth),
     liquidWeth: finiteEth(liquidWeth),
     sleeves: Array.isArray(sleeves) ? sleeves : [],
@@ -451,7 +487,12 @@ export function formatTurnCardHtml(card = {}) {
       kind: t.hitchKind,
     });
     const cost = t.hitchCostEth != null ? ` · ${formatEthAmt(t.hitchCostEth)} ETH` : "";
-    lines.push(`hitch ${t.hitchBytes} B${klass ? ` ${klass}` : ""}${cost}`);
+    lines.push(`hitch sent ${t.hitchBytes} B${klass ? ` ${klass}` : ""}${cost}`);
+  } else if (side === "SELL" && t.hitchSkipped) {
+    const banked = t.hitchBankedEth != null ? formatEthAmt(t.hitchBankedEth) : null;
+    lines.push(banked
+      ? `hitch skipped · banked ${banked} ETH`
+      : `hitch skipped · banked`);
   }
   if (side === "SELL" && t.leftoverVsPlus?.verdict && t.leftoverVsPlus.verdict !== "unknown") {
     const left = formatEthAmt(t.leftoverVsPlus.leftoverEth);
@@ -461,7 +502,7 @@ export function formatTurnCardHtml(card = {}) {
     const d = fmtSignedEth(t.closedPnl.fifoDeltaEth);
     const usd = finiteEth(t.closedPnl.usdMark);
     const usdStr = usd != null ? ` · ${usd >= 0 ? "+" : ""}$${usd.toFixed(2)}` : "";
-    lines.push(`closed FIFO Δ ${d} ETH${usdStr}`);
+    lines.push(`micro P&L ${d} ETH${usdStr}`);
   }
   const liqE = finiteEth(t.liquidEth);
   const liqW = finiteEth(t.liquidWeth);
@@ -509,13 +550,13 @@ export function formatRecallHtml(payload = {}) {
           : (t.fifoEthOut != null ? ` out ${formatEthAmt(t.fifoEthOut)}` : ""))
         : " FIFO?";
       const hitch = t.hitchOnChain && t.hitchBytes > 0
-        ? ` · ${t.hitchBytes}B${t.hitchClass ? ` ${t.hitchClass}` : ""}`
-        : "";
+        ? ` · hitch sent ${t.hitchBytes}B${t.hitchClass ? ` ${t.hitchClass}` : ""}`
+        : (side === "SELL" && t.hitchSkipped ? " · hitch skipped" : "");
       const plus = side === "SELL" && t.leftoverVsPlus?.verdict && t.leftoverVsPlus.verdict !== "unknown"
         ? ` · ${t.leftoverVsPlus.verdict}`
         : "";
       const pnl = side === "SELL" && t.closedPnl?.known
-        ? ` · Δ ${fmtSignedEth(t.closedPnl.fifoDeltaEth)}`
+        ? ` · micro ${fmtSignedEth(t.closedPnl.fifoDeltaEth)}`
         : "";
       lines.push(`${side} <b>${t.symbol}</b> ${t.shortTx || "—"}${fifo}${hitch}${plus}${pnl}`);
     }
@@ -524,8 +565,10 @@ export function formatRecallHtml(payload = {}) {
   lines.push(formatUsageRecallLine({
     fills: payload.usage?.fills ?? 0,
     hitchEvents: payload.usage?.hitchEvents ?? 0,
+    hitchSkipped: payload.hitchSkipped ?? payload.usage?.hitchSkipped ?? 0,
     hitchBytes: payload.hitchBytes ?? payload.usage?.hitchBytes ?? 0,
     hitchCostEth: payload.hitchCostEth ?? payload.usage?.hitchCostEth,
+    hitchBankedEth: payload.hitchBankedEth ?? payload.usage?.hitchBankedEth,
   }));
   const liqE = finiteEth(payload.liquidEth);
   const liqW = finiteEth(payload.liquidWeth);

@@ -48,6 +48,50 @@ import { formatTurnCardHtml } from "./telegram-turn-card.js";
 
 export const PIGGY_UNLOCK_PREFIX = "PIGGY UNLOCK";
 export const DEFAULT_PIGGY_BANK_PCT = 0.05;
+
+/**
+ * Hitch-budget piggy — skipped message room toward the next worth-sending
+ * hitch. Not token-dust piggy and not invented P&L.
+ */
+let _hitchBudgetEth = 0;
+
+export function hitchBudgetBalanceEth() {
+  return _hitchBudgetEth;
+}
+
+export function resetHitchBudget(eth = 0) {
+  const n = Number(eth);
+  _hitchBudgetEth = Number.isFinite(n) && n > 0 ? n : 0;
+  return _hitchBudgetEth;
+}
+
+export function creditHitchBank(eth, { symbol = "?", reason = "skip" } = {}) {
+  const n = Math.max(0, Number(eth) || 0);
+  _hitchBudgetEth += n;
+  return {
+    credited: n,
+    total: _hitchBudgetEth,
+    reason,
+    symbol,
+    log:
+      `HITCH_BANK: skip ${symbol} credit ${n.toExponential(2)} ETH` +
+      ` → bank ${_hitchBudgetEth.toExponential(2)} (next worth-sending message; not P&L)`,
+  };
+}
+
+export function consumeHitchBankOnSend({ symbol = "?" } = {}) {
+  const spent = _hitchBudgetEth;
+  _hitchBudgetEth = 0;
+  return {
+    spent,
+    total: 0,
+    symbol,
+    log: spent > 0
+      ? `HITCH_BANK: sent ${symbol} cleared bank ${spent.toExponential(2)} ETH`
+      : null,
+  };
+}
+
 export const DEFAULT_PIGGY_BANK_MIN_USD = 0.15;
 /** Fraction of proceeds that must remain as true earnings after fees/skim/hitch. */
 export const DEFAULT_PIGGY_EARNINGS_BUFFER_PCT = 0.05;

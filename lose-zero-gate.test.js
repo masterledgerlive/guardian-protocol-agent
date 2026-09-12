@@ -92,6 +92,12 @@ import {
   netUsdAfterSkim,
   netAfterSkimEth,
   UNKNOWN_COST_GAS_EDGE_MULT,
+  EUREKA_LETTER_BYTES,
+  hitchFloorPacketBytes,
+  microExtractFloorEth,
+  hitchAttachNeedEth,
+  hitchAttachFloorEth,
+  hitchBankCreditEth,
 } from "./lose-zero-gate.js";
 import { sizeHatBytesForWave } from "./hat-wave-inject.js";
 
@@ -866,9 +872,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     }), false);
   });
 
-  it("sell hitches at 1× when leftover covers 1× hitch but not 2× (buy hitch already in basis)", () => {
+  it("micro-green leftover that covers 1× hitch but not 2× sells plain and banks hitch", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
-    // leftover after fees = 1.5× hitch — enough for 1× this-tx hitch, not 2× size cushion
+    // leftover after fees = 1.5× hitch — micro extract, not hitch floor (2×)
     const leftover = hitch * 1.5;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01 + leftover,
@@ -882,11 +888,15 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       symbol: "TOSHI",
     });
     assert.equal(d.allow, true);
-    assert.equal(d.skipHitch, false);
-    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "SKIP_HITCH");
+    assert.equal(d.hitchBytes, 0);
     assert.ok(d.plusNetEth > 0);
-    assert.equal(d.verdict, "PLUS");
-    assert.match(d.alwaysPlusLog, /PLUS/);
+    assert.ok(d.hitchBankedEth > 0);
+    assert.ok(d.hitchBankedEth <= leftover + 1e-18);
+    assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    assert.match(d.alwaysPlusLog, /banked=/);
+    assert.match(d.log, /micro extract|hitch skipped \+ banked/);
   });
 
   it("sell allowed when leftover covers hitch + edge (2×)", () => {
@@ -908,7 +918,7 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.ok(d.hitchBytes > 0);
     assert.ok(d.plusNetEth > 0);
     assert.equal(d.verdict, "PLUS");
-    assert.match(d.log, /leftover covers hitch \+ edge/);
+    assert.match(d.log, /leftover covers hitch floor|hitch \+ edge/);
     assert.match(d.log, /sell now/);
     assert.match(d.alwaysPlusLog, /PLUS/);
   });
@@ -2011,5 +2021,102 @@ describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
     });
     assert.equal(dust.allow, true);
     assert.equal(dust.reason, "flat-or-empty");
+  });
+});
+
+describe("micro extract vs hitch floor — hitch optional, red still HOLD", () => {
+  it("splits micro_floor vs hitch_floor; picture 10KB does not raise hitch packet", () => {
+    assert.equal(EUREKA_LETTER_BYTES, 229);
+    assert.equal(hitchFloorPacketBytes(STORE_HITCH_BYTES), STORE_HITCH_BYTES);
+    assert.equal(hitchFloorPacketBytes(69), 69);
+    assert.equal(hitchFloorPacketBytes(400), EUREKA_LETTER_BYTES);
+    assert.equal(hitchFloorPacketBytes(10_000), EUREKA_LETTER_BYTES);
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const micro = microExtractFloorEth({
+      entryEth: 0.01,
+      sellPct: 1,
+      projectedProceedsEth: 0.012,
+      feePct: 0,
+      gasCostEth: 0,
+    });
+    assert.ok(Math.abs(micro - (0.01 + MIN_PLUS_ETH)) < 1e-18);
+    assert.equal(hitchAttachNeedEth(hitch, 2), hitch * 2);
+    const hitchFloor = hitchAttachFloorEth({
+      entryEth: 0.01,
+      sellPct: 1,
+      projectedProceedsEth: 0.012,
+      hitchCostEth: hitch,
+      hitchCostMult: 2,
+    });
+    assert.ok(hitchFloor > micro);
+    assert.ok(Math.abs(hitchFloor - (micro + hitch * 2)) < 1e-18);
+    assert.equal(hitchBankCreditEth(hitch * 0.4, hitch), hitch * 0.4);
+    assert.equal(hitchBankCreditEth(hitch * 3, hitch), hitch);
+    assert.equal(hitchBankCreditEth(0, hitch), 0);
+  });
+
+  it("FIFO-red leftover after fees HOLDs — LOSE_ZERO underwater ban stays", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.009,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "AERO",
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.equal(d.hitchBankedEth, 0);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+    assert.match(d.log, /leftover after fees|lose money/i);
+  });
+
+  it("micro-green sells without hitch and logs hitch-bank skip", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.2;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "DRB",
+      reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "SKIP_HITCH");
+    assert.ok(d.hitchBankedEth > 0);
+    assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    assert.match(d.alwaysPlusLog, /banked=/);
+    assert.match(d.log, /hitch skipped \+ banked|micro extract/);
+  });
+
+  it("hitch rides only when leftover covers hitch × 2 (banking reserved)", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 2 + 0.0001;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "BNKR",
+      reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.verdict, "PLUS");
+    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.hitchBankedEth, 0);
+    assert.match(d.log, /hitch floor/);
+    assert.match(d.alwaysPlusLog, /PLUS/);
   });
 });

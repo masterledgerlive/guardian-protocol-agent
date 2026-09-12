@@ -119,7 +119,7 @@ describe("turn card formatters — no invented P&L", () => {
     assert.deepEqual(usageUnitsFrom({ fills: 3, hitchEvents: 2 }), { fills: 3, hitchEvents: 2, units: 5 });
     const line = formatUsageRecallLine({ fills: 3, hitchEvents: 2, hitchBytes: 138 });
     assert.match(line, /3 fills · 2 hitch · 5 units toward piggy cover/);
-    assert.match(line, /hitch spent: 138 B/);
+    assert.match(line, /hitch sent: 138 B/);
     assert.doesNotMatch(line, /\$/);
     assert.doesNotMatch(line, /Grok/i);
     const withEth = formatUsageRecallLine({
@@ -153,11 +153,11 @@ describe("turn card formatters — no invented P&L", () => {
     assert.match(html, /0x94faa542…/);
     assert.match(html, /FIFO in/);
     assert.match(html, /0\.001234 ETH/);
-    assert.match(html, /hitch 69 B KEY\+LOC/);
+    assert.match(html, /hitch sent 69 B KEY\+LOC/);
     assert.match(html, /liquid 0\.002000 ETH \+ 0\.003000 WETH/);
-    assert.doesNotMatch(html, /closed FIFO/);
+    assert.doesNotMatch(html, /micro P&L/);
     assert.doesNotMatch(html, /leftover/);
-    assert.doesNotMatch(html, /P&L/);
+    assert.doesNotMatch(html, /closed FIFO/);
   });
 
   it("sell turn card leftover vs PLUS + closed FIFO Δ only when known", () => {
@@ -180,7 +180,7 @@ describe("turn card formatters — no invented P&L", () => {
     assert.match(html, /TURN CARD — SELL DRB/);
     assert.match(html, /FIFO out/);
     assert.match(html, /leftover .* vs PLUS · PLUS/);
-    assert.match(html, /closed FIFO Δ \+/);
+    assert.match(html, /micro P&L \+/);
     assert.match(html, /\$4\.20/);
     assert.match(html, /§\$STORE§/);
 
@@ -194,9 +194,35 @@ describe("turn card formatters — no invented P&L", () => {
       usdMark: 99,
     }));
     assert.match(unknown, /FIFO — unknown \(not invented\)/);
+    assert.doesNotMatch(unknown, /micro P&L/);
     assert.doesNotMatch(unknown, /closed FIFO/);
     assert.doesNotMatch(unknown, /\$99/);
     assert.doesNotMatch(unknown, /vs PLUS/);
+  });
+
+  it("sell turn card shows hitch skipped (banked) and never invents hitch sent", () => {
+    const card = buildTurnRecord({
+      side: "SELL",
+      symbol: "AERO",
+      txHash: "0x94faa542b54eb06804bfde79354701cd0a7fa4964cf230791bfd07fc10a22b25",
+      fifoKnown: true,
+      fifoEthIn: 0.01,
+      fifoEthOut: 0.0102,
+      leftoverEth: 0.0002,
+      hitchSkipped: true,
+      hitchBankedEth: 0.000004,
+    });
+    const html = formatTurnCardHtml(card);
+    assert.match(html, /hitch skipped · banked 4\.00e-6 ETH/);
+    assert.match(html, /micro P&L \+/);
+    assert.doesNotMatch(html, /hitch sent/);
+    const recall = formatRecallHtml(buildRecallPayload({
+      store: { turns: [card], fills: 1, hitchEvents: 0, hitchSkipped: 1, hitchBankedEth: 0.000004 },
+      n: 1,
+    }));
+    assert.match(recall, /hitch skipped/);
+    assert.match(recall, /hitch banked/);
+    assert.doesNotMatch(recall, /Grok/i);
   });
 });
 
@@ -457,7 +483,7 @@ describe("recall payload + /bag /recall parse", () => {
     assert.equal(unknown.hitchCostEth, null);
     assert.equal(unknown.usage.hitchCostEth, null);
     const unknownHtml = formatRecallHtml(unknown);
-    assert.match(unknownHtml, /hitch spent: 138 B/);
+    assert.match(unknownHtml, /hitch sent: 138 B/);
     assert.doesNotMatch(unknownHtml, /0\.009/);
     assert.doesNotMatch(unknownHtml, /9\.00e/);
     assert.doesNotMatch(unknownHtml, /ETH/);

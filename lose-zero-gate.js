@@ -12,11 +12,12 @@ import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
  * Add-on into a known FIFO-red lot is blocked by default
  * (`ALLOW_ADD_ON_FIFO_RED`); first buy into empty/flat is OK.
  * Sell always-plus (hard rule): expected net proceeds must beat
- *   entry_basis_for_sold_frac + fees + hitch_cost_for_THIS_tx
- * even by 1 wei. Buy hitch is already in cost basis (`investedEthWithCosts`);
- * the sell leg charges 1× of the hitch that actually rides. HITCH_COST_MULT
- * (default 2) is a *size* cushion (spend leftover/mult on payload) — it is
- * not a veto that HOLDs a green wave, and it must not eat the plus.
+ *   entry_basis_for_sold_frac + fees
+ * even by 1 wei (micro extract). Hitch is optional: attach only when leftover
+ * after that micro floor also covers hitch_cost × HITCH_COST_MULT (default 2×
+ * Eureka cushion once piggy banking is reserved). Otherwise SKIP_HITCH and
+ * bank the unused hitch room toward the next worth-sending message — do not
+ * HOLD a green exit waiting for a fat wave, and do not invent P&L.
  * inject_hitch_cost = L2 calldata-char gas + live Base L1 data fee (GasPriceOracle
  * getL1Fee / getL1FeeUpperBound) + provider/value fee + optional BTP inscription.
  * L1 is preferred when quoted; oracle failure → SKIP_HITCH (plain plus sale).
@@ -37,8 +38,10 @@ export const STORE_HITCH_TAG = "§$STORE§";
 export const STORE_HITCH_BYTES = 10;               // UTF-8 length of §$STORE§
 export const CALLDATA_GAS_PER_NONZERO_BYTE = 16;   // EIP-2028
 export const BTP_INSCRIBE_GAS_UNITS = 50_000;      // separate BTP self-send inscription tx
-export const DEFAULT_HITCH_COST_MULT = 2;          // sell hitch SIZE budget leftover/mult; plus gate is 1× this tx
-/** 1 wei — every auto exit must print at least this plus after entry+fees+hitch. */
+export const DEFAULT_HITCH_COST_MULT = 2;          // hitch-floor / size cushion leftover/mult; micro extract ignores this
+/** Eureka letter class — picture 10KB is a size ceiling, not a hitch-floor packet. */
+export const EUREKA_LETTER_BYTES = 229;
+/** 1 wei — every auto exit must print at least this plus after entry+fees (hitch optional). */
 export const MIN_PLUS_ETH = 1e-18;
 /**
  * Unknown-cost bags (entryEth=0) used to look "green" on leftover = proceeds − fees
@@ -251,10 +254,10 @@ export function isInjectCoverRequired(env = process.env) {
 }
 
 /**
- * Sell-side hitch *size* multiplier. Env `HITCH_COST_MULT` overrides; default 2.
- * Budget for payload = leftover / mult so a 2× cushion remains as plus.
- * If leftover covers 1× hitch but not 2×, hitch still rides at 1× (buy hitch
- * already sits in cost basis). Buys ignore this and stay at 1× leftover cover.
+ * Sell-side hitch *attach* + size multiplier. Env `HITCH_COST_MULT` overrides; default 2.
+ * Micro extract sells at leftover after fees (no hitch). Hitch rides only when
+ * leftover after the piggy buffer also covers hitch_cost × mult (2× Eureka
+ * cushion when banking is reserved). Buys ignore this and stay at 1× leftover cover.
  */
 export function hitchCostMult(env = process.env) {
   const n = Number(env?.HITCH_COST_MULT);
@@ -972,8 +975,68 @@ export function netUsdAfterSkim({
 }
 
 /**
+ * Worth-sending hitch packet for the hitch floor. Picture 10KB is a size
+ * ceiling — do not raise hitch_floor to 2× 10KB (that freezes all messages).
+ */
+export function hitchFloorPacketBytes(wantedBytes = STORE_HITCH_BYTES) {
+  const w = Math.max(0, Math.floor(Number(wantedBytes) || 0));
+  const packet = w > 0 ? w : STORE_HITCH_BYTES;
+  return Math.min(packet, EUREKA_LETTER_BYTES);
+}
+
+/** micro_floor = soldFrac×entry + sell fees + 1 wei. Hitch is not in this floor. */
+export function microExtractFloorEth({
+  entryEth = 0,
+  sellPct = 1,
+  projectedProceedsEth = 0,
+  feePct = 0,
+  gasCostEth = 0,
+  impactPct = 0,
+} = {}) {
+  return entrySliceEth(entryEth, sellPct)
+    + sellFeesEth({ projectedProceedsEth, feePct, gasCostEth, impactPct })
+    + MIN_PLUS_ETH;
+}
+
+/** hitch_need = hitch_cost × HITCH_COST_MULT (default 2× Eureka cushion). */
+export function hitchAttachNeedEth(hitchCostEth = 0, hitchCostMultArg = DEFAULT_HITCH_COST_MULT) {
+  const hitch = Math.max(0, Number(hitchCostEth) || 0);
+  const m = Number.isFinite(Number(hitchCostMultArg)) && Number(hitchCostMultArg) > 0
+    ? Number(hitchCostMultArg)
+    : DEFAULT_HITCH_COST_MULT;
+  return hitch * m;
+}
+
+/**
+ * Hitch-floor proceeds: micro_floor + hitch_need. Diagnostic / sims only —
+ * evaluateSellGate does not HOLD a green leftover that misses this.
+ */
+export function hitchAttachFloorEth({
+  entryEth = 0,
+  sellPct = 1,
+  projectedProceedsEth = 0,
+  feePct = 0,
+  gasCostEth = 0,
+  impactPct = 0,
+  hitchCostEth = 0,
+  hitchCostMult: mult = DEFAULT_HITCH_COST_MULT,
+} = {}) {
+  return microExtractFloorEth({
+    entryEth, sellPct, projectedProceedsEth, feePct, gasCostEth, impactPct,
+  }) + hitchAttachNeedEth(hitchCostEth, mult);
+}
+
+/** Unused hitch room to bank — leftover after fees, capped at hitch cost. Not P&L. */
+export function hitchBankCreditEth(leftoverAfterFees = 0, hitchWouldEth = 0) {
+  const left = Math.max(0, Number(leftoverAfterFees) || 0);
+  const hitch = Math.max(0, Number(hitchWouldEth) || 0);
+  if (!(left > 0) || !(hitch > 0)) return 0;
+  return Math.min(left, hitch);
+}
+
+/**
  * Minimum ETH proceeds required so the sell covers entry + fees + N× hitch.
- * sell_target = fair_exit + fees + (HITCH_COST_MULT * inject_hitch_cost)
+ * hitch_floor only — micro extract uses leftover after fees and skips hitch.
  */
 export function minSellProceedsEth({
   entryEth = 0,
@@ -1155,6 +1218,7 @@ export function formatAlwaysPlusLog({
   feesEth = 0,
   hitchCostEth = 0,
   hitchWouldEth,
+  hitchBankedEth,
   netEth = 0,
   hitchBytes = 0,
 } = {}) {
@@ -1164,9 +1228,13 @@ export function formatAlwaysPlusLog({
   };
   const v = String(verdict || "HOLD").toUpperCase();
   if (v === "SKIP_HITCH") {
+    const banked = Number(hitchBankedEth);
+    const bankBit = Number.isFinite(banked) && banked > 0
+      ? ` banked=${n(banked)}`
+      : "";
     return (
       `SKIP_HITCH sell ${symbol} leftover=${n(leftover)} hitchWould=${n(hitchWouldEth ?? hitchCostEth)}` +
-      ` — plain sale net=${n(leftover)}`
+      `${bankBit} — plain sale net=${n(leftover)} (micro extract)`
     );
   }
   if (v === "FORCE_EXIT") {
@@ -1293,11 +1361,13 @@ export function sizeHitchForSell({
 /**
  * LOSE-ZERO sell gate. Always on.
  *
- * Always-plus: leftover after entry_sold + fees must be > 0. Hitch on THIS tx
- * is 1× (buy hitch already in basis). HITCH_COST_MULT sizes payload (leftover/mult)
- * only when that still leaves plus; otherwise hitch at 1× or SKIP_HITCH.
- * STOP LOSS is NOT a loss bypass. Unknown-cost is HOLD. Operator cannot sell
- * red. Only FORCE EXIT LOCKED recovers stranded majors (no hitch).
+ * Micro extract: leftover after entry_sold + fees must be > 0. Hitch is
+ * optional — attach only when leftover after piggy buffer also covers
+ * hitch_cost × HITCH_COST_MULT (default 2× Eureka cushion). Otherwise
+ * SKIP_HITCH, sell plain, and bank unused hitch room. Never HOLD a green
+ * leftover waiting for hitch. STOP LOSS is NOT a loss bypass. Unknown-cost
+ * is HOLD. Operator cannot sell red. Only FORCE EXIT LOCKED recovers
+ * stranded majors (no hitch).
  */
 export function evaluateSellGate({
   projectedProceedsEth = 0,
@@ -1354,13 +1424,14 @@ export function evaluateSellGate({
     gwei,
     providerFeeEth,
     btpGasUnits,
-    hitchCostMult: 1, // plus gate is 1× hitch on THIS sell
+    hitchCostMult: 1, // micro extract is leftover after fees; hitch is optional
     l1FeeEth,
     btpL1FeeEth,
   };
   const leftover = leftoverAfterFeesEth(base);
   const feesEth = sellFeesEth(base);
   const entrySold = entrySliceEth(entryEth, sellPct);
+  const microFloor = microExtractFloorEth(base);
   const earningsBuf = Math.max(0, Number(piggyEarningsBufferEth) || 0);
   const hitchBudget = leftover - earningsBuf;
   const forceExit = isForceExitLockedReason(reason);
@@ -1389,9 +1460,29 @@ export function evaluateSellGate({
     l1FeePerByteEth,
     btpL1FeeEth,
   };
-  // Size hitch DOWN to leftover − 1 wei plus. 2× is not a sell veto and must
-  // not shrink inject when leftover already covers 1× this tx.
-  let sized = sizeHitchForSell({ ...sizeArgs, hitchCostMult: 1 });
+  // Hitch floor uses a worth-sending packet (capped at Eureka letter).
+  // 2× is the attach bar — do not hitch at 1× leftover (that burns micro profit).
+  const floorBytes = hitchFloorPacketBytes(wantedHitchBytes);
+  const floorL1 = hasLiveL1Fee(l1FeeEth) && wanted > 0
+    ? Number(l1FeeEth) * floorBytes / wanted
+    : (hasLiveL1Fee(reservedL1) ? Number(reservedL1) : undefined);
+  const hitchWould = estimateInjectHitchCostEth({
+    hitchBytes: floorBytes,
+    gwei,
+    providerFeeEth,
+    btpInscribe: wantBtpInscribe,
+    btpGasUnits,
+    l1FeeEth: floorL1,
+    btpL1FeeEth,
+  });
+  const hitchNeed = hitchAttachNeedEth(hitchWould, mult);
+  const hitchFloor = microFloor + hitchNeed;
+  const coversHitchFloor = hitchBudget > hitchNeed
+    && plusAfterHitchEth(leftover, hitchWould) > 0;
+  let sized = sizeHitchForSell({
+    ...sizeArgs,
+    hitchCostMult: coversHitchFloor ? Math.max(1, mult) : 1,
+  });
   const hitchThis = sized.skipHitch ? 0 : (Number(sized.injectCostEth) || 0);
   const plusNet = plusAfterHitchEth(leftover, hitchThis);
 
@@ -1403,6 +1494,7 @@ export function evaluateSellGate({
     btpGasUnits,
     l1FeeEth: reservedL1,
   });
+  const hitchBanked = hitchBankCreditEth(leftover, hitchWould || reservedHitch);
   const reservedCover = coversHitchAndEntry({
     ...base,
     hitchBytes: STORE_HITCH_BYTES,
@@ -1435,6 +1527,9 @@ export function evaluateSellGate({
       || (allow ? (extra.skipHitch ? "SKIP_HITCH" : "PLUS") : "HOLD");
     const hitchCost = extra.injectCostEth ?? (extra.skipHitch ? 0 : sized.injectCostEth);
     const net = extra.netEth ?? plusAfterHitchEth(leftover, extra.skipHitch ? 0 : hitchCost);
+    const banked = allow && extra.skipHitch && verdict !== "FORCE_EXIT" && verdict !== "HOLD"
+      ? (extra.hitchBankedEth ?? hitchBanked)
+      : 0;
     return {
       allow,
       leftover,
@@ -1442,6 +1537,9 @@ export function evaluateSellGate({
       feesEth,
       plusNetEth: net,
       verdict,
+      microFloorEth: extra.microFloorEth ?? microFloor,
+      hitchFloorEth: extra.hitchFloorEth ?? hitchFloor,
+      hitchBankedEth: extra.skipHitch ? banked : 0,
       hitchBytes: extra.skipHitch ? 0 : bytes,
       btpInscribe: extra.skipHitch ? false : (extra.btpInscribe ?? sized.btpInscribe),
       skipHitch: extra.skipHitch ?? sized.skipHitch,
@@ -1463,7 +1561,8 @@ export function evaluateSellGate({
         entrySold,
         feesEth,
         hitchCostEth: extra.skipHitch ? 0 : hitchCost,
-        hitchWouldEth: extra.hitchWouldEth,
+        hitchWouldEth: extra.hitchWouldEth ?? hitchWould,
+        hitchBankedEth: extra.skipHitch ? banked : 0,
         netEth: net,
         hitchBytes: extra.skipHitch ? 0 : bytes,
       }),
@@ -1485,6 +1584,7 @@ export function evaluateSellGate({
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
+      hitchBankedEth: 0,
       injectCostEth: 0,
       hitchCoverEth: reservedCover.hitchCoverEth,
       edge: leftover,
@@ -1572,16 +1672,19 @@ export function evaluateSellGate({
       hitchFeeSource: source,
       verdict: "SKIP_HITCH",
       netEth: leftover,
-      hitchWouldEth: hitchThis || reservedHitch,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`,
+      hitchWouldEth: hitchWould || hitchThis || reservedHitch,
+      hitchBankedEth: hitchBanked,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — L1 fee unknown (oracle fallback); hitch skipped + banked so insert cannot undercover`,
     });
   }
 
-  // Hitch would wipe leftover (or piggy buffer left no hitch budget) — plain PLUS.
-  if (sized.skipHitch || hitchThis <= 0 || hitchBudget <= 0 || plusNet <= 0) {
+  // Hitch floor miss (or piggy buffer / size skip) — micro extract, bank hitch.
+  if (!coversHitchFloor || sized.skipHitch || hitchThis <= 0 || hitchBudget <= 0 || plusNet <= 0) {
     const whyBuf = hitchBudget <= 0
-      ? "piggy earnings buffer + hitch"
-      : "hitch";
+      ? "piggy earnings buffer + hitch floor"
+      : !coversHitchFloor
+        ? "hitch floor (2× cushion)"
+        : "hitch";
     return pack(true, "plain sale hitch skipped", {
       hitchBytes: 0,
       btpInscribe: false,
@@ -1593,18 +1696,20 @@ export function evaluateSellGate({
       sellNow: true,
       verdict: "SKIP_HITCH",
       netEth: leftover,
-      hitchWouldEth: hitchThis || sized.injectCostEth || reservedHitch,
-      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees but not ${whyBuf}; VITA hitch skipped so we still take the wave`,
+      hitchWouldEth: hitchWould || hitchThis || sized.injectCostEth || reservedHitch,
+      hitchBankedEth: hitchBanked,
+      log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees (micro extract) but not ${whyBuf}; hitch skipped + banked toward next message`,
     });
   }
 
-  // 1× hitch on THIS tx still leaves plus.
+  // Hitch floor clears — leftover covers hitch × mult and still plus.
   void check;
   return pack(true, "leftover covers hitch + edge", {
     sellNow: true,
     verdict: "PLUS",
     netEth: plusNet,
-    log: `LOSE_ZERO: allow sell ${symbol} leftover covers hitch + edge — sell now (1x plus gate, hitch sized to leftover)`,
+    hitchBankedEth: 0,
+    log: `LOSE_ZERO: allow sell ${symbol} leftover covers hitch floor — sell now (hitch ${mult}× cushion, micro already banked)`,
   });
 }
 

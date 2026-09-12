@@ -296,6 +296,8 @@ import {
   formatBuyReceiptHtml,
   formatSellReceiptHtml,
   piggyCoInvestMarkUsd,
+  creditHitchBank,
+  consumeHitchBankOnSend,
 } from "./piggy-bank.js";
 import {
   buildTurnRecord,
@@ -6985,6 +6987,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const fifoSellKnown = trustedBasis && Number(entryEthSold) > 0 && Number(received) > 0;
     const leftoverEth = fifoSellKnown ? received - entryEthSold : null;
+    const hitchSkippedFill = !sellVoice.onChain && (!!sellSkipHitch || !!sellGate.skipHitch);
+    if (hitchSkippedFill) {
+      const bank = creditHitchBank(sellGate.hitchBankedEth, { symbol: token.symbol, reason: "skip" });
+      if (bank.log) console.log(`   ${bank.log}`);
+    } else if (sellVoice.onChain) {
+      const cleared = consumeHitchBankOnSend({ symbol: token.symbol });
+      if (cleared.log) console.log(`   ${cleared.log}`);
+    }
     const sellTurn = buildTurnRecord({
       side: "SELL",
       symbol: token.symbol,
@@ -6999,6 +7009,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       hitchUtf8: sellVoice.utf8 || "",
       hitchKind: sellVoice.kind || sellVoice.vitaKind || "",
       hitchCostEth: sellVoice.onChain && Number(hitchCostEth) > 0 ? hitchCostEth : null,
+      hitchSkipped: hitchSkippedFill,
+      hitchBankedEth: hitchSkippedFill ? (Number(sellGate.hitchBankedEth) || 0) : null,
       liquidEth: Number.isFinite(eAfter) ? eAfter : null,
       liquidWeth: Number.isFinite(wAfter) ? wAfter : null,
     });
@@ -12134,7 +12146,7 @@ async function main() {
   } else if (isInjectCoverRequired()) {
     console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
   }
-  console.log(`🧷 SELL FLOOR — always-plus vs soldFrac×entry + fees + 1× hitch this tx; HITCH_COST_MULT=${hitchCostMult()} is size cushion only; never sell red to inject`);
+  console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; hitch only when leftover covers HITCH_COST_MULT=${hitchCostMult()}× (else skip + bank); never sell red to inject`);
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
@@ -13421,7 +13433,9 @@ async function main() {
           console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 or unknown cost (would lose money)`);
           continue;
         }
-        const moonHitchNote = moonGate.skipHitch ? "plain sale (VITA hitch skipped)" : "PLUS (1× hitch this tx)";
+        const moonHitchNote = moonGate.skipHitch
+          ? `plain sale (hitch skipped + banked ${Number(moonGate.hitchBankedEth || 0).toExponential(2)} ETH)`
+          : "PLUS (hitch floor cleared)";
         const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
