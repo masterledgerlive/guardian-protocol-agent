@@ -211,7 +211,7 @@ function snapshotPayload() {
     timestamp: new Date().toISOString(),
     help: {
       seeToken: "Open basescanToken links — Basescan overview can hide majors like UNI/LINK",
-      telegram: ["/status", "/bank", "/piggy", "/tiers", "/buy LINK 2", "/sellhalf UNI"],
+      telegram: ["/status", "/bag", "/bank", "/piggy", "/tiers", "/buy LINK 2", "/sellhalf UNI"],
       engine: "/engine — wave / surfer / hitch board",
       board: "/board — control board hub (waves + arena learn + V4)",
     },
