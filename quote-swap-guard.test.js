@@ -24,6 +24,7 @@ import {
   GAME_DEX_PAIRS,
   AERO_TOKEN,
   AERO_UNI_V3_WETH_POOL,
+  AERO_UNI_V3_WETH_FEE,
   AERO_DEX_PAIRS,
   feeTierCandidates,
   catalogPoolFeePct,
@@ -375,6 +376,8 @@ describe("agent.js wiring — quote miss never sends", () => {
     assert.ok(sellBody.includes("selectUniV3WethUsdcPair"), "sells bind to DexScreener V3 WETH when known");
     assert.ok(sellBody.includes("preferredPool"), "sell quote must bind when DexScreener V3 WETH exists");
     assert.ok(sellBody.includes("AERO_UNI_V3_WETH_POOL"), "AERO FORCE_EXIT must pin Uni V3 WETH 0x3d5D1433");
+    assert.ok(sellBody.includes("AERO_UNI_V3_WETH_FEE"), "AERO sell must pin fee 3000 for that pool");
+    assert.ok(sellBody.includes('token.symbol !== "AERO"'), "live quote must not overwrite AERO fee 3000");
     assert.ok(buyBody.includes("liveFeeWithinGatedCost"), "buy must not send a live fee costlier than gated RT%");
     assert.ok(
       buyBody.indexOf("getOnChainBuyQuote") < buyBody.indexOf("liveFeeWithinGatedCost"),
@@ -638,6 +641,7 @@ describe("SwapRouter route vs DexScreener primary book", () => {
     assert.equal(r.allow, true);
     assert.equal(r.freezeBuys, false);
     assert.equal(r.swap.pairAddress.toLowerCase(), AERO_UNI_V3_WETH_POOL.toLowerCase());
+    assert.equal(AERO_UNI_V3_WETH_FEE, 3000);
     assert.equal(r.swap.quoteSymbol, "WETH");
     assert.ok(r.swap.liqUsd > 1_000_000);
     assert.notEqual(r.code, "PRIMARY_NOT_V3_WETH");

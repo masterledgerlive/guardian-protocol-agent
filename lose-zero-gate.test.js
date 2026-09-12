@@ -1866,6 +1866,28 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
     assert.equal(forceBnkr.skipHitch, true);
     assert.equal(forceBnkr.verdict, "FORCE_EXIT");
 
+    const forceReasonDrb = evaluateSellGate({
+      symbol: "DRB",
+      reason: "PIGGY UNLOCK DRB — FORCE EXIT LOCKED (cash free, no cascade)",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      env: {
+        ALLOW_LOSSY_OPERATOR_SELL: "no",
+        FORCE_EXIT_LOCKED_MAJORS: "no",
+        FORCE_EXIT_SYMBOLS: "",
+      },
+    });
+    assert.equal(forceReasonDrb.allow, true, "FORCE EXIT LOCKED reason must bypass always-plus / FIFO-red");
+    assert.equal(forceReasonDrb.skipHitch, true);
+    assert.equal(forceReasonDrb.verdict, "FORCE_EXIT");
+
     const dustSkipped = evaluateSellGate({
       symbol: "BASECAT",
       reason: "📅 Friday weekend de-risk sell+8%",

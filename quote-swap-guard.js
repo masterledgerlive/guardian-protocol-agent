@@ -54,6 +54,8 @@ export const AERO_TOKEN = "0x940181a94A35A4569E4529A3CDfB74e38FD98631";
  * Live ~$1.25M / ~$0.67M 24h — not the Aerodrome USDC primary (~$33M).
  */
 export const AERO_UNI_V3_WETH_POOL = "0x3d5D143381916280ff91407FeBEB52f2b60f33Cf";
+/** Live Uni V3 AERO/WETH book is 0.3% (GeckoTerminal / factory). Catalog must not send another fee. */
+export const AERO_UNI_V3_WETH_FEE = 3000;
 
 /** Live DexScreener AERO books — Aerodrome USDC is primary; Uni V3 WETH is the SwapRouter book. */
 export const AERO_DEX_PAIRS = [

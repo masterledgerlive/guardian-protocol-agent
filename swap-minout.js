@@ -63,9 +63,13 @@ export function asWei(v) {
   return n;
 }
 
+/** Never transferFrom the last wei — lottery-safe; live DRB FORCE_EXIT sold the full bag. */
+export const LOTTERY_SAFE_WEI = 1n;
+
 /**
  * amountIn must be ≤ live ERC20 balance, minus piggy dust unless unlocked.
- * Prevents SwapRouter02 STF (transferFrom) on float-rounded FORCE_EXIT sizes.
+ * Unlocked FORCE_EXIT still leaves 1 wei. Prevents SwapRouter02 STF
+ * (transferFrom) on float-rounded / exact-bag sizes (DRB 0xd78e0001…).
  */
 export function clampAmountInToLiveBalance({
   amountInWei = 0n,
@@ -77,14 +81,19 @@ export function clampAmountInToLiveBalance({
   const want = asWei(amountInWei);
   const reserved = unlockPiggy ? 0n : asWei(piggyReserveWei);
   const cappedReserve = reserved > live ? live : reserved;
-  const spendable = live > cappedReserve ? live - cappedReserve : 0n;
-  const amountIn = want < spendable ? want : spendable;
+  const leave = unlockPiggy
+    ? (live > LOTTERY_SAFE_WEI ? LOTTERY_SAFE_WEI : 0n)
+    : cappedReserve;
+  const spendable = live > leave ? live - leave : 0n;
+  const hardCap = live > LOTTERY_SAFE_WEI ? live - LOTTERY_SAFE_WEI : 0n;
+  const cap = spendable < hardCap ? spendable : hardCap;
+  const amountIn = want < cap ? want : cap;
   return {
     amountInWei: amountIn,
     liveBalanceWei: live,
-    piggyReserveWei: cappedReserve,
-    spendableWei: spendable,
-    clamped: want > spendable,
+    piggyReserveWei: unlockPiggy ? 0n : cappedReserve,
+    spendableWei: cap,
+    clamped: want > cap,
     blocked: amountIn <= 0n,
   };
 }
