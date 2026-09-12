@@ -363,6 +363,7 @@ import {
   requireFactoryLiquidity,
   UNISWAP_V3_FACTORY_BASE,
   AERO_UNI_V3_WETH_POOL,
+  AERO_UNI_V3_WETH_FEE,
 } from "./quote-swap-guard.js";
 import {
   BASE_QUOTER_V2,
@@ -1726,7 +1727,7 @@ const DEFAULT_TOKENS = [
   // ── TIER 1: ALPHA (40-50) ─────────────────────────────────────────────────
   // These are the horses. Deep liquidity, clean waves, real fundamentals.
 
-  { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+  { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", feeTier: AERO_UNI_V3_WETH_FEE,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     injectMain: true,
     score: { liquidity:9, waveQuality:9, fundamentals:8, coinbaseFit:10, community:8, total:44 },
     notes: "Aerodrome — inject main. DEX backbone of Base. SwapRouter02 fills Uni V3 WETH 0x3d5D143381916280ff91407FeBEB52f2b60f33Cf (~$1.25M), not Aerodrome-primary USDC." },
@@ -6580,13 +6581,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       const pairs = await fetchDexScreenerPairs(token.address);
       sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
     } catch { sellPreferredPool = null; }
-    if (token.symbol === "AERO") sellPreferredPool = AERO_UNI_V3_WETH_POOL;
+    if (token.symbol === "AERO") {
+      sellPreferredPool = AERO_UNI_V3_WETH_POOL;
+      swapFee = AERO_UNI_V3_WETH_FEE;
+    }
     try {
-      const live = await getOnChainSellQuote(token.address, amtToSell, token.feeTier, {
+      const live = await getOnChainSellQuote(token.address, amtToSell, swapFee, {
         preferredPool: sellPreferredPool,
       });
       quotedWeth = live?.amountOut ?? null;
-      if (live?.fee) swapFee = live.fee;
+      // AERO Uni V3 WETH 0x3d5D1433 is fee 3000 — do not adopt another book's fee.
+      if (live?.fee && token.symbol !== "AERO") swapFee = live.fee;
       if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
     } catch (e) {
       console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — not sending`);

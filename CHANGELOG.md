@@ -12,10 +12,11 @@ SwapRouter02 STF (`0xd78e0001…`) — float size > live wei / short allowance.
 - Game FORCE_EXIT priority is **AERO / DRB / BNKR** only (bags >$0.30).
   ALLOW_LOSSY or FORCE_EXIT_SYMBOLS / FORCE EXIT LOCKED bypass always-plus
   HOLD for those names. Hitch SKIP. Dust names stay always-plus.
-- amountIn ≤ live ERC20 wei (minus piggy unless unlock).
-- Re-read SwapRouter allowance ≥ amountIn before swap.
-- AERO sells pin Uni V3 WETH `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf` (catalog fee 3000 must not send the wrong book).
-- Approve re-reads SwapRouter **and** Permit2 allowance ≥ amountIn.
+- amountIn ≤ live ERC20 wei (minus piggy unless unlock); piggy-unlock
+  FORCE_EXIT still leaves 1 wei (lottery-safe — live DRB sold the full bag).
+- Re-read SwapRouter **and** Permit2 allowance ≥ amountIn before swap.
+- AERO sells pin Uni V3 WETH `0x3d5D143381916280ff91407FeBEB52f2b60f33Cf`
+  at fee **3000** (live book is 0.3%; catalog/quote must not adopt another fee).
 - Vault untouched.
 
 ### Fixed — unstick inject-all deadlock so PLUS bags can recycle

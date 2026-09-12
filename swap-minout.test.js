@@ -26,6 +26,7 @@ import {
   decodeStoreVoiceCalldata,
   encodingDoesNotLoseMoney,
   clampAmountInToLiveBalance,
+  LOTTERY_SAFE_WEI,
   needsSpenderApprove,
   sellApproveSpenders,
   DRB_STF_FAIL_AMOUNT_IN,
@@ -49,7 +50,7 @@ describe("toWei / spotOutWei", () => {
 });
 
 describe("amountIn clamp + approve path (live DRB STF)", () => {
-  it("clamps oversize FORCE_EXIT amountIn to live ERC20 wei", () => {
+  it("clamps oversize FORCE_EXIT amountIn to live ERC20 wei and leaves 1 wei", () => {
     const live = DRB_STF_FAIL_AMOUNT_IN - 1n;
     const sized = clampAmountInToLiveBalance({
       amountInWei: DRB_STF_FAIL_AMOUNT_IN,
@@ -57,9 +58,22 @@ describe("amountIn clamp + approve path (live DRB STF)", () => {
       piggyReserveWei: 0n,
       unlockPiggy: true,
     });
-    assert.equal(sized.amountInWei, live);
+    assert.equal(sized.amountInWei, live - LOTTERY_SAFE_WEI);
     assert.equal(sized.clamped, true);
     assert.equal(sized.blocked, false);
+    assert.ok(sized.amountInWei < live);
+  });
+
+  it("piggy-unlock FORCE_EXIT leaves 1 wei on the exact live bag (DRB 0xd78e0001 class)", () => {
+    const live = DRB_STF_FAIL_AMOUNT_IN;
+    const sized = clampAmountInToLiveBalance({
+      amountInWei: live,
+      liveBalanceWei: live,
+      piggyReserveWei: 0n,
+      unlockPiggy: true,
+    });
+    assert.equal(sized.amountInWei, live - 1n);
+    assert.equal(sized.clamped, true);
     assert.ok(sized.amountInWei <= live);
   });
 
@@ -80,7 +94,7 @@ describe("amountIn clamp + approve path (live DRB STF)", () => {
       piggyReserveWei: reserved,
       unlockPiggy: true,
     });
-    assert.equal(unlocked.amountInWei, 1000n);
+    assert.equal(unlocked.amountInWei, 999n);
     assert.equal(unlocked.piggyReserveWei, 0n);
   });
 
