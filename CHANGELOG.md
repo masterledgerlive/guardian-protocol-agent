@@ -14,7 +14,9 @@ into an underwater bag spends RISK while always-plus HOLDs exits.
 - `ALLOW_ADD_ON_FIFO_RED` default OFF / block (`no` / unset). Game override
   `yes` / `true` / `1` / `on` allows the add-on and logs why.
 - First buy into empty/flat is OK. Unknown bags are not treated as known
-  FIFO-red. When blocked: log why and skip (do not fill).
+  FIFO-red. Remaining FIFO is bag `totalInvestedEth` only — not the
+  sell-side lot floor (leftover/piggy after a plus partial must not look
+  red vs the unshrunk last fill). When blocked: log why and skip (do not fill).
 - Always-plus HOLD / LOSE-ZERO / `DISABLE_DOW_BIAS` / dust-recycle known
   FIFO / #83 usable ETH cost — unchanged.
 

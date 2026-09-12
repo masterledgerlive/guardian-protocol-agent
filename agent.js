@@ -145,6 +145,7 @@ import {
   sellEntryEthWithLotFloor,
   evaluateAddOnFifoRedGate,
   bagMarkProceedsEth,
+  addOnRemainingFifoEth,
 } from "./lose-zero-gate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -5700,7 +5701,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // into empty/flat is OK. Game override: ALLOW_ADD_ON_FIFO_RED=yes.
     {
       const existingBal = getCachedBalance(token.symbol) || 0;
-      const remainingFifoEth = sellEntryEthWithLotFloor(costBasisEth(token), token);
+      const remainingFifoEth = addOnRemainingFifoEth(token);
       const addOnGate = evaluateAddOnFifoRedGate({
         symbol: token.symbol,
         tokenBal: existingBal,

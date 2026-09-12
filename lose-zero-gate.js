@@ -154,6 +154,19 @@ export function isAllowAddOnFifoRed(env = process.env) {
   return envFlagOn("ALLOW_ADD_ON_FIFO_RED", env);
 }
 
+/**
+ * Remaining FIFO eth of the bag still on chain. Do **not** raise to the
+ * sell-side lot floor (`sellEntryEthWithLotFloor` / `operatorLot`) — that
+ * floor is the last fill so Friday cannot sell red. After a plus partial,
+ * leftover/piggy mark vs the unshrunk fill is almost always "red" and
+ * would skip a first buy into empty/dust.
+ */
+export function addOnRemainingFifoEth(token) {
+  if (!token || token.unknownEntry === true) return 0;
+  const n = Number(token.totalInvestedEth);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 /** Same bag ETH mark executeSell uses: units × USD / ETHUSD. */
 export function bagMarkProceedsEth({ tokenBal = 0, priceUsd = 0, ethUsd = 0 } = {}) {
   const bal = Number(tokenBal);

@@ -60,6 +60,7 @@ import {
   isExistingKnownFifoBag,
   isFifoRedLot,
   evaluateAddOnFifoRedGate,
+  addOnRemainingFifoEth,
   estimateCalldataHitchEth,
   estimateBtpInscribeEth,
   estimateInjectHitchCostEth,
@@ -1958,5 +1959,57 @@ describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
     assert.equal(d.blocked, false);
     assert.equal(d.reason, "override");
     assert.match(d.log, /Game override ALLOW_ADD_ON_FIFO_RED/);
+  });
+
+  it("leftover after plus partial uses remaining FIFO, not unshrunk lot floor", () => {
+    const leftover = latchFreshLot({
+      totalInvestedEth: 0.000045,
+      unknownEntry: false,
+    }, {
+      fillCostEth: 0.00045,
+      tokens: 284,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(sellEntryEthWithLotFloor(leftover.totalInvestedEth, leftover), 0.00045);
+    assert.equal(addOnRemainingFifoEth(leftover), 0.000045);
+    const leftoverMark = 0.00005;
+    const vsFloor = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 284,
+      remainingFifoEth: sellEntryEthWithLotFloor(leftover.totalInvestedEth, leftover),
+      markProceedsEth: leftoverMark,
+      env: {},
+    });
+    assert.equal(vsFloor.allow, false, "unshrunk floor would wrongly paint leftover red");
+    const vsRemain = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 284,
+      remainingFifoEth: addOnRemainingFifoEth(leftover),
+      markProceedsEth: leftoverMark,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(vsRemain.allow, true);
+    assert.equal(vsRemain.reason, "fifo-not-red");
+
+    const dustCleared = latchFreshLot({
+      totalInvestedEth: 0,
+      unknownEntry: false,
+    }, {
+      fillCostEth: 0.00045,
+      tokens: 2,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(addOnRemainingFifoEth(dustCleared), 0);
+    const dust = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0.0004,
+      remainingFifoEth: addOnRemainingFifoEth(dustCleared),
+      markProceedsEth: 1e-6,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(dust.allow, true);
+    assert.equal(dust.reason, "flat-or-empty");
   });
 });
