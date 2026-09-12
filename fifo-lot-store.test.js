@@ -11,6 +11,8 @@ import {
   TRANSFER_TOPIC,
   WETH_BASE,
   EVIDENCE_BUY_TXS,
+  DRB_TROUGH_BUY_TX,
+  EVIDENCE_ADDON_BUY_TXS,
   FIFO_LOTS_FILENAME,
   normalizeTxHash,
   isUsableLot,
@@ -38,6 +40,8 @@ import {
   lotAppliedOk,
   mergeLotMaps,
   isClearedLot,
+  lotHasBuyTx,
+  mergeBuyReceiptIntoLots,
 } from "./fifo-lot-store.js";
 import {
   fifoRemainingCostEth,
@@ -45,6 +49,7 @@ import {
   isDisableDowBias,
   freshLotCostFloor,
   sellEntryEthWithLotFloor,
+  isAllowAddOnFifoRed,
 } from "./lose-zero-gate.js";
 import { hasUsableCostBasis, costBasisEth, blendUsdEntryOnAddOnBuy } from "./price-oracle.js";
 import { classifyRecycleBag } from "./inject-revenue.js";
@@ -104,6 +109,27 @@ function drbReceipt() {
   };
 }
 
+/** Live DRB trough add-on 0x53a00788… nonce 5456 — WETH from wallet + DRB Transfer in. */
+const DRB_TROUGH_ETH_WEI = 1103497776848954n;
+const DRB_TROUGH_TOK_WEI = 13369674509388161257680n;
+
+function drbTroughReceipt() {
+  return {
+    receipt: {
+      status: "0x1",
+      transactionHash: DRB_TROUGH_BUY_TX,
+      logs: [
+        transferLog(DRB, "0x1111111111111111111111111111111111111111", WALLET, DRB_TROUGH_TOK_WEI),
+        transferLog(WETH_BASE, WALLET, "0x2626664c2603336E57B271c5C0b26F421741e481", DRB_TROUGH_ETH_WEI),
+      ],
+    },
+    tx: { hash: DRB_TROUGH_BUY_TX, value: "0x0" },
+    tokenAddress: DRB,
+    symbol: "DRB",
+    wallet: WALLET,
+  };
+}
+
 function bnkrReceipt() {
   const tok = 8449871739504488000000n;
   const eth = 785641613865003n;
@@ -147,6 +173,9 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.equal(EVIDENCE_BUY_TXS.AERO.startsWith("0x94faa542"), true);
     assert.equal(EVIDENCE_BUY_TXS.DRB.startsWith("0xe0f846a8"), true);
     assert.equal(EVIDENCE_BUY_TXS.BNKR.startsWith("0xeef39d62"), true);
+    assert.equal(DRB_TROUGH_BUY_TX.startsWith("0x53a00788"), true);
+    assert.equal(EVIDENCE_ADDON_BUY_TXS.DRB, DRB_TROUGH_BUY_TX);
+    assert.equal(normalizeTxHash(DRB_TROUGH_BUY_TX), DRB_TROUGH_BUY_TX);
   });
 
   it("after simulated restart, persisted lots rebuild FIFO so always-plus can evaluate", () => {
@@ -381,6 +410,7 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     });
     assert.ok(hashes.AERO.includes(AERO_HASH));
     assert.ok(hashes.DRB.includes(EVIDENCE_BUY_TXS.DRB));
+    assert.ok(hashes.DRB.includes(DRB_TROUGH_BUY_TX), "DRB trough add-on must be seeded");
     assert.ok(hashes.BNKR.includes(EVIDENCE_BUY_TXS.BNKR));
   });
 
@@ -528,6 +558,8 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("classifyRecycleBag"));
     assert.ok(src.includes("blendUsdEntryOnAddOnBuy"));
     assert.ok(src.includes("evaluateAddOnFifoRedGate"), "must not add-on into FIFO-red lots");
+    assert.ok(src.includes("lotHasBuyTx"), "must skip already-latched buy hashes");
+    assert.ok(src.includes("mergeBuyReceiptIntoLots"), "must merge trough add-on onto first lot");
     assert.ok(!src.includes("from \"./guardian-v4/agent.js\""), "must not merge V4 into agent.js");
   });
 });
@@ -678,5 +710,116 @@ describe("fifo-lot-store — live DRB/BNKR seed + dust-recycle FIFO eth", () => 
     // Fib / peak / USD P&L that require entryPrice must not fire from $0.
     assert.equal(token.entryPrice ? (fillPrice - token.entryPrice) / token.entryPrice : null, null);
     assert.ok(!(token.entryPrice > 0 && fillPrice > token.entryPrice), "no invented peak-vs-entry");
+  });
+});
+
+describe("fifo-lot-store — latch DRB trough 0x53a00788 FIFO", () => {
+  const FIRST_REMAIN = 2844.726394849007;
+  const TROUGH_TOKENS = Number(DRB_TROUGH_TOK_WEI) / 1e18;
+  const AFTER_TROUGH = FIRST_REMAIN + TROUGH_TOKENS;
+
+  it("first-lot persist + larger chain remaining is unknown until trough merges", () => {
+    const first = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      receipt: drbReceipt().receipt,
+      tx: drbReceipt().tx,
+    });
+    const token = { symbol: "DRB", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const before = applyLotToToken(token, first, { remainingTokens: AFTER_TROUGH });
+    assert.equal(before.unknown, true, "remain >> first tokensIn must be unknown-lots");
+    assert.equal(before.reason, "unknown-lots");
+
+    const lots = { DRB: first };
+    const trough = lotFromBuyReceipt({
+      symbol: "DRB",
+      tokenAddress: DRB,
+      wallet: WALLET,
+      txHash: DRB_TROUGH_BUY_TX,
+      receipt: drbTroughReceipt().receipt,
+      tx: drbTroughReceipt().tx,
+    });
+    assert.equal(isUsableLot(trough), true);
+    assert.ok(Math.abs(trough.ethIn - Number(DRB_TROUGH_ETH_WEI) / 1e18) < 1e-15);
+    mergeBuyReceiptIntoLots(lots, trough);
+    assert.equal(lotHasBuyTx(lots.DRB, EVIDENCE_BUY_TXS.DRB), true);
+    assert.equal(lotHasBuyTx(lots.DRB, DRB_TROUGH_BUY_TX), true);
+    mergeBuyReceiptIntoLots(lots, trough);
+    assert.equal(lots.DRB.buyTxs.filter((b) => b.hash === DRB_TROUGH_BUY_TX).length, 1);
+
+    const after = applyLotToToken(token, lots.DRB, { remainingTokens: AFTER_TROUGH });
+    assert.equal(after.unknown, false);
+    assert.ok(after.investedEth > 0);
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > 0);
+    assert.equal(lotAppliedOk(token, after), true);
+  });
+
+  it("rebuild merges trough onto persisted first lot; dust-recycle sees known FIFO eth", () => {
+    const live = {};
+    recordBuyFill(live, {
+      symbol: "DRB",
+      ethIn: 0.000785582981130297,
+      tokensIn: 8238.193475842487,
+      txHash: EVIDENCE_BUY_TXS.DRB,
+      fillCostEth: 0.000785582981130297,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    recordSellFill(live, { symbol: "DRB", remainingTokens: FIRST_REMAIN });
+    const firstFifo = Number(live.DRB.remainingCostEth);
+
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(live),
+      remainingBySymbol: { DRB: AFTER_TROUGH },
+      receipts: [drbTroughReceipt()],
+      tokens: [{ symbol: "DRB", address: DRB }],
+    });
+    assert.deepEqual(rebuilt.unknown, []);
+    assert.ok(rebuilt.rebuilt.includes("DRB"));
+    assert.equal(lotHasBuyTx(rebuilt.lots.DRB, EVIDENCE_BUY_TXS.DRB), true);
+    assert.equal(lotHasBuyTx(rebuilt.lots.DRB, DRB_TROUGH_BUY_TX), true);
+    const token = rebuilt.applied.DRB;
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > firstFifo, "add-on slice must raise remaining FIFO eth");
+    assert.ok(!(Number(token.entryPrice) > 0), "must not invent USD entry");
+
+    const kind = classifyRecycleBag({
+      unknownEntry: token.unknownEntry,
+      totalInvestedEth: token.totalInvestedEth,
+      entryPrice: token.entryPrice,
+      hasUsdBasis: hasUsableCostBasis(token),
+      operatorLotEth: token.operatorLot?.fillCostEth,
+    });
+    assert.equal(kind.unknownBag, false);
+    assert.equal(kind.hasKnownPos, true);
+    assert.ok(kind.fifoEth > 0);
+    assert.ok(!/unknown/.test(kind.unknownBag ? "unknown" : "known"));
+
+    const entrySold = sellEntryEthWithLotFloor(token.totalInvestedEth, token);
+    assert.ok(entrySold > 0);
+    const green = plusGate({
+      symbol: "DRB",
+      entryEth: entrySold,
+      proceeds: entrySold * 1.2,
+    });
+    assert.equal(green.allow, true);
+    assert.ok(!/unknown cost/i.test(green.log || ""));
+  });
+
+  it("ALLOW_ADD_ON_FIFO_RED stays default OFF — latch does not weaken #84", () => {
+    assert.equal(isAllowAddOnFifoRed({}), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "no" }), false);
+    const src = readFileSync(join(root, "agent.js"), "utf8");
+    assert.ok(src.includes("evaluateAddOnFifoRedGate"));
+    assert.ok(src.includes("ALLOW_ADD_ON_FIFO_RED"));
+    const buyFn = src.indexOf("async function executeBuy(");
+    const buyEnd = src.indexOf("\nasync function ", buyFn + 1);
+    const buy = src.slice(buyFn, buyEnd > 0 ? buyEnd : buyFn + 9000);
+    const gate = buy.indexOf("evaluateAddOnFifoRedGate");
+    const encode = buy.indexOf("encodeSwap(");
+    assert.ok(gate >= 0 && encode > gate, "#84 gate still runs before encodeSwap");
   });
 });
