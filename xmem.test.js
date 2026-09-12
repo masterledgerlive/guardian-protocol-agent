@@ -132,6 +132,37 @@ describe("legacy STORE KEY LOC overlay", () => {
     assert.equal(recs.length, 0);
     assert.equal(findMemorySlice(decodeCalldataUtf8(KEYCAT_PLAIN_SWAP)), "");
   });
+
+  it("LOC-only hitch keeps tags empty (does not invent VITA love names)", () => {
+    const locOnly = "§$STORE§ §LOC§n=161|t=7cfa|r=d982";
+    const rec = xmemFromStoreKeyLoc(locOnly);
+    assert.ok(rec);
+    assert.equal(rec.source, "store-key-loc");
+    assert.deepEqual(rec.tags || [], []);
+    assert.equal(rec.note, undefined);
+    assert.equal(rec.ref, "n=161|t=7cfa|r=d982");
+    for (const tag of XMEM_LOVE_TAGS) {
+      assert.equal((rec.tags || []).includes(tag), false, tag);
+    }
+    const { matches: byTag } = searchXmem([rec], "list records tagged koda");
+    assert.equal(byTag.length, 0);
+    const { matches: byFrag } = searchXmem([rec], "eureka kai koda krystian");
+    assert.equal(byFrag.length, 0);
+  });
+
+  it("KEY present → tags from KEY payload only", () => {
+    const keySubset = "§$STORE§ §KEY§Kai§LOC§n=7|t=abcd|r=ef01";
+    const rec = xmemFromStoreKeyLoc(keySubset);
+    assert.ok(rec);
+    assert.deepEqual(rec.tags, ["kai"]);
+    assert.equal(rec.note, "Kai");
+    assert.equal(rec.ref, "n=7|t=abcd|r=ef01");
+    for (const extra of ["eureka", "koda", "krystian"]) {
+      assert.equal(rec.tags.includes(extra), false, extra);
+    }
+    const full = xmemFromStoreKeyLoc(LIVE_HITCH);
+    assert.deepEqual([...full.tags].sort(), [...XMEM_LOVE_TAGS].sort());
+  });
 });
 
 describe("XMEM retrieval", () => {

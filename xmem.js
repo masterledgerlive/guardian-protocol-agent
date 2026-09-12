@@ -19,7 +19,7 @@
  * is unchanged — XMEM is the retrieval + agent handoff layer.
  */
 
-import { parseVitaPacket, VITA_KEY_NAMES } from "./vita-parse.js";
+import { parseVitaPacket } from "./vita-parse.js";
 
 export const XMEM_PREFIX = "XMEM";
 export const XMEM_VERSION = "v1";
@@ -374,7 +374,8 @@ export function xmemFromStoreKeyLoc(utf8, meta = {}) {
     if (lm) loc = lm[1].trim();
   }
   if (!key && !loc) return null;
-  const tags = tagsFromKeyText(key || VITA_KEY_NAMES);
+  // Tags only from a real KEY payload — never invent names from VITA_KEY_NAMES.
+  const tags = tagsFromKeyText(key);
   return omitEmpty({
     prefix: XMEM_PREFIX,
     version: XMEM_VERSION,
