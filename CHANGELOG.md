@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fixed — FORCE EXIT dust latch + green hitch so messages can send
+
+Live after #91/#97: Railway looped
+`FORCE EXIT LOCKED queued: DRB bal=3.513e-14` every ~65s. Lottery 1-wei
+leave-behind survived redeploy (in-memory latch cleared), exit returned 0,
+never marked done — spam blocked real message-carrying exits.
+
+- `forced-exit.js`: skip + latch `done` when bag is unsellable dust
+  (`< 1e-9` or below `SELLABLE_MIN_USD`). `latchForcedExitIfDust` after a
+  failed exitonly. Agent passes live USD marks into the queue.
+- Green FORCE EXIT / lossy plus: message-first hitch when leftover covers
+  1× KEY+LOC (code down-range). Red recovery still hitch SKIP.
+  `VITA_MESSAGE_FIRST=no` keeps plain plus.
+
+Does **not** invent P&L. Does **not** sell red to hitch. Vault untouched.
+
 ### Added — VITA mainframe: protect original message-first formula via HTML infect
 
 Continuing avenue base lives under `vita/`. Original formula that worked best

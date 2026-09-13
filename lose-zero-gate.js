@@ -32,10 +32,12 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
  * (`ethIn × remainingTokens / tokensIn`), never cash-flow `ethIn − ethOut`.
  * After a plus partial sell, cash-flow leftover understates the leftover pile
  * and the plus gate would paint a later FIFO-red exit green. Exits-only /
- * frozen names still obey this gate. Underwater exceptions (hitch SKIP):
+ * frozen names still obey this gate. Underwater exceptions (hitch SKIP on red):
  * FORCE EXIT LOCKED, FORCE_EXIT_SYMBOLS (when force-exit is on), and
  * ALLOW_LOSSY_OPERATOR_SELL=yes for MANUAL SELL (operator) / OPERATOR_SELL
- * listed names. Auto sells stay HOLD when those flags are off.
+ * listed names. Green FORCE EXIT / lossy plus still hitch when message-first
+ * leftover covers 1× KEY+LOC — do not mute the chain on a recovery unwind.
+ * Auto sells stay HOLD when those flags are off.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -1681,32 +1683,72 @@ export function evaluateSellGate({
     };
   };
 
-  // FORCE EXIT / lossy operator / listed unwind — hitch SKIP. Never HOLD red
-  // when Game armed ALLOW_LOSSY_OPERATOR_SELL or FORCE_EXIT_SYMBOLS.
+  // FORCE EXIT / lossy operator / listed unwind. Never HOLD red when Game
+  // armed ALLOW_LOSSY_OPERATOR_SELL or FORCE_EXIT_SYMBOLS. Red → hitch SKIP
+  // (recovery). Green + message-first KEY+LOC cover → hitch so code goes
+  // down-range; otherwise plain PLUS (skip hitch).
   if (overrideSell) {
     const red = leftover <= 0;
     const viaForce = forceExit || isListedForceExitSymbol(symbol, env);
-    const why = viaForce
-      ? (red ? "FORCE EXIT LOCKED" : "FORCE EXIT LOCKED plus")
-      : (red ? "lossy operator unwind" : "lossy operator plus");
+    if (red) {
+      const why = viaForce ? "FORCE EXIT LOCKED" : "lossy operator unwind";
+      return pack(true, why, {
+        hitchBytes: 0,
+        btpInscribe: false,
+        skipHitch: true,
+        hitchBankedEth: 0,
+        injectCostEth: 0,
+        hitchCoverEth: reservedCover.hitchCoverEth,
+        edge: leftover,
+        minSellProceedsEth: reservedCover.minSellProceedsEth,
+        verdict: viaForce ? "FORCE_EXIT" : "LOSSY_OPERATOR",
+        netEth: leftover,
+        log: viaForce
+          ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
+          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL — FIFO red operator unwind (hitch SKIP)`,
+      });
+    }
+
+    const messageFirstOverride = isOriginalFormulaMessageFirst(env);
+    const canHitchOverride = messageFirstOverride
+      && !l1OracleFailed
+      && !sized.skipHitch
+      && hitchThis > 0
+      && plusNet > 0
+      && hitchBudget > 0;
+    if (canHitchOverride) {
+      const why = viaForce ? "FORCE EXIT LOCKED plus hitch" : "lossy operator plus hitch";
+      return pack(true, why, {
+        sellNow: true,
+        verdict: "PLUS",
+        netEth: plusNet,
+        hitchBankedEth: 0,
+        hitchCostMult: 1,
+        hitchCoverEth: reservedCover.hitchCoverEth,
+        edge: leftover,
+        minSellProceedsEth: reservedCover.minSellProceedsEth,
+        log: viaForce
+          ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — message-first hitch ${sized.hitchBytes || 0}B`
+          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — message-first hitch ${sized.hitchBytes || 0}B`,
+      });
+    }
+
+    const why = viaForce ? "FORCE EXIT LOCKED plus" : "lossy operator plus";
     return pack(true, why, {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
-      hitchBankedEth: 0,
+      hitchBankedEth: hitchBanked,
       injectCostEth: 0,
       hitchCoverEth: reservedCover.hitchCoverEth,
       edge: leftover,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
-      verdict: viaForce ? (red ? "FORCE_EXIT" : "PLUS") : (red ? "LOSSY_OPERATOR" : "PLUS"),
+      verdict: "PLUS",
       netEth: leftover,
-      log: red
-        ? (viaForce
-          ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
-          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL — FIFO red operator unwind (hitch SKIP)`)
-        : (viaForce
-          ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — skip hitch (recovery)`
-          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — skip hitch`),
+      hitchWouldEth: hitchWould || hitchThis || sized.injectCostEth || reservedHitch,
+      log: viaForce
+        ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — plain (hitch not covered / L1 unknown)`
+        : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — plain (hitch not covered / L1 unknown)`,
     });
   }
 
