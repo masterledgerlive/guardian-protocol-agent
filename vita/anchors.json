@@ -36,6 +36,7 @@
     "vita/AGENTS.md",
     "vita/README.md",
     "vita/mainframe.js",
+    "vita/feed-gate.js",
     "vita/anchors.json",
     "vita/memory/",
     "vita/strands/",

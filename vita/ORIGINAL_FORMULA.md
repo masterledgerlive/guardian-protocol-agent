@@ -22,6 +22,10 @@ trading P&L was flat. Revenue can be recovered later via Storage Token —
 5. **Never forget.** Append-only location depository. Strands grow; nothing
    sealed is deleted. Learn in `vita/memory/`; refine code; keep anchors.
 6. **No invented P&L.** Prove with Basescan Input Data → UTF-8, or stay quiet.
+7. **Brain fed free.** VITA feed is leftover hitch on a real green sell (or
+   same-tx trade leftover) when KEY+LOC is covered. Never a solo `[VITA:` /
+   sel `0x5b564954` self-call that spends native ETH. If cover cannot fit,
+   bank hitch (#89 / #99) — queue the message. RISK liquid is not the feed.
 
 ## Proof classes
 
@@ -45,3 +49,5 @@ When a leftover-covered hitch costs more than “skip hitch & skim”:
 - Claiming Telegram text as on-chain without trailer (KEYCAT `0x5c0a93e4…`).
 - Selling red to place code. LOSE-ZERO / always-plus hold.
 - Merging V4 into the V3 injector.
+- Dedicated VITA `[VITA:` / sel `0x5b564954` self-call from RISK liquid
+  (unpaired STORE, 0 Uniswap fills).

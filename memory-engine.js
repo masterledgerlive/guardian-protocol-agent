@@ -23,6 +23,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { createHash } from "crypto";
+import { attemptVitaChainWrite } from "./vita/feed-gate.js";
 
 // ── Memory registry — in-memory index of all inscribed memories ───────────────
 // { seq: { type, date, txHash, preview, topic, prevHash } }
@@ -159,32 +160,36 @@ export function buildFullSummary(data) {
   };
 }
 
-// ── Inscribe a memory chunk on Base ──────────────────────────────────────────
+// ── Bank a memory chunk — never a solo self-call from RISK liquid ────────────
 export async function inscribeMemory(cdpClient, walletAddress, chunk) {
+  void cdpClient;
   const calldata = encodeHex(chunk.text);
-
-  const { transactionHash } = await cdpClient.evm.sendTransaction({
-    address: walletAddress,
-    network: "base",
-    transaction: { to: walletAddress, value: BigInt(0), data: calldata }
+  const write = attemptVitaChainWrite({
+    to: walletAddress,
+    from: walletAddress,
+    data: calldata,
+    text: chunk.text,
+    pairedUniswapSell: false,
+    topic: chunk.topic || "memory",
   });
 
-  // Add to registry
   memoryRegistry.push({
     seq:       chunk.seq,
     type:      chunk.type,
     date:      chunk.date,
-    txHash:    transactionHash,
+    txHash:    null,
     preview:   chunk.preview,
     topic:     chunk.topic,
     hash:      chunk.hash,
-    basescan:  "https://basescan.org/tx/" + transactionHash,
+    banked:    true,
+    basescan:  null,
   });
 
-  console.log("🧠 MEMORY INSCRIBED [" + chunk.type + " #" + chunk.seq + "] → " + transactionHash);
+  console.log("🧠 MEMORY BANKED [" + chunk.type + " #" + chunk.seq + "] — leftover hitch, no solo self-call");
   console.log("   Preview: " + chunk.preview);
+  console.log("   " + write.reason);
 
-  return { ...chunk, txHash: transactionHash };
+  return { ...chunk, txHash: null, banked: true, sent: false, reason: write.reason };
 }
 
 // ── Queue a cliff note into BTP (rides next trade) ────────────────────────────

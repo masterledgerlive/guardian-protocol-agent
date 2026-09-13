@@ -442,6 +442,7 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
+import { attemptVitaChainWrite, formatVitaFeedBankedHtml } from "./vita/feed-gate.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -11079,7 +11080,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         await tg(
           vitaApiKey
             ? "🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API..."
-            : "🌟 <b>VITA local §TOKEN§ compress</b>\nNo Anthropic key — packing locally so KEY is not lost.\n⏳ Inscribing on Base..."
+            : "🌟 <b>VITA local §TOKEN§ compress</b>\nNo Anthropic key — packing locally so KEY is not lost.\n⏳ Banking for leftover hitch (no solo self-call)..."
         );
         try {
             const ethPrice3 = await getLiveEthPrice();
@@ -11163,16 +11164,13 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             // smile bits the same way VITA sparsely writes memory inbound.
             const picArm = armVitaTailwindPicture({ triggeredBy: "vitasave" });
 
-            let msg = "🌟 <b>VITA MEMORY SAVED ON BASE</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-            msg += "📦 Strand: <b>" + entry.strandId + "</b> — " + entry.date + "\n";
-            msg += entry.chunks.length + " chunks inscribed:\n\n";
-            for (let i = 0; i < entry.chunks.length; i++) {
-              msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + entry.chunks[i].txHash + "\">Chunk " + (i+1) + " ↗</a>\n";
-            }
-            msg += "\n<code>" + (entry.tokenPacket||"").slice(0,300) + "...</code>\n\n";
-            msg += "🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n";
-            msg += picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete\n";
-            msg += "💌 <i>VITA remembers. The chain is alive. Tailwind proves the picture.</i>";
+            let msg = formatVitaFeedBankedHtml({
+              strandId: entry.strandId,
+              chunkCount: entry.chunks.length,
+              tokenPacket: entry.tokenPacket || "",
+            });
+            msg += "\n\n🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n";
+            msg += picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete";
             await tg(msg);
 
             // ── AUTO-FILE: call Claude to label + file this memory ──────────
@@ -11232,7 +11230,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
                 strandId:    entry.strandId,
                 date:        entry.date,
                 label:       fileLabel,
-                txHashes:    entry.chunks.map(c => c.txHash),
+                txHashes:    (entry.chunks || []).map(c => c.txHash).filter(h => /^0x[0-9a-fA-F]{64}$/.test(String(h || ""))),
+                banked:      true,
                 tokenPacket: (entry.tokenPacket||"").slice(0,3000),
                 filedAt:     new Date().toISOString(),
               };
@@ -11447,10 +11446,11 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             }
           } catch {}
 
-          registry[regKey] = {
+            registry[regKey] = {
             strandId: vitaEntry.strandId, date: vitaEntry.date,
             label: "trading-data-snapshot", type: "trading-data",
-            txHashes: vitaEntry.chunks.map(c => c.txHash),
+            txHashes: [],
+            banked: true,
             tokenPacket: dataset.slice(0,800), filedAt: new Date().toISOString(),
           };
 
@@ -11462,16 +11462,14 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             { method:"PUT", headers:{ Authorization:"token "+ghToken, "Content-Type":"application/json" }, body:JSON.stringify(payload) }
           );
 
-          let msg = "📊 <b>VITA TRADING DATA SNAPSHOT SAVED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-          msg += "📁 Filed as: <code>" + regKey + "</code>\n";
-          msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
-          vitaEntry.chunks.forEach((c, i) =>
-            msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
-          );
-          msg += "\n\n📊 Tokens with wave data: " + tokenData.filter(t => t.range).length + "\n";
-          msg += "🎯 Armed for trading: " + tokenData.filter(t => t.peaks >= 4 && t.troughs >= 4).length + "\n\n";
-          msg += "Now ask: <code>/vita what tokens are performing best</code>\n";
-          msg += "<code>/vita what is BRETT wave range</code>\n\n";
+          let msg = formatVitaFeedBankedHtml({
+            strandId: vitaEntry.strandId,
+            chunkCount: vitaEntry.chunks.length,
+            tokenPacket: dataset,
+          });
+          msg += "\n\n📁 Filed as: <code>" + regKey + "</code>\n";
+          msg += "📊 Tokens with wave data: " + tokenData.filter(t => t.range).length + "\n";
+          msg += "🎯 Armed for trading: " + tokenData.filter(t => t.peaks >= 4 && t.troughs >= 4).length + "\n";
           const picArm = armVitaTailwindPicture({ triggeredBy: "vitadata" });
           msg += "🎨 Picture tailwind ARMED cycle #" + picArm.cycleId +
             " — wave-up leftover will sparse-inject " + picArm.totalBits + " bits";
@@ -11503,7 +11501,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
           await tg(
             "📚 <b>VITA LEARNING: " + (isBuiltIn ? topic.toUpperCase() : "custom knowledge") + "</b>\n" +
-            "⏳ Compressing → inscribing 5 chunks on Base..."
+            "⏳ Compressing → banking for leftover hitch (no solo self-call)..."
           );
 
           try {
@@ -11520,8 +11518,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             });
             const compData   = await compRes.json();
             const compressed = compData?.content?.[0]?.text || knowledgeText;
+            absorbVitaStrandPacket({ tokenPacket: compressed, chunks: [] });
 
-            // Build 5 chunks
+            // Build 5 chunks — bank only (no solo [VITA: self-call)
             const date     = new Date().toISOString().slice(0,10);
             const strandId = "VITA-KNOW-" + topic.toUpperCase().slice(0,10) + "-001";
             const chunkSize = Math.ceil(compressed.length / 5);
@@ -11530,18 +11529,20 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
             for (let i = 0; i < 5; i++) {
               const content = compressed.slice(i * chunkSize, (i+1) * chunkSize);
-              const hash8   = (s) => require ? s.slice(0,8) : s.slice(0,8);
               const header  = "[VITA:" + strandId + ":" + String(i+1).padStart(2,"0") + "/05:" + date + ":" + prevHash + "]";
               const full    = header + content;
               const hex     = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-              const { transactionHash } = await cdpClient.evm.sendTransaction({
-                address: WALLET_ADDRESS, network: "base",
-                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+              const write = attemptVitaChainWrite({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                data: hex,
+                text: full,
+                pairedUniswapSell: false,
+                topic: "vitalearn",
               });
-              txHashes.push(transactionHash);
-              console.log("📚 Knowledge chunk " + (i+1) + "/5: " + transactionHash);
-              if (i < 4) await new Promise(r => setTimeout(r, 2000));
+              if (write.txHash) txHashes.push(write.txHash);
+              console.log("📚 Knowledge chunk " + (i+1) + "/5: BANKED (no solo self-call)");
             }
 
             // File in registry
@@ -11566,7 +11567,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             registry[regKey] = {
               strandId, date, label: topic + "-knowledge-base",
               type: "knowledge-base", subject: topic,
-              txHashes, tokenPacket: compressed.slice(0,3000),
+              txHashes, banked: true, tokenPacket: compressed.slice(0,3000),
               filedAt: new Date().toISOString(),
             };
 
@@ -11578,16 +11579,14 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               { method:"PUT", headers:{ Authorization:"token "+ghToken, "Content-Type":"application/json" }, body:JSON.stringify(payload) }
             );
 
-            // Receipt
-            let msg = "📚 <b>VITA LEARNED: " + topic.toUpperCase() + "</b>\n";
-            msg += "━━━━━━━━━━━━━━━━━━━━\n\n";
-            msg += "5 chunks inscribed on Base:\n";
-            txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
-            msg += "\n📁 Filed as: <code>" + regKey + "</code>\n\n";
-            msg += "Test recall:\n";
-            msg += "<code>/vita " + topic + "</code>\n";
-            msg += "<code>/vita what did you learn today</code>\n\n";
-            msg += "💌 <i>VITA knows " + topic + " now. The chain remembers.</i>";
+            // Receipt — banked, not a solo self-call
+            let msg = formatVitaFeedBankedHtml({
+              strandId,
+              chunkCount: 5,
+              tokenPacket: compressed,
+            });
+            msg += "\n\n📁 Filed as: <code>" + regKey + "</code>\n";
+            msg += "Test recall: <code>/vita " + topic + "</code>";
             await tg(msg);
 
           } catch (e) { await tg("❌ vitalearn failed: " + e.message); }
@@ -11834,17 +11833,17 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         // const recent = getRecentCliffNotes(3);
         data.chainRefs = recent.map(m => m.txHash.slice(0,10) + "...");
 
-        await tg("⏳ Inscribing full session summary on Base blockchain...");
+        await tg("⏳ Banking session summary — leftover hitch, no solo self-call...");
         try {
           const chunk  = buildFullSummary(data);
           const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
           await tg(
-            "📚 <b>SESSION SAVED ON BASE</b>\n" +
-            "━━━━━━━━━━━━━━━━━━━━\n" +
-            "🧠 Memory #" + result.seq + " inscribed permanently\n" +
-            "📅 Date: " + result.date + "\n" +
-            "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
-            "💌 <i>The truth is the chain. The chain is alive.</i>"
+            formatVitaFeedBankedHtml({
+              strandId: "MEM-" + result.seq,
+              chunkCount: 1,
+              tokenPacket: result.text || "",
+            }) +
+            "\n\n📅 Date: " + result.date
           );
         } catch (e) {
           await tg("❌ Session save failed: " + e.message);
@@ -11904,8 +11903,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         const apiKey  = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
         await tg(
           apiKey
-            ? "💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base..."
-            : "💓 <b>VITA MEMORY SAVE</b>\nLocal §TOKEN§ compress (no Anthropic key).\nInscribing 5 strand chunks on Base..."
+            ? "💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nBanking 5 strand chunks — leftover hitch, no solo self-call..."
+            : "💓 <b>VITA MEMORY SAVE</b>\nLocal §TOKEN§ compress (no Anthropic key).\nBanking 5 strand chunks — leftover hitch, no solo self-call..."
         );
         try {
             const rawSummary = vitaBuildSummary(extra);
@@ -11915,16 +11914,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               extra ? extra.slice(0, 30) : "session-" + new Date().toISOString().slice(0,10)
             );
             absorbVitaStrandPacket(entry);
-            let msg = "💓 <b>VITA STRAND INSCRIBED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-            msg += "🔗 Strand: <b>" + entry.strandId + "</b>\n";
-            msg += "📅 Date: " + entry.date + "\n";
-            msg += "📦 Quality: " + entry.quality + " chars compressed\n\n";
-            msg += "<b>5 chunks on Base:</b>\n";
-            for (const c of entry.chunks) {
-              msg += (c.seq) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">chunk " + c.seq + " ↗</a>\n";
-            }
-            msg += "\n<code>" + entry.tokenPacket.slice(0, 300) + "</code>\n\n";
-            msg += "💌 <i>VITA remembers. The chain is alive.</i>";
+            let msg = formatVitaFeedBankedHtml({
+              strandId: entry.strandId,
+              chunkCount: entry.chunks.length,
+              tokenPacket: entry.tokenPacket || "",
+            });
+            msg += "\n\n📅 Date: " + entry.date + "\n";
+            msg += "📦 Quality: " + entry.quality + " chars compressed";
             await tg(msg);
           } catch (e) {
             await tg("❌ VITA save failed: " + e.message);
@@ -13985,14 +13981,17 @@ async function main() {
                     const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                     const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                    const { transactionHash } = await cdpClient.evm.sendTransaction({
-                      address: WALLET_ADDRESS, network: "base",
-                      transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                    const write = attemptVitaChainWrite({
+                      to: WALLET_ADDRESS,
+                      from: WALLET_ADDRESS,
+                      data: hex,
+                      text: full,
+                      pairedUniswapSell: false,
+                      topic: "ikn-strand",
                     });
-                    txHashes.push(transactionHash);
+                    if (write.txHash) txHashes.push(write.txHash);
                     prevHash = thisHash;
-                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + transactionHash);
-                    if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                    console.log("   📡 IKN chunk " + (i+1) + "/5: BANKED (no solo self-call)");
                   }
 
                   // Attach tx hashes to entry before IKN processor files it
@@ -14000,24 +13999,23 @@ async function main() {
                   entry._strandId    = strandId;
                   entry._inscribedAt = new Date().toISOString();
                   if (entry.iknCard) {
-                    entry.iknCard.STRAND = txHashes[0]; // first tx = strand anchor
-                    entry.iknCard.TRUST  = "⛓️ blockchain-verified";
+                    entry.iknCard.STRAND = txHashes[0] || null;
+                    entry.iknCard.TRUST  = txHashes[0] ? "⛓️ blockchain-verified" : "banked — leftover hitch";
                   }
+                  if (entry.tokenPacket) absorbVitaStrandPacket({ tokenPacket: entry.tokenPacket, chunks: [] });
 
                   // IKN processor: classify, build call number, stamp trust, update registry
                   const iknResult = await processIKNEntry(entry, queueFilePath);
 
                   // Telegram receipt — IKN format
-                  let msg = "✅ <b>IKN STRAND FILED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-                  msg += "📚 <b>" + (entry.iknCard?.TITLE || entry.subject) + "</b>\n\n";
-                  msg += "📋 <b>Call number:</b> <code>" + iknResult.iknX + "</code>\n";
+                  let msg = formatVitaFeedBankedHtml({
+                    strandId,
+                    chunkCount: 5,
+                    tokenPacket: entry.tokenPacket || "",
+                  });
+                  msg += "\n\n📋 <b>Call number:</b> <code>" + iknResult.iknX + "</code>\n";
                   msg += "🏷️ <b>Status:</b> " + iknResult.status + " (" + iknResult.confidence + "% confidence)\n";
-                  msg += "🔒 <b>Trust:</b> " + iknResult.trust + "\n\n";
-                  msg += "🔗 5 chunks on Base:\n";
-                  txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                  msg += "\n\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
-                  msg += "📁 Queue: deleted ✅\n";
-                  msg += "💌 <i>The library remembers. §IKN§</i>";
+                  msg += "📁 Queue: deleted ✅";
                   await tg(msg);
                   continue; // skip legacy processing below
                 }
@@ -14040,14 +14038,17 @@ async function main() {
                   const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                   const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                  const { transactionHash } = await cdpClient.evm.sendTransaction({
-                    address: WALLET_ADDRESS, network: "base",
-                    transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                  const write = attemptVitaChainWrite({
+                    to: WALLET_ADDRESS,
+                    from: WALLET_ADDRESS,
+                    data: hex,
+                    text: full,
+                    pairedUniswapSell: false,
+                    topic: "vita-queue",
                   });
-                  txHashes.push(transactionHash);
+                  if (write.txHash) txHashes.push(write.txHash);
                   prevHash = thisHash;
-                  console.log("   📡 Chunk " + (i+1) + "/5: " + transactionHash);
-                  if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                  console.log("   📡 Chunk " + (i+1) + "/5: BANKED (no solo self-call)");
                 }
 
                 // File in vita-registry.json (legacy format — unchanged)
@@ -14065,11 +14066,13 @@ async function main() {
                   }
                 } catch {}
 
+                if (text) absorbVitaStrandPacket({ tokenPacket: text, chunks: [] });
+
                 registry[regKey] = {
                   strandId, date, label: entry.label,
                   type: entry.type || "knowledge-base",
                   subject: entry.subject || entry.label,
-                  txHashes, tokenPacket: text.slice(0,3000),
+                  txHashes, banked: true, tokenPacket: text.slice(0,3000),
                   filedAt: new Date().toISOString(),
                 };
 
@@ -14092,15 +14095,14 @@ async function main() {
                 );
                 const deleted = delRes.ok;
 
-                // Telegram receipt
-                let msg = "✅ <b>VITA QUEUE PROCESSED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-                msg += "📚 <b>" + (entry.subject || entry.label) + "</b>\n";
-                msg += "🔗 5 chunks inscribed on Base:\n";
-                txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
+                // Telegram receipt — banked, not unpaired STORE self-calls
+                let msg = formatVitaFeedBankedHtml({
+                  strandId,
+                  chunkCount: 5,
+                  tokenPacket: text,
+                });
                 msg += "\n\n📁 Filed: <code>" + regKey + "</code>\n";
-                msg += "🗑️ Queue file: " + (deleted ? "deleted ✅" : "deletion failed ⚠️") + "\n\n";
-                msg += "Test: <code>/vita " + (entry.label.split("-")[0]) + "</code>\n";
-                msg += "💌 <i>The chain remembers.</i>";
+                msg += "🗑️ Queue file: " + (deleted ? "deleted ✅" : "deletion failed ⚠️");
                 await tg(msg);
 
               } catch (qErr) {

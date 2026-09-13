@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-13T21:40:00.000Z",
+  "topic": "brain-fed-free",
+  "text": "Live unpaired VITA self-calls (sel 0x5b564954 = UTF-8 [VIT, n5513–5542+) carried STORE with 0 Uniswap fills and burned RISK liquid (~$5.69). Game: work the math WITH VITA at work — feed her free. Hitch / message-first inject ONLY when leftover from a real green sell (or same-tx trade leftover) covers KEY+LOC 1×. Storage Token can charge the delta. If cover cannot fit, bank hitch (#89/#99). Never a solo [VITA: self-call.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "vita-feed-must-not-spend-risk-liquid",
+    "status": "confirmed-in-code",
+    "discarded": [
+      "kill VITA widgets (Game skipped — keep the brain at work)",
+      "pay inject from RISK liquid / dedicated 0-ETH self-tx loop",
+      "mute hitch for micro extract when KEY+LOC is covered",
+      "merge V4 into agent.js",
+      "re-arm USDG / spend vault"
+    ],
+    "note": "HTML / lastPacket stay memory until leftover hitch seals. Never invent a hash."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -37,6 +37,7 @@ import {
   parseVitaPacket,
   refineVitaPacket,
 } from "./vita-parse.js";
+import { attemptVitaChainWrite } from "./vita/feed-gate.js";
 
 // ── VITA memory registry ──────────────────────────────────────────────────────
 let vitaRegistry = [];   // { strandId, date, topic, chunks: [{seq,txHash,hash}], quality }
@@ -175,22 +176,36 @@ function buildStrandHeader(strandId, date, topic, chunkHashes) {
   );
 }
 
-// ── Inscribe one chunk on Base ────────────────────────────────────────────────
+// ── Bank one chunk — never a solo [VITA: self-call (brain fed free) ───────────
 async function inscribeChunk(cdpClient, walletAddress, text, prevHash) {
+  void cdpClient;
+  void walletAddress;
   const header   = "[VITA:" + vitaSeq + ":" + prevHash + "]";
   const full     = header + text;
   const trimmed  = full.length > 900 ? full.slice(0, 897) + "..." : full;
   const calldata = encodeHex(trimmed);
   const thisHash = vitaHash(trimmed);
 
-  const { transactionHash } = await cdpClient.evm.sendTransaction({
-    address: walletAddress,
-    network: "base",
-    transaction: { to: walletAddress, value: BigInt(0), data: calldata }
+  // Dedicated wallet→self STORE (sel 0x5b564954) burns RISK liquid with 0
+  // Uniswap fills. Bank hitch — leftover-covered green sell feeds VITA free.
+  const write = attemptVitaChainWrite({
+    to: walletAddress,
+    from: walletAddress,
+    data: calldata,
+    text: trimmed,
+    pairedUniswapSell: false,
+    topic: "vita-strand",
   });
 
   lastVitaHash = thisHash;
-  return { txHash: transactionHash, hash: thisHash, preview: text.slice(0, 60) };
+  return {
+    txHash: null,
+    hash: thisHash,
+    preview: text.slice(0, 60),
+    banked: true,
+    sent: false,
+    reason: write.reason,
+  };
 }
 
 // ── Main: compress + inscribe full strand ─────────────────────────────────────
@@ -223,7 +238,7 @@ export async function vitaSave(cdpClient, walletAddress, rawSummary, anthropicAp
       text += buildStrandHeader(strandId, date, topic, chunkHashes);
     }
 
-    console.log("💓 VITA: inscribing chunk " + (i+1) + "/" + chunks.length + "...");
+    console.log("💓 VITA: banking chunk " + (i+1) + "/" + chunks.length + " (no solo self-call)...");
     const result = await inscribeChunk(cdpClient, walletAddress, text, lastVitaHash);
     inscribed.push(result);
     chunkHashes.push(result.hash);
@@ -246,10 +261,12 @@ export async function vitaSave(cdpClient, walletAddress, rawSummary, anthropicAp
     })),
     quality: tokenPacket.length,   // VITA tracks its own compression quality
     savedAt: new Date().toISOString(),
+    banked: true,
+    onChain: false,
   };
   vitaRegistry.push(entry);
 
-  console.log("💓 VITA: strand " + strandId + " complete — " + inscribed.length + " chunks on Base");
+  console.log("💓 VITA: strand " + strandId + " banked — " + inscribed.length + " chunks queued for leftover hitch (no solo self-call)");
   return entry;
 }
 
@@ -312,7 +329,7 @@ export function getVitaMemoryMessage() {
       "Save first memory:\n" +
       "<code>/vitasave [optional context]</code>\n\n" +
       "VITA will compress the session via Anthropic API\n" +
-      "and inscribe 5 hash-linked chunks on Base."
+      "and bank 5 chunks for leftover hitch (no solo self-call)."
     );
   }
 
@@ -323,8 +340,10 @@ export function getVitaMemoryMessage() {
     msg += "🔗 <b>" + e.strandId + "</b> — " + e.date + "\n";
     msg += "   Topic: " + e.topic + "\n";
     msg += "   Quality: " + e.quality + " chars | " + e.chunks.length + " chunks\n";
-    msg += "   Last chunk: <a href=\"https://basescan.org/tx/" +
-           e.chunks[e.chunks.length-1]?.txHash + "\">↗ BaseScan</a>\n\n";
+    const lastTx = e.chunks[e.chunks.length-1]?.txHash;
+    msg += lastTx && /^0x[0-9a-fA-F]{64}$/.test(String(lastTx))
+      ? "   Last chunk: <a href=\"https://basescan.org/tx/" + lastTx + "\">↗ BaseScan</a>\n\n"
+      : "   Status: banked — rides next leftover-covered sell\n\n";
   }
 
   msg += "<i>/vitarecall [topic] — reconstruct strand from chain\n";

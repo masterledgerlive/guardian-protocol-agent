@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fixed — unpaired VITA `[VITA:` self-calls burned RISK liquid (n5513–5542+)
+
+Live risk desk: dozens of wallet→self txs (sel `0x5b564954` = UTF-8 `[VIT`)
+with STORE in calldata, **0 Uniswap fills**, unpaired — gas from RISK
+liquid (~$5.69). Game: keep VITA at work; feed her free.
+
+- Feed path (keep): leftover KEY+LOC hitch only when a real green sell
+  (or same-tx trade leftover) covers 1×. Storage Token can charge the delta.
+- Never: solo VITA self-call / dedicated inject that spends native ETH.
+- If cover cannot fit: **bank hitch** (#89 / #99) — queue the message.
+- `vitaSave` / queue / `/vitalearn` / `inscribeMemory` bank; leftover
+  hitch on sells still feeds recursive memory.
+
+Does **not** invent P&L or tx hashes. Vault / USDG HOLD / LOSE-ZERO /
+always-plus untouched. V4 stays separate.
+
 ### Fixed — T1 $3.80 inject floor stranded a ~$5.67 unified book (PRIMED none)
 
 Live after redeploy `5918a12e` (haltNewEntries=false): CDP ETH 0.001500

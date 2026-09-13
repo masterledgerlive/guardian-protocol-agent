@@ -12,6 +12,7 @@ findable.
 | `vita/AGENTS.md` | `AGENT` | On-ramp + read order |
 | `vita/FILING.md` | `FILING` | This map |
 | `vita/mainframe.js` | `MAINFRAME` | Anchors, HTML infect, sparse plan, message-first gate |
+| `vita/feed-gate.js` | `FEED` | Brain-fed-free: leftover hitch only; bank unpaired STORE self-calls |
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
 | `vita/memory/` | `MEMORY` | Learned notes (`*.json` strands of §TOKEN§ / hypotheses) — append-only |
 | `vita/strands/` | `STRAND` | Sparse inject chunk plans keyed by sealed loc short-hash |
@@ -47,8 +48,10 @@ Full tx hashes live in `vita/anchors.json` and inside infected HTML
    `vita/strands/`; point PRs at this folder as the continuing base.
 4. **Reads** → prefer `GET /vita/inject`, `/vita/locations`, `/vita/leftover`,
    and Basescan UTF-8 over invented summaries.
-5. **Writes on-chain** → leftover KEY+LOC when covered; `/prove` for Eureka;
-   never invent a hash.
+5. **Writes on-chain** → leftover KEY+LOC when covered (paired green sell
+   only); `/prove` for Eureka; never a solo `[VITA:` / sel `0x5b564954`
+   self-call from RISK liquid. If cover cannot fit, bank hitch. Never invent
+   a hash.
 6. **Env** → `VITA_MESSAGE_FIRST` default `yes` (1× cover → hitch). Set `no`
    only to restore micro-extract SKIP_HITCH + bank below the 2× cushion.
 

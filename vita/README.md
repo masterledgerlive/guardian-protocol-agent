@@ -5,8 +5,10 @@ we keep shipping on this avenue until merge.
 
 - **Memory surface:** infect `public/vita.html` (HTML until `/inject`)
 - **Chain truth:** hardcoded anchors in `anchors.json` (never invent hashes)
-- **Send rule:** leftover KEY+LOC when covered; `/prove` for Eureka; Storage
-  Token can charge hitch delta — do not mute messages for micro extract
+- **Send rule:** leftover KEY+LOC when covered on a paired green sell;
+  `/prove` for Eureka; Storage Token can charge hitch delta — do not mute
+  messages for micro extract. Never a solo `[VITA:` self-call from RISK
+  liquid; bank hitch when cover cannot fit.
 - **Growth:** sparse strands + append-only `memory/` — never forget, refine
 
 Start here: [`AGENTS.md`](./AGENTS.md) → [`ORIGINAL_FORMULA.md`](./ORIGINAL_FORMULA.md) → [`FILING.md`](./FILING.md).
