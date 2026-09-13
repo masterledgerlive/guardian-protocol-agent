@@ -47,7 +47,7 @@ export function forceExitSymbols(env = process.env) {
     return String(raw)
       .split(/[,;\s]+/)
       .map((s) => s.trim().toUpperCase())
-      .filter(Boolean);
+      .filter((s) => s && s !== "USDG");
   }
   return [...DEFAULT_FORCE_EXIT_SYMBOLS];
 }

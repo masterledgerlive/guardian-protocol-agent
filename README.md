@@ -216,8 +216,8 @@ HAT_STRAND_ID             ← linear append-only strand id for site preservation
 HAT_CONTENT_HASH          ← sha256 of canonical public HTML blob (arena+engine+board+v4) at preserve time
 HAT_K_MASTER              ← optional hex key for encrypted fragment payloads
 
-LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple, operator) unless there is a clear edge AND leftover covers a short §$STORE§ hitch (1×)
-HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO
+LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple) unless there is a clear edge AND leftover covers 1× hitch (price-space peak leftover **or** armed net × trade > hitch — first buy after flatten)
+HALT_NEW_ENTRIES          ← **unset / no** for micro-earn. `yes` is the same *gate* as LOSE_ZERO (not a separate halt). Leave unset so Railway is not double-gated by accident.
 REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys even when LOSE_ZERO is unset
 HITCH_COST_MULT           ← sell-side hitch SIZE budget leftover/mult (default 2). Plus gate is 1× hitch on THIS sell (buy hitch already in cost basis). inject_hitch_cost = live Base L1 data fee (GasPriceOracle 0x420…000F getL1Fee / getL1FeeUpperBound) + L2 calldata-gas; oracle failure → SKIP_HITCH (plain plus). Buys stay 1×.
 ALLOW_LOSSY_OPERATOR_BUY  ← legacy alias; operator /buy already bypasses leftover+edge (hitch-or-plain)
@@ -247,6 +247,29 @@ SLIP_COOLDOWN_MS          ← cooldown after the cap (default 1800000 = 30m)
 ```
 
 No actual secrets in Railway. Just addresses of where to find them.
+
+### Railway micro-earn checklist (no sterile IDLE)
+
+After bags were flattened to ETH for the V3 vs V4 race. Vault untouched. USDG ~$0.01 is HOLD (no V3 route).
+
+| Var | Micro-earn value | Why |
+|---|---|---|
+| `LOSE_ZERO` | `yes` | Keep always-plus / 1× hitch cover. First buy now also clears when **armed net × trade > hitch** (peak leftover can be 0 after flatten). |
+| `HALT_NEW_ENTRIES` | unset / `no` | Do **not** set `yes` thinking it only pauses — it *is* the lose-zero buy gate. |
+| `REQUIRE_INJECT_COVER` | unset (or `yes` with LOSE_ZERO) | Optional; LOSE_ZERO already requires cover. |
+| `OPERATOR_SELL` | **empty** | Do not re-arm AERO/DRB/BNKR/USDG sells. |
+| `FORCE_EXIT_SYMBOLS` | **empty** | Do not re-arm Game unwind. USDG is stripped if listed. |
+| `FORCE_EXIT_LOCKED_MAJORS` | `no` after flatten (or leave default for CBBTC/AAVE dust only) | Empty bags should not loop FORCE EXIT. |
+| `ALLOW_LOSSY_OPERATOR_SELL` | unset / `no` | Never lossy operator sells. |
+| `ALLOW_ADD_ON_FIFO_RED` | unset / `no` | USD-dust flatten leftover is already treated as empty. Do not stack into real FIFO-red. |
+| `VITA_MESSAGE_FIRST` | `yes` (default) or `no` | `yes` = hitch when leftover covers 1× KEY+LOC. `no` = #89 micro-green sells, hitch only at 2× cushion, bank hitch. |
+| `HITCH_COST_MULT` | `2` (default) | Sell hitch floor / size cushion. Micro extract ignores this. |
+| `CYCLE_ALIGN_MIN` | `2` (default) | `3`+ starves thin books of entries. |
+| `MIN_POS_USD` | unset (`$0.50`) | Do not raise on a ~$2–9 ETH book. |
+| `GUARDIAN_V4_DRY_RUN` | `yes` on V4 service | V4 stays separate. Do not merge into V3 `agent.js`. |
+| Vault / save bucket | **untouched** | Never spend. |
+
+Thrift / race scoreboard / turn cards stay. Auto buys still need a price signal (trough / pullback / primed bottom) plus alignment — leftover alone does not chase.
 
 ### Stage 1 — Telegram Unlock
 

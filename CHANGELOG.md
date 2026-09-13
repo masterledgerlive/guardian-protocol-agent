@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Fixed — sterile IDLE after flatten: first-buy 1× hitch + USD-dust add-on
+
+Live after layered gate/math PRs (#84/#88/#89/#97) + flatten-to-ETH for the
+V3 vs V4 race: bag looked sterile — no micro buys/sells/earns/injects.
+
+Root cause (verified, not invented P&L):
+
+1. **Buy leftover was price-space only** (`getMaxPeak − fairExit − hitch
+   spread`). After flatten, peak≈mark → leftover 0 → LOSE_ZERO blocked every
+   auto/cascade buy even when armed net already paid 1× hitch in ETH.
+   `processToken` treated `leftoverCovers = armed && net>0` so shouldBuy fired,
+   then `executeBuy` died on leftover 0.
+2. **ADD_ON token-count 0.001** treated flatten leftover (e.g. 0.04 AERO,
+   ~$0.02) + persist FIFO as a known red lot → blocked first re-entry.
+   Reconcile used the same token floor so ghosts survived.
+
+Fix (minimal):
+
+- LOSE_ZERO buy: leftover covers if peak leftover > 0 **or** `tradeEth × net
+  > hitch` (1×). Still blocks no-edge / hitch-too-fat. Operator path unchanged.
+- ADD_ON: `bagUsd < $0.08` is empty/flat (first buy OK). Real FIFO-red still
+  HOLD. Reconcile clears USD-dust ghosts.
+- USDG: skip-hold (no V3 route, no OPERATOR_SELL / FORCE_EXIT).
+- Sells: #89 micro-green + hitch-bank unchanged. No lossy operator re-arm.
+
+Does **not** invent P&L. Does **not** spend vault. Does **not** merge V4.
+
 ### Fixed — FORCE EXIT dust latch + green hitch so messages can send
 
 Live after #91/#97: Railway looped

@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-13T14:30:00.000Z",
+  "topic": "sterile-flatten-leftover",
+  "text": "After flatten-to-ETH, price-space buy leftover (max-peak − fairExit − hitch spread) is 0 when peak≈mark. processToken leftoverCovers was armed&&net, executeBuy then blocked leftover 0. First buy now also covers when tradeEth×net > 1× hitch. USD-dust flatten leftover is not a known FIFO-red add-on. USDG stays HOLD (V4-only).",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "peak-leftover-sterile-after-flatten",
+    "status": "confirmed-in-code",
+    "discarded": [
+      "sell-floor still too high for micro-green (already #89 SKIP_HITCH)",
+      "need to re-arm OPERATOR_SELL/FORCE_EXIT for USDG (no — V4-only dust)",
+      "merge V4 into V3 agent.js (forbidden)"
+    ],
+    "note": "Over-stacked gates were real on the buy leftover + add-on dust path. Empty bag + HALT_NEW_ENTRIES=yes would also idle — env checklist."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

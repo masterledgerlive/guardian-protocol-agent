@@ -151,6 +151,7 @@ import {
   evaluateAddOnFifoRedGate,
   bagMarkProceedsEth,
   addOnRemainingFifoEth,
+  isSkipHoldDeadRoute,
 } from "./lose-zero-gate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -5782,6 +5783,13 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
   try {
     // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
     // cascade / ripple) dies here. Sells never call this function.
+    if (isSkipHoldDeadRoute(token.symbol)) {
+      return await skipBuy(
+        reason,
+        token.symbol,
+        `🛑 ${token.symbol} HOLD — Uni V4-only dust; skip (no V3 cash route)`,
+      );
+    }
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
@@ -5835,6 +5843,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           priceUsd: price,
           ethUsd,
         }),
+        bagUsd: Number.isFinite(Number(existingBal)) && Number.isFinite(Number(price))
+          ? Number(existingBal) * Number(price)
+          : 0,
         unknownEntry: token.unknownEntry,
         reason,
       });
@@ -6415,6 +6426,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
+
+    if (isSkipHoldDeadRoute(token.symbol)) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: HOLD — Uni V4-only dust; no V3 cash route`);
+      return null;
+    }
 
     if (!isProtective && !(await isGasSafe())) return null;
 
@@ -13497,9 +13513,11 @@ async function main() {
             const price   = history[token.symbol]?.lastPrice || token.entryPrice;
             const realUsd = realBal * price;
 
-            // Ghost: entry recorded but chain shows nothing
-            if (realBal < 0.001 && token.totalInvestedEth > 0.0001) {
-              console.log(`👻 [RECONCILE] Ghost cleared: ${token.symbol} — chain shows ${realBal.toFixed(6)} but entry=$${token.entryPrice.toFixed(6)}`);
+            // Ghost: entry recorded but chain shows nothing / flatten leftover
+            // Token-count 0.001 missed AERO dust after ETH flatten (persist FIFO
+            // stayed red → ADD_ON blocked every first buy).
+            if ((realBal < 0.001 || isDustBagUsd(realBal, price, BAG_DUST_USD)) && token.totalInvestedEth > 0.0001) {
+              console.log(`👻 [RECONCILE] Ghost cleared: ${token.symbol} — chain shows ${realBal.toFixed(6)} ($${realUsd.toFixed(4)}) but entry=$${token.entryPrice.toFixed(6)}`);
               token.entryPrice       = null;
               token.totalInvestedEth = 0;
               token.entryTime        = null;

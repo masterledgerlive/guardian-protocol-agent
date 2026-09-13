@@ -169,6 +169,19 @@ export function usdMarkBelowBreakeven({ markProceedsEth = 0, entrySoldEth = 0 } 
  * First buy into empty/flat is OK. Unknown bags are not "known FIFO red."
  */
 export const ADD_ON_BAG_MIN_TOKENS = 0.001;
+/**
+ * Flatten / lottery leftover is not a "known bag." Token-count 0.001 of AERO
+ * is ~$0.0005 and still trips ADD_ON after ETH flatten while persist FIFO
+ * stays red. USD dust → treat as empty (first buy OK).
+ */
+export const ADD_ON_BAG_MIN_USD = 0.08;
+
+/** Uni V4-only dust — worthless as V3 cash. Never route / operator-sell. */
+export const SKIP_HOLD_DEAD_ROUTES = Object.freeze(["USDG"]);
+
+export function isSkipHoldDeadRoute(symbol) {
+  return SKIP_HOLD_DEAD_ROUTES.includes(String(symbol || "").toUpperCase());
+}
 
 export function isAllowAddOnFifoRed(env = process.env) {
   return envFlagOn("ALLOW_ADD_ON_FIFO_RED", env);
@@ -200,8 +213,12 @@ export function isExistingKnownFifoBag({
   tokenBal = 0,
   remainingFifoEth = 0,
   unknownEntry = false,
+  bagUsd,
 } = {}) {
   if (unknownEntry === true) return false;
+  if (bagUsd !== undefined && Number.isFinite(Number(bagUsd)) && Number(bagUsd) < ADD_ON_BAG_MIN_USD) {
+    return false;
+  }
   const bal = Number(tokenBal);
   const fifo = Number(remainingFifoEth);
   return Number.isFinite(bal) && bal > ADD_ON_BAG_MIN_TOKENS
@@ -230,10 +247,11 @@ export function evaluateAddOnFifoRedGate({
   markProceedsEth = 0,
   unknownEntry = false,
   reason = "",
+  bagUsd,
   env = process.env,
 } = {}) {
   void reason;
-  const existing = isExistingKnownFifoBag({ tokenBal, remainingFifoEth, unknownEntry });
+  const existing = isExistingKnownFifoBag({ tokenBal, remainingFifoEth, unknownEntry, bagUsd });
   if (!existing) {
     return { allow: true, blocked: false, reason: "flat-or-empty", log: null };
   }
@@ -342,6 +360,38 @@ export function leftoverCoversInject(leftover) {
 }
 
 /**
+ * First-buy / flatten / peak≈mark: price-space leftover (max-peak − fairExit
+ * − hitch spread) is 0 even when armed net already pays 1× hitch in ETH.
+ * That is the sterile loop after bags were flattened to ETH.
+ * covers when tradeEth × net > hitch (1×). Hitch cost 0 → not a cover
+ * (plain path is decided by skipHitch / L1 unknown, not a fake cover).
+ */
+export function ethEdgeCoversHitch({
+  tradeEth = 0,
+  net = 0,
+  hitchCostEth = 0,
+} = {}) {
+  const trade = Number(tradeEth);
+  const edge = Number(net);
+  const hitch = Math.max(0, Number(hitchCostEth) || 0);
+  if (!(trade > 0) || !(edge > 0)) return false;
+  if (!(hitch > 0)) return false;
+  return trade * edge > hitch;
+}
+
+export function ethEdgeLeftoverEth({
+  tradeEth = 0,
+  net = 0,
+  hitchCostEth = 0,
+} = {}) {
+  const trade = Number(tradeEth);
+  const edge = Number(net);
+  const hitch = Math.max(0, Number(hitchCostEth) || 0);
+  if (!(trade > 0) || !(edge > 0)) return 0;
+  return Math.max(0, trade * edge - hitch);
+}
+
+/**
  * Catalog freeze — buy-side only.
  *
  * `token.frozen === true` (or string/number equivalents: "true" / "1" / "yes").
@@ -433,6 +483,9 @@ export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { d
   }
   if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
     return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, usd: parsed.usd };
+  }
+  if (isSkipHoldDeadRoute(parsed.symbol)) {
+    return { queued: false, reason: "skip-hold", symbol: parsed.symbol, usd: parsed.usd };
   }
   if (frozenSymbols?.has(parsed.symbol)) {
     return { queued: false, reason: "frozen", symbol: parsed.symbol, usd: parsed.usd };
@@ -664,6 +717,7 @@ export function queueOperatorSellOnce(commands, rawEnv, knownSymbols, state = { 
   let already;
   for (const parsed of list) {
     if (state.doneBySymbol[parsed.symbol]) continue;
+    if (isSkipHoldDeadRoute(parsed.symbol)) continue;
     if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
       unknown = parsed;
       continue;
@@ -773,11 +827,19 @@ export function evaluateBuyGate({
   hasEdge = false,
   symbol = "?",
   reason = "",
+  tradeEth = 0,
+  net = 0,
+  hitchCostEth = 0,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
-  const covers = leftoverCoversInject(leftover);
+  const peakCovers = leftoverCoversInject(leftover);
+  const ethCovers = ethEdgeCoversHitch({ tradeEth, net, hitchCostEth });
+  const covers = peakCovers || ethCovers;
+  const effectiveLeftover = peakCovers
+    ? leftover
+    : (ethCovers ? ethEdgeLeftoverEth({ tradeEth, net, hitchCostEth }) : leftover);
   const tag = loseZero ? "LOSE_ZERO" : "REQUIRE_INJECT_COVER";
 
   // Cascade / ripple are capital redeploys, not a silent bypass — same
@@ -804,16 +866,18 @@ export function evaluateBuyGate({
 
   if (loseZero) {
     if (hasEdge && covers) {
+      const via = peakCovers ? "leftover covers inject" : "armed net covers 1× hitch (first-buy / flatten)";
       return {
         allow: true,
-        log: `${tag}: allow buy ${symbol} leftover covers inject`,
-        leftover,
-        reason: "edge+cover",
+        log: `${tag}: allow buy ${symbol} ${via}`,
+        leftover: effectiveLeftover,
+        skipHitch: !covers,
+        reason: peakCovers ? "edge+cover" : "edge+eth-cover",
       };
     }
     const why = !hasEdge
       ? "no clear edge"
-      : Number(leftover) === 0
+      : Number(leftover) === 0 && !ethCovers
         ? "leftover is 0"
         : "leftover does not cover inject";
     return {
@@ -836,9 +900,10 @@ export function evaluateBuyGate({
   }
   return {
     allow: true,
-    log: `${tag}: allow buy ${symbol} leftover covers inject`,
-    leftover,
-    reason: "cover",
+    log: `${tag}: allow buy ${symbol} ${peakCovers ? "leftover covers inject" : "armed net covers 1× hitch (first-buy / flatten)"}`,
+    leftover: effectiveLeftover,
+    skipHitch: !covers,
+    reason: peakCovers ? "cover" : "eth-cover",
   };
 }
 
@@ -866,6 +931,7 @@ export function buildBuyGateDecision({
   const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth, hitchBytes);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
+  const hitchCostEth = estimateInjectCostEth(gwei, l1FeeEth, hitchBytes);
   const l2Bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);
   const l2FeeEth = estimateCalldataHitchEth(l2Bytes, gwei);
   const source = hasLiveL1Fee(l1FeeEth) ? "oracle" : "fallback";
@@ -873,17 +939,29 @@ export function buildBuyGateDecision({
     l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
     l2FeeEth,
     hitchFeeSource: source,
+    hitchCostEth,
     feeSplitLog: formatHitchFeeSplit({
       l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
       l2FeeEth,
       source,
     }),
   };
+  const gateArgs = {
+    isCascade,
+    leftover,
+    hasEdge: edge,
+    symbol,
+    reason,
+    tradeEth,
+    net,
+    hitchCostEth,
+    env,
+  };
 
   // Operator /buy always computes leftover so hitch can ride when covered.
   if (isManualOperatorBuy(reason)) {
     return {
-      ...evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env }),
+      ...evaluateBuyGate(gateArgs),
       leftover,
       ...feeFields,
     };
@@ -900,7 +978,7 @@ export function buildBuyGateDecision({
     };
   }
 
-  const decision = evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
+  const decision = evaluateBuyGate(gateArgs);
   return {
     ...decision,
     skipHitch: decision.skipHitch ?? false,
