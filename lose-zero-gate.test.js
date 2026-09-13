@@ -1888,8 +1888,59 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
       },
     });
     assert.equal(forceBnkr.allow, true, "FORCE_EXIT_SYMBOLS AERO/DRB/BNKR must unwind");
-    assert.equal(forceBnkr.skipHitch, true);
+    assert.equal(forceBnkr.skipHitch, true, "red FORCE EXIT recovery never hitch");
     assert.equal(forceBnkr.verdict, "FORCE_EXIT");
+
+    const forceGreenHitch = evaluateSellGate({
+      symbol: "BNKR",
+      reason: "PIGGY UNLOCK BNKR — FORCE EXIT LOCKED (cash free, no cascade)",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00012,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      l1FeeEth: 1e-8,
+      hitchFeeSource: "oracle",
+      wantedHitchBytes: 69,
+      env: {
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR",
+        VITA_MESSAGE_FIRST: "yes",
+      },
+    });
+    assert.equal(forceGreenHitch.allow, true);
+    assert.equal(forceGreenHitch.verdict, "PLUS");
+    assert.equal(forceGreenHitch.skipHitch, false, "green FORCE EXIT hitch when message-first covers");
+    assert.ok(forceGreenHitch.hitchBytes > 0);
+
+    const forceGreenMute = evaluateSellGate({
+      symbol: "BNKR",
+      reason: "PIGGY UNLOCK BNKR — FORCE EXIT LOCKED (cash free, no cascade)",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00012,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      l1FeeEth: 1e-8,
+      hitchFeeSource: "oracle",
+      wantedHitchBytes: 69,
+      env: {
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR",
+        VITA_MESSAGE_FIRST: "no",
+      },
+    });
+    assert.equal(forceGreenMute.allow, true);
+    assert.equal(forceGreenMute.verdict, "PLUS");
+    assert.equal(forceGreenMute.skipHitch, true, "VITA_MESSAGE_FIRST=no keeps plain green FORCE EXIT");
 
     const forceReasonDrb = evaluateSellGate({
       symbol: "DRB",

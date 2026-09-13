@@ -242,6 +242,7 @@ import { vitaQuality } from "./vita-parse.js";
 import {
   queueForcedLockedExits,
   markForcedExitExecuted,
+  latchForcedExitIfDust,
   forceExitLockedEnabled,
   forceExitSymbols,
 } from "./forced-exit.js";
@@ -8327,6 +8328,15 @@ async function processToken(cdp, token, bal) {
             `${token.symbol} stays FROZEN (no re-buy)`
           );
           // DO NOT call triggerCascade — that's the whole point
+        } else if (cmd.source === "FORCE_EXIT_LOCKED") {
+          // Failed / dust / STF-blocked — latch if only lottery wei remains so
+          // the next cycle does not re-spam FORCE EXIT (live DRB 3.5e-14 loop).
+          const remain = getCachedBalance(token.symbol) || 0;
+          if (latchForcedExitIfDust(forcedExitState, token.symbol, remain, price)) {
+            console.log(
+              `🚪 FORCE EXIT LOCKED dust-latched after miss: ${token.symbol} remain=${remain} — stop re-queue`
+            );
+          }
         }
       }
       return;
@@ -12221,10 +12231,12 @@ function applyOperatorSellEnv() {
 function applyForcedLockedExits() {
   if (!forceExitLockedEnabled()) return { queued: [], reason: "disabled" };
   const balances = {};
+  const prices = {};
   for (const sym of forceExitSymbols()) {
     balances[sym] = getCachedBalance(sym) || 0;
+    prices[sym] = Number(history[sym]?.lastPrice) || 0;
   }
-  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState);
+  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState, { prices });
   if (result.queued?.length) {
     for (const q of result.queued) {
       console.log(`🚪 FORCE EXIT LOCKED queued: ${q.symbol} bal=${q.balance} — cash free, no cascade, stays frozen`);
@@ -12234,6 +12246,14 @@ function applyForcedLockedExits() {
         `Cascade OFF — then hunt profits only\n` +
         `${q.symbol} remains FROZEN`
       ).catch(() => {});
+    }
+  }
+  // Lottery 1-wei leftovers after prior FORCE_EXIT — latch quietly (no TG spam).
+  for (const s of result.skipped || []) {
+    if (s.reason === "dust-latched") {
+      console.log(
+        `🚪 FORCE EXIT LOCKED dust-latched: ${s.symbol} bal=${s.balance} — lottery wei left, no re-queue`
+      );
     }
   }
   return result;
