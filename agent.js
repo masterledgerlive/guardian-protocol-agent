@@ -442,6 +442,7 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
+import { wrapQueueSelfCall } from "./vita/feed-wrap.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -13985,23 +13986,27 @@ async function main() {
                     const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                     const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                    const { transactionHash } = await cdpClient.evm.sendTransaction({
-                      address: WALLET_ADDRESS, network: "base",
-                      transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                    const wrapped = wrapQueueSelfCall({
+                      to: WALLET_ADDRESS,
+                      from: WALLET_ADDRESS,
+                      data: hex,
+                      text: full,
+                      pairedUniswapSell: false,
+                      topic: "ikn-queue",
                     });
-                    txHashes.push(transactionHash);
+                    if (wrapped.txHash) txHashes.push(wrapped.txHash);
                     prevHash = thisHash;
-                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + transactionHash);
-                    if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + (wrapped.banked ? "BANKED (queue wrap)" : wrapped.reason));
                   }
 
                   // Attach tx hashes to entry before IKN processor files it
                   entry._txHashes    = txHashes;
                   entry._strandId    = strandId;
                   entry._inscribedAt = new Date().toISOString();
+                  if (entry.tokenPacket) absorbVitaStrandPacket({ tokenPacket: entry.tokenPacket, chunks: [] });
                   if (entry.iknCard) {
-                    entry.iknCard.STRAND = txHashes[0]; // first tx = strand anchor
-                    entry.iknCard.TRUST  = "⛓️ blockchain-verified";
+                    entry.iknCard.STRAND = txHashes[0] || null;
+                    entry.iknCard.TRUST  = txHashes[0] ? "⛓️ blockchain-verified" : "banked — leftover hitch";
                   }
 
                   // IKN processor: classify, build call number, stamp trust, update registry
@@ -14013,9 +14018,10 @@ async function main() {
                   msg += "📋 <b>Call number:</b> <code>" + iknResult.iknX + "</code>\n";
                   msg += "🏷️ <b>Status:</b> " + iknResult.status + " (" + iknResult.confidence + "% confidence)\n";
                   msg += "🔒 <b>Trust:</b> " + iknResult.trust + "\n\n";
-                  msg += "🔗 5 chunks on Base:\n";
-                  txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                  msg += "\n\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
+                  msg += txHashes.length
+                    ? "🔗 chunks on Base:\n" + txHashes.map((tx, i) => (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ").join("")
+                    : "📦 hex banked — hitch on next leftover-covered ride (queue wrap; mother brain untouched)\n";
+                  msg += "\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
                   msg += "📁 Queue: deleted ✅\n";
                   msg += "💌 <i>The library remembers. §IKN§</i>";
                   await tg(msg);
@@ -14040,14 +14046,17 @@ async function main() {
                   const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                   const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                  const { transactionHash } = await cdpClient.evm.sendTransaction({
-                    address: WALLET_ADDRESS, network: "base",
-                    transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                  const wrapped = wrapQueueSelfCall({
+                    to: WALLET_ADDRESS,
+                    from: WALLET_ADDRESS,
+                    data: hex,
+                    text: full,
+                    pairedUniswapSell: false,
+                    topic: "vita-queue",
                   });
-                  txHashes.push(transactionHash);
+                  if (wrapped.txHash) txHashes.push(wrapped.txHash);
                   prevHash = thisHash;
-                  console.log("   📡 Chunk " + (i+1) + "/5: " + transactionHash);
-                  if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                  console.log("   📡 Chunk " + (i+1) + "/5: " + (wrapped.banked ? "BANKED (queue wrap)" : wrapped.reason));
                 }
 
                 // File in vita-registry.json (legacy format — unchanged)
@@ -14065,11 +14074,13 @@ async function main() {
                   }
                 } catch {}
 
+                if (text) absorbVitaStrandPacket({ tokenPacket: text, chunks: [] });
+
                 registry[regKey] = {
                   strandId, date, label: entry.label,
                   type: entry.type || "knowledge-base",
                   subject: entry.subject || entry.label,
-                  txHashes, tokenPacket: text.slice(0,3000),
+                  txHashes, banked: !txHashes.length, tokenPacket: text.slice(0,3000),
                   filedAt: new Date().toISOString(),
                 };
 
@@ -14095,9 +14106,10 @@ async function main() {
                 // Telegram receipt
                 let msg = "✅ <b>VITA QUEUE PROCESSED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
                 msg += "📚 <b>" + (entry.subject || entry.label) + "</b>\n";
-                msg += "🔗 5 chunks inscribed on Base:\n";
-                txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                msg += "\n\n📁 Filed: <code>" + regKey + "</code>\n";
+                msg += txHashes.length
+                  ? "🔗 chunks on Base:\n" + txHashes.map((tx, i) => (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ").join("") + "\n\n"
+                  : "📦 hex banked — hitch on next leftover-covered ride (queue wrap; VITA root intact)\n\n";
+                msg += "📁 Filed: <code>" + regKey + "</code>\n";
                 msg += "🗑️ Queue file: " + (deleted ? "deleted ✅" : "deletion failed ⚠️") + "\n\n";
                 msg += "Test: <code>/vita " + (entry.label.split("-")[0]) + "</code>\n";
                 msg += "💌 <i>The chain remembers.</i>";

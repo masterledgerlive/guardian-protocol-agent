@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed — wrap vita-queue unpaired self-calls (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk`). Operators still have the inscription path.
+
+The trade-loop `vita-queue/` processor was solo-sending `[VITA:` /
+sel `0x5b564954` STORE self-calls with 0 Uniswap fills. A thin
+`vita/feed-wrap.js` adapter wraps **those callers only**: hitch when
+leftover covers a paired sell; otherwise bank hex. No physics code.
+Voxel-truth stays docs (`vita/VOXEL.md`).
+
 ### Fixed — T1 $3.80 inject floor stranded a ~$5.67 unified book (PRIMED none)
 
 Live after redeploy `5918a12e` (haltNewEntries=false): CDP ETH 0.001500
