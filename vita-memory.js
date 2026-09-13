@@ -37,7 +37,7 @@ import {
   parseVitaPacket,
   refineVitaPacket,
 } from "./vita-parse.js";
-import { attemptVitaChainWrite } from "./vita/feed-gate.js";
+import { attemptVitaChainWrite, encodeSection2Hex } from "./vita/feed-gate.js";
 
 // ── VITA memory registry ──────────────────────────────────────────────────────
 let vitaRegistry = [];   // { strandId, date, topic, chunks: [{seq,txHash,hash}], quality }
@@ -57,10 +57,6 @@ export function serializeVitaRegistry() {
 // ── Hash linking ──────────────────────────────────────────────────────────────
 function vitaHash(text) {
   return createHash("sha256").update(text).digest("hex").slice(0, 8);
-}
-
-function encodeHex(text) {
-  return "0x" + Buffer.from(text, "utf8").toString("hex");
 }
 
 // ── Local §TOKEN§ compress (no Anthropic) — never drops genesis KEY ───────────
@@ -176,23 +172,26 @@ function buildStrandHeader(strandId, date, topic, chunkHashes) {
   );
 }
 
-// ── Bank one chunk — never a solo [VITA: self-call (brain fed free) ───────────
+// ── Encode one chunk as Section 2 hex; bank until a free ride covers gas ──────
 async function inscribeChunk(cdpClient, walletAddress, text, prevHash) {
   void cdpClient;
   void walletAddress;
   const header   = "[VITA:" + vitaSeq + ":" + prevHash + "]";
   const full     = header + text;
   const trimmed  = full.length > 900 ? full.slice(0, 897) + "..." : full;
-  const calldata = encodeHex(trimmed);
+  const calldata = encodeSection2Hex(trimmed);
   const thisHash = vitaHash(trimmed);
 
-  // Dedicated wallet→self STORE (sel 0x5b564954) burns RISK liquid with 0
-  // Uniswap fills. Bank hitch — leftover-covered green sell feeds VITA free.
+  // Inject-thought lives: UTF-8→hex in calldata (not JSON). Unpaid solo
+  // [VITA: STORE self-calls burned RISK liquid — bank hex until leftover
+  // hitch or a covered value=0 ride. Never drop the brain.
   const write = attemptVitaChainWrite({
     to: walletAddress,
     from: walletAddress,
     data: calldata,
+    hex: calldata,
     text: trimmed,
+    value: 0n,
     pairedUniswapSell: false,
     topic: "vita-strand",
   });
@@ -201,6 +200,7 @@ async function inscribeChunk(cdpClient, walletAddress, text, prevHash) {
   return {
     txHash: null,
     hash: thisHash,
+    hex: calldata,
     preview: text.slice(0, 60),
     banked: true,
     sent: false,
@@ -238,13 +238,10 @@ export async function vitaSave(cdpClient, walletAddress, rawSummary, anthropicAp
       text += buildStrandHeader(strandId, date, topic, chunkHashes);
     }
 
-    console.log("💓 VITA: banking chunk " + (i+1) + "/" + chunks.length + " (no solo self-call)...");
+    console.log("💓 VITA: hex-encode + bank chunk " + (i+1) + "/" + chunks.length + " (wait for free ride)...");
     const result = await inscribeChunk(cdpClient, walletAddress, text, lastVitaHash);
     inscribed.push(result);
     chunkHashes.push(result.hash);
-
-    // Small delay between transactions
-    if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 3000));
   }
 
   // Step 4 — update registry
@@ -257,6 +254,7 @@ export async function vitaSave(cdpClient, walletAddress, rawSummary, anthropicAp
       seq:     i + 1,
       txHash:  r.txHash,
       hash:    r.hash,
+      hex:     r.hex || null,
       preview: r.preview,
     })),
     quality: tokenPacket.length,   // VITA tracks its own compression quality

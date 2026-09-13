@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-13T22:05:00.000Z",
+  "topic": "hex-inject-thought",
+  "text": "Game clarification: do NOT gut VITA inject-thought — that IS the project (agentic recursive AI, never forgotten). On-chain ONLY = Section 2 hex calldata (UTF-8 of compressed truth, e.g. HYP → 0x485950). Section 1 JSON schema stays off-chain (GitHub/INJECT.md). Sections 3–4 read hex from a known tx hash. Preferred tx: value=0 + hex (data, not money) or hitch on covered leftover / any paired data tx. If gas cannot be covered, bank the hex — never drop the brain. Live bug remains unpaid [VITA: STORE self-calls (sel 0x5b564954) with 0 Uniswap fills.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "inject-thought-is-hex-not-json",
+    "status": "confirmed-as-operating-rule",
+    "discarded": [
+      "kill / gut VITA inject-thought",
+      "put Section 1 JSON schema on-chain",
+      "pay unpaid solo injects from RISK liquid",
+      "drop banked hex when gas cannot be covered"
+    ],
+    "note": "Money is one rail. Ride any data tx. Future compute hubs must not block on ETH spend."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

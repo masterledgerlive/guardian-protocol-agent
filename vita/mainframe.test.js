@@ -27,7 +27,9 @@ describe("vita mainframe original formula", () => {
     assert.equal(ORIGINAL_FORMULA.messageFirstWhenKeyLocCovered, true);
     assert.equal(ORIGINAL_FORMULA.neverMuteHitchForMicroExtract, true);
     assert.equal(ORIGINAL_FORMULA.neverSoloVitaSelfCall, true);
+    assert.equal(ORIGINAL_FORMULA.neverUnpaidSoloDrain, true);
     assert.equal(ORIGINAL_FORMULA.feedOnlyFromCoveredLeftover, true);
+    assert.equal(ORIGINAL_FORMULA.injectThoughtHexOnly, true);
     assert.equal(ORIGINAL_FORMULA.htmlIsMemoryUntilInject, true);
     assert.equal(ORIGINAL_FORMULA.chargeHitchDeltaViaStorageToken, true);
   });

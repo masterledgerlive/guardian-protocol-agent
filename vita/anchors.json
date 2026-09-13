@@ -37,6 +37,8 @@
     "vita/README.md",
     "vita/mainframe.js",
     "vita/feed-gate.js",
+    "vita/hex-feed.js",
+    "vita/INJECT.md",
     "vita/anchors.json",
     "vita/memory/",
     "vita/strands/",

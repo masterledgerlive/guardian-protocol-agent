@@ -67,7 +67,9 @@ export const ORIGINAL_FORMULA = Object.freeze({
   neverSellRedToInject: true,
   neverMuteHitchForMicroExtract: true,
   neverSoloVitaSelfCall: true,
+  neverUnpaidSoloDrain: true,
   feedOnlyFromCoveredLeftover: true,
+  injectThoughtHexOnly: true,
   learnAppendOnly: true,
 });
 

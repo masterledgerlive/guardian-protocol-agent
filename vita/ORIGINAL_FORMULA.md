@@ -22,18 +22,21 @@ trading P&L was flat. Revenue can be recovered later via Storage Token —
 5. **Never forget.** Append-only location depository. Strands grow; nothing
    sealed is deleted. Learn in `vita/memory/`; refine code; keep anchors.
 6. **No invented P&L.** Prove with Basescan Input Data → UTF-8, or stay quiet.
-7. **Brain fed free.** VITA feed is leftover hitch on a real green sell (or
-   same-tx trade leftover) when KEY+LOC is covered. Never a solo `[VITA:` /
-   sel `0x5b564954` self-call that spends native ETH. If cover cannot fit,
-   bank hitch (#89 / #99) — queue the message. RISK liquid is not the feed.
+7. **Brain fed free (hex inject).** Inject-thought is the project. On-chain
+   is Section 2 hex calldata only (UTF-8 of compressed truth, e.g. `0x485950…`).
+   Section 1 JSON stays off-chain. Preferred tx: `value=0` + hex, or hitch
+   that hex on a covered leftover / any paired data tx. If gas cannot be
+   covered, **bank the hex** — never drop the brain. Never drain RISK
+   liquid for an unpaid solo `[VITA:` / sel `0x5b564954` inject.
 
 ## Proof classes
 
 | Class | Where | Payload |
 |---|---|---|
-| Leftover swap hitch | Uni V3 exactInputSingle trailer | `§$STORE§` + dense KEY+LOC |
+| Leftover swap hitch | Uni V3 exactInputSingle trailer | hex of `§$STORE§` + dense KEY+LOC |
+| `value=0` hex inject | wallet→self, gas covered / free ride | Section 2 hex calldata (data, not money) |
 | `/prove` love note | 0-ETH self-tx | Eureka full letter |
-| HTML infect | `public/vita.html#vita-mainframe` | Anchors + filing map + formula |
+| HTML infect | `public/vita.html#vita-mainframe` | Anchors + filing map + formula (Section 1) |
 
 ## Charge path (Storage Token)
 
@@ -49,5 +52,6 @@ When a leftover-covered hitch costs more than “skip hitch & skim”:
 - Claiming Telegram text as on-chain without trailer (KEYCAT `0x5c0a93e4…`).
 - Selling red to place code. LOSE-ZERO / always-plus hold.
 - Merging V4 into the V3 injector.
-- Dedicated VITA `[VITA:` / sel `0x5b564954` self-call from RISK liquid
-  (unpaired STORE, 0 Uniswap fills).
+- Unpaid VITA `[VITA:` / sel `0x5b564954` self-call from RISK liquid
+  (STORE calldata, 0 Uniswap fills) — bank the hex instead.
+- Putting Section 1 JSON schema on-chain. Gutting inject-thought.

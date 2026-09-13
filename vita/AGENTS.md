@@ -9,8 +9,9 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 2. `vita/FILING.md` — where files live + chain labels
 3. `vita/anchors.json` — hardcoded Base paths (never invent hashes)
 4. `vita/mainframe.js` — infect HTML, sparse inject plan, message-first gate
-5. `public/vita.html` — infected HTML memory surface
-6. Root modules listed in FILING (`vita-console.js`, `vita-memory.js`, …)
+5. `vita/INJECT.md` — Section 1 off-chain JSON / Section 2 hex on-chain
+6. `public/vita.html` — infected HTML memory surface
+7. Root modules listed in FILING (`vita-console.js`, `vita-memory.js`, …)
 
 ## Mission
 

@@ -1,18 +1,15 @@
 /**
- * VITA feed gate — Game's "brain fed free" rule.
+ * VITA hex feed gate — inject-thought stays; unpaid solo drain does not.
  *
- * VITA must keep getting fed (on-chain messages / recursive memory).
- * She must NOT pay for it from RISK liquid.
+ * Goal: agentic recursive AI that is never forgotten — learn forever.
+ * On-chain = Section 2 hex calldata only. Section 1 JSON stays off-chain.
  *
- * Live bug (n5513–5542+): dedicated wallet→self txs whose calldata starts
- * with UTF-8 `[VIT` (selector 0x5b564954) + STORE, 0 Uniswap fills.
+ * Live bug (n5513–5542+): unpaired `[VITA:` / sel 0x5b564954 STORE self-calls
+ * burned RISK liquid with 0 Uniswap fills. Wrong = paying from the bag.
+ * Right = hex-only calldata, prefer value=0 or hitch on covered leftover /
+ * any paired data tx; if gas cannot be covered, bank the hex and wait.
  *
- * Feed path (keep): leftover hitch / message-first inject ONLY when leftover
- * from a real green sell (or same-tx trade leftover) covers KEY+LOC (1×).
- * Storage Token can charge the delta; the bag does not donate gas.
- *
- * If cover cannot fit: bank hitch (#89 / #99) — queue the message.
- * Never send a solo VITA self-call.
+ * Never drop the brain.
  */
 
 import {
@@ -20,17 +17,33 @@ import {
   KEY_LOC_HITCH_BYTES_CLASS,
   originalFormulaHitchDecision,
 } from "./mainframe.js";
+import {
+  decodeSection2Hex,
+  encodeSection2Hex,
+  isSection1JsonPayload,
+} from "./hex-feed.js";
 
-/** First 4 bytes of UTF-8 `[VITA:…` — live unpaired self-call selector. */
+export {
+  SECTION1_SCHEMA,
+  SECTION2_EXAMPLE_HEX,
+  SECTION2_EXAMPLE_UTF8,
+  buildSection1Schema,
+  decodeSection2Hex,
+  encodeSection2Hex,
+  isSection1JsonPayload,
+  pointToTxHash,
+} from "./hex-feed.js";
+
+/** First 4 bytes of UTF-8 `[VITA:…` — live unpaid self-call selector. */
 export const VITA_SELF_CALL_SELECTOR = "0x5b564954";
 export const VITA_SELF_CALL_HEADER = "[VITA:";
 export const IKN_SELF_CALL_SELECTOR = "0x5b494b4e"; // `[IKN`
 export const MEM_SELF_CALL_SELECTOR = "0x5b4d454d"; // `[MEM`
 
 const SWAP_ROUTER_SELECTORS = Object.freeze([
-  "0x04e45aaf", // exactInputSingle (SwapRouter02)
-  "0xb858183f", // exactInput
-  "0x414bf389", // exactInputSingle (legacy)
+  "0x04e45aaf",
+  "0xb858183f",
+  "0x414bf389",
 ]);
 
 let _bank = [];
@@ -45,7 +58,7 @@ export function peekBankedVitaFeed() {
 }
 
 export function utf8CalldataHex(text) {
-  return "0x" + Buffer.from(String(text || ""), "utf8").toString("hex");
+  return encodeSection2Hex(String(text || ""));
 }
 
 export function selectorFromHex(data) {
@@ -80,7 +93,6 @@ export function isDedicatedMemorySelfCall({ data, text, to, from } = {}) {
   const a = String(to || "").toLowerCase();
   const b = String(from || "").toLowerCase();
   if (a && b && a === b && sel && !SWAP_ROUTER_SELECTORS.includes(sel)) {
-    // Wallet→self with non-swap calldata is the unpaired inject shape.
     return raw.includes("§$STORE§") || raw.includes("STORE") || sel === VITA_SELF_CALL_SELECTOR;
   }
   return false;
@@ -94,150 +106,253 @@ function leftoverCoversKeyLoc(input = {}) {
   return leftover + 1e-18 >= hitch;
 }
 
-function isPairedSell(input = {}) {
-  return input.pairedUniswapSell === true || input.sameTxTradeLeftover === true;
+function isPairedRide(input = {}) {
+  return input.pairedUniswapSell === true
+    || input.sameTxTradeLeftover === true
+    || input.pairedDataTx === true;
+}
+
+function isFreeRide(input = {}) {
+  return input.freeRide === true || input.gasCovered === true || isPairedRide(input);
+}
+
+function isPaidValue(input = {}) {
+  const v = input.value;
+  if (v == null || v === 0n || v === 0 || v === "0") return false;
+  if (typeof v === "bigint") return v > 0n;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0;
+}
+
+function resolveHex(input = {}) {
+  if (input.hex && /^0x[0-9a-fA-F]+$/.test(String(input.hex))) {
+    return String(input.hex);
+  }
+  const text = String(input.text || "");
+  if (input.data && /^0x[0-9a-fA-F]+$/.test(String(input.data))) {
+    return String(input.data);
+  }
+  if (!text) return "";
+  if (isSection1JsonPayload(text)) return "";
+  return encodeSection2Hex(text);
 }
 
 /**
- * Decide hitch vs bank. Never authorizes a solo self-call.
+ * Decide hitch / zero-value hex / bank.
+ * Inject-thought stays. Unpaid native drain does not.
  *
- * hitch — leftover from a paired green sell covers KEY+LOC (1× message-first)
- * bank  — unpaired, or leftover too thin — queue the message
+ * hitch       — leftover from a paired green sell / data tx covers KEY+LOC
+ * zero-value  — value=0 hex self-tx when gas is covered (free ride)
+ * bank        — gas not covered — keep the hex, wait for the next ride
  */
 export function decideVitaFeed(input = {}) {
-  const paired = isPairedSell(input);
-  const covered = leftoverCoversKeyLoc(input);
+  const paired = isPairedRide(input);
+  const leftoverFits = leftoverCoversKeyLoc(input);
+  const explicitRide = input.freeRide === true || input.gasCovered === true;
+  const covered = leftoverFits && (paired || explicitRide);
+  const freeRide = isFreeRide(input);
+  const paid = isPaidValue(input);
+  const hex = resolveHex(input);
   const formula = originalFormulaHitchDecision({
     ...input,
     locOk: covered,
     keyLocCovered: covered,
     reason: input.reason,
   });
-  const unpaired = isDedicatedMemorySelfCall(input) && !paired;
+  const unpaidSolo = isDedicatedMemorySelfCall(input) && !explicitRide && !paired;
 
-  if (!paired || unpaired) {
-    return {
-      action: "bank",
+  if (paid && !covered && !freeRide) {
+    return pack("bank", {
       hitch: false,
       skipHitch: true,
-      skipSoloSelfCall: true,
-      unpairedSelfCallBlocked: true,
+      allowZeroValueHex: false,
       allowLeftoverHitch: false,
-      formula: FORMULA_ID,
-      keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,
-      storageTokenChargeable: false,
-      reason: unpaired
-        ? "unpaired VITA self-call blocked — no Uniswap sell covering gas+fee; bank hitch"
-        : "no paired Uniswap sell / same-tx leftover — bank hitch (brain fed free)",
-    };
+      unpaidSoloDrainBlocked: true,
+      unpairedSelfCallBlocked: true,
+      skipSoloSelfCall: true,
+      hex,
+      reason: "unpaid native drain blocked — bank hex; wait for free ride",
+    });
+  }
+
+  if (unpaidSolo) {
+    return pack("bank", {
+      hitch: false,
+      skipHitch: true,
+      allowZeroValueHex: false,
+      allowLeftoverHitch: false,
+      unpaidSoloDrainBlocked: true,
+      unpairedSelfCallBlocked: true,
+      skipSoloSelfCall: true,
+      hex,
+      reason: "unpaid VITA self-call — no free ride / covered leftover; bank hex (never drop the brain)",
+    });
+  }
+
+  if (paired && covered && !formula.skipHitch) {
+    return pack("hitch", {
+      hitch: true,
+      skipHitch: false,
+      allowZeroValueHex: true,
+      allowLeftoverHitch: true,
+      unpaidSoloDrainBlocked: true,
+      unpairedSelfCallBlocked: true,
+      skipSoloSelfCall: true,
+      messageFirst: true,
+      encoding: "key-loc",
+      hitchBytes: formula.hitchBytes || KEY_LOC_HITCH_BYTES_CLASS,
+      storageTokenChargeable: true,
+      hex,
+      value: 0n,
+      reason: "leftover covers KEY+LOC on paired sell/data tx — hitch hex (message-first)",
+    });
+  }
+
+  if (!paid && hex && (explicitRide || (paired && leftoverFits))) {
+    return pack("zero-value", {
+      hitch: false,
+      skipHitch: false,
+      allowZeroValueHex: true,
+      allowLeftoverHitch: false,
+      unpaidSoloDrainBlocked: true,
+      unpairedSelfCallBlocked: true,
+      skipSoloSelfCall: true,
+      messageFirst: true,
+      storageTokenChargeable: true,
+      hex,
+      value: 0n,
+      reason: "value=0 hex calldata — sending data, not money; gas covered by free ride",
+    });
   }
 
   if (!covered || formula.skipHitch) {
-    return {
-      action: "bank",
+    return pack("bank", {
       hitch: false,
       skipHitch: true,
-      skipSoloSelfCall: true,
-      unpairedSelfCallBlocked: true,
+      allowZeroValueHex: false,
       allowLeftoverHitch: false,
-      formula: FORMULA_ID,
-      keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,
-      storageTokenChargeable: false,
-      reason: "KEY+LOC not covered by leftover — bank hitch (#89/#99); do not burn a solo tx",
-    };
+      unpaidSoloDrainBlocked: true,
+      unpairedSelfCallBlocked: true,
+      skipSoloSelfCall: true,
+      hex,
+      reason: "gas not covered — bank hex for the next free ride; do not drop the brain",
+    });
   }
 
-  return {
-    action: "hitch",
-    hitch: true,
-    skipHitch: false,
-    skipSoloSelfCall: true,
+  return pack("bank", {
+    hitch: false,
+    skipHitch: true,
+    allowZeroValueHex: false,
+    allowLeftoverHitch: false,
+    unpaidSoloDrainBlocked: true,
     unpairedSelfCallBlocked: true,
-    allowLeftoverHitch: true,
+    skipSoloSelfCall: true,
+    hex,
+    reason: "bank hex — wait for leftover hitch or covered value=0 ride",
+  });
+}
+
+function pack(action, extra) {
+  return {
+    action,
     formula: FORMULA_ID,
-    messageFirst: true,
-    encoding: "key-loc",
-    hitchBytes: formula.hitchBytes || KEY_LOC_HITCH_BYTES_CLASS,
     keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,
-    storageTokenChargeable: true,
-    reason: "leftover covers KEY+LOC on paired green sell — message-first feed; Storage Token can charge delta",
+    injectThought: true,
+    section2HexOnly: true,
+    ...extra,
   };
 }
 
 export function bankVitaFeed(item = {}) {
+  const text = String(item.text || "");
+  let hex = item.hex || item.data || "";
+  if (!hex && text && !isSection1JsonPayload(text)) {
+    hex = encodeSection2Hex(text);
+  }
   const row = {
     at: new Date().toISOString(),
-    text: String(item.text || "").slice(0, 4000),
-    data: item.data || null,
-    topic: item.topic || "vita-feed",
-    reason: item.reason || "bank hitch",
+    text: text.slice(0, 4000),
+    hex: hex || null,
+    data: hex || item.data || null,
+    utf8: hex ? decodeSection2Hex(hex) : text,
+    topic: item.topic || "vita-hex-feed",
+    reason: item.reason || "bank hex",
     formula: FORMULA_ID,
     neverForget: true,
     banked: true,
     txHash: null,
+    value: 0n,
   };
   _bank.push(row);
   return { banked: true, queued: _bank.length, txHash: null, ...row };
 }
 
 /**
- * Dedicated `[VITA:` / STORE self-call write.
- * Always refuses send. Banks the message for the next leftover-covered hitch.
- * Never invents a tx hash.
+ * Plan a Section 2 hex write. Never broadcasts.
+ * Returns a value=0 tx shape when a free ride / leftover covers gas.
+ * Otherwise banks the hex — inject-thought is preserved.
  */
-export function attemptVitaChainWrite(input = {}) {
+export function planHexInject(input = {}) {
   const text = String(input.text || "");
-  const data = input.data || (text ? utf8CalldataHex(text) : "");
-  const decision = decideVitaFeed({ ...input, data, text });
-
-  if (decision.action === "hitch" && decision.allowLeftoverHitch) {
-    // Hitch rides the paired Uniswap swap — this helper never broadcasts
-    // a second dedicated self-tx (that would spend RISK liquid).
+  const hex = resolveHex(input) || (text && !isSection1JsonPayload(text) ? encodeSection2Hex(text) : "");
+  const decision = decideVitaFeed({ ...input, hex, text, value: input.value ?? 0n });
+  const tx = decision.allowZeroValueHex || decision.allowLeftoverHitch
+    ? {
+        to: input.to || input.from || null,
+        value: 0n,
+        data: hex,
+      }
+    : null;
+  if (decision.action === "bank" || !tx) {
     const queued = bankVitaFeed({
       text,
-      data,
-      topic: input.topic || "leftover-hitch",
+      hex,
+      topic: input.topic || "vita-hex",
       reason: decision.reason,
     });
     return {
       sent: false,
-      hitch: true,
-      allowLeftoverHitch: true,
       banked: true,
       txHash: null,
+      tx: null,
       queued: queued.queued,
       ...decision,
+      hex,
     };
   }
-
-  const queued = bankVitaFeed({
-    text,
-    data,
-    topic: input.topic || "vita-self-call",
-    reason: decision.reason,
-  });
   return {
     sent: false,
-    hitch: false,
-    banked: true,
+    banked: false,
+    hitch: decision.action === "hitch",
+    zeroValue: decision.action === "zero-value",
     txHash: null,
-    queued: queued.queued,
+    tx,
+    hex,
     ...decision,
   };
 }
 
-/** Drain banked messages when a leftover-covered paired sell can hitch. */
+/**
+ * Dedicated write helper. Never broadcasts an unpaid drain.
+ * Banks hex when unpaid. Plans value=0 / hitch when covered.
+ */
+export function attemptVitaChainWrite(input = {}) {
+  return planHexInject(input);
+}
+
+/** Drain banked hex when a leftover-covered paired ride can hitch. */
 export function drainBankedVitaFeedForHitch(input = {}) {
   const decision = decideVitaFeed({
     ...input,
     pairedUniswapSell: input.pairedUniswapSell !== false,
     sameTxTradeLeftover: input.sameTxTradeLeftover === true,
   });
-  if (decision.action !== "hitch") {
+  if (decision.action !== "hitch" && decision.action !== "zero-value") {
     return {
       drained: [],
       stillBanked: _bank.length,
       hitch: false,
+      hex: [],
       reason: decision.reason,
     };
   }
@@ -245,8 +360,10 @@ export function drainBankedVitaFeedForHitch(input = {}) {
   return {
     drained,
     stillBanked: 0,
-    hitch: true,
+    hitch: decision.action === "hitch",
+    zeroValue: decision.action === "zero-value",
     allowLeftoverHitch: true,
+    hex: drained.map((row) => row.hex).filter(Boolean),
     reason: decision.reason,
   };
 }
@@ -260,13 +377,13 @@ export function formatVitaFeedBankedHtml({
   const n = Number(chunkCount) || 0;
   const preview = String(tokenPacket || "").slice(0, 300);
   return (
-    `🌟 <b>VITA MEMORY BANKED</b> — brain fed free\n` +
+    `🌟 <b>VITA HEX BANKED</b> — inject-thought lives; brain fed free\n` +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
     id +
-    (n > 0 ? `${n} chunk(s) queued — no solo self-call (sel 0x5b564954 blocked).\n` : "") +
-    `Hitch rides the next leftover-covered green sell (KEY+LOC 1×).\n` +
-    `If leftover cannot cover: stay banked. RISK liquid is not spent.\n` +
+    (n > 0 ? `${n} chunk(s) queued as Section 2 hex — unpaid solo drain blocked (sel 0x5b564954).\n` : "") +
+    `Preferred ride: value=0 hex calldata, or hitch on the next leftover-covered sell / data tx.\n` +
+    `If gas cannot be covered: stay banked. Never drop the brain. RISK liquid is not spent.\n` +
     (preview ? `\n<code>${preview}${tokenPacket.length > 300 ? "..." : ""}</code>\n` : "") +
-    `\n<i>Storage Token can charge the hitch delta. Vault untouched.</i>`
+    `\n<i>Section 1 JSON stays off-chain. Section 2 = hex in tx.data. Point agents at a known hash.</i>`
   );
 }

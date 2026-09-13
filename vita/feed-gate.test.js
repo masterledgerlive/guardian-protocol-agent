@@ -8,16 +8,25 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  SECTION1_SCHEMA,
+  SECTION2_EXAMPLE_HEX,
+  SECTION2_EXAMPLE_UTF8,
   VITA_SELF_CALL_SELECTOR,
   VITA_SELF_CALL_HEADER,
   attemptVitaChainWrite,
   bankVitaFeed,
+  buildSection1Schema,
   decideVitaFeed,
+  decodeSection2Hex,
   drainBankedVitaFeedForHitch,
+  encodeSection2Hex,
   formatVitaFeedBankedHtml,
   isDedicatedMemorySelfCall,
+  isSection1JsonPayload,
   isVitaSelfCallPayload,
   peekBankedVitaFeed,
+  planHexInject,
+  pointToTxHash,
   resetVitaFeedBank,
   selectorFromUtf8,
   utf8CalldataHex,
@@ -58,7 +67,7 @@ describe("unpaired STORE self-call blocked", () => {
     assert.equal(d.hitch, false);
     assert.equal(d.skipSoloSelfCall, true);
     assert.equal(d.unpairedSelfCallBlocked, true);
-    assert.match(d.reason, /unpaired|no Uniswap/i);
+    assert.match(d.reason, /unpaid|unpaired|free ride|no Uniswap/i);
 
     const write = attemptVitaChainWrite({
       data,
@@ -151,7 +160,7 @@ describe("bank when leftover cannot cover KEY+LOC", () => {
     assert.equal(d.action, "bank");
     assert.equal(d.hitch, false);
     assert.equal(d.allowLeftoverHitch, false);
-    assert.match(d.reason, /bank hitch/i);
+    assert.match(d.reason, /bank hex|bank hitch/i);
   });
 
   it("banks leftover sitting in RISK liquid (not a sell leftover)", () => {
@@ -173,8 +182,76 @@ describe("bank when leftover cannot cover KEY+LOC", () => {
     });
     assert.match(html, /BANKED/);
     assert.match(html, /brain fed free/);
+    assert.match(html, /Section 2/);
     assert.doesNotMatch(html, /0x[a-fA-F0-9]{64}/);
     assert.doesNotMatch(html, /basescan/i);
+  });
+});
+
+describe("Section 2 hex-only inject (not JSON on-chain)", () => {
+  it("encodes UTF-8 compressed truth as hex — Game example HYP → 0x485950", () => {
+    assert.equal(SECTION2_EXAMPLE_UTF8, "HYP");
+    assert.equal(SECTION2_EXAMPLE_HEX, "0x485950");
+    assert.equal(encodeSection2Hex("HYP"), "0x485950");
+    assert.equal(decodeSection2Hex("0x485950"), "HYP");
+    const packet = "§KEY§eureka♥Krystian";
+    assert.equal(decodeSection2Hex(encodeSection2Hex(packet)), packet);
+  });
+
+  it("refuses Section 1 JSON as on-chain payload", () => {
+    assert.equal(isSection1JsonPayload({ section: 1 }), true);
+    assert.equal(isSection1JsonPayload('{"section":1}'), true);
+    assert.throws(() => encodeSection2Hex({ section: 1 }), /off-chain/);
+    assert.throws(() => encodeSection2Hex('{"schema":true}'), /off-chain/);
+    assert.equal(SECTION1_SCHEMA.onChain, false);
+    assert.equal(buildSection1Schema().decode.encoding, "utf8-hex");
+  });
+
+  it("points agents at a known tx hash and never invents one", () => {
+    const known = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
+    const ok = pointToTxHash(known);
+    assert.equal(ok.ok, true);
+    assert.equal(ok.tx, known);
+    assert.equal(ok.section, 2);
+    assert.match(ok.basescan, /basescan\.org\/tx\/0x5c0a93e4/);
+    const bad = pointToTxHash("not-a-hash");
+    assert.equal(bad.ok, false);
+    assert.equal(bad.tx, null);
+    assert.match(bad.reason, /never invent/);
+  });
+});
+
+describe("value=0 hex / hitch when gas is covered; bank hex when unpaid", () => {
+  beforeEach(() => resetVitaFeedBank());
+
+  it("plans value=0 hex self-tx when free ride covers gas", () => {
+    const plan = planHexInject({
+      text: "§KEY§eureka♥Krystian",
+      value: 0n,
+      freeRide: true,
+      leftoverEth: 0.0004,
+      hitchCostEth: 0.0002,
+    });
+    assert.equal(plan.action, "zero-value");
+    assert.equal(plan.allowZeroValueHex, true);
+    assert.equal(plan.tx.value, 0n);
+    assert.equal(plan.tx.data, encodeSection2Hex("§KEY§eureka♥Krystian"));
+    assert.equal(plan.sent, false);
+    assert.equal(plan.banked, false);
+    assert.equal(plan.injectThought, true);
+  });
+
+  it("banks hex (never drops the brain) when gas cannot be covered", () => {
+    const plan = planHexInject({
+      text: liveBugCalldata(5513),
+      value: 0n,
+      pairedUniswapSell: false,
+    });
+    assert.equal(plan.action, "bank");
+    assert.equal(plan.banked, true);
+    assert.ok(plan.hex.startsWith("0x5b564954"));
+    assert.equal(peekBankedVitaFeed()[0].hex, plan.hex);
+    assert.equal(peekBankedVitaFeed()[0].txHash, null);
   });
 });
 
