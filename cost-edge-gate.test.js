@@ -79,6 +79,35 @@ describe("cost-edge-gate: CBBTC-class refuse", () => {
     assert.equal(d.code, "high_unit_thin_book");
   });
 
+  it("skipNearTerm still enforces hitch%/RT% but not wait-forever", () => {
+    const blocked = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      hitchCostEth: 0,
+      gasCostEth: 0.00005,
+      feePct: 0.006,
+      price: 18,
+      recentHigh: 18.1,
+      ethUsd: 2490,
+      tradeableUsd: 3.81,
+    });
+    assert.equal(blocked.allow, false);
+    assert.equal(blocked.code, "near_term");
+    const micro = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      hitchCostEth: 0,
+      gasCostEth: 0.00005,
+      feePct: 0.006,
+      price: 18,
+      recentHigh: 18.1,
+      ethUsd: 2490,
+      tradeableUsd: 3.81,
+      skipNearTerm: true,
+    });
+    assert.equal(micro.allow, true);
+  });
+
   it("allows a liquid meme with real near-term upside and small hitch%", () => {
     const d = evaluateCostEdgeGate({
       symbol: "KEYCAT",
@@ -267,6 +296,7 @@ describe("cost-edge-gate: operator /buy bypasses near-term; auto still gated", (
     const nextFn = agentSrc.indexOf("\nasync function ", buyFn + 1);
     const body = agentSrc.slice(buyFn, nextFn > 0 ? nextFn : buyFn + 8000);
     assert.ok(body.includes("evaluateCostEdgeGate"), "auto path must still call COST_EDGE");
+    assert.ok(body.includes("skipNearTerm"), "thin micro-bank must not wait forever on COST_EDGE near-term");
     assert.ok(body.includes("COST_EDGE blocked"), "auto path must still skipBuy on COST_EDGE");
     const edgeIdx = body.indexOf("evaluateCostEdgeGate");
     const prelude = body.slice(Math.max(0, edgeIdx - 600), edgeIdx);

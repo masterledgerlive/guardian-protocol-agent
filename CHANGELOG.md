@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+### Fixed — T1 $3.80 inject floor stranded a ~$5.67 unified book (PRIMED none)
+
+Live after redeploy `5918a12e` (haltNewEntries=false): CDP ETH 0.001500
+(~$3.73) + WETH 0.000779 (~$1.94) = ~$5.67 unified. T1 INJECT-ALL reserved
+LINK at ~$3.80/slot (tradeable after 20%+sell park). requireInjectCover +
+loseZero + COST_EDGE refused every avenue — no buy attempts, PRIMED none.
+
+Root cause (verified):
+
+1. **Slot ≠ spendable after gas keep.** Unified book was taxed by sell
+   reserve + 20% park; log showed $3.80 while native ETH was $3.73.
+2. **Inject min-entry** (hitch + $0.75 cascade seed + 1.35×) > slot →
+   `projectAvenue` / `belowMinEntrySkip` refuse ALL names.
+3. Unknown-cost dust allowed add-on stacking; 401 on GitHub wiped
+   history/positions (`history = {}`) so 2P/2T stayed BUILDING.
+
+Fix (minimal):
+
+- Thin book: T1 slot = ETH+WETH − gas keep (WETH spendable).
+- `resolveMinEntryForBook`: if inject floor cannot fit, drop seed then
+  **bank hitch** (#89 trade-only). Avenues can still prime.
+- Unknown-cost bag ≥ $0.08: HOLD add-on (no MTM latch). Empty/dust first-buy OK.
+- GitHub 401: keep memory / fresh `*.runtime.json`; never load stale
+  committed `tokens.json` / `positions.json`. Session-range arm when 2P/2T missing.
+
+Does **not** invent P&L. Does **not** re-arm USDG / OPERATOR_SELL. Vault
+untouched. V4 stays separate.
+
+### Fixed — sterile IDLE after flatten: first-buy 1× hitch + USD-dust add-on
+
+Live after layered gate/math PRs (#84/#88/#89/#97) + flatten-to-ETH for the
+V3 vs V4 race: bag looked sterile — no micro buys/sells/earns/injects.
+
+Root cause (verified, not invented P&L):
+
+1. **Buy leftover was price-space only** (`getMaxPeak − fairExit − hitch
+   spread`). After flatten, peak≈mark → leftover 0 → LOSE_ZERO blocked every
+   auto/cascade buy even when armed net already paid 1× hitch in ETH.
+   `processToken` treated `leftoverCovers = armed && net>0` so shouldBuy fired,
+   then `executeBuy` died on leftover 0.
+2. **ADD_ON token-count 0.001** treated flatten leftover (e.g. 0.04 AERO,
+   ~$0.02) + persist FIFO as a known red lot → blocked first re-entry.
+   Reconcile used the same token floor so ghosts survived.
+
+Fix (minimal):
+
+- LOSE_ZERO buy: leftover covers if peak leftover > 0 **or** `tradeEth × net
+  > hitch` (1×). Still blocks no-edge / hitch-too-fat. Operator path unchanged.
+- ADD_ON: `bagUsd < $0.08` is empty/flat (first buy OK). Real FIFO-red still
+  HOLD. Reconcile clears USD-dust ghosts.
+- USDG: skip-hold (no V3 route, no OPERATOR_SELL / FORCE_EXIT).
+- Sells: #89 micro-green + hitch-bank unchanged. No lossy operator re-arm.
+
+Does **not** invent P&L. Does **not** spend vault. Does **not** merge V4.
+
 ### Fixed — FORCE EXIT dust latch + green hitch so messages can send
 
 Live after #91/#97: Railway looped

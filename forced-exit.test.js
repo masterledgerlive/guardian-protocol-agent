@@ -28,6 +28,11 @@ describe("forced-exit: env + command", () => {
     assert.equal(forceExitLockedEnabled({}), true);
     assert.equal(forceExitLockedEnabled({ FORCE_EXIT_LOCKED_MAJORS: "no" }), false);
     assert.deepEqual(forceExitSymbols({}), [...DEFAULT_FORCE_EXIT_SYMBOLS]);
+    assert.deepEqual(
+      forceExitSymbols({ FORCE_EXIT_SYMBOLS: "AERO,USDG,DRB" }),
+      ["AERO", "DRB"],
+      "USDG is V4-only dust — never re-arm FORCE_EXIT",
+    );
   });
 
   it("builds exitonly with piggy unlock and no-cascade source", () => {

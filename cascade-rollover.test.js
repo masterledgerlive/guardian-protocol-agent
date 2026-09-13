@@ -10,7 +10,10 @@ import {
   minEntryEth,
   cascadeSeedEth,
   effectiveMinEntryEth,
+  resolveMinEntryForBook,
+  microSpendableEth,
   injectAllBookParams,
+  THIN_BOOK_ETH,
   cascadeDeployEth,
   liquidBalanceStatus,
   shouldRecycleForCascadeFuel,
@@ -66,6 +69,52 @@ describe("cascade-rollover: min entry covers costs + seed", () => {
     });
     // $25 / 2500 = 0.01 ETH dominates tiny computed floor
     assert.ok(e >= 0.01 - 1e-9);
+  });
+});
+
+describe("cascade-rollover: micro spendable + min entry", () => {
+  it("unified ETH+WETH after gas keep (no 20% + sell park)", () => {
+    // Live CDP: 0.001500 ETH + 0.000779 WETH, gas floor 0.0005
+    const spend = microSpendableEth({
+      eth: 0.001500,
+      weth: 0.000779,
+      gasFloorEth: 0.0005,
+      piggyEth: 0,
+    });
+    assert.ok(Math.abs(spend - 0.001779) < 1e-12);
+    assert.ok(spend > 0.001529, "must beat the reserved $3.80 slot");
+    assert.ok(0.002279 < THIN_BOOK_ETH);
+  });
+
+  it("drops cascade seed when full inject floor cannot fit the book", () => {
+    const live = {
+      gasCostEth: 0.00005,
+      hitchCostEth: 0.0008,
+      feePct: 0.006,
+      ethUsd: 2490,
+      tokenMinBuyUsd: 0,
+      minPosUsd: 0.5,
+      tradeableEth: 0.001529,
+    };
+    const full = effectiveMinEntryEth(live);
+    assert.ok(full > live.tradeableEth, "fat hitch+seed should exceed the $3.80 slot");
+    const r = resolveMinEntryForBook(live);
+    assert.ok(r.minEntryEth <= live.tradeableEth + 1e-12);
+    assert.ok(r.mode === "micro-hitch" || r.mode === "micro-bank");
+  });
+
+  it("banks hitch when even 1× hitch cannot fit", () => {
+    const r = resolveMinEntryForBook({
+      gasCostEth: 0.00005,
+      hitchCostEth: 0.0015,
+      feePct: 0.006,
+      ethUsd: 2490,
+      minPosUsd: 0.5,
+      tradeableEth: 0.001529,
+    });
+    assert.equal(r.mode, "micro-bank");
+    assert.equal(r.skipHitch, true);
+    assert.ok(r.minEntryEth <= 0.001529);
   });
 });
 
@@ -286,6 +335,8 @@ describe("cascade-rollover: wired into agent.js", () => {
     assert.ok(agentSrc.includes("effectiveCascadeGasFloor"));
     assert.ok(agentSrc.includes("unwrapForCascadeGas"));
     assert.ok(agentSrc.includes("injectProveStatus"));
+    assert.ok(agentSrc.includes("microSpendableEth"));
+    assert.ok(agentSrc.includes("resolveMinEntryForBook"));
   });
 
   it("cascades after dust recycle when proceeds clear min entry", () => {

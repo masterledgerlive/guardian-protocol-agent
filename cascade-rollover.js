@@ -111,6 +111,76 @@ export function effectiveMinEntryEth({
 }
 
 /**
+ * Unified ETH+WETH spendable after gas keep (and piggy). Thin books must
+ * not park a 20% + sell-reserve tax that logs T1 ~$3.80 against a ~$5.67
+ * book and then refuse every avenue as below inject min-entry.
+ * Native gas stay; WETH is spendable (unwrap if needed).
+ */
+export function microSpendableEth({
+  eth = 0,
+  weth = 0,
+  gasFloorEth = 0.0005,
+  piggyEth = 0,
+} = {}) {
+  const total = Math.max(0, Number(eth) || 0) + Math.max(0, Number(weth) || 0);
+  const keep = Math.max(0, Number(gasFloorEth) || 0) + Math.max(0, Number(piggyEth) || 0);
+  return Math.max(0, total - keep);
+}
+
+/**
+ * When the full inject floor (hitch + $0.75 cascade seed + 1.35× buffer)
+ * does not fit spendable, drop seed/buffer so a trade-only micro can fire.
+ * Prefer leftover ≥ 1× hitch; if hitch itself cannot fit, bank hitch (#89).
+ *
+ * mode:
+ *   inject — full floor fits
+ *   micro-hitch — seed dropped, hitch still in the floor
+ *   micro-bank — hitch also dropped (SKIP_HITCH / bank)
+ */
+export function resolveMinEntryForBook({
+  gasCostEth,
+  hitchCostEth,
+  feePct,
+  impactPct,
+  ethUsd,
+  tokenMinBuyUsd = 0,
+  minPosUsd = 0.5,
+  cascadeSeedUsd = CASCADE_SEED_USD,
+  buffer = ROUND_TRIP_BUFFER,
+  tradeableEth = 0,
+} = {}) {
+  const spendable = Math.max(0, Number(tradeableEth) || 0);
+  const base = {
+    gasCostEth,
+    hitchCostEth,
+    feePct,
+    impactPct,
+    ethUsd,
+    tokenMinBuyUsd,
+    minPosUsd,
+  };
+  const full = effectiveMinEntryEth({ ...base, cascadeSeedUsd, buffer });
+  if (spendable + 1e-12 >= full) {
+    return { minEntryEth: full, mode: "inject", skipHitch: false, skipCascadeSeed: false };
+  }
+  const hitchOn = effectiveMinEntryEth({
+    ...base,
+    cascadeSeedUsd: 0,
+    buffer: 1,
+  });
+  if (spendable + 1e-12 >= hitchOn) {
+    return { minEntryEth: hitchOn, mode: "micro-hitch", skipHitch: false, skipCascadeSeed: true };
+  }
+  const bank = effectiveMinEntryEth({
+    ...base,
+    hitchCostEth: 0,
+    cascadeSeedUsd: 0,
+    buffer: 1,
+  });
+  return { minEntryEth: bank, mode: "micro-bank", skipHitch: true, skipCascadeSeed: true };
+}
+
+/**
  * Thin-book / inject-all tier params — one seat, 100% of tradeable.
  * Larger books keep the caller defaults (small-book or classic).
  */

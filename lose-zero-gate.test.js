@@ -14,6 +14,10 @@ import {
   computePennyPinchSellTarget,
   computeLeftover,
   leftoverCoversInject,
+  ethEdgeCoversHitch,
+  ethEdgeLeftoverEth,
+  isSkipHoldDeadRoute,
+  ADD_ON_BAG_MIN_USD,
   isCatalogFrozen,
   frozenBuySkipLog,
   hasClearEdge,
@@ -62,6 +66,7 @@ import {
   isExistingKnownFifoBag,
   isFifoRedLot,
   evaluateAddOnFifoRedGate,
+  isUnknownCostBlockingAddOn,
   addOnRemainingFifoEth,
   estimateCalldataHitchEth,
   estimateBtpInscribeEth,
@@ -306,6 +311,83 @@ describe("evaluateBuyGate", () => {
     assert.equal(d.allow, false);
     assert.match(d.log, /^LOSE_ZERO: block buy AERO leftover is 0$/);
   });
+
+  it("first-buy / flatten: armed net covering 1× hitch allows when peak leftover is 0", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "AERO",
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      tradeEth: 0.002,
+      net: 0.04,
+      hitchCostEth: 0.00002,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.reason, "edge+eth-cover");
+    assert.ok(d.leftover > 0);
+    assert.match(d.log, /armed net covers 1× hitch/);
+    assert.equal(d.skipHitch, false);
+  });
+
+  it("first-buy still HOLDs when armed net cannot pay 1× hitch", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "AERO",
+      tradeEth: 0.002,
+      net: 0.04,
+      hitchCostEth: 0.0002,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /leftover is 0/);
+  });
+
+  it("micro-bank hitch allows trade-only when inject cover cannot fit", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "LINK",
+      tradeEth: 0.0015,
+      net: 0.04,
+      hitchCostEth: 0.0015,
+      allowBankHitch: true,
+      env: { LOSE_ZERO: "yes", REQUIRE_INJECT_COVER: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.reason, "edge+bank-hitch");
+    assert.match(d.log, /micro-bank hitch/);
+  });
+});
+
+describe("ethEdgeCoversHitch — flatten / peak≈mark first buy", () => {
+  it("covers only when trade × net strictly beats 1× hitch", () => {
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0.00002 }), true);
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0.0002 }), false);
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0, net: 0.04, hitchCostEth: 0.00002 }), false);
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0 }), false);
+    assert.ok(ethEdgeLeftoverEth({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0.00002 }) > 0);
+  });
+});
+
+describe("USDG skip-hold — no V3 cash route", () => {
+  it("flags USDG and refuses operator buy/sell queue", () => {
+    assert.equal(isSkipHoldDeadRoute("USDG"), true);
+    assert.equal(isSkipHoldDeadRoute("AERO"), false);
+    const buys = [];
+    const known = new Set(["USDG", "AERO"]);
+    const buy = queueOperatorBuyOnce(buys, "USDG:1", known, { done: false });
+    assert.equal(buy.queued, false);
+    assert.equal(buy.reason, "skip-hold");
+    assert.equal(buys.length, 0);
+    const sells = [];
+    const sell = queueOperatorSellOnce(sells, "USDG:all,AERO:all", known, { done: false });
+    assert.equal(sell.queued, true);
+    assert.equal(sells.some((c) => c.symbol === "USDG"), false);
+    assert.equal(sells.some((c) => c.symbol === "AERO"), true);
+  });
 });
 
 describe("buildBuyGateDecision", () => {
@@ -323,6 +405,29 @@ describe("buildBuyGateDecision", () => {
     assert.equal(d.allow, false);
     assert.equal(d.leftover, 0);
     assert.match(d.log, /LOSE_ZERO: block buy AERO leftover is 0/);
+  });
+
+  it("first-buy with no peak leftover still allows when armed net covers 1× hitch", () => {
+    const d = buildBuyGateDecision({
+      symbol: "AERO",
+      reason: "🔁 PRIMED BOTTOM [PRIORITY]",
+      price: 1,
+      existingSellTarget: null,
+      feePct: 0.006,
+      impactPct: 0.002,
+      gasCostEth: 0,
+      tradeEth: 0.01,
+      gwei: 1,
+      l1FeeEth: 0.00001,
+      hitchBytes: 69,
+      armed: true,
+      net: 0.05,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.reason, "edge+eth-cover");
+    assert.ok(d.leftover > 0);
+    assert.match(d.log, /armed net covers 1× hitch/);
   });
 
   it("allows when max peak sits above fair_exit + hitch spread", () => {
@@ -1145,7 +1250,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       gwei: 0.05,
       l1FeeEth: 0.01, // spread 0.01 — leftover cannot cover
       armed: true,
-      net: 1,
+      // Realistic net (0.5%) cannot pay 0.01 ETH hitch on this clip.
+      // net:1 used to be a dummy and would now pass ETH-cover after flatten.
+      net: 0.005,
       env: { LOSE_ZERO: "yes" },
     });
     assert.equal(d.allow, false);
@@ -2136,17 +2243,59 @@ describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
     assert.equal(dust.allow, true);
     assert.equal(dust.reason, "flat-or-empty");
 
-    const unknown = evaluateAddOnFifoRedGate({
+    // Post-flatten AERO leftover: token count > ADD_ON_BAG_MIN_TOKENS but USD dust.
+    // Persist FIFO still red — must not block the first re-entry.
+    const flattenDust = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 0.04,
+      remainingFifoEth: 0.00147,
+      markProceedsEth: 0.000008,
+      bagUsd: 0.02,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(flattenDust.allow, true);
+    assert.equal(flattenDust.reason, "flat-or-empty");
+    assert.ok(0.02 < ADD_ON_BAG_MIN_USD);
+    const stillRedWithoutUsd = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 0.04,
+      remainingFifoEth: 0.00147,
+      markProceedsEth: 0.000008,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(stillRedWithoutUsd.allow, false, "without bagUsd, token-count still sees a known red lot");
+
+    const unknownDust = evaluateAddOnFifoRedGate({
       symbol: "DRB",
-      tokenBal: 2844,
+      tokenBal: 12,
       remainingFifoEth: 0,
-      markProceedsEth: 0.0002,
+      markProceedsEth: 0.00001,
+      bagUsd: 0.03,
       unknownEntry: true,
       reason: "MANUAL BUY (operator) $2",
       env: {},
     });
-    assert.equal(unknown.allow, true);
-    assert.equal(unknown.reason, "flat-or-empty");
+    assert.equal(unknownDust.allow, true);
+    assert.equal(unknownDust.reason, "flat-or-empty");
+    const unknownBag = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 2844,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.0002,
+      bagUsd: 0.38,
+      unknownEntry: true,
+      reason: "MANUAL BUY (operator) $2",
+      env: {},
+    });
+    assert.equal(unknownBag.allow, false);
+    assert.equal(unknownBag.reason, "unknown-cost");
+    assert.equal(isUnknownCostBlockingAddOn({
+      unknownEntry: true,
+      tokenBal: 2844,
+      bagUsd: 0.38,
+    }), true);
     assert.equal(isExistingKnownFifoBag({
       tokenBal: 2844,
       remainingFifoEth: 0,
