@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — VITA mainframe: protect original message-first formula via HTML infect
+
+Continuing avenue base lives under `vita/`. Original formula that worked best
+(message sent on-chain even when trading P&L was flat) is protected by infecting
+`public/vita.html` and sparse-injecting from hardcoded Base anchors.
+
+- `vita/mainframe.js` — anchors, HTML infect, sparse inject plan, message-first
+  hitch gate (KEY+LOC covered → always send; Storage Token can charge delta).
+- `vita/anchors.json` + `vita/ORIGINAL_FORMULA.md` + `vita/FILING.md` +
+  `vita/AGENTS.md` — agent filing map and never-forget chain paths.
+- `vita/memory/` + `vita/strands/` — append-only learn / sparse strand files.
+- `public/vita.html` infected with `#vita-mainframe` + `#vita-filing-map`.
+- `public/vita-client.js` prefers infected mainframe anchors.
+- `hitch-density.js` `preferOriginalFormulaHitch` — do not mute covered KEY+LOC.
+- `lose-zero-gate.js` message-first default: leftover covers 1× hitch → send
+  (Storage Token can charge delta). `VITA_MESSAGE_FIRST=no` restores 2×-only
+  SKIP_HITCH + bank.
+- Root `AGENTS.md` points agents at `vita/` as the continuing base until merge.
+
 ### Added — Finetune memory (sixth lobe / hypothesis graph)
 
 Closes the self-improving loop from [@antpalkin](https://x.com/antpalkin/status/2085431604906766385)

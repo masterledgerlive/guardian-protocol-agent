@@ -17,6 +17,7 @@ import {
   measureKeyLocHitchBytes,
   measureEurekaLeftoverBytes,
   preferDenseHitch,
+  preferOriginalFormulaHitch,
   maxInjectRateUnderLoseZero,
   EUREKA_LEFTOVER_BYTES,
   KEY_LOC_HITCH_BYTES_CLASS,
@@ -133,6 +134,18 @@ describe("hitch density — KEY+LOC over Eureka 229 B", () => {
     assert.equal(pick.skipHitch, false);
     assert.equal(pick.locOk, true);
     assert.equal(pick.eurekaOk, false);
+    const original = preferOriginalFormulaHitch({
+      leftoverEth: leftover,
+      gwei,
+      l1FeePerByteEth: l1Per,
+      hitchCostMult: 2,
+      keyLocBytes: locBytes,
+      eurekaBytes: 229,
+    });
+    assert.equal(original.skipHitch, false);
+    assert.equal(original.messageFirst, true);
+    assert.equal(original.storageTokenChargeable, true);
+    assert.match(original.reason, /Storage Token|original formula/i);
   });
 
   it("plain swap when leftover cannot cover KEY+LOC (always-plus)", () => {

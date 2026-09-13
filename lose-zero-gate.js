@@ -14,11 +14,12 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
  * (`ALLOW_ADD_ON_FIFO_RED`); first buy into empty/flat is OK.
  * Sell always-plus (hard rule): expected net proceeds must beat
  *   entry_basis_for_sold_frac + fees
- * even by 1 wei (micro extract). Hitch is optional: attach only when leftover
- * after that micro floor also covers hitch_cost × HITCH_COST_MULT (default 2×
- * Eureka cushion once piggy banking is reserved). Otherwise SKIP_HITCH and
- * bank the unused hitch room toward the next worth-sending message — do not
- * HOLD a green exit waiting for a fat wave, and do not invent P&L.
+ * even by 1 wei (micro extract). Hitch: **original message-first** (default)
+ * sends when leftover covers 1× hitch and still plus — Storage Token can
+ * charge the transmission delta. The 2× HITCH_COST_MULT cushion is preferred
+ * when available; when only 1× covers, still hitch (do not mute for micro
+ * skim). Opt out with VITA_MESSAGE_FIRST=no to restore SKIP_HITCH + bank.
+ * Never HOLD a green exit waiting for a fat wave, and do not invent P&L.
  * inject_hitch_cost = L2 calldata-char gas + live Base L1 data fee (GasPriceOracle
  * getL1Fee / getL1FeeUpperBound) + provider/value fee + optional BTP inscription.
  * L1 is preferred when quoted; oracle failure → SKIP_HITCH (plain plus sale).
@@ -39,6 +40,17 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
 
 export const STORE_HITCH_TAG = "§$STORE§";
 export const STORE_HITCH_BYTES = 10;               // UTF-8 length of §$STORE§
+
+/**
+ * Original VITA formula: when leftover covers KEY+LOC (1×), send the hitch.
+ * Default on. Set VITA_MESSAGE_FIRST=no (or VITA_ORIGINAL_FORMULA=no) to
+ * restore micro-extract SKIP_HITCH + bank when below the 2× cushion.
+ */
+export function isOriginalFormulaMessageFirst(env = process.env) {
+  const raw = env?.VITA_MESSAGE_FIRST ?? env?.VITA_ORIGINAL_FORMULA ?? "yes";
+  const v = String(raw).trim().toLowerCase();
+  return v !== "no" && v !== "0" && v !== "false" && v !== "off";
+}
 export const CALLDATA_GAS_PER_NONZERO_BYTE = 16;   // EIP-2028
 export const BTP_INSCRIBE_GAS_UNITS = 50_000;      // separate BTP self-send inscription tx
 export const DEFAULT_HITCH_COST_MULT = 2;          // hitch-floor / size cushion leftover/mult; micro extract ignores this
@@ -1449,10 +1461,11 @@ export function sizeHitchForSell({
 /**
  * LOSE-ZERO sell gate. Always on.
  *
- * Micro extract: leftover after entry_sold + fees must be > 0. Hitch is
- * optional — attach only when leftover after piggy buffer also covers
- * hitch_cost × HITCH_COST_MULT (default 2× Eureka cushion). Otherwise
- * SKIP_HITCH, sell plain, and bank unused hitch room. Never HOLD a green
+ * Micro extract: leftover after entry_sold + fees must be > 0. Hitch rides
+ * under original message-first when leftover covers 1× hitch and still plus
+ * (default). The 2× HITCH_COST_MULT cushion is preferred when met; below that
+ * but above 1×, still hitch (Storage Token can charge delta). Set
+ * VITA_MESSAGE_FIRST=no to SKIP_HITCH + bank instead. Never HOLD a green
  * leftover waiting for hitch. STOP LOSS is NOT a loss bypass. Unknown-cost
  * is HOLD. Auto cannot sell red. Game unwind (hitch SKIP): FORCE EXIT LOCKED,
  * FORCE_EXIT_SYMBOLS, or ALLOW_LOSSY_OPERATOR_SELL=yes on operator /
@@ -1778,8 +1791,24 @@ export function evaluateSellGate({
     });
   }
 
-  // Hitch floor miss (or piggy buffer / size skip) — micro extract, bank hitch.
-  if (!coversHitchFloor || sized.skipHitch || hitchThis <= 0 || hitchBudget <= 0 || plusNet <= 0) {
+  // Message-first (original formula): 1× KEY+LOC cover + still-plus → hitch.
+  // Do not mute for micro skim when the packet fits; Storage Token can charge
+  // the delta vs waiting for a 2× cushion. Opt out: VITA_MESSAGE_FIRST=no.
+  const messageFirst = isOriginalFormulaMessageFirst(env);
+  const keyLocCoveredAt1x = !sized.skipHitch
+    && hitchThis > 0
+    && plusNet > 0
+    && hitchBudget > 0;
+
+  // Hitch floor miss (or piggy buffer / size skip) — micro extract, bank hitch
+  // unless original message-first already covers 1×.
+  if (
+    (!coversHitchFloor && !(messageFirst && keyLocCoveredAt1x))
+    || sized.skipHitch
+    || hitchThis <= 0
+    || hitchBudget <= 0
+    || plusNet <= 0
+  ) {
     const whyBuf = hitchBudget <= 0
       ? "piggy earnings buffer + hitch floor"
       : !coversHitchFloor
@@ -1799,6 +1828,19 @@ export function evaluateSellGate({
       hitchWouldEth: hitchWould || hitchThis || sized.injectCostEth || reservedHitch,
       hitchBankedEth: hitchBanked,
       log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees (micro extract) but not ${whyBuf}; hitch skipped + banked toward next message`,
+    });
+  }
+
+  // 1× covered under original formula (2× cushion not met) — still send.
+  if (!coversHitchFloor && messageFirst && keyLocCoveredAt1x) {
+    void check;
+    return pack(true, "original message-first hitch", {
+      sellNow: true,
+      verdict: "PLUS",
+      netEth: plusNet,
+      hitchBankedEth: 0,
+      hitchCostMult: 1,
+      log: `LOSE_ZERO: allow sell ${symbol} leftover covers KEY+LOC 1× — original message-first hitch (Storage Token can charge delta; 2× cushion waived)`,
     });
   }
 

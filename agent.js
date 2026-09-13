@@ -111,6 +111,7 @@ import {
   shouldArmStopLoss,
   STORE_HITCH_BYTES,
   STORE_HITCH_TAG,
+  isOriginalFormulaMessageFirst,
   hitchCostMult,
   estimateCalldataHitchEth,
   isManualOperatorBuy,
@@ -12336,7 +12337,7 @@ async function main() {
   } else if (isInjectCoverRequired()) {
     console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
   }
-  console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; hitch only when leftover covers HITCH_COST_MULT=${hitchCostMult()}× (else skip + bank); never sell red to inject`);
+  console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; message-first=${isOriginalFormulaMessageFirst() ? "on" : "off"} hitch when leftover covers 1× KEY+LOC (HITCH_COST_MULT=${hitchCostMult()}× cushion preferred; VITA_MESSAGE_FIRST=no → skip + bank); never sell red to inject`);
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────

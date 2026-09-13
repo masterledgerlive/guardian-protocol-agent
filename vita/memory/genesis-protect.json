@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-12T22:00:00.000Z",
+  "topic": "genesis-protect",
+  "text": "Original formula restored as mainframe: HTML memory until inject; sparse strand pull from sealed Base locs; leftover KEY+LOC when covered; /prove for Eureka; message-first \u2014 Storage Token charges hitch delta instead of muting sends.",
+  "locations": [
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+  ],
+  "hypothesis": {
+    "id": "message-first-beats-micro-extract",
+    "status": "confirmed-as-operating-rule",
+    "note": "Flat trading P&L is acceptable while hitch proves; recover transmission via Storage Token."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
