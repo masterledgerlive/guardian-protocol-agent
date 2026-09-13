@@ -254,8 +254,8 @@ After bags were flattened to ETH for the V3 vs V4 race. Vault untouched. USDG ~$
 
 | Var | Micro-earn value | Why |
 |---|---|---|
-| `LOSE_ZERO` | `yes` | Keep always-plus / 1× hitch cover. First buy now also clears when **armed net × trade > hitch** (peak leftover can be 0 after flatten). |
-| `HALT_NEW_ENTRIES` | unset / `no` | Do **not** set `yes` thinking it only pauses — it *is* the lose-zero buy gate. |
+| `LOSE_ZERO` | `yes` | Keep always-plus / 1× hitch cover. First buy also clears when **armed net × trade > hitch**. If inject seed+hitch cannot fit the book, **micro-bank hitch** (#89 trade-only) still allows a tiny plus-sized buy. |
+| `HALT_NEW_ENTRIES` | unset / `no` | `yes` is the same *gate* as LOSE_ZERO. **Redeploy** after clearing Railway env — in-process `yes` survives an env-store edit. |
 | `REQUIRE_INJECT_COVER` | unset (or `yes` with LOSE_ZERO) | Optional; LOSE_ZERO already requires cover. |
 | `OPERATOR_SELL` | **empty** | Do not re-arm AERO/DRB/BNKR/USDG sells. |
 | `FORCE_EXIT_SYMBOLS` | **empty** | Do not re-arm Game unwind. USDG is stripped if listed. |
@@ -267,9 +267,12 @@ After bags were flattened to ETH for the V3 vs V4 race. Vault untouched. USDG ~$
 | `CYCLE_ALIGN_MIN` | `2` (default) | `3`+ starves thin books of entries. |
 | `MIN_POS_USD` | unset (`$0.50`) | Do not raise on a ~$2–9 ETH book. |
 | `GUARDIAN_V4_DRY_RUN` | `yes` on V4 service | V4 stays separate. Do not merge into V3 `agent.js`. |
+| `GITHUB_TOKEN` / `STATE_BRANCH` | live PAT + `bot-state` | 401 wipes remote history/positions. Runtime `history.runtime.json` + `positions.runtime.json` + fifo-lots disk keep FIFO. Do **not** load committed March `tokens.json` / `positions.json`. |
 | Vault / save bucket | **untouched** | Never spend. |
 
-Thrift / race scoreboard / turn cards stay. Auto buys still need a price signal (trough / pullback / primed bottom) plus alignment — leftover alone does not chase.
+Thin book (~$5 ETH+WETH): T1 slot = **unified spendable after gas keep**, not a hard ~$3.80 inject-all floor. Unknown-cost bags HOLD (no add-on); empty names can still first-buy.
+
+Thrift / race scoreboard / turn cards stay. Auto buys still need a price signal (trough / pullback / primed bottom / session-range) plus alignment — leftover alone does not chase.
 
 ### Stage 1 — Telegram Unlock
 

@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Fixed — T1 $3.80 inject floor stranded a ~$5.67 unified book (PRIMED none)
+
+Live after redeploy `5918a12e` (haltNewEntries=false): CDP ETH 0.001500
+(~$3.73) + WETH 0.000779 (~$1.94) = ~$5.67 unified. T1 INJECT-ALL reserved
+LINK at ~$3.80/slot (tradeable after 20%+sell park). requireInjectCover +
+loseZero + COST_EDGE refused every avenue — no buy attempts, PRIMED none.
+
+Root cause (verified):
+
+1. **Slot ≠ spendable after gas keep.** Unified book was taxed by sell
+   reserve + 20% park; log showed $3.80 while native ETH was $3.73.
+2. **Inject min-entry** (hitch + $0.75 cascade seed + 1.35×) > slot →
+   `projectAvenue` / `belowMinEntrySkip` refuse ALL names.
+3. Unknown-cost dust allowed add-on stacking; 401 on GitHub wiped
+   history/positions (`history = {}`) so 2P/2T stayed BUILDING.
+
+Fix (minimal):
+
+- Thin book: T1 slot = ETH+WETH − gas keep (WETH spendable).
+- `resolveMinEntryForBook`: if inject floor cannot fit, drop seed then
+  **bank hitch** (#89 trade-only). Avenues can still prime.
+- Unknown-cost bag ≥ $0.08: HOLD add-on (no MTM latch). Empty/dust first-buy OK.
+- GitHub 401: keep memory / fresh `*.runtime.json`; never load stale
+  committed `tokens.json` / `positions.json`. Session-range arm when 2P/2T missing.
+
+Does **not** invent P&L. Does **not** re-arm USDG / OPERATOR_SELL. Vault
+untouched. V4 stays separate.
+
 ### Fixed — sterile IDLE after flatten: first-buy 1× hitch + USD-dust add-on
 
 Live after layered gate/math PRs (#84/#88/#89/#97) + flatten-to-ETH for the

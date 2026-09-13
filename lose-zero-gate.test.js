@@ -66,6 +66,7 @@ import {
   isExistingKnownFifoBag,
   isFifoRedLot,
   evaluateAddOnFifoRedGate,
+  isUnknownCostBlockingAddOn,
   addOnRemainingFifoEth,
   estimateCalldataHitchEth,
   estimateBtpInscribeEth,
@@ -341,6 +342,23 @@ describe("evaluateBuyGate", () => {
     });
     assert.equal(d.allow, false);
     assert.match(d.log, /leftover is 0/);
+  });
+
+  it("micro-bank hitch allows trade-only when inject cover cannot fit", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "LINK",
+      tradeEth: 0.0015,
+      net: 0.04,
+      hitchCostEth: 0.0015,
+      allowBankHitch: true,
+      env: { LOSE_ZERO: "yes", REQUIRE_INJECT_COVER: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.reason, "edge+bank-hitch");
+    assert.match(d.log, /micro-bank hitch/);
   });
 });
 
@@ -2249,17 +2267,35 @@ describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
     });
     assert.equal(stillRedWithoutUsd.allow, false, "without bagUsd, token-count still sees a known red lot");
 
-    const unknown = evaluateAddOnFifoRedGate({
+    const unknownDust = evaluateAddOnFifoRedGate({
       symbol: "DRB",
-      tokenBal: 2844,
+      tokenBal: 12,
       remainingFifoEth: 0,
-      markProceedsEth: 0.0002,
+      markProceedsEth: 0.00001,
+      bagUsd: 0.03,
       unknownEntry: true,
       reason: "MANUAL BUY (operator) $2",
       env: {},
     });
-    assert.equal(unknown.allow, true);
-    assert.equal(unknown.reason, "flat-or-empty");
+    assert.equal(unknownDust.allow, true);
+    assert.equal(unknownDust.reason, "flat-or-empty");
+    const unknownBag = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 2844,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.0002,
+      bagUsd: 0.38,
+      unknownEntry: true,
+      reason: "MANUAL BUY (operator) $2",
+      env: {},
+    });
+    assert.equal(unknownBag.allow, false);
+    assert.equal(unknownBag.reason, "unknown-cost");
+    assert.equal(isUnknownCostBlockingAddOn({
+      unknownEntry: true,
+      tokenBal: 2844,
+      bagUsd: 0.38,
+    }), true);
     assert.equal(isExistingKnownFifoBag({
       tokenBal: 2844,
       remainingFifoEth: 0,

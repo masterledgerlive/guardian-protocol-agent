@@ -2,6 +2,8 @@
 wallet_data.json
 fifo-lots.json
 fifo-lots.json.tmp
+history.runtime.json
+positions.runtime.json
 turn-recall.json
 turn-recall.json.tmp
 node_modules

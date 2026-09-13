@@ -188,6 +188,11 @@ import {
   githubReadAuthFailed,
   shouldRetryGithubRead,
   decodeGithubContentsJson,
+  preferRemoteOrKeep,
+  readLocalStateJson,
+  writeLocalStateJson,
+  isFreshLocalState,
+  latestHistoryReadingMs,
 } from "./github-contents.js";
 import {
   tierBookParams,
@@ -207,7 +212,10 @@ import {
 } from "./inject-revenue.js";
 import {
   effectiveMinEntryEth,
+  resolveMinEntryForBook,
+  microSpendableEth,
   injectAllBookParams,
+  THIN_BOOK_ETH,
   cascadeDeployEth,
   liquidBalanceStatus,
   shouldRecycleForCascadeFuel,
@@ -263,6 +271,7 @@ import {
   isPrimedBottomEntry,
   formatSuccessionPlan,
 } from "./second-inject.js";
+import { sessionRangeCanArm } from "./session-arm.js";
 import {
   evaluatePeakRideExit,
   updateRideHigh,
@@ -907,6 +916,7 @@ function buildPrimedAvenues({
         netMargin: arm.net || 0,
         minNetMargin: t.minNetMargin || MIN_NET_MARGIN,
         armed: !!arm.armed,
+        sessionArm: !!arm.sessionArm,
         nearEntry,
         injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
         tokenScore: scored?.score || 0,
@@ -4574,18 +4584,30 @@ function calcNetMargin(symbol, gasCostEth, tradeEth) {
 
 function getArmStatus(symbol, gasCostEth, tradeEth) {
   const pc = getPeakCount(symbol), tc = getTroughCount(symbol);
-  if (pc < MIN_PEAKS_TO_TRADE || tc < MIN_TROUGHS_TO_TRADE) {
-    return { armed: false, reason: `need ${MIN_PEAKS_TO_TRADE}P/${MIN_TROUGHS_TO_TRADE}T (have ${pc}P/${tc}T)` };
-  }
-  const net   = calcNetMargin(symbol, gasCostEth, tradeEth);
-  if (net === null) return { armed: false, reason: "no wave data" };
   const token = tokens.find(t => t.symbol === symbol);
   const minNM = token?.minNetMargin || MIN_NET_MARGIN;
-  if (net < minNM) {
+  let net = null;
+  let sessionArm = false;
+  if (pc >= MIN_PEAKS_TO_TRADE && tc >= MIN_TROUGHS_TO_TRADE) {
+    net = calcNetMargin(symbol, gasCostEth, tradeEth);
+    if (net === null) return { armed: false, reason: "no wave data" };
+  } else {
+    const session = sessionRangeCanArm(history[symbol]?.readings, {
+      feePct: token?.poolFeePct || 0.006,
+      gasCostEth,
+      tradeEth,
+      impactPct: PRICE_IMPACT_EST * 2,
+    });
+    if (!session.ok) {
+      return { armed: false, reason: `need ${MIN_PEAKS_TO_TRADE}P/${MIN_TROUGHS_TO_TRADE}T (have ${pc}P/${tc}T)` };
+    }
+    net = session.net;
+    sessionArm = true;
+  }
+  if (!sessionArm && net < minNM) {
     // Dead-wave detection: if the GROSS range (peak-to-trough) is smaller than the
     // round-trip fee, this token's wave will NEVER be tradeable at this capital level.
     // Flag it clearly rather than showing a confusing "need 0.5%" message forever.
-    const token = tokens.find(t => t.symbol === symbol);
     const feePct = (token?.poolFeePct || 0.006) * 2;
     const grossPct = (calcNetMargin(symbol, 0, 1) || 0) + feePct; // add fees back to get gross
     if (grossPct < feePct * 1.5) {
@@ -4594,7 +4616,7 @@ function getArmStatus(symbol, gasCostEth, tradeEth) {
     return { armed: false, reason: `net margin ${(net*100).toFixed(2)}% (need ${(minNM*100).toFixed(1)}%)` };
   }
   const priority = net >= PRIORITY_MARGIN ? "PRIORITY" : net >= 0.03 ? "STANDARD" : "THIN";
-  return { armed: true, net, priority };
+  return { armed: true, net, priority, sessionArm };
 }
 
 function getCascadePct(netMargin) {
@@ -4734,7 +4756,14 @@ async function getFullBalance() {
   const gasFloor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
   const reserved   = Math.max(total * ETH_RESERVE_PCT, gasFloor + sellR + piggyBank);
   const tradeable  = Math.max(eth - gasFloor - sellR, 0); // ETH minus gas continuity + sell cushion
-  const tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
+  let tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
+  // Thin / inject-all: T1 slot = unified ETH+WETH after gas keep, not 20%+sell park.
+  // Live: ETH $3.73 + WETH $1.94 → slot logged $3.80 then every avenue refused.
+  if (total > 0 && total < THIN_BOOK_ETH) {
+    tradeableWithWeth = microSpendableEth({
+      eth, weth, gasFloorEth: gasFloor, piggyEth: piggyBank,
+    });
+  }
   return { eth, weth, total, tradeable, tradeableWithWeth, sellReserve: sellR, gasFloor };
 }
 
@@ -5864,7 +5893,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const gasFloor = Number.isFinite(bal?.gasFloor)
       ? bal.gasFloor
       : effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
-    const totalAvail = eth + weth - gasFloor - sellR;
+    const totalLiquid = eth + weth;
+    const totalAvail = totalLiquid > 0 && totalLiquid < THIN_BOOK_ETH
+      ? microSpendableEth({ eth, weth, gasFloorEth: gasFloor, piggyEth: piggyBank })
+      : totalLiquid - gasFloor - sellR;
     if (totalAvail < MIN_ETH_TRADE) {
       return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)} (gas floor ${gasFloor.toFixed(6)})`);
     }
@@ -5889,14 +5921,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const l2Hitch = estimateCalldataHitchEth(voiceBytesEarly, gwei);
       hitchCostEst = (hitchL1Early.ok ? (Number(hitchL1Early.l1FeeEth) || 0) : 0) + l2Hitch;
     } catch { hitchCostEst = 0; }
-    const minEntry = effectiveMinEntryEth({
+    const resolvedEntry = resolveMinEntryForBook({
       gasCostEth: gasCost,
       hitchCostEth: hitchCostEst,
       feePct: token.poolFeePct || 0.006,
       ethUsd,
       tokenMinBuyUsd: minBuyUsdForToken(token),
       minPosUsd: minPosUsd(),
+      tradeableEth: Math.max(totalAvail, 0),
     });
+    const minEntry = resolvedEntry.minEntryEth;
+    if (resolvedEntry.mode !== "inject") {
+      console.log(`   MICRO_SLOT ${token.symbol}: ${resolvedEntry.mode} minEntry=${minEntry.toExponential(3)} ETH (skipHitch=${resolvedEntry.skipHitch})`);
+    }
     // Preview size before LOSE_ZERO so we can deny undersized auto/cascade early.
     const previewForced = forcedEth > 0 ? forcedEth : tierEthEarly;
     if (!isManualOperatorBuy(reason)) {
@@ -5917,7 +5954,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // sizes leftover so hitch can ride when covered; leftover+edge never block it.
     // CRITICAL: size hitch/% against the *actual* spend preview — not the full book
     // (full-book understated hitch% and let CBBTC pennies look covered).
-    let buySkipHitch = false;
+    let buySkipHitch = !!resolvedEntry.skipHitch;
     let buyLeftoverEth = 0;
     const spendForGate = Math.min(
       Math.max(previewForced > 0 ? previewForced : tierEthEarly, MIN_ETH_TRADE),
@@ -5942,10 +5979,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         net: armEarly.net || 0,
         isCascade,
         hitchBytes: voiceBytes,
+        allowBankHitch: !!resolvedEntry.skipHitch,
       });
       logHitchFeeSplit(hitchL1, voiceBytes, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
-      buySkipHitch = !!decision.skipHitch;
+      buySkipHitch = !!decision.skipHitch || !!resolvedEntry.skipHitch;
       buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
       // L1 oracle down: never hitch (plain buy). leftoverWouldCoverVitaHitch used
       // to re-attach KEY+LOC without live L1 and undercover the insert.
@@ -5977,7 +6015,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const minSpend  = minPosUsd() / ethUsd;
     // Prefer at least minEntry so the fill can cascade; inject-all uses nearly full book.
     const injectAll = !!(currentTierBook?.injectAll);
-    const floorSpend = injectAll ? Math.max(minSpend, minEntry) : minSpend;
+    const floorSpend = injectAll
+      ? Math.max(minSpend, Math.min(minEntry, Math.max(totalAvail, 0)))
+      : minSpend;
     const ethToSpend= forcedEth > 0
       ? Math.min(forcedEth, Math.max(totalAvail, 0))
       : Math.min(Math.max(floorSpend, tierEth), maxSpend);
@@ -6002,7 +6042,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const edge = evaluateCostEdgeGate({
         symbol: token.symbol,
         tradeEth: ethToSpend,
-        hitchCostEth: hitchCostEst,
+        hitchCostEth: buySkipHitch ? 0 : hitchCostEst,
         gasCostEth: gasCost,
         feePct: token.poolFeePct || 0.006,
         impactPct: PRICE_IMPACT_EST,
@@ -6011,6 +6051,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         ethUsd,
         tradeableUsd: tradeableUsdNow,
         isManualOperator: false,
+        skipNearTerm: resolvedEntry.mode !== "inject",
       });
       if (!edge.allow) {
         recordCostMistake({ ...edge, source: isCascade ? "cascade" : "buy" });
@@ -8845,20 +8886,51 @@ async function loadFromGitHub() {
     if (scrubbed > 0) console.log(`🧹 Scrubbed ${scrubbed} corrupted entries — chain reconciliation will rebuild them correctly`);
   }
   const hf = await githubGet("history.json");
-  if (hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0) {
-    history = hf.content;
+  const localHist = readLocalStateJson("history.runtime.json") || null;
+  const histFresh = !!(localHist && (
+    isFreshLocalState(localHist)
+    || latestHistoryReadingMs(localHist) > Date.now() - 7 * 24 * 3600 * 1000
+  ));
+  const histPick = preferRemoteOrKeep({
+    remote: hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0
+      ? hf.content
+      : null,
+    status: hf?.status,
+    current: history,
+    local: localHist,
+    allowLocal: true,
+    localFresh: histFresh,
+  });
+  if (histPick.source === "remote") {
+    history = histPick.value;
     historySha = hf.sha;
     hydrateHistoryMap(history);
     console.log(`   📜 history.json: loaded ${Object.keys(history).length} tokens of price history`);
+  } else if (histPick.source === "memory") {
+    hydrateHistoryMap(history);
+    console.log(`   ⚠️  history.json: HTTP ${hf?.status ?? "?"} — keeping in-memory book (${Object.keys(history).length} tokens; not wiping)`);
+  } else if (histPick.source === "local") {
+    history = histPick.value;
+    hydrateHistoryMap(history);
+    console.log(`   ⚠️  history.json: HTTP ${hf?.status ?? "?"} — restored fresh local snapshot (${Object.keys(history).length} tokens)`);
   } else {
-    history = {};
     historySha = hf?.sha || null;
-    console.log(`   ⚠️  history.json: empty or unreadable — starting fresh (will seed from ledger + live ticks)`);
+    console.log(`   ⚠️  history.json: empty or unreadable (HTTP ${hf?.status ?? "?"}) — live ticks + session-range will arm (not loading stale committed history.json)`);
   }
   const pf = await githubGet("positions.json");
-  if (pf?.content) {
-    positionsSha   = pf.sha;
-    const pos      = pf.content;
+  let posBlob = pf?.content && typeof pf.content === "object" ? pf.content : null;
+  if (!posBlob) {
+    const localPos = readLocalStateJson("positions.runtime.json");
+    if (localPos && isFreshLocalState(localPos)) {
+      posBlob = localPos;
+      console.log(`   ⚠️  positions.json: HTTP ${pf?.status ?? "?"} — restored fresh local snapshot (not committed March FIFO)`);
+    } else {
+      console.log(`   ⚠️  positions.json: HTTP ${pf?.status ?? "?"} — not loading stale committed positions.json; fifo-lots disk + receipts remain`);
+    }
+  }
+  if (posBlob) {
+    if (pf?.sha) positionsSha = pf.sha;
+    const pos      = posBlob;
     piggyBank      = pos.piggyBank    || 0;
     // Load surfer state
     if (pos.surfers) {
@@ -9061,9 +9133,12 @@ async function saveToGitHub() {
       historyJson = null;
     }
     if (historyJson) {
+      try { writeLocalStateJson("history.runtime.json", historyToSave); } catch (e) {
+        console.log(`⚠️  history.runtime.json: ${e.message}`);
+      }
       historySha = await githubSave("history.json", historyToSave, historySha);
     }
-    positionsSha = await githubSave("positions.json", {
+    const positionsPayload = {
       lastSaved: new Date().toISOString(), piggyBank, totalSkimmed, tradeCount,
       hitchInjectCount, hitchInjectProfitUsd, hitchProveAnnounced,
       forcedExitDone: forcedExitState.done || {},
@@ -9098,7 +9173,11 @@ async function saveToGitHub() {
       piggyContrib: Object.fromEntries(tokens.map(t => [t.symbol, (waveStats[t.symbol]?.piggyContrib || 0)])),
       tradeLog:   tradeLog.slice(-200),
       fifoLots:   serializeFifoLots(fifoLots),
-    }, positionsSha);
+    };
+    try { writeLocalStateJson("positions.runtime.json", positionsPayload); } catch (e) {
+      console.log(`⚠️  positions.runtime.json: ${e.message}`);
+    }
+    positionsSha = await githubSave("positions.json", positionsPayload, positionsSha);
     lastSaveTime = Date.now();
     try { await persistFifoLotsNow("saveToGitHub"); } catch {}
     // Save memory registry
@@ -12368,10 +12447,14 @@ async function main() {
   console.log("      Top-100 majors: LINK AAVE UNI + thawed VVV ZORA BNKR");
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
+  const haltRaw = String(process.env.HALT_NEW_ENTRIES ?? "").trim() || "unset";
+  const loseRaw = String(process.env.LOSE_ZERO ?? "").trim() || "unset";
+  const injRaw = String(process.env.REQUIRE_INJECT_COVER ?? "").trim() || "unset";
+  console.log(`📋 micro-earn flags: LOSE_ZERO=${loseRaw} HALT_NEW_ENTRIES=${haltRaw} REQUIRE_INJECT_COVER=${injRaw} (yes-only; no/unset does not halt — redeploy after Railway env clear)`);
   if (isLoseZeroMode()) {
-    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover");
+    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover; micro-bank hitch if inject seed cannot fit");
   } else if (isInjectCoverRequired()) {
-    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
+    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost (or micro-bank when cover cannot fit)");
   }
   console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; message-first=${isOriginalFormulaMessageFirst() ? "on" : "off"} hitch when leftover covers 1× KEY+LOC (HITCH_COST_MULT=${hitchCostMult()}× cushion preferred; VITA_MESSAGE_FIRST=no → skip + bank); never sell red to inject`);
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);

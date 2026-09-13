@@ -240,6 +240,23 @@ export function isFifoRedLot({
  * when the existing known FIFO lot is already red (mark < remaining FIFO).
  * @returns {{ allow: boolean, blocked: boolean, reason: string, log: string|null }}
  */
+/**
+ * Unknown-cost bag that is not USD-dust. Always-plus cannot prove a sell,
+ * so do not stack more RISK into it. Dust / empty names stay first-buy OK.
+ * Never latches live mark as cost basis (that invents P&L).
+ */
+export function isUnknownCostBlockingAddOn({
+  unknownEntry = false,
+  tokenBal = 0,
+  bagUsd,
+} = {}) {
+  if (unknownEntry !== true) return false;
+  if (bagUsd !== undefined && Number.isFinite(Number(bagUsd))) {
+    return Number(bagUsd) >= ADD_ON_BAG_MIN_USD;
+  }
+  return Number(tokenBal) > ADD_ON_BAG_MIN_TOKENS;
+}
+
 export function evaluateAddOnFifoRedGate({
   symbol = "?",
   tokenBal = 0,
@@ -251,6 +268,16 @@ export function evaluateAddOnFifoRedGate({
   env = process.env,
 } = {}) {
   void reason;
+  if (isUnknownCostBlockingAddOn({ unknownEntry, tokenBal, bagUsd })) {
+    return {
+      allow: false,
+      blocked: true,
+      reason: "unknown-cost",
+      log:
+        `ADD_ON: skip ${symbol} — unknown cost basis on existing bag; ` +
+        `HOLD (always-plus). First buy empty / USD-dust names only.`,
+    };
+  }
   const existing = isExistingKnownFifoBag({ tokenBal, remainingFifoEth, unknownEntry, bagUsd });
   if (!existing) {
     return { allow: true, blocked: false, reason: "flat-or-empty", log: null };
@@ -830,6 +857,7 @@ export function evaluateBuyGate({
   tradeEth = 0,
   net = 0,
   hitchCostEth = 0,
+  allowBankHitch = false,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
@@ -875,6 +903,15 @@ export function evaluateBuyGate({
         reason: peakCovers ? "edge+cover" : "edge+eth-cover",
       };
     }
+    if (hasEdge && allowBankHitch) {
+      return {
+        allow: true,
+        log: `${tag}: allow buy ${symbol} micro-bank hitch (inject cover does not fit; trade-only #89)`,
+        leftover,
+        skipHitch: true,
+        reason: "edge+bank-hitch",
+      };
+    }
     const why = !hasEdge
       ? "no clear edge"
       : Number(leftover) === 0 && !ethCovers
@@ -890,6 +927,15 @@ export function evaluateBuyGate({
 
   // REQUIRE_INJECT_COVER only
   if (!covers) {
+    if (hasEdge && allowBankHitch) {
+      return {
+        allow: true,
+        log: `${tag}: allow buy ${symbol} micro-bank hitch (inject cover does not fit; trade-only #89)`,
+        leftover,
+        skipHitch: true,
+        reason: "edge+bank-hitch",
+      };
+    }
     const why = Number(leftover) === 0 ? "leftover is 0" : "leftover does not cover inject";
     return {
       allow: false,
@@ -923,6 +969,7 @@ export function buildBuyGateDecision({
   net = 0,
   isCascade = false,
   hitchBytes = STORE_HITCH_BYTES,
+  allowBankHitch = false,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
@@ -955,6 +1002,7 @@ export function buildBuyGateDecision({
     tradeEth,
     net,
     hitchCostEth,
+    allowBankHitch,
     env,
   };
 

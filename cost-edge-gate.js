@@ -167,6 +167,11 @@ export function evaluateCostEdgeGate({
   isManualOperator = false,
   /** When false, use nearTermEdgeMult as-is (A/B baseline). Default adapts thin+cheap. */
   adaptiveNearTerm = true,
+  /**
+   * Thin-book micro-bank / micro-hitch: 2×gas already dominates a ~$4 stake
+   * so near-term 1.15× would wait forever (live PRIMED none). Hitch%/RT% stay.
+   */
+  skipNearTerm = false,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const fr = costFractions({ tradeEth, hitchCostEth, gasCostEth, feePct, impactPct });
@@ -211,6 +216,7 @@ export function evaluateCostEdgeGate({
     reason = `round-trip ${(fr.roundTripPct * 100).toFixed(1)}% of stake > max ${(maxRoundTripPct * 100).toFixed(0)}%`;
   } else if (
     !isManualOperator &&
+    !skipNearTerm &&
     !(nearUpside + 1e-12 >= needMove * edgeMult)
   ) {
     allow = false;

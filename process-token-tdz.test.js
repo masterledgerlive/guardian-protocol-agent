@@ -149,6 +149,9 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(body.includes("addOnRemainingFifoEth"), "add-on FIFO must be remaining bag cost, not sell lot floor");
     assert.ok(body.includes("bagUsd"), "add-on must treat USD-dust flatten leftover as empty");
     assert.ok(body.includes("isSkipHoldDeadRoute"), "USDG / dead V4-only dust must skip");
+    assert.ok(body.includes("resolveMinEntryForBook"), "T1 slot must fit spendable / micro-bank hitch");
+    assert.ok(body.includes("microSpendableEth"), "thin book must use unified ETH+WETH after gas keep");
+    assert.ok(body.includes("allowBankHitch"), "inject cover miss must bank hitch not refuse all avenues");
     const addOn = body.indexOf("evaluateAddOnFifoRedGate");
     const encode = body.indexOf("encodeSwap(");
     assert.ok(addOn >= 0 && encode > addOn, "FIFO-red add-on gate must skip before encodeSwap");
