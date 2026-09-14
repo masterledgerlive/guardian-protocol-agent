@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-14T06:20:00.000Z",
+  "topic": "mother-genesis-onchain-loclist",
+  "text": "After mother-genesis chunk txs seal, the FULL location list is also inscribed on-chain as MGLOCS pages (whole 0x hashes, like old §HASHES§ strand trailer — not squashed yet). SNARK compression can fold those pages later. Reader keys still point at the strand; /encodegenesisreveal reconstructs from chunk locs. Loc-list txs are extra and never mixed into chunk location arrays.",
+  "commands": [
+    "/vitamothergenesis",
+    "/vitamotherGenesisencoded",
+    "/encodegenesisreveal"
+  ],
+  "hypothesis": {
+    "id": "full-loc-list-onchain-before-snark-squash",
+    "status": "operating",
+    "note": "Write whole loc list now; squash with SNARK later."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
