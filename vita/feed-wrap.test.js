@@ -22,6 +22,7 @@ import {
   wrapAutoSelfCall,
   wrapMotherGenesisSelfCall,
   wrapQueueSelfCall,
+  wrapVitaSaveSelfCall,
 } from "./feed-wrap.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -209,22 +210,32 @@ describe("remaining AUTO callers bank unpaired STORE (n5546–5550 class)", () =
     assert.ok(!integrity.includes("sendTransaction"), "integrity must not burn RISK liquid");
   });
 
-  it("operator /vitasave is not gated — mother brain stays reachable", () => {
+  it("operator /vitasave stays; callers wrap — vitaSave only when env on", () => {
     const agent = readFileSync(join(root, "agent.js"), "utf8");
     const vStart = agent.indexOf('} else if (text === "/vitasave")');
     const vEnd = agent.indexOf("} else if (text === \"/vitarecall\"");
     assert.ok(vStart >= 0 && vEnd > vStart);
     const vBody = agent.slice(vStart, vEnd);
-    assert.ok(vBody.includes("vitaSave("));
-    assert.ok(!vBody.includes("autoPaidInscribeEnabled"), "/vitasave must stay ungated");
-    assert.ok(!vBody.includes("wrapAutoSelfCall"), "/vitasave must still hit mother brain");
+    assert.ok(vBody.includes("vitaSave("), "env-on path still hits mother brain");
+    assert.ok(vBody.includes("autoPaidInscribeEnabled"), "/vitasave must honor kill-switch");
+    assert.ok(vBody.includes("wrapVitaSaveSelfCall"), "/vitasave must wrap");
+    assert.ok(vBody.includes("topic: \"vitasave\""));
+    assert.match(vBody, /if \(!autoSaveOn\)[\s\S]*continue;/);
 
     const v2Start = agent.indexOf('} else if (text && text.startsWith("/vitasave"))');
     const v2End = agent.indexOf('} else if (text && text.startsWith("/vitarecall "))', v2Start);
     const v2Body = agent.slice(v2Start, v2End > v2Start ? v2End : v2Start + 2500);
     assert.ok(v2Body.includes("vitaSave("));
-    assert.ok(!v2Body.includes("autoPaidInscribeEnabled"));
-    assert.ok(!v2Body.includes("wrapAutoSelfCall"));
+    assert.ok(v2Body.includes("autoPaidInscribeEnabled"));
+    assert.ok(v2Body.includes("wrapVitaSaveSelfCall"));
+    assert.match(v2Body, /if \(!autoPaidInscribeEnabled\(\)\)[\s\S]*continue;/);
+
+    const proveStart = agent.indexOf('} else if (text === "/prove"');
+    const proveEnd = agent.indexOf("} else if (text === \"/voiceon\")");
+    assert.ok(proveStart >= 0 && proveEnd > proveStart);
+    const prove = agent.slice(proveStart, proveEnd);
+    assert.ok(prove.includes("sendStoreVoiceProof"), "/prove stays dedicated Eureka");
+    assert.ok(!prove.includes("wrapVitaSaveSelfCall"), "/prove is not the vitasave wrap");
   });
 });
 
@@ -405,7 +416,76 @@ describe("MGPLAIN / VITA-KNOW auto bank (n5551–5556 class)", () => {
     const vEnd = agent.indexOf("} else if (text === \"/vitarecall\"");
     const vBody = agent.slice(vStart, vEnd);
     assert.ok(vBody.includes("vitaSave("));
+    assert.ok(vBody.includes("wrapVitaSaveSelfCall"));
     assert.ok(!vBody.includes("maySendMotherGenesis"));
     assert.ok(!vBody.includes("wrapMotherGenesisSelfCall"));
+  });
+});
+
+describe("vitasave wrap — n5557–5566 class", () => {
+  beforeEach(() => resetFeedWrapBank());
+
+  function liveVitaSaveChunk1() {
+    return "[VITA:1:00000000]§SESS§2026-09-14|vita-router|eureka→";
+  }
+
+  function liveVitaSaveStoreChunk(seq, prev) {
+    return (
+      "[VITA:" + seq + ":" + prev + "]§LEARN§prose-letter wastes hitch B;" +
+      "§TOKEN§denser recall;squash>list-every-tx;hitch≠lastPacket;keep\n" +
+      "§$STORE§ tag|SESSION:2026-09-14 WALLET:0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+    );
+  }
+
+  it("n5557 [VITA:1:00000000] vitaSave header banks unpaired, never send, no hash", () => {
+    const text = liveVitaSaveChunk1();
+    const data = utf8ToHex(text);
+    assert.equal(selectorFromHex(data), VITA_SELF_CALL_SELECTOR);
+    const w = wrapVitaSaveSelfCall({
+      to: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      from: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      data,
+      text,
+      leftoverEth: 0.002,
+      hitchCostEth: 0.0001,
+      pairedUniswapSell: false,
+    });
+    assert.equal(w.send, false);
+    assert.equal(w.banked, true);
+    assert.equal(w.hitch, false);
+    assert.equal(w.txHash, null);
+    assert.equal(w.unpaired, true);
+    assert.equal(peekFeedWrapBank()[0].topic, "vitasave");
+  });
+
+  it("n5561 / n5566 STORE last-chunk class banks — no invented hash", () => {
+    for (const [seq, prev] of [["1", "9864b2f0"], ["2", "f9063fd4"]]) {
+      const text = liveVitaSaveStoreChunk(seq, prev);
+      const w = wrapVitaSaveSelfCall({
+        to: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+        from: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+        data: utf8ToHex(text),
+        text,
+        leftoverEth: 0.002,
+        hitchCostEth: 0.0001,
+        pairedUniswapSell: false,
+      });
+      assert.equal(w.send, false);
+      assert.equal(w.banked, true);
+      assert.equal(w.txHash, null);
+      assert.equal(w.unpaired, true);
+      assert.match(text, /§\$STORE§/);
+    }
+    assert.equal(peekFeedWrapBank().length, 2);
+  });
+
+  it("POST /vita/save webhook banks via wrap — no sendTransaction", () => {
+    const webhook = readFileSync(join(root, "vita-webhook.js"), "utf8");
+    const start = webhook.indexOf("path === \"/vita/save\"");
+    assert.ok(start >= 0, "advertised POST /vita/save must exist");
+    const body = webhook.slice(start, start + 900);
+    assert.ok(body.includes("wrapVitaSaveSelfCall"));
+    assert.ok(!body.includes("sendTransaction"), "webhook save must not solo-send");
+    assert.ok(body.includes("txHash: null"));
   });
 });

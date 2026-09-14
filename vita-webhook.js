@@ -87,6 +87,7 @@ import {
   extractMemoryRecords,
   retrieveXmem,
 } from "./xmem.js";
+import { wrapVitaSaveSelfCall } from "./vita/feed-wrap.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -626,6 +627,26 @@ async function handleVitaRequest(req, res) {
     } else if (path === "/vita/ping") {
       json(res, { ok: true, vita: "alive", timestamp: new Date().toISOString() });
 
+    // ── POST /vita/save — advertised programmatic vitasave. Never broadcasts.
+    // n5557–5566 was Telegram `/vitasave` → vitaSave. This endpoint banks hex.
+    } else if (path === "/vita/save" && req.method === "POST") {
+      const body = await readBody(req) || {};
+      const text = String(body.text || body.summary || body.note || "webhook-vitasave");
+      const wrapped = wrapVitaSaveSelfCall({
+        text,
+        pairedUniswapSell: false,
+        topic: "vitasave-webhook",
+      });
+      json(res, {
+        ok: true,
+        banked: wrapped.banked === true,
+        hitch: wrapped.hitch === true,
+        send: false,
+        txHash: null,
+        reason: wrapped.reason,
+        note: "POST /vita/save banks unpaired [VITA:/STORE. Telegram /vitasave same wrap. Set VITA_AUTO_INSCRIBE=yes to restore mother-brain vitaSave.",
+      });
+
     } else {
       err(res, "unknown endpoint: " + path, 404);
     }
@@ -689,6 +710,7 @@ export function startVitaWebhook() {
     console.log("   /vita/hypotheses — query hypothesis graph");
     console.log("   /vita/read     — read GitHub files");
     console.log("   /vita/status   — live bot status");
+    console.log("   /vita/save     — programmatic vitasave (auth; banks unpaired STORE)");
   });
 
   return server;
