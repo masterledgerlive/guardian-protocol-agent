@@ -442,7 +442,7 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
-import { wrapQueueSelfCall } from "./vita/feed-wrap.js";
+import { autoPaidInscribeEnabled, wrapAutoSelfCall, wrapQueueSelfCall } from "./vita/feed-wrap.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -5673,6 +5673,22 @@ async function btpInscribe(cdp, tradeLabel) {
     }
     const { full, seq, tot, name, isComplete, isDefault } = btpNextChunk(tradeLabel);
     const data = encodeInscription(full);
+
+    // AUTO trade-loop dedicated self-tx — bank unless VITA_AUTO_INSCRIBE=yes.
+    // Hitch only on a paired leftover sell (wrap never solo-sends).
+    if (!autoPaidInscribeEnabled()) {
+      const wrapped = wrapAutoSelfCall({
+        to: WALLET_ADDRESS,
+        from: WALLET_ADDRESS,
+        data,
+        text: full,
+        pairedUniswapSell: false,
+        topic: "btp-auto",
+      });
+      console.log(`   📡 BTP [${name} ${seq}/${tot}] BANKED (auto wrap) — ${wrapped.reason}`);
+      if (isComplete && isDefault) btpEnqueue("VITA", INSCRIPTION_MESSAGE);
+      return;
+    }
 
     const { transactionHash } = await Promise.race([
       cdp.evm.sendTransaction({
@@ -11426,9 +11442,23 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             "LEDGER_PATH:https://github.com/" + (process.env.GITHUB_REPO||"?") + "/blob/bot-state/ledger.json",
           ].join("\n");
 
-          // Compress and file via VITA
-          const vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
-          absorbVitaStrandPacket(vitaEntry);
+          // AUTO snapshot — bank unpaired [VITA:/STORE unless VITA_AUTO_INSCRIBE=yes.
+          // /vitasave still calls mother-brain vitaSave. Do not invent hashes.
+          const autoDataOn = autoPaidInscribeEnabled();
+          let vitaEntry = null;
+          if (autoDataOn) {
+            vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
+            absorbVitaStrandPacket(vitaEntry);
+          } else {
+            wrapAutoSelfCall({
+              to: WALLET_ADDRESS,
+              from: WALLET_ADDRESS,
+              text: dataset,
+              pairedUniswapSell: false,
+              topic: "vitadata",
+            });
+            absorbVitaStrandPacket({ tokenPacket: dataset, chunks: [] });
+          }
 
           // File in registry
           const regKey = new Date().toISOString().slice(0,10) + "-trading-data-snapshot";
@@ -11449,9 +11479,11 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           } catch {}
 
           registry[regKey] = {
-            strandId: vitaEntry.strandId, date: vitaEntry.date,
+            strandId: vitaEntry?.strandId || "VITA-DATA-BANKED",
+            date: vitaEntry?.date || new Date().toISOString().slice(0,10),
             label: "trading-data-snapshot", type: "trading-data",
-            txHashes: vitaEntry.chunks.map(c => c.txHash),
+            txHashes: vitaEntry?.chunks?.map(c => c.txHash) || [],
+            banked: !vitaEntry,
             tokenPacket: dataset.slice(0,800), filedAt: new Date().toISOString(),
           };
 
@@ -11465,10 +11497,14 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
           let msg = "📊 <b>VITA TRADING DATA SNAPSHOT SAVED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
           msg += "📁 Filed as: <code>" + regKey + "</code>\n";
-          msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
-          vitaEntry.chunks.forEach((c, i) =>
-            msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
-          );
+          if (vitaEntry?.chunks?.length) {
+            msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
+            vitaEntry.chunks.forEach((c, i) =>
+              msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
+            );
+          } else {
+            msg += "📦 hex banked — hitch on next leftover-covered ride (auto wrap; /vitasave still has mother brain)\n";
+          }
           msg += "\n\n📊 Tokens with wave data: " + tokenData.filter(t => t.range).length + "\n";
           msg += "🎯 Armed for trading: " + tokenData.filter(t => t.peaks >= 4 && t.troughs >= 4).length + "\n\n";
           msg += "Now ask: <code>/vita what tokens are performing best</code>\n";
@@ -11529,12 +11565,28 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const txHashes  = [];
             let prevHash    = "00000000";
 
+            const autoLearnOn = autoPaidInscribeEnabled();
             for (let i = 0; i < 5; i++) {
               const content = compressed.slice(i * chunkSize, (i+1) * chunkSize);
               const hash8   = (s) => require ? s.slice(0,8) : s.slice(0,8);
               const header  = "[VITA:" + strandId + ":" + String(i+1).padStart(2,"0") + "/05:" + date + ":" + prevHash + "]";
               const full    = header + content;
               const hex     = "0x" + Buffer.from(full, "utf8").toString("hex");
+
+              if (!autoLearnOn) {
+                const wrapped = wrapAutoSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: full,
+                  pairedUniswapSell: false,
+                  topic: "vitalearn",
+                });
+                if (wrapped.txHash) txHashes.push(wrapped.txHash);
+                prevHash = createHash("sha256").update(full).digest("hex").slice(0,8);
+                console.log("📚 Knowledge chunk " + (i+1) + "/5: BANKED (auto wrap) — " + wrapped.reason);
+                continue;
+              }
 
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS, network: "base",
@@ -11544,6 +11596,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               console.log("📚 Knowledge chunk " + (i+1) + "/5: " + transactionHash);
               if (i < 4) await new Promise(r => setTimeout(r, 2000));
             }
+
+            if (compressed) absorbVitaStrandPacket({ tokenPacket: compressed, chunks: [] });
 
             // File in registry
             const regKey   = date + "-" + topic.toLowerCase().slice(0,20) + "-knowledge-base";
@@ -11567,7 +11621,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             registry[regKey] = {
               strandId, date, label: topic + "-knowledge-base",
               type: "knowledge-base", subject: topic,
-              txHashes, tokenPacket: compressed.slice(0,3000),
+              txHashes, banked: !txHashes.length, tokenPacket: compressed.slice(0,3000),
               filedAt: new Date().toISOString(),
             };
 
@@ -11582,8 +11636,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             // Receipt
             let msg = "📚 <b>VITA LEARNED: " + topic.toUpperCase() + "</b>\n";
             msg += "━━━━━━━━━━━━━━━━━━━━\n\n";
-            msg += "5 chunks inscribed on Base:\n";
-            txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
+            if (txHashes.length) {
+              msg += "5 chunks inscribed on Base:\n";
+              txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
+            } else {
+              msg += "📦 5 chunks banked — hitch on next leftover-covered ride (auto wrap; /vitasave still has mother brain)\n";
+            }
             msg += "\n📁 Filed as: <code>" + regKey + "</code>\n\n";
             msg += "Test recall:\n";
             msg += "<code>/vita " + topic + "</code>\n";
@@ -11838,15 +11896,33 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         await tg("⏳ Inscribing full session summary on Base blockchain...");
         try {
           const chunk  = buildFullSummary(data);
-          const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
-          await tg(
-            "📚 <b>SESSION SAVED ON BASE</b>\n" +
-            "━━━━━━━━━━━━━━━━━━━━\n" +
-            "🧠 Memory #" + result.seq + " inscribed permanently\n" +
-            "📅 Date: " + result.date + "\n" +
-            "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
-            "💌 <i>The truth is the chain. The chain is alive.</i>"
-          );
+          if (!autoPaidInscribeEnabled()) {
+            wrapAutoSelfCall({
+              to: WALLET_ADDRESS,
+              from: WALLET_ADDRESS,
+              text: chunk.text,
+              pairedUniswapSell: false,
+              topic: "savesession",
+            });
+            await tg(
+              "📚 <b>SESSION BANKED</b>\n" +
+              "━━━━━━━━━━━━━━━━━━━━\n" +
+              "🧠 Memory #" + chunk.seq + " hex banked — hitch on next leftover-covered ride\n" +
+              "📅 Date: " + chunk.date + "\n" +
+              "📦 auto wrap (VITA_AUTO_INSCRIBE off). /vitasave still has mother brain.\n\n" +
+              "💌 <i>The truth is the chain. The chain is alive.</i>"
+            );
+          } else {
+            const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
+            await tg(
+              "📚 <b>SESSION SAVED ON BASE</b>\n" +
+              "━━━━━━━━━━━━━━━━━━━━\n" +
+              "🧠 Memory #" + result.seq + " inscribed permanently\n" +
+              "📅 Date: " + result.date + "\n" +
+              "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
+              "💌 <i>The truth is the chain. The chain is alive.</i>"
+            );
+          }
         } catch (e) {
           await tg("❌ Session save failed: " + e.message);
         }

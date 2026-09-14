@@ -1,20 +1,42 @@
 /**
- * Thin outer wrap for main-loop / vita-queue self-calls.
+ * Thin outer wrap for main-loop / vita-queue / auto-learn self-calls.
  *
  * Does NOT replace vitaSave / inscribeChunk (mother brain stays).
- * Operators who need the root inscription path still call those directly.
+ * Operators who need the root inscription path still call /vitasave
+ * (and /prove) directly.
  *
- * Live bug: the trade-loop vita-queue processor sent unpaired wallet→self
- * txs (sel 0x5b564954 = UTF-8 `[VIT`) with STORE, 0 Uniswap fills.
+ * Live bug after #101: queue body was wrapped, but paid solo injects
+ * continued — /vitalearn, /vitadata→vitaSave, /savesession, and
+ * trade-loop btpInscribe still sendTransaction wallet→self
+ * (sel 0x5b564954 = UTF-8 `[VIT`) with STORE, 0 Uniswap fills.
  *
  * This adapter only answers: hitch (covered leftover / paired data tx)
  * or bank hex (wait for a free ride). It never broadcasts.
+ *
+ * Env kill-switch: VITA_AUTO_INSCRIBE (alias VITA_AUTO_QUEUE_LEARN)
+ * defaults OFF → auto queue/learn/trade-loop/integrity callers bank.
+ * Set yes/on/1 only to restore the old paid solo path at those callers.
+ * /vitasave is not gated.
  */
 
 export const VITA_SELF_CALL_SELECTOR = "0x5b564954";
 export const VITA_SELF_CALL_HEADER = "[VITA:";
+export const VITA_AUTO_INSCRIBE_ENV = "VITA_AUTO_INSCRIBE";
+export const VITA_AUTO_QUEUE_LEARN_ENV = "VITA_AUTO_QUEUE_LEARN";
 
 let _bank = [];
+
+/**
+ * AUTO queue / learn / trade-loop / integrity paid-inscribe kill-switch.
+ * Default OFF (unset / no / false) → bank hex, never solo-send.
+ * Operators still call /vitasave (mother brain) regardless of this flag.
+ */
+export function autoPaidInscribeEnabled(env = process.env) {
+  const raw = String(
+    env?.[VITA_AUTO_INSCRIBE_ENV] ?? env?.[VITA_AUTO_QUEUE_LEARN_ENV] ?? "",
+  ).trim().toLowerCase();
+  return raw === "yes" || raw === "on" || raw === "1" || raw === "true";
+}
 
 export function resetFeedWrapBank() {
   _bank = [];
@@ -99,4 +121,13 @@ export function wrapQueueSelfCall(input = {}) {
     unpaired: isUnpaidQueueSelfCall({ ...input, data: hex, text }),
     reason: "unpaid queue self-call — bank hex; wait for free ride (never drop the brain)",
   };
+}
+
+/**
+ * Same wrap as the queue, for remaining AUTO callers (learn / vitadata /
+ * savesession / btpInscribe). Never broadcasts. Hitch hex only when leftover
+ * covers KEY+LOC on a paired sell; otherwise bank.
+ */
+export function wrapAutoSelfCall(input = {}) {
+  return wrapQueueSelfCall({ ...input, topic: input.topic || "auto" });
 }
