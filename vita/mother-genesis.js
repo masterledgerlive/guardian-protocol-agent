@@ -15,8 +15,11 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 export const MOTHER_GENESIS_ID = "vita-mother-genesis-v1";
 export const MG_PLAIN_HEADER = "[MGPLAIN:";
 export const MG_ENC_HEADER = "[MGENC:";
+export const MG_LOCS_HEADER = "[MGLOCS:";
 /** Payload bytes per plain/encoded self-tx (header sits outside this budget). */
 export const MG_CHUNK_CHARS = 720;
+/** Full loc-list pages stay under the same self-tx budget (squash/SNARK later). */
+export const MG_LOCLIST_CHARS = 720;
 
 /** @type {Map<string, object>} */
 const strands = new Map();
@@ -179,6 +182,8 @@ export function buildEncodedChunkLine({ strandId, index, total, prevHash, cipher
 
 export function parseMotherGenesisLine(utf8) {
   const s = String(utf8 || "");
+  const locs = parseMotherGenesisLocListLine(s);
+  if (locs) return locs;
   const m = s.match(/^\[(MGPLAIN|MGENC):([^:\]]+):(\d+)\/(\d+):([0-9a-fA-F]+)\]([\s\S]*)$/);
   if (!m) return null;
   return {
@@ -188,6 +193,94 @@ export function parseMotherGenesisLine(utf8) {
     total: Number(m[4]),
     prevHash: m[5].toLowerCase(),
     body: m[6],
+  };
+}
+
+/**
+ * On-chain location index — whole list of sealed tx hashes (like §HASHES§ before).
+ * Not squashed yet; SNARK compression can fold pages later.
+ */
+export function buildMotherGenesisLocListPages({
+  strandId,
+  mode,
+  locations,
+  contentCommit,
+  locRoot = null,
+  chunkChars = MG_LOCLIST_CHARS,
+} = {}) {
+  const locs = (locations || []).map((h) => String(h).toLowerCase()).filter((h) => /^0x[0-9a-f]{64}$/.test(h));
+  if (!locs.length) return { ok: false, reason: "no sealed locations to list on-chain", pages: [] };
+
+  const meta =
+    "§MGLOCS§" + String(strandId).toUpperCase() + "|" + (mode || "plain") + "|n=" + locs.length + "\n" +
+    "§COMMIT§" + String(contentCommit || "") + "\n" +
+    (locRoot ? "§ROOT§" + String(locRoot) + "\n" : "") +
+    "§LOCLIST§\n";
+
+  const size = Math.max(200, Math.floor(Number(chunkChars) || MG_LOCLIST_CHARS));
+  // Pack full 0x… hashes; never truncate a hash across pages.
+  const pagesBodies = [];
+  let cur = "";
+  for (const loc of locs) {
+    const next = (cur ? cur + "\n" : "") + loc;
+    if (next.length > size && cur) {
+      pagesBodies.push(cur);
+      cur = loc;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur) pagesBodies.push(cur);
+
+  const total = pagesBodies.length;
+  const pages = pagesBodies.map((body, i) => {
+    const header =
+      MG_LOCS_HEADER +
+      String(strandId).toUpperCase() +
+      ":" +
+      padIndex(i + 1, total) +
+      ":n=" +
+      locs.length +
+      "]";
+    // First page carries meta + LOCLIST; follow-ons are continuation hashes only.
+    const line = i === 0 ? header + meta + body : header + "§LOCLIST§\n" + body;
+    return {
+      index: i + 1,
+      total,
+      line,
+      locationsOnPage: body.split("\n").filter(Boolean),
+    };
+  });
+
+  return {
+    ok: true,
+    strandId: String(strandId).toUpperCase(),
+    locationCount: locs.length,
+    pageCount: pages.length,
+    locations: locs,
+    pages,
+    note: "full loc list on-chain (unsquashed); SNARK squash can compress later",
+  };
+}
+
+export function parseMotherGenesisLocListLine(utf8) {
+  const s = String(utf8 || "");
+  const m = s.match(/^\[MGLOCS:([^:\]]+):(\d+)\/(\d+):n=(\d+)\]([\s\S]*)$/);
+  if (!m) return null;
+  const body = m[5] || "";
+  const locations = [...body.matchAll(/0x[0-9a-fA-F]{64}/g)].map((x) => x[0].toLowerCase());
+  const commitM = body.match(/§COMMIT§([0-9a-fA-F]*)/);
+  const rootM = body.match(/§ROOT§([0-9a-fA-F]*)/);
+  return {
+    kind: "loclist",
+    strandId: m[1],
+    index: Number(m[2]),
+    total: Number(m[3]),
+    locationCount: Number(m[4]),
+    contentCommit: commitM ? commitM[1].toLowerCase() : null,
+    locRoot: rootM ? rootM[1].toLowerCase() : null,
+    locations,
+    body,
   };
 }
 
@@ -371,6 +464,8 @@ export function utf8ToCalldataHex(text) {
 
 /**
  * Run inscription with a provided sender.
+ * After all chunk txs seal, also writes the FULL location list on-chain
+ * (MGLOCS pages — unsquashed; SNARK squash can come later).
  * @param sendTx async (hexData) => txHash | null
  */
 export async function runMotherGenesisInscribe(prepared, sendTx) {
@@ -406,6 +501,8 @@ export async function runMotherGenesisInscribe(prepared, sendTx) {
     totalChars: prepared.totalChars,
     chunks,
     locations: txHashes.slice(),
+    locListPages: [],
+    locListTxs: [],
     readerKey: prepared.readerKey || null,
     keys: prepared.keys || null,
     proof: null,
@@ -414,7 +511,60 @@ export async function runMotherGenesisInscribe(prepared, sendTx) {
 
   if (txHashes.length === prepared.totalChunks) {
     registerMotherGenesisStrand(entry);
-    return sealMotherGenesisLocations(prepared.strandId, txHashes);
+    const sealed = sealMotherGenesisLocations(prepared.strandId, txHashes);
+    if (!sealed.ok) return sealed;
+
+    // Whole location list on-chain (like §HASHES§ before) — squash later.
+    const locPages = buildMotherGenesisLocListPages({
+      strandId: prepared.strandId,
+      mode: prepared.mode,
+      locations: txHashes,
+      contentCommit: prepared.contentCommit,
+      locRoot: sealed.strand?.proof?.locRoot || null,
+    });
+    const locListTxs = [];
+    const locListPages = [];
+    if (locPages.ok) {
+      for (const page of locPages.pages) {
+        const hex = utf8ToCalldataHex(page.line);
+        const txHash = await sendTx(hex, { kind: "loclist", ...page });
+        if (txHash && !/^0x[0-9a-fA-F]{64}$/.test(String(txHash))) {
+          return {
+            ok: false,
+            reason: "loc-list sender returned non-hash — refuse invent",
+            strand: sealed.strand,
+            locListPages,
+            locListTxs,
+          };
+        }
+        locListPages.push({
+          index: page.index,
+          total: page.total,
+          fullLine: page.line,
+          locationsOnPage: page.locationsOnPage,
+          txHash: txHash || null,
+          sealed: Boolean(txHash),
+        });
+        if (txHash) locListTxs.push(txHash);
+      }
+    }
+
+    const row = getMotherGenesisStrand(prepared.strandId);
+    if (row) {
+      row.locListPages = locListPages;
+      row.locListTxs = locListTxs;
+      row.locListComplete = locListTxs.length === locListPages.length && locListPages.length > 0;
+      strands.set(row.strandId, row);
+    }
+
+    return {
+      ok: true,
+      strand: getMotherGenesisStrand(prepared.strandId),
+      locListOnChain: true,
+      locListTxs,
+      locListPageCount: locListPages.length,
+      note: "chunk locs sealed; full loc list also inscribed on-chain (unsquashed)",
+    };
   }
 
   // Partial / banked — still register so reveal can wait
@@ -508,6 +658,7 @@ export async function revealMotherGenesis(keyInput, { fetchCalldata } = {}) {
     mode: row.mode,
     strandId: row.strandId,
     locations,
+    locListTxs: row.locListTxs || [],
     totalChunks: row.chunks.length,
     chars: body.length,
     body,
@@ -548,8 +699,15 @@ export function formatMotherGenesisReceipt(result) {
   }
   const locs = s.locations || [];
   if (locs.length) {
-    lines.push("locations:");
+    lines.push("locations (full list):");
     locs.forEach((tx, i) => lines.push("  " + (i + 1) + ". " + tx));
+  }
+  const locListTxs = s.locListTxs || result.locListTxs || [];
+  if (locListTxs.length) {
+    lines.push("on-chain loc list (" + locListTxs.length + " MGLOCS page(s), unsquashed):");
+    locListTxs.forEach((tx, i) => lines.push("  L" + (i + 1) + ". " + tx));
+  } else if (locs.length && result.banked) {
+    lines.push("on-chain loc list: pending until all chunk txs seal");
   }
   if (s.mode === "plain" && s.readerKey) {
     lines.push("reader key: " + s.readerKey);
@@ -565,4 +723,26 @@ export function formatMotherGenesisReceipt(result) {
     }
   }
   return lines.join("\n");
+}
+
+/**
+ * Rebuild the full location list from on-chain MGLOCS page UTF-8 (or fullLine bank).
+ * Pages may be fetched later; order by index.
+ */
+export function reconstructLocationsFromLocListPages(pages) {
+  const ordered = [...(pages || [])].sort((a, b) => Number(a.index) - Number(b.index));
+  const locs = [];
+  const seen = new Set();
+  for (const page of ordered) {
+    const parsed = typeof page === "string"
+      ? parseMotherGenesisLocListLine(page)
+      : parseMotherGenesisLocListLine(page.fullLine || page.line || "");
+    if (!parsed || parsed.kind !== "loclist") continue;
+    for (const loc of parsed.locations) {
+      if (seen.has(loc)) continue;
+      seen.add(loc);
+      locs.push(loc);
+    }
+  }
+  return locs;
 }

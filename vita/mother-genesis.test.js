@@ -6,12 +6,15 @@ import assert from "node:assert/strict";
 import {
   MG_CHUNK_CHARS,
   attachFullLines,
+  buildMotherGenesisLocListPages,
   formatMotherGenesisReceipt,
   planMotherGenesisChunks,
   prepareEncodedMotherGenesis,
   preparePlainMotherGenesis,
   parseMotherGenesisLine,
+  parseMotherGenesisLocListLine,
   parseRevealKey,
+  reconstructLocationsFromLocListPages,
   resetMotherGenesisRegistry,
   revealMotherGenesis,
   runMotherGenesisInscribe,
@@ -58,11 +61,56 @@ describe("mother-genesis plain path", () => {
     assert.equal(revealed.body, body);
   });
 
-  it("parses MGPLAIN header lines", () => {
-    const prepared = preparePlainMotherGenesis("hello world", { chunkChars: 720 });
-    const parsed = parseMotherGenesisLine(prepared.lines[0].line);
-    assert.equal(parsed.kind, "plain");
-    assert.equal(parsed.body, "hello world");
+  it("writes full location list on-chain after chunk txs (unsquashed)", async () => {
+    const body = "loclist-code\n".repeat(80);
+    const prepared = preparePlainMotherGenesis(body, { chunkChars: 100 });
+    assert.ok(prepared.totalChunks > 5);
+
+    let n = 0;
+    const result = await runMotherGenesisInscribe(prepared, async () => {
+      n += 1;
+      return "0x" + String(n).padStart(64, "c").slice(0, 64);
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.locListOnChain, true);
+    assert.ok(result.locListTxs.length >= 1);
+    assert.equal(result.strand.locations.length, prepared.totalChunks);
+    assert.ok(result.strand.locListTxs.length >= 1);
+    // loc-list txs are extra — not mixed into chunk locations
+    for (const tx of result.strand.locListTxs) {
+      assert.equal(result.strand.locations.includes(tx), false);
+    }
+
+    const rebuilt = reconstructLocationsFromLocListPages(result.strand.locListPages);
+    assert.deepEqual(rebuilt, result.strand.locations);
+
+    const receipt = formatMotherGenesisReceipt(result);
+    assert.match(receipt, /on-chain loc list/);
+    assert.match(receipt, /MGLOCS/);
+  });
+
+  it("pages a long location list without truncating hashes", () => {
+    const locations = [];
+    for (let i = 1; i <= 30; i++) {
+      locations.push("0x" + String(i).padStart(64, "d").slice(0, 64));
+    }
+    const pages = buildMotherGenesisLocListPages({
+      strandId: "MG-P-TEST",
+      mode: "plain",
+      locations,
+      contentCommit: "abc",
+      chunkChars: 200,
+    });
+    assert.equal(pages.ok, true);
+    assert.ok(pages.pageCount > 1);
+    const rebuilt = reconstructLocationsFromLocListPages(pages.pages);
+    assert.equal(rebuilt.length, 30);
+    assert.deepEqual(rebuilt, locations.map((h) => h.toLowerCase()));
+    for (const page of pages.pages) {
+      const parsed = parseMotherGenesisLocListLine(page.line);
+      assert.equal(parsed.kind, "loclist");
+      assert.ok(parsed.locations.length >= 1);
+    }
   });
 });
 
