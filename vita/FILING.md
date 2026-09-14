@@ -13,6 +13,7 @@ findable.
 | `vita/FILING.md` | `FILING` | This map |
 | `vita/mainframe.js` | `MAINFRAME` | Anchors, HTML infect, sparse plan, message-first gate |
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
+| `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
 | `vita/memory/` | `MEMORY` | Learned notes (`*.json` strands of §TOKEN§ / hypotheses) — append-only |
 | `vita/strands/` | `STRAND` | Sparse inject chunk plans keyed by sealed loc short-hash |
 | `public/vita.html` | `HTML` | Infected console — memory until `/inject` |

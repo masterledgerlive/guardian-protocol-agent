@@ -36,6 +36,15 @@ import {
   getVitaContextMessage,
 } from "./vita-memory.js";
 
+// ── Mother Genesis — N-batch plain/encoded dumps (mother brain untouched) ─────
+import {
+  formatMotherGenesisReceipt,
+  prepareEncodedMotherGenesis,
+  preparePlainMotherGenesis,
+  revealMotherGenesis,
+  runMotherGenesisInscribe,
+} from "./vita/mother-genesis.js";
+
 // ── 🧠 IKN MEMORY ENGINE — cliff notes + session summaries ────────────────────
 import {
   buildCliffNote,
@@ -11594,6 +11603,125 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) { await tg("❌ vitalearn failed: " + e.message); }
         }
 
+      // ── /vitamothergenesis — plain 0-ETH self-txs, N batches (not capped at 5)
+      } else if (text && (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis")) {
+        const body = raw.slice("/vitamothergenesis".length).trim();
+        if (!body) {
+          await tg(
+            "usage: <code>/vitamothergenesis [paste ALL code]</code>\n" +
+            "Plain tx path — as many batches as needed (more than 5 ok).\n" +
+            "Returns a reader key so /encodegenesisreveal can find locations.\n" +
+            "<i>Does not change /vitasave 5-chunk mother brain.</i>"
+          );
+        } else {
+          await tg(
+            "🧬 <b>MOTHER GENESIS PLAIN</b>\n" +
+            "chars=" + body.length + " — planning N batches (not capped at 5)…"
+          );
+          try {
+            const prepared = preparePlainMotherGenesis(body);
+            await tg("📦 " + prepared.totalChunks + " plain chunks — inscribing 0-ETH self-txs…");
+            const result = await runMotherGenesisInscribe(prepared, async (hex) => {
+              const { transactionHash } = await cdpClient.evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash;
+            });
+            const receipt = formatMotherGenesisReceipt(result);
+            let msg = "🧬 <b>MOTHER GENESIS PLAIN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + receipt.slice(0, 3500) + "</pre>";
+            if (result.strand?.readerKey) {
+              msg += "\n🔑 Reader key:\n<code>" + result.strand.readerKey + "</code>\n";
+              msg += "Reveal: <code>/encodegenesisreveal " + result.strand.readerKey + "</code>";
+            }
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitamothergenesis failed: " + (e.message || e));
+          }
+        }
+
+      // ── /vitamotherGenesisencoded — AES + loc commitment, two-part key
+      } else if (
+        text &&
+        (text.startsWith("/vitamothergenesisencoded ") ||
+          text === "/vitamothergenesisencoded")
+      ) {
+        const body = raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim();
+        if (!body) {
+          await tg(
+            "usage: <code>/vitamotherGenesisencoded [paste ALL code]</code>\n" +
+            "Encoded path — N batches + zero-proof location commitment.\n" +
+            "Two-part key → <code>/encodegenesisreveal MG1.… MG2.…</code>\n" +
+            "<i>Mother brain untouched.</i>"
+          );
+        } else {
+          await tg(
+            "🔐 <b>MOTHER GENESIS ENCODED</b>\n" +
+            "chars=" + body.length + " — AES + loc commitment, N batches…"
+          );
+          try {
+            const prepared = prepareEncodedMotherGenesis(body);
+            await tg("📦 " + prepared.totalChunks + " encoded chunks — inscribing…");
+            const result = await runMotherGenesisInscribe(prepared, async (hex) => {
+              const { transactionHash } = await cdpClient.evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash;
+            });
+            const strand = result.strand || {};
+            const keys = strand.keys || prepared.keys;
+            let msg = "🔐 <b>MOTHER GENESIS ENCODED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + formatMotherGenesisReceipt(result).slice(0, 2800) + "</pre>\n";
+            msg += "🔑 Two-part key:\n<code>" + keys.part1 + "</code>\n<code>" + keys.part2 + "</code>\n";
+            msg += "Reveal: <code>/encodegenesisreveal " + keys.combined + "</code>";
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitamotherGenesisencoded failed: " + (e.message || e));
+          }
+        }
+
+      // ── /encodegenesisreveal — two-part (or plain) key → pull + decode
+      } else if (
+        text &&
+        (text.startsWith("/encodegenesisreveal ") || text === "/encodegenesisreveal")
+      ) {
+        const keyArg = raw.slice("/encodegenesisreveal".length).trim();
+        if (!keyArg) {
+          await tg(
+            "usage:\n<code>/encodegenesisreveal MGPLAIN.&lt;strand&gt;</code>\n" +
+            "or\n<code>/encodegenesisreveal MG1.… MG2.…</code>"
+          );
+        } else {
+          try {
+            const revealed = await revealMotherGenesis(keyArg, {
+              fetchCalldata: fetchTxCalldataHex,
+            });
+            if (!revealed.ok) {
+              await tg("❌ reveal failed: " + revealed.reason);
+            } else {
+              let msg = "🔓 <b>GENESIS REVEAL</b> · " + revealed.mode + "\n";
+              msg += "strand <code>" + revealed.strandId + "</code>\n";
+              msg += "chunks " + revealed.totalChunks + " · chars " + revealed.chars + "\n";
+              if (revealed.locations?.length) {
+                msg += "locs:\n" + revealed.locations.map((tx, i) =>
+                  (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+                ).join("\n") + "\n";
+              }
+              msg += "\n<pre>" + revealed.body.slice(0, 3200).replace(/</g, "&lt;") + "</pre>";
+              if (revealed.body.length > 3200) msg += "\n…(truncated — full body reconstructed in registry)";
+              await tg(msg);
+            }
+          } catch (e) {
+            await tg("❌ encodegenesisreveal failed: " + (e.message || e));
+          }
+        }
+
       } else if (text && text.startsWith("/vita ")) {
         const vitaInput = raw.slice("/vita ".length).trim();
         const vitaKey   = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
@@ -12159,6 +12287,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
+          `/vitamothergenesis [code] — plain 0-ETH txs, N batches as needed (>5 ok), reader key\n` +
+          `/vitamotherGenesisencoded [code] — encoded + loc commitment; two-part key\n` +
+          `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
           `/vitamemory — show all VITA memory sessions\n` +
           `/vitarecall — show recent memory context\n` +
           `/vitarouter — hitch payload switch + location squash\n` +
