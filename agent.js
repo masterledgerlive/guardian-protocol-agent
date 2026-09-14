@@ -11620,7 +11620,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           );
           try {
             const prepared = preparePlainMotherGenesis(body);
-            await tg("📦 " + prepared.totalChunks + " plain chunks — inscribing 0-ETH self-txs…");
+            await tg("📦 " + prepared.totalChunks + " plain chunks — then full loc list on-chain…");
             const result = await runMotherGenesisInscribe(prepared, async (hex) => {
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS,
@@ -11633,6 +11633,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const receipt = formatMotherGenesisReceipt(result);
             let msg = "🧬 <b>MOTHER GENESIS PLAIN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + receipt.slice(0, 3500) + "</pre>";
+            if (result.locListTxs?.length) {
+              msg += "\n📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
+            }
             if (result.strand?.readerKey) {
               msg += "\n🔑 Reader key:\n<code>" + result.strand.readerKey + "</code>\n";
               msg += "Reveal: <code>/encodegenesisreveal " + result.strand.readerKey + "</code>";
@@ -11664,7 +11670,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           );
           try {
             const prepared = prepareEncodedMotherGenesis(body);
-            await tg("📦 " + prepared.totalChunks + " encoded chunks — inscribing…");
+            await tg("📦 " + prepared.totalChunks + " encoded chunks — then full loc list on-chain…");
             const result = await runMotherGenesisInscribe(prepared, async (hex) => {
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS,
@@ -11678,6 +11684,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const keys = strand.keys || prepared.keys;
             let msg = "🔐 <b>MOTHER GENESIS ENCODED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + formatMotherGenesisReceipt(result).slice(0, 2800) + "</pre>\n";
+            if (result.locListTxs?.length) {
+              msg += "📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
+            }
             msg += "🔑 Two-part key:\n<code>" + keys.part1 + "</code>\n<code>" + keys.part2 + "</code>\n";
             msg += "Reveal: <code>/encodegenesisreveal " + keys.combined + "</code>";
             await tg(msg);
