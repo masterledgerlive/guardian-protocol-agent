@@ -38,6 +38,13 @@ import {
   retrieveXmem,
   xmemHelpText,
 } from "./xmem.js";
+import {
+  formatMotherGenesisReceipt,
+  prepareEncodedMotherGenesis,
+  preparePlainMotherGenesis,
+  revealMotherGenesis,
+  runMotherGenesisInscribe,
+} from "./vita/mother-genesis.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -62,6 +69,9 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/inject",
   "/zk",
   "/plain",
+  "/vitamothergenesis",
+  "/vitamothergenesisencoded",
+  "/encodegenesisreveal",
 ]);
 
 function shortLoc(location) {
@@ -317,6 +327,9 @@ function helpText() {
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
+    "/vitamothergenesis [code…] — plain tx, N batches as needed (>5 ok), reader key → locs",
+    "/vitamotherGenesisencoded [code…] — AES + loc commitment; two-part key",
+    "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
     "/plain — plaintext open source (default)",
   ].join("\n");
@@ -440,6 +453,72 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     const refined = refineVitaPacket(state.packet, { LEARN: topic.slice(0, 400) });
     state.packet = refined.packed;
     return reply("learned locally:\n" + topic.slice(0, 280) + "\nNot on chain until /inject pulls or a leftover hitch seals.");
+  }
+
+  // Mother genesis — large dump path (does not touch vitaSave 5-chunk brain)
+  if (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis") {
+    const body = raw.slice("/vitamothergenesis".length).trim();
+    if (!body) {
+      return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]");
+    }
+    const prepared = preparePlainMotherGenesis(body);
+    const result = await runMotherGenesisInscribe(prepared, async () => null);
+    state.motherGenesis = state.motherGenesis || [];
+    state.motherGenesis.push({
+      strandId: prepared.strandId,
+      mode: "plain",
+      chunks: prepared.totalChunks,
+      readerKey: prepared.readerKey,
+      at: new Date().toISOString(),
+    });
+    return reply(
+      formatMotherGenesisReceipt(result) +
+      "\nHTML-local bank (Telegram bot mines plain 0-ETH txs)." +
+      "\nMother brain (/vitasave 5-chunk) untouched.",
+    );
+  }
+
+  if (
+    text.startsWith("/vitamothergenesisencoded ") ||
+    text === "/vitamothergenesisencoded" ||
+    text.startsWith("/vitamothergenesisencoded")
+  ) {
+    const body = raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim();
+    if (!body) {
+      return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
+    }
+    const prepared = prepareEncodedMotherGenesis(body);
+    const result = await runMotherGenesisInscribe(prepared, async () => null);
+    state.motherGenesis = state.motherGenesis || [];
+    state.motherGenesis.push({
+      strandId: prepared.strandId,
+      mode: "encoded",
+      chunks: prepared.totalChunks,
+      keys: prepared.keys,
+      at: new Date().toISOString(),
+    });
+    return reply(
+      formatMotherGenesisReceipt({ ...result, strand: { ...result.strand, keys: prepared.keys, proof: prepared.provisionalProof } }) +
+      "\nHTML-local bank until chain seal. Reveal with /encodegenesisreveal MG1.… MG2.…" +
+      "\nMother brain untouched.",
+    );
+  }
+
+  if (text.startsWith("/encodegenesisreveal ") || text === "/encodegenesisreveal") {
+    const keyArg = raw.slice("/encodegenesisreveal".length).trim();
+    if (!keyArg) {
+      return reply("usage: /encodegenesisreveal MGPLAIN.<id>   or   /encodegenesisreveal MG1.… MG2.…");
+    }
+    const revealed = await revealMotherGenesis(keyArg, { fetchCalldata });
+    if (!revealed.ok) return reply("reveal failed: " + revealed.reason);
+    return reply(
+      "REVEAL " + revealed.mode + " · " + revealed.strandId +
+      " · chunks " + revealed.totalChunks +
+      " · chars " + revealed.chars +
+      (revealed.locations?.length ? "\nlocs:\n" + revealed.locations.join("\n") : "") +
+      "\n\n" + revealed.body.slice(0, 3500) +
+      (revealed.body.length > 3500 ? "\n…(truncated)" : ""),
+    );
   }
 
   if (text === "/vitasave") {

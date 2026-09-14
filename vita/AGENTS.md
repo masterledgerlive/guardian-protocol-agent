@@ -28,6 +28,10 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 `/vitanote` `/vitasave` `/inject` `/vitapull` `/vitascan` `/reader` `/prove`
 `/xmem` — HTML console mirrors Telegram.
 
+**Large dumps (mother brain untouched):** `/vitamothergenesis` (plain N batches +
+reader key), `/vitamotherGenesisencoded` (AES + loc commitment + two-part key),
+`/encodegenesisreveal` — see `vita/mother-genesis.js`.
+
 ## Merge stance
 
 This `vita/` tree is the **continuing GitHub base** for this avenue until
