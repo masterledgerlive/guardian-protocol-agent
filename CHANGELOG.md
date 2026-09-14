@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Fixed — wrap remaining AUTO solo STORE callers after #101 (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js`).
+Operators still call `/vitasave` deliberately.
+
+Live after #101: queue body was wrapped, but RISK desk still saw +5 VIT
+self-calls n5546–5550 (sel `0x5b564954`), 0 Uniswap fills, n5550 had
+`§$STORE§`. Remaining AUTO callers still `sendTransaction` wallet→self:
+
+- `/vitalearn` 5-chunk `[VITA:` loop
+- `/vitadata` → `vitaSave` (not the operator `/vitasave` path)
+- `/savesession` → `inscribeMemory`
+- trade-loop `btpInscribe` dedicated self-tx
+
+Thin wrap at those **callers only** (`wrapAutoSelfCall` +
+`VITA_AUTO_INSCRIBE` / `VITA_AUTO_QUEUE_LEARN` kill-switch, default OFF =
+bank). Hitch only on covered leftover + paired sell. No invented hashes.
+Integrity agent still does not send. Mother brain files stay diff-zero vs
+main.
+
 ### Fixed — wrap vita-queue unpaired self-calls (mother brain untouched)
 
 HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
