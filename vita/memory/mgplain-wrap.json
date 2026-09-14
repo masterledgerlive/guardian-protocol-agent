@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-14T06:54:00.000Z",
+  "topic": "wrap-mgplain-vita-know-after-102",
+  "text": "HARD STOP: do not tear VITA mother brain. After #101/#102 wraps, live RISK still paid gas-only self-calls n5551–5556: MGPLAIN + VITA-KNOW 01/05–05/05 “this is a test”, hitch 0/6, 0 Uniswap fills. Liquid ~$2.14. #103 /vitamothergenesis was the MGPLAIN path. Wrap those callers via wrapMotherGenesisSelfCall; VITA_MOTHER_GENESIS_AUTO defaults bank; operator CONFIRM required for paid genesis. Never auto-fire this-is-a-test batches. /vitasave ungated. Never invent hashes.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "wrap-mgplain-vita-know-auto",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis core",
+      "gate operator /vitasave",
+      "auto-fire this is a test batches",
+      "invent tx hashes for banked chunks"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

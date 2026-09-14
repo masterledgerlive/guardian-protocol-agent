@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Fixed — wrap /vitamothergenesis MGPLAIN + VITA-KNOW auto batches (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js`).
+`/vitasave` stays.
+
+Live after #101/#102 wraps: RISK still saw gas-only self-calls n5551–5556 —
+**MGPLAIN** + **VITA-KNOW** 01/05–05/05 “this is a test”, hitch 0/6, 0 Uniswap
+fills. Liquid ~$2.14. That was #103 `/vitamothergenesis` N-batch plain 0-ETH
+self-txs (and trivial VITA-KNOW test dumps).
+
+Thin wrap at those **callers only**:
+
+- `/vitamothergenesis` / encoded → `wrapMotherGenesisSelfCall` (bank unpaired;
+  hitch only on covered leftover + paired sell)
+- `VITA_MOTHER_GENESIS_AUTO` sibling of `VITA_AUTO_INSCRIBE`, default OFF
+- Operator-explicit paid genesis needs `CONFIRM` **and** env on
+- Trivial “this is a test” body never sends
+- Queue VITA-KNOW already wrapped in #101; `/vitalearn` also refuses the test dump
+
+No invented hashes. Mother brain files stay diff-zero vs main.
+
 ### Fixed — wrap remaining AUTO solo STORE callers after #101 (mother brain untouched)
 
 HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /

@@ -11,4 +11,5 @@ Not code. Does not replace VITA mother brain (`vitaSave` / `inscribeChunk`).
 
 Operators who need the root inscription still call `/vitasave` (and `/prove`)
 directly. The feed-wrap stops AUTO queue / learn / vitadata / savesession /
-btpInscribe from paying unpaired gas. `VITA_AUTO_INSCRIBE` defaults OFF (bank).
+btpInscribe / `/vitamothergenesis` MGPLAIN from paying unpaired gas.
+`VITA_AUTO_INSCRIBE` and `VITA_MOTHER_GENESIS_AUTO` default OFF (bank).
