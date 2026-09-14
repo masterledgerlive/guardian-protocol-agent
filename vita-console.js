@@ -45,6 +45,7 @@ import {
   revealMotherGenesis,
   runMotherGenesisInscribe,
 } from "./vita/mother-genesis.js";
+import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./vita/feed-wrap.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -327,8 +328,8 @@ function helpText() {
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
-    "/vitamothergenesis [code…] — plain tx, N batches as needed (>5 ok), reader key → locs",
-    "/vitamotherGenesisencoded [code…] — AES + loc commitment; two-part key",
+    "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
+    "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
     "/plain — plaintext open source (default)",
@@ -461,8 +462,20 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     if (!body) {
       return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]");
     }
-    const prepared = preparePlainMotherGenesis(body);
-    const result = await runMotherGenesisInscribe(prepared, async () => null);
+    const parsed = parseMotherGenesisOperatorIntent(body);
+    if (!parsed.body) {
+      return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]\nDefault HTML bank. Telegram paid path needs CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes.");
+    }
+    const prepared = preparePlainMotherGenesis(parsed.body);
+    const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+      wrapMotherGenesisSelfCall({
+        data: hex,
+        text: line.line,
+        pairedUniswapSell: false,
+        topic: "mgplain",
+      });
+      return null;
+    });
     state.motherGenesis = state.motherGenesis || [];
     state.motherGenesis.push({
       strandId: prepared.strandId,
@@ -473,7 +486,7 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     });
     return reply(
       formatMotherGenesisReceipt(result) +
-      "\nHTML-local bank (Telegram bot mines plain 0-ETH txs)." +
+      "\nHTML-local bank (never solo-sends MGPLAIN). Hitch on leftover-covered paired sell." +
       "\nMother brain (/vitasave 5-chunk) untouched.",
     );
   }
@@ -487,8 +500,20 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     if (!body) {
       return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
     }
-    const prepared = prepareEncodedMotherGenesis(body);
-    const result = await runMotherGenesisInscribe(prepared, async () => null);
+    const parsed = parseMotherGenesisOperatorIntent(body);
+    if (!parsed.body) {
+      return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
+    }
+    const prepared = prepareEncodedMotherGenesis(parsed.body);
+    const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+      wrapMotherGenesisSelfCall({
+        data: hex,
+        text: line.line,
+        pairedUniswapSell: false,
+        topic: "mgenc",
+      });
+      return null;
+    });
     state.motherGenesis = state.motherGenesis || [];
     state.motherGenesis.push({
       strandId: prepared.strandId,

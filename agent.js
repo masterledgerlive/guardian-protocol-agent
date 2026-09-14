@@ -451,7 +451,15 @@ import {
   ingestSealedUtf8,
 } from "./vita-router.js";
 import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
-import { autoPaidInscribeEnabled, wrapAutoSelfCall, wrapQueueSelfCall } from "./vita/feed-wrap.js";
+import {
+  autoPaidInscribeEnabled,
+  isTrivialTestInscriptionBody,
+  maySendMotherGenesis,
+  parseMotherGenesisOperatorIntent,
+  wrapAutoSelfCall,
+  wrapMotherGenesisSelfCall,
+  wrapQueueSelfCall,
+} from "./vita/feed-wrap.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -11574,7 +11582,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const txHashes  = [];
             let prevHash    = "00000000";
 
-            const autoLearnOn = autoPaidInscribeEnabled();
+            const autoLearnOn = autoPaidInscribeEnabled()
+              && !isTrivialTestInscriptionBody(topic)
+              && !isTrivialTestInscriptionBody(knowledgeText);
             for (let i = 0; i < 5; i++) {
               const content = compressed.slice(i * chunkSize, (i+1) * chunkSize);
               const hash8   = (s) => require ? s.slice(0,8) : s.slice(0,8);
@@ -11661,25 +11671,44 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) { await tg("❌ vitalearn failed: " + e.message); }
         }
 
-      // ── /vitamothergenesis — plain 0-ETH self-txs, N batches (not capped at 5)
+      // ── /vitamothergenesis — wrap MGPLAIN 0-ETH self-txs (bank unless CONFIRM+env)
       } else if (text && (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis")) {
-        const body = raw.slice("/vitamothergenesis".length).trim();
+        const parsed = parseMotherGenesisOperatorIntent(raw.slice("/vitamothergenesis".length).trim());
+        const body = parsed.body;
         if (!body) {
           await tg(
             "usage: <code>/vitamothergenesis [paste ALL code]</code>\n" +
-            "Plain tx path — as many batches as needed (more than 5 ok).\n" +
-            "Returns a reader key so /encodegenesisreveal can find locations.\n" +
+            "Default: bank hex — no unpaired 0-ETH MGPLAIN self-txs.\n" +
+            "Intentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code>\n" +
+            "and <code>VITA_MOTHER_GENESIS_AUTO=yes</code> (or VITA_AUTO_INSCRIBE=yes).\n" +
+            "Never auto-fires “this is a test” batches.\n" +
             "<i>Does not change /vitasave 5-chunk mother brain.</i>"
           );
         } else {
+          const maySend = maySendMotherGenesis({ confirmed: parsed.confirmed, body });
           await tg(
             "🧬 <b>MOTHER GENESIS PLAIN</b>\n" +
             "chars=" + body.length + " — planning N batches (not capped at 5)…"
           );
           try {
             const prepared = preparePlainMotherGenesis(body);
-            await tg("📦 " + prepared.totalChunks + " plain chunks — inscribing 0-ETH self-txs…");
-            const result = await runMotherGenesisInscribe(prepared, async (hex) => {
+            await tg(
+              maySend
+                ? "📦 " + prepared.totalChunks + " plain chunks — inscribing 0-ETH self-txs…"
+                : "📦 " + prepared.totalChunks + " plain chunks — banking unpaired MGPLAIN (auto wrap)…"
+            );
+            const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+              if (!maySend) {
+                wrapMotherGenesisSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: line.line,
+                  pairedUniswapSell: false,
+                  topic: "mgplain",
+                });
+                return null;
+              }
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS,
                 network: "base",
@@ -11691,6 +11720,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const receipt = formatMotherGenesisReceipt(result);
             let msg = "🧬 <b>MOTHER GENESIS PLAIN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + receipt.slice(0, 3500) + "</pre>";
+            if (!maySend) {
+              msg += "\n📦 hex banked — hitch on leftover-covered paired sell (MGPLAIN wrap; /vitasave still has mother brain)";
+              if (!parsed.confirmed) {
+                msg += "\nIntentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code> + VITA_MOTHER_GENESIS_AUTO=yes";
+              }
+            }
             if (result.strand?.readerKey) {
               msg += "\n🔑 Reader key:\n<code>" + result.strand.readerKey + "</code>\n";
               msg += "Reveal: <code>/encodegenesisreveal " + result.strand.readerKey + "</code>";
@@ -11707,23 +11742,44 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         (text.startsWith("/vitamothergenesisencoded ") ||
           text === "/vitamothergenesisencoded")
       ) {
-        const body = raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim();
+        const parsed = parseMotherGenesisOperatorIntent(
+          raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim(),
+        );
+        const body = parsed.body;
         if (!body) {
           await tg(
             "usage: <code>/vitamotherGenesisencoded [paste ALL code]</code>\n" +
-            "Encoded path — N batches + zero-proof location commitment.\n" +
+            "Default: bank hex — no unpaired 0-ETH MGENC self-txs.\n" +
+            "Intentional paid genesis: <code>/vitamotherGenesisencoded CONFIRM [code]</code>\n" +
+            "and <code>VITA_MOTHER_GENESIS_AUTO=yes</code> (or VITA_AUTO_INSCRIBE=yes).\n" +
             "Two-part key → <code>/encodegenesisreveal MG1.… MG2.…</code>\n" +
             "<i>Mother brain untouched.</i>"
           );
         } else {
+          const maySend = maySendMotherGenesis({ confirmed: parsed.confirmed, body });
           await tg(
             "🔐 <b>MOTHER GENESIS ENCODED</b>\n" +
             "chars=" + body.length + " — AES + loc commitment, N batches…"
           );
           try {
             const prepared = prepareEncodedMotherGenesis(body);
-            await tg("📦 " + prepared.totalChunks + " encoded chunks — inscribing…");
-            const result = await runMotherGenesisInscribe(prepared, async (hex) => {
+            await tg(
+              maySend
+                ? "📦 " + prepared.totalChunks + " encoded chunks — inscribing…"
+                : "📦 " + prepared.totalChunks + " encoded chunks — banking unpaired MGENC (auto wrap)…"
+            );
+            const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+              if (!maySend) {
+                wrapMotherGenesisSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: line.line,
+                  pairedUniswapSell: false,
+                  topic: "mgenc",
+                });
+                return null;
+              }
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS,
                 network: "base",
@@ -11736,6 +11792,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const keys = strand.keys || prepared.keys;
             let msg = "🔐 <b>MOTHER GENESIS ENCODED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + formatMotherGenesisReceipt(result).slice(0, 2800) + "</pre>\n";
+            if (!maySend) {
+              msg += "📦 hex banked — hitch on leftover-covered paired sell (MGENC wrap; /vitasave still has mother brain)\n";
+            }
             msg += "🔑 Two-part key:\n<code>" + keys.part1 + "</code>\n<code>" + keys.part2 + "</code>\n";
             msg += "Reveal: <code>/encodegenesisreveal " + keys.combined + "</code>";
             await tg(msg);
@@ -12363,8 +12422,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitamothergenesis [code] — plain 0-ETH txs, N batches as needed (>5 ok), reader key\n` +
-          `/vitamotherGenesisencoded [code] — encoded + loc commitment; two-part key\n` +
+          `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
+          `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
           `/vitamemory — show all VITA memory sessions\n` +
           `/vitarecall — show recent memory context\n` +
