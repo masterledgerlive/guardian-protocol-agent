@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Fixed — `/vitafeed` confirm actually buys the ≥$0.25 leave-behind seat
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+`isManualOperatorBuy` still false for `VITAFEED BUYIN` (leftover/edge not weakened).
+
+Live complaint: each transmission only showed message payment — no token buy to
+sell for profit. Confirm planned WRAP seats then `executeBuy("VITAFEED BUYIN")`
+hit auto gates (LOSE_ZERO no-edge, tier OUT, COST_EDGE, min-entry, FIFO-red
+add-on), RISK need ignored buy stake, and buys ran *after* inscription on a
+stale `bal`.
+
+Fix:
+
+- `isVitaFeedBuyIn` / `vitaFeedBuyInReason` — dedicated allow in buy gate +
+  FIFO add-on + executeBuy (outside tiers, skip min-entry/COST_EDGE)
+- Confirm buys seats **first** (live `getFullBalance`), then pays message RISK
+- RISK must cover inscription + buy-in stake + gas (or refuse before any spend)
+- Stake floor ≥ leave-behind (**$0.25** piggies)
+
 ### Changed — `/vitafeed` buy-in: lottery piggy + full-stack tax + red rotation
 
 HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.

@@ -272,6 +272,8 @@ export function planVitaFeedInjectionBuyIn({
     stakeUsd = cost.wholeCostUsd / dipPct;
   }
 
+  // Never park less than leave-behind floor (≥ $0.25 piggies) in the bag.
+  stakeUsd = Math.max(stakeUsd, cost.leaveBehindUsd, VITAFEED_LEAVE_BEHIND_MIN_USD);
   const costPct = cost.wholeCostUsd / stakeUsd;
   const targetPct = dipPct + costPct;
   const entry = wave.price;

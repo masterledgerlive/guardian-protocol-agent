@@ -124,6 +124,8 @@ import {
   hitchCostMult,
   estimateCalldataHitchEth,
   isManualOperatorBuy,
+  isVitaFeedBuyIn,
+  vitaFeedBuyInReason,
   parseManualBuyCommand,
   usdToForcedEth,
   manualBuyReason,
@@ -464,6 +466,7 @@ import {
 import {
   handleVitaFeedAction,
   parseVitaFeedCommand,
+  peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
   closeVitaFeedTicket,
@@ -5848,7 +5851,7 @@ async function btpInscribe(cdp, tradeLabel) {
 async function skipBuy(reason, symbol, detail) {
   const line = String(detail || "buy skipped");
   console.log(`   ${line}`);
-  if (isManualOperatorBuy(reason)) {
+  if (isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason)) {
     await tg(operatorBuySkipTelegram(symbol, line));
   }
   return false;
@@ -5872,6 +5875,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
     }
     // Per-token min buy floor — smoke tests must clear the book minimum.
+    // VITAFEED BUYIN skips this floor: stake is character-sized (≥$0.25 leave-behind).
     if (isManualOperatorBuy(reason)) {
       const forcedUsd = (() => {
         const m = String(reason || "").match(/\$([0-9]+(?:\.[0-9]+)?)/);
@@ -5953,8 +5957,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const tierEthEarly = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
     const tierLabelEarly = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
-    // Cascade/operator may deploy outside tiers; hitch-cover still runs below for everyone.
-    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason);
+    // Cascade/operator/vitafeed may deploy outside tiers; hitch-cover still runs below for everyone.
+    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason);
     if (tierEthEarly === 0 && !allowOutsideTiers) {
       return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabelEarly}) — no new capital`);
     }
@@ -5982,7 +5986,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     // Preview size before LOSE_ZERO so we can deny undersized auto/cascade early.
     const previewForced = forcedEth > 0 ? forcedEth : tierEthEarly;
-    if (!isManualOperatorBuy(reason)) {
+    if (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason)) {
       const spendPreview = Math.min(Math.max(previewForced, minPosUsd() / ethUsd), Math.max(totalAvail, 0));
       const under = belowMinEntrySkip({
         symbol: token.symbol,
@@ -5998,6 +6002,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
     // sizes leftover so hitch can ride when covered; leftover+edge never block it.
+    // VITAFEED BUYIN uses its own allow path (transmission revenue seat).
     // CRITICAL: size hitch/% against the *actual* spend preview — not the full book
     // (full-book understated hitch% and let CBBTC pennies look covered).
     let buySkipHitch = !!resolvedEntry.skipHitch;
@@ -6006,7 +6011,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       Math.max(previewForced > 0 ? previewForced : tierEthEarly, MIN_ETH_TRADE),
       Math.max(totalAvail, MIN_ETH_TRADE),
     );
-    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
+    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason)) {
       const armEarly    = getArmStatus(token.symbol, gasCost, spendForGate);
       const voiceBytes  = leftoverVoiceHitchBytes();
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
@@ -6068,7 +6073,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       ? Math.min(forcedEth, Math.max(totalAvail, 0))
       : Math.min(Math.max(floorSpend, tierEth), maxSpend);
 
-    const underFinal = !isManualOperatorBuy(reason)
+    const underFinal = (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason))
       ? belowMinEntrySkip({ symbol: token.symbol, ethToSpend, minEntry, ethUsd })
       : null;
     if (underFinal) {
@@ -6080,8 +6085,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Operator / Telegram /buy is a plain-swap test path: leftover+edge already
     // allowed. Do not wait on wave-peak near-term math (live after #74:
     // COST_EDGE AERO 3.00% < 1.15× required 2.63% — would wait forever).
+    // VITAFEED BUYIN already sized stake = wholeCost/dip% for mirror bounce.
     // Auto / wave / cascade still gated.
-    if (!isManualOperatorBuy(reason)) {
+    if (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason)) {
       const readings = (history[token.symbol]?.readings || []).slice(-20).map((r) => r.price).filter((p) => p > 0);
       const recentHigh = readings.length ? Math.max(...readings) : price;
       const tradeableUsdNow = (Number(bal?.tradeableWithWeth) || 0) * ethUsd;
@@ -11982,8 +11988,91 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             if (parsed.action === "preview") {
               await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
             } else if (parsed.action === "confirm") {
-              await tg("📡 <b>VITAFEED CONFIRM</b> — paying RISK for each max chunk…");
+              await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
             }
+
+            // Buy tokens BEFORE inscription so RISK still holds the stake and
+            // each transmission leaves ≥$0.25 (+tax) parked for a green exit.
+            if (parsed.action === "confirm" && sendTx) {
+              const staged = peekVitaFeed(msgChatId);
+              const plan = staged?.buyIn;
+              const stakeNeed = plan?.ok ? Math.max(0, Number(plan.totalStakeEth) || 0) : 0;
+              const inscribeNeed = Math.max(0, Number(staged?.cost?.totalEth) || 0);
+              const combinedNeed = inscribeNeed + stakeNeed + Number(GAS_RESERVE || 0);
+              if (
+                riskBalanceEth != null &&
+                Number(riskBalanceEth) < combinedNeed
+              ) {
+                await tg(
+                  "📡 VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+                  " < need " + combinedNeed.toFixed(6) +
+                  " (inscription " + inscribeNeed.toFixed(6) +
+                  " + buy-in " + stakeNeed.toFixed(6) +
+                  " + gas). Buy nothing; message unspent.",
+                );
+                continue;
+              }
+              if (plan?.ok && Array.isArray(plan.injections)) {
+                const client = cdp || cdpClient;
+                for (const inj of plan.injections) {
+                  if (!inj.ok || inj.skipBuy || !inj.symbol) {
+                    await tg(
+                      "📡 VITAFEED BUY-IN skip msg " +
+                        (inj.msgIndex || inj.index || "?") +
+                        " — " + (inj.reason || "no unique red seat for this message"),
+                    );
+                    continue;
+                  }
+                  const tok = tokens.find((t) => t.symbol === inj.symbol);
+                  if (!tok || !client) {
+                    await tg("📡 VITAFEED BUY-IN skip " + (inj.symbol || "?") + " — no seat/wallet");
+                    continue;
+                  }
+                  let liveBal = bal;
+                  try { liveBal = await getFullBalance(); } catch { liveBal = bal; }
+                  const px = history[tok.symbol]?.lastPrice || inj.entryPrice;
+                  try {
+                    const spent = await executeBuy(
+                      client,
+                      tok,
+                      liveBal,
+                      vitaFeedBuyInReason(inj.stakeUsd),
+                      px,
+                      inj.stakeEth,
+                    );
+                    if (spent) {
+                      openVitaFeedTicket({
+                        symbol: inj.symbol,
+                        vinId: inj.vinId,
+                        index: inj.index,
+                        entryPrice: inj.entryPrice,
+                        targetPrice: inj.targetPrice,
+                        leaveBehindUsd: inj.leaveBehindUsd,
+                        stakeUsd: inj.stakeUsd,
+                        dipPct: inj.dipPct,
+                        targetPct: inj.targetPct,
+                      });
+                      await tg(
+                        "📡 <b>VITAFEED BUY-IN</b> " + inj.symbol +
+                        " $" + Number(inj.stakeUsd).toFixed(2) +
+                        "\nexit ASAP @ $" + Number(inj.targetPrice).toFixed(8) +
+                        " · leave $" + Number(inj.leaveBehindUsd).toFixed(3) +
+                        " (AI $0.10 + human $0.10 + lottery $0.05 + 1.5% tax)",
+                      );
+                    } else {
+                      await tg(
+                        "📡 VITAFEED BUY-IN skipped " + inj.symbol +
+                        " (gate/ETH). Message still pays RISK — message-first.",
+                      );
+                    }
+                  } catch (be) {
+                    await tg("📡 VITAFEED BUY-IN failed " + inj.symbol + ": " + (be.message || be));
+                  }
+                }
+                try { riskBalanceEth = await getEthBalance(); } catch { /* keep prior */ }
+              }
+            }
+
             const out = await handleVitaFeedAction({
               action: parsed.action,
               body: parsed.body,
@@ -11993,6 +12082,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               riskBalanceEth,
               gasReserveEth: GAS_RESERVE,
               seats: collectVitaFeedSeats(ethUsd),
+              // Buy-in already spent above on confirm — do not demand stake twice.
+              reserveBuyStake: parsed.action !== "confirm",
             });
             let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
@@ -12007,67 +12098,6 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>";
             }
             await tg(msg);
-            if (
-              parsed.action === "confirm" &&
-              out.result?.ok !== false &&
-              out.buyIn?.ok &&
-              Array.isArray(out.buyIn.injections)
-            ) {
-              const client = cdp || cdpClient;
-              for (const inj of out.buyIn.injections) {
-                if (!inj.ok || inj.skipBuy || !inj.symbol) {
-                  await tg(
-                    "📡 VITAFEED BUY-IN skip msg " +
-                      (inj.msgIndex || inj.index || "?") +
-                      " — " + (inj.reason || "no unique red seat for this message"),
-                  );
-                  continue;
-                }
-                const tok = tokens.find((t) => t.symbol === inj.symbol);
-                if (!tok || !client) {
-                  await tg("📡 VITAFEED BUY-IN skip " + (inj.symbol || "?") + " — no seat/wallet");
-                  continue;
-                }
-                const px = history[tok.symbol]?.lastPrice || inj.entryPrice;
-                try {
-                  const spent = await executeBuy(
-                    client,
-                    tok,
-                    bal,
-                    "VITAFEED BUYIN $" + Number(inj.stakeUsd).toFixed(2),
-                    px,
-                    inj.stakeEth,
-                  );
-                  if (spent) {
-                    openVitaFeedTicket({
-                      symbol: inj.symbol,
-                      vinId: inj.vinId,
-                      index: inj.index,
-                      entryPrice: inj.entryPrice,
-                      targetPrice: inj.targetPrice,
-                      leaveBehindUsd: inj.leaveBehindUsd,
-                      stakeUsd: inj.stakeUsd,
-                      dipPct: inj.dipPct,
-                      targetPct: inj.targetPct,
-                    });
-                    await tg(
-                      "📡 <b>VITAFEED BUY-IN</b> " + inj.symbol +
-                      " $" + Number(inj.stakeUsd).toFixed(2) +
-                      "\nexit ASAP @ $" + Number(inj.targetPrice).toFixed(8) +
-                      " · leave $" + Number(inj.leaveBehindUsd).toFixed(3) +
-                      " (AI $0.10 + human $0.10 + lottery $0.05 + 1.5% tax)",
-                    );
-                  } else {
-                    await tg(
-                      "📡 VITAFEED BUY-IN skipped " + inj.symbol +
-                      " (gate/ETH). Injection still on-chain — message-first.",
-                    );
-                  }
-                } catch (be) {
-                  await tg("📡 VITAFEED BUY-IN failed " + inj.symbol + ": " + (be.message || be));
-                }
-              }
-            }
           } catch (e) {
             await tg("❌ vitafeed failed: " + (e.message || e) + "\nNothing invented. RISK unspent if no hashes.");
           }

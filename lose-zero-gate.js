@@ -267,7 +267,6 @@ export function evaluateAddOnFifoRedGate({
   bagUsd,
   env = process.env,
 } = {}) {
-  void reason;
   if (isUnknownCostBlockingAddOn({ unknownEntry, tokenBal, bagUsd })) {
     return {
       allow: false,
@@ -289,6 +288,16 @@ export function evaluateAddOnFifoRedGate({
   const mark = Number(markProceedsEth);
   const fifo = Number(remainingFifoEth);
   const cmp = `mark ${mark.toExponential(2)} < remaining FIFO ${fifo.toExponential(2)}`;
+  // /vitafeed buy-in is deliberately red (low-3% bottoms) — add-on into an
+  // existing red bag is the product, not a Game override of always-plus sells.
+  if (isVitaFeedBuyIn(reason)) {
+    return {
+      allow: true,
+      blocked: false,
+      reason: "vitafeed-buyin",
+      log: `ADD_ON_FIFO_RED: allow add-on ${symbol} VITAFEED BUYIN transmission seat (${cmp})`,
+    };
+  }
   if (isAllowAddOnFifoRed(env)) {
     return {
       allow: true,
@@ -451,6 +460,24 @@ export const MANUAL_BUY_OPERATOR_PREFIX = "MANUAL BUY (operator)";
 
 export function isManualOperatorBuy(reason = "") {
   return String(reason || "").startsWith(MANUAL_BUY_OPERATOR_PREFIX);
+}
+
+/**
+ * /vitafeed transmission buy-in — NOT an operator /buy.
+ * Must not weaken leftover/edge for MANUAL BUY or auto paths; this is a
+ * separate allow so each message can still buy ≥$0.25 leave-behind + cost.
+ */
+export const VITAFEED_BUYIN_PREFIX = "VITAFEED BUYIN";
+
+export function isVitaFeedBuyIn(reason = "") {
+  return String(reason || "").toUpperCase().startsWith(VITAFEED_BUYIN_PREFIX);
+}
+
+export function vitaFeedBuyInReason(usd = 0) {
+  const n = Number(usd);
+  return Number.isFinite(n) && n > 0
+    ? `${VITAFEED_BUYIN_PREFIX} $${n.toFixed(2)}`
+    : VITAFEED_BUYIN_PREFIX;
 }
 
 /** Parse optional USD size: `3`, `$3`, `$3.50`. Invalid / missing → 0. */
@@ -885,6 +912,19 @@ export function evaluateBuyGate({
       skipHitch: !covers,
       log: `${tag}: allow buy ${symbol} MANUAL BUY (operator) ${covers ? "hitch covered" : "plain swap (hitch not covered)"}`,
       reason: covers ? "operator-hitch" : "operator-plain",
+    };
+  }
+
+  // /vitafeed buy-in: transmission revenue seat (red low-3% + predicted up).
+  // Separate from operator — does not weaken leftover/edge for other buys.
+  if (isVitaFeedBuyIn(reason)) {
+    const covers = leftoverCoversInject(leftover);
+    return {
+      allow: true,
+      leftover,
+      skipHitch: !covers,
+      log: `${tag}: allow buy ${symbol} VITAFEED BUYIN (transmission seat; leftover/edge waived for message cost recovery)`,
+      reason: covers ? "vitafeed-hitch" : "vitafeed-plain",
     };
   }
 
