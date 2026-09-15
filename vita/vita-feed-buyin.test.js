@@ -11,6 +11,7 @@ import {
   VITAFEED_AI_PIGGY_USD,
   VITAFEED_BUYIN_ID,
   VITAFEED_HUMAN_PIGGY_USD,
+  VITAFEED_LOTTERY_PIGGY_USD,
   VITAFEED_LEAVE_BEHIND_MIN_USD,
   VITAFEED_LOW_RANGE_MAX,
   VITAFEED_SAVINGS_TAX_PCT,
@@ -33,23 +34,30 @@ import { isManualOperatorBuy } from "../lose-zero-gate.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("vitafeed whole-cost stack", () => {
-  it("taxes 1.5% of chars + piggies + gwei + other, and leaves ≥ $0.20 + tax", () => {
+  it("taxes 1.5% of transmission + piggies + gwei + other + hidden, and leaves ≥ $0.25 + tax", () => {
     const c = computeVitaFeedWholeCost({
       charCostUsd: 0.05,
       gweiUsd: 0.01,
       otherFeesUsd: 0.02,
+      hiddenCostUsd: 0, // pin hidden so the arithmetic stays exact
     });
     assert.equal(c.aiPiggyUsd, 0.10);
     assert.equal(c.humanPiggyUsd, 0.10);
-    assert.equal(c.piggyFloorUsd, 0.20);
-    const sub = 0.05 + 0.01 + 0.02 + 0.20;
+    assert.equal(c.lotteryPiggyUsd, 0.05);
+    assert.equal(c.piggyFloorUsd, 0.25);
+    assert.equal(c.transmissionUsd, 0.05);
+    const sub = 0.05 + 0.01 + 0.02 + 0 + 0.25;
     assert.equal(c.subtotalUsd, sub);
     assert.equal(c.taxUsd, sub * 0.015);
     assert.equal(c.wholeCostUsd, sub + c.taxUsd);
-    assert.equal(c.leaveBehindUsd, 0.20 + c.taxUsd);
+    assert.equal(c.leaveBehindUsd, 0.25 + c.taxUsd);
     assert.ok(c.leaveBehindUsd >= VITAFEED_LEAVE_BEHIND_MIN_USD + c.taxUsd - 1e-12);
     assert.equal(VITAFEED_SAVINGS_TAX_PCT, 0.015);
-    assert.equal(VITAFEED_AI_PIGGY_USD + VITAFEED_HUMAN_PIGGY_USD, VITAFEED_LEAVE_BEHIND_MIN_USD);
+    assert.equal(VITAFEED_LOTTERY_PIGGY_USD, 0.05);
+    assert.equal(
+      VITAFEED_AI_PIGGY_USD + VITAFEED_HUMAN_PIGGY_USD + VITAFEED_LOTTERY_PIGGY_USD,
+      VITAFEED_LEAVE_BEHIND_MIN_USD,
+    );
   });
 });
 
@@ -84,6 +92,14 @@ describe("vitafeed wave qualify (low 3% + predicted up)", () => {
     ]);
     assert.equal(pick.symbol, "AERO");
   });
+
+  it("among equal depth, prefers the seat with fewer prior trades", () => {
+    const pick = pickVitaFeedBuyInSeat([
+      { symbol: "UNI", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 9 },
+      { symbol: "AERO", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 1 },
+    ]);
+    assert.equal(pick.symbol, "AERO");
+  });
 });
 
 describe("vitafeed buy-in size and mirror exit", () => {
@@ -104,7 +120,7 @@ describe("vitafeed buy-in size and mirror exit", () => {
     assert.ok(bounce + 1e-9 >= plan.cost.wholeCostUsd);
     assert.ok(plan.targetPct > plan.dipPct, "target adds cost overlay on top of the mirror");
     assert.ok(plan.targetPrice > plan.entryPrice * (1 + plan.dipPct) - 1e-12);
-    assert.ok(plan.leaveBehindUsd >= 0.20);
+    assert.ok(plan.leaveBehindUsd >= 0.25);
     assert.ok(plan.stakeEth > 0);
   });
 
@@ -128,6 +144,8 @@ describe("vitafeed buy-in size and mirror exit", () => {
     const card = formatVitaFeedBuyInCard(plan);
     assert.match(card, /VITAFEED BUY-IN/);
     assert.match(card, /AERO/);
+    assert.match(card, /lottery/);
+    assert.match(card, /≥ \$0\.25/);
     assert.match(card, /1\.5%/);
   });
 
@@ -144,21 +162,37 @@ describe("vitafeed buy-in size and mirror exit", () => {
     assert.match(formatVitaFeedBuyInCard(plan), /BUY SKIP/);
     assert.match(formatVitaFeedBuyInCard(plan), /message-first/);
   });
+
+  it("rotates a different red token per injection when several low-3% seats exist", () => {
+    const body = "Q".repeat(800);
+    const prepared = prepareVitaFeed(body);
+    const cost = estimateVitaFeedCost(prepared, { live: true, gwei: 0.05, ethUsd: 2481, l1FeeEth: 0 });
+    assert.ok(prepared.totalChunks >= 2);
+    const seats = [
+      { symbol: "AERO", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 2 },
+      { symbol: "DEGEN", price: 1.012, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 1 },
+    ];
+    const plan = planVitaFeedBuyIns({ prepared, cost, seats, quotes: { ethUsd: 2481 } });
+    assert.equal(plan.ok, true);
+    assert.equal(plan.injections.length, prepared.totalChunks);
+    const syms = plan.injections.map((inj) => inj.symbol);
+    assert.equal(new Set(syms).size, syms.length, "each injection should use a different red token");
+  });
 });
 
 describe("vitafeed micro-exit tickets", () => {
   beforeEach(() => resetVitaFeedTickets());
 
-  it("sells as soon as target is made and leaves ≥ $0.20 + tax in tokens", () => {
+  it("sells as soon as target is made and leaves ≥ $0.25 + tax in tokens", () => {
     const t = openVitaFeedTicket({
       symbol: "AERO",
       targetPrice: 1.2,
-      leaveBehindUsd: 0.203,
+      leaveBehindUsd: 0.253,
     });
     assert.equal(dueVitaFeedExit({ symbol: "AERO", price: 1.19 }), null);
     const due = dueVitaFeedExit({ symbol: "AERO", price: 1.2 });
     assert.equal(due.id, t.id);
-    const pct = vitaFeedExitSellPct({ balance: 100, price: 1.2, leaveBehindUsd: 0.203 });
+    const pct = vitaFeedExitSellPct({ balance: 100, price: 1.2, leaveBehindUsd: 0.253 });
     const leftoverUsd = (1 - pct) * 100 * 1.2;
     assert.ok(leftoverUsd + 1e-9 >= 0.203);
     assert.equal(hasOpenVitaFeedTicket("AERO"), true);
@@ -171,14 +205,14 @@ describe("vitafeed micro-exit tickets", () => {
     const pct = vitaFeedExitSellPct({
       balance: 100,
       price: 1.2,
-      leaveBehindUsd: 0.203,
+      leaveBehindUsd: 0.253,
       stakeUsd: 2.4,
       entryPrice: 1.0,
     });
-    // lot now = 2.4 * 1.2 = 2.88; sell 2.88 - 0.203 = 2.677; bag = 120
+    // lot now = 2.4 * 1.2 = 2.88; sell 2.88 - 0.253 = 2.627; bag = 120
     const sellUsd = pct * 100 * 1.2;
     assert.ok(sellUsd < 4, "must not sell the whole mixed bag");
-    assert.ok(sellUsd + 1e-9 >= 2.88 - 0.203 - 1e-6);
+    assert.ok(sellUsd + 1e-9 >= 2.88 - 0.253 - 1e-6);
     const leftoverUsd = (1 - pct) * 100 * 1.2;
     assert.ok(leftoverUsd > 100, "live-trader remainder stays");
   });
@@ -192,7 +226,7 @@ describe("vitafeed buy-in stays off mother brain", () => {
     assert.doesNotMatch(src, /from ["'].*vita-memory/);
     assert.doesNotMatch(src, /from ["'].*mother-genesis/);
     assert.doesNotMatch(src, /vitaSave\s*\(/);
-    assert.equal(VITAFEED_BUYIN_ID, "vita-feed-buyin-v1");
+    assert.equal(VITAFEED_BUYIN_ID, "vita-feed-buyin-v2");
     assert.equal(isManualOperatorBuy("VITAFEED BUYIN $1.23"), false);
     assert.equal(isManualOperatorBuy("VITAFEED EXIT"), false);
   });
@@ -240,7 +274,7 @@ describe("vitafeed buy-in stays off mother brain", () => {
     });
     assert.equal(preview.buyIn.ok, true);
     assert.equal(preview.buyIn.skipBuy, false);
-    assert.match(preview.reply, /seat AERO/);
+    assert.match(preview.reply, /seats AERO/);
     assert.ok(preview.buyIn.totalStakeUsd > 0);
   });
 

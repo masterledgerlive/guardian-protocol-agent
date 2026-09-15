@@ -1,12 +1,12 @@
 {
-  "at": "2026-09-15T02:53:00.000Z",
-  "topic": "vitafeed-buyin-low3-piggies",
-  "text": "/vitafeed buy-in is NEW math this thread only: qualify low ≤3% of peak-trough + predicted up + negative vs peak. Per injection (character-sized stake): AI piggy $0.10 + human piggy $0.10 always left behind (≥$0.20) + 1.5% savings tax on whole cost (chars + piggies + gwei + other fees). Exit same % into the positive as the dip plus the cost overlay, as soon as target is made. Does not change live-trader piggy-bank.js or vitaSave mother brain. No qualifying seat → still inscribe (message-first).",
+  "at": "2026-09-15T03:45:00.000Z",
+  "topic": "vitafeed-buyin-lottery-red-rotation",
+  "text": "/vitafeed buy-in v2: qualify RED low ≤3% of peak-trough + predicted up + negative vs peak. Per injection leave behind AI $0.10 + human $0.10 + lottery $0.05 (≥$0.25) + 1.5% savings tax on whole inject-time cost (transmission/chars + piggies + gwei + other + hidden). Seat pick: deepest red first, then fewest prior trades; each injection a different token. Exit same % into the green as the dip plus cost overlay ASAP when revenue prints — leave piggies+tax parked. No qualifying seat → still inscribe (message-first). Does not change live-trader piggy-bank.js or vitaSave mother brain.",
   "commands": ["/vitafeed", "/vitafeed confirm"],
   "hypothesis": {
-    "id": "vitafeed-character-sized-micro-exits",
+    "id": "vitafeed-red-lottery-micro-exits",
     "status": "operating",
-    "note": "More injections = more micro wins with baked leftover piggies+tax."
+    "note": "More injections = more micro wins across different red bottoms with baked leftover piggies+lottery+tax."
   },
   "formula": "original-message-first",
   "neverForget": true

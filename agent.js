@@ -9391,6 +9391,8 @@ function collectVitaFeedSeats(ethUsd) {
       try {
         pred = computeWavePrediction(t.symbol, price, usd) || wavePredictions[t.symbol] || null;
       } catch { pred = wavePredictions[t.symbol] || null; }
+      const hist = history[t.symbol] || {};
+      const tradeCount = Number(t.tradeCount || hist.tradeCount || hist.trades || 0) || 0;
       return {
         symbol: t.symbol,
         price,
@@ -9399,6 +9401,7 @@ function collectVitaFeedSeats(ethUsd) {
         predictedUp: pred ? pred.goingDown === false : false,
         frozen: !!t.frozen,
         disabled: !!t.disabled,
+        tradeCount,
       };
     });
 }
@@ -11928,7 +11931,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed cancel</code> drops the staged payload.\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
-            "Buy-in: low ≤3% of wave + predicted up; $0.10 AI + $0.10 human + 1.5% tax left behind.\n" +
+            "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
             "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
           );
         } else {
@@ -12044,7 +12047,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                       " $" + Number(inj.stakeUsd).toFixed(2) +
                       "\nexit ASAP @ $" + Number(inj.targetPrice).toFixed(8) +
                       " · leave $" + Number(inj.leaveBehindUsd).toFixed(3) +
-                      " (AI $0.10 + human $0.10 + 1.5% tax)",
+                      " (AI $0.10 + human $0.10 + lottery $0.05 + 1.5% tax)",
                     );
                   } else {
                     await tg(
