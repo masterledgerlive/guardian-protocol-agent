@@ -46,14 +46,18 @@ transmission cost**.
 3. **1.5% savings tax** on the **whole cost at inject time** (transmission /
    chars + piggies + gwei + other known fees + hidden-cost buffer). Tax is
    left behind with the piggies.
-4. **Seat pick:** deepest red first, then **fewest prior trades**; each
-   injection prefers a **different** token so revenue waits on several bottoms.
-5. **Stake** = whole cost / dip%. Bounce of the same % covers the stack.
-6. **Exit ASAP** when green / revenue prints — same % up **plus** the cost
+4. **Seat pick:** deepest red first, then **fewest prior trades**; **one
+   different token per message/tx** (no reuse in the same wrap). Five messages
+   ⇒ five bags and **≥ $1.25** piggy floor alone (`5 × $0.25`).
+5. **Preview WRAP PLAN** (before confirm) lists each `msg NN/MM → TOKEN @
+   range %  dip %  leave $…  exit@…` so you can judge the choices first.
+   Confirm reuses that staged plan.
+6. **Stake** = whole cost / dip%. Bounce of the same % covers the stack.
+7. **Exit ASAP** when green / revenue prints — same % up **plus** the cost
    overlay. Sell leaves **$0.25 + tax** parked for the next earn.
 
-If no seat qualifies, inscription still pays RISK after confirm (message-first);
-the buy is skipped with the reason on the card.
+If a message has no unused red seat, that wrap line shows `NO SEAT` and is
+skipped; inscription still pays RISK after confirm (message-first).
 
 
 ## What this is not

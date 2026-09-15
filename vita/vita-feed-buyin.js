@@ -335,6 +335,9 @@ export function planVitaFeedBuyIns({ prepared, cost, seats = [], quotes = {} } =
 
   let totalStakeUsd = 0;
   let totalStakeEth = 0;
+  let totalLeaveBehindUsd = 0;
+  let totalPiggyFloorUsd = 0;
+  let wrapped = 0;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const per = perLine[i] || {};
@@ -344,22 +347,27 @@ export function planVitaFeedBuyIns({ prepared, cost, seats = [], quotes = {} } =
     // Transmission/chars = calldata; gwei = self-tx exec + L1. Do not double-count per.eth.
     const charCostUsd = (calldataUsd > 0 || execUsd > 0) ? calldataUsd : fullUsd;
     const gweiUsd = (calldataUsd > 0 || execUsd > 0) ? execUsd : 0;
+    const msgIndex = Number(line.index) || (i + 1);
+    const msgTotal = lines.length;
 
-    // Different red token per injection when the book has enough low-3% seats.
-    let seat = pickVitaFeedBuyInSeat(seats, { excludeSymbols: usedSymbols });
-    if (!seat) seat = pickVitaFeedBuyInSeat(seats);
+    // One unique red token per message/tx — never reuse a symbol in this wrap.
+    const seat = pickVitaFeedBuyInSeat(seats, { excludeSymbols: usedSymbols });
     if (!seat) {
-      return {
+      injections.push({
+        index: msgIndex,
+        vinId: line.vinId,
+        charCostUsd,
         ok: false,
         skipBuy: true,
-        reason: "no red seat in low 3% + predicted up",
-        seat: null,
-        seats: chosenSeats,
-        injections,
-        totalStakeUsd,
-        totalStakeEth,
-        leaveBehindUsd: injections[0]?.leaveBehindUsd || VITAFEED_LEAVE_BEHIND_MIN_USD,
-      };
+        symbol: null,
+        rangePos: null,
+        dipPct: null,
+        leaveBehindUsd: 0,
+        stakeUsd: 0,
+        stakeEth: 0,
+        reason: "no unused red seat left for this message (need a different low-3% token)",
+      });
+      continue;
     }
 
     const plan = planVitaFeedInjectionBuyIn({
@@ -370,35 +378,64 @@ export function planVitaFeedBuyIns({ prepared, cost, seats = [], quotes = {} } =
       ethUsd,
     });
     if (!plan.ok) {
-      return { ok: false, skipBuy: true, reason: plan.reason, seat, seats: chosenSeats, injections: [] };
+      injections.push({
+        index: msgIndex,
+        vinId: line.vinId,
+        charCostUsd,
+        ok: false,
+        skipBuy: true,
+        symbol: seat.symbol || null,
+        rangePos: seat.rangePos ?? null,
+        dipPct: seat.dipPct ?? null,
+        leaveBehindUsd: 0,
+        stakeUsd: 0,
+        stakeEth: 0,
+        reason: plan.reason,
+      });
+      continue;
     }
     usedSymbols.push(String(plan.symbol));
     chosenSeats.push(seat);
+    wrapped += 1;
     injections.push({
-      index: line.index,
+      index: msgIndex,
+      msgIndex,
+      msgTotal,
       vinId: line.vinId,
       charCostUsd,
       ...plan,
     });
     totalStakeUsd += plan.stakeUsd;
     totalStakeEth += plan.stakeEth;
+    totalLeaveBehindUsd += Number(plan.leaveBehindUsd) || 0;
+    totalPiggyFloorUsd += Number(plan.cost?.piggyFloorUsd) || VITAFEED_LEAVE_BEHIND_MIN_USD;
   }
 
+  const ok = wrapped > 0;
   return {
-    ok: true,
-    skipBuy: false,
+    ok,
+    skipBuy: !ok,
     seat: chosenSeats[0] || null,
     seats: chosenSeats,
     injections,
+    wrapped,
+    messageCount: lines.length,
     totalStakeUsd,
     totalStakeEth,
-    leaveBehindUsd: injections[0]?.leaveBehindUsd || VITAFEED_LEAVE_BEHIND_MIN_USD,
-    reason: chosenSeats[0]?.reason || "red seats assigned per injection",
+    totalLeaveBehindUsd,
+    totalPiggyFloorUsd,
+    piggyFloorPerMsgUsd: VITAFEED_LEAVE_BEHIND_MIN_USD,
+    leaveBehindUsd: injections.find((inj) => inj.ok)?.leaveBehindUsd || VITAFEED_LEAVE_BEHIND_MIN_USD,
+    reason: ok
+      ? ("wrap " + wrapped + "/" + lines.length + " msgs on unique red tokens")
+      : "no red seats in low 3% + predicted up",
   };
 }
 
 export function formatVitaFeedBuyInCard(plan) {
   const lines = [];
+  const n = Number(plan?.messageCount || plan?.injections?.length || 0);
+  const floor = VITAFEED_LEAVE_BEHIND_MIN_USD;
   lines.push("VITAFEED BUY-IN · " + VITAFEED_BUYIN_ID);
   lines.push("new math this thread — not live-trader piggy 5%/$0.15");
   lines.push(
@@ -406,63 +443,64 @@ export function formatVitaFeedBuyInCard(plan) {
     "% of peak–trough + predicted up + negative vs peak",
   );
   lines.push(
-    "piggies left behind: AI $" + VITAFEED_AI_PIGGY_USD.toFixed(2) +
+    "piggies/msg left behind: AI $" + VITAFEED_AI_PIGGY_USD.toFixed(2) +
     " + human $" + VITAFEED_HUMAN_PIGGY_USD.toFixed(2) +
     " + lottery $" + VITAFEED_LOTTERY_PIGGY_USD.toFixed(2) +
-    " (≥ $" + VITAFEED_LEAVE_BEHIND_MIN_USD.toFixed(2) + ")",
+    " (≥ $" + floor.toFixed(2) + ")",
   );
   lines.push(
     "tax: " + (VITAFEED_SAVINGS_TAX_PCT * 100).toFixed(1) +
     "% of whole cost (transmission+piggies+gwei+other+hidden)",
   );
   lines.push(
-    "seat pick: deepest red first, then fewest trades; each injection a different token",
+    "seat pick: deepest red first, then fewest trades; ONE different token per message/tx",
   );
   if (!plan?.ok) {
     lines.push("BUY SKIP — " + (plan?.reason || "no qualifying seat"));
     lines.push("inscription still pays RISK after confirm (message-first)");
     return lines.join("\n");
   }
-  const seatSyms = [...new Set((plan.injections || []).map((inj) => inj.symbol).filter(Boolean))];
-  lines.push(
-    "seats " + (seatSyms.join(",") || plan.seat?.symbol || "?") +
-    "  (deepest red / fewest trades)",
-  );
-  if (plan.seat) {
+
+  lines.push("WRAP PLAN (review before /vitafeed confirm):");
+  for (const inj of plan.injections || []) {
+    const i = String(inj.msgIndex || inj.index || "?").padStart(2, "0");
+    const total = String(inj.msgTotal || n || "?").padStart(2, "0");
+    if (!inj.ok || inj.skipBuy) {
+      lines.push(
+        "  msg " + i + "/" + total + " → NO SEAT — " + (inj.reason || "need another red token"),
+      );
+      continue;
+    }
+    const rangePct = (Number(inj.rangePos) * 100).toFixed(2);
+    const dipPct = (Number(inj.dipPct) * 100).toFixed(2);
+    const leave = Number(inj.leaveBehindUsd || 0).toFixed(4);
+    const exit = Number(inj.targetPrice || 0).toFixed(8);
+    const up = (Number(inj.targetPct) * 100).toFixed(2);
     lines.push(
-      "first rangePos=" + (plan.seat.rangePos * 100).toFixed(2) +
-      "%  dip=" + (plan.seat.dipPct * 100).toFixed(2) + "%",
+      "  msg " + i + "/" + total + " → " + inj.symbol +
+      "  @ range " + rangePct + "%  dip " + dipPct + "%" +
+      "  leave $" + leave +
+      "  exit@$" + exit + " (+" + up + "%)",
     );
   }
-  lines.push("dip → target = same % up + cost overlay (exit ASAP when green / revenue)");
+
+  const wrapped = Number(plan.wrapped != null ? plan.wrapped : (plan.injections || []).filter((x) => x.ok).length);
+  const piggyFloorTotal = Number(plan.totalPiggyFloorUsd != null ? plan.totalPiggyFloorUsd : wrapped * floor);
+  const leaveTotal = Number(plan.totalLeaveBehindUsd != null ? plan.totalLeaveBehindUsd : 0);
+  lines.push("PIGGY BANK WAITING (pre-injected leave-behind):");
   lines.push(
-    "injections=" + plan.injections.length +
-    "  stake $" + plan.totalStakeUsd.toFixed(4) +
-    " (" + plan.totalStakeEth.toFixed(6) + " ETH)",
+    "  " + wrapped + " × $" + floor.toFixed(2) + " floor = $" + piggyFloorTotal.toFixed(2) +
+    (n >= 5 ? "  (5 msgs ⇒ ≥ $1.25 piggy alone)" : ""),
   );
-  const first = plan.injections[0];
-  if (first?.cost) {
-    const c = first.cost;
-    lines.push(
-      "per inject whole $" + c.wholeCostUsd.toFixed(4) +
-      "  leave $" + c.leaveBehindUsd.toFixed(4) +
-      " (piggies+tax pre-injected)",
-    );
-    lines.push(
-      "  txmit $" + Number(c.transmissionUsd || c.charCostUsd).toFixed(4) +
-      "  hidden $" + Number(c.hiddenCostUsd || 0).toFixed(4) +
-      "  tax $" + c.taxUsd.toFixed(4),
-    );
-    lines.push(
-      "  AI $" + c.aiPiggyUsd.toFixed(2) +
-      "  human $" + c.humanPiggyUsd.toFixed(2) +
-      "  lottery $" + Number(c.lotteryPiggyUsd || 0).toFixed(2),
-    );
-    lines.push(
-      "exit ASAP @ $" + first.targetPrice.toFixed(8) +
-      "  (+" + (first.targetPct * 100).toFixed(2) + "%)",
-    );
-  }
+  lines.push(
+    "  + tax/costs on stack → leave total ≈ $" + leaveTotal.toFixed(4) +
+    " waiting in the bags for green exits",
+  );
+  lines.push(
+    "  stake total ≈ $" + Number(plan.totalStakeUsd || 0).toFixed(4) +
+    " (" + Number(plan.totalStakeEth || 0).toFixed(6) + " ETH) — buys those red wraps",
+  );
+  lines.push("exit ASAP when green / revenue prints — same % up + cost overlay; piggies+tax stay parked");
   return lines.join("\n");
 }
 
