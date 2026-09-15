@@ -469,6 +469,11 @@ import {
   peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
+  downloadTelegramFileBytes,
+  encodeVitaFile,
+  pickTelegramMedia,
+} from "./vita/vita-feed-file.js";
+import {
   closeVitaFeedTicket,
   dueVitaFeedExit,
   hasOpenVitaFeedTicket,
@@ -11923,25 +11928,37 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           }
         }
 
-      // ── /vitafeed — Storage Token game (exact plain, cost card, RISK confirm)
+      // ── /vitafeed — Storage Token game (exact plain / VITAFILE, RISK confirm)
       } else if (text === "/vitafeed" || (text && text.startsWith("/vitafeed"))) {
-        const replyBody = upd.message?.reply_to_message?.text
-          || upd.message?.reply_to_message?.caption
-          || "";
+        const replyMsg = upd.message?.reply_to_message || null;
+        const replyBody = replyMsg?.text || replyMsg?.caption || "";
         const parsed = parseVitaFeedCommand(raw, { replyBody });
-        if (!parsed.ok || parsed.action === "usage") {
+        const mediaHint = pickTelegramMedia(replyMsg || {});
+        const wantsMediaPreview =
+          parsed.action === "preview" ||
+          parsed.action === "file" ||
+          (parsed.action === "usage" && mediaHint.ok);
+
+        if (!parsed.ok || (parsed.action === "usage" && !mediaHint.ok) ||
+            (parsed.action === "file" && !mediaHint.ok && !parsed.body)) {
           await tg(
-            "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8)\n" +
+            "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8 / VITAFILE)\n" +
             "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
+            "Song/video/file: reply to the attachment with <code>/vitafeed</code> or <code>/vitafeed file</code>\n" +
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
-            "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE.\n" +
+            "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE; " +
+            "when complete → PLAY PROOF (Tailwind reader peaces locations + plays).\n" +
             "<code>/vitafeed cancel</code> drops the staged payload.\n" +
+            "Player: <code>/vita/feed-player</code>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
             "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
             "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
           );
         } else {
+          if (wantsMediaPreview && (parsed.action === "file" || parsed.action === "usage")) {
+            parsed.action = "preview";
+          }
           let quotes = {};
           try {
             const gwei = await getCurrentGasGwei();
@@ -11957,6 +11974,31 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 : "live gwei/ETH mark, L1 fallback 0",
             };
           } catch { /* DEMO quotes inside helper */ }
+
+          // Encode Telegram attachment → §VITAFILE§ body before cost card.
+          let feedBody = parsed.body;
+          if (parsed.action === "preview" && mediaHint.ok) {
+            await tg("📡 <b>VITAFEED FILE</b> — downloading " + mediaHint.name + " (" + mediaHint.kind + ")…");
+            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
+            if (!dl.ok) {
+              await tg("❌ file download failed: " + dl.reason);
+              continue;
+            }
+            const enc = encodeVitaFile({
+              name: mediaHint.name,
+              mime: mediaHint.mime,
+              bytes: dl.bytes,
+            });
+            if (!enc.ok) {
+              await tg("❌ VITAFILE encode failed: " + enc.reason);
+              continue;
+            }
+            feedBody = enc.body;
+            await tg(
+              "📡 VITAFILE packed · " + enc.name + " · " + enc.mime +
+              " · raw " + enc.rawBytes + "B → " + enc.bodyBytes + "B UTF-8 packets",
+            );
+          }
 
           const isPaidConfirm =
             parsed.action === "confirm" || parsed.action === "override";
@@ -12099,7 +12141,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
             const out = await handleVitaFeedAction({
               action: parsed.action,
-              body: parsed.body,
+              body: feedBody,
               chatId: msgChatId,
               quotes,
               sendTx,
@@ -12120,7 +12162,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               });
             }
             if (out.result?.strand?.readerKey) {
-              msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>";
+              msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>\n";
+            }
+            if (out.playProof?.complete) {
+              msg +=
+                "\n▶️ <b>PLAY PROOF</b> — " +
+                (out.playProof.spacedProof?.spacedBlockchainLocations || locs.length) +
+                " spaced locations peaced together\n" +
+                "Open <code>/vita/feed-player</code> to play " +
+                (out.playProof.play?.name || out.playProof.file?.name || "blob");
             }
             await tg(msg);
           } catch (e) {
@@ -12730,7 +12780,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitafeed [text] — exact plain UTF-8 cost card + buy-in (low 3% wave); /vitafeed confirm pays RISK; /vitafeed override bypasses RISK REFUSE\n` +
+          `/vitafeed [text|file] — exact UTF-8 / VITAFILE packets + buy-in; /vitafeed confirm|override; play proof on /vita/feed-player\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +

@@ -331,7 +331,7 @@ function helpText() {
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
-    "/vitafeed [text] — Storage Token game: exact plain cost card, then /vitafeed confirm (RISK / Telegram)",
+    "/vitafeed [text|file] — exact plain / VITAFILE packets; confirm|override → play proof (/vita/feed-player)",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
