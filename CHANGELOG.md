@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added — Telegram `/vitafeed` named library (files → play → keys chain)
+
+HARD STOP: mother brain untouched.
+
+After a song/video/file seals, the bot **saves the name + reader key + locations**
+into an in-memory keys library so Telegram can list and open instantly:
+
+1. Seal via `/vitafeed file` → confirm|override (as before; still needs `VITAFEED_PAID=yes`)
+2. `/vitafeed files` — numbered list of saved names
+3. `/vitafeed play <n|name>` (also `open` / `pull`) — rebuild blob → player
+4. `/vitafeed keys` — stage `§VITALIB§` catalog (name→key→locs) as the keys
+   chain for reader quick access; same confirm|override path
+
+Deep-link: `/vita/feed-player?lib=N` · `GET /vita/feed-library` ·
+`GET /vita/feed-library/play?lib=N`. Helper: `vita/vita-feed-library.js`.
+Never invents tx hashes; content packets stay on the file VIN chain.
+
 ### Added — `/vitafeed` emergency thrift kill-switch (paid default OFF)
 
 HARD STOP: mother brain untouched. `/vitasave` bank stays. Does not re-enable

@@ -88,6 +88,10 @@ import {
   retrieveXmem,
 } from "./xmem.js";
 import { wrapVitaSaveSelfCall } from "./vita/feed-wrap.js";
+import {
+  listLibraryEntries,
+  playFromLibrary,
+} from "./vita/vita-feed-library.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -337,6 +341,39 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/feed-player" || path === "/vita/feed-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_FEED_PLAYER_HTML, "vita feed player");
+    }
+    if ((path === "/vita/feed-library" || path === "/vita/feed-library/") && req.method === "GET") {
+      return json(res, {
+        ok: true,
+        id: "vita-feed-library-v1",
+        entries: listLibraryEntries(),
+        player: "/vita/feed-player?lib=<n>",
+        telegram: ["/vitafeed files", "/vitafeed play <n|name>", "/vitafeed keys"],
+      });
+    }
+    if ((path === "/vita/feed-library/play" || path === "/vita/feed-library/play/") && req.method === "GET") {
+      const sel = String(url.searchParams.get("lib") || url.searchParams.get("n") || url.searchParams.get("name") || url.searchParams.get("key") || "").trim();
+      if (!sel) return err(res, "missing lib|n|name|key");
+      const opened = await playFromLibrary(sel, { label: "LIBRARY" });
+      if (!opened.ok) return err(res, opened.reason || "open failed", 404);
+      return json(res, {
+        ok: true,
+        n: opened.n,
+        entry: opened.entry,
+        playerPath: opened.playerPath,
+        play: opened.playProof?.play
+          ? {
+              kind: opened.playProof.play.kind,
+              mime: opened.playProof.play.mime,
+              name: opened.playProof.play.name,
+              dataUrl: opened.playProof.play.dataUrl || null,
+              text: opened.playProof.play.text || null,
+            }
+          : null,
+        complete: opened.playProof?.complete === true,
+        card: opened.playProof?.card || null,
+        locations: opened.playProof?.locations || [],
+      });
     }
     if (path === "/vita/client.js" && req.method === "GET") {
       return servePublicFile(res, VITA_CLIENT_JS, "text/javascript; charset=utf-8", "vita client");

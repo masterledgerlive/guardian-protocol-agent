@@ -548,6 +548,24 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^cancel$/i.test(trimmed)) {
     return { ok: true, action: "cancel", body: "", source: "cancel" };
   }
+  // Named library: list sealed files, open one into the player, seal keys catalog.
+  if (/^(?:files|list)$/i.test(trimmed)) {
+    return { ok: true, action: "files", body: "", source: "files" };
+  }
+  if (/^(?:play|open|pull)\b/i.test(trimmed)) {
+    const sel = trimmed.replace(/^(?:play|open|pull)\s*/i, "").trim();
+    return {
+      ok: true,
+      action: "play",
+      body: sel,
+      selector: sel,
+      source: "play",
+    };
+  }
+  if (/^keys(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^keys\s*/i, "").trim();
+    return { ok: true, action: "keys", body: rest, source: "keys" };
+  }
   // Reply-to-file / explicit file cue — Telegram handler encodes attachment.
   if (/^file(?:\s|$)/i.test(trimmed) || /^upload(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:file|upload)\s*/i, "");
@@ -583,10 +601,15 @@ export function vitaFeedUsageText() {
     "  (proceed despite underfunded inscription+buy-in+gas check).",
     "  Does NOT bypass VITAFEED_PAID=no, liquid floor, or rate limit.",
     "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
+    "LIBRARY (Telegram quick pull):",
+    "  /vitafeed files          — list saved names (auto-saved on seal)",
+    "  /vitafeed play <n|name>  — open from keys → player (also: open|pull)",
+    "  /vitafeed keys           — stage §VITALIB§ keys catalog (name→key→locs)",
     "/vitafeed cancel drops the staged payload (and clears a file wait).",
     "Plain UTF-8 or VITAFILE → hex calldata. VIN headers link chunks (prev/next).",
     "Max payload/chunk = " + VITAFEED_MAX_CHUNK_BYTES + " bytes (VITAFEED_MAX_CHUNK_BYTES).",
     "Player: /vita/feed-player — upload any data, demo seal, play from locations.",
+    "  or /vita/feed-player?lib=<n> after /vitafeed files.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
   ].join("\n");
 }
@@ -935,6 +958,70 @@ export async function handleVitaFeedAction({
       reply: had ? "VITAFEED cancelled — staged payload dropped. RISK unspent." : "VITAFEED: nothing staged.",
     };
   }
+  // Named library — list / open / stage keys catalog (lazy import avoids cycle).
+  if (action === "files") {
+    const { formatLibraryListCard, listLibraryEntries } = await import("./vita-feed-library.js");
+    return {
+      ok: true,
+      phase: "files",
+      entries: listLibraryEntries(),
+      reply: formatLibraryListCard(),
+    };
+  }
+  if (action === "play") {
+    const { playFromLibrary } = await import("./vita-feed-library.js");
+    const opened = await playFromLibrary(body, { label: "LIBRARY" });
+    return {
+      ok: opened.ok !== false,
+      phase: "play",
+      n: opened.n,
+      entry: opened.entry || null,
+      playProof: opened.playProof || null,
+      playerPath: opened.playerPath || null,
+      reply: opened.reply || opened.reason || "open failed",
+    };
+  }
+  if (action === "keys") {
+    const {
+      prepareKeysCatalogFeed,
+      formatKeysCatalogCard,
+      encodeKeysCatalogBody,
+    } = await import("./vita-feed-library.js");
+    const prepared = prepareKeysCatalogFeed();
+    if (!prepared.ok) {
+      return {
+        ok: false,
+        phase: "keys",
+        reply: prepared.reason || "keys catalog empty",
+      };
+    }
+    const enc = encodeKeysCatalogBody({ libId: prepared.keysCatalog?.libId });
+    const cost = estimateVitaFeedCost(prepared, quotes);
+    const buyIn = planVitaFeedBuyIns({ prepared, cost, seats, quotes });
+    stageVitaFeed(chatId, {
+      prepared,
+      cost,
+      body: enc.body,
+      quotes,
+      buyIn,
+      seats,
+      keysCatalog: prepared.keysCatalog,
+    });
+    return {
+      ok: true,
+      phase: "before",
+      staged: true,
+      prepared,
+      cost,
+      buyIn,
+      keysCatalog: prepared.keysCatalog,
+      reply:
+        formatKeysCatalogCard(enc) +
+        "\n\n" +
+        formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
+        "\n\n" + formatVitaFeedBuyInCard(buyIn),
+    };
+  }
   if (action === "preview") {
     const prepared = prepareVitaFeed(body);
     if (!prepared.ok) {
@@ -1060,6 +1147,22 @@ export async function handleVitaFeedAction({
     if (result && typeof result === "object") {
       result.playProof = playProof;
     }
+    // Auto-save name + reader key + locations into the keys library.
+    let librarySave = null;
+    try {
+      const { saveLibraryFromSeal } = await import("./vita-feed-library.js");
+      if (result?.strand && (result.sealedCount > 0 || playProof?.complete)) {
+        librarySave = saveLibraryFromSeal({
+          strand: result.strand,
+          body: row.body || null,
+          chatId,
+          playProof,
+        });
+        if (librarySave?.ok && result && typeof result === "object") {
+          result.library = librarySave;
+        }
+      }
+    } catch { /* library is best-effort — never block seal receipt */ }
     const card = formatVitaFeedCostCard(cost, row.prepared, { phase: "after" });
     const receipt = formatVitaFeedReceipt(result, cost);
     const buyCard = formatVitaFeedBuyInCard(buyIn);
@@ -1070,6 +1173,11 @@ export async function handleVitaFeedAction({
             (playProof.play.name || playProof.play.kind || "blob")
           : "")
       : "";
+    const libExtra = librarySave?.ok
+      ? "\n\nSAVED #" + librarySave.n + " · " + (librarySave.entry?.name || "?") +
+        "\n/vitafeed files  ·  /vitafeed play " + librarySave.n +
+        "  ·  /vita/feed-player?lib=" + librarySave.n
+      : "";
     return {
       ok: result.ok !== false,
       phase: "after",
@@ -1078,10 +1186,11 @@ export async function handleVitaFeedAction({
       buyIn,
       result,
       playProof,
+      library: librarySave,
       forcedOverride: override,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
-        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra,
+        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra + libExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

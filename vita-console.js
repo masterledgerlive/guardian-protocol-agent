@@ -331,7 +331,7 @@ function helpText() {
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
-    "/vitafeed [text|file] — exact plain / VITAFILE packets; confirm|override → play proof (/vita/feed-player)",
+    "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -464,14 +464,15 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     const parsed = parseVitaFeedCommand(raw);
     const out = await handleVitaFeedAction({
       action: parsed.action || "usage",
-      body: parsed.body,
+      body: parsed.body || parsed.selector || "",
       chatId: "html-console",
     });
-    return reply(
-      out.reply +
-      "\nHTML preview only — paid RISK injections run on Telegram /vitafeed confirm." +
-      "\nVITAFEED_PAID default off. Mother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.",
-    );
+    const paidNote =
+      parsed.action === "files" || parsed.action === "play"
+        ? "\nLibrary list/open is local keys chain — content packets stay on Base."
+        : "\nHTML preview only — paid RISK injections run on Telegram /vitafeed confirm." +
+          "\nVITAFEED_PAID default off. Mother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.";
+    return reply(out.reply + paidNote);
   }
 
   // Mother genesis — large dump path (does not touch vitaSave 5-chunk brain)

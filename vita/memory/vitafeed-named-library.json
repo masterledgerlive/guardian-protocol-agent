@@ -1,0 +1,21 @@
+{
+  "id": "vitafeed-named-library-keys-chain",
+  "at": "2026-09-15",
+  "hypothesis": "After /vitafeed seals a song/video/file, auto-save name + reader key + locations into a keys library so Telegram /vitafeed files lists them and /vitafeed play <n|name> opens the Tailwind player instantly. Optional /vitafeed keys seals §VITALIB§ catalog (name→key→locs) as the second chain for reader quick access; content stays on §VITAFILE§ VIN packets.",
+  "status": "coded",
+  "commands": [
+    "/vitafeed files",
+    "/vitafeed play <n|name>",
+    "/vitafeed open <n|name>",
+    "/vitafeed pull <n|name>",
+    "/vitafeed keys"
+  ],
+  "refs": [
+    "vita/vita-feed-library.js",
+    "vita/vita-feed.js",
+    "public/vita-feed-player.html",
+    "vita/INJECT.md"
+  ],
+  "formula": "original-message-first",
+  "neverForget": true
+}
