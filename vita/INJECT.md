@@ -13,8 +13,8 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    Bytes → `§VITAFILE§` base64 UTF-8 → same VIN spaced packets (720 B payload).
    Nothing held after seal.
 3. Bot replies with a **cost card** (before): chars / UTF-8 bytes / bits, max payload per chunk, injection count, ETH/$ per injection × N, VIN/tailwind pointers, IN bytes vs OUT (pending).
-4. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain.
-5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain.
+4. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain **only when `VITAFEED_PAID=yes` (or `VITAFEED_ENABLED=yes|true|1`)**. Default OFF → bank/refuse, cost card still works.
+5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain. **Override cannot bypass `VITAFEED_PAID=no`, the liquid floor, or the rate limit.**
 6. When every location seals → **PLAY PROOF**: Tailwind reader peaces spaced
    locations together and plays the blob (`/vita/feed-player`).
 7. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
@@ -45,6 +45,12 @@ upload or load demo song → Packetize → Demo override → Play proof.
 | `VITAFEED_CONFIRM_CHARS` | 1000 | Large-body warning on the cost card |
 | `VITAFEED_TX_GAS_UNITS` | 50_000 | Documented self-tx gas class (`BTP_INSCRIBE_GAS_UNITS`) |
 | Payer | RISK `0x50e1…7915` | Vault / save bucket never spend |
+| `VITAFEED_PAID` / `VITAFEED_ENABLED` | default **OFF** | Must be `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Override cannot bypass. |
+| `VITAFEED_MIN_LIQUID_USD` | default **5** | Refuse confirm/override when RISK liquid USD is below floor. Set `0` to disable. |
+| `VITAFEED_CONFIRM_COOLDOWN_SEC` | default **60** | Refuse a second paid confirm for the same chat within N seconds. |
+| `VITAFEED_MAX_CHUNKS_PER_HOUR` | default **24** | Refuse a batch that would exceed hourly chunk cap (stops 383-tx file dumps). |
+| `VITAFEED_RATE_LIMIT` | default ON | Set `no`/`0`/`off`/`false` to disable cooldown + chunk cap + stale-confirm guard. |
+| `VITAFEED_MAX_CONFIRM_AGE_SEC` | default **180** | Refuse Telegram confirms older than this (getUpdates replay after restart). |
 
 Quotes are labeled **LIVE** (Base gas + ETH mark + optional `getL1Fee`) or **DEMO** (documented 0.05 gwei / $2481 ETH).
 

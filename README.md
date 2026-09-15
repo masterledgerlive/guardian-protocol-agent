@@ -28,7 +28,7 @@ Guardian is the first live deployment of the **IKN (Infinite Knowledge Network)*
 
 The letter to Krystian, Kai & Koda is **true** on Telegram **`/prove`** (dedicated **0-ETH** self-tx) when Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives`. Leftover-covered swaps hitch **VITA `§TOKEN§`** by default (`VITA_HITCH_MODE=vita`) — the love note is encoded in `§KEY§` so it is not lost; locations squash into `§LOC§`. Telegram text next to a swap is not proof. Live KEYCAT sell [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) is a real KEYCAT→WETH fill (228-byte `exactInputSingle`) with **no trailer**. Hitch is skipped when leftover cannot pay — never lose money to insert storage.
 
-**`/vitafeed`** (Storage Token game, before public StorageToken): paste exact plain text → cost card (chars/bytes/bits + injections + ETH/$) → `/vitafeed confirm` pays **RISK only** for each 720-byte chunk (`VITAFEED_MAX_CHUNK_BYTES`). VIN headers link prev/next. Vault / save bucket never spend. Does not re-enable `VITA_AUTO_INSCRIBE` for `/vitasave`. See [`vita/INJECT.md`](./vita/INJECT.md).
+**`/vitafeed`** (Storage Token game, before public StorageToken): paste exact plain text → cost card (chars/bytes/bits + injections + ETH/$) → `/vitafeed confirm` pays **RISK only** when **`VITAFEED_PAID=yes`** (default OFF; override cannot bypass). Liquid floor `$5`. Rate limited. Vault / save bucket never spend. Does not re-enable `VITA_AUTO_INSCRIBE` for `/vitasave`. See [`vita/INJECT.md`](./vita/INJECT.md).
 
 ---
 

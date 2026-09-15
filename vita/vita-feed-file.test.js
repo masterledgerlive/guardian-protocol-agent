@@ -37,6 +37,15 @@ import {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+function paidOn(extra = {}) {
+  return {
+    VITAFEED_PAID: "yes",
+    VITAFEED_MIN_LIQUID_USD: "0",
+    VITAFEED_RATE_LIMIT: "no",
+    ...extra,
+  };
+}
+
 describe("vitafile encode / decode", () => {
   it("roundtrips song bytes through §VITAFILE§ + VIN packets", () => {
     const wav = makeDemoWavBytes({ seconds: 0.1 });
@@ -134,6 +143,7 @@ describe("vitafeed player play proof", () => {
     const r = await handleVitaFeedAction({
       action: "override",
       chatId: "play-override",
+      env: paidOn(),
       riskBalanceEth: 0,
       gasReserveEth: 0.0005,
       forceOverride: true,

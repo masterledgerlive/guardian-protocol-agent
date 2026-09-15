@@ -464,6 +464,7 @@ import {
   wrapVitaSaveSelfCall,
 } from "./vita/feed-wrap.js";
 import {
+  evaluateVitaFeedThriftGate,
   handleVitaFeedAction,
   parseVitaFeedCommand,
   peekVitaFeed,
@@ -9487,6 +9488,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
                 : "live gwei/ETH mark, L1 fallback 0",
             };
           } catch { /* DEMO quotes inside helper */ }
+          // File await is PREVIEW only — never auto-confirm (no sendTransaction).
           const out = await handleVitaFeedAction({
             action: "preview",
             body: packed.body,
@@ -12039,8 +12041,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "1. <code>/vitafeed file</code> → bot says <i>please insert file</i> → send song/video/doc\n" +
             "2. Reply to an attachment with <code>/vitafeed file</code> (or <code>/vitafeed</code>)\n" +
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
+            "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
             "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE; " +
-            "when complete → PLAY PROOF (Tailwind reader peaces locations + plays).\n" +
+            "cannot bypass VITAFEED_PAID=no, $5 liquid floor, or rate limit.\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
             "Player: <code>/vita/feed-player</code>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
@@ -12095,6 +12098,34 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
           let sendTx = null;
           if (isPaidConfirm) {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0))
+              + Math.max(0, Number(bal?.weth ?? 0));
+            const liquidUsd = liquidEth * Number(ethUsd || 0);
+            const staged = peekVitaFeed(msgChatId);
+            const chunkCount = staged?.prepared?.totalChunks
+              || staged?.prepared?.lines?.length
+              || 1;
+            const messageAtMs = Number(upd.message?.date) > 0
+              ? Number(upd.message.date) * 1000
+              : null;
+            const gate = evaluateVitaFeedThriftGate({
+              action: parsed.action,
+              chatId: msgChatId,
+              env: process.env,
+              liquidUsd,
+              chunkCount,
+              messageAtMs,
+            });
+            if (!gate.ok) {
+              await tg(
+                "📡 <b>VITAFEED BANK</b>\n<pre>" +
+                String(gate.reply || "paid path refused").replace(/</g, "&lt;") +
+                "</pre>",
+              );
+              continue;
+            }
             if (!(cdp || cdpClient)?.evm?.sendTransaction) {
               await tg(
                 "❌ VITAFEED " + (forceOverride ? "override" : "confirm") +
@@ -12124,6 +12155,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           try {
             let riskBalanceEth = null;
             try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidUsdForGate = (
+              Math.max(0, Number(riskBalanceEth ?? 0)) + Math.max(0, Number(bal?.weth ?? 0))
+            ) * Number(ethUsd || 0);
+            const messageAtMs = Number(upd.message?.date) > 0
+              ? Number(upd.message.date) * 1000
+              : null;
             if (parsed.action === "preview") {
               await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
             } else if (parsed.action === "override") {
@@ -12239,6 +12276,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               // Buy-in already spent above on confirm|override — do not demand stake twice.
               reserveBuyStake: !isPaidConfirm,
               forceOverride,
+              env: process.env,
+              liquidUsd: isPaidConfirm ? liquidUsdForGate : null,
+              messageAtMs,
             });
             let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";

@@ -33,6 +33,15 @@ import { isManualOperatorBuy } from "../lose-zero-gate.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+function paidOn(extra = {}) {
+  return {
+    VITAFEED_PAID: "yes",
+    VITAFEED_MIN_LIQUID_USD: "0",
+    VITAFEED_RATE_LIMIT: "no",
+    ...extra,
+  };
+}
+
 describe("vitafeed whole-cost stack", () => {
   it("taxes 1.5% of transmission + piggies + gwei + other + hidden, and leaves ≥ $0.25 + tax", () => {
     const c = computeVitaFeedWholeCost({
@@ -294,7 +303,7 @@ describe("vitafeed buy-in stays off mother brain", () => {
     assert.equal(preview.buyIn.skipBuy, true);
     assert.match(preview.reply, /VITAFEED BUY-IN/);
     assert.match(preview.reply, /BUY SKIP/);
-    const r = await handleVitaFeedAction({ action: "confirm", chatId: "buyin-card" });
+    const r = await handleVitaFeedAction({ action: "confirm", chatId: "buyin-card", env: paidOn() });
     assert.ok(r.buyIn);
     assert.equal(r.buyIn.skipBuy, true);
     assert.match(r.reply, /BUY SKIP/);
