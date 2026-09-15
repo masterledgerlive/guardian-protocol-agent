@@ -640,12 +640,16 @@ export async function handleVitaFeedAction({
     const quotesNow = Object.keys(quotes || {}).length ? quotes : (row.quotes || {});
     const seatsNow = (seats && seats.length) ? seats : (row.seats || []);
     const cost = estimateVitaFeedCost(row.prepared, quotesNow);
-    const buyIn = planVitaFeedBuyIns({
-      prepared: row.prepared,
-      cost,
-      seats: seatsNow,
-      quotes: quotesNow,
-    });
+    // Reuse the wrap plan shown on the cost card so confirm buys the same
+    // tokens + range % the operator already reviewed.
+    const buyIn = (row.buyIn && row.buyIn.ok)
+      ? row.buyIn
+      : planVitaFeedBuyIns({
+          prepared: row.prepared,
+          cost,
+          seats: seatsNow,
+          quotes: quotesNow,
+        });
     const need = (cost.totalEth || 0) + Number(gasReserveEth || 0);
     if (riskBalanceEth != null && Number(riskBalanceEth) < need) {
       return {

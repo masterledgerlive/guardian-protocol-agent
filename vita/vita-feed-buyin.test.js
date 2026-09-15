@@ -129,11 +129,18 @@ describe("vitafeed buy-in size and mirror exit", () => {
     const prepared = prepareVitaFeed(body);
     const cost = estimateVitaFeedCost(prepared, { live: true, gwei: 0.05, ethUsd: 2481, l1FeeEth: 0 });
     assert.ok(prepared.totalChunks >= 2);
-    const seats = [{ symbol: "AERO", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true }];
+    const seats = [
+      { symbol: "AERO", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 2 },
+      { symbol: "DEGEN", price: 1.015, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 1 },
+    ];
     const plan = planVitaFeedBuyIns({ prepared, cost, seats, quotes: { ethUsd: 2481 } });
     assert.equal(plan.ok, true);
     assert.equal(plan.injections.length, prepared.totalChunks);
     assert.ok(plan.totalStakeUsd > plan.injections[0].stakeUsd);
+    assert.match(formatVitaFeedBuyInCard(plan), /WRAP PLAN/);
+    assert.match(formatVitaFeedBuyInCard(plan), /msg 01\//);
+    assert.match(formatVitaFeedBuyInCard(plan), /@ range /);
+    assert.match(formatVitaFeedBuyInCard(plan), /PIGGY BANK WAITING/);
     const first = plan.injections[0];
     const per = cost.perLine[0];
     const expectedChars = per.l2CalldataEth * 2481;
@@ -161,6 +168,32 @@ describe("vitafeed buy-in size and mirror exit", () => {
     assert.equal(plan.skipBuy, true);
     assert.match(formatVitaFeedBuyInCard(plan), /BUY SKIP/);
     assert.match(formatVitaFeedBuyInCard(plan), /message-first/);
+  });
+
+  it("five messages park ≥ $1.25 piggy and list each wrap token + range % before confirm", () => {
+    const body = "W".repeat(720 * 5);
+    const prepared = prepareVitaFeed(body);
+    const cost = estimateVitaFeedCost(prepared, { live: true, gwei: 0.05, ethUsd: 2481, l1FeeEth: 0 });
+    assert.ok(prepared.totalChunks >= 5);
+    const seats = [
+      { symbol: "AERO", price: 1.005, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 5 },
+      { symbol: "DEGEN", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 1 },
+      { symbol: "BRETT", price: 1.015, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 2 },
+      { symbol: "VIRTUAL", price: 1.02, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 0 },
+      { symbol: "TOSHI", price: 1.025, minTrough: 1, maxPeak: 2, predictedUp: true, tradeCount: 3 },
+    ];
+    const plan = planVitaFeedBuyIns({ prepared, cost, seats, quotes: { ethUsd: 2481 } });
+    assert.equal(plan.ok, true);
+    assert.equal(plan.wrapped, 5);
+    assert.ok(plan.totalPiggyFloorUsd + 1e-9 >= 1.25);
+    const card = formatVitaFeedBuyInCard(plan);
+    assert.match(card, /WRAP PLAN/);
+    assert.match(card, /msg 01\/05 → AERO/);
+    assert.match(card, /msg 05\/05 → TOSHI/);
+    assert.match(card, /@ range /);
+    assert.match(card, /5 × \$0\.25 floor = \$1\.25/);
+    const syms = plan.injections.map((inj) => inj.symbol);
+    assert.equal(new Set(syms).size, 5);
   });
 
   it("rotates a different red token per injection when several low-3% seats exist", () => {
@@ -274,7 +307,7 @@ describe("vitafeed buy-in stays off mother brain", () => {
     });
     assert.equal(preview.buyIn.ok, true);
     assert.equal(preview.buyIn.skipBuy, false);
-    assert.match(preview.reply, /seats AERO/);
+    assert.match(preview.reply, /msg 01\/01 → AERO/);
     assert.ok(preview.buyIn.totalStakeUsd > 0);
   });
 
