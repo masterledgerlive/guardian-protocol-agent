@@ -168,6 +168,17 @@ describe("vita HTML console", () => {
     assert.equal(state.leftoverScan.hitchBytes.eurekaMin, 229);
   });
 
+  it("/vitafeed shows a cost card and confirm gate without paying", async () => {
+    const state = createVitaConsole();
+    const preview = await handleVitaConsole(state, "/vitafeed hello from html");
+    assert.match(preview.text, /COST CARD/);
+    assert.match(preview.text, /CONFIRM required/);
+    assert.match(preview.text, /VITAFEED_MAX_CHUNK_BYTES/);
+    assert.match(preview.text, /HTML preview only/);
+    const confirm = await handleVitaConsole(state, "/vitafeed confirm");
+    assert.match(confirm.text, /Telegram \/vitafeed confirm|Paid RISK path needs a sender/);
+  });
+
   it("ZK preview hides plaintext but keeps KEY internally", async () => {
     const state = createVitaConsole();
     await handleVitaConsole(state, "/vitanote secret-fact-xyz");

@@ -46,6 +46,7 @@ import {
   runMotherGenesisInscribe,
 } from "./vita/mother-genesis.js";
 import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./vita/feed-wrap.js";
+import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -73,6 +74,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/vitamothergenesis",
   "/vitamothergenesisencoded",
   "/encodegenesisreveal",
+  "/vitafeed",
 ]);
 
 function shortLoc(location) {
@@ -329,6 +331,7 @@ function helpText() {
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
+    "/vitafeed [text] — Storage Token game: exact plain cost card, then /vitafeed confirm (RISK / Telegram)",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -454,6 +457,21 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     const refined = refineVitaPacket(state.packet, { LEARN: topic.slice(0, 400) });
     state.packet = refined.packed;
     return reply("learned locally:\n" + topic.slice(0, 280) + "\nNot on chain until /inject pulls or a leftover hitch seals.");
+  }
+
+  // /vitafeed — Storage Token game preview (paid RISK path is Telegram confirm)
+  if (text === "/vitafeed" || text.startsWith("/vitafeed")) {
+    const parsed = parseVitaFeedCommand(raw);
+    const out = await handleVitaFeedAction({
+      action: parsed.action || "usage",
+      body: parsed.body,
+      chatId: "html-console",
+    });
+    return reply(
+      out.reply +
+      "\nHTML preview only — paid RISK injections run on Telegram /vitafeed confirm." +
+      "\nMother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.",
+    );
   }
 
   // Mother genesis — large dump path (does not touch vitaSave 5-chunk brain)
