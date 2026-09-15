@@ -22,6 +22,8 @@ import {
   frozenBuySkipLog,
   hasClearEdge,
   isManualOperatorBuy,
+  isVitaFeedBuyIn,
+  vitaFeedBuyInReason,
   parseBuyUsdArg,
   parseManualBuyCommand,
   usdToForcedEth,
@@ -643,6 +645,38 @@ describe("manual /buy parse", () => {
     assert.equal(isManualOperatorBuy("🎯 MIN TROUGH [PRIORITY]"), false);
     assert.equal(isManualOperatorBuy("VITAFEED BUYIN $0.80"), false, "vitafeed must not weaken leftover/edge");
     assert.equal(isManualOperatorBuy("VITAFEED EXIT"), false);
+    assert.equal(isVitaFeedBuyIn("VITAFEED BUYIN $0.80"), true);
+    assert.equal(isVitaFeedBuyIn(vitaFeedBuyInReason(1.25)), true);
+    assert.equal(isVitaFeedBuyIn(manualBuyReason(3)), false);
+    assert.equal(vitaFeedBuyInReason(1.5), "VITAFEED BUYIN $1.50");
+  });
+
+  it("evaluateBuyGate allows VITAFEED BUYIN without clear edge", () => {
+    const r = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "AERO",
+      reason: "VITAFEED BUYIN $1.00",
+      tradeEth: 0.001,
+      hitchCostEth: 0.0001,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(r.allow, true);
+    assert.match(r.log, /VITAFEED BUYIN/);
+  });
+
+  it("ADD_ON_FIFO_RED allows VITAFEED BUYIN into an existing red bag", () => {
+    const r = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 10,
+      remainingFifoEth: 0.01,
+      markProceedsEth: 0.005,
+      reason: "VITAFEED BUYIN $1.00",
+      bagUsd: 5,
+      env: {},
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.reason, "vitafeed-buyin");
   });
 });
 

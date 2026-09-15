@@ -596,6 +596,8 @@ export async function handleVitaFeedAction({
   riskBalanceEth = null,
   gasReserveEth = 0.0005,
   seats = [],
+  /** When false, RISK need is inscription+gas only (buy-in already spent). */
+  reserveBuyStake = true,
 } = {}) {
   if (action === "usage") {
     return { ok: true, phase: "usage", reply: vitaFeedUsageText() };
@@ -650,7 +652,13 @@ export async function handleVitaFeedAction({
           seats: seatsNow,
           quotes: quotesNow,
         });
-    const need = (cost.totalEth || 0) + Number(gasReserveEth || 0);
+    // Inscription + buy-in stake + gas — refuse if RISK cannot fund token buys
+    // for each wrap (leave ≥$0.25 behind) together with the message path.
+    // Agent buys first then sets reserveBuyStake=false so stake is not double-counted.
+    const stakeEth = (reserveBuyStake !== false && buyIn?.ok)
+      ? Math.max(0, Number(buyIn.totalStakeEth) || 0)
+      : 0;
+    const need = (cost.totalEth || 0) + stakeEth + Number(gasReserveEth || 0);
     if (riskBalanceEth != null && Number(riskBalanceEth) < need) {
       return {
         ok: false,
@@ -661,7 +669,9 @@ export async function handleVitaFeedAction({
         reply:
           "VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
           " < need " + need.toFixed(6) +
-          " (estimate + gas reserve). Vault/save never spend.",
+          " (inscription " + Number(cost.totalEth || 0).toFixed(6) +
+          (stakeEth > 0 ? " + buy-in stake " + stakeEth.toFixed(6) : " (buy-in already reserved)") +
+          " + gas reserve). Vault/save never spend.",
       };
     }
     if (typeof sendTx !== "function") {

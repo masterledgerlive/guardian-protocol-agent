@@ -267,17 +267,20 @@ describe("vitafeed buy-in stays off mother brain", () => {
   it("agent.js wires tickets without weakening leftover/edge operator bypass", () => {
     const agent = readFileSync(join(root, "agent.js"), "utf8");
     assert.match(agent, /collectVitaFeedSeats/);
-    assert.match(agent, /VITAFEED BUYIN \$/);
+    assert.match(agent, /vitaFeedBuyInReason|VITAFEED BUYIN \$/);
     assert.match(agent, /VITAFEED EXIT/);
     assert.match(agent, /dueVitaFeedExit/);
     assert.match(agent, /hasOpenVitaFeedTicket/);
     assert.match(agent, /openVitaFeedTicket/);
+    assert.match(agent, /isVitaFeedBuyIn/);
+    assert.match(agent, /peekVitaFeed/);
     const feedStart = agent.indexOf("/vitafeed — Storage Token game");
     const feedEnd = agent.indexOf('} else if (text && text.startsWith("/vita "))', feedStart);
     const feed = agent.slice(feedStart, feedEnd);
     assert.ok(feed.includes("executeBuy("), "confirm loop tries the character-sized buy");
+    assert.ok(feed.includes("buy-in seats first") || feed.includes("Buy tokens BEFORE"), "buy before inscription");
     assert.ok(!feed.includes("isManualOperatorBuy"), "do not mark vitafeed as operator /buy");
-    assert.match(agent, /Injection still on-chain — message-first/);
+    assert.match(agent, /Message still pays RISK|Injection still on-chain — message-first/);
   });
 
   it("preview and confirm-without-sender keep the buy-in card (message-first)", async () => {

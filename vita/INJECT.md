@@ -52,8 +52,13 @@ transmission cost**.
 5. **Preview WRAP PLAN** (before confirm) lists each `msg NN/MM → TOKEN @
    range %  dip %  leave $…  exit@…` so you can judge the choices first.
    Confirm reuses that staged plan.
-6. **Stake** = whole cost / dip%. Bounce of the same % covers the stack.
-7. **Exit ASAP** when green / revenue prints — same % up **plus** the cost
+6. **Stake** = whole cost / dip% (never below leave-behind ≥ **$0.25**).
+   Bounce of the same % covers the stack.
+7. **Confirm order:** buy each wrap seat **first** (fresh RISK balance), then
+   pay inscription. RISK must cover inscription + buy-in stake + gas or
+   confirm refuses. `VITAFEED BUYIN` is allowed through LOSE_ZERO / tier /
+   COST_EDGE / FIFO-red add-on without being an operator `/buy`.
+8. **Exit ASAP** when green / revenue prints — same % up **plus** the cost
    overlay. Sell leaves **$0.25 + tax** parked for the next earn.
 
 If a message has no unused red seat, that wrap line shows `NO SEAT` and is

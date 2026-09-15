@@ -155,6 +155,49 @@ describe("vitafeed confirm gate", () => {
     assert.match(r.reply, /reader key: VITAFEED\.VIN-/);
     assert.equal(peekVitaFeed("pay"), null);
   });
+
+  it("confirm RISK need includes buy-in stake unless already reserved", async () => {
+    const seats = [{ symbol: "AERO", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true }];
+    const preview = await handleVitaFeedAction({
+      action: "preview",
+      body: "stake check",
+      chatId: "stake-need",
+      seats,
+      quotes: { ethUsd: 2481, live: false },
+    });
+    assert.equal(preview.buyIn.ok, true);
+    assert.ok(preview.buyIn.totalStakeEth > 0);
+    const refuse = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "stake-need",
+      seats,
+      riskBalanceEth: 0.0000001,
+      gasReserveEth: 0.0005,
+      reserveBuyStake: true,
+      sendTx: async () => "0x" + "a".repeat(64),
+    });
+    assert.equal(refuse.ok, false);
+    assert.match(refuse.reply, /buy-in stake/);
+    // Re-stage and confirm with stake already spent — only inscription+gas counted.
+    await handleVitaFeedAction({
+      action: "preview",
+      body: "stake check 2",
+      chatId: "stake-reserved",
+      seats,
+      quotes: { ethUsd: 2481, live: false },
+    });
+    const ok = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "stake-reserved",
+      seats,
+      riskBalanceEth: 0.01,
+      gasReserveEth: 0.0005,
+      reserveBuyStake: false,
+      sendTx: async () => "0x" + "b".repeat(64),
+    });
+    assert.equal(ok.ok, true);
+    assert.equal(ok.phase, "after");
+  });
 });
 
 describe("vitafeed VIN / tailwind fields", () => {
