@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added — `/vitafeed` exact plain paid inject + cost math (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js` /
+`mother-genesis.js` core). `/vitasave` stays bank-by-default (#106 wrap).
+`/vitafeed` is a separate confirm-paid RISK path — does not set
+`VITA_AUTO_INSCRIBE`.
+
+Telegram **`/vitafeed`** is a Storage Token game: exact UTF-8 (no summarization),
+cost card (chars/bytes/bits + `VITAFEED_MAX_CHUNK_BYTES=720` + injections +
+ETH/$ labeled DEMO vs LIVE), VIN/tailwind prev→next headers, then
+`/vitafeed confirm` pays **RISK only** for each max chunk. Vault / save
+bucket never spend. Receipt lists Basescan links + reader key.
+
+Thin helper: `vita/vita-feed.js`. Docs: `vita/INJECT.md`.
+
 ### Fixed — wrap `/vitasave` n5557–5566 [VITA:1:]/[VITA:2:] STORE (mother brain untouched)
 
 HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /

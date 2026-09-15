@@ -461,6 +461,10 @@ import {
   wrapQueueSelfCall,
   wrapVitaSaveSelfCall,
 } from "./vita/feed-wrap.js";
+import {
+  handleVitaFeedAction,
+  parseVitaFeedCommand,
+} from "./vita/vita-feed.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -11865,6 +11869,98 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           }
         }
 
+      // ── /vitafeed — Storage Token game (exact plain, cost card, RISK confirm)
+      } else if (text === "/vitafeed" || (text && text.startsWith("/vitafeed"))) {
+        const replyBody = upd.message?.reply_to_message?.text
+          || upd.message?.reply_to_message?.caption
+          || "";
+        const parsed = parseVitaFeedCommand(raw, { replyBody });
+        if (!parsed.ok || parsed.action === "usage") {
+          await tg(
+            "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8)\n" +
+            "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
+            "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
+            "<code>/vitafeed cancel</code> drops the staged payload.\n" +
+            "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
+            "VIN headers link chunks (prev hash / next index).\n" +
+            "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
+          );
+        } else {
+          let quotes = {};
+          try {
+            const gwei = await getCurrentGasGwei();
+            const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: 256, btpInscribe: true });
+            quotes = {
+              live: true,
+              gwei,
+              ethUsd,
+              l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              source: hitchL1.ok
+                ? "live Base GasPriceOracle + ETH mark"
+                : "live gwei/ETH mark, L1 fallback 0",
+            };
+          } catch { /* DEMO quotes inside helper */ }
+
+          let sendTx = null;
+          if (parsed.action === "confirm") {
+            if (!(cdp || cdpClient)?.evm?.sendTransaction) {
+              await tg("❌ VITAFEED confirm needs the RISK wallet client — no send.");
+              continue;
+            }
+            sendTx = async (hex) => {
+              const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              if (transactionHash) {
+                recordLocation({
+                  location: transactionHash,
+                  kind: "vitafeed",
+                  sealed: true,
+                  hitchKind: "plain",
+                });
+              }
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash || null;
+            };
+          }
+
+          try {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            if (parsed.action === "preview") {
+              await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
+            } else if (parsed.action === "confirm") {
+              await tg("📡 <b>VITAFEED CONFIRM</b> — paying RISK for each max chunk…");
+            }
+            const out = await handleVitaFeedAction({
+              action: parsed.action,
+              body: parsed.body,
+              chatId: msgChatId,
+              quotes,
+              sendTx,
+              riskBalanceEth,
+              gasReserveEth: GAS_RESERVE,
+            });
+            let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+            const locs = out.result?.strand?.locations || [];
+            if (locs.length) {
+              msg += "\n";
+              locs.forEach((tx, i) => {
+                msg += (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">" + tx.slice(0, 12) + "…</a>\n";
+              });
+            }
+            if (out.result?.strand?.readerKey) {
+              msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>";
+            }
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitafeed failed: " + (e.message || e) + "\nNothing invented. RISK unspent if no hashes.");
+          }
+        }
+
       } else if (text && text.startsWith("/vita ")) {
         const vitaInput = raw.slice("/vita ".length).trim();
         const vitaKey   = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
@@ -12467,6 +12563,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
+          `/vitafeed [text] — Storage Token game: exact plain UTF-8 cost card, then /vitafeed confirm (RISK only)\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
