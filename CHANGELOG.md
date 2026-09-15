@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added — Telegram `/vitafeed file` please-insert-file await
+
+HARD STOP: mother brain untouched.
+
+Either Telegram path works:
+
+1. `/vitafeed file` → bot says **please insert the file now** → send song/video/doc
+2. Reply to an attachment with `/vitafeed file` (or `/vitafeed`)
+
+Bot packetizes to `§VITAFILE§` spaced VIN UTF-8; cost card; then
+`confirm` / `override` → PLAY PROOF on `/vita/feed-player`.
+`/vitafeed cancel` also clears a pending file wait.
+Helpers: `beginVitaFeedFileAwait` / `packetizeTelegramMessageForVitaFeed`.
+
 ### Added — `/vitafeed` any-file packets + Tailwind play proof
 
 HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.

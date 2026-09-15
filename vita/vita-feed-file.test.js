@@ -15,6 +15,12 @@ import {
   pickTelegramMedia,
   isVitaFileBody,
   VITAFILE_MAGIC,
+  beginVitaFeedFileAwait,
+  peekVitaFeedFileAwait,
+  takeVitaFeedFileAwait,
+  resetVitaFeedFileAwait,
+  vitaFeedPleaseInsertFileText,
+  packetizeTelegramMessageForVitaFeed,
 } from "./vita-feed-file.js";
 import {
   buildVitaFeedPlayProof,
@@ -145,11 +151,53 @@ describe("vitafeed player play proof", () => {
   });
 });
 
-describe("vitafeed file command parse", () => {
-  it("parses /vitafeed file and upload", () => {
-    assert.equal(parseVitaFeedCommand("/vitafeed file").action, "file");
-    assert.equal(parseVitaFeedCommand("/vitafeed file").wantsFile, true);
-    assert.equal(parseVitaFeedCommand("/vitafeed upload").action, "file");
+describe("vitafeed file await (Telegram please-insert-file)", () => {
+  beforeEach(() => {
+    resetVitaFeedFileAwait();
+  });
+
+  it("begins await, peeks, takes, and clears", () => {
+    assert.equal(peekVitaFeedFileAwait("chat-1"), null);
+    beginVitaFeedFileAwait("chat-1", { via: "command" });
+    const row = peekVitaFeedFileAwait("chat-1");
+    assert.ok(row);
+    assert.equal(row.prompt, "please_insert_file");
+    assert.equal(row.via, "command");
+    assert.match(vitaFeedPleaseInsertFileText(), /please insert the file/i);
+    assert.equal(takeVitaFeedFileAwait("chat-1")?.chatId, "chat-1");
+    assert.equal(peekVitaFeedFileAwait("chat-1"), null);
+  });
+
+  it("parse /vitafeed file wants a file (agent then awaits or packetizes)", () => {
+    const p = parseVitaFeedCommand("/vitafeed file");
+    assert.equal(p.ok, true);
+    assert.equal(p.action, "file");
+    assert.equal(p.wantsFile, true);
+  });
+
+  it("packetizeTelegramMessageForVitaFeed encodes picked media bytes", async () => {
+    const wav = makeDemoWavBytes({ seconds: 0.05 });
+    const fakeFetch = async (url) => {
+      if (String(url).includes("getFile")) {
+        return {
+          ok: true,
+          json: async () => ({ ok: true, result: { file_path: "music/demo.wav", file_size: wav.length } }),
+        };
+      }
+      return {
+        ok: true,
+        arrayBuffer: async () => wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength),
+      };
+    };
+    const packed = await packetizeTelegramMessageForVitaFeed(
+      { audio: { file_id: "FID1", file_name: "demo.wav", mime_type: "audio/wav", file_size: wav.length } },
+      { token: "test-token", fetchImpl: fakeFetch },
+    );
+    assert.equal(packed.ok, true);
+    assert.equal(packed.name, "demo.wav");
+    assert.ok(isVitaFileBody(packed.body));
+    assert.equal(packed.playKind, "audio");
+    assert.ok(packed.bodyBytes > packed.rawBytes);
   });
 });
 
