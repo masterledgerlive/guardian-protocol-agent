@@ -410,6 +410,7 @@ export function formatVitaFeedCostCard(cost, prepared, { phase = "before" } = {}
     lines.push("WARN: body > " + VITAFEED_CONFIRM_CHARS + " chars — confirm to avoid a burn");
   }
   lines.push("CONFIRM required: /vitafeed confirm   (or /vitafeed cancel)");
+  lines.push("OVERRIDE: /vitafeed override — bypass RISK balance REFUSE if underfunded");
   return lines.join("\n");
 }
 
@@ -460,6 +461,10 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^confirm(?:ed)?$/i.test(trimmed)) {
     return { ok: true, action: "confirm", body: "", source: "confirm" };
   }
+  // Operator force-through of the RISK balance REFUSE (typo "overide" accepted).
+  if (/^(?:override|overide)$/i.test(trimmed)) {
+    return { ok: true, action: "override", body: "", source: "override", forceOverride: true };
+  }
   if (/^cancel$/i.test(trimmed)) {
     return { ok: true, action: "cancel", body: "", source: "cancel" };
   }
@@ -474,6 +479,8 @@ export function vitaFeedUsageText() {
     "Buy-in: low ≤3% of wave + predicted up; stake from character cost;",
     "leave $0.10 AI + $0.10 human + 1.5% tax; sell same % up + cost overlay.",
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
+    "/vitafeed override — same as confirm but bypasses the RISK balance REFUSE",
+    "  (proceed despite underfunded inscription+buy-in+gas check).",
     "/vitafeed cancel drops the staged payload.",
     "Plain UTF-8 → hex calldata. VIN headers link chunks (prev/next).",
     "Max payload/chunk = " + VITAFEED_MAX_CHUNK_BYTES + " bytes (VITAFEED_MAX_CHUNK_BYTES).",
@@ -598,6 +605,8 @@ export async function handleVitaFeedAction({
   seats = [],
   /** When false, RISK need is inscription+gas only (buy-in already spent). */
   reserveBuyStake = true,
+  /** /vitafeed override — bypass RISK balance REFUSE and proceed anyway. */
+  forceOverride = false,
 } = {}) {
   if (action === "usage") {
     return { ok: true, phase: "usage", reply: vitaFeedUsageText() };
@@ -630,12 +639,14 @@ export async function handleVitaFeedAction({
         "\n\n" + formatVitaFeedBuyInCard(buyIn),
     };
   }
-  if (action === "confirm") {
+  // confirm = normal paid path; override = same path but skip RISK balance REFUSE
+  if (action === "confirm" || action === "override") {
+    const override = forceOverride === true || action === "override";
     const row = peekVitaFeed(chatId);
     if (!maySendVitaFeed({ confirmed: true, pendingRow: row })) {
       return {
         ok: false,
-        phase: "confirm",
+        phase: override ? "override" : "confirm",
         reply: "VITAFEED: nothing staged. Send /vitafeed [text] (or reply) for a cost card first.",
       };
     }
@@ -655,36 +666,46 @@ export async function handleVitaFeedAction({
     // Inscription + buy-in stake + gas — refuse if RISK cannot fund token buys
     // for each wrap (leave ≥$0.25 behind) together with the message path.
     // Agent buys first then sets reserveBuyStake=false so stake is not double-counted.
+    // /vitafeed override skips this REFUSE and proceeds despite underfunded RISK.
     const stakeEth = (reserveBuyStake !== false && buyIn?.ok)
       ? Math.max(0, Number(buyIn.totalStakeEth) || 0)
       : 0;
     const need = (cost.totalEth || 0) + stakeEth + Number(gasReserveEth || 0);
+    let overrideNote = "";
     if (riskBalanceEth != null && Number(riskBalanceEth) < need) {
-      return {
-        ok: false,
-        phase: "confirm",
-        prepared: row.prepared,
-        cost,
-        buyIn,
-        reply:
-          "VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
-          " < need " + need.toFixed(6) +
-          " (inscription " + Number(cost.totalEth || 0).toFixed(6) +
-          (stakeEth > 0 ? " + buy-in stake " + stakeEth.toFixed(6) : " (buy-in already reserved)") +
-          " + gas reserve). Vault/save never spend.",
-      };
+      if (!override) {
+        return {
+          ok: false,
+          phase: "confirm",
+          prepared: row.prepared,
+          cost,
+          buyIn,
+          reply:
+            "VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+            " < need " + need.toFixed(6) +
+            " (inscription " + Number(cost.totalEth || 0).toFixed(6) +
+            (stakeEth > 0 ? " + buy-in stake " + stakeEth.toFixed(6) : " (buy-in already reserved)") +
+            " + gas reserve). Vault/save never spend.\n" +
+            "Use /vitafeed override to proceed anyway.",
+        };
+      }
+      overrideNote =
+        "VITAFEED OVERRIDE — proceeding despite RISK ETH " +
+        Number(riskBalanceEth).toFixed(6) + " < need " + need.toFixed(6) +
+        " (inscription + buy-in + gas). Buys/inscription may still fail on-chain.";
     }
     if (typeof sendTx !== "function") {
       return {
         ok: false,
-        phase: "confirm",
+        phase: override ? "override" : "confirm",
         prepared: row.prepared,
         cost,
         buyIn,
         reply:
           formatVitaFeedCostCard(cost, row.prepared, { phase: "after" }) +
           "\n\n" + formatVitaFeedBuyInCard(buyIn) +
-          "\nPaid RISK path needs a sender (Telegram /vitafeed confirm on the live bot).",
+          (overrideNote ? "\n\n" + overrideNote : "") +
+          "\nPaid RISK path needs a sender (Telegram /vitafeed confirm|override on the live bot).",
       };
     }
     const result = await runVitaFeedInscribe(row.prepared, sendTx);
@@ -699,7 +720,10 @@ export async function handleVitaFeedAction({
       cost,
       buyIn,
       result,
-      reply: card + "\n\n" + buyCard + "\n\n" + receipt,
+      forcedOverride: override,
+      reply:
+        (overrideNote ? overrideNote + "\n\n" : "") +
+        card + "\n\n" + buyCard + "\n\n" + receipt,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

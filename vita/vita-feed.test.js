@@ -125,6 +125,9 @@ describe("vitafeed confirm gate", () => {
     assert.equal(parseVitaFeedCommand("/vitafeed confirm").action, "confirm");
     assert.equal(parseVitaFeedCommand("/vitafeed CONFIRM").action, "confirm");
     assert.equal(parseVitaFeedCommand("/vitafeed cancel").action, "cancel");
+    assert.equal(parseVitaFeedCommand("/vitafeed override").action, "override");
+    assert.equal(parseVitaFeedCommand("/vitafeed overide").action, "override", "typo accepted");
+    assert.equal(parseVitaFeedCommand("/vitafeed override").forceOverride, true);
     const prev = parseVitaFeedCommand("/vitafeed confirm this is payload");
     assert.equal(prev.action, "preview");
     assert.equal(prev.body, "confirm this is payload");
@@ -178,6 +181,7 @@ describe("vitafeed confirm gate", () => {
     });
     assert.equal(refuse.ok, false);
     assert.match(refuse.reply, /buy-in stake/);
+    assert.match(refuse.reply, /vitafeed override/i);
     // Re-stage and confirm with stake already spent — only inscription+gas counted.
     await handleVitaFeedAction({
       action: "preview",
@@ -197,6 +201,35 @@ describe("vitafeed confirm gate", () => {
     });
     assert.equal(ok.ok, true);
     assert.equal(ok.phase, "after");
+  });
+
+  it("/vitafeed override bypasses RISK balance REFUSE and still sends", async () => {
+    const seats = [{ symbol: "AERO", price: 1.01, minTrough: 1, maxPeak: 2, predictedUp: true }];
+    await handleVitaFeedAction({
+      action: "preview",
+      body: "force through",
+      chatId: "override-me",
+      seats,
+      quotes: { ethUsd: 2481, live: false },
+    });
+    let sent = 0;
+    const r = await handleVitaFeedAction({
+      action: "override",
+      chatId: "override-me",
+      seats,
+      riskBalanceEth: 0.0000001,
+      gasReserveEth: 0.0005,
+      reserveBuyStake: true,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + String(sent).padStart(64, "d").slice(0, 64);
+      },
+    });
+    assert.equal(r.ok, true);
+    assert.equal(r.forcedOverride, true);
+    assert.match(r.reply, /VITAFEED OVERRIDE/i);
+    assert.equal(sent, 1);
+    assert.equal(peekVitaFeed("override-me"), null);
   });
 });
 

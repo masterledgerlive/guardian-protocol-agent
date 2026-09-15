@@ -279,6 +279,7 @@ describe("vitafeed buy-in stays off mother brain", () => {
     const feed = agent.slice(feedStart, feedEnd);
     assert.ok(feed.includes("executeBuy("), "confirm loop tries the character-sized buy");
     assert.ok(feed.includes("buy-in seats first") || feed.includes("Buy tokens BEFORE"), "buy before inscription");
+    assert.ok(feed.includes("forceOverride") || feed.includes("override"), "override bypasses RISK REFUSE");
     assert.ok(!feed.includes("isManualOperatorBuy"), "do not mark vitafeed as operator /buy");
     assert.match(agent, /Message still pays RISK|Injection still on-chain — message-first/);
   });

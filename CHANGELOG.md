@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added — `/vitafeed override` bypasses RISK balance REFUSE
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+Normal `/vitafeed confirm` still REFUSEs when RISK cannot cover inscription +
+buy-in stake + gas. New operator gate:
+
+- `/vitafeed override` (typo `/vitafeed overide` accepted)
+- Same paid path as confirm (buy seats first, then inscribe)
+- Skips the underfunded REFUSE and proceeds anyway
+- Reply labels `VITAFEED OVERRIDE`; on-chain buys/inscription may still fail
+
 ### Fixed — `/vitafeed` confirm actually buys the ≥$0.25 leave-behind seat
 
 HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.

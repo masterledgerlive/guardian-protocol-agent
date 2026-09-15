@@ -11934,6 +11934,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8)\n" +
             "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
+            "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE.\n" +
             "<code>/vitafeed cancel</code> drops the staged payload.\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
@@ -11957,10 +11958,18 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             };
           } catch { /* DEMO quotes inside helper */ }
 
+          const isPaidConfirm =
+            parsed.action === "confirm" || parsed.action === "override";
+          const forceOverride =
+            parsed.action === "override" || parsed.forceOverride === true;
+
           let sendTx = null;
-          if (parsed.action === "confirm") {
+          if (isPaidConfirm) {
             if (!(cdp || cdpClient)?.evm?.sendTransaction) {
-              await tg("❌ VITAFEED confirm needs the RISK wallet client — no send.");
+              await tg(
+                "❌ VITAFEED " + (forceOverride ? "override" : "confirm") +
+                " needs the RISK wallet client — no send.",
+              );
               continue;
             }
             sendTx = async (hex) => {
@@ -11987,19 +11996,26 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
             if (parsed.action === "preview") {
               await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
+            } else if (parsed.action === "override") {
+              await tg(
+                "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK balance REFUSE; " +
+                "buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…",
+              );
             } else if (parsed.action === "confirm") {
               await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
             }
 
             // Buy tokens BEFORE inscription so RISK still holds the stake and
             // each transmission leaves ≥$0.25 (+tax) parked for a green exit.
-            if (parsed.action === "confirm" && sendTx) {
+            // /vitafeed override skips the combinedNeed REFUSE and proceeds anyway.
+            if (isPaidConfirm && sendTx) {
               const staged = peekVitaFeed(msgChatId);
               const plan = staged?.buyIn;
               const stakeNeed = plan?.ok ? Math.max(0, Number(plan.totalStakeEth) || 0) : 0;
               const inscribeNeed = Math.max(0, Number(staged?.cost?.totalEth) || 0);
               const combinedNeed = inscribeNeed + stakeNeed + Number(GAS_RESERVE || 0);
               if (
+                !forceOverride &&
                 riskBalanceEth != null &&
                 Number(riskBalanceEth) < combinedNeed
               ) {
@@ -12008,9 +12024,17 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                   " < need " + combinedNeed.toFixed(6) +
                   " (inscription " + inscribeNeed.toFixed(6) +
                   " + buy-in " + stakeNeed.toFixed(6) +
-                  " + gas). Buy nothing; message unspent.",
+                  " + gas). Buy nothing; message unspent.\n" +
+                  "Use <code>/vitafeed override</code> to proceed anyway.",
                 );
                 continue;
+              }
+              if (forceOverride && riskBalanceEth != null && Number(riskBalanceEth) < combinedNeed) {
+                await tg(
+                  "📡 VITAFEED OVERRIDE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+                  " < need " + combinedNeed.toFixed(6) +
+                  "; proceeding despite REFUSE (buys/inscription may still fail on-chain).",
+                );
               }
               if (plan?.ok && Array.isArray(plan.injections)) {
                 const client = cdp || cdpClient;
@@ -12082,8 +12106,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               riskBalanceEth,
               gasReserveEth: GAS_RESERVE,
               seats: collectVitaFeedSeats(ethUsd),
-              // Buy-in already spent above on confirm — do not demand stake twice.
-              reserveBuyStake: parsed.action !== "confirm",
+              // Buy-in already spent above on confirm|override — do not demand stake twice.
+              reserveBuyStake: !isPaidConfirm,
+              forceOverride,
             });
             let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
@@ -12705,7 +12730,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitafeed [text] — exact plain UTF-8 cost card + buy-in (low 3% wave); /vitafeed confirm pays RISK\n` +
+          `/vitafeed [text] — exact plain UTF-8 cost card + buy-in (low 3% wave); /vitafeed confirm pays RISK; /vitafeed override bypasses RISK REFUSE\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
