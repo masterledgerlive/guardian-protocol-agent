@@ -95,8 +95,8 @@ export function computeVitaFeedWholeCost({
  */
 export function evaluateVitaFeedWaveSeat(seat = {}) {
   const price = num(seat.price);
-  const trough = num(seat.minTrough);
-  const peak = num(seat.maxPeak);
+  const trough = num(seat.minTrough, num(seat.trough));
+  const peak = num(seat.maxPeak, num(seat.peak));
   const predictedUp = seat.predictedUp === true;
   if (!(price > 0) || !(trough > 0) || !(peak > trough)) {
     return { ok: false, reason: "need live price + peak > trough", symbol: seat.symbol || null };
@@ -163,10 +163,11 @@ export function evaluateVitaFeedWaveSeat(seat = {}) {
 
 export function pickVitaFeedBuyInSeat(seats = []) {
   const qualified = (seats || [])
-    .map((s) => evaluateVitaFeedWaveSeat(s))
-    .filter((s) => s.ok);
-  qualified.sort((a, b) => a.rangePos - b.rangePos);
-  return qualified[0] || null;
+    .map((s) => ({ raw: s, wave: evaluateVitaFeedWaveSeat(s) }))
+    .filter((row) => row.wave.ok);
+  qualified.sort((a, b) => a.wave.rangePos - b.wave.rangePos);
+  if (!qualified[0]) return null;
+  return { ...qualified[0].raw, ...qualified[0].wave };
 }
 
 /**
