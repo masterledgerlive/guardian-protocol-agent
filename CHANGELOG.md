@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added — `/vitafeed` any-file packets + Tailwind play proof
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+
+Upload any bytes (song / video / code / blob) as spaced UTF-8 packets:
+
+- `§VITAFILE§` base64 wire → same VIN `/vitafeed` chunking (720 B payload)
+- Telegram: reply to attachment with `/vitafeed` or `/vitafeed file`
+- `/vitafeed override` (typo `overide` still accepted) sends → completes →
+  **PLAY PROOF** (locations peaced + blob ready)
+- Tailwind reader: `GET /vita/feed-player` — upload, demo seal, play
+- Thin helpers: `vita/vita-feed-file.js`, `vita/vita-feed-player.js`
+- Never invents tx hashes; demo seals are labeled DEMO only
+
 ### Added — `/vitafeed override` bypasses RISK balance REFUSE
 
 HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.

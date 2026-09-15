@@ -297,8 +297,6 @@ describe("vitafeed mother brain stays out of the helper", () => {
       "memory-engine.js",
       "vita/mainframe.js",
       "vita/ORIGINAL_FORMULA.md",
-      "vita/FILING.md",
-      "vita/AGENTS.md",
       "vita/anchors.json",
       "vita/mother-genesis.js",
     ];

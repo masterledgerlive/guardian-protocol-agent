@@ -1,16 +1,36 @@
 # /vitafeed — Storage Token inject game
 
-Test the storage product **before** public StorageToken. Telegram-only paid path.
+Test the storage product **before** public StorageToken. Telegram-only paid path
+(plus HTML Tailwind reader for local play-proof).
 
 ## Flow
 
 1. `/vitafeed [exact plain text]` — or reply to a message with `/vitafeed`.
-2. Bot replies with a **cost card** (before): chars / UTF-8 bytes / bits, max payload per chunk, injection count, ETH/$ per injection × N, VIN/tailwind pointers, IN bytes vs OUT (pending).
-3. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain.
-4. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain.
-5. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
+2. **Any file / song / video:** reply to the attachment with `/vitafeed` (or
+   `/vitafeed file`). Bot downloads bytes → `§VITAFILE§` base64 UTF-8 → same
+   VIN spaced packets (720 B payload). Nothing held after seal.
+3. Bot replies with a **cost card** (before): chars / UTF-8 bytes / bits, max payload per chunk, injection count, ETH/$ per injection × N, VIN/tailwind pointers, IN bytes vs OUT (pending).
+4. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain.
+5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain.
+6. When every location seals → **PLAY PROOF**: Tailwind reader peaces spaced
+   locations together and plays the blob (`/vita/feed-player`).
+7. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
 
 `/vitafeed cancel` drops a staged payload. Confirm is always required so a 1000+ character paste cannot burn by accident. Use override only when you intentionally want to force through the underfunded REFUSE.
+
+## VITAFILE wire
+
+```
+§VITAFILE§v1|name=song.wav|mime=audio/wav|bytes=N|sha256=hex|enc=b64§
+<base64>
+```
+
+That entire body is split into:
+
+`[VITAFEED:<VIN-…>:<ii>/<nn>:prev=<8hex>:next=<ii|END>]<chunk>`
+
+Reader key: `VITAFEED.<VIN-…>`. Local demo (no chain): open `/vita/feed-player`,
+upload or load demo song → Packetize → Demo override → Play proof.
 
 ## Constants
 
@@ -25,7 +45,7 @@ Quotes are labeled **LIVE** (Base gas + ETH mark + optional `getL1Fee`) or **DEM
 
 ## Exact plain
 
-Whatever follows `/vitafeed` (or the reply body) is inscribed **verbatim**. No summarization. No `§SESS§` template unless the operator typed it. UTF-8 → hex calldata.
+Whatever follows `/vitafeed` (or the reply body) is inscribed **verbatim**. No summarization. No `§SESS§` template unless the operator typed it. UTF-8 → hex calldata. Files become exact base64 text first (still verbatim after encode).
 
 Each chunk header is VIN/tailwind continuity:
 
@@ -70,4 +90,4 @@ skipped; inscription still pays RISK after confirm (message-first).
 
 - Not `/vitasave` (5-chunk mother brain stays bank-by-default / operator-deliberate).
 - Does **not** set or re-enable `VITA_AUTO_INSCRIBE`.
-- Does not encode (later StorageToken products may). This test is **plain**.
+- Plain path does not AES-encode (VITAFILE is base64 for binary transport only).

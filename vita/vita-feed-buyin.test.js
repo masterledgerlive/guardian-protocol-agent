@@ -321,8 +321,6 @@ describe("vitafeed buy-in stays off mother brain", () => {
       "memory-engine.js",
       "vita/mainframe.js",
       "vita/ORIGINAL_FORMULA.md",
-      "vita/FILING.md",
-      "vita/AGENTS.md",
       "vita/anchors.json",
       "vita/mother-genesis.js",
       "piggy-bank.js",

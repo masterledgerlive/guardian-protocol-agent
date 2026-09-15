@@ -103,6 +103,7 @@ const ENGINE_HTML = join(ROOT, "public", "engine.html");
 const BOARD_HTML = join(ROOT, "public", "board.html");
 const V4_HTML = join(ROOT, "public", "v4.html");
 const VITA_HTML = join(ROOT, "public", "vita.html");
+const VITA_FEED_PLAYER_HTML = join(ROOT, "public", "vita-feed-player.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -333,6 +334,9 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita" || path === "/vita/") && req.method === "GET") {
       return servePublicHtml(res, VITA_HTML, "vita");
+    }
+    if ((path === "/vita/feed-player" || path === "/vita/feed-player/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_FEED_PLAYER_HTML, "vita feed player");
     }
     if (path === "/vita/client.js" && req.method === "GET") {
       return servePublicFile(res, VITA_CLIENT_JS, "text/javascript; charset=utf-8", "vita client");

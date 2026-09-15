@@ -13,6 +13,47 @@
 import { createHash, randomBytes } from "node:crypto";
 import { formatVitaFeedBuyInCard, planVitaFeedBuyIns } from "./vita-feed-buyin.js";
 
+const VITAFILE_MAGIC = "§VITAFILE§";
+
+/** Sync peek at §VITAFILE§ header for cost cards (no circular import). */
+function peekVitaFileMeta(body) {
+  const s = String(body ?? "");
+  if (!s.startsWith(VITAFILE_MAGIC)) return null;
+  const end = s.indexOf("§", VITAFILE_MAGIC.length);
+  if (end < 0) return { error: "missing VITAFILE header closer", isVitaFile: true };
+  const head = s.slice(VITAFILE_MAGIC.length, end);
+  const parts = head.split("|");
+  const meta = { version: parts[0] || "" };
+  for (let i = 1; i < parts.length; i++) {
+    const eq = parts[i].indexOf("=");
+    if (eq < 0) continue;
+    meta[parts[i].slice(0, eq)] = parts[i].slice(eq + 1);
+  }
+  return {
+    name: meta.name || "blob.bin",
+    mime: meta.mime || "application/octet-stream",
+    playKind: String(meta.mime || "").startsWith("audio/")
+      ? "audio"
+      : String(meta.mime || "").startsWith("video/")
+        ? "video"
+        : String(meta.mime || "").startsWith("image/")
+          ? "image"
+          : "file",
+    rawBytes: Number(meta.bytes) || 0,
+    sha256: meta.sha256 || null,
+  };
+}
+
+function summarizeFileLine(fileMeta) {
+  if (!fileMeta || fileMeta.error) return "";
+  return (
+    "VITAFILE · " + (fileMeta.name || "?") +
+    " · mime=" + (fileMeta.mime || "?") +
+    " · raw=" + (fileMeta.rawBytes ?? 0) + "B" +
+    " · play=" + (fileMeta.playKind || "file")
+  );
+}
+
 /** EIP-2028 nonzero calldata gas — same class as lose-zero-gate (do not import that module). */
 const CALLDATA_GAS_PER_NONZERO_BYTE = 16;
 /** Documented 0-ETH self-tx gas class (BTP_INSCRIBE_GAS_UNITS). */
@@ -270,9 +311,10 @@ export function prepareVitaFeed(body, opts = {}) {
     });
     prev = hash;
   }
+  let file = peekVitaFileMeta(String(body));
   return {
     ok: true,
-    mode: "plain",
+    mode: file && !file.error ? "vitafile" : "plain",
     vinId,
     nonce,
     contentCommit,
@@ -289,7 +331,10 @@ export function prepareVitaFeed(body, opts = {}) {
     totalChunks: planned.totalChunks,
     injections: planned.injections,
     lines,
-    note: "plain UTF-8 — VIN header + verbatim body; RISK pay after confirm",
+    file,
+    note: file && !file.error
+      ? "VITAFILE UTF-8 packets — VIN header + base64 body; RISK pay after confirm|override; reader plays when complete"
+      : "plain UTF-8 — VIN header + verbatim body; RISK pay after confirm",
   };
 }
 
@@ -372,7 +417,12 @@ export function formatVitaFeedCostCard(cost, prepared, { phase = "before" } = {}
   const q = cost.quotes || VITAFEED_DEMO_QUOTES;
   const lines = [];
   lines.push("VITAFEED COST CARD · " + q.label + " · " + phase.toUpperCase());
-  lines.push("plain UTF-8 (no encode, no §SESS§ unless you typed it)");
+  if (prepared?.file && !prepared.file.error) {
+    lines.push(summarizeFileLine(prepared.file));
+    lines.push("spaced UTF-8 packets (base64) — code-ready for Tailwind reader play");
+  } else {
+    lines.push("plain UTF-8 (no encode, no §SESS§ unless you typed it)");
+  }
   lines.push("IN  chars=" + cost.chars + "  bytes=" + cost.bytes + "  bits=" + cost.bits);
   lines.push(
     "max payload/chunk = " + cost.maxBytes + " bytes (" + cost.maxPayloadConstant + ")",
@@ -437,8 +487,13 @@ export function formatVitaFeedReceipt(result, cost) {
     });
   }
   if (s.readerKey) lines.push("reader key: " + s.readerKey);
+  if (s.file && !s.file.error) lines.push(summarizeFileLine(s.file));
   if (result?.banked) {
     lines.push("banked " + (result.sealedCount || 0) + "/" + result.needed + " — never invent hashes");
+  }
+  if (result?.playProof?.card) {
+    lines.push("");
+    lines.push(result.playProof.card);
   }
   return lines.join("\n");
 }
@@ -468,6 +523,17 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^cancel$/i.test(trimmed)) {
     return { ok: true, action: "cancel", body: "", source: "cancel" };
   }
+  // Reply-to-file / explicit file cue — Telegram handler encodes attachment.
+  if (/^file(?:\s|$)/i.test(trimmed) || /^upload(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:file|upload)\s*/i, "");
+    return {
+      ok: true,
+      action: "file",
+      body: rest,
+      source: "file",
+      wantsFile: true,
+    };
+  }
   return { ok: true, action: "preview", body, source: "args" };
 }
 
@@ -475,15 +541,19 @@ export function vitaFeedUsageText() {
   return [
     "usage: /vitafeed [exact plain text]",
     "or reply to a message with /vitafeed",
+    "or reply to a song/video/file with /vitafeed (or /vitafeed file)",
+    "  → bytes become §VITAFILE§ base64 text packets (spaced VIN chunks)",
     "Cost card first (chars/bytes/bits + injections + ETH/$).",
     "Buy-in: low ≤3% of wave + predicted up; stake from character cost;",
     "leave $0.10 AI + $0.10 human + 1.5% tax; sell same % up + cost overlay.",
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
     "/vitafeed override — same as confirm but bypasses the RISK balance REFUSE",
     "  (proceed despite underfunded inscription+buy-in+gas check).",
+    "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
     "/vitafeed cancel drops the staged payload.",
-    "Plain UTF-8 → hex calldata. VIN headers link chunks (prev/next).",
+    "Plain UTF-8 or VITAFILE → hex calldata. VIN headers link chunks (prev/next).",
     "Max payload/chunk = " + VITAFEED_MAX_CHUNK_BYTES + " bytes (VITAFEED_MAX_CHUNK_BYTES).",
+    "Player: /vita/feed-player — upload any data, demo seal, play from locations.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
   ].join("\n");
 }
@@ -562,7 +632,7 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
 
   const strand = {
     vinId: prepared.vinId,
-    mode: "plain",
+    mode: prepared.mode || "plain",
     contentCommit: prepared.contentCommit,
     readerKey: prepared.readerKey,
     payer: VITAFEED_PAYER,
@@ -572,6 +642,7 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
     totalBits: prepared.totalBits,
     totalChunks: prepared.totalChunks,
     inBytes: prepared.totalBytes,
+    file: prepared.file || null,
     chunks,
     locations: txHashes.slice(),
     at: new Date().toISOString(),
@@ -608,7 +679,8 @@ export async function handleVitaFeedAction({
   /** /vitafeed override — bypass RISK balance REFUSE and proceed anyway. */
   forceOverride = false,
 } = {}) {
-  if (action === "usage") {
+  if (action === "usage" || action === "file") {
+    // "file" without Telegram attachment bytes → usage (agent encodes attachment first).
     return { ok: true, phase: "usage", reply: vitaFeedUsageText() };
   }
   if (action === "cancel") {
@@ -710,9 +782,25 @@ export async function handleVitaFeedAction({
     }
     const result = await runVitaFeedInscribe(row.prepared, sendTx);
     takeVitaFeed(chatId);
+    // Lazy import — avoid ESM cycle (player → file → feed).
+    const { playProofFromInscribeResult } = await import("./vita-feed-player.js");
+    const playProof = playProofFromInscribeResult(result, {
+      body: row.body || null,
+      label: override ? "OVERRIDE" : "LIVE",
+    });
+    if (result && typeof result === "object") {
+      result.playProof = playProof;
+    }
     const card = formatVitaFeedCostCard(cost, row.prepared, { phase: "after" });
     const receipt = formatVitaFeedReceipt(result, cost);
     const buyCard = formatVitaFeedBuyInCard(buyIn);
+    const playExtra = playProof?.card
+      ? "\n\n" + playProof.card +
+        (playProof.complete && playProof.play
+          ? "\nOpen /vita/feed-player — locations peaced · ready to play " +
+            (playProof.play.name || playProof.play.kind || "blob")
+          : "")
+      : "";
     return {
       ok: result.ok !== false,
       phase: "after",
@@ -720,10 +808,11 @@ export async function handleVitaFeedAction({
       cost,
       buyIn,
       result,
+      playProof,
       forcedOverride: override,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
-        card + "\n\n" + buyCard + "\n\n" + receipt,
+        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

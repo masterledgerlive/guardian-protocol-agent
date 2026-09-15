@@ -11,7 +11,10 @@ we keep shipping on this avenue until merge.
 
 Start here: [`AGENTS.md`](./AGENTS.md) → [`ORIGINAL_FORMULA.md`](./ORIGINAL_FORMULA.md) → [`FILING.md`](./FILING.md).
 
-**Storage Token game:** Telegram `/vitafeed` — exact plain UTF-8 cost card, then `/vitafeed confirm` pays RISK per chunk. See [`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain.
+**Storage Token game:** Telegram `/vitafeed` — exact plain UTF-8 or any-file
+`§VITAFILE§` packets, cost card, then `/vitafeed confirm|override` pays RISK.
+Play proof: [`/vita/feed-player`](../public/vita-feed-player.html). See
+[`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain.
 
 ```js
 import {
