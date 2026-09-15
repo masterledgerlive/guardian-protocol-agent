@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added — `/vitafeed` buy-in: low-3% wave, $0.20 piggies, 1.5% tax (new math)
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` defaults
+untouched. This math is **`/vitafeed` only**.
+
+After the cost card, each injection may buy a seat that is in the **lowest 3%**
+of peak–trough **and** predicted up. Stake is sized from **character cost**.
+Leave **$0.10 AI + $0.10 human** (≥ $0.20) plus **1.5% of whole cost** (chars +
+piggies + gwei + other fees). Exit the same % up as the dip, plus that stack,
+as soon as the target prints. No seat → still inscribe (message-first).
+
+Thin helper: `vita/vita-feed-buyin.js`.
+
 ### Added — `/vitafeed` exact plain paid inject + cost math (mother brain untouched)
 
 HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /

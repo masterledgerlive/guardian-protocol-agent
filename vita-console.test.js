@@ -175,6 +175,7 @@ describe("vita HTML console", () => {
     assert.match(preview.text, /CONFIRM required/);
     assert.match(preview.text, /VITAFEED_MAX_CHUNK_BYTES/);
     assert.match(preview.text, /HTML preview only/);
+    assert.match(preview.text, /VITAFEED BUY-IN|BUY SKIP/);
     const confirm = await handleVitaConsole(state, "/vitafeed confirm");
     assert.match(confirm.text, /Telegram \/vitafeed confirm|Paid RISK path needs a sender/);
   });

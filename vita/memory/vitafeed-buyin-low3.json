@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-15T02:53:00.000Z",
+  "topic": "vitafeed-buyin-low3-piggies",
+  "text": "/vitafeed buy-in is NEW math this thread only: qualify low ≤3% of peak-trough + predicted up + negative vs peak. Per injection (character-sized stake): AI piggy $0.10 + human piggy $0.10 always left behind (≥$0.20) + 1.5% savings tax on whole cost (chars + piggies + gwei + other fees). Exit same % into the positive as the dip plus the cost overlay, as soon as target is made. Does not change live-trader piggy-bank.js or vitaSave mother brain. No qualifying seat → still inscribe (message-first).",
+  "commands": ["/vitafeed", "/vitafeed confirm"],
+  "hypothesis": {
+    "id": "vitafeed-character-sized-micro-exits",
+    "status": "operating",
+    "note": "More injections = more micro wins with baked leftover piggies+tax."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -11,6 +11,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { formatVitaFeedBuyInCard, planVitaFeedBuyIns } from "./vita-feed-buyin.js";
 
 /** EIP-2028 nonzero calldata gas — same class as lose-zero-gate (do not import that module). */
 const CALLDATA_GAS_PER_NONZERO_BYTE = 16;
@@ -470,6 +471,8 @@ export function vitaFeedUsageText() {
     "usage: /vitafeed [exact plain text]",
     "or reply to a message with /vitafeed",
     "Cost card first (chars/bytes/bits + injections + ETH/$).",
+    "Buy-in: low ≤3% of wave + predicted up; stake from character cost;",
+    "leave $0.10 AI + $0.10 human + 1.5% tax; sell same % up + cost overlay.",
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
     "/vitafeed cancel drops the staged payload.",
     "Plain UTF-8 → hex calldata. VIN headers link chunks (prev/next).",
@@ -592,6 +595,7 @@ export async function handleVitaFeedAction({
   sendTx = null,
   riskBalanceEth = null,
   gasReserveEth = 0.0005,
+  seats = [],
 } = {}) {
   if (action === "usage") {
     return { ok: true, phase: "usage", reply: vitaFeedUsageText() };
@@ -610,14 +614,18 @@ export async function handleVitaFeedAction({
       return { ok: false, phase: "preview", reply: vitaFeedUsageText() + "\n" + (prepared.reason || "") };
     }
     const cost = estimateVitaFeedCost(prepared, quotes);
-    stageVitaFeed(chatId, { prepared, cost, body, quotes });
+    const buyIn = planVitaFeedBuyIns({ prepared, cost, seats, quotes });
+    stageVitaFeed(chatId, { prepared, cost, body, quotes, buyIn, seats });
     return {
       ok: true,
       phase: "before",
       staged: true,
       prepared,
       cost,
-      reply: formatVitaFeedCostCard(cost, prepared, { phase: "before" }),
+      buyIn,
+      reply:
+        formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
+        "\n\n" + formatVitaFeedBuyInCard(buyIn),
     };
   }
   if (action === "confirm") {
@@ -630,12 +638,22 @@ export async function handleVitaFeedAction({
       };
     }
     const quotesNow = Object.keys(quotes || {}).length ? quotes : (row.quotes || {});
+    const seatsNow = (seats && seats.length) ? seats : (row.seats || []);
     const cost = estimateVitaFeedCost(row.prepared, quotesNow);
+    const buyIn = planVitaFeedBuyIns({
+      prepared: row.prepared,
+      cost,
+      seats: seatsNow,
+      quotes: quotesNow,
+    });
     const need = (cost.totalEth || 0) + Number(gasReserveEth || 0);
     if (riskBalanceEth != null && Number(riskBalanceEth) < need) {
       return {
         ok: false,
         phase: "confirm",
+        prepared: row.prepared,
+        cost,
+        buyIn,
         reply:
           "VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
           " < need " + need.toFixed(6) +
@@ -648,8 +666,10 @@ export async function handleVitaFeedAction({
         phase: "confirm",
         prepared: row.prepared,
         cost,
+        buyIn,
         reply:
           formatVitaFeedCostCard(cost, row.prepared, { phase: "after" }) +
+          "\n\n" + formatVitaFeedBuyInCard(buyIn) +
           "\nPaid RISK path needs a sender (Telegram /vitafeed confirm on the live bot).",
       };
     }
@@ -657,13 +677,15 @@ export async function handleVitaFeedAction({
     takeVitaFeed(chatId);
     const card = formatVitaFeedCostCard(cost, row.prepared, { phase: "after" });
     const receipt = formatVitaFeedReceipt(result, cost);
+    const buyCard = formatVitaFeedBuyInCard(buyIn);
     return {
       ok: result.ok !== false,
       phase: "after",
       prepared: row.prepared,
       cost,
+      buyIn,
       result,
-      reply: card + "\n\n" + receipt,
+      reply: card + "\n\n" + buyCard + "\n\n" + receipt,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };
