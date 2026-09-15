@@ -6,9 +6,12 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
 ## Flow
 
 1. `/vitafeed [exact plain text]` — or reply to a message with `/vitafeed`.
-2. **Any file / song / video:** reply to the attachment with `/vitafeed` (or
-   `/vitafeed file`). Bot downloads bytes → `§VITAFILE§` base64 UTF-8 → same
-   VIN spaced packets (720 B payload). Nothing held after seal.
+2. **Any file / song / video** (Telegram — either way):
+   - `/vitafeed file` → bot says **please insert the file now** → send the
+     song/video/doc (or reply to one). Bot waits for the next attachment.
+   - Or reply to an existing attachment with `/vitafeed` / `/vitafeed file`.
+   Bytes → `§VITAFILE§` base64 UTF-8 → same VIN spaced packets (720 B payload).
+   Nothing held after seal.
 3. Bot replies with a **cost card** (before): chars / UTF-8 bytes / bits, max payload per chunk, injection count, ETH/$ per injection × N, VIN/tailwind pointers, IN bytes vs OUT (pending).
 4. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain.
 5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain.
@@ -16,7 +19,9 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    locations together and plays the blob (`/vita/feed-player`).
 7. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
 
-`/vitafeed cancel` drops a staged payload. Confirm is always required so a 1000+ character paste cannot burn by accident. Use override only when you intentionally want to force through the underfunded REFUSE.
+`/vitafeed cancel` drops a staged payload **and** clears a pending file wait.
+Confirm is always required so a 1000+ character paste cannot burn by accident.
+Use override only when you intentionally want to force through the underfunded REFUSE.
 
 ## VITAFILE wire
 

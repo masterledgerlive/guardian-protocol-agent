@@ -247,6 +247,81 @@ export function reconstructVitaFileFromLines(lines) {
   return { ...parsed, body: rebuilt.body };
 }
 
+/** chatId → { chatId, at, prompt } — wait for next Telegram attachment after /vitafeed file */
+const fileAwaitByChat = new Map();
+
+export function beginVitaFeedFileAwait(chatId, meta = {}) {
+  const key = String(chatId || "default");
+  const row = {
+    chatId: key,
+    at: new Date().toISOString(),
+    prompt: "please_insert_file",
+    ...meta,
+  };
+  fileAwaitByChat.set(key, row);
+  return row;
+}
+
+export function peekVitaFeedFileAwait(chatId) {
+  return fileAwaitByChat.get(String(chatId || "default")) || null;
+}
+
+export function clearVitaFeedFileAwait(chatId) {
+  return fileAwaitByChat.delete(String(chatId || "default"));
+}
+
+export function takeVitaFeedFileAwait(chatId) {
+  const row = peekVitaFeedFileAwait(chatId);
+  if (row) clearVitaFeedFileAwait(chatId);
+  return row;
+}
+
+export function resetVitaFeedFileAwait() {
+  fileAwaitByChat.clear();
+  return fileAwaitByChat.size;
+}
+
+/** Telegram copy when /vitafeed file is waiting for the attachment. */
+export function vitaFeedPleaseInsertFileText() {
+  return [
+    "📡 VITAFEED FILE — please insert the file now",
+    "Send a song, video, photo, voice note, or document in this chat.",
+    "Or reply to an existing attachment with /vitafeed file",
+    "I convert it to spaced VIN packets (§VITAFILE§) for the Tailwind reader.",
+    "Then /vitafeed confirm  or  /vitafeed override  to seal on-chain.",
+    "/vitafeed cancel aborts the wait.",
+  ].join("\n");
+}
+
+/**
+ * Pick media on a Telegram message, download, encode → §VITAFILE§ body.
+ * Never invents bytes. Caller must pass a real message with an attachment.
+ */
+export async function packetizeTelegramMessageForVitaFeed(message, opts = {}) {
+  const media = pickTelegramMedia(message || {});
+  if (!media.ok) return { ok: false, reason: media.reason || "no attachment on message" };
+  const dl = await downloadTelegramFileBytes(media.fileId, opts);
+  if (!dl.ok) return { ok: false, reason: dl.reason || "download failed", media };
+  const enc = encodeVitaFile({
+    name: media.name,
+    mime: media.mime,
+    bytes: dl.bytes,
+  });
+  if (!enc.ok) return { ok: false, reason: enc.reason || "encode failed", media };
+  return {
+    ok: true,
+    media,
+    body: enc.body,
+    name: enc.name,
+    mime: enc.mime,
+    playKind: enc.playKind,
+    rawBytes: enc.rawBytes,
+    bodyBytes: enc.bodyBytes,
+    sha256: enc.sha256,
+    softWarn: enc.softWarn,
+  };
+}
+
 /**
  * Classify Telegram attachment for /vitafeed file path.
  */

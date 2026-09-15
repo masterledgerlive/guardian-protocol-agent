@@ -469,9 +469,15 @@ import {
   peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
+  beginVitaFeedFileAwait,
+  clearVitaFeedFileAwait,
   downloadTelegramFileBytes,
   encodeVitaFile,
+  packetizeTelegramMessageForVitaFeed,
+  peekVitaFeedFileAwait,
   pickTelegramMedia,
+  takeVitaFeedFileAwait,
+  vitaFeedPleaseInsertFileText,
 } from "./vita/vita-feed-file.js";
 import {
   closeVitaFeedTicket,
@@ -9430,16 +9436,81 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
     for (const upd of data.result) {
       lastUpdateId = upd.update_id;
-      const raw  = upd.message?.text?.trim() || "";
+      // Caption counts too — file uploads often put /vitafeed file in caption.
+      const raw = (upd.message?.text || upd.message?.caption || "").trim();
       const text = raw.toLowerCase();
-      // Compare chat IDs robustly — trim whitespace, handle numeric IDs
       const msgChatId = upd.message?.chat?.id?.toString().trim();
       const expectedChatId = cid.trim();
-      if (!raw || msgChatId !== expectedChatId) {
+      const mediaOnMessage = pickTelegramMedia(upd.message || {});
+      const awaitingVitaFile = msgChatId ? peekVitaFeedFileAwait(msgChatId) : null;
+
+      if (msgChatId !== expectedChatId) {
         if (raw) console.log(`📱 Ignoring msg from chat ${msgChatId} (expected ${expectedChatId})`);
         continue;
       }
-      console.log(`📱 Telegram: ${raw}`);
+      // Allow attachment-only messages when /vitafeed file asked us to wait.
+      if (!raw && !(awaitingVitaFile && mediaOnMessage.ok)) {
+        continue;
+      }
+      console.log(`📱 Telegram: ${raw || "(attachment)"}`);
+
+      // ── VITAFEED FILE await — next song/video/doc after "/vitafeed file"
+      if (awaitingVitaFile && mediaOnMessage.ok && !text.startsWith("/vitafeed")) {
+        takeVitaFeedFileAwait(msgChatId);
+        await tg(
+          "📡 <b>VITAFEED FILE</b> — got <code>" + mediaOnMessage.name + "</code> (" +
+          mediaOnMessage.kind + "). Packetizing to spaced VIN format…",
+        );
+        try {
+          const packed = await packetizeTelegramMessageForVitaFeed(upd.message);
+          if (!packed.ok) {
+            await tg("❌ VITAFILE packetize failed: " + packed.reason);
+            continue;
+          }
+          await tg(
+            "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
+            " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets\n" +
+            "Building cost card…",
+          );
+          let quotes = {};
+          try {
+            const gwei = await getCurrentGasGwei();
+            const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: 256, btpInscribe: true });
+            quotes = {
+              live: true,
+              gwei,
+              ethUsd,
+              l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              gasCostEth: await estimateGasCostEth().catch(() => 0),
+              source: hitchL1.ok
+                ? "live Base GasPriceOracle + ETH mark"
+                : "live gwei/ETH mark, L1 fallback 0",
+            };
+          } catch { /* DEMO quotes inside helper */ }
+          const out = await handleVitaFeedAction({
+            action: "preview",
+            body: packed.body,
+            chatId: msgChatId,
+            quotes,
+            seats: collectVitaFeedSeats(ethUsd),
+          });
+          let msg = "📡 <b>VITAFEED FILE READY</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+          msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+          msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override</code>\n";
+          msg += "Player: <code>/vita/feed-player</code> after seal (PLAY PROOF peaces locations).";
+          await tg(msg);
+        } catch (e) {
+          await tg("❌ vitafeed file await failed: " + (e.message || e));
+        }
+        continue;
+      }
+      if (awaitingVitaFile && raw && !text.startsWith("/vitafeed") && !mediaOnMessage.ok) {
+        await tg(
+          "📡 Still waiting for a file.\n" +
+          vitaFeedPleaseInsertFileText().replace(/^📡 VITAFEED FILE — /, ""),
+        );
+        continue;
+      }
 
       // ── 🔐 VAULT + KEYSTORE SESSION — Step 2: catch value reply ────────────
       const vaultSession = getVaultSession(msgChatId);
@@ -11933,22 +12004,44 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         const replyMsg = upd.message?.reply_to_message || null;
         const replyBody = replyMsg?.text || replyMsg?.caption || "";
         const parsed = parseVitaFeedCommand(raw, { replyBody });
-        const mediaHint = pickTelegramMedia(replyMsg || {});
+        // Prefer reply attachment; else media on this message (caption /vitafeed file).
+        const mediaFromReply = pickTelegramMedia(replyMsg || {});
+        const mediaOnThis = pickTelegramMedia(upd.message || {});
+        const mediaHint = mediaFromReply.ok ? mediaFromReply : mediaOnThis;
+        const mediaSourceMsg = mediaFromReply.ok ? replyMsg : (mediaOnThis.ok ? upd.message : null);
+
+        // /vitafeed cancel also clears a pending "please insert file" wait.
+        if (parsed.action === "cancel") {
+          clearVitaFeedFileAwait(msgChatId);
+        }
+
+        // /vitafeed file with no attachment yet → ask to insert file, wait for next media.
+        if (parsed.ok && parsed.action === "file" && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command" });
+          await tg(
+            "📡 <b>VITAFEED FILE</b>\n" +
+            vitaFeedPleaseInsertFileText().replace(/^📡 VITAFEED FILE — /, "") +
+            "\n\n<i>Spaced VIN packets · Tailwind reader peaces locations after seal.</i>",
+          );
+          continue;
+        }
+
         const wantsMediaPreview =
           parsed.action === "preview" ||
           parsed.action === "file" ||
           (parsed.action === "usage" && mediaHint.ok);
 
-        if (!parsed.ok || (parsed.action === "usage" && !mediaHint.ok) ||
-            (parsed.action === "file" && !mediaHint.ok && !parsed.body)) {
+        if (!parsed.ok || (parsed.action === "usage" && !mediaHint.ok)) {
           await tg(
             "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8 / VITAFILE)\n" +
             "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
-            "Song/video/file: reply to the attachment with <code>/vitafeed</code> or <code>/vitafeed file</code>\n" +
+            "<b>File (either way):</b>\n" +
+            "1. <code>/vitafeed file</code> → bot says <i>please insert file</i> → send song/video/doc\n" +
+            "2. Reply to an attachment with <code>/vitafeed file</code> (or <code>/vitafeed</code>)\n" +
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
             "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE; " +
             "when complete → PLAY PROOF (Tailwind reader peaces locations + plays).\n" +
-            "<code>/vitafeed cancel</code> drops the staged payload.\n" +
+            "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
             "Player: <code>/vita/feed-player</code>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
@@ -11956,6 +12049,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
           );
         } else {
+          clearVitaFeedFileAwait(msgChatId);
           if (wantsMediaPreview && (parsed.action === "file" || parsed.action === "usage")) {
             parsed.action = "preview";
           }
@@ -11977,26 +12071,20 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
           // Encode Telegram attachment → §VITAFILE§ body before cost card.
           let feedBody = parsed.body;
-          if (parsed.action === "preview" && mediaHint.ok) {
-            await tg("📡 <b>VITAFEED FILE</b> — downloading " + mediaHint.name + " (" + mediaHint.kind + ")…");
-            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
-            if (!dl.ok) {
-              await tg("❌ file download failed: " + dl.reason);
-              continue;
-            }
-            const enc = encodeVitaFile({
-              name: mediaHint.name,
-              mime: mediaHint.mime,
-              bytes: dl.bytes,
-            });
-            if (!enc.ok) {
-              await tg("❌ VITAFILE encode failed: " + enc.reason);
-              continue;
-            }
-            feedBody = enc.body;
+          if (parsed.action === "preview" && mediaHint.ok && mediaSourceMsg) {
             await tg(
-              "📡 VITAFILE packed · " + enc.name + " · " + enc.mime +
-              " · raw " + enc.rawBytes + "B → " + enc.bodyBytes + "B UTF-8 packets",
+              "📡 <b>VITAFEED FILE</b> — reading <code>" + mediaHint.name + "</code> (" +
+              mediaHint.kind + ") → spaced VIN packets…",
+            );
+            const packed = await packetizeTelegramMessageForVitaFeed(mediaSourceMsg);
+            if (!packed.ok) {
+              await tg("❌ VITAFILE packetize failed: " + packed.reason);
+              continue;
+            }
+            feedBody = packed.body;
+            await tg(
+              "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
+              " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets",
             );
           }
 
@@ -12780,7 +12868,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitafeed [text|file] — exact UTF-8 / VITAFILE packets + buy-in; /vitafeed confirm|override; play proof on /vita/feed-player\n` +
+          `/vitafeed [text|file] — exact UTF-8 / VITAFILE packets; /vitafeed file asks please insert file; confirm|override; play proof on /vita/feed-player\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
