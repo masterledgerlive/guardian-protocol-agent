@@ -481,6 +481,9 @@ import {
   vitaFeedPleaseInsertFileText,
 } from "./vita/vita-feed-file.js";
 import {
+  playFromLibrary,
+} from "./vita/vita-feed-library.js";
+import {
   closeVitaFeedTicket,
   dueVitaFeedExit,
   hasOpenVitaFeedTicket,
@@ -12044,13 +12047,54 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
             "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE; " +
             "cannot bypass VITAFEED_PAID=no, $5 liquid floor, or rate limit.\n" +
+            "<b>Library (quick pull):</b>\n" +
+            "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
+            "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
+            "<code>/vitafeed keys</code> — stage §VITALIB§ keys catalog (name→key→locs)\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
-            "Player: <code>/vita/feed-player</code>\n" +
+            "Player: <code>/vita/feed-player</code> or <code>/vita/feed-player?lib=N</code>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
             "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
             "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
           );
+        } else if (parsed.action === "files" || parsed.action === "play" || parsed.action === "keys") {
+          try {
+            if (parsed.action === "play") {
+              const opened = await playFromLibrary(parsed.selector || parsed.body, {
+                fetchUtf8: async (txHash) => {
+                  try {
+                    const pulled = await pullLocationFromChain(txHash);
+                    return pulled?.utf8 || pulled?.text || null;
+                  } catch {
+                    return null;
+                  }
+                },
+                label: "LIBRARY",
+              });
+              let msg = "📡 <b>VITAFEED OPEN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+              msg += "<pre>" + String(opened.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+              if (opened.playerPath) {
+                msg += "\n▶️ <code>" + opened.playerPath + "</code>";
+              }
+              if (opened.playProof?.complete && opened.playProof?.play?.name) {
+                msg += "\nReady: <b>" + String(opened.playProof.play.name).replace(/</g, "") + "</b>";
+              }
+              await tg(msg);
+            } else {
+              const out = await handleVitaFeedAction({
+                action: parsed.action,
+                body: parsed.body,
+                chatId: msgChatId,
+                quotes: {},
+              });
+              let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+              msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+              await tg(msg);
+            }
+          } catch (e) {
+            await tg("❌ vitafeed library failed: " + (e.message || e));
+          }
         } else {
           clearVitaFeedFileAwait(msgChatId);
           if (wantsMediaPreview && (parsed.action === "file" || parsed.action === "usage")) {
@@ -12299,6 +12343,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 " spaced locations peaced together\n" +
                 "Open <code>/vita/feed-player</code> to play " +
                 (out.playProof.play?.name || out.playProof.file?.name || "blob");
+            }
+            if (out.library?.ok) {
+              msg +=
+                "\n📚 Saved <b>#" + out.library.n + "</b> <code>" +
+                String(out.library.entry?.name || "").replace(/</g, "") +
+                "</code> — <code>/vitafeed files</code> · <code>/vitafeed play " +
+                out.library.n + "</code>";
             }
             await tg(msg);
           } catch (e) {
@@ -12908,7 +12959,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitafeed [text|file] — exact UTF-8 / VITAFILE packets; /vitafeed file asks please insert file; confirm|override; play proof on /vita/feed-player\n` +
+          `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +

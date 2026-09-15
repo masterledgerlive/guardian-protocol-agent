@@ -28,6 +28,8 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 `/vitanote` `/vitasave` `/inject` `/vitapull` `/vitascan` `/reader` `/prove`
 `/xmem` `/vitafeed` — HTML console mirrors Telegram. File/song/video: reply with
 `/vitafeed` then `/vitafeed override` → PLAY PROOF on `/vita/feed-player`.
+Library: `/vitafeed files` · `/vitafeed play <n|name>` · `/vitafeed keys`
+(§VITALIB§ name→key→locs keys chain).
 
 **Large dumps (mother brain untouched):** `/vitamothergenesis` (plain N batches +
 reader key), `/vitamotherGenesisencoded` (AES + loc commitment + two-part key),

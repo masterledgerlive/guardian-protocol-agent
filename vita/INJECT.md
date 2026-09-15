@@ -18,6 +18,14 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
 6. When every location seals → **PLAY PROOF**: Tailwind reader peaces spaced
    locations together and plays the blob (`/vita/feed-player`).
 7. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
+8. **LIBRARY (quick pull from Telegram):** each sealed file auto-saves its
+   **name + reader key + locations** into the keys library. Then:
+   - `/vitafeed files` — numbered list of what you saved
+   - `/vitafeed play <n|name>` (also `open` / `pull`) — rebuild + open player
+   - `/vitafeed keys` — stage a `§VITALIB§` catalog (name→key→locs) as the
+     **keys chain** for reader quick access; confirm|override seals it like
+     any other feed body
+   Player deep-link: `/vita/feed-player?lib=N` · API: `GET /vita/feed-library`
 
 `/vitafeed cancel` drops a staged payload **and** clears a pending file wait.
 Confirm is always required so a 1000+ character paste cannot burn by accident.

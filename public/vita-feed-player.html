@@ -550,6 +550,46 @@
     el("btnPlay").addEventListener("click", () => {
       if (proof) showPlay(proof);
     });
+
+    // Telegram library deep-link: /vita/feed-player?lib=N
+    (async function loadLibraryFromQuery() {
+      const q = new URLSearchParams(location.search);
+      const sel = q.get("lib") || q.get("n") || q.get("name") || q.get("key");
+      if (!sel) return;
+      el("costCard").textContent = "Loading library #" + sel + " from keys chain…";
+      try {
+        const res = await fetch("/vita/feed-library/play?lib=" + encodeURIComponent(sel));
+        const data = await res.json();
+        if (!data?.ok || !data.play) {
+          el("costCard").textContent = "Library open failed: " + (data?.error || res.status);
+          return;
+        }
+        proof = {
+          complete: data.complete === true,
+          play: data.play,
+          card: data.card || ("LIBRARY #" + data.n + " · " + (data.entry?.name || "")),
+          chunks: (data.locations || []).map((l, i) => ({
+            location: l.location || l,
+            blockNumber: l.blockNumber ?? null,
+            demo: false,
+          })),
+        };
+        el("playCard").textContent = proof.card;
+        el("costCard").textContent =
+          "LIBRARY #" + data.n + " · " + (data.entry?.name || "?") +
+          "\nreader " + (data.entry?.readerKey || "—") +
+          "\nOpen from Telegram /vitafeed play " + data.n;
+        renderPieces(proof.chunks.length || data.entry?.totalChunks || 1, proof.chunks.length || 0);
+        renderLocs(proof.chunks);
+        if (data.complete) {
+          el("okPill").classList.add("show");
+          el("btnPlay").disabled = false;
+          showPlay(proof);
+        }
+      } catch (e) {
+        el("costCard").textContent = "Library fetch error: " + (e.message || e);
+      }
+    })();
   </script>
 </body>
 </html>
