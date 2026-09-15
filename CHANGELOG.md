@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Changed — `/vitafeed` buy-in: lottery piggy + full-stack tax + red rotation
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+
+Per `/vitafeed` injection leave-behind is now **AI $0.10 + human $0.10 + lottery
+$0.05** (≥ **$0.25**) plus **1.5% of the whole inject-time stack**
+(transmission/chars + piggies + gwei + other + hidden). Seats stay **red**
+(low ≤3% + predicted up); each injection prefers a **different** deepest-red /
+fewest-trades token. Exit ASAP when green / revenue prints — piggies+tax stay
+parked. No seat → still inscribe (message-first).
+
+Thin helper: `vita/vita-feed-buyin.js` (`vita-feed-buyin-v2`).
+
+
 ### Added — `/vitafeed` buy-in: low-3% wave, $0.20 piggies, 1.5% tax (new math)
 
 HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` defaults

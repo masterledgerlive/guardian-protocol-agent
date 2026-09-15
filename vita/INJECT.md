@@ -35,20 +35,26 @@ Reader key: `VITAFEED.<VIN-…>`. Location of the pointer is in the header and o
 ## Buy-in (new math — `/vitafeed` only)
 
 This is **not** the live trader’s 5% / $0.15 piggy. Each confirmed injection can
-also buy a qualifying seat, sized from **that chunk’s character cost**.
+also buy a qualifying **red** seat, sized from **that chunk’s character /
+transmission cost**.
 
-1. **Qualify:** price in the lowest **3%** of the confirmed peak–trough range
-   **and** wave math predicted **coming up** from the low. Entry must still be
-   **negative vs peak**.
-2. **Two piggies always left behind:** AI **$0.10** + human **$0.10** (≥ **$0.20**).
-3. **1.5% savings tax** on the **whole cost** (characters + piggies + gwei +
-   other known fees). That tax is the last leftover (interest charge).
-4. **Stake** = whole cost / dip%. Bounce of the same % covers the stack.
-5. **Exit ASAP** at same % up **plus** the cost overlay. Sell leaves
-   $0.20 + tax in tokens.
+1. **Qualify (always red):** price in the lowest **3%** of the confirmed
+   peak–trough range **and** wave math predicted **coming up** from the low.
+   Entry must still be **negative vs peak**.
+2. **Three piggies always left behind (pre-injected):** AI **$0.10** + human
+   **$0.10** + lottery **$0.05** (≥ **$0.25**).
+3. **1.5% savings tax** on the **whole cost at inject time** (transmission /
+   chars + piggies + gwei + other known fees + hidden-cost buffer). Tax is
+   left behind with the piggies.
+4. **Seat pick:** deepest red first, then **fewest prior trades**; each
+   injection prefers a **different** token so revenue waits on several bottoms.
+5. **Stake** = whole cost / dip%. Bounce of the same % covers the stack.
+6. **Exit ASAP** when green / revenue prints — same % up **plus** the cost
+   overlay. Sell leaves **$0.25 + tax** parked for the next earn.
 
 If no seat qualifies, inscription still pays RISK after confirm (message-first);
 the buy is skipped with the reason on the card.
+
 
 ## What this is not
 
