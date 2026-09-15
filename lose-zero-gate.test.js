@@ -641,6 +641,8 @@ describe("manual /buy parse", () => {
     assert.equal(manualBuyReason(3), "MANUAL BUY (operator) $3");
     assert.equal(isManualOperatorBuy("MANUAL BUY"), false);
     assert.equal(isManualOperatorBuy("🎯 MIN TROUGH [PRIORITY]"), false);
+    assert.equal(isManualOperatorBuy("VITAFEED BUYIN $0.80"), false, "vitafeed must not weaken leftover/edge");
+    assert.equal(isManualOperatorBuy("VITAFEED EXIT"), false);
   });
 });
 

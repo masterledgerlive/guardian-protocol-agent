@@ -465,6 +465,13 @@ import {
   handleVitaFeedAction,
   parseVitaFeedCommand,
 } from "./vita/vita-feed.js";
+import {
+  closeVitaFeedTicket,
+  dueVitaFeedExit,
+  hasOpenVitaFeedTicket,
+  openVitaFeedTicket,
+  vitaFeedExitSellPct,
+} from "./vita/vita-feed-buyin.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -7735,7 +7742,7 @@ async function processToken(cdp, token, bal) {
     // Only skip if we have NO open position (never block an exit).
     // OPERATOR_BUY / Telegram /buy must still fire — do not eat the queue here.
     const pendingManual = manualCommands.some(c => c.symbol === token.symbol);
-    if (!token.entryPrice && isDeadWaveSkipped(token.symbol) && !pendingManual) {
+    if (!token.entryPrice && isDeadWaveSkipped(token.symbol) && !pendingManual && !hasOpenVitaFeedTicket(token.symbol)) {
       return; // silent skip — already logged when streak was hit
     }
     const heldPosition = !!(token.entryPrice) || hasSellableUsd(getCachedBalance(token.symbol) || 0, history[token.symbol]?.lastPrice || 0, BAG_DUST_USD) || (getCachedBalance(token.symbol) || 0) > 0.001;
@@ -7759,6 +7766,22 @@ async function processToken(cdp, token, bal) {
 
     recordPrice(token.symbol, price);
     updateWaves(token.symbol, price);
+
+    const vfDue = dueVitaFeedExit({ symbol: token.symbol, price });
+    if (vfDue) {
+      const units = getCachedBalance(token.symbol) || 0;
+      const pct = vitaFeedExitSellPct({
+        balance: units,
+        price,
+        leaveBehindUsd: vfDue.leaveBehindUsd,
+        stakeUsd: vfDue.stakeUsd,
+        entryPrice: vfDue.entryPrice,
+      });
+      if (pct > 0) {
+        const sold = await executeSell(cdp, token, pct, "VITAFEED EXIT", price);
+        if (sold) closeVitaFeedTicket(vfDue.id);
+      }
+    }
 
     const ethUsd   = await getLiveEthPrice();
     // Use cached balance (refreshed once per loop in refreshTokenBalances) — avoids per-token RPC call
@@ -9356,6 +9379,28 @@ async function sendFullReport(bal, ethUsd, title) {
       `\n🔗 <a href="https://basescan.org/address/${WALLET_ADDRESS}">Basescan</a>`
     );
   } catch (e) { console.log(`Report error: ${e.message}`); }
+}
+
+function collectVitaFeedSeats(ethUsd) {
+  const usd = Number(ethUsd) || 0;
+  return (tokens || [])
+    .filter((t) => t && t.symbol && !t.disabled)
+    .map((t) => {
+      const price = history[t.symbol]?.lastPrice || 0;
+      let pred = null;
+      try {
+        pred = computeWavePrediction(t.symbol, price, usd) || wavePredictions[t.symbol] || null;
+      } catch { pred = wavePredictions[t.symbol] || null; }
+      return {
+        symbol: t.symbol,
+        price,
+        minTrough: getMinTrough(t.symbol),
+        maxPeak: getMaxPeak(t.symbol),
+        predictedUp: pred ? pred.goingDown === false : false,
+        frozen: !!t.frozen,
+        disabled: !!t.disabled,
+      };
+    });
 }
 
 // ── TELEGRAM COMMAND HANDLER ──────────────────────────────────────────────────
@@ -11883,6 +11928,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed cancel</code> drops the staged payload.\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
+            "Buy-in: low ≤3% of wave + predicted up; $0.10 AI + $0.10 human + 1.5% tax left behind.\n" +
             "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
           );
         } else {
@@ -11895,6 +11941,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               gwei,
               ethUsd,
               l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              gasCostEth: await estimateGasCostEth().catch(() => 0),
               source: hitchL1.ok
                 ? "live Base GasPriceOracle + ETH mark"
                 : "live gwei/ETH mark, L1 fallback 0",
@@ -11942,6 +11989,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               sendTx,
               riskBalanceEth,
               gasReserveEth: GAS_RESERVE,
+              seats: collectVitaFeedSeats(ethUsd),
             });
             let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
@@ -11956,6 +12004,59 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>";
             }
             await tg(msg);
+            if (
+              parsed.action === "confirm" &&
+              out.result?.ok !== false &&
+              out.buyIn?.ok &&
+              Array.isArray(out.buyIn.injections)
+            ) {
+              const client = cdp || cdpClient;
+              for (const inj of out.buyIn.injections) {
+                const tok = tokens.find((t) => t.symbol === inj.symbol);
+                if (!tok || !client) {
+                  await tg("📡 VITAFEED BUY-IN skip " + (inj.symbol || "?") + " — no seat/wallet");
+                  continue;
+                }
+                const px = history[tok.symbol]?.lastPrice || inj.entryPrice;
+                try {
+                  const spent = await executeBuy(
+                    client,
+                    tok,
+                    bal,
+                    "VITAFEED BUYIN $" + Number(inj.stakeUsd).toFixed(2),
+                    px,
+                    inj.stakeEth,
+                  );
+                  if (spent) {
+                    openVitaFeedTicket({
+                      symbol: inj.symbol,
+                      vinId: inj.vinId,
+                      index: inj.index,
+                      entryPrice: inj.entryPrice,
+                      targetPrice: inj.targetPrice,
+                      leaveBehindUsd: inj.leaveBehindUsd,
+                      stakeUsd: inj.stakeUsd,
+                      dipPct: inj.dipPct,
+                      targetPct: inj.targetPct,
+                    });
+                    await tg(
+                      "📡 <b>VITAFEED BUY-IN</b> " + inj.symbol +
+                      " $" + Number(inj.stakeUsd).toFixed(2) +
+                      "\nexit ASAP @ $" + Number(inj.targetPrice).toFixed(8) +
+                      " · leave $" + Number(inj.leaveBehindUsd).toFixed(3) +
+                      " (AI $0.10 + human $0.10 + 1.5% tax)",
+                    );
+                  } else {
+                    await tg(
+                      "📡 VITAFEED BUY-IN skipped " + inj.symbol +
+                      " (gate/ETH). Injection still on-chain — message-first.",
+                    );
+                  }
+                } catch (be) {
+                  await tg("📡 VITAFEED BUY-IN failed " + inj.symbol + ": " + (be.message || be));
+                }
+              }
+            }
           } catch (e) {
             await tg("❌ vitafeed failed: " + (e.message || e) + "\nNothing invented. RISK unspent if no hashes.");
           }
@@ -12563,7 +12664,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitafeed [text] — Storage Token game: exact plain UTF-8 cost card, then /vitafeed confirm (RISK only)\n` +
+          `/vitafeed [text] — exact plain UTF-8 cost card + buy-in (low 3% wave); /vitafeed confirm pays RISK\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +

@@ -32,6 +32,24 @@ Each chunk header is VIN/tailwind continuity:
 
 Reader key: `VITAFEED.<VIN-…>`. Location of the pointer is in the header and on the receipt (`prev=` / `next=`).
 
+## Buy-in (new math — `/vitafeed` only)
+
+This is **not** the live trader’s 5% / $0.15 piggy. Each confirmed injection can
+also buy a qualifying seat, sized from **that chunk’s character cost**.
+
+1. **Qualify:** price in the lowest **3%** of the confirmed peak–trough range
+   **and** wave math predicted **coming up** from the low. Entry must still be
+   **negative vs peak**.
+2. **Two piggies always left behind:** AI **$0.10** + human **$0.10** (≥ **$0.20**).
+3. **1.5% savings tax** on the **whole cost** (characters + piggies + gwei +
+   other known fees). That tax is the last leftover (interest charge).
+4. **Stake** = whole cost / dip%. Bounce of the same % covers the stack.
+5. **Exit ASAP** at same % up **plus** the cost overlay. Sell leaves
+   $0.20 + tax in tokens.
+
+If no seat qualifies, inscription still pays RISK after confirm (message-first);
+the buy is skipped with the reason on the card.
+
 ## What this is not
 
 - Not `/vitasave` (5-chunk mother brain stays bank-by-default / operator-deliberate).
