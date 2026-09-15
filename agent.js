@@ -12015,6 +12015,14 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             ) {
               const client = cdp || cdpClient;
               for (const inj of out.buyIn.injections) {
+                if (!inj.ok || inj.skipBuy || !inj.symbol) {
+                  await tg(
+                    "📡 VITAFEED BUY-IN skip msg " +
+                      (inj.msgIndex || inj.index || "?") +
+                      " — " + (inj.reason || "no unique red seat for this message"),
+                  );
+                  continue;
+                }
                 const tok = tokens.find((t) => t.symbol === inj.symbol);
                 if (!tok || !client) {
                   await tg("📡 VITAFEED BUY-IN skip " + (inj.symbol || "?") + " — no seat/wallet");
