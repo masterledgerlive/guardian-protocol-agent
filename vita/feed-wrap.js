@@ -6,18 +6,20 @@
  * Operators who need the root inscription path still call /vitasave
  * (and /prove) directly.
  *
- * Live bug after #101/#102: remaining AUTO callers were wrapped, but RISK
- * still paid gas-only self-calls n5551–5556 — MGPLAIN + VITA-KNOW 01/05–05/05
- * “this is a test”, hitch 0/6, 0 Uniswap fills. That was /vitamothergenesis
- * (#103) solo-sending 0-ETH batches.
+ * Live bug after #102/#105 Online: RISK still paid +10 VITA self-calls
+ * n5557–5566 (sel `0x5b564954`), 0 Uniswap fills. STORE on
+ * `0x640ed7b8fd1a9447…` (n5561) and `0xfee4d5022bddcaa3…` (n5566).
+ * Calldata was mother-brain `[VITA:1:…]` / `[VITA:2:…]` (vitaSeq 1 then 2)
+ * + sessionCtx from Telegram `/vitasave` — not VITA-KNOW / MGPLAIN.
  *
  * This adapter only answers: hitch (covered leftover / paired data tx)
  * or bank hex (wait for a free ride). It never broadcasts.
  *
  * Env kill-switch: VITA_AUTO_INSCRIBE (alias VITA_AUTO_QUEUE_LEARN)
- * defaults OFF → auto queue/learn/trade-loop/integrity callers bank.
+ * defaults OFF → auto queue/learn/trade-loop/integrity/`/vitasave` callers bank.
  * Sibling: VITA_MOTHER_GENESIS_AUTO defaults OFF → MGPLAIN/MGENC bank.
- * Intentional paid genesis also needs operator CONFIRM. /vitasave is not gated.
+ * Intentional paid genesis also needs operator CONFIRM.
+ * `/vitasave` command stays; paid vitaSave only when VITA_AUTO_INSCRIBE=yes.
  */
 
 export const VITA_SELF_CALL_SELECTOR = "0x5b564954";
@@ -44,9 +46,9 @@ function envFlagOff(raw) {
 }
 
 /**
- * AUTO queue / learn / trade-loop / integrity paid-inscribe kill-switch.
- * Default OFF (unset / no / false) → bank hex, never solo-send.
- * Operators still call /vitasave (mother brain) regardless of this flag.
+ * AUTO queue / learn / trade-loop / integrity / /vitasave paid-inscribe
+ * kill-switch. Default OFF (unset / no / false) → bank hex, never solo-send.
+ * `/vitasave` still exists; set VITA_AUTO_INSCRIBE=yes to restore vitaSave.
  */
 export function autoPaidInscribeEnabled(env = process.env) {
   const raw = String(
@@ -193,11 +195,19 @@ export function wrapQueueSelfCall(input = {}) {
 
 /**
  * Same wrap as the queue, for remaining AUTO callers (learn / vitadata /
- * savesession / btpInscribe). Never broadcasts. Hitch hex only when leftover
- * covers KEY+LOC on a paired sell; otherwise bank.
+ * savesession / btpInscribe / /vitasave). Never broadcasts. Hitch hex only
+ * when leftover covers KEY+LOC on a paired sell; otherwise bank.
  */
 export function wrapAutoSelfCall(input = {}) {
   return wrapQueueSelfCall({ ...input, topic: input.topic || "auto" });
+}
+
+/**
+ * Same hitch/bank adapter for Telegram `/vitasave` + POST /vita/save.
+ * Never broadcasts. Never invents tx hashes. Mother brain vitaSave stays.
+ */
+export function wrapVitaSaveSelfCall(input = {}) {
+  return wrapAutoSelfCall({ ...input, topic: input.topic || "vitasave" });
 }
 
 /**

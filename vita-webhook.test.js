@@ -87,6 +87,20 @@ describe("control board HTTP", () => {
     assert.equal(json.service, "guardian-control-board");
   });
 
+  it("POST /vita/save is auth-gated and never sendTransaction", async () => {
+    const res = await fetch(base + "/vita/save", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "SESSION:2026-09-14 WALLET:0x50e1" }),
+    });
+    const json = await res.json();
+    assert.equal(res.status, 401);
+    assert.match(json.error || "", /unauthorized/i);
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
+    assert.ok(src.includes("wrapVitaSaveSelfCall"));
+    assert.ok(!src.includes("sendTransaction"), "webhook must not broadcast vitasave");
+  });
+
   it("GET /board/api/params is public read-only", async () => {
     const { res, json } = await get("/board/api/params");
     assert.equal(res.status, 200);

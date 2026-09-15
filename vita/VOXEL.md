@@ -9,7 +9,8 @@ Not code. Does not replace VITA mother brain (`vitaSave` / `inscribeChunk`).
 - **Prediction:** weight of force is how agents rank which view to read
   next — not a physics engine, not a second inscription path.
 
-Operators who need the root inscription still call `/vitasave` (and `/prove`)
-directly. The feed-wrap stops AUTO queue / learn / vitadata / savesession /
-btpInscribe / `/vitamothergenesis` MGPLAIN from paying unpaired gas.
-`VITA_AUTO_INSCRIBE` and `VITA_MOTHER_GENESIS_AUTO` default OFF (bank).
+`/vitasave` stays as the operator command; default is bank via feed-wrap
+(`VITA_AUTO_INSCRIBE` off). Set `yes` to restore mother-brain `vitaSave`.
+`/prove` stays the dedicated Eureka letter. The wrap also covers AUTO queue /
+learn / vitadata / savesession / btpInscribe / `/vitamothergenesis` MGPLAIN
+and POST `/vita/save`. `VITA_MOTHER_GENESIS_AUTO` defaults OFF (bank).

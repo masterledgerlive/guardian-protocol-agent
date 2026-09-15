@@ -459,6 +459,7 @@ import {
   wrapAutoSelfCall,
   wrapMotherGenesisSelfCall,
   wrapQueueSelfCall,
+  wrapVitaSaveSelfCall,
 } from "./vita/feed-wrap.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
@@ -11190,6 +11191,31 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             // Clear the note queue after saving
             global._vitaNotes = [];
 
+            // n5557–5566: two `/vitasave` → vitaSave 5-chunk [VITA:1:]/[VITA:2:]
+            // batches, STORE on n5561 + n5566, 0 Uniswap fills. Bank unless env on.
+            // Mother brain vitaSave stays; wrap is this caller only.
+            const autoSaveOn = autoPaidInscribeEnabled();
+            if (!autoSaveOn) {
+              wrapVitaSaveSelfCall({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                text: sessionCtx,
+                pairedUniswapSell: false,
+                topic: "vitasave",
+              });
+              absorbVitaStrandPacket({ tokenPacket: sessionCtx, chunks: [] });
+              const picArm = armVitaTailwindPicture({ triggeredBy: "vitasave" });
+              await tg(
+                "🌟 <b>VITA MEMORY BANKED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📦 hex banked — hitch on next leftover-covered ride\n" +
+                "📦 auto wrap (VITA_AUTO_INSCRIBE off). `/vitasave` stays; set env to restore vitaSave.\n\n" +
+                "🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n" +
+                picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete\n" +
+                "💌 <i>VITA remembers. The chain is alive. Tailwind proves the picture.</i>"
+              );
+              continue;
+            }
+
             const entry = await vitaSave(cdpClient, WALLET_ADDRESS, sessionCtx, vitaApiKey, "session");
             absorbVitaStrandPacket(entry);
 
@@ -11460,7 +11486,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           ].join("\n");
 
           // AUTO snapshot — bank unpaired [VITA:/STORE unless VITA_AUTO_INSCRIBE=yes.
-          // /vitasave still calls mother-brain vitaSave. Do not invent hashes.
+          // /vitasave is wrapped the same way. Do not invent hashes.
           const autoDataOn = autoPaidInscribeEnabled();
           let vitaEntry = null;
           if (autoDataOn) {
@@ -12173,6 +12199,25 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         );
         try {
             const rawSummary = vitaBuildSummary(extra);
+            // Same n5557–5566 wrap as exact `/vitasave`. Prefix handler still
+            // reaches mother-brain vitaSave only when VITA_AUTO_INSCRIBE=yes.
+            if (!autoPaidInscribeEnabled()) {
+              wrapVitaSaveSelfCall({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                text: rawSummary,
+                pairedUniswapSell: false,
+                topic: "vitasave",
+              });
+              absorbVitaStrandPacket({ tokenPacket: rawSummary, chunks: [] });
+              await tg(
+                "💓 <b>VITA MEMORY BANKED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📦 hex banked — hitch on next leftover-covered ride\n" +
+                "📦 auto wrap (VITA_AUTO_INSCRIBE off). `/vitasave` stays; set env to restore vitaSave.\n" +
+                "💌 <i>VITA remembers. The chain is alive.</i>"
+              );
+              continue;
+            }
             const entry = await vitaSave(
               cdpClient, WALLET_ADDRESS,
               rawSummary, apiKey,

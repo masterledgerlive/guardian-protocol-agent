@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Fixed — wrap `/vitasave` n5557–5566 [VITA:1:]/[VITA:2:] STORE (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js` /
+`ORIGINAL_FORMULA` / `FILING` / `AGENTS` / `anchors.json` / mother-genesis core).
+`/vitasave` command stays. `/prove` stays.
+
+Live after #102/#105 Online: RISK still paid **+10 VITA self-calls n5557–5566**
+(sel `0x5b564954`), 0 Uniswap fills. STORE on `0x640ed7b8fd1a9447…` (n5561) and
+`0xfee4d5022bddcaa3…` (n5566). Liquid ~$2.14.
+
+Decoded calldata is mother-brain `inscribeChunk` headers `[VITA:1:…]` then
+`[VITA:2:…]` plus first-handler sessionCtx (`SESSION:2026-09-14 WALLET:0x50e1…`
+`FILES_IN_REPO:agent.js,vault-loader.js,…`). That is Telegram **`/vitasave` →
+`vitaSave`**, twice — not queue / vitalearn / MGPLAIN (already wrapped).
+
+Thin wrap at those **callers only**:
+
+- both Telegram `/vitasave` handlers → `wrapVitaSaveSelfCall` (bank unpaired)
+- POST `/vita/save` webhook → same wrap, never `sendTransaction`
+- `VITA_AUTO_INSCRIBE` default OFF = bank; `yes` restores `vitaSave`
+
+No invented hashes. Mother brain files stay diff-zero vs main.
+
 ### Fixed — wrap /vitamothergenesis MGPLAIN + VITA-KNOW auto batches (mother brain untouched)
 
 HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
