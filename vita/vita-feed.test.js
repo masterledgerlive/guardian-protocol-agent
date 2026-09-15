@@ -13,6 +13,7 @@ import {
   VITAFEED_PAYER,
   clearVitaFeed,
   estimateVitaFeedCost,
+  evaluateVitaFeedThriftGate,
   formatVitaFeedCostCard,
   formatVitaFeedReceipt,
   handleVitaFeedAction,
@@ -25,13 +26,26 @@ import {
   prepareVitaFeed,
   reconstructVitaFeedBody,
   requiresVitaFeedConfirm,
+  resetVitaFeedPaidLog,
   resetVitaFeedPending,
   runVitaFeedInscribe,
   stageVitaFeed,
   utf8ToHex,
+  vitaFeedMinLiquidUsd,
+  vitaFeedPaidEnabled,
 } from "./vita-feed.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Isolate existing paid-path tests from the emergency kill-switch. */
+function paidOn(extra = {}) {
+  return {
+    VITAFEED_PAID: "yes",
+    VITAFEED_MIN_LIQUID_USD: "0",
+    VITAFEED_RATE_LIMIT: "no",
+    ...extra,
+  };
+}
 
 describe("vitafeed chunk count math", () => {
   it("plans more than one injection for >1000 chars", () => {
@@ -146,6 +160,7 @@ describe("vitafeed confirm gate", () => {
     const r = await handleVitaFeedAction({
       action: "confirm",
       chatId: "pay",
+      env: paidOn(),
       sendTx: async () => {
         n += 1;
         return "0x" + String(n).padStart(64, "c").slice(0, 64);
@@ -174,6 +189,7 @@ describe("vitafeed confirm gate", () => {
       action: "confirm",
       chatId: "stake-need",
       seats,
+      env: paidOn(),
       riskBalanceEth: 0.0000001,
       gasReserveEth: 0.0005,
       reserveBuyStake: true,
@@ -194,6 +210,7 @@ describe("vitafeed confirm gate", () => {
       action: "confirm",
       chatId: "stake-reserved",
       seats,
+      env: paidOn(),
       riskBalanceEth: 0.01,
       gasReserveEth: 0.0005,
       reserveBuyStake: false,
@@ -217,6 +234,7 @@ describe("vitafeed confirm gate", () => {
       action: "override",
       chatId: "override-me",
       seats,
+      env: paidOn(),
       riskBalanceEth: 0.0000001,
       gasReserveEth: 0.0005,
       reserveBuyStake: true,
@@ -316,11 +334,15 @@ describe("vitafeed mother brain stays out of the helper", () => {
     assert.match(agent, /\/vitafeed/);
     assert.match(agent, /handleVitaFeedAction/);
     assert.match(agent, /parseVitaFeedCommand/);
+    assert.match(agent, /evaluateVitaFeedThriftGate/);
+    assert.match(agent, /VITAFEED_PAID/);
+    assert.match(agent, /File await is PREVIEW only/);
 
     const fStart = agent.indexOf("/vitafeed — Storage Token game");
     const fEnd = agent.indexOf('} else if (text && text.startsWith("/vita "))', fStart);
     assert.ok(fStart >= 0 && fEnd > fStart, "vitafeed handler must be its own command, not inside /vitasave");
     const feed = agent.slice(fStart, fEnd);
+    assert.ok(feed.includes("evaluateVitaFeedThriftGate"), "Telegram must gate before buy-in/sendTransaction");
     assert.ok(feed.includes("WALLET_ADDRESS"), "RISK wallet only");
     assert.ok(!feed.includes("autoPaidInscribeEnabled"), "do not re-enable VITA_AUTO_INSCRIBE");
     assert.ok(!feed.includes("vitaSave("), "must not call mother brain vitaSave");
@@ -333,6 +355,193 @@ describe("vitafeed mother brain stays out of the helper", () => {
     assert.ok(vBody.includes("vitaSave("), "#106 keeps vitaSave for env-on");
     assert.ok(vBody.includes("autoPaidInscribeEnabled"), "#106 bank-by-default wrap stays");
     assert.ok(vBody.includes("wrapVitaSaveSelfCall"), "#106 wrapVitaSaveSelfCall stays");
+  });
+});
+
+describe("vitafeed emergency thrift gates", () => {
+  beforeEach(() => resetVitaFeedPending());
+
+  it("default refuses paid confirm (no sendTransaction)", async () => {
+    assert.equal(vitaFeedPaidEnabled({}), false);
+    assert.equal(vitaFeedPaidEnabled({ VITAFEED_PAID: "" }), false);
+    assert.equal(vitaFeedPaidEnabled({ VITAFEED_PAID: "no" }), false);
+    assert.equal(vitaFeedPaidEnabled({ VITAFEED_ENABLED: "yes" }), true);
+    assert.equal(vitaFeedPaidEnabled({ VITAFEED_PAID: "true" }), true);
+    assert.equal(vitaFeedPaidEnabled({ VITAFEED_PAID: "1" }), true);
+    assert.equal(vitaFeedMinLiquidUsd({}), 5);
+
+    await handleVitaFeedAction({ action: "preview", body: "drain me", chatId: "off-default" });
+    let sent = 0;
+    const r = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "off-default",
+      env: {},
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "e".repeat(64);
+      },
+    });
+    assert.equal(r.ok, false);
+    assert.equal(r.thrift, "paid-off");
+    assert.equal(sent, 0);
+    assert.match(r.reply, /paid confirm is OFF/i);
+    assert.match(r.reply, /VITAFEED_PAID/);
+    assert.ok(peekVitaFeed("off-default"), "staged cost card kept");
+  });
+
+  it("/vitafeed override cannot bypass VITAFEED_PAID=no", async () => {
+    await handleVitaFeedAction({ action: "preview", body: "force", chatId: "off-override" });
+    let sent = 0;
+    const r = await handleVitaFeedAction({
+      action: "override",
+      chatId: "off-override",
+      env: { VITAFEED_PAID: "no" },
+      forceOverride: true,
+      riskBalanceEth: 0,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "f".repeat(64);
+      },
+    });
+    assert.equal(r.ok, false);
+    assert.equal(r.thrift, "paid-off");
+    assert.equal(sent, 0);
+    assert.match(r.reply, /override cannot bypass/i);
+    const gate = evaluateVitaFeedThriftGate({
+      action: "override",
+      env: {},
+      forceOverride: true,
+    });
+    assert.equal(gate.ok, false);
+    assert.equal(gate.code, "paid-off");
+  });
+
+  it("env-on allows confirm sendTransaction", async () => {
+    await handleVitaFeedAction({ action: "preview", body: "allow me", chatId: "on-allow" });
+    let sent = 0;
+    const r = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "on-allow",
+      env: { VITAFEED_PAID: "yes", VITAFEED_MIN_LIQUID_USD: "0", VITAFEED_RATE_LIMIT: "no" },
+      liquidUsd: 20,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "a".repeat(64);
+      },
+    });
+    assert.equal(r.ok, true);
+    assert.equal(r.phase, "after");
+    assert.equal(sent, 1);
+    assert.equal(peekVitaFeed("on-allow"), null);
+  });
+
+  it("liquid floor refuses confirm and override below $5", async () => {
+    const env = {
+      VITAFEED_PAID: "yes",
+      VITAFEED_MIN_LIQUID_USD: "5",
+      VITAFEED_RATE_LIMIT: "no",
+    };
+    await handleVitaFeedAction({ action: "preview", body: "floor", chatId: "liq-confirm" });
+    let sent = 0;
+    const confirm = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "liq-confirm",
+      env,
+      liquidUsd: 2.97,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "b".repeat(64);
+      },
+    });
+    assert.equal(confirm.ok, false);
+    assert.equal(confirm.thrift, "liquid-floor");
+    assert.equal(sent, 0);
+    assert.match(confirm.reply, /liquid floor/i);
+    assert.match(confirm.reply, /\$2\.97/);
+
+    await handleVitaFeedAction({ action: "preview", body: "floor2", chatId: "liq-override" });
+    const over = await handleVitaFeedAction({
+      action: "override",
+      chatId: "liq-override",
+      env,
+      liquidUsd: 4.99,
+      forceOverride: true,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "c".repeat(64);
+      },
+    });
+    assert.equal(over.ok, false);
+    assert.equal(over.thrift, "liquid-floor");
+    assert.equal(sent, 0);
+    assert.match(over.reply, /VITAFEED_MIN_LIQUID_USD/);
+  });
+
+  it("rate limit refuses a second confirm in the same chat / 383-chunk hour cap", async () => {
+    const env = {
+      VITAFEED_PAID: "yes",
+      VITAFEED_MIN_LIQUID_USD: "0",
+      VITAFEED_CONFIRM_COOLDOWN_SEC: "60",
+      VITAFEED_MAX_CHUNKS_PER_HOUR: "24",
+    };
+    const now = 1_000_000;
+    await handleVitaFeedAction({ action: "preview", body: "first", chatId: "rl-chat" });
+    const first = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "rl-chat",
+      env,
+      now,
+      sendTx: async () => "0x" + "1".repeat(64),
+    });
+    assert.equal(first.ok, true);
+
+    await handleVitaFeedAction({ action: "preview", body: "second", chatId: "rl-chat" });
+    let sent = 0;
+    const second = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "rl-chat",
+      env,
+      now: now + 12_000,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "2".repeat(64);
+      },
+    });
+    assert.equal(second.ok, false);
+    assert.equal(second.thrift, "cooldown");
+    assert.equal(sent, 0);
+    assert.match(second.reply, /rate limit/i);
+
+    resetVitaFeedPaidLog();
+    const huge = "H".repeat(720 * 25);
+    await handleVitaFeedAction({ action: "preview", body: huge, chatId: "rl-huge" });
+    const staged = peekVitaFeed("rl-huge");
+    assert.ok(staged.prepared.totalChunks > 24, "383-class batch exceeds hourly cap");
+    const cap = await handleVitaFeedAction({
+      action: "confirm",
+      chatId: "rl-huge",
+      env,
+      now: now + 120_000,
+      sendTx: async () => {
+        sent += 1;
+        return "0x" + "3".repeat(64);
+      },
+    });
+    assert.equal(cap.ok, false);
+    assert.equal(cap.thrift, "chunk-cap");
+    assert.equal(sent, 0);
+    assert.match(cap.reply, /Hourly chunks/);
+
+    const stale = evaluateVitaFeedThriftGate({
+      action: "confirm",
+      chatId: "stale",
+      env,
+      now: now + 120_000,
+      messageAtMs: now - 200_000,
+      chunkCount: 1,
+    });
+    assert.equal(stale.ok, false);
+    assert.equal(stale.code, "stale-confirm");
   });
 });
 

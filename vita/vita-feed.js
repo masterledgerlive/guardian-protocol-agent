@@ -3,11 +3,14 @@
  *
  * Thin helper only. Does NOT rewrite vitaSave / inscribeChunk / memory-engine
  * / mainframe / mother-genesis core. Telegram handler may CALL existing
- * sendTransaction after an explicit confirm.
+ * sendTransaction after an explicit confirm **and** VITAFEED_PAID=yes.
  *
  * Exact UTF-8 body (no summarization, no §SESS§ unless the operator typed it).
  * VIN/tailwind headers sit outside the payload budget so AI readers can follow
  * prev-hash → next-index like a VIN. Cost card first, then `/vitafeed confirm`.
+ *
+ * Emergency thrift (n5624→6007 +383 self-call class): paid confirm/override
+ * default OFF. /vitafeed override cannot bypass VITAFEED_PAID=no.
  */
 
 import { createHash, randomBytes } from "node:crypto";
@@ -95,6 +98,19 @@ export const VITAFEED_BASESCAN_TX = "https://basescan.org/tx/";
 export const VITAFEED_TX_GAS_UNITS = BTP_INSCRIBE_GAS_UNITS;
 export const VITAFEED_CALLDATA_GAS_PER_BYTE = CALLDATA_GAS_PER_NONZERO_BYTE;
 
+/** Paid sendTransaction kill-switch — default OFF. Override cannot bypass. */
+export const VITAFEED_PAID_ENV = "VITAFEED_PAID";
+export const VITAFEED_ENABLED_ENV = "VITAFEED_ENABLED";
+export const VITAFEED_MIN_LIQUID_USD_ENV = "VITAFEED_MIN_LIQUID_USD";
+export const VITAFEED_MIN_LIQUID_USD_DEFAULT = 5;
+export const VITAFEED_CONFIRM_COOLDOWN_SEC_ENV = "VITAFEED_CONFIRM_COOLDOWN_SEC";
+export const VITAFEED_CONFIRM_COOLDOWN_SEC_DEFAULT = 60;
+export const VITAFEED_MAX_CHUNKS_PER_HOUR_ENV = "VITAFEED_MAX_CHUNKS_PER_HOUR";
+export const VITAFEED_MAX_CHUNKS_PER_HOUR_DEFAULT = 24;
+export const VITAFEED_RATE_LIMIT_ENV = "VITAFEED_RATE_LIMIT";
+export const VITAFEED_MAX_CONFIRM_AGE_SEC_ENV = "VITAFEED_MAX_CONFIRM_AGE_SEC";
+export const VITAFEED_MAX_CONFIRM_AGE_SEC_DEFAULT = 180;
+
 /** Documented Base DEMO quotes (Railway 2026-09-08 class — labeled, not live). */
 export const VITAFEED_DEMO_QUOTES = Object.freeze({
   gwei: 0.05,
@@ -106,6 +122,9 @@ export const VITAFEED_DEMO_QUOTES = Object.freeze({
 
 /** @type {Map<string, object>} */
 const pending = new Map();
+
+/** @type {{ chatId: string, atMs: number, chunks: number }[]} */
+const paidSends = [];
 
 function sha256Hex(text) {
   return createHash("sha256").update(String(text || ""), "utf8").digest("hex");
@@ -120,8 +139,14 @@ function padIndex(i, total) {
   return String(i).padStart(width, "0") + "/" + String(total).padStart(width, "0");
 }
 
+export function resetVitaFeedPaidLog() {
+  paidSends.length = 0;
+  return paidSends.length;
+}
+
 export function resetVitaFeedPending() {
   pending.clear();
+  resetVitaFeedPaidLog();
   return pending.size;
 }
 
@@ -549,8 +574,14 @@ export function vitaFeedUsageText() {
     "Buy-in: low ≤3% of wave + predicted up; stake from character cost;",
     "leave $0.10 AI + $0.10 human + 1.5% tax; sell same % up + cost overlay.",
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
+    "PAID PATH DEFAULT OFF: set VITAFEED_PAID=yes (or VITAFEED_ENABLED=yes|true|1)",
+    "  or confirm/override BANKS (no sendTransaction). Override cannot bypass.",
+    "Liquid floor: VITAFEED_MIN_LIQUID_USD default $5 (set 0 to disable).",
+    "Rate limit: one confirm / chat / 60s and max 24 chunks/hour",
+    "  (VITAFEED_RATE_LIMIT=no disables).",
     "/vitafeed override — same as confirm but bypasses the RISK balance REFUSE",
     "  (proceed despite underfunded inscription+buy-in+gas check).",
+    "  Does NOT bypass VITAFEED_PAID=no, liquid floor, or rate limit.",
     "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
     "/vitafeed cancel drops the staged payload (and clears a file wait).",
     "Plain UTF-8 or VITAFILE → hex calldata. VIN headers link chunks (prev/next).",
@@ -596,6 +627,209 @@ export function maySendVitaFeed({ confirmed = false, pendingRow = null } = {}) {
   if (!pendingRow?.prepared?.ok) return false;
   if (!pendingRow.prepared.lines?.length) return false;
   return true;
+}
+
+function envFlagOnExplicit(raw) {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return v === "yes" || v === "true" || v === "1";
+}
+
+function envFlagOffExplicit(raw) {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return v === "no" || v === "off" || v === "0" || v === "false";
+}
+
+function envNumber(raw, fallback) {
+  if (raw == null || String(raw).trim() === "") return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** VITAFEED_PAID or VITAFEED_ENABLED must be yes|true|1. Default OFF. */
+export function vitaFeedPaidEnabled(env = process.env) {
+  return envFlagOnExplicit(env?.[VITAFEED_PAID_ENV] ?? env?.[VITAFEED_ENABLED_ENV] ?? "");
+}
+
+/** Default $5. Set 0 to disable the floor. Negative/NaN → default. */
+export function vitaFeedMinLiquidUsd(env = process.env) {
+  const n = envNumber(env?.[VITAFEED_MIN_LIQUID_USD_ENV], VITAFEED_MIN_LIQUID_USD_DEFAULT);
+  if (n < 0) return VITAFEED_MIN_LIQUID_USD_DEFAULT;
+  return n;
+}
+
+/** Rate limit default ON. VITAFEED_RATE_LIMIT=no|0|off|false disables. */
+export function vitaFeedRateLimitEnabled(env = process.env) {
+  return !envFlagOffExplicit(env?.[VITAFEED_RATE_LIMIT_ENV]);
+}
+
+export function vitaFeedConfirmCooldownSec(env = process.env) {
+  const n = envNumber(env?.[VITAFEED_CONFIRM_COOLDOWN_SEC_ENV], VITAFEED_CONFIRM_COOLDOWN_SEC_DEFAULT);
+  return n < 0 ? VITAFEED_CONFIRM_COOLDOWN_SEC_DEFAULT : n;
+}
+
+export function vitaFeedMaxChunksPerHour(env = process.env) {
+  const n = envNumber(env?.[VITAFEED_MAX_CHUNKS_PER_HOUR_ENV], VITAFEED_MAX_CHUNKS_PER_HOUR_DEFAULT);
+  if (n < 0) return VITAFEED_MAX_CHUNKS_PER_HOUR_DEFAULT;
+  return Math.floor(n);
+}
+
+export function vitaFeedMaxConfirmAgeSec(env = process.env) {
+  const n = envNumber(env?.[VITAFEED_MAX_CONFIRM_AGE_SEC_ENV], VITAFEED_MAX_CONFIRM_AGE_SEC_DEFAULT);
+  return n < 0 ? VITAFEED_MAX_CONFIRM_AGE_SEC_DEFAULT : n;
+}
+
+export function peekVitaFeedPaidLog() {
+  return paidSends.map((row) => ({ ...row }));
+}
+
+export function noteVitaFeedPaidSend({ chatId = "default", chunks = 1, now = Date.now() } = {}) {
+  const row = {
+    chatId: String(chatId || "default"),
+    atMs: Number(now) || Date.now(),
+    chunks: Math.max(1, Math.floor(Number(chunks) || 1)),
+  };
+  paidSends.push(row);
+  return row;
+}
+
+export function formatVitaFeedPaidOffReply({ action = "confirm" } = {}) {
+  return [
+    "VITAFEED BANK — paid confirm is OFF",
+    "VITAFEED_PAID / VITAFEED_ENABLED must be yes|true|1 to call sendTransaction.",
+    "/vitafeed override cannot bypass this kill-switch (action=" + action + ").",
+    "Cost card / preview still works. Staged payload kept. /vitafeed cancel to drop.",
+    "Stops runaway RISK self-calls (n5624→6007 +383 class).",
+  ].join("\n");
+}
+
+export function formatVitaFeedLiquidFloorReply({ liquidUsd, floor }) {
+  return [
+    "VITAFEED REFUSE — liquid floor",
+    "RISK liquid ≈ $" + Number(liquidUsd).toFixed(2) +
+      " < $" + Number(floor).toFixed(2) + " (VITAFEED_MIN_LIQUID_USD, default 5).",
+    "confirm/override blocked to stop drain. Set VITAFEED_MIN_LIQUID_USD=0 to disable floor.",
+  ].join("\n");
+}
+
+export function formatVitaFeedRateLimitReply({ reason, cooldownSec, cap, used, next, ageSec, maxAgeSec }) {
+  const lines = ["VITAFEED REFUSE — rate limit"];
+  if (reason === "stale-confirm") {
+    lines.push(
+      "Telegram confirm is stale (" + Math.floor(ageSec) + "s old, max " + maxAgeSec +
+        "s) — possible getUpdates replay after restart. Send a fresh /vitafeed confirm.",
+    );
+  } else if (reason === "cooldown") {
+    lines.push("Same chat already confirmed within " + cooldownSec + "s. Wait or cancel.");
+  } else if (reason === "chunk-cap") {
+    lines.push(
+      "Hourly chunks " + used + "/" + cap + " + this batch " + next +
+        " would exceed VITAFEED_MAX_CHUNKS_PER_HOUR (default 24).",
+    );
+  }
+  lines.push("Flood / loop guard. Set VITAFEED_RATE_LIMIT=no to disable.");
+  return lines.join("\n");
+}
+
+/**
+ * Kill-switch + liquid floor + rate limit for confirm/override.
+ * /vitafeed override cannot bypass paid-off, liquid floor, or rate limit.
+ */
+export function evaluateVitaFeedThriftGate({
+  action,
+  chatId = "default",
+  env = process.env,
+  liquidUsd = null,
+  chunkCount = 1,
+  now = Date.now(),
+  messageAtMs = null,
+} = {}) {
+  const paidAction = action === "confirm" || action === "override";
+  if (!paidAction) {
+    return { ok: true, send: false, code: "not-paid-action" };
+  }
+
+  if (!vitaFeedPaidEnabled(env)) {
+    return {
+      ok: false,
+      send: false,
+      code: "paid-off",
+      reply: formatVitaFeedPaidOffReply({ action }),
+    };
+  }
+
+  const floor = vitaFeedMinLiquidUsd(env);
+  if (
+    floor > 0 &&
+    liquidUsd != null &&
+    Number.isFinite(Number(liquidUsd)) &&
+    Number(liquidUsd) < floor
+  ) {
+    return {
+      ok: false,
+      send: false,
+      code: "liquid-floor",
+      reply: formatVitaFeedLiquidFloorReply({ liquidUsd: Number(liquidUsd), floor }),
+    };
+  }
+
+  if (!vitaFeedRateLimitEnabled(env)) {
+    return { ok: true, send: true, code: "thrift-ok" };
+  }
+
+  const nowMs = Number(now) || Date.now();
+  const maxAgeSec = vitaFeedMaxConfirmAgeSec(env);
+  if (maxAgeSec > 0 && messageAtMs != null && Number.isFinite(Number(messageAtMs))) {
+    const ageSec = (nowMs - Number(messageAtMs)) / 1000;
+    if (ageSec > maxAgeSec) {
+      return {
+        ok: false,
+        send: false,
+        code: "stale-confirm",
+        reply: formatVitaFeedRateLimitReply({
+          reason: "stale-confirm",
+          ageSec,
+          maxAgeSec,
+        }),
+      };
+    }
+  }
+
+  const key = String(chatId || "default");
+  const cooldownSec = vitaFeedConfirmCooldownSec(env);
+  if (cooldownSec > 0) {
+    let lastAt = 0;
+    for (const row of paidSends) {
+      if (row.chatId === key && row.atMs > lastAt) lastAt = row.atMs;
+    }
+    if (lastAt > 0 && nowMs - lastAt < cooldownSec * 1000) {
+      return {
+        ok: false,
+        send: false,
+        code: "cooldown",
+        reply: formatVitaFeedRateLimitReply({ reason: "cooldown", cooldownSec }),
+      };
+    }
+  }
+
+  const cap = vitaFeedMaxChunksPerHour(env);
+  const next = Math.max(1, Math.floor(Number(chunkCount) || 1));
+  if (cap > 0) {
+    const hourAgo = nowMs - 60 * 60 * 1000;
+    let used = 0;
+    for (const row of paidSends) {
+      if (row.atMs >= hourAgo) used += row.chunks;
+    }
+    if (used + next > cap) {
+      return {
+        ok: false,
+        send: false,
+        code: "chunk-cap",
+        reply: formatVitaFeedRateLimitReply({ reason: "chunk-cap", cap, used, next }),
+      };
+    }
+  }
+
+  return { ok: true, send: true, code: "thrift-ok" };
 }
 
 /**
@@ -665,7 +899,8 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
 }
 
 /**
- * Thin Telegram/HTML action router. Paid send only when confirm + sendTx.
+ * Thin Telegram/HTML action router. Paid send only when confirm + sendTx
+ * AND VITAFEED_PAID=yes. Override cannot bypass the paid kill-switch.
  */
 export async function handleVitaFeedAction({
   action,
@@ -680,6 +915,13 @@ export async function handleVitaFeedAction({
   reserveBuyStake = true,
   /** /vitafeed override — bypass RISK balance REFUSE and proceed anyway. */
   forceOverride = false,
+  /** Env snapshot (tests pass {}). Default process.env. */
+  env = process.env,
+  /** RISK ETH+WETH mark USD. Null skips the liquid floor. */
+  liquidUsd = null,
+  now = Date.now(),
+  /** Telegram message.date * 1000 — stale confirm / getUpdates replay guard. */
+  messageAtMs = null,
 } = {}) {
   if (action === "usage" || action === "file") {
     // "file" without Telegram attachment bytes → usage (agent encodes attachment first).
@@ -722,6 +964,30 @@ export async function handleVitaFeedAction({
         ok: false,
         phase: override ? "override" : "confirm",
         reply: "VITAFEED: nothing staged. Send /vitafeed [text] (or reply) for a cost card first.",
+      };
+    }
+    const chunkCount = row.prepared.totalChunks || row.prepared.lines?.length || 1;
+    const thrift = evaluateVitaFeedThriftGate({
+      action: override ? "override" : "confirm",
+      chatId,
+      env,
+      liquidUsd,
+      chunkCount,
+      now,
+      messageAtMs,
+    });
+    if (!thrift.ok) {
+      const quotesNowEarly = Object.keys(quotes || {}).length ? quotes : (row.quotes || {});
+      const costEarly = estimateVitaFeedCost(row.prepared, quotesNowEarly);
+      return {
+        ok: false,
+        phase: override ? "override" : "confirm",
+        thrift: thrift.code,
+        send: false,
+        prepared: row.prepared,
+        cost: costEarly,
+        buyIn: row.buyIn || null,
+        reply: thrift.reply,
       };
     }
     const quotesNow = Object.keys(quotes || {}).length ? quotes : (row.quotes || {});
@@ -782,6 +1048,7 @@ export async function handleVitaFeedAction({
           "\nPaid RISK path needs a sender (Telegram /vitafeed confirm|override on the live bot).",
       };
     }
+    noteVitaFeedPaidSend({ chatId, chunks: chunkCount, now });
     const result = await runVitaFeedInscribe(row.prepared, sendTx);
     takeVitaFeed(chatId);
     // Lazy import — avoid ESM cycle (player → file → feed).

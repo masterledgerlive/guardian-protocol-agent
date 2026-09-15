@@ -177,7 +177,7 @@ describe("vita HTML console", () => {
     assert.match(preview.text, /HTML preview only/);
     assert.match(preview.text, /VITAFEED BUY-IN|BUY SKIP/);
     const confirm = await handleVitaConsole(state, "/vitafeed confirm");
-    assert.match(confirm.text, /Telegram \/vitafeed confirm|Paid RISK path needs a sender/);
+    assert.match(confirm.text, /VITAFEED BANK|paid confirm is OFF|VITAFEED_PAID|Paid RISK path needs a sender/);
   });
 
   it("ZK preview hides plaintext but keeps KEY internally", async () => {

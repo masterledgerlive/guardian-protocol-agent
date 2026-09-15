@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — `/vitafeed` emergency thrift kill-switch (paid default OFF)
+
+HARD STOP: mother brain untouched. `/vitasave` bank stays. Does not re-enable
+`VITA_AUTO_INSCRIBE`.
+
+Live RISK drain: +383 VITAFEED self-calls n5624→6007 hitch 0/383 (~74% DD).
+`/vitafeed confirm` is an intentional paid path; that volume is runaway.
+
+- **Default-off paid confirm:** `VITAFEED_PAID` or `VITAFEED_ENABLED` must be
+  `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Default OFF
+  banks with a clear Telegram reply. Cost card / preview still works.
+- **`/vitafeed override` cannot bypass `VITAFEED_PAID=no`** (only the RISK ETH
+  underfunded REFUSE).
+- **Liquid floor:** `VITAFEED_MIN_LIQUID_USD` default **$5**. Confirm/override
+  refuse below floor. Set `0` to disable.
+- **Rate limit:** second confirm same chat within 60s OR max 24 chunks/hour
+  (`VITAFEED_RATE_LIMIT=no` disables). Stale Telegram confirms (>180s) refused
+  to stop getUpdates replay after restart. File await stays preview-only.
+
 ### Added — Telegram `/vitafeed file` please-insert-file await
 
 HARD STOP: mother brain untouched.

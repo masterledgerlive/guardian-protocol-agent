@@ -470,7 +470,7 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     return reply(
       out.reply +
       "\nHTML preview only — paid RISK injections run on Telegram /vitafeed confirm." +
-      "\nMother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.",
+      "\nVITAFEED_PAID default off. Mother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.",
     );
   }
 

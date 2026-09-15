@@ -56,6 +56,11 @@ Full tx hashes live in `vita/anchors.json` and inside infected HTML
    never invent a hash.
 6. **Env** → `VITA_MESSAGE_FIRST` default `yes` (1× cover → hitch). Set `no`
    only to restore micro-extract SKIP_HITCH + bank below the 2× cushion.
+   `/vitafeed` paid confirm/override default **OFF**: `VITAFEED_PAID` or
+   `VITAFEED_ENABLED` must be `yes`/`true`/`1`. Liquid floor
+   `VITAFEED_MIN_LIQUID_USD` default **5** (set `0` to disable). Rate limit
+   default on (`VITAFEED_RATE_LIMIT=no` to disable). Override cannot bypass
+   paid-off.
 
 ## Continue-until-merge
 
