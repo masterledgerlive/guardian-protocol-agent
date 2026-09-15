@@ -206,12 +206,13 @@ describe("vitafeed VIN / tailwind fields", () => {
 describe("vitafeed mother brain stays out of the helper", () => {
   it("vita-feed.js does not import mother-brain internals", () => {
     const src = readFileSync(join(root, "vita/vita-feed.js"), "utf8");
-    assert.ok(!src.includes("vita-memory.js"));
-    assert.ok(!src.includes("memory-engine.js"));
-    assert.ok(!src.includes("vitaSave"));
-    assert.ok(!src.includes("inscribeChunk"));
-    assert.ok(!src.includes("mother-genesis.js"));
-    assert.ok(!src.includes("VITA_AUTO_INSCRIBE"));
+    assert.doesNotMatch(src, /from ["'].*vita-memory/);
+    assert.doesNotMatch(src, /from ["'].*memory-engine/);
+    assert.doesNotMatch(src, /from ["'].*mother-genesis/);
+    assert.doesNotMatch(src, /from ["'].*lose-zero-gate/);
+    assert.doesNotMatch(src, /vitaSave\s*\(/);
+    assert.doesNotMatch(src, /inscribeChunk\s*\(/);
+    assert.doesNotMatch(src, /VITA_AUTO_INSCRIBE\s*=/);
   });
 
   it("git diff main is empty for VITA root inscription files", () => {

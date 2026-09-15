@@ -11,12 +11,25 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
-import {
-  BTP_INSCRIBE_GAS_UNITS,
-  CALLDATA_GAS_PER_NONZERO_BYTE,
-  estimateBtpInscribeEth,
-  estimateCalldataHitchEth,
-} from "../lose-zero-gate.js";
+
+/** EIP-2028 nonzero calldata gas — same class as lose-zero-gate (do not import that module). */
+const CALLDATA_GAS_PER_NONZERO_BYTE = 16;
+/** Documented 0-ETH self-tx gas class (BTP_INSCRIBE_GAS_UNITS). */
+const BTP_INSCRIBE_GAS_UNITS = 50_000;
+
+function estimateCalldataHitchEth(bytes, gwei) {
+  const b = Math.max(0, Number(bytes) || 0);
+  const g = Number(gwei);
+  if (!Number.isFinite(g) || g < 0) return 0;
+  return b * CALLDATA_GAS_PER_NONZERO_BYTE * g * 1e-9;
+}
+
+function estimateBtpInscribeEth(gwei, gasUnits = BTP_INSCRIBE_GAS_UNITS) {
+  const g = Number(gwei);
+  const u = Number(gasUnits);
+  if (!Number.isFinite(g) || g < 0 || !Number.isFinite(u) || u <= 0) return 0;
+  return u * g * 1e-9;
+}
 
 export const VITAFEED_ID = "vita-feed-v1";
 export const VITAFEED_HEADER = "[VITAFEED:";
