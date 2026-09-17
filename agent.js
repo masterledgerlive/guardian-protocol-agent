@@ -350,6 +350,8 @@ import {
   formatRecallHtml,
   sleeveDistanceToPlus,
   RECALL_SLEEVES,
+  hourlyBalancePollRows,
+  hourlyReportTokens,
   TURN_RECALL_FILENAME,
 } from "./telegram-turn-card.js";
 import { sendRaceScoreboardIfDue } from "./race-scoreboard.js";
@@ -4889,9 +4891,11 @@ async function unwrapEth(cdp, amountEth) {
 // Refresh all token balances in parallel — reads directly from WALLET_ADDRESS on-chain
 // This is the canonical chain truth. Called once per main loop cycle.
 // ALL tokens refreshed (including frozen) so exit path always works if position exists.
+// Hourly catalog (AERO/DRB/BNKR/VIRTUAL) is unioned so a live bag is polled
+// even if DEFAULT_TOKENS / saved tokens.json omitted it.
 async function refreshTokenBalances() {
   const results = await Promise.allSettled(
-    tokens.map(t => getTokenBalance(t.address).then(bal => ({ symbol: t.symbol, bal })))
+    hourlyBalancePollRows(tokens).map(t => getTokenBalance(t.address).then(bal => ({ symbol: t.symbol, bal })))
   );
   for (const r of results) {
     if (r.status === "fulfilled" && r.value?.symbol) {
@@ -9391,7 +9395,7 @@ async function sendMiniUpdate(bal, ethUsd) {
     lines += `💰 ${bal.tradeableWithWeth.toFixed(4)} ETH ($${(bal.tradeableWithWeth*ethUsd).toFixed(2)}) | 🐷 ${piggyBank.toFixed(6)} | #${tradeCount}\n`;
     lines += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-    for (const t of tokens) {
+    for (const t of hourlyReportTokens(tokens)) {
       const price = history[t.symbol]?.lastPrice;
       if (!price) { lines += `⏳ ${t.symbol} loading\n`; continue; }
       const bal2  = getCachedBalance(t.symbol);
@@ -9431,7 +9435,7 @@ async function sendFullReport(bal, ethUsd, title) {
     let lines = "";
     const gasCost = await estimateGasCostEth();
 
-    for (const t of tokens) {
+    for (const t of hourlyReportTokens(tokens)) {
       const price = history[t.symbol]?.lastPrice;
       if (!price) { lines += `\n⏳ <b>${t.symbol}</b> — loading\n`; continue; }
       const tbal  = getCachedBalance(t.symbol);
@@ -13574,9 +13578,10 @@ async function main() {
     console.log("   🔗 Scanning Base blockchain for token balances...");
     let found = 0, recovered = 0, ghosts = 0, confirmed = 0;
 
-    // Fetch all balances in parallel for speed
+    // Fetch all balances in parallel for speed. Union hourly catalog
+    // (VIRTUAL + AERO/DRB/BNKR) so a live bag is never skipped.
     const balanceResults = await Promise.allSettled(
-      tokens.map(async (token) => {
+      hourlyBalancePollRows(tokens).map(async (token) => {
         const bal = await getTokenBalance(token.address);
         return { symbol: token.symbol, address: token.address, bal };
       })
@@ -13588,16 +13593,18 @@ async function main() {
     }
 
     // After cache is live — sized remaining, not the full fill. GitHub 401
-    // must not skip seeded AERO/DRB/BNKR receipt latch.
+    // must not skip seeded AERO/DRB/BNKR/VIRTUAL receipt latch.
     await rebuildSeededLotsFromChain(
       githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
     );
 
     // DexScreener + GT chunked prefetch — never one giant GT URL (400 / silent drop)
     try {
-      const bootQuotes = await prefetchMarketPrices(tokens.map(t => t.address));
+      const pollRows = hourlyBalancePollRows(tokens);
+      const bootQuotes = await prefetchMarketPrices(pollRows.map(t => t.address));
       for (const [addr, p] of Object.entries(bootQuotes.prices)) {
-        const t = tokens.find(tk => tk.address.toLowerCase() === addr);
+        const t = tokens.find(tk => tk.address.toLowerCase() === addr)
+          || pollRows.find(tk => String(tk.address).toLowerCase() === addr);
         if (!t || !isValidUsdPrice(p)) continue;
         const trusted = Boolean(bootQuotes.meta[addr]?.trustedQuote || bootQuotes.meta[addr]?.verifiedPool);
         if (!noteLastSaneUsd(t.symbol, p, undefined, { trusted })) continue;
@@ -13611,7 +13618,8 @@ async function main() {
       console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
       if (bootQuotes.misses.length) {
         console.log(`   ⏳ Unquoted (skip until a real market appears): ${bootQuotes.misses.map(a => {
-          const t = tokens.find(tk => tk.address.toLowerCase() === a);
+          const t = tokens.find(tk => tk.address.toLowerCase() === a)
+            || pollRows.find(tk => String(tk.address).toLowerCase() === a);
           return t ? t.symbol : a.slice(0, 10);
         }).join(", ")}`);
       }
