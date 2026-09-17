@@ -177,6 +177,16 @@ describe("vita HTML console", () => {
     assert.match(r.text, /HTML SIM only/);
   });
 
+  it("/waveproof runs the capped 3-token WAVE proof SIM without paying", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/waveproof");
+    assert.match(r.text, /WAVE PROOF/);
+    assert.match(r.text, /PASS/);
+    assert.match(r.text, /VIRTUAL/);
+    assert.match(r.text, /VITAFEED_PAID/);
+    assert.match(r.text, /HTML SIM only/);
+  });
+
   it("/vitafeed shows a cost card and confirm gate without paying", async () => {
     const state = createVitaConsole();
     const preview = await handleVitaConsole(state, "/vitafeed hello from html");

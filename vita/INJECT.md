@@ -153,6 +153,22 @@ Never solo-send. Uncovered leftover **banks hex**. Gated one-shot env
 Telegram `/wavetest` · HTML console `/wavetest` · board `GET /vita/wavetest`
 (SIM, no spend) · CLI `node scripts/wave-mirror-test.js`.
 
+### Capped 3-token WAVE proof (`/waveproof`)
+
+Thrift live proof that the AI can read WAVE locations. **Exactly 3**
+least-size (8B) Heraclitus shards with SYM `VIRTUAL` / `CLANKER` / `AERO`
+as 0-ETH gas-only self-txs. Not a 28-shard dump. Does **not** turn
+`VITAFEED_PAID` or `WAVE_MIRROR_PAID` on.
+
+| Env | Default | Meaning |
+|---|---|---|
+| `WAVE_PROOF_LIVE` | **OFF** | Must be `yes`/`true`/`1` for Telegram to send. Auto-disables after the batch. |
+| `WAVE_PROOF_MIN_LIQUID_USD` | **1** | Refuse live if RISK liquid USD is below floor. Reuses `VITAFEED_MIN_LIQUID_USD` if unset. |
+
+Telegram `/waveproof` · HTML `/waveproof` (SIM) · board `GET /vita/waveproof` (SIM).
+Live reconstruct: fetch calldata by hash → join 3 bodies → match answer-key
+shard digests 1–3. PASS/FAIL + Basescan links + VIN.
+
 
 ## What this is not
 
