@@ -168,6 +168,15 @@ describe("vita HTML console", () => {
     assert.equal(state.leftoverScan.hitchBytes.eurekaMin, 229);
   });
 
+  it("/wavetest runs the WAVE memory-mirror SIM without paying", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/wavetest");
+    assert.match(r.text, /WAVE MIRROR/);
+    assert.match(r.text, /PASS/);
+    assert.match(r.text, /VITAFEED_PAID/);
+    assert.match(r.text, /HTML SIM only/);
+  });
+
   it("/vitafeed shows a cost card and confirm gate without paying", async () => {
     const state = createVitaConsole();
     const preview = await handleVitaConsole(state, "/vitafeed hello from html");

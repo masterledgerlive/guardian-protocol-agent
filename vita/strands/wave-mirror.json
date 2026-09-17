@@ -1,0 +1,12 @@
+{
+  "strandId": "wave-mirror",
+  "sparse": true,
+  "source": "wave-wrap-helper",
+  "header": "[W:v1:SYM]|<vinId>|<ii>/<nn>|prev=<8hex>|next=<ii|END>|<KEY8>|<LOC8>]",
+  "bodyBudgetBytes": { "min": 8, "max": 128, "default": 8, "rule": "least-size" },
+  "answerKey": "vita/memory/wave-heraclitus-key.json",
+  "learn": "Memory mirror: bits → least-size WAVE shards → locations (real txHash only when sendTx returns one) → read-back calldata → reconstruct vs sha256 answer key. VIN/tailwind prev/next like /vitafeed. Guardian hitch attaches WAVE shard on covered leftover (attachWaveOnCoveredLeftover); do not solo-send; WAVE_MIRROR_PAID and VITAFEED_PAID stay default off. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": ["/wavetest", "/wavetest hitch"],
+  "cli": "node scripts/wave-mirror-test.js"
+}

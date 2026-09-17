@@ -470,6 +470,10 @@ import {
   peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
+  handleWaveTestAction,
+  parseWaveTestCommand,
+} from "./vita/wave-wrap.js";
+import {
   beginVitaFeedFileAwait,
   clearVitaFeedFileAwait,
   downloadTelegramFileBytes,
@@ -12357,6 +12361,23 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           }
         }
 
+      // ── /wavetest — WAVE memory-mirror SIM (does not enable VITAFEED_PAID)
+      } else if (text === "/wavetest" || (text && text.startsWith("/wavetest"))) {
+        try {
+          const parsed = parseWaveTestCommand(raw);
+          const out = await handleWaveTestAction({
+            action: parsed.action || "run",
+            env: process.env,
+          });
+          await tg(
+            "🌊 <b>WAVE MIRROR</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>SIM file+read vs answer key. Hitch WAVE on covered leftover. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ wavetest failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (text && text.startsWith("/vita ")) {
         const vitaInput = raw.slice("/vita ".length).trim();
         const vitaKey   = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
@@ -12960,6 +12981,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
           `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
+          `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +

@@ -272,6 +272,23 @@ describe("control board HTTP", () => {
     assert.equal(missJson.records.length, 0);
   });
 
+  it("GET /vita/wavetest is a public WAVE memory-mirror SIM (no spend)", async () => {
+    const { res, json } = await get("/vita/wavetest");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.pass, true);
+    assert.equal(json.send, false);
+    assert.equal(json.vitafeedPaidDefault, "off");
+    assert.equal(json.waveMirrorPaidDefault, "off");
+    assert.equal(json.motherBrain, "untouched");
+    assert.equal(json.result.sim, true);
+    assert.ok(json.result.rounds >= 3);
+    assert.equal(json.result.acks[0].role, "PING");
+    assert.equal(json.result.acks[1].role, "PONG");
+    assert.equal(json.result.acks[2].role, "ACK");
+    assert.match(json.reply, /PASS/);
+  });
+
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
     const first = await get("/vita/leftover");
     assert.equal(first.res.status, 200);
