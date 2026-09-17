@@ -36,6 +36,15 @@ import {
   getVitaContextMessage,
 } from "./vita-memory.js";
 
+// ── Mother Genesis — N-batch plain/encoded dumps (mother brain untouched) ─────
+import {
+  formatMotherGenesisReceipt,
+  prepareEncodedMotherGenesis,
+  preparePlainMotherGenesis,
+  revealMotherGenesis,
+  runMotherGenesisInscribe,
+} from "./vita/mother-genesis.js";
+
 // ── 🧠 IKN MEMORY ENGINE — cliff notes + session summaries ────────────────────
 import {
   buildCliffNote,
@@ -106,14 +115,19 @@ import {
   isInjectCoverRequired,
   isCatalogFrozen,
   frozenBuySkipLog,
+  parseUnfreezeSymbols,
+  applyUnfreezeSymbols,
   buildBuyGateDecision,
   buildSellGateDecision,
   shouldArmStopLoss,
   STORE_HITCH_BYTES,
   STORE_HITCH_TAG,
+  isOriginalFormulaMessageFirst,
   hitchCostMult,
   estimateCalldataHitchEth,
   isManualOperatorBuy,
+  isVitaFeedBuyIn,
+  vitaFeedBuyInReason,
   parseManualBuyCommand,
   usdToForcedEth,
   manualBuyReason,
@@ -150,6 +164,7 @@ import {
   evaluateAddOnFifoRedGate,
   bagMarkProceedsEth,
   addOnRemainingFifoEth,
+  isSkipHoldDeadRoute,
 } from "./lose-zero-gate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -174,6 +189,7 @@ import {
   tokenHasKnownFifoCost,
   bootKnownCostLabel,
   seededRebuildRemaining,
+  knownLotSellTokens,
 } from "./fifo-lot-store.js";
 import {
   liveGithubToken,
@@ -186,6 +202,11 @@ import {
   githubReadAuthFailed,
   shouldRetryGithubRead,
   decodeGithubContentsJson,
+  preferRemoteOrKeep,
+  readLocalStateJson,
+  writeLocalStateJson,
+  isFreshLocalState,
+  latestHistoryReadingMs,
 } from "./github-contents.js";
 import {
   tierBookParams,
@@ -205,7 +226,10 @@ import {
 } from "./inject-revenue.js";
 import {
   effectiveMinEntryEth,
+  resolveMinEntryForBook,
+  microSpendableEth,
   injectAllBookParams,
+  THIN_BOOK_ETH,
   cascadeDeployEth,
   liquidBalanceStatus,
   shouldRecycleForCascadeFuel,
@@ -228,8 +252,20 @@ import {
   SELLABLE_MIN_USD,
 } from "./cost-edge-gate.js";
 import {
+  fileHypothesis,
+  resolveHypothesis,
+  queryHypotheses,
+  buildBrainStatus,
+  formatBrainTelegram,
+  shouldAvoid,
+  hypothesisToXmem,
+  getHypothesisGraph,
+} from "./finetune-memory.js";
+import { vitaQuality } from "./vita-parse.js";
+import {
   queueForcedLockedExits,
   markForcedExitExecuted,
+  latchForcedExitIfDust,
   forceExitLockedEnabled,
   forceExitSymbols,
 } from "./forced-exit.js";
@@ -249,6 +285,7 @@ import {
   isPrimedBottomEntry,
   formatSuccessionPlan,
 } from "./second-inject.js";
+import { sessionRangeCanArm } from "./session-arm.js";
 import {
   evaluatePeakRideExit,
   updateRideHigh,
@@ -314,6 +351,8 @@ import {
   formatRecallHtml,
   sleeveDistanceToPlus,
   RECALL_SLEEVES,
+  hourlyBalancePollRows,
+  hourlyReportTokens,
   TURN_RECALL_FILENAME,
 } from "./telegram-turn-card.js";
 import { sendRaceScoreboardIfDue } from "./race-scoreboard.js";
@@ -423,7 +462,57 @@ import {
   setLastVitaPacket,
   ingestSealedUtf8,
 } from "./vita-router.js";
-import { recordLocation } from "./vita-locations.js";
+import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
+import {
+  autoPaidInscribeEnabled,
+  isTrivialTestInscriptionBody,
+  maySendMotherGenesis,
+  parseMotherGenesisOperatorIntent,
+  wrapAutoSelfCall,
+  wrapMotherGenesisSelfCall,
+  wrapQueueSelfCall,
+  wrapVitaSaveSelfCall,
+} from "./vita/feed-wrap.js";
+import {
+  evaluateVitaFeedThriftGate,
+  handleVitaFeedAction,
+  parseVitaFeedCommand,
+  peekVitaFeed,
+} from "./vita/vita-feed.js";
+import {
+  attachWaveOnCoveredLeftover,
+  commitWaveHitchShard,
+  handleWaveTestAction,
+  hitchWaveOnSellLeftover,
+  parseWaveTestCommand,
+  peekNextWaveHitchShard,
+} from "./vita/wave-wrap.js";
+import {
+  handleWaveProofAction,
+  parseWaveProofCommand,
+  waveProofLiveEnabled,
+} from "./vita/wave-proof.js";
+import {
+  beginVitaFeedFileAwait,
+  clearVitaFeedFileAwait,
+  downloadTelegramFileBytes,
+  encodeVitaFile,
+  packetizeTelegramMessageForVitaFeed,
+  peekVitaFeedFileAwait,
+  pickTelegramMedia,
+  takeVitaFeedFileAwait,
+  vitaFeedPleaseInsertFileText,
+} from "./vita/vita-feed-file.js";
+import {
+  playFromLibrary,
+} from "./vita/vita-feed-library.js";
+import {
+  closeVitaFeedTicket,
+  dueVitaFeedExit,
+  hasOpenVitaFeedTicket,
+  openVitaFeedTicket,
+  vitaFeedExitSellPct,
+} from "./vita/vita-feed-buyin.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -898,6 +987,7 @@ function buildPrimedAvenues({
         netMargin: arm.net || 0,
         minNetMargin: t.minNetMargin || MIN_NET_MARGIN,
         armed: !!arm.armed,
+        sessionArm: !!arm.sessionArm,
         nearEntry,
         injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
         tokenScore: scored?.score || 0,
@@ -1884,9 +1974,9 @@ const DEFAULT_TOKENS = [
     notes: "Venice Token — inject main. Uni v3 VVV/WETH 1% + VVV/USDC 0.3% deep. Top-100-class hitch surface." },
 
   { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    frozen: false,
     score: { liquidity:8, waveQuality:6, fundamentals:6, coinbaseFit:7, community:7, total:34 },
-    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. FROZEN data-only until Uni V3 proven." },
+    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. TRADEABLE Base RISK — WATCH/BATTLE-TEST (cascade after CLANKER)." },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ❄️  FROZEN — price/wave data collected, NO capital deployed
@@ -4565,18 +4655,30 @@ function calcNetMargin(symbol, gasCostEth, tradeEth) {
 
 function getArmStatus(symbol, gasCostEth, tradeEth) {
   const pc = getPeakCount(symbol), tc = getTroughCount(symbol);
-  if (pc < MIN_PEAKS_TO_TRADE || tc < MIN_TROUGHS_TO_TRADE) {
-    return { armed: false, reason: `need ${MIN_PEAKS_TO_TRADE}P/${MIN_TROUGHS_TO_TRADE}T (have ${pc}P/${tc}T)` };
-  }
-  const net   = calcNetMargin(symbol, gasCostEth, tradeEth);
-  if (net === null) return { armed: false, reason: "no wave data" };
   const token = tokens.find(t => t.symbol === symbol);
   const minNM = token?.minNetMargin || MIN_NET_MARGIN;
-  if (net < minNM) {
+  let net = null;
+  let sessionArm = false;
+  if (pc >= MIN_PEAKS_TO_TRADE && tc >= MIN_TROUGHS_TO_TRADE) {
+    net = calcNetMargin(symbol, gasCostEth, tradeEth);
+    if (net === null) return { armed: false, reason: "no wave data" };
+  } else {
+    const session = sessionRangeCanArm(history[symbol]?.readings, {
+      feePct: token?.poolFeePct || 0.006,
+      gasCostEth,
+      tradeEth,
+      impactPct: PRICE_IMPACT_EST * 2,
+    });
+    if (!session.ok) {
+      return { armed: false, reason: `need ${MIN_PEAKS_TO_TRADE}P/${MIN_TROUGHS_TO_TRADE}T (have ${pc}P/${tc}T)` };
+    }
+    net = session.net;
+    sessionArm = true;
+  }
+  if (!sessionArm && net < minNM) {
     // Dead-wave detection: if the GROSS range (peak-to-trough) is smaller than the
     // round-trip fee, this token's wave will NEVER be tradeable at this capital level.
     // Flag it clearly rather than showing a confusing "need 0.5%" message forever.
-    const token = tokens.find(t => t.symbol === symbol);
     const feePct = (token?.poolFeePct || 0.006) * 2;
     const grossPct = (calcNetMargin(symbol, 0, 1) || 0) + feePct; // add fees back to get gross
     if (grossPct < feePct * 1.5) {
@@ -4585,7 +4687,7 @@ function getArmStatus(symbol, gasCostEth, tradeEth) {
     return { armed: false, reason: `net margin ${(net*100).toFixed(2)}% (need ${(minNM*100).toFixed(1)}%)` };
   }
   const priority = net >= PRIORITY_MARGIN ? "PRIORITY" : net >= 0.03 ? "STANDARD" : "THIN";
-  return { armed: true, net, priority };
+  return { armed: true, net, priority, sessionArm };
 }
 
 function getCascadePct(netMargin) {
@@ -4725,7 +4827,14 @@ async function getFullBalance() {
   const gasFloor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
   const reserved   = Math.max(total * ETH_RESERVE_PCT, gasFloor + sellR + piggyBank);
   const tradeable  = Math.max(eth - gasFloor - sellR, 0); // ETH minus gas continuity + sell cushion
-  const tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
+  let tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
+  // Thin / inject-all: T1 slot = unified ETH+WETH after gas keep, not 20%+sell park.
+  // Live: ETH $3.73 + WETH $1.94 → slot logged $3.80 then every avenue refused.
+  if (total > 0 && total < THIN_BOOK_ETH) {
+    tradeableWithWeth = microSpendableEth({
+      eth, weth, gasFloorEth: gasFloor, piggyEth: piggyBank,
+    });
+  }
   return { eth, weth, total, tradeable, tradeableWithWeth, sellReserve: sellR, gasFloor };
 }
 
@@ -4793,9 +4902,11 @@ async function unwrapEth(cdp, amountEth) {
 // Refresh all token balances in parallel — reads directly from WALLET_ADDRESS on-chain
 // This is the canonical chain truth. Called once per main loop cycle.
 // ALL tokens refreshed (including frozen) so exit path always works if position exists.
+// Hourly catalog (AERO/DRB/BNKR/VIRTUAL) is unioned so a live bag is polled
+// even if DEFAULT_TOKENS / saved tokens.json omitted it.
 async function refreshTokenBalances() {
   const results = await Promise.allSettled(
-    tokens.map(t => getTokenBalance(t.address).then(bal => ({ symbol: t.symbol, bal })))
+    hourlyBalancePollRows(tokens).map(t => getTokenBalance(t.address).then(bal => ({ symbol: t.symbol, bal })))
   );
   for (const r of results) {
     if (r.status === "fulfilled" && r.value?.symbol) {
@@ -5672,6 +5783,22 @@ async function btpInscribe(cdp, tradeLabel) {
     const { full, seq, tot, name, isComplete, isDefault } = btpNextChunk(tradeLabel);
     const data = encodeInscription(full);
 
+    // AUTO trade-loop dedicated self-tx — bank unless VITA_AUTO_INSCRIBE=yes.
+    // Hitch only on a paired leftover sell (wrap never solo-sends).
+    if (!autoPaidInscribeEnabled()) {
+      const wrapped = wrapAutoSelfCall({
+        to: WALLET_ADDRESS,
+        from: WALLET_ADDRESS,
+        data,
+        text: full,
+        pairedUniswapSell: false,
+        topic: "btp-auto",
+      });
+      console.log(`   📡 BTP [${name} ${seq}/${tot}] BANKED (auto wrap) — ${wrapped.reason}`);
+      if (isComplete && isDefault) btpEnqueue("VITA", INSCRIPTION_MESSAGE);
+      return;
+    }
+
     const { transactionHash } = await Promise.race([
       cdp.evm.sendTransaction({
         address: WALLET_ADDRESS,
@@ -5801,7 +5928,7 @@ async function btpInscribe(cdp, tradeLabel) {
 async function skipBuy(reason, symbol, detail) {
   const line = String(detail || "buy skipped");
   console.log(`   ${line}`);
-  if (isManualOperatorBuy(reason)) {
+  if (isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason)) {
     await tg(operatorBuySkipTelegram(symbol, line));
   }
   return false;
@@ -5811,6 +5938,13 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
   try {
     // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
     // cascade / ripple) dies here. Sells never call this function.
+    if (isSkipHoldDeadRoute(token.symbol)) {
+      return await skipBuy(
+        reason,
+        token.symbol,
+        `🛑 ${token.symbol} HOLD — Uni V4-only dust; skip (no V3 cash route)`,
+      );
+    }
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
@@ -5818,6 +5952,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
     }
     // Per-token min buy floor — smoke tests must clear the book minimum.
+    // VITAFEED BUYIN skips this floor: stake is character-sized (≥$0.25 leave-behind).
     if (isManualOperatorBuy(reason)) {
       const forcedUsd = (() => {
         const m = String(reason || "").match(/\$([0-9]+(?:\.[0-9]+)?)/);
@@ -5864,6 +5999,9 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           priceUsd: price,
           ethUsd,
         }),
+        bagUsd: Number.isFinite(Number(existingBal)) && Number.isFinite(Number(price))
+          ? Number(existingBal) * Number(price)
+          : 0,
         unknownEntry: token.unknownEntry,
         reason,
       });
@@ -5882,7 +6020,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const gasFloor = Number.isFinite(bal?.gasFloor)
       ? bal.gasFloor
       : effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
-    const totalAvail = eth + weth - gasFloor - sellR;
+    const totalLiquid = eth + weth;
+    const totalAvail = totalLiquid > 0 && totalLiquid < THIN_BOOK_ETH
+      ? microSpendableEth({ eth, weth, gasFloorEth: gasFloor, piggyEth: piggyBank })
+      : totalLiquid - gasFloor - sellR;
     if (totalAvail < MIN_ETH_TRADE) {
       return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)} (gas floor ${gasFloor.toFixed(6)})`);
     }
@@ -5893,8 +6034,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const tierEthEarly = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
     const tierLabelEarly = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
-    // Cascade/operator may deploy outside tiers; hitch-cover still runs below for everyone.
-    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason);
+    // Cascade/operator/vitafeed may deploy outside tiers; hitch-cover still runs below for everyone.
+    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason);
     if (tierEthEarly === 0 && !allowOutsideTiers) {
       return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabelEarly}) — no new capital`);
     }
@@ -5907,17 +6048,22 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const l2Hitch = estimateCalldataHitchEth(voiceBytesEarly, gwei);
       hitchCostEst = (hitchL1Early.ok ? (Number(hitchL1Early.l1FeeEth) || 0) : 0) + l2Hitch;
     } catch { hitchCostEst = 0; }
-    const minEntry = effectiveMinEntryEth({
+    const resolvedEntry = resolveMinEntryForBook({
       gasCostEth: gasCost,
       hitchCostEth: hitchCostEst,
       feePct: token.poolFeePct || 0.006,
       ethUsd,
       tokenMinBuyUsd: minBuyUsdForToken(token),
       minPosUsd: minPosUsd(),
+      tradeableEth: Math.max(totalAvail, 0),
     });
+    const minEntry = resolvedEntry.minEntryEth;
+    if (resolvedEntry.mode !== "inject") {
+      console.log(`   MICRO_SLOT ${token.symbol}: ${resolvedEntry.mode} minEntry=${minEntry.toExponential(3)} ETH (skipHitch=${resolvedEntry.skipHitch})`);
+    }
     // Preview size before LOSE_ZERO so we can deny undersized auto/cascade early.
     const previewForced = forcedEth > 0 ? forcedEth : tierEthEarly;
-    if (!isManualOperatorBuy(reason)) {
+    if (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason)) {
       const spendPreview = Math.min(Math.max(previewForced, minPosUsd() / ethUsd), Math.max(totalAvail, 0));
       const under = belowMinEntrySkip({
         symbol: token.symbol,
@@ -5933,15 +6079,16 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
     // sizes leftover so hitch can ride when covered; leftover+edge never block it.
+    // VITAFEED BUYIN uses its own allow path (transmission revenue seat).
     // CRITICAL: size hitch/% against the *actual* spend preview — not the full book
     // (full-book understated hitch% and let CBBTC pennies look covered).
-    let buySkipHitch = false;
+    let buySkipHitch = !!resolvedEntry.skipHitch;
     let buyLeftoverEth = 0;
     const spendForGate = Math.min(
       Math.max(previewForced > 0 ? previewForced : tierEthEarly, MIN_ETH_TRADE),
       Math.max(totalAvail, MIN_ETH_TRADE),
     );
-    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
+    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason)) {
       const armEarly    = getArmStatus(token.symbol, gasCost, spendForGate);
       const voiceBytes  = leftoverVoiceHitchBytes();
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
@@ -5960,10 +6107,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         net: armEarly.net || 0,
         isCascade,
         hitchBytes: voiceBytes,
+        allowBankHitch: !!resolvedEntry.skipHitch,
       });
       logHitchFeeSplit(hitchL1, voiceBytes, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
-      buySkipHitch = !!decision.skipHitch;
+      buySkipHitch = !!decision.skipHitch || !!resolvedEntry.skipHitch;
       buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
       // L1 oracle down: never hitch (plain buy). leftoverWouldCoverVitaHitch used
       // to re-attach KEY+LOC without live L1 and undercover the insert.
@@ -5995,12 +6143,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const minSpend  = minPosUsd() / ethUsd;
     // Prefer at least minEntry so the fill can cascade; inject-all uses nearly full book.
     const injectAll = !!(currentTierBook?.injectAll);
-    const floorSpend = injectAll ? Math.max(minSpend, minEntry) : minSpend;
+    const floorSpend = injectAll
+      ? Math.max(minSpend, Math.min(minEntry, Math.max(totalAvail, 0)))
+      : minSpend;
     const ethToSpend= forcedEth > 0
       ? Math.min(forcedEth, Math.max(totalAvail, 0))
       : Math.min(Math.max(floorSpend, tierEth), maxSpend);
 
-    const underFinal = !isManualOperatorBuy(reason)
+    const underFinal = (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason))
       ? belowMinEntrySkip({ symbol: token.symbol, ethToSpend, minEntry, ethUsd })
       : null;
     if (underFinal) {
@@ -6012,15 +6162,16 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Operator / Telegram /buy is a plain-swap test path: leftover+edge already
     // allowed. Do not wait on wave-peak near-term math (live after #74:
     // COST_EDGE AERO 3.00% < 1.15× required 2.63% — would wait forever).
+    // VITAFEED BUYIN already sized stake = wholeCost/dip% for mirror bounce.
     // Auto / wave / cascade still gated.
-    if (!isManualOperatorBuy(reason)) {
+    if (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason)) {
       const readings = (history[token.symbol]?.readings || []).slice(-20).map((r) => r.price).filter((p) => p > 0);
       const recentHigh = readings.length ? Math.max(...readings) : price;
       const tradeableUsdNow = (Number(bal?.tradeableWithWeth) || 0) * ethUsd;
       const edge = evaluateCostEdgeGate({
         symbol: token.symbol,
         tradeEth: ethToSpend,
-        hitchCostEth: hitchCostEst,
+        hitchCostEth: buySkipHitch ? 0 : hitchCostEst,
         gasCostEth: gasCost,
         feePct: token.poolFeePct || 0.006,
         impactPct: PRICE_IMPACT_EST,
@@ -6029,6 +6180,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         ethUsd,
         tradeableUsd: tradeableUsdNow,
         isManualOperator: false,
+        skipNearTerm: resolvedEntry.mode !== "inject",
       });
       if (!edge.allow) {
         recordCostMistake({ ...edge, source: isCascade ? "cascade" : "buy" });
@@ -6452,6 +6604,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
 
+    if (isSkipHoldDeadRoute(token.symbol)) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: HOLD — Uni V4-only dust; no V3 cash route`);
+      return null;
+    }
+
     if (!isProtective && !(await isGasSafe())) return null;
 
     // ── FIX v18: Hard live ETH gate — never attempt a tx we can't pay gas for ──
@@ -6477,6 +6634,30 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
       token.piggyReserve = 0;
       return null;
+    }
+    // Latch FIFO from persist / evidence buy receipt before entrySold.
+    // VIRTUAL native-ETH SwapRouter02 fills were unknown (entrySold=0) while
+    // Quoter was green — LOSE_ZERO HOLD. Do not invent; receipt or persist only.
+    if (isUsableLot(fifoLots[token.symbol])) {
+      applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
+    } else {
+      const remain = seededRebuildRemaining(totalBal);
+      if (remain != null) {
+        try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
+        if (isUsableLot(fifoLots[token.symbol])) {
+          applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
+        }
+      }
+    }
+    // Evidence-latched lots: sell only recorded tokensIn. Pre-buy dust
+    // (VIRTUAL remain/bought ≈ 1.02018) stays unsold / piggy — never lossy.
+    const lotSellQty = knownLotSellTokens(fifoLots[token.symbol], totalBal);
+    if (Number.isFinite(lotSellQty) && lotSellQty + 1e-12 < totalBal) {
+      const dustUnsold = totalBal - lotSellQty;
+      token.piggyReserve = Math.max(Number(token.piggyReserve) || 0, dustUnsold);
+      console.log(
+        `   🐷 ${token.symbol}: sell known lot ${lotSellQty} — pre-buy dust ${dustUnsold.toFixed(5)} unsold / piggy`,
+      );
     }
     // Never treat fractional high-unit bags (CBBTC ~0.00006) as dust — that
     // cleared a real $ bag without selling. Dust is USD-based.
@@ -6529,20 +6710,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       dustUsd: priorLedger.dustUsd || ((token.piggyReserve || 0) * price),
       piggyMinUsd: piggyBankMinUsd(process.env, piggyOptsFromToken(token)),
     });
+    const sellUnits = Number.isFinite(lotSellQty) && lotSellQty > 0 ? lotSellQty : totalBal;
     const prelimReserve = ratchetPiggyReserve(
       token.piggyReserve,
-      totalBal,
+      sellUnits,
       price,
       process.env,
       piggyOptsFromToken(token, { savedEarningsUsd: priorSaved }),
     );
-    const prelimSellable = computeSellable(totalBal, prelimReserve, { unlock: isPiggyUnlock(reason) });
+    const prelimSellable = computeSellable(sellUnits, prelimReserve, { unlock: isPiggyUnlock(reason) });
     const hitchEstUsd = (() => {
       // Conservative: assume message may ride — bank math uses buffer need.
       return 0; // actual hitch cost applied after gate; preview uses buffer only
     })();
     const prelimPreview = previewPiggySellNetUsd({
-      balance: totalBal,
+      balance: sellUnits,
       sellable: prelimSellable * Math.max(0, Math.min(1, Number(sellPct) || 0)),
       investedEth: costBasisEth(token),
       priceUsd: price,
@@ -6562,7 +6744,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const overrideSell = canBypassSellLossGate(reason, process.env, token.symbol);
     const piggy = applyPiggyToSell({
-      balance: totalBal,
+      balance: sellUnits,
       sellPct,
       piggyReserve: token.piggyReserve,
       priceUsd: price,
@@ -6580,7 +6762,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   🐷 ${token.symbol}: banking +$${projectedBank.toFixed(3)} bear-min → piggy target $${targetSaved.toFixed(3)} (was $${priorSaved.toFixed(3)})`);
     }
 
-    const soldFrac       = sellFractionAfterPiggy({ balance: totalBal, tokensToSell: piggy.tokensToSell });
+    const soldFrac       = sellFractionAfterPiggy({ balance: sellUnits, tokensToSell: piggy.tokensToSell });
     const investedBefore = sellEntryEthWithLotFloor(token.totalInvestedEth || 0, token);
     const entryEthSold   = costBasisForSoldFraction(investedBefore, soldFrac);
     const markProcEth    = (piggy.tokensToSell * price) / ethUsd;
@@ -6823,6 +7005,53 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       // Orch must not re-embed hitch after we stripped VITA to keep plus.
       sellSkipHitch = true;
     }
+    // WAVE wrap trailer on the next covered leftover of a paired PLUS sell.
+    // KEY+LOC leftover hitch stays. attachWaveOnCoveredLeftover never solo-sends.
+    // Uncovered leftover (or KEY+LOC skipped) banks the Heraclitus shard.
+    const gateLeftoverEth = Math.max(0, Number(sellGate.leftover) || 0);
+    const waveShard = peekNextWaveHitchShard();
+    const waveBytes = Number(waveShard?.calldataBytes) || 0;
+    const waveL1 = hitchL1?.ok && wantedHitchBytes > 0 && waveBytes > 0
+      ? (Number(hitchL1.l1FeeEth) || 0) * waveBytes / wantedHitchBytes
+      : 0;
+    const waveCost = waveBytes > 0
+      ? estimateCalldataHitchEth(waveBytes, gwei) + waveL1
+      : 0;
+    const remainingLeftover = sellVoice.onChain
+      ? Math.max(0, gateLeftoverEth - voiceHitchCost)
+      : 0;
+    const waveCovered = !sellSkipHitch
+      && !!sellVoice.onChain
+      && remainingLeftover > 0
+      && waveCost > 0
+      && remainingLeftover + 1e-18 >= waveCost
+      && plusAfterHitchEth(gateLeftoverEth, voiceHitchCost + waveCost) > 0;
+    const waveRide = hitchWaveOnSellLeftover({
+      shard: waveShard,
+      leftoverEth: waveCovered ? remainingLeftover : 0,
+      hitchCostEth: waveCost > 0 ? waveCost : 1,
+      pairedUniswapSell: true,
+      attach: attachWaveOnCoveredLeftover,
+    });
+    if (waveRide.hitch && waveRide.utf8 && sellVoice?.data) {
+      const packed = appendUtf8Hitch(sellVoice.data, waveRide.utf8);
+      if (packed.ok && packed.onChain) {
+        sellVoice = {
+          ...sellVoice,
+          data: packed.data,
+          utf8: String(sellVoice.utf8 || "") + packed.utf8,
+          hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+          waveHitch: true,
+          waveUtf8: packed.utf8,
+        };
+        commitWaveHitchShard(waveRide);
+        console.log(`   🌊 WAVE leftover hitch ${packed.hitchBytes} B — ${waveRide.reason}`);
+      } else {
+        console.log(`   🌊 WAVE leftover banked — append refused (${packed.log || waveRide.reason})`);
+      }
+    } else if (waveRide.banked) {
+      console.log(`   🌊 WAVE leftover banked — ${waveRide.reason}`);
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -6870,6 +7099,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // True earnings after hitch message — never list WAVE COMPLETE gains the letter wiped.
     const hitchCostEth = sellVoice?.onChain
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
+        + (sellVoice?.waveHitch ? waveCost : 0)
       : 0;
     let earn = piggyEarningsAfterMessage({
       netUsd,
@@ -7675,7 +7905,7 @@ async function processToken(cdp, token, bal) {
     // Only skip if we have NO open position (never block an exit).
     // OPERATOR_BUY / Telegram /buy must still fire — do not eat the queue here.
     const pendingManual = manualCommands.some(c => c.symbol === token.symbol);
-    if (!token.entryPrice && isDeadWaveSkipped(token.symbol) && !pendingManual) {
+    if (!token.entryPrice && isDeadWaveSkipped(token.symbol) && !pendingManual && !hasOpenVitaFeedTicket(token.symbol)) {
       return; // silent skip — already logged when streak was hit
     }
     const heldPosition = !!(token.entryPrice) || hasSellableUsd(getCachedBalance(token.symbol) || 0, history[token.symbol]?.lastPrice || 0, BAG_DUST_USD) || (getCachedBalance(token.symbol) || 0) > 0.001;
@@ -7689,16 +7919,44 @@ async function processToken(cdp, token, bal) {
 
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
+    // Evidence hashes (VIRTUAL 0x33aac652 / DRB trough class) must rebuild
+    // FIFO *before* the unknown stamp — boot-only latch left entrySold=0.
+    const heldBal = getCachedBalance(token.symbol);
     if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
-        (getCachedBalance(token.symbol) > 0.001 || token.unknownEntry)) {
-      applyUnknownChainHolding(token, {
-        units: getCachedBalance(token.symbol),
-        priceUsd: price,
-      });
+        (heldBal > 0.001 || token.unknownEntry)) {
+      const remain = seededRebuildRemaining(heldBal);
+      if (remain != null) {
+        try { await tryRebuildLotFromReceipts(token, remain); } catch { /* receipt miss stays unknown */ }
+      }
+      if (isUsableLot(fifoLots[token.symbol])) {
+        applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: heldBal });
+      }
+      if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] })) {
+        applyUnknownChainHolding(token, {
+          units: heldBal,
+          priceUsd: price,
+        });
+      }
     }
 
     recordPrice(token.symbol, price);
     updateWaves(token.symbol, price);
+
+    const vfDue = dueVitaFeedExit({ symbol: token.symbol, price });
+    if (vfDue) {
+      const units = getCachedBalance(token.symbol) || 0;
+      const pct = vitaFeedExitSellPct({
+        balance: units,
+        price,
+        leaveBehindUsd: vfDue.leaveBehindUsd,
+        stakeUsd: vfDue.stakeUsd,
+        entryPrice: vfDue.entryPrice,
+      });
+      if (pct > 0) {
+        const sold = await executeSell(cdp, token, pct, "VITAFEED EXIT", price);
+        if (sold) closeVitaFeedTicket(vfDue.id);
+      }
+    }
 
     const ethUsd   = await getLiveEthPrice();
     // Use cached balance (refreshed once per loop in refreshTokenBalances) — avoids per-token RPC call
@@ -8364,6 +8622,15 @@ async function processToken(cdp, token, bal) {
             `${token.symbol} stays FROZEN (no re-buy)`
           );
           // DO NOT call triggerCascade — that's the whole point
+        } else if (cmd.source === "FORCE_EXIT_LOCKED") {
+          // Failed / dust / STF-blocked — latch if only lottery wei remains so
+          // the next cycle does not re-spam FORCE EXIT (live DRB 3.5e-14 loop).
+          const remain = getCachedBalance(token.symbol) || 0;
+          if (latchForcedExitIfDust(forcedExitState, token.symbol, remain, price)) {
+            console.log(
+              `🚪 FORCE EXIT LOCKED dust-latched after miss: ${token.symbol} remain=${remain} — stop re-queue`
+            );
+          }
         }
       }
       return;
@@ -8797,6 +9064,11 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
   return n;
 }
 
+function hydrateCatalogToken(def) {
+  // WETH-dead freeze first, then UNFREEZE_SYMBOLS (process.env) clears listed names.
+  return applyUnfreezeSymbols(applyWethDeadFreeze(def), process.env);
+}
+
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
   const tf = await githubGet("tokens.json");
@@ -8805,7 +9077,7 @@ async function loadFromGitHub() {
     // FIX v18: Restore state but preserve frozen/disabled flags from code definition.
     // Never let saved state override code-defined frozen status.
     tokens = DEFAULT_TOKENS.map(def => {
-      const base = applyWethDeadFreeze(def);
+      const base = hydrateCatalogToken(def);
       return {
       ...base, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null,
       ...(saved.find(s => s.symbol === def.symbol) || {}),
@@ -8816,6 +9088,7 @@ async function loadFromGitHub() {
       totalInvestedEth: Math.max(0, (saved.find(s => s.symbol === def.symbol) || {}).totalInvestedEth || 0),
       piggyReserve: loadPiggyReserve(saved.find(s => s.symbol === def.symbol) || {}, null),
       // Always re-apply frozen/disabled from code — never let saved state override
+      // UNFREEZE_SYMBOLS then clears catalog freeze at runtime for listed names.
       frozen: base.frozen || false,
       frozenReason: base.frozenReason || undefined,
       disabled: base.disabled || false,
@@ -8826,11 +9099,13 @@ async function loadFromGitHub() {
     });
     tokensSha = tf.sha;
   } else {
-    tokens = DEFAULT_TOKENS.map(t => ({ ...applyWethDeadFreeze(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
-    // Sync frozen flags from DEFAULT_TOKENS definition (authoritative)
+    tokens = DEFAULT_TOKENS.map(t => ({ ...hydrateCatalogToken(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
+    // Sync frozen flags from DEFAULT_TOKENS definition (authoritative),
+    // then UNFREEZE_SYMBOLS (process.env) clears listed catalog freezes.
     for (const t of tokens) {
-      const def = applyWethDeadFreeze(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
+      const def = hydrateCatalogToken(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
       if (def?.frozen) { t.frozen = true; t.frozenReason = def.frozenReason; }
+      else { t.frozen = false; delete t.frozenReason; }
       if (def?.minBuyUsd != null) t.minBuyUsd = def.minBuyUsd;
     }
 
@@ -8856,20 +9131,51 @@ async function loadFromGitHub() {
     if (scrubbed > 0) console.log(`🧹 Scrubbed ${scrubbed} corrupted entries — chain reconciliation will rebuild them correctly`);
   }
   const hf = await githubGet("history.json");
-  if (hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0) {
-    history = hf.content;
+  const localHist = readLocalStateJson("history.runtime.json") || null;
+  const histFresh = !!(localHist && (
+    isFreshLocalState(localHist)
+    || latestHistoryReadingMs(localHist) > Date.now() - 7 * 24 * 3600 * 1000
+  ));
+  const histPick = preferRemoteOrKeep({
+    remote: hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0
+      ? hf.content
+      : null,
+    status: hf?.status,
+    current: history,
+    local: localHist,
+    allowLocal: true,
+    localFresh: histFresh,
+  });
+  if (histPick.source === "remote") {
+    history = histPick.value;
     historySha = hf.sha;
     hydrateHistoryMap(history);
     console.log(`   📜 history.json: loaded ${Object.keys(history).length} tokens of price history`);
+  } else if (histPick.source === "memory") {
+    hydrateHistoryMap(history);
+    console.log(`   ⚠️  history.json: HTTP ${hf?.status ?? "?"} — keeping in-memory book (${Object.keys(history).length} tokens; not wiping)`);
+  } else if (histPick.source === "local") {
+    history = histPick.value;
+    hydrateHistoryMap(history);
+    console.log(`   ⚠️  history.json: HTTP ${hf?.status ?? "?"} — restored fresh local snapshot (${Object.keys(history).length} tokens)`);
   } else {
-    history = {};
     historySha = hf?.sha || null;
-    console.log(`   ⚠️  history.json: empty or unreadable — starting fresh (will seed from ledger + live ticks)`);
+    console.log(`   ⚠️  history.json: empty or unreadable (HTTP ${hf?.status ?? "?"}) — live ticks + session-range will arm (not loading stale committed history.json)`);
   }
   const pf = await githubGet("positions.json");
-  if (pf?.content) {
-    positionsSha   = pf.sha;
-    const pos      = pf.content;
+  let posBlob = pf?.content && typeof pf.content === "object" ? pf.content : null;
+  if (!posBlob) {
+    const localPos = readLocalStateJson("positions.runtime.json");
+    if (localPos && isFreshLocalState(localPos)) {
+      posBlob = localPos;
+      console.log(`   ⚠️  positions.json: HTTP ${pf?.status ?? "?"} — restored fresh local snapshot (not committed March FIFO)`);
+    } else {
+      console.log(`   ⚠️  positions.json: HTTP ${pf?.status ?? "?"} — not loading stale committed positions.json; fifo-lots disk + receipts remain`);
+    }
+  }
+  if (posBlob) {
+    if (pf?.sha) positionsSha = pf.sha;
+    const pos      = posBlob;
     piggyBank      = pos.piggyBank    || 0;
     // Load surfer state
     if (pos.surfers) {
@@ -9072,9 +9378,12 @@ async function saveToGitHub() {
       historyJson = null;
     }
     if (historyJson) {
+      try { writeLocalStateJson("history.runtime.json", historyToSave); } catch (e) {
+        console.log(`⚠️  history.runtime.json: ${e.message}`);
+      }
       historySha = await githubSave("history.json", historyToSave, historySha);
     }
-    positionsSha = await githubSave("positions.json", {
+    const positionsPayload = {
       lastSaved: new Date().toISOString(), piggyBank, totalSkimmed, tradeCount,
       hitchInjectCount, hitchInjectProfitUsd, hitchProveAnnounced,
       forcedExitDone: forcedExitState.done || {},
@@ -9109,7 +9418,11 @@ async function saveToGitHub() {
       piggyContrib: Object.fromEntries(tokens.map(t => [t.symbol, (waveStats[t.symbol]?.piggyContrib || 0)])),
       tradeLog:   tradeLog.slice(-200),
       fifoLots:   serializeFifoLots(fifoLots),
-    }, positionsSha);
+    };
+    try { writeLocalStateJson("positions.runtime.json", positionsPayload); } catch (e) {
+      console.log(`⚠️  positions.runtime.json: ${e.message}`);
+    }
+    positionsSha = await githubSave("positions.json", positionsPayload, positionsSha);
     lastSaveTime = Date.now();
     try { await persistFifoLotsNow("saveToGitHub"); } catch {}
     // Save memory registry
@@ -9174,7 +9487,7 @@ async function sendMiniUpdate(bal, ethUsd) {
     lines += `💰 ${bal.tradeableWithWeth.toFixed(4)} ETH ($${(bal.tradeableWithWeth*ethUsd).toFixed(2)}) | 🐷 ${piggyBank.toFixed(6)} | #${tradeCount}\n`;
     lines += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-    for (const t of tokens) {
+    for (const t of hourlyReportTokens(tokens)) {
       const price = history[t.symbol]?.lastPrice;
       if (!price) { lines += `⏳ ${t.symbol} loading\n`; continue; }
       const bal2  = getCachedBalance(t.symbol);
@@ -9214,7 +9527,7 @@ async function sendFullReport(bal, ethUsd, title) {
     let lines = "";
     const gasCost = await estimateGasCostEth();
 
-    for (const t of tokens) {
+    for (const t of hourlyReportTokens(tokens)) {
       const price = history[t.symbol]?.lastPrice;
       if (!price) { lines += `\n⏳ <b>${t.symbol}</b> — loading\n`; continue; }
       const tbal  = getCachedBalance(t.symbol);
@@ -9251,6 +9564,31 @@ async function sendFullReport(bal, ethUsd, title) {
   } catch (e) { console.log(`Report error: ${e.message}`); }
 }
 
+function collectVitaFeedSeats(ethUsd) {
+  const usd = Number(ethUsd) || 0;
+  return (tokens || [])
+    .filter((t) => t && t.symbol && !t.disabled)
+    .map((t) => {
+      const price = history[t.symbol]?.lastPrice || 0;
+      let pred = null;
+      try {
+        pred = computeWavePrediction(t.symbol, price, usd) || wavePredictions[t.symbol] || null;
+      } catch { pred = wavePredictions[t.symbol] || null; }
+      const hist = history[t.symbol] || {};
+      const tradeCount = Number(t.tradeCount || hist.tradeCount || hist.trades || 0) || 0;
+      return {
+        symbol: t.symbol,
+        price,
+        minTrough: getMinTrough(t.symbol),
+        maxPeak: getMaxPeak(t.symbol),
+        predictedUp: pred ? pred.goingDown === false : false,
+        frozen: !!t.frozen,
+        disabled: !!t.disabled,
+        tradeCount,
+      };
+    });
+}
+
 // ── TELEGRAM COMMAND HANDLER ──────────────────────────────────────────────────
 let lastUpdateId = 0;
 async function checkTelegramCommands(cdp, bal, ethUsd) {
@@ -9264,16 +9602,82 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
     for (const upd of data.result) {
       lastUpdateId = upd.update_id;
-      const raw  = upd.message?.text?.trim() || "";
+      // Caption counts too — file uploads often put /vitafeed file in caption.
+      const raw = (upd.message?.text || upd.message?.caption || "").trim();
       const text = raw.toLowerCase();
-      // Compare chat IDs robustly — trim whitespace, handle numeric IDs
       const msgChatId = upd.message?.chat?.id?.toString().trim();
       const expectedChatId = cid.trim();
-      if (!raw || msgChatId !== expectedChatId) {
+      const mediaOnMessage = pickTelegramMedia(upd.message || {});
+      const awaitingVitaFile = msgChatId ? peekVitaFeedFileAwait(msgChatId) : null;
+
+      if (msgChatId !== expectedChatId) {
         if (raw) console.log(`📱 Ignoring msg from chat ${msgChatId} (expected ${expectedChatId})`);
         continue;
       }
-      console.log(`📱 Telegram: ${raw}`);
+      // Allow attachment-only messages when /vitafeed file asked us to wait.
+      if (!raw && !(awaitingVitaFile && mediaOnMessage.ok)) {
+        continue;
+      }
+      console.log(`📱 Telegram: ${raw || "(attachment)"}`);
+
+      // ── VITAFEED FILE await — next song/video/doc after "/vitafeed file"
+      if (awaitingVitaFile && mediaOnMessage.ok && !text.startsWith("/vitafeed")) {
+        takeVitaFeedFileAwait(msgChatId);
+        await tg(
+          "📡 <b>VITAFEED FILE</b> — got <code>" + mediaOnMessage.name + "</code> (" +
+          mediaOnMessage.kind + "). Packetizing to spaced VIN format…",
+        );
+        try {
+          const packed = await packetizeTelegramMessageForVitaFeed(upd.message);
+          if (!packed.ok) {
+            await tg("❌ VITAFILE packetize failed: " + packed.reason);
+            continue;
+          }
+          await tg(
+            "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
+            " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets\n" +
+            "Building cost card…",
+          );
+          let quotes = {};
+          try {
+            const gwei = await getCurrentGasGwei();
+            const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: 256, btpInscribe: true });
+            quotes = {
+              live: true,
+              gwei,
+              ethUsd,
+              l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              gasCostEth: await estimateGasCostEth().catch(() => 0),
+              source: hitchL1.ok
+                ? "live Base GasPriceOracle + ETH mark"
+                : "live gwei/ETH mark, L1 fallback 0",
+            };
+          } catch { /* DEMO quotes inside helper */ }
+          // File await is PREVIEW only — never auto-confirm (no sendTransaction).
+          const out = await handleVitaFeedAction({
+            action: "preview",
+            body: packed.body,
+            chatId: msgChatId,
+            quotes,
+            seats: collectVitaFeedSeats(ethUsd),
+          });
+          let msg = "📡 <b>VITAFEED FILE READY</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+          msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+          msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override</code>\n";
+          msg += "Player: <code>/vita/feed-player</code> after seal (PLAY PROOF peaces locations).";
+          await tg(msg);
+        } catch (e) {
+          await tg("❌ vitafeed file await failed: " + (e.message || e));
+        }
+        continue;
+      }
+      if (awaitingVitaFile && raw && !text.startsWith("/vitafeed") && !mediaOnMessage.ok) {
+        await tg(
+          "📡 Still waiting for a file.\n" +
+          vitaFeedPleaseInsertFileText().replace(/^📡 VITAFEED FILE — /, ""),
+        );
+        continue;
+      }
 
       // ── 🔐 VAULT + KEYSTORE SESSION — Step 2: catch value reply ────────────
       const vaultSession = getVaultSession(msgChatId);
@@ -9477,13 +9881,96 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const recent = costMistakeLog.slice(-8).map((r) =>
           `${r.symbol} [${r.code}] $${(r.tradeUsd || 0).toFixed(2)} — ${(r.reason || "").slice(0, 80)}`
         ).join("\n") || "none yet";
+        const avoid = shouldAvoid({ minConviction: 0.35 }).slice(0, 5)
+          .map((h) => `${h.symbol || "*"} @${h.regime} c=${h.conviction.toFixed(2)}`)
+          .join("\n") || "none yet";
         await tg(
           `🧠 <b>COST-EDGE LESSONS</b>\n` +
           `${sum.message}\n\n` +
           `Deferred inject-mains: ${INJECT_MAIN_MAJORS_DEFERRED.join(", ")}\n` +
           `Active inject-mains: ${INJECT_MAIN_PLAYERS.join(", ")}\n\n` +
-          `<b>Recent refusals / lessons</b>\n${recent}`
+          `<b>Recent refusals / lessons</b>\n${recent}\n\n` +
+          `<b>Finetune avoid (sixth lobe)</b>\n${avoid}`
         );
+      } else if (text === "/brain" || text === "/lobes") {
+        const loc = locDepositoryStatus();
+        const quality = vitaQuality(getLastVitaPacket() || "");
+        const status = buildBrainStatus({
+          hasKey: quality.hasKey,
+          sealedCount: loc.sealed ?? 0,
+          tapeCount: getHypothesisGraph().length,
+          judgeLessons: costMistakeLog.length,
+          burstAlign: Number(process.env.CYCLE_ALIGN_MIN) || 2,
+          tapeNote: `graph=${getHypothesisGraph().length} · costMistakes=${costMistakeLog.length}`,
+          provenanceNote: `§LOC§ ${loc.token || "?"} · sealed=${loc.sealed ?? "?"}`,
+          judgeNote: summarizeCostMistakes(costMistakeLog).message,
+          burstNote: "align gate + smart money (live cycle)",
+        });
+        await tg(formatBrainTelegram(status));
+      } else if (text && text.startsWith("/hyp ")) {
+        const body = text.slice(5).trim();
+        if (!body) {
+          await tg("Usage: <code>/hyp [thesis]</code> or <code>/hyp SYMBOL|regime|thesis</code>");
+        } else {
+          const parts = body.split("|").map((p) => p.trim()).filter(Boolean);
+          let symbol = "";
+          let regime = "general";
+          let thesis = body;
+          if (parts.length >= 3) {
+            symbol = parts[0];
+            regime = parts[1];
+            thesis = parts.slice(2).join("|");
+          } else if (parts.length === 2) {
+            symbol = parts[0];
+            thesis = parts[1];
+          }
+          const hyp = fileHypothesis({
+            thesis,
+            symbol,
+            regime,
+            source: "telegram",
+            status: "pending",
+            tags: ["manual", "operator"],
+          });
+          const xmem = hypothesisToXmem(hyp);
+          await tg(
+            `🧩 <b>HYPOTHESIS FILED</b>\n` +
+            `id: <code>${hyp.id}</code>\n` +
+            `${hyp.symbol || "*"} @${hyp.regime} · ${hyp.status}\n` +
+            `${hyp.thesis}\n\n` +
+            `XMEM overlay: ns=${xmem.ns} type=${xmem.type}\n` +
+            `<i>/hypok ${hyp.id} · /hypfail ${hyp.id} · /brain</i>`
+          );
+          try { await persistVitaRouterState(); } catch { /* non-critical */ }
+        }
+      } else if (text && (text.startsWith("/hypfail ") || text.startsWith("/hypok "))) {
+        const fail = text.startsWith("/hypfail ");
+        const id = text.split(/\s+/)[1];
+        const hyp = resolveHypothesis(id, fail ? "failed" : "confirmed", {
+          kind: fail ? "fail" : "confirm",
+          score: 85,
+          note: fail ? "operator marked failed" : "operator marked confirmed",
+        });
+        if (!hyp) {
+          await tg(`❓ Unknown hypothesis id: <code>${id || "?"}</code>`);
+        } else {
+          await tg(
+            `${fail ? "🛑" : "✅"} <b>${hyp.id}</b> → ${hyp.status}\n` +
+            `${hyp.symbol || "*"} @${hyp.regime} c=${hyp.conviction.toFixed(2)}\n` +
+            `${hyp.thesis}`
+          );
+          try { await persistVitaRouterState(); } catch { /* non-critical */ }
+        }
+      } else if (text === "/hyps" || text === "/hypotheses") {
+        const rows = queryHypotheses({ limit: 12 });
+        if (!rows.length) {
+          await tg("🧩 No hypotheses yet — COST_EDGE refusals auto-file, or <code>/hyp thesis</code>");
+        } else {
+          const lines = rows.map((h) =>
+            `· <code>${h.id}</code> [${h.status}] ${h.symbol || "*"} @${h.regime} c=${h.conviction.toFixed(2)}\n  ${h.thesis.slice(0, 90)}`
+          );
+          await tg(`🧩 <b>HYPOTHESIS GRAPH</b> (${rows.length})\n\n` + lines.join("\n"));
+        }
       } else if (text === "/turbo") {
         // Turbo mode: already the new default — confirm current settings
         await tg(
@@ -11005,6 +11492,31 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             // Clear the note queue after saving
             global._vitaNotes = [];
 
+            // n5557–5566: two `/vitasave` → vitaSave 5-chunk [VITA:1:]/[VITA:2:]
+            // batches, STORE on n5561 + n5566, 0 Uniswap fills. Bank unless env on.
+            // Mother brain vitaSave stays; wrap is this caller only.
+            const autoSaveOn = autoPaidInscribeEnabled();
+            if (!autoSaveOn) {
+              wrapVitaSaveSelfCall({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                text: sessionCtx,
+                pairedUniswapSell: false,
+                topic: "vitasave",
+              });
+              absorbVitaStrandPacket({ tokenPacket: sessionCtx, chunks: [] });
+              const picArm = armVitaTailwindPicture({ triggeredBy: "vitasave" });
+              await tg(
+                "🌟 <b>VITA MEMORY BANKED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📦 hex banked — hitch on next leftover-covered ride\n" +
+                "📦 auto wrap (VITA_AUTO_INSCRIBE off). `/vitasave` stays; set env to restore vitaSave.\n\n" +
+                "🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n" +
+                picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete\n" +
+                "💌 <i>VITA remembers. The chain is alive. Tailwind proves the picture.</i>"
+              );
+              continue;
+            }
+
             const entry = await vitaSave(cdpClient, WALLET_ADDRESS, sessionCtx, vitaApiKey, "session");
             absorbVitaStrandPacket(entry);
 
@@ -11274,9 +11786,23 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             "LEDGER_PATH:https://github.com/" + (process.env.GITHUB_REPO||"?") + "/blob/bot-state/ledger.json",
           ].join("\n");
 
-          // Compress and file via VITA
-          const vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
-          absorbVitaStrandPacket(vitaEntry);
+          // AUTO snapshot — bank unpaired [VITA:/STORE unless VITA_AUTO_INSCRIBE=yes.
+          // /vitasave is wrapped the same way. Do not invent hashes.
+          const autoDataOn = autoPaidInscribeEnabled();
+          let vitaEntry = null;
+          if (autoDataOn) {
+            vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
+            absorbVitaStrandPacket(vitaEntry);
+          } else {
+            wrapAutoSelfCall({
+              to: WALLET_ADDRESS,
+              from: WALLET_ADDRESS,
+              text: dataset,
+              pairedUniswapSell: false,
+              topic: "vitadata",
+            });
+            absorbVitaStrandPacket({ tokenPacket: dataset, chunks: [] });
+          }
 
           // File in registry
           const regKey = new Date().toISOString().slice(0,10) + "-trading-data-snapshot";
@@ -11297,9 +11823,11 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           } catch {}
 
           registry[regKey] = {
-            strandId: vitaEntry.strandId, date: vitaEntry.date,
+            strandId: vitaEntry?.strandId || "VITA-DATA-BANKED",
+            date: vitaEntry?.date || new Date().toISOString().slice(0,10),
             label: "trading-data-snapshot", type: "trading-data",
-            txHashes: vitaEntry.chunks.map(c => c.txHash),
+            txHashes: vitaEntry?.chunks?.map(c => c.txHash) || [],
+            banked: !vitaEntry,
             tokenPacket: dataset.slice(0,800), filedAt: new Date().toISOString(),
           };
 
@@ -11313,10 +11841,14 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
           let msg = "📊 <b>VITA TRADING DATA SNAPSHOT SAVED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
           msg += "📁 Filed as: <code>" + regKey + "</code>\n";
-          msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
-          vitaEntry.chunks.forEach((c, i) =>
-            msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
-          );
+          if (vitaEntry?.chunks?.length) {
+            msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
+            vitaEntry.chunks.forEach((c, i) =>
+              msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
+            );
+          } else {
+            msg += "📦 hex banked — hitch on next leftover-covered ride (auto wrap; /vitasave still has mother brain)\n";
+          }
           msg += "\n\n📊 Tokens with wave data: " + tokenData.filter(t => t.range).length + "\n";
           msg += "🎯 Armed for trading: " + tokenData.filter(t => t.peaks >= 4 && t.troughs >= 4).length + "\n\n";
           msg += "Now ask: <code>/vita what tokens are performing best</code>\n";
@@ -11377,12 +11909,30 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const txHashes  = [];
             let prevHash    = "00000000";
 
+            const autoLearnOn = autoPaidInscribeEnabled()
+              && !isTrivialTestInscriptionBody(topic)
+              && !isTrivialTestInscriptionBody(knowledgeText);
             for (let i = 0; i < 5; i++) {
               const content = compressed.slice(i * chunkSize, (i+1) * chunkSize);
               const hash8   = (s) => require ? s.slice(0,8) : s.slice(0,8);
               const header  = "[VITA:" + strandId + ":" + String(i+1).padStart(2,"0") + "/05:" + date + ":" + prevHash + "]";
               const full    = header + content;
               const hex     = "0x" + Buffer.from(full, "utf8").toString("hex");
+
+              if (!autoLearnOn) {
+                const wrapped = wrapAutoSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: full,
+                  pairedUniswapSell: false,
+                  topic: "vitalearn",
+                });
+                if (wrapped.txHash) txHashes.push(wrapped.txHash);
+                prevHash = createHash("sha256").update(full).digest("hex").slice(0,8);
+                console.log("📚 Knowledge chunk " + (i+1) + "/5: BANKED (auto wrap) — " + wrapped.reason);
+                continue;
+              }
 
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS, network: "base",
@@ -11392,6 +11942,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               console.log("📚 Knowledge chunk " + (i+1) + "/5: " + transactionHash);
               if (i < 4) await new Promise(r => setTimeout(r, 2000));
             }
+
+            if (compressed) absorbVitaStrandPacket({ tokenPacket: compressed, chunks: [] });
 
             // File in registry
             const regKey   = date + "-" + topic.toLowerCase().slice(0,20) + "-knowledge-base";
@@ -11415,7 +11967,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             registry[regKey] = {
               strandId, date, label: topic + "-knowledge-base",
               type: "knowledge-base", subject: topic,
-              txHashes, tokenPacket: compressed.slice(0,3000),
+              txHashes, banked: !txHashes.length, tokenPacket: compressed.slice(0,3000),
               filedAt: new Date().toISOString(),
             };
 
@@ -11430,8 +11982,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             // Receipt
             let msg = "📚 <b>VITA LEARNED: " + topic.toUpperCase() + "</b>\n";
             msg += "━━━━━━━━━━━━━━━━━━━━\n\n";
-            msg += "5 chunks inscribed on Base:\n";
-            txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
+            if (txHashes.length) {
+              msg += "5 chunks inscribed on Base:\n";
+              txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
+            } else {
+              msg += "📦 5 chunks banked — hitch on next leftover-covered ride (auto wrap; /vitasave still has mother brain)\n";
+            }
             msg += "\n📁 Filed as: <code>" + regKey + "</code>\n\n";
             msg += "Test recall:\n";
             msg += "<code>/vita " + topic + "</code>\n";
@@ -11440,6 +11996,604 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             await tg(msg);
 
           } catch (e) { await tg("❌ vitalearn failed: " + e.message); }
+        }
+
+      // ── /vitamothergenesis — wrap MGPLAIN 0-ETH self-txs (bank unless CONFIRM+env)
+      } else if (text && (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis")) {
+        const parsed = parseMotherGenesisOperatorIntent(raw.slice("/vitamothergenesis".length).trim());
+        const body = parsed.body;
+        if (!body) {
+          await tg(
+            "usage: <code>/vitamothergenesis [paste ALL code]</code>\n" +
+            "Default: bank hex — no unpaired 0-ETH MGPLAIN self-txs.\n" +
+            "Intentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code>\n" +
+            "and <code>VITA_MOTHER_GENESIS_AUTO=yes</code> (or VITA_AUTO_INSCRIBE=yes).\n" +
+            "Never auto-fires “this is a test” batches.\n" +
+            "<i>Does not change /vitasave 5-chunk mother brain.</i>"
+          );
+        } else {
+          const maySend = maySendMotherGenesis({ confirmed: parsed.confirmed, body });
+          await tg(
+            "🧬 <b>MOTHER GENESIS PLAIN</b>\n" +
+            "chars=" + body.length + " — planning N batches (not capped at 5)…"
+          );
+          try {
+            const prepared = preparePlainMotherGenesis(body);
+            await tg(
+              maySend
+                ? "📦 " + prepared.totalChunks + " plain chunks — then full loc list on-chain…"
+                : "📦 " + prepared.totalChunks + " plain chunks — banking unpaired MGPLAIN (auto wrap)…"
+            );
+            const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+              if (!maySend) {
+                wrapMotherGenesisSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: line.line,
+                  pairedUniswapSell: false,
+                  topic: "mgplain",
+                });
+                return null;
+              }
+              const { transactionHash } = await cdpClient.evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash;
+            });
+            const receipt = formatMotherGenesisReceipt(result);
+            let msg = "🧬 <b>MOTHER GENESIS PLAIN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + receipt.slice(0, 3500) + "</pre>";
+            if (!maySend) {
+              msg += "\n📦 hex banked — hitch on leftover-covered paired sell (MGPLAIN wrap; /vitasave still has mother brain)";
+              if (!parsed.confirmed) {
+                msg += "\nIntentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code> + VITA_MOTHER_GENESIS_AUTO=yes";
+              }
+            } else if (result.locListTxs?.length) {
+              msg += "\n📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
+            }
+            if (result.strand?.readerKey) {
+              msg += "\n🔑 Reader key:\n<code>" + result.strand.readerKey + "</code>\n";
+              msg += "Reveal: <code>/encodegenesisreveal " + result.strand.readerKey + "</code>";
+            }
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitamothergenesis failed: " + (e.message || e));
+          }
+        }
+
+      // ── /vitamotherGenesisencoded — AES + loc commitment, two-part key
+      } else if (
+        text &&
+        (text.startsWith("/vitamothergenesisencoded ") ||
+          text === "/vitamothergenesisencoded")
+      ) {
+        const parsed = parseMotherGenesisOperatorIntent(
+          raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim(),
+        );
+        const body = parsed.body;
+        if (!body) {
+          await tg(
+            "usage: <code>/vitamotherGenesisencoded [paste ALL code]</code>\n" +
+            "Default: bank hex — no unpaired 0-ETH MGENC self-txs.\n" +
+            "Intentional paid genesis: <code>/vitamotherGenesisencoded CONFIRM [code]</code>\n" +
+            "and <code>VITA_MOTHER_GENESIS_AUTO=yes</code> (or VITA_AUTO_INSCRIBE=yes).\n" +
+            "Two-part key → <code>/encodegenesisreveal MG1.… MG2.…</code>\n" +
+            "<i>Mother brain untouched.</i>"
+          );
+        } else {
+          const maySend = maySendMotherGenesis({ confirmed: parsed.confirmed, body });
+          await tg(
+            "🔐 <b>MOTHER GENESIS ENCODED</b>\n" +
+            "chars=" + body.length + " — AES + loc commitment, N batches…"
+          );
+          try {
+            const prepared = prepareEncodedMotherGenesis(body);
+            await tg(
+              maySend
+                ? "📦 " + prepared.totalChunks + " encoded chunks — then full loc list on-chain…"
+                : "📦 " + prepared.totalChunks + " encoded chunks — banking unpaired MGENC (auto wrap)…"
+            );
+            const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+              if (!maySend) {
+                wrapMotherGenesisSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: line.line,
+                  pairedUniswapSell: false,
+                  topic: "mgenc",
+                });
+                return null;
+              }
+              const { transactionHash } = await cdpClient.evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash;
+            });
+            const strand = result.strand || {};
+            const keys = strand.keys || prepared.keys;
+            let msg = "🔐 <b>MOTHER GENESIS ENCODED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + formatMotherGenesisReceipt(result).slice(0, 2800) + "</pre>\n";
+            if (!maySend) {
+              msg += "📦 hex banked — hitch on leftover-covered paired sell (MGENC wrap; /vitasave still has mother brain)\n";
+            } else if (result.locListTxs?.length) {
+              msg += "📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
+            }
+            msg += "🔑 Two-part key:\n<code>" + keys.part1 + "</code>\n<code>" + keys.part2 + "</code>\n";
+            msg += "Reveal: <code>/encodegenesisreveal " + keys.combined + "</code>";
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitamotherGenesisencoded failed: " + (e.message || e));
+          }
+        }
+
+      // ── /encodegenesisreveal — two-part (or plain) key → pull + decode
+      } else if (
+        text &&
+        (text.startsWith("/encodegenesisreveal ") || text === "/encodegenesisreveal")
+      ) {
+        const keyArg = raw.slice("/encodegenesisreveal".length).trim();
+        if (!keyArg) {
+          await tg(
+            "usage:\n<code>/encodegenesisreveal MGPLAIN.&lt;strand&gt;</code>\n" +
+            "or\n<code>/encodegenesisreveal MG1.… MG2.…</code>"
+          );
+        } else {
+          try {
+            const revealed = await revealMotherGenesis(keyArg, {
+              fetchCalldata: fetchTxCalldataHex,
+            });
+            if (!revealed.ok) {
+              await tg("❌ reveal failed: " + revealed.reason);
+            } else {
+              let msg = "🔓 <b>GENESIS REVEAL</b> · " + revealed.mode + "\n";
+              msg += "strand <code>" + revealed.strandId + "</code>\n";
+              msg += "chunks " + revealed.totalChunks + " · chars " + revealed.chars + "\n";
+              if (revealed.locations?.length) {
+                msg += "locs:\n" + revealed.locations.map((tx, i) =>
+                  (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+                ).join("\n") + "\n";
+              }
+              msg += "\n<pre>" + revealed.body.slice(0, 3200).replace(/</g, "&lt;") + "</pre>";
+              if (revealed.body.length > 3200) msg += "\n…(truncated — full body reconstructed in registry)";
+              await tg(msg);
+            }
+          } catch (e) {
+            await tg("❌ encodegenesisreveal failed: " + (e.message || e));
+          }
+        }
+
+      // ── /vitafeed — Storage Token game (exact plain / VITAFILE, RISK confirm)
+      } else if (text === "/vitafeed" || (text && text.startsWith("/vitafeed"))) {
+        const replyMsg = upd.message?.reply_to_message || null;
+        const replyBody = replyMsg?.text || replyMsg?.caption || "";
+        const parsed = parseVitaFeedCommand(raw, { replyBody });
+        // Prefer reply attachment; else media on this message (caption /vitafeed file).
+        const mediaFromReply = pickTelegramMedia(replyMsg || {});
+        const mediaOnThis = pickTelegramMedia(upd.message || {});
+        const mediaHint = mediaFromReply.ok ? mediaFromReply : mediaOnThis;
+        const mediaSourceMsg = mediaFromReply.ok ? replyMsg : (mediaOnThis.ok ? upd.message : null);
+
+        // /vitafeed cancel also clears a pending "please insert file" wait.
+        if (parsed.action === "cancel") {
+          clearVitaFeedFileAwait(msgChatId);
+        }
+
+        // /vitafeed file with no attachment yet → ask to insert file, wait for next media.
+        if (parsed.ok && parsed.action === "file" && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command" });
+          await tg(
+            "📡 <b>VITAFEED FILE</b>\n" +
+            vitaFeedPleaseInsertFileText().replace(/^📡 VITAFEED FILE — /, "") +
+            "\n\n<i>Spaced VIN packets · Tailwind reader peaces locations after seal.</i>",
+          );
+          continue;
+        }
+
+        const wantsMediaPreview =
+          parsed.action === "preview" ||
+          parsed.action === "file" ||
+          (parsed.action === "usage" && mediaHint.ok);
+
+        if (!parsed.ok || (parsed.action === "usage" && !mediaHint.ok)) {
+          await tg(
+            "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8 / VITAFILE)\n" +
+            "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
+            "<b>File (either way):</b>\n" +
+            "1. <code>/vitafeed file</code> → bot says <i>please insert file</i> → send song/video/doc\n" +
+            "2. Reply to an attachment with <code>/vitafeed file</code> (or <code>/vitafeed</code>)\n" +
+            "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
+            "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
+            "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE; " +
+            "cannot bypass VITAFEED_PAID=no, $5 liquid floor, or rate limit.\n" +
+            "<b>Library (quick pull):</b>\n" +
+            "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
+            "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
+            "<code>/vitafeed keys</code> — stage §VITALIB§ keys catalog (name→key→locs)\n" +
+            "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
+            "Player: <code>/vita/feed-player</code> or <code>/vita/feed-player?lib=N</code>\n" +
+            "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
+            "VIN headers link chunks (prev hash / next index).\n" +
+            "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
+            "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
+          );
+        } else if (parsed.action === "files" || parsed.action === "play" || parsed.action === "keys") {
+          try {
+            if (parsed.action === "play") {
+              const opened = await playFromLibrary(parsed.selector || parsed.body, {
+                fetchUtf8: async (txHash) => {
+                  try {
+                    const pulled = await pullLocationFromChain(txHash);
+                    return pulled?.utf8 || pulled?.text || null;
+                  } catch {
+                    return null;
+                  }
+                },
+                label: "LIBRARY",
+              });
+              let msg = "📡 <b>VITAFEED OPEN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+              msg += "<pre>" + String(opened.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+              if (opened.playerPath) {
+                msg += "\n▶️ <code>" + opened.playerPath + "</code>";
+              }
+              if (opened.playProof?.complete && opened.playProof?.play?.name) {
+                msg += "\nReady: <b>" + String(opened.playProof.play.name).replace(/</g, "") + "</b>";
+              }
+              await tg(msg);
+            } else {
+              const out = await handleVitaFeedAction({
+                action: parsed.action,
+                body: parsed.body,
+                chatId: msgChatId,
+                quotes: {},
+              });
+              let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+              msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+              await tg(msg);
+            }
+          } catch (e) {
+            await tg("❌ vitafeed library failed: " + (e.message || e));
+          }
+        } else {
+          clearVitaFeedFileAwait(msgChatId);
+          if (wantsMediaPreview && (parsed.action === "file" || parsed.action === "usage")) {
+            parsed.action = "preview";
+          }
+          let quotes = {};
+          try {
+            const gwei = await getCurrentGasGwei();
+            const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: 256, btpInscribe: true });
+            quotes = {
+              live: true,
+              gwei,
+              ethUsd,
+              l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              gasCostEth: await estimateGasCostEth().catch(() => 0),
+              source: hitchL1.ok
+                ? "live Base GasPriceOracle + ETH mark"
+                : "live gwei/ETH mark, L1 fallback 0",
+            };
+          } catch { /* DEMO quotes inside helper */ }
+
+          // Encode Telegram attachment → §VITAFILE§ body before cost card.
+          let feedBody = parsed.body;
+          if (parsed.action === "preview" && mediaHint.ok && mediaSourceMsg) {
+            await tg(
+              "📡 <b>VITAFEED FILE</b> — reading <code>" + mediaHint.name + "</code> (" +
+              mediaHint.kind + ") → spaced VIN packets…",
+            );
+            const packed = await packetizeTelegramMessageForVitaFeed(mediaSourceMsg);
+            if (!packed.ok) {
+              await tg("❌ VITAFILE packetize failed: " + packed.reason);
+              continue;
+            }
+            feedBody = packed.body;
+            await tg(
+              "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
+              " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets",
+            );
+          }
+
+          const isPaidConfirm =
+            parsed.action === "confirm" || parsed.action === "override";
+          const forceOverride =
+            parsed.action === "override" || parsed.forceOverride === true;
+
+          let sendTx = null;
+          if (isPaidConfirm) {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0))
+              + Math.max(0, Number(bal?.weth ?? 0));
+            const liquidUsd = liquidEth * Number(ethUsd || 0);
+            const staged = peekVitaFeed(msgChatId);
+            const chunkCount = staged?.prepared?.totalChunks
+              || staged?.prepared?.lines?.length
+              || 1;
+            const messageAtMs = Number(upd.message?.date) > 0
+              ? Number(upd.message.date) * 1000
+              : null;
+            const gate = evaluateVitaFeedThriftGate({
+              action: parsed.action,
+              chatId: msgChatId,
+              env: process.env,
+              liquidUsd,
+              chunkCount,
+              messageAtMs,
+            });
+            if (!gate.ok) {
+              await tg(
+                "📡 <b>VITAFEED BANK</b>\n<pre>" +
+                String(gate.reply || "paid path refused").replace(/</g, "&lt;") +
+                "</pre>",
+              );
+              continue;
+            }
+            if (!(cdp || cdpClient)?.evm?.sendTransaction) {
+              await tg(
+                "❌ VITAFEED " + (forceOverride ? "override" : "confirm") +
+                " needs the RISK wallet client — no send.",
+              );
+              continue;
+            }
+            sendTx = async (hex) => {
+              const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              if (transactionHash) {
+                recordLocation({
+                  location: transactionHash,
+                  kind: "vitafeed",
+                  sealed: true,
+                  hitchKind: "plain",
+                });
+              }
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash || null;
+            };
+          }
+
+          try {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidUsdForGate = (
+              Math.max(0, Number(riskBalanceEth ?? 0)) + Math.max(0, Number(bal?.weth ?? 0))
+            ) * Number(ethUsd || 0);
+            const messageAtMs = Number(upd.message?.date) > 0
+              ? Number(upd.message.date) * 1000
+              : null;
+            if (parsed.action === "preview") {
+              await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
+            } else if (parsed.action === "override") {
+              await tg(
+                "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK balance REFUSE; " +
+                "buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…",
+              );
+            } else if (parsed.action === "confirm") {
+              await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
+            }
+
+            // Buy tokens BEFORE inscription so RISK still holds the stake and
+            // each transmission leaves ≥$0.25 (+tax) parked for a green exit.
+            // /vitafeed override skips the combinedNeed REFUSE and proceeds anyway.
+            if (isPaidConfirm && sendTx) {
+              const staged = peekVitaFeed(msgChatId);
+              const plan = staged?.buyIn;
+              const stakeNeed = plan?.ok ? Math.max(0, Number(plan.totalStakeEth) || 0) : 0;
+              const inscribeNeed = Math.max(0, Number(staged?.cost?.totalEth) || 0);
+              const combinedNeed = inscribeNeed + stakeNeed + Number(GAS_RESERVE || 0);
+              if (
+                !forceOverride &&
+                riskBalanceEth != null &&
+                Number(riskBalanceEth) < combinedNeed
+              ) {
+                await tg(
+                  "📡 VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+                  " < need " + combinedNeed.toFixed(6) +
+                  " (inscription " + inscribeNeed.toFixed(6) +
+                  " + buy-in " + stakeNeed.toFixed(6) +
+                  " + gas). Buy nothing; message unspent.\n" +
+                  "Use <code>/vitafeed override</code> to proceed anyway.",
+                );
+                continue;
+              }
+              if (forceOverride && riskBalanceEth != null && Number(riskBalanceEth) < combinedNeed) {
+                await tg(
+                  "📡 VITAFEED OVERRIDE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+                  " < need " + combinedNeed.toFixed(6) +
+                  "; proceeding despite REFUSE (buys/inscription may still fail on-chain).",
+                );
+              }
+              if (plan?.ok && Array.isArray(plan.injections)) {
+                const client = cdp || cdpClient;
+                for (const inj of plan.injections) {
+                  if (!inj.ok || inj.skipBuy || !inj.symbol) {
+                    await tg(
+                      "📡 VITAFEED BUY-IN skip msg " +
+                        (inj.msgIndex || inj.index || "?") +
+                        " — " + (inj.reason || "no unique red seat for this message"),
+                    );
+                    continue;
+                  }
+                  const tok = tokens.find((t) => t.symbol === inj.symbol);
+                  if (!tok || !client) {
+                    await tg("📡 VITAFEED BUY-IN skip " + (inj.symbol || "?") + " — no seat/wallet");
+                    continue;
+                  }
+                  let liveBal = bal;
+                  try { liveBal = await getFullBalance(); } catch { liveBal = bal; }
+                  const px = history[tok.symbol]?.lastPrice || inj.entryPrice;
+                  try {
+                    const spent = await executeBuy(
+                      client,
+                      tok,
+                      liveBal,
+                      vitaFeedBuyInReason(inj.stakeUsd),
+                      px,
+                      inj.stakeEth,
+                    );
+                    if (spent) {
+                      openVitaFeedTicket({
+                        symbol: inj.symbol,
+                        vinId: inj.vinId,
+                        index: inj.index,
+                        entryPrice: inj.entryPrice,
+                        targetPrice: inj.targetPrice,
+                        leaveBehindUsd: inj.leaveBehindUsd,
+                        stakeUsd: inj.stakeUsd,
+                        dipPct: inj.dipPct,
+                        targetPct: inj.targetPct,
+                      });
+                      await tg(
+                        "📡 <b>VITAFEED BUY-IN</b> " + inj.symbol +
+                        " $" + Number(inj.stakeUsd).toFixed(2) +
+                        "\nexit ASAP @ $" + Number(inj.targetPrice).toFixed(8) +
+                        " · leave $" + Number(inj.leaveBehindUsd).toFixed(3) +
+                        " (AI $0.10 + human $0.10 + lottery $0.05 + 1.5% tax)",
+                      );
+                    } else {
+                      await tg(
+                        "📡 VITAFEED BUY-IN skipped " + inj.symbol +
+                        " (gate/ETH). Message still pays RISK — message-first.",
+                      );
+                    }
+                  } catch (be) {
+                    await tg("📡 VITAFEED BUY-IN failed " + inj.symbol + ": " + (be.message || be));
+                  }
+                }
+                try { riskBalanceEth = await getEthBalance(); } catch { /* keep prior */ }
+              }
+            }
+
+            const out = await handleVitaFeedAction({
+              action: parsed.action,
+              body: feedBody,
+              chatId: msgChatId,
+              quotes,
+              sendTx,
+              riskBalanceEth,
+              gasReserveEth: GAS_RESERVE,
+              seats: collectVitaFeedSeats(ethUsd),
+              // Buy-in already spent above on confirm|override — do not demand stake twice.
+              reserveBuyStake: !isPaidConfirm,
+              forceOverride,
+              env: process.env,
+              liquidUsd: isPaidConfirm ? liquidUsdForGate : null,
+              messageAtMs,
+            });
+            let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+            const locs = out.result?.strand?.locations || [];
+            if (locs.length) {
+              msg += "\n";
+              locs.forEach((tx, i) => {
+                msg += (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">" + tx.slice(0, 12) + "…</a>\n";
+              });
+            }
+            if (out.result?.strand?.readerKey) {
+              msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>\n";
+            }
+            if (out.playProof?.complete) {
+              msg +=
+                "\n▶️ <b>PLAY PROOF</b> — " +
+                (out.playProof.spacedProof?.spacedBlockchainLocations || locs.length) +
+                " spaced locations peaced together\n" +
+                "Open <code>/vita/feed-player</code> to play " +
+                (out.playProof.play?.name || out.playProof.file?.name || "blob");
+            }
+            if (out.library?.ok) {
+              msg +=
+                "\n📚 Saved <b>#" + out.library.n + "</b> <code>" +
+                String(out.library.entry?.name || "").replace(/</g, "") +
+                "</code> — <code>/vitafeed files</code> · <code>/vitafeed play " +
+                out.library.n + "</code>";
+            }
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitafeed failed: " + (e.message || e) + "\nNothing invented. RISK unspent if no hashes.");
+          }
+        }
+
+      // ── /waveproof — capped 3-token WAVE live proof (WAVE_PROOF_LIVE, not VITAFEED_PAID)
+      } else if (text === "/waveproof" || (text && text.startsWith("/waveproof"))) {
+        try {
+          const parsed = parseWaveProofCommand(raw);
+          const wantLive = waveProofLiveEnabled(process.env);
+          let sendTx = null;
+          let liquidUsd = null;
+          let quotes = null;
+          if (wantLive) {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0))
+              + Math.max(0, Number(bal?.weth ?? 0));
+            liquidUsd = liquidEth * Number(ethUsd || 0);
+            let gwei = 0.05;
+            try { gwei = await getCurrentGasGwei(); } catch { /* demo gwei */ }
+            quotes = { gwei, ethUsd: Number(ethUsd || 0) };
+            if (!(cdp || cdpClient)?.evm?.sendTransaction) {
+              await tg("❌ waveproof live needs the RISK wallet client — no send.");
+              continue;
+            }
+            sendTx = async (hex) => {
+              const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash || null;
+            };
+          }
+          const out = await handleWaveProofAction({
+            action: parsed.action || "run",
+            symbols: parsed.symbols || "",
+            env: process.env,
+            live: wantLive,
+            sendTx,
+            fetchCalldata: wantLive ? fetchTxCalldataHex : null,
+            liquidUsd: wantLive ? liquidUsd : null,
+            quotes,
+          });
+          await tg(
+            "🌊 <b>WAVE PROOF</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>Max 3 gas-only self-txs. WAVE_PROOF_LIVE default off. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ waveproof failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      // ── /wavetest — WAVE memory-mirror SIM (does not enable VITAFEED_PAID)
+      } else if (text === "/wavetest" || (text && text.startsWith("/wavetest"))) {
+        try {
+          const parsed = parseWaveTestCommand(raw);
+          const out = await handleWaveTestAction({
+            action: parsed.action || "run",
+            env: process.env,
+          });
+          await tg(
+            "🌊 <b>WAVE MIRROR</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>SIM file+read vs answer key. Hitch WAVE on covered leftover. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ wavetest failed: " + (e.message || e) + "\nNothing invented.");
         }
 
       } else if (text && text.startsWith("/vita ")) {
@@ -11686,15 +12840,33 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         await tg("⏳ Inscribing full session summary on Base blockchain...");
         try {
           const chunk  = buildFullSummary(data);
-          const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
-          await tg(
-            "📚 <b>SESSION SAVED ON BASE</b>\n" +
-            "━━━━━━━━━━━━━━━━━━━━\n" +
-            "🧠 Memory #" + result.seq + " inscribed permanently\n" +
-            "📅 Date: " + result.date + "\n" +
-            "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
-            "💌 <i>The truth is the chain. The chain is alive.</i>"
-          );
+          if (!autoPaidInscribeEnabled()) {
+            wrapAutoSelfCall({
+              to: WALLET_ADDRESS,
+              from: WALLET_ADDRESS,
+              text: chunk.text,
+              pairedUniswapSell: false,
+              topic: "savesession",
+            });
+            await tg(
+              "📚 <b>SESSION BANKED</b>\n" +
+              "━━━━━━━━━━━━━━━━━━━━\n" +
+              "🧠 Memory #" + chunk.seq + " hex banked — hitch on next leftover-covered ride\n" +
+              "📅 Date: " + chunk.date + "\n" +
+              "📦 auto wrap (VITA_AUTO_INSCRIBE off). /vitasave still has mother brain.\n\n" +
+              "💌 <i>The truth is the chain. The chain is alive.</i>"
+            );
+          } else {
+            const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
+            await tg(
+              "📚 <b>SESSION SAVED ON BASE</b>\n" +
+              "━━━━━━━━━━━━━━━━━━━━\n" +
+              "🧠 Memory #" + result.seq + " inscribed permanently\n" +
+              "📅 Date: " + result.date + "\n" +
+              "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
+              "💌 <i>The truth is the chain. The chain is alive.</i>"
+            );
+          }
         } catch (e) {
           await tg("❌ Session save failed: " + e.message);
         }
@@ -11758,6 +12930,25 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         );
         try {
             const rawSummary = vitaBuildSummary(extra);
+            // Same n5557–5566 wrap as exact `/vitasave`. Prefix handler still
+            // reaches mother-brain vitaSave only when VITA_AUTO_INSCRIBE=yes.
+            if (!autoPaidInscribeEnabled()) {
+              wrapVitaSaveSelfCall({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                text: rawSummary,
+                pairedUniswapSell: false,
+                topic: "vitasave",
+              });
+              absorbVitaStrandPacket({ tokenPacket: rawSummary, chunks: [] });
+              await tg(
+                "💓 <b>VITA MEMORY BANKED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📦 hex banked — hitch on next leftover-covered ride\n" +
+                "📦 auto wrap (VITA_AUTO_INSCRIBE off). `/vitasave` stays; set env to restore vitaSave.\n" +
+                "💌 <i>VITA remembers. The chain is alive.</i>"
+              );
+              continue;
+            }
             const entry = await vitaSave(
               cdpClient, WALLET_ADDRESS,
               rawSummary, apiKey,
@@ -11954,6 +13145,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/cycles — no-loss succession streaks + per-token min buys\n` +
           `/injectprove — hitch injection count toward 20 + profit (capital gate)\n` +
           `/costedge — COST_EDGE refusals + CBBTC-class lessons learned\n` +
+          `/brain — six-lobe brain status (FOMO radar + fine-tune graph)\n` +
+          `/hyp [thesis] — file hypothesis · /hyps · /hypok|/hypfail id\n` +
           `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
           `/sellhalf SYMBOL — sell 50% + cascade\n` +
           `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +
@@ -12005,6 +13198,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitaclear — clear note queue\n` +
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
+          `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
+          `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
+          `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B shards; WAVE_PROOF_LIVE=yes for 3 gas-only self-txs)\n` +
+          `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
+          `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
+          `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
           `/vitamemory — show all VITA memory sessions\n` +
           `/vitarecall — show recent memory context\n` +
           `/vitarouter — hitch payload switch + location squash\n` +
@@ -12060,6 +13259,8 @@ function applyOperatorBuyEnv() {
     ...tokens.map(t => t.symbol),
   ]);
   // Live token.frozen wins (runtime /unfreeze). Catalog defaults fill gaps.
+  // isCatalogFrozen also honors UNFREEZE_SYMBOLS so OPERATOR_BUY is not
+  // blocked when Railway lists the name but DEFAULT_TOKENS is still frozen.
   const frozen = new Set(DEFAULT_TOKENS.filter(t => isCatalogFrozen(t)).map(t => t.symbol));
   for (const t of tokens) {
     if (isCatalogFrozen(t)) frozen.add(t.symbol);
@@ -12173,10 +13374,12 @@ function applyOperatorSellEnv() {
 function applyForcedLockedExits() {
   if (!forceExitLockedEnabled()) return { queued: [], reason: "disabled" };
   const balances = {};
+  const prices = {};
   for (const sym of forceExitSymbols()) {
     balances[sym] = getCachedBalance(sym) || 0;
+    prices[sym] = Number(history[sym]?.lastPrice) || 0;
   }
-  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState);
+  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState, { prices });
   if (result.queued?.length) {
     for (const q of result.queued) {
       console.log(`🚪 FORCE EXIT LOCKED queued: ${q.symbol} bal=${q.balance} — cash free, no cascade, stays frozen`);
@@ -12186,6 +13389,14 @@ function applyForcedLockedExits() {
         `Cascade OFF — then hunt profits only\n` +
         `${q.symbol} remains FROZEN`
       ).catch(() => {});
+    }
+  }
+  // Lottery 1-wei leftovers after prior FORCE_EXIT — latch quietly (no TG spam).
+  for (const s of result.skipped || []) {
+    if (s.reason === "dust-latched") {
+      console.log(
+        `🚪 FORCE EXIT LOCKED dust-latched: ${s.symbol} bal=${s.balance} — lottery wei left, no re-queue`
+      );
     }
   }
   return result;
@@ -12272,24 +13483,32 @@ function bootstrapWavesFromCandles() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 async function main() {
-  const bootActive = DEFAULT_TOKENS.filter(t => !t.frozen && !t.disabled).map(t => t.symbol);
-  const bootFrozen = DEFAULT_TOKENS.filter(t => t.frozen && !t.disabled).length;
+  const bootActive = DEFAULT_TOKENS.filter(t => !isCatalogFrozen(t) && !t.disabled).map(t => t.symbol);
+  const bootFrozen = DEFAULT_TOKENS.filter(t => isCatalogFrozen(t) && !t.disabled).length;
+  const unfreezeSyms = parseUnfreezeSymbols(process.env);
   console.log("═══════════════════════════════════════════════════════════");
   console.log("⚔️💓  GUARDIAN PROTOCOL — HEARTBEAT EDITION v18.1 — CHAIN-FIRST + INSTANT WAVE ARM + 3-SOURCE DATA");
   console.log(`   ✅ Active (${bootActive.length}): ${bootActive.join(" ")}`);
   console.log(`   ❄️  Frozen: ${bootFrozen} collecting wave data, no new capital`);
+  if (unfreezeSyms.length) {
+    console.log(`   ❄️→✅ UNFREEZE_SYMBOLS=${unfreezeSyms.join(",")} (catalog freeze cleared at runtime)`);
+  }
   console.log("   🔧 Inject surface: Uni V3 WETH books + §$STORE§ hitch on leftover swaps");
   console.log("      ETH+WETH unified | Auto gas top-up | Ledger wave seeding");
   console.log("      Live ETH price | Gas spike guard | Drawdown breaker");
   console.log("      Top-100 majors: LINK AAVE UNI + thawed VVV ZORA BNKR");
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
+  const haltRaw = String(process.env.HALT_NEW_ENTRIES ?? "").trim() || "unset";
+  const loseRaw = String(process.env.LOSE_ZERO ?? "").trim() || "unset";
+  const injRaw = String(process.env.REQUIRE_INJECT_COVER ?? "").trim() || "unset";
+  console.log(`📋 micro-earn flags: LOSE_ZERO=${loseRaw} HALT_NEW_ENTRIES=${haltRaw} REQUIRE_INJECT_COVER=${injRaw} (yes-only; no/unset does not halt — redeploy after Railway env clear)`);
   if (isLoseZeroMode()) {
-    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover");
+    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover; micro-bank hitch if inject seed cannot fit");
   } else if (isInjectCoverRequired()) {
-    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
+    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost (or micro-bank when cover cannot fit)");
   }
-  console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; hitch only when leftover covers HITCH_COST_MULT=${hitchCostMult()}× (else skip + bank); never sell red to inject`);
+  console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; message-first=${isOriginalFormulaMessageFirst() ? "on" : "off"} hitch when leftover covers 1× KEY+LOC (HITCH_COST_MULT=${hitchCostMult()}× cushion preferred; VITA_MESSAGE_FIRST=no → skip + bank); never sell red to inject`);
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
@@ -12512,9 +13731,10 @@ async function main() {
     console.log("   🔗 Scanning Base blockchain for token balances...");
     let found = 0, recovered = 0, ghosts = 0, confirmed = 0;
 
-    // Fetch all balances in parallel for speed
+    // Fetch all balances in parallel for speed. Union hourly catalog
+    // (VIRTUAL + AERO/DRB/BNKR) so a live bag is never skipped.
     const balanceResults = await Promise.allSettled(
-      tokens.map(async (token) => {
+      hourlyBalancePollRows(tokens).map(async (token) => {
         const bal = await getTokenBalance(token.address);
         return { symbol: token.symbol, address: token.address, bal };
       })
@@ -12526,16 +13746,18 @@ async function main() {
     }
 
     // After cache is live — sized remaining, not the full fill. GitHub 401
-    // must not skip seeded AERO/DRB/BNKR receipt latch.
+    // must not skip seeded AERO/DRB/BNKR/VIRTUAL receipt latch.
     await rebuildSeededLotsFromChain(
       githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
     );
 
     // DexScreener + GT chunked prefetch — never one giant GT URL (400 / silent drop)
     try {
-      const bootQuotes = await prefetchMarketPrices(tokens.map(t => t.address));
+      const pollRows = hourlyBalancePollRows(tokens);
+      const bootQuotes = await prefetchMarketPrices(pollRows.map(t => t.address));
       for (const [addr, p] of Object.entries(bootQuotes.prices)) {
-        const t = tokens.find(tk => tk.address.toLowerCase() === addr);
+        const t = tokens.find(tk => tk.address.toLowerCase() === addr)
+          || pollRows.find(tk => String(tk.address).toLowerCase() === addr);
         if (!t || !isValidUsdPrice(p)) continue;
         const trusted = Boolean(bootQuotes.meta[addr]?.trustedQuote || bootQuotes.meta[addr]?.verifiedPool);
         if (!noteLastSaneUsd(t.symbol, p, undefined, { trusted })) continue;
@@ -12549,7 +13771,8 @@ async function main() {
       console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
       if (bootQuotes.misses.length) {
         console.log(`   ⏳ Unquoted (skip until a real market appears): ${bootQuotes.misses.map(a => {
-          const t = tokens.find(tk => tk.address.toLowerCase() === a);
+          const t = tokens.find(tk => tk.address.toLowerCase() === a)
+            || pollRows.find(tk => String(tk.address).toLowerCase() === a);
           return t ? t.symbol : a.slice(0, 10);
         }).join(", ")}`);
       }
@@ -13429,9 +14652,11 @@ async function main() {
             const price   = history[token.symbol]?.lastPrice || token.entryPrice;
             const realUsd = realBal * price;
 
-            // Ghost: entry recorded but chain shows nothing
-            if (realBal < 0.001 && token.totalInvestedEth > 0.0001) {
-              console.log(`👻 [RECONCILE] Ghost cleared: ${token.symbol} — chain shows ${realBal.toFixed(6)} but entry=$${token.entryPrice.toFixed(6)}`);
+            // Ghost: entry recorded but chain shows nothing / flatten leftover
+            // Token-count 0.001 missed AERO dust after ETH flatten (persist FIFO
+            // stayed red → ADD_ON blocked every first buy).
+            if ((realBal < 0.001 || isDustBagUsd(realBal, price, BAG_DUST_USD)) && token.totalInvestedEth > 0.0001) {
+              console.log(`👻 [RECONCILE] Ghost cleared: ${token.symbol} — chain shows ${realBal.toFixed(6)} ($${realUsd.toFixed(4)}) but entry=$${token.entryPrice.toFixed(6)}`);
               token.entryPrice       = null;
               token.totalInvestedEth = 0;
               token.entryTime        = null;
@@ -13816,23 +15041,27 @@ async function main() {
                     const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                     const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                    const { transactionHash } = await cdpClient.evm.sendTransaction({
-                      address: WALLET_ADDRESS, network: "base",
-                      transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                    const wrapped = wrapQueueSelfCall({
+                      to: WALLET_ADDRESS,
+                      from: WALLET_ADDRESS,
+                      data: hex,
+                      text: full,
+                      pairedUniswapSell: false,
+                      topic: "ikn-queue",
                     });
-                    txHashes.push(transactionHash);
+                    if (wrapped.txHash) txHashes.push(wrapped.txHash);
                     prevHash = thisHash;
-                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + transactionHash);
-                    if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + (wrapped.banked ? "BANKED (queue wrap)" : wrapped.reason));
                   }
 
                   // Attach tx hashes to entry before IKN processor files it
                   entry._txHashes    = txHashes;
                   entry._strandId    = strandId;
                   entry._inscribedAt = new Date().toISOString();
+                  if (entry.tokenPacket) absorbVitaStrandPacket({ tokenPacket: entry.tokenPacket, chunks: [] });
                   if (entry.iknCard) {
-                    entry.iknCard.STRAND = txHashes[0]; // first tx = strand anchor
-                    entry.iknCard.TRUST  = "⛓️ blockchain-verified";
+                    entry.iknCard.STRAND = txHashes[0] || null;
+                    entry.iknCard.TRUST  = txHashes[0] ? "⛓️ blockchain-verified" : "banked — leftover hitch";
                   }
 
                   // IKN processor: classify, build call number, stamp trust, update registry
@@ -13844,9 +15073,10 @@ async function main() {
                   msg += "📋 <b>Call number:</b> <code>" + iknResult.iknX + "</code>\n";
                   msg += "🏷️ <b>Status:</b> " + iknResult.status + " (" + iknResult.confidence + "% confidence)\n";
                   msg += "🔒 <b>Trust:</b> " + iknResult.trust + "\n\n";
-                  msg += "🔗 5 chunks on Base:\n";
-                  txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                  msg += "\n\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
+                  msg += txHashes.length
+                    ? "🔗 chunks on Base:\n" + txHashes.map((tx, i) => (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ").join("")
+                    : "📦 hex banked — hitch on next leftover-covered ride (queue wrap; mother brain untouched)\n";
+                  msg += "\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
                   msg += "📁 Queue: deleted ✅\n";
                   msg += "💌 <i>The library remembers. §IKN§</i>";
                   await tg(msg);
@@ -13871,14 +15101,17 @@ async function main() {
                   const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                   const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                  const { transactionHash } = await cdpClient.evm.sendTransaction({
-                    address: WALLET_ADDRESS, network: "base",
-                    transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                  const wrapped = wrapQueueSelfCall({
+                    to: WALLET_ADDRESS,
+                    from: WALLET_ADDRESS,
+                    data: hex,
+                    text: full,
+                    pairedUniswapSell: false,
+                    topic: "vita-queue",
                   });
-                  txHashes.push(transactionHash);
+                  if (wrapped.txHash) txHashes.push(wrapped.txHash);
                   prevHash = thisHash;
-                  console.log("   📡 Chunk " + (i+1) + "/5: " + transactionHash);
-                  if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                  console.log("   📡 Chunk " + (i+1) + "/5: " + (wrapped.banked ? "BANKED (queue wrap)" : wrapped.reason));
                 }
 
                 // File in vita-registry.json (legacy format — unchanged)
@@ -13896,11 +15129,13 @@ async function main() {
                   }
                 } catch {}
 
+                if (text) absorbVitaStrandPacket({ tokenPacket: text, chunks: [] });
+
                 registry[regKey] = {
                   strandId, date, label: entry.label,
                   type: entry.type || "knowledge-base",
                   subject: entry.subject || entry.label,
-                  txHashes, tokenPacket: text.slice(0,3000),
+                  txHashes, banked: !txHashes.length, tokenPacket: text.slice(0,3000),
                   filedAt: new Date().toISOString(),
                 };
 
@@ -13926,9 +15161,10 @@ async function main() {
                 // Telegram receipt
                 let msg = "✅ <b>VITA QUEUE PROCESSED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
                 msg += "📚 <b>" + (entry.subject || entry.label) + "</b>\n";
-                msg += "🔗 5 chunks inscribed on Base:\n";
-                txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                msg += "\n\n📁 Filed: <code>" + regKey + "</code>\n";
+                msg += txHashes.length
+                  ? "🔗 chunks on Base:\n" + txHashes.map((tx, i) => (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ").join("") + "\n\n"
+                  : "📦 hex banked — hitch on next leftover-covered ride (queue wrap; VITA root intact)\n\n";
+                msg += "📁 Filed: <code>" + regKey + "</code>\n";
                 msg += "🗑️ Queue file: " + (deleted ? "deleted ✅" : "deletion failed ⚠️") + "\n\n";
                 msg += "Test: <code>/vita " + (entry.label.split("-")[0]) + "</code>\n";
                 msg += "💌 <i>The chain remembers.</i>";

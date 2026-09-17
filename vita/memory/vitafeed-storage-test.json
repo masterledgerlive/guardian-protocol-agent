@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-15T00:00:00.000Z",
+  "topic": "vitafeed-storage-test",
+  "text": "/vitafeed is a Storage Token game before public StorageToken: exact plain UTF-8 (no summarization, no §SESS§ unless typed), cost card then /vitafeed confirm, paid full injections from RISK only (never vault/save), VIN/tailwind prev-hash + next-index headers, VITAFEED_MAX_CHUNK_BYTES=720. Does not rewrite vitaSave/inscribeChunk/mainframe/mother-genesis. Does not re-enable VITA_AUTO_INSCRIBE for /vitasave.",
+  "commands": [
+    "/vitafeed",
+    "/vitafeed confirm",
+    "/vitafeed cancel"
+  ],
+  "hypothesis": {
+    "id": "plain-paid-feed-before-storage-token",
+    "status": "operating",
+    "note": "Test pay-from-RISK with confirm + cost math; keep mother brain bank-by-default."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-13T22:10:00.000Z",
+  "topic": "voxel-truth-docs",
+  "text": "HARD STOP: do not tear VITA mother brain (vita-memory.js / vitaSave / inscribeChunk). Duplicate or wrap only. Queue/main-loop unpaired [VITA: self-calls (sel 0x5b564954) bank/hitch via vita/feed-wrap.js. Voxel-truth is framing only: hex on-chain, rotate/view = plaintext, superposition of truth objects, prediction from weight of force — no physics code replacing VITA.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "wrap-queue-do-not-tear-mother-brain",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk",
+      "invent physics code that replaces VITA",
+      "kill inject-thought"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

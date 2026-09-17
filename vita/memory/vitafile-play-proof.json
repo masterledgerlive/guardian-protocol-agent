@@ -1,0 +1,12 @@
+{
+  "id": "vitafile-spaced-packets-play-proof",
+  "at": "2026-09-15",
+  "hypothesis": "Any bytes (song/video/blob) can ride /vitafeed as §VITAFILE§ base64 UTF-8 spaced VIN packets; /vitafeed override seals all locations then PLAY PROOF peaces them for Tailwind reader playback without holding the file.",
+  "status": "coded",
+  "refs": [
+    "vita/vita-feed-file.js",
+    "vita/vita-feed-player.js",
+    "public/vita-feed-player.html",
+    "vita/INJECT.md"
+  ]
+}

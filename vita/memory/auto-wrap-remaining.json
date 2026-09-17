@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-14T05:58:00.000Z",
+  "topic": "auto-wrap-remaining-after-101",
+  "text": "HARD STOP: do not tear VITA mother brain. After #101 queue wrap, live RISK still paid +5 VIT self-calls n5546–5550 (sel 0x5b564954) STORE, 0 Uniswap fills. Remaining AUTO callers: /vitalearn sendTransaction loop, /vitadata→vitaSave, /savesession→inscribeMemory, trade-loop btpInscribe. Wrap those callers via wrapAutoSelfCall; VITA_AUTO_INSCRIBE defaults bank. /vitasave ungated. Integrity does not send. Never invent hashes.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "wrap-remaining-auto-callers",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk",
+      "gate operator /vitasave",
+      "invent tx hashes for banked chunks"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

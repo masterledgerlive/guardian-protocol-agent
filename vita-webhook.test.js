@@ -87,6 +87,20 @@ describe("control board HTTP", () => {
     assert.equal(json.service, "guardian-control-board");
   });
 
+  it("POST /vita/save is auth-gated and never sendTransaction", async () => {
+    const res = await fetch(base + "/vita/save", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "SESSION:2026-09-14 WALLET:0x50e1" }),
+    });
+    const json = await res.json();
+    assert.equal(res.status, 401);
+    assert.match(json.error || "", /unauthorized/i);
+    const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
+    assert.ok(src.includes("wrapVitaSaveSelfCall"));
+    assert.ok(!src.includes("sendTransaction"), "webhook must not broadcast vitasave");
+  });
+
   it("GET /board/api/params is public read-only", async () => {
     const { res, json } = await get("/board/api/params");
     assert.equal(res.status, 200);
@@ -256,6 +270,41 @@ describe("control board HTTP", () => {
     assert.equal(missJson.found, false);
     assert.equal(missJson.protocol, "x404");
     assert.equal(missJson.records.length, 0);
+  });
+
+  it("GET /vita/wavetest is a public WAVE memory-mirror SIM (no spend)", async () => {
+    const { res, json } = await get("/vita/wavetest");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.pass, true);
+    assert.equal(json.send, false);
+    assert.equal(json.vitafeedPaidDefault, "off");
+    assert.equal(json.waveMirrorPaidDefault, "off");
+    assert.equal(json.motherBrain, "untouched");
+    assert.equal(json.result.sim, true);
+    assert.ok(json.result.rounds >= 3);
+    assert.equal(json.result.acks[0].role, "PING");
+    assert.equal(json.result.acks[1].role, "PONG");
+    assert.equal(json.result.acks[2].role, "ACK");
+    assert.match(json.reply, /PASS/);
+  });
+
+  it("GET /vita/waveproof is a public 3-token WAVE proof SIM (no spend)", async () => {
+    const { res, json } = await get("/vita/waveproof");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.pass, true);
+    assert.equal(json.send, false);
+    assert.equal(json.vitafeedPaidDefault, "off");
+    assert.equal(json.waveProofLiveDefault, "off");
+    assert.equal(json.motherBrain, "untouched");
+    assert.equal(json.maxSends, 3);
+    assert.equal(json.result.sim, true);
+    assert.equal(json.result.live, false);
+    assert.deepEqual(json.result.symbols, ["VIRTUAL", "CLANKER", "AERO"]);
+    assert.equal(json.result.txHashes.length, 3);
+    assert.match(json.reply, /PASS/);
+    assert.match(json.reply, /VIRTUAL/);
   });
 
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {

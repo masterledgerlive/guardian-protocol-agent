@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-17T20:30:00.000Z",
+  "topic": "virtual-fifo-latch-evidence-buy",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. Do not use ALLOW_LOSSY_OPERATOR_SELL. #119 hitchWaveOnSellLeftover and #120 HOURLY_BALANCE_CATALOG / EVIDENCE_BUY_TXS.VIRTUAL stay. Risk-desk VIRTUAL buy 0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879 is native ETH via SwapRouter02 (WETH Deposit to router, Transfer router→pool — wallet never sends WETH). Receipt ~1.642 VIRTUAL / 0.000407 ETH — do not invent P&L. Latch FIFO from that hash so entrySold is known and LOSE_ZERO always-plus can sell when Quoter is green.",
+  "locations": [],
+  "hypothesis": {
+    "id": "virtual-evidence-buy-native-eth-router-weth",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "ALLOW_LOSSY_OPERATOR_SELL as the sell path",
+      "WAVE_MIRROR_PAID / VITAFEED_PAID",
+      "invent VIRTUAL P&L instead of receipt rebuild"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

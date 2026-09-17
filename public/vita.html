@@ -112,11 +112,113 @@
       border-radius: 999px; border: 1px solid var(--line); background: #fff; cursor: pointer;
     }
   </style>
+<script type="application/json" id="vita-mainframe">
+{
+  "id": "vita-mainframe-v1",
+  "infectedAt": "2026-09-12T22:00:00.000Z",
+  "formula": {
+    "id": "original-message-first",
+    "htmlIsMemoryUntilInject": true,
+    "sparseInjectFromSealedLocations": true,
+    "leftoverHitch": "key-loc",
+    "proveHitch": "eureka",
+    "messageFirstWhenKeyLocCovered": true,
+    "chargeHitchDeltaViaStorageToken": true,
+    "neverInventTxHash": true,
+    "neverSellRedToInject": true,
+    "neverMuteHitchForMicroExtract": true,
+    "learnAppendOnly": true
+  },
+  "anchors": {
+    "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+    "keycatPlainTx": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+    "eurekaProveTx": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "vitaStrandTx": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+    "swapRouter02": "0x2626664c2603336e57b271c5c0b26f421741e481",
+    "known": [
+      {
+        "id": "keycat-plain",
+        "tx": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "kind": "none",
+        "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+        "lesson": "never claim UTF-8 hitch without trailer bytes",
+        "expect": "none",
+        "note": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain"
+      },
+      {
+        "id": "eureka-prove",
+        "tx": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "kind": "eureka",
+        "label": "Eureka love note on Base (/prove class)",
+        "lesson": "dedicated 0-ETH self-tx is the love-note genesis",
+        "expect": "eureka",
+        "note": "Eureka love note on Base (/prove class)"
+      },
+      {
+        "id": "vita-strand",
+        "tx": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+        "kind": "vita",
+        "label": "VITA §TOKEN§ strand chunk on Base",
+        "lesson": "sparse strand inject — reader reconstructs from sealed locations",
+        "expect": "vita",
+        "note": "VITA §TOKEN§ strand chunk on Base"
+      }
+    ]
+  },
+  "filing": [
+    "vita/ORIGINAL_FORMULA.md",
+    "vita/FILING.md",
+    "vita/AGENTS.md",
+    "vita/README.md",
+    "vita/mainframe.js",
+    "vita/anchors.json",
+    "vita/memory/",
+    "vita/strands/",
+    "public/vita.html",
+    "public/vita-client.js",
+    "vita-console.js",
+    "vita-memory.js",
+    "vita-chain-reader.js",
+    "vita-locations.js"
+  ],
+  "basescanTx": "https://basescan.org/tx/",
+  "readOrder": [
+    "vita/AGENTS.md",
+    "vita/ORIGINAL_FORMULA.md",
+    "vita/FILING.md",
+    "vita/anchors.json",
+    "vita/mainframe.js"
+  ],
+  "avenue": "cursor/vita-mainframe-html-infect-ec40"
+}
+</script>
+<script type="application/json" id="vita-filing-map">
+{
+  "label": "FILING",
+  "roots": [
+    "vita/ORIGINAL_FORMULA.md",
+    "vita/FILING.md",
+    "vita/AGENTS.md",
+    "vita/README.md",
+    "vita/mainframe.js",
+    "vita/anchors.json",
+    "vita/memory/",
+    "vita/strands/",
+    "public/vita.html",
+    "public/vita-client.js",
+    "vita-console.js",
+    "vita-memory.js",
+    "vita-chain-reader.js",
+    "vita-locations.js"
+  ],
+  "formula": "original-message-first"
+}
+</script>
 </head>
 <body>
   <nav class="topbar">
     <span class="pill ok" id="revealPill">plaintext · open source</span>
-    <span class="pill" id="injectPill">HTML memory — not injected</span>
+    <span class="pill" id="injectPill">mainframe infected · HTML memory</span>
     <a href="/board">Board</a>
     <a href="/engine">Engine</a>
     <a href="/arena">Arena</a>
@@ -226,11 +328,23 @@
           ? "eureka leftover"
           : (snap.injected ? "reader-ready" : "local"));
       document.getElementById("revealPill").textContent = snap.reveal === "locations" ? "locations-only · ZK preview" : "plaintext · open source";
-      document.getElementById("injectPill").textContent = snap.injected ? "injected from locations" : (snap.pending ? "staged — not on chain" : "HTML memory — not injected");
-      document.getElementById("injectPill").className = "pill " + (snap.injected ? "ok" : "warn");
+      const mainframe = (() => {
+        try {
+          const el = document.getElementById("vita-mainframe");
+          return el ? JSON.parse(el.textContent) : null;
+        } catch { return null; }
+      })();
+      document.getElementById("injectPill").textContent = snap.injected
+        ? "injected from locations"
+        : (snap.pending
+          ? "mainframe infected · staged"
+          : (mainframe ? "mainframe infected · HTML memory" : "HTML memory — not injected"));
+      document.getElementById("injectPill").className = "pill " + (snap.injected || mainframe ? "ok" : "warn");
       document.getElementById("statusLine").textContent = snap.injected
         ? "Reader reconstructed §TOKEN§ from sealed Base locations."
-        : "Notes stay on this page until inject. Leftover hitch would carry KEY+LOC only.";
+        : (mainframe
+          ? "Mainframe formula locked in HTML. Notes stay here until /inject pulls hardcoded + sealed locs."
+          : "Notes stay on this page until inject. Leftover hitch would carry KEY+LOC only.");
       const shown = snap.packet || snap.loc;
       document.getElementById("packetOut").textContent = shown || "locations-only — payload hidden in this view";
       const rows = (snap.locations.length ? snap.locations : snap.anchors.map((a) => ({ location: a.tx, kind: a.expect, utf8: "", short: a.tx.slice(2, 8) })));

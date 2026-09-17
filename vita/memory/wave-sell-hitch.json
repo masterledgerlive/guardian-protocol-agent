@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-17T18:50:00.000Z",
+  "topic": "wave-sell-leftover-hitch",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. #117 shipped attachWaveOnCoveredLeftover but the sell leftover hitch loop still only embedded KEY+LOC. Wire executeSell → hitchWaveOnSellLeftover({ attach: attachWaveOnCoveredLeftover }) after KEY+LOC: hitch next Heraclitus WAVE shard when leftover remaining covers a paired PLUS sell; bank/skip when uncovered or KEY+LOC was stripped. Never solo-send WAVE. BASECAT/GAME freeze intact.",
+  "locations": [],
+  "hypothesis": {
+    "id": "wave-hitch-on-covered-leftover-sell",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "solo-send WAVE via WAVE_MIRROR_PAID",
+      "mute KEY+LOC leftover hitch to place WAVE",
+      "hitch WAVE when leftover is uncovered"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

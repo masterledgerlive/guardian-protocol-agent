@@ -100,6 +100,13 @@ merge V4 into this V3 injector.
 Leftover hitch stays dense **KEY+LOC** (`VITA_HITCH_MODE=vita`). Eureka 229 B
 leftover is the expensive class (GAME fail hitch). `/prove` keeps the love note.
 
+WAVE memory-mirror shards (`[W:v1:SYM]|…|KEY8|LOC8]`) may hitch on that same
+covered leftover via `attachWaveOnCoveredLeftover` — wrap only, never a solo
+paid `/vitafeed`. SIM proof: Telegram `/wavetest` or public `GET /vita/wavetest`.
+Capped 3-token live proof: Telegram `/waveproof` (`WAVE_PROOF_LIVE=yes`, default
+OFF) or public `GET /vita/waveproof` (SIM). Max 3 gas-only self-txs.
+`VITAFEED_PAID` stays default OFF. See [`vita/INJECT.md`](./vita/INJECT.md).
+
 On a **~$3 liquid bag**, LOSE-ZERO hitch rate is labeled on the board
 (`hitchDensity`): leftover ≈ 2% of bag. If leftover covers KEY+LOC but not
 Eureka, hitch KEY+LOC. If leftover covers neither, **plain** swap. If leftover

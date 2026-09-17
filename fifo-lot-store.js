@@ -15,19 +15,27 @@ import { writeFileSync, readFileSync, mkdirSync, existsSync, renameSync } from "
 import { dirname } from "node:path";
 import {
   fifoRemainingCostEth,
+  fifoKnownLotRemain,
   latchFreshLot,
 } from "./lose-zero-gate.js";
 
 export const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+/** WETH `Deposit(address indexed dst, uint256 wad)` — native ETH wrap on SwapRouter02. */
+export const WETH_DEPOSIT_TOPIC =
+  "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
 export const WETH_BASE = "0x4200000000000000000000000000000000000006";
+export const SWAP_ROUTER02_BASE = "0x2626664c2603336e57b271c5c0b26f421741e481";
 export const FIFO_LOTS_FILENAME = "fifo-lots.json";
 
-/** Live #78 operator fills. Amounts come from receipts / persist — not invented. */
+/** Live operator fills. Amounts come from receipts / persist — not invented. */
 export const EVIDENCE_BUY_TXS = Object.freeze({
   AERO: "0x94faa542b54eb06804bfde79354701cd0a7fa4964cf230791bfd07fc10a22b25",
   DRB: "0xe0f846a80fe8d5c541b500e51b9cf365866cd97eb5d84a47c674100fac7da6e9",
   BNKR: "0xeef39d62453fd9b09708a5661bd8465d5f2d82cebd0986d01e466f9ac95822e4",
+  // Risk-desk VIRTUAL buy on Base. Size is on the receipt (~1.642 VIRTUAL /
+  // 0.000407 ETH) — do not invent P&L here; rebuild from the hash.
+  VIRTUAL: "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
 });
 
 /**
@@ -366,6 +374,26 @@ export function applyLotToNet(netPositions, lot) {
   return nets;
 }
 
+/** Receipt-latched lots (buy hash or onchain-receipt). Not hashless persist. */
+export function lotIsEvidenceLatched(lot) {
+  return isUsableLot(lot) && (lotHasAnyBuyTx(lot) || lot.source === "onchain-receipt");
+}
+
+/**
+ * Sell only recorded tokensIn when an evidence lot is latched and wallet
+ * extra is pre-buy dust. Leave dust unsold / piggy. Missing add-on bags
+ * (remain >> tokensIn) return the wallet balance — apply still HOLDs unknown.
+ */
+export function knownLotSellTokens(lot, walletBal) {
+  const bal = Number(walletBal);
+  if (!Number.isFinite(bal) || !(bal > 0)) return bal;
+  if (!isUsableLot(lot)) return bal;
+  const bought = Number(lot.tokensIn);
+  if (!(bought > 0)) return bal;
+  if (!lotIsEvidenceLatched(lot)) return bal;
+  return fifoKnownLotRemain(bal, bought, { evidenceLot: true });
+}
+
 export function applyLotToToken(token, lot, { remainingTokens } = {}) {
   if (!token || !isUsableLot(lot)) {
     return { unknown: true, investedEth: 0, reason: "unknown-cost" };
@@ -375,6 +403,7 @@ export function applyLotToToken(token, lot, { remainingTokens } = {}) {
     : Number(lot.tokensIn);
   const ethIn = Number(lot.fillCostEth) > 0 ? Number(lot.fillCostEth) : Number(lot.ethIn);
   const bought = Number(lot.tokensIn);
+  const evidenceLot = lotIsEvidenceLatched(lot);
   // Sized leftover (chain < recorded buy): proportional only. Flooring on
   // remainingCostEth (the full fill) HOLDs a true PLUS on leftover bags.
   const leftover = Number.isFinite(Number(remainingTokens)) && Number(remainingTokens) > 0
@@ -384,6 +413,7 @@ export function applyLotToToken(token, lot, { remainingTokens } = {}) {
     tokensIn: bought,
     remainingTokens: remain,
     persistedInvestedEth: leftover ? 0 : (Number(lot.remainingCostEth) || 0),
+    evidenceLot,
   });
   if (fifo.unknown || !(fifo.investedEth > 0)) {
     return fifo;
@@ -591,6 +621,11 @@ export function collectRebuildTxs({
 /**
  * Rebuild one lot from a successful buy receipt (Transfer to wallet + WETH/ETH in).
  * Returns null when logs cannot prove both legs — do not invent.
+ *
+ * Native-ETH SwapRouter02 buys (VIRTUAL 0x33aac652 class) wrap via WETH Deposit
+ * to the router, then Transfer router→pool. Wallet never sends WETH, so the
+ * WETH-from-wallet leg is empty. Count tx.value, else Deposit, else router out
+ * — never sum those three (same ETH). Wallet-WETH fills (AERO/BNKR) unchanged.
  */
 export function lotFromBuyReceipt({
   symbol,
@@ -612,24 +647,37 @@ export function lotFromBuyReceipt({
 
   let tokenWei = 0n;
   let wethWei = 0n;
+  let wethDepositWei = 0n;
+  let wethRouterOutWei = 0n;
   for (const log of receipt.logs || []) {
     const topics = log?.topics || [];
     if (!topics.length) continue;
-    if (String(topics[0] || "").toLowerCase() !== TRANSFER_TOPIC) continue;
-    if (topics.length < 3) continue;
+    const topic0 = String(topics[0] || "").toLowerCase();
     const addr = String(log.address || "").toLowerCase();
+    let amt = 0n;
+    try { amt = BigInt(log.data || "0x0"); } catch { amt = 0n; }
+    if (topic0 === WETH_DEPOSIT_TOPIC && addr === WETH_BASE && amt > 0n && topics.length >= 2) {
+      const dst = topicAddress(topics[1]);
+      if (dst === to || dst === SWAP_ROUTER02_BASE) wethDepositWei += amt;
+      continue;
+    }
+    if (topic0 !== TRANSFER_TOPIC) continue;
+    if (topics.length < 3) continue;
     const frm = topicAddress(topics[1]);
     const dest = topicAddress(topics[2]);
-    let amt = 0n;
-    try { amt = BigInt(log.data || "0x0"); } catch { continue; }
     if (amt <= 0n) continue;
     if (addr === token && dest === to) tokenWei += amt;
     if (addr === WETH_BASE && frm === to) wethWei += amt;
+    if (addr === WETH_BASE && frm === SWAP_ROUTER02_BASE && dest !== to) wethRouterOutWei += amt;
   }
   let ethValue = 0n;
   try { ethValue = BigInt(tx?.value || receipt?.value || 0); } catch { ethValue = 0n; }
+  let ethInWei = wethWei + ethValue;
+  if (ethInWei === 0n) {
+    ethInWei = wethDepositWei > 0n ? wethDepositWei : wethRouterOutWei;
+  }
   const tokensIn = weiToAmount(tokenWei, tokenDecimals);
-  const ethIn = weiToAmount(wethWei + ethValue, 18);
+  const ethIn = weiToAmount(ethInWei, 18);
   if (!(tokensIn > 0) || !(ethIn > 0)) return null;
 
   let gasCostEth = 0;

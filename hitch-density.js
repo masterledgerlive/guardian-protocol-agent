@@ -123,6 +123,32 @@ export function preferDenseHitch({
 }
 
 /**
+ * Original formula (message-first): when KEY+LOC is covered, always hitch.
+ * Do not mute for micro extract — Storage Token can charge the delta later.
+ * Eureka prose stays on /prove.
+ */
+export function preferOriginalFormulaHitch(opts = {}) {
+  const dense = preferDenseHitch(opts);
+  if (dense.locOk) {
+    return {
+      ...dense,
+      skipHitch: false,
+      messageFirst: true,
+      storageTokenChargeable: true,
+      formula: "original-message-first",
+      reason: dense.reason
+        + " — original formula: send message; charge hitch delta via Storage Token",
+    };
+  }
+  return {
+    ...dense,
+    messageFirst: true,
+    storageTokenChargeable: false,
+    formula: "original-message-first",
+  };
+}
+
+/**
  * Max leftover-covered hitch rate under LOSE-ZERO for a ~$3 liquid bag.
  * Labeled assumptions — not live P&L. One hitch per swap; rate is how many
  * green leftover exits could cover the encoding.

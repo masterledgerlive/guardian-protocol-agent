@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-14T05:54:00.000Z",
+  "topic": "mother-genesis-n-batches",
+  "text": "Large Telegram dumps bigger than the fixed 5-chunk vitaSave/vitalearn path use /vitamothergenesis (plain 0-ETH self-txs, N batches as needed, reader key MGPLAIN.<strand>) or /vitamotherGenesisencoded (AES-GCM chunks + mg-loc-commitment-v1 zero-proof of locations, two-part MG1/MG2 key). /encodegenesisreveal pulls sealed locs and reconstructs. Does not replace or mute vitaSave/inscribeChunk mother brain.",
+  "commands": [
+    "/vitamothergenesis",
+    "/vitamotherGenesisencoded",
+    "/encodegenesisreveal"
+  ],
+  "hypothesis": {
+    "id": "n-batch-mother-genesis-beside-five-chunk-brain",
+    "status": "operating",
+    "note": "Keep 5-chunk compress path; add unbounded plain/encoded genesis for code dumps."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

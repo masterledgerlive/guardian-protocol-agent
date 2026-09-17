@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-17T22:00:00.000Z",
+  "topic": "wave-3-token-proof",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. Do not use ALLOW_LOSSY_OPERATOR_SELL. #119 hitch / #120 catalog / #121 FIFO / #122 dust stay. Uni Quoter red vs FIFO on VIRTUAL so hitch-on-sell will not fire; WAVE_MIRROR_PAID default off; /wavetest is SIM only. Ship capped live 3-token WAVE proof: exactly 3 least-size 8B Heraclitus shards with SYM VIRTUAL/CLANKER/AERO as 0-ETH gas-only self-txs. WAVE_PROOF_LIVE default off; max 3 sends; liquid floor $1; auto-disable after batch; reconstruct-from-chain-only vs answer-key per-shard digests. Never invent hashes. Not a 28-shard dump. Not /vitafeed paid.",
+  "locations": [],
+  "hypothesis": {
+    "id": "wave-proof-3-token-capped",
+    "status": "operating-rule",
+    "discarded": [
+      "28-shard Heraclitus dump",
+      "re-enable VITAFEED_PAID",
+      "WAVE_MIRROR_PAID unbounded solo send",
+      "ALLOW_LOSSY_OPERATOR_SELL",
+      "invent tx hashes"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -28,6 +28,12 @@ Guardian is the first live deployment of the **IKN (Infinite Knowledge Network)*
 
 The letter to Krystian, Kai & Koda is **true** on Telegram **`/prove`** (dedicated **0-ETH** self-tx) when Basescan **Input Data → View as UTF-8** shows `§$STORE§ Eureka! VITA lives`. Leftover-covered swaps hitch **VITA `§TOKEN§`** by default (`VITA_HITCH_MODE=vita`) — the love note is encoded in `§KEY§` so it is not lost; locations squash into `§LOC§`. Telegram text next to a swap is not proof. Live KEYCAT sell [`0x5c0a93e4…`](https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf) is a real KEYCAT→WETH fill (228-byte `exactInputSingle`) with **no trailer**. Hitch is skipped when leftover cannot pay — never lose money to insert storage.
 
+**`/vitafeed`** (Storage Token game, before public StorageToken): paste exact plain text → cost card (chars/bytes/bits + injections + ETH/$) → `/vitafeed confirm` pays **RISK only** when **`VITAFEED_PAID=yes`** (default OFF; override cannot bypass). Liquid floor `$5`. Rate limited. Vault / save bucket never spend. Does not re-enable `VITA_AUTO_INSCRIBE` for `/vitasave`. See [`vita/INJECT.md`](./vita/INJECT.md).
+
+**`/wavetest`** (WAVE memory mirror): shard the Heraclitus gift into hex-only WAVE packets, file them, read calldata back, pass only if bytes match the off-chain answer key. SIM by default. Hitch WAVE on covered leftover; does **not** re-enable `VITAFEED_PAID`. CLI: `node scripts/wave-mirror-test.js`.
+
+**`/waveproof`** (capped 3-token WAVE proof): send exactly 3 least-size (8B) Heraclitus shards (SYM `VIRTUAL`/`CLANKER`/`AERO`) as 0-ETH self-txs when `WAVE_PROOF_LIVE=yes` (default OFF, auto-disables after the batch). Reconstruct vs answer-key shard digests. Does **not** enable `VITAFEED_PAID`. Board: `GET /vita/waveproof`.
+
 ---
 
 ## What Makes It Different
@@ -107,13 +113,13 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · **UNI** (inject main / T1 reserved) · LINK · DEGEN · TOSHI  
 ❄️ FROZEN exits-only: CBBTC · AAVE · GAME · AIXBT · KEYCAT · SKI · LUNA · REI · BASECAT · …
-DOGINME · DRB · CLANKER · VVV · ZORA · BNKR
+DOGINME · DRB · CLANKER · **TIBBIR** (WATCH/BATTLE-TEST) · VVV · ZORA · BNKR
 
 **Inject main players (Tier-1 seat reserved for UNI first):**
 UNI · LINK · AERO · MORPHO _(CBBTC / AAVE deferred on thin RISK — COST_EDGE)_
 
 **Frozen (no new capital):**
-SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · **GAME** (thin Uni V3 WETH vs Uni V2 GAME/VIRTUAL) · **AIXBT / KEYCAT / SKI / LUNA / REI** (thin Uni V3 WETH hitch / gas burn) · **BASECAT** (CAUTION/CUT — FIFO 12/31 red sells) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
+SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · **GAME** (thin Uni V3 WETH vs Uni V2 GAME/VIRTUAL) · **AIXBT / KEYCAT / SKI / LUNA / REI** (thin Uni V3 WETH hitch / gas burn) · **BASECAT** (CAUTION/CUT — FIFO 12/31 red sells) · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
 TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
 CRASH · BRIUN · NORMIE · OGGY · FREN
 
@@ -216,8 +222,8 @@ HAT_STRAND_ID             ← linear append-only strand id for site preservation
 HAT_CONTENT_HASH          ← sha256 of canonical public HTML blob (arena+engine+board+v4) at preserve time
 HAT_K_MASTER              ← optional hex key for encrypted fragment payloads
 
-LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple, operator) unless there is a clear edge AND leftover covers a short §$STORE§ hitch (1×)
-HALT_NEW_ENTRIES          ← yes = same gate as LOSE_ZERO
+LOSE_ZERO                 ← yes = block new buys (auto, cascade, ripple) unless there is a clear edge AND leftover covers 1× hitch (price-space peak leftover **or** armed net × trade > hitch — first buy after flatten)
+HALT_NEW_ENTRIES          ← **unset / no** for micro-earn. `yes` is the same *gate* as LOSE_ZERO (not a separate halt). Leave unset so Railway is not double-gated by accident.
 REQUIRE_INJECT_COVER      ← yes = inject-cover check is mandatory for buys even when LOSE_ZERO is unset
 HITCH_COST_MULT           ← sell-side hitch SIZE budget leftover/mult (default 2). Plus gate is 1× hitch on THIS sell (buy hitch already in cost basis). inject_hitch_cost = live Base L1 data fee (GasPriceOracle 0x420…000F getL1Fee / getL1FeeUpperBound) + L2 calldata-gas; oracle failure → SKIP_HITCH (plain plus). Buys stay 1×.
 ALLOW_LOSSY_OPERATOR_BUY  ← legacy alias; operator /buy already bypasses leftover+edge (hitch-or-plain)
@@ -233,6 +239,7 @@ BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.
 DISABLE_DOW_BIAS          ← yes / true / 1 / on **or unset** = zero Friday sellMod +0.08 and skip Fri-close UTC 19–22 de-risk (hotfix default ON). After calm: DISABLE_DOW_BIAS=no restores day-of-week mods. Always-plus still HOLDs FIFO-eth-red / USD-below-breakeven operator lots even if bias is restored.
 LOT_REBUILD_TXS           ← optional `AERO:0x…,DRB:0x…,BNKR:0x…` extra buy hashes for FIFO rebuild after restart. Evidence fills (AERO `0x94faa542…` / DRB `0xe0f846a8…` + trough `0x53a00788…` / BNKR `0xeef39d62…`) are already seeded. Amounts come from Transfer+WETH receipts — never invented. GitHub 401 on ledger/fifo-lots/positions still runs this on-chain path (live `token` + `STATE_BRANCH=bot-state`; no Bearer).
 SKIP_OHLC_SEED            ← yes / true / 1 / on = skip the 90-day candle seed entirely (no frozen 8s timeout path). Live ticks still arm waves.
+UNFREEZE_SYMBOLS          ← TIBBIR or TIBBIR,VVV = clear catalog freeze at runtime for those names (comma / semicolon / whitespace). Does not rewrite DEFAULT_TOKENS. Telegram `/unfreeze` is in-memory only + runtime slippage buy-freeze clear — it does not persist across restart. Frozen catalog still blocks OPERATOR_BUY until this env or a catalog `frozen: false`.
 OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready) and flush it before OHLC seed / after recon. Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Leftover+edge and COST_EDGE near-term do not block; hitch if leftover covers, else plain. Frozen catalog names are never queued. AERO fills Uni V3 WETH 0x3d5D1433…, not Aerodrome-primary.
 OPERATOR_SELL             ← AERO:all / DRB:100 / TOSHI:50 = queue those operator sells after CDP ready. Bare `AERO,DRB,BNKR` = 100% each. Latch is per-symbol after the swap executes. Bypasses wave gates as MANUAL SELL (operator). With ALLOW_LOSSY_OPERATOR_SELL=yes, FIFO-red operator/fresh lots unwind (hitch SKIP; piggy unlock). Auto stays gated when the flag is off.
 PRICE_INSANE_MIN_RATIO    ← mark / DexScreener-Gecko (or last sane) floor (default 0.01)
@@ -247,6 +254,32 @@ SLIP_COOLDOWN_MS          ← cooldown after the cap (default 1800000 = 30m)
 ```
 
 No actual secrets in Railway. Just addresses of where to find them.
+
+### Railway micro-earn checklist (no sterile IDLE)
+
+After bags were flattened to ETH for the V3 vs V4 race. Vault untouched. USDG ~$0.01 is HOLD (no V3 route).
+
+| Var | Micro-earn value | Why |
+|---|---|---|
+| `LOSE_ZERO` | `yes` | Keep always-plus / 1× hitch cover. First buy also clears when **armed net × trade > hitch**. If inject seed+hitch cannot fit the book, **micro-bank hitch** (#89 trade-only) still allows a tiny plus-sized buy. |
+| `HALT_NEW_ENTRIES` | unset / `no` | `yes` is the same *gate* as LOSE_ZERO. **Redeploy** after clearing Railway env — in-process `yes` survives an env-store edit. |
+| `REQUIRE_INJECT_COVER` | unset (or `yes` with LOSE_ZERO) | Optional; LOSE_ZERO already requires cover. |
+| `OPERATOR_SELL` | **empty** | Do not re-arm AERO/DRB/BNKR/USDG sells. |
+| `FORCE_EXIT_SYMBOLS` | **empty** | Do not re-arm Game unwind. USDG is stripped if listed. |
+| `FORCE_EXIT_LOCKED_MAJORS` | `no` after flatten (or leave default for CBBTC/AAVE dust only) | Empty bags should not loop FORCE EXIT. |
+| `ALLOW_LOSSY_OPERATOR_SELL` | unset / `no` | Never lossy operator sells. |
+| `ALLOW_ADD_ON_FIFO_RED` | unset / `no` | USD-dust flatten leftover is already treated as empty. Do not stack into real FIFO-red. |
+| `VITA_MESSAGE_FIRST` | `yes` (default) or `no` | `yes` = hitch when leftover covers 1× KEY+LOC. `no` = #89 micro-green sells, hitch only at 2× cushion, bank hitch. |
+| `HITCH_COST_MULT` | `2` (default) | Sell hitch floor / size cushion. Micro extract ignores this. |
+| `CYCLE_ALIGN_MIN` | `2` (default) | `3`+ starves thin books of entries. |
+| `MIN_POS_USD` | unset (`$0.50`) | Do not raise on a ~$2–9 ETH book. |
+| `GUARDIAN_V4_DRY_RUN` | `yes` on V4 service | V4 stays separate. Do not merge into V3 `agent.js`. |
+| `GITHUB_TOKEN` / `STATE_BRANCH` | live PAT + `bot-state` | 401 wipes remote history/positions. Runtime `history.runtime.json` + `positions.runtime.json` + fifo-lots disk keep FIFO. Do **not** load committed March `tokens.json` / `positions.json`. |
+| Vault / save bucket | **untouched** | Never spend. |
+
+Thin book (~$5 ETH+WETH): T1 slot = **unified spendable after gas keep**, not a hard ~$3.80 inject-all floor. Unknown-cost bags HOLD (no add-on); empty names can still first-buy.
+
+Thrift / race scoreboard / turn cards stay. Auto buys still need a price signal (trough / pullback / primed bottom / session-range) plus alignment — leftover alone does not chase.
 
 ### Stage 1 — Telegram Unlock
 

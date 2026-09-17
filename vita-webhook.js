@@ -27,12 +27,16 @@
 //   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
 //   GET  /vita/locations     — squashed location depository
 //   GET  /vita/leftover     — public leftover hitch scan (hashes + class, no utf8)
+//   GET  /vita/wavetest     — WAVE memory-mirror SIM (shards→read-back vs answer key; no spend)
+//   GET  /vita/waveproof    — capped 3-token WAVE proof SIM (live only via Telegram + WAVE_PROOF_LIVE)
 //   GET  /vita/xmem/spec    — public XMEM v1 agent spec + instructions
 //   GET  /vita/lib/xmem.js  — same XMEM parser as the bot
 //   GET|POST /vita/xmem/decode — parse/search provided utf8/hex (no chain fetch)
 //   GET  /vita/xmem?q=      — x402 wallet scan + XMEM search (auth)
 //   GET  /vita/course        — hourly inject-without-loss scorecard
 //   GET  /vita/inject       — recursive §TOKEN§ memory for session start
+//   GET  /vita/brain        — six-lobe brain + finetune hypothesis graph (auth)
+//   GET  /vita/hypotheses   — hypothesis graph query (?q=&status=&symbol=) (auth)
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
 //   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -62,8 +66,15 @@ import {
   boardWaveTile,
   v4BoardStatus,
 } from "./board-control.js";
-import { vitaRouterStatus, buildVitaInjectContext } from "./vita-router.js";
+import { vitaRouterStatus, buildVitaInjectContext, getLastVitaPacket } from "./vita-router.js";
 import { locDepositoryStatus } from "./vita-locations.js";
+import {
+  buildBrainStatus,
+  queryHypotheses,
+  getHypothesisGraph,
+  hypothesisToXmem,
+} from "./finetune-memory.js";
+import { vitaQuality } from "./vita-parse.js";
 import { evaluateVitaCourse, formatCourseMessage } from "./vita-course.js";
 import {
   fetchTxCalldataHex,
@@ -78,6 +89,13 @@ import {
   extractMemoryRecords,
   retrieveXmem,
 } from "./xmem.js";
+import { wrapVitaSaveSelfCall } from "./vita/feed-wrap.js";
+import {
+  listLibraryEntries,
+  playFromLibrary,
+} from "./vita/vita-feed-library.js";
+import { handleWaveTestAction } from "./vita/wave-wrap.js";
+import { handleWaveProofAction } from "./vita/wave-proof.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -93,6 +111,7 @@ const ENGINE_HTML = join(ROOT, "public", "engine.html");
 const BOARD_HTML = join(ROOT, "public", "board.html");
 const V4_HTML = join(ROOT, "public", "v4.html");
 const VITA_HTML = join(ROOT, "public", "vita.html");
+const VITA_FEED_PLAYER_HTML = join(ROOT, "public", "vita-feed-player.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -324,6 +343,42 @@ async function handleVitaRequest(req, res) {
     if ((path === "/vita" || path === "/vita/") && req.method === "GET") {
       return servePublicHtml(res, VITA_HTML, "vita");
     }
+    if ((path === "/vita/feed-player" || path === "/vita/feed-player/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_FEED_PLAYER_HTML, "vita feed player");
+    }
+    if ((path === "/vita/feed-library" || path === "/vita/feed-library/") && req.method === "GET") {
+      return json(res, {
+        ok: true,
+        id: "vita-feed-library-v1",
+        entries: listLibraryEntries(),
+        player: "/vita/feed-player?lib=<n>",
+        telegram: ["/vitafeed files", "/vitafeed play <n|name>", "/vitafeed keys"],
+      });
+    }
+    if ((path === "/vita/feed-library/play" || path === "/vita/feed-library/play/") && req.method === "GET") {
+      const sel = String(url.searchParams.get("lib") || url.searchParams.get("n") || url.searchParams.get("name") || url.searchParams.get("key") || "").trim();
+      if (!sel) return err(res, "missing lib|n|name|key");
+      const opened = await playFromLibrary(sel, { label: "LIBRARY" });
+      if (!opened.ok) return err(res, opened.reason || "open failed", 404);
+      return json(res, {
+        ok: true,
+        n: opened.n,
+        entry: opened.entry,
+        playerPath: opened.playerPath,
+        play: opened.playProof?.play
+          ? {
+              kind: opened.playProof.play.kind,
+              mime: opened.playProof.play.mime,
+              name: opened.playProof.play.name,
+              dataUrl: opened.playProof.play.dataUrl || null,
+              text: opened.playProof.play.text || null,
+            }
+          : null,
+        complete: opened.playProof?.complete === true,
+        card: opened.playProof?.card || null,
+        locations: opened.playProof?.locations || [],
+      });
+    }
     if (path === "/vita/client.js" && req.method === "GET") {
       return servePublicFile(res, VITA_CLIENT_JS, "text/javascript; charset=utf-8", "vita client");
     }
@@ -357,6 +412,78 @@ async function handleVitaRequest(req, res) {
       } catch (e) {
         return err(res, "leftover scan failed: " + (e.message || e), 502);
       }
+    }
+    if ((path === "/vita/wavetest" || path === "/vita/wavetest/") && req.method === "GET") {
+      const hitch = String(url.searchParams.get("hitch") || "") === "1"
+        || String(url.searchParams.get("action") || "") === "hitch";
+      const out = await handleWaveTestAction({
+        action: hitch ? "hitch" : "run",
+        env: process.env,
+      });
+      return json(res, {
+        ok: out.ok !== false,
+        pass: out.pass === true,
+        send: false,
+        vitafeedPaidDefault: "off",
+        waveMirrorPaidDefault: "off",
+        motherBrain: "untouched",
+        hitch: "attachWaveOnCoveredLeftover when leftover covers on a paired sell",
+        telegram: ["/wavetest", "/wavetest hitch"],
+        cli: "node scripts/wave-mirror-test.js",
+        reply: out.reply,
+        result: out.result
+          ? {
+              pass: out.result.pass,
+              sim: out.result.sim,
+              live: out.result.live,
+              rounds: out.result.rounds,
+              totalChunks: out.result.totalChunks,
+              contentCommit: out.result.contentCommit,
+              answerKey: out.result.answerKey,
+              acks: out.result.acks,
+              reason: out.result.reason,
+            }
+          : null,
+      });
+    }
+    if ((path === "/vita/waveproof" || path === "/vita/waveproof/") && req.method === "GET") {
+      const out = await handleWaveProofAction({
+        action: "run",
+        symbols: String(url.searchParams.get("syms") || url.searchParams.get("symbols") || ""),
+        env: process.env,
+        live: false,
+      });
+      return json(res, {
+        ok: out.ok !== false,
+        pass: out.pass === true,
+        send: false,
+        vitafeedPaidDefault: "off",
+        waveProofLiveDefault: "off",
+        motherBrain: "untouched",
+        maxSends: 3,
+        telegram: ["/waveproof"],
+        reply: out.reply,
+        result: out.result
+          ? {
+              pass: out.result.pass,
+              sim: out.result.sim,
+              live: out.result.live,
+              vinId: out.result.vinId,
+              symbols: out.result.symbols,
+              key8: out.result.key8,
+              txHashes: out.result.inscribed?.txHashes || [],
+              chunks: (out.result.inscribed?.chunks || []).map((c) => ({
+                symbol: c.symbol,
+                index: c.index,
+                txHash: c.txHash,
+                basescan: c.basescan,
+                loc8: c.loc8,
+              })),
+              compared: out.result.compared,
+              reason: out.result.reason,
+            }
+          : null,
+      });
     }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {
@@ -483,6 +610,38 @@ async function handleVitaRequest(req, res) {
     } else if (path === "/vita/inject" && req.method === "GET") {
       return json(res, { ok: true, ...buildVitaInjectContext() });
 
+    } else if (path === "/vita/brain" && req.method === "GET") {
+      const loc = locDepositoryStatus();
+      const quality = vitaQuality(getLastVitaPacket() || "");
+      const status = buildBrainStatus({
+        hasKey: quality.hasKey,
+        sealedCount: loc.sealed ?? 0,
+        tapeCount: getHypothesisGraph().length,
+        judgeLessons: getHypothesisGraph().filter((h) => h.status === "failed").length,
+        burstAlign: 0,
+        provenanceNote: `§LOC§ ${loc.token || "?"}`,
+      });
+      return json(res, {
+        ok: true,
+        ...status,
+        hypotheses: getHypothesisGraph().slice(-20).map((h) => ({
+          ...h,
+          xmem: hypothesisToXmem(h),
+        })),
+      });
+
+    } else if (path === "/vita/hypotheses" && req.method === "GET") {
+      const q = String(url.searchParams.get("q") || "").trim();
+      const status = url.searchParams.get("status") || null;
+      const symbol = url.searchParams.get("symbol") || null;
+      const regime = url.searchParams.get("regime") || null;
+      const rows = queryHypotheses({ q, status, symbol, regime, limit: 40 });
+      return json(res, {
+        ok: true,
+        count: rows.length,
+        hypotheses: rows.map((h) => ({ ...h, xmem: hypothesisToXmem(h) })),
+      });
+
     } else if (path === "/vita/xmem" && req.method === "GET") {
       const q = String(url.searchParams.get("q") || url.searchParams.get("query") || "").trim();
       try {
@@ -585,6 +744,26 @@ async function handleVitaRequest(req, res) {
     } else if (path === "/vita/ping") {
       json(res, { ok: true, vita: "alive", timestamp: new Date().toISOString() });
 
+    // ── POST /vita/save — advertised programmatic vitasave. Never broadcasts.
+    // n5557–5566 was Telegram `/vitasave` → vitaSave. This endpoint banks hex.
+    } else if (path === "/vita/save" && req.method === "POST") {
+      const body = await readBody(req) || {};
+      const text = String(body.text || body.summary || body.note || "webhook-vitasave");
+      const wrapped = wrapVitaSaveSelfCall({
+        text,
+        pairedUniswapSell: false,
+        topic: "vitasave-webhook",
+      });
+      json(res, {
+        ok: true,
+        banked: wrapped.banked === true,
+        hitch: wrapped.hitch === true,
+        send: false,
+        txHash: null,
+        reason: wrapped.reason,
+        note: "POST /vita/save banks unpaired [VITA:/STORE. Telegram /vitasave same wrap. Set VITA_AUTO_INSCRIBE=yes to restore mother-brain vitaSave.",
+      });
+
     } else {
       err(res, "unknown endpoint: " + path, 404);
     }
@@ -644,8 +823,11 @@ export function startVitaWebhook() {
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");
     console.log("   /vita/course   — hourly inject-without-loss scorecard");
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
+    console.log("   /vita/brain    — six-lobe brain + finetune hypothesis graph");
+    console.log("   /vita/hypotheses — query hypothesis graph");
     console.log("   /vita/read     — read GitHub files");
     console.log("   /vita/status   — live bot status");
+    console.log("   /vita/save     — programmatic vitasave (auth; banks unpaired STORE)");
   });
 
   return server;
