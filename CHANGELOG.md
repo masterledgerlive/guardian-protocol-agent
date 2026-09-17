@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — VIRTUAL on hourly balance catalog + fill-book hash
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. VIRTUAL stays tradeable (no freeze). `MIN_SWAP_POOL_LIQ`
+unchanged. #119 WAVE sell-hitch wiring stays.
+
+Risk desk bought VIRTUAL on Base
+(`0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879`)
+but hourly bag reports only polled AERO/DRB/BNKR. VIRTUAL was already in
+`DEFAULT_TOKENS` at `0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b` and
+missing from the hourly symbol→address inventory.
+
+- `HOURLY_BALANCE_CATALOG` in `telegram-turn-card.js` (AERO/DRB/BNKR/VIRTUAL).
+  `RECALL_SLEEVES` follows those keys. `/bag` + 10-min/pulse reports union
+  the catalog so the bag is tracked even if the injector list omitted it.
+- Boot / cycle `balanceOf` poll uses `hourlyBalancePollRows`.
+- Fill-book: `EVIDENCE_BUY_TXS.VIRTUAL` = the live hash. Size is on the
+  receipt (~1.642 VIRTUAL / 0.000407 ETH) — rebuild, do not invent P&L.
+
 ### Fixed — WAVE hitch on covered leftover sell (Heraclitus shards)
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`

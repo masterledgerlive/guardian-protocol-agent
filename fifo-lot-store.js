@@ -23,11 +23,14 @@ export const TRANSFER_TOPIC =
 export const WETH_BASE = "0x4200000000000000000000000000000000000006";
 export const FIFO_LOTS_FILENAME = "fifo-lots.json";
 
-/** Live #78 operator fills. Amounts come from receipts / persist — not invented. */
+/** Live operator fills. Amounts come from receipts / persist — not invented. */
 export const EVIDENCE_BUY_TXS = Object.freeze({
   AERO: "0x94faa542b54eb06804bfde79354701cd0a7fa4964cf230791bfd07fc10a22b25",
   DRB: "0xe0f846a80fe8d5c541b500e51b9cf365866cd97eb5d84a47c674100fac7da6e9",
   BNKR: "0xeef39d62453fd9b09708a5661bd8465d5f2d82cebd0986d01e466f9ac95822e4",
+  // Risk-desk VIRTUAL buy on Base. Size is on the receipt (~1.642 VIRTUAL /
+  // 0.000407 ETH) — do not invent P&L here; rebuild from the hash.
+  VIRTUAL: "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
 });
 
 /**

@@ -175,6 +175,10 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.equal(EVIDENCE_BUY_TXS.AERO.startsWith("0x94faa542"), true);
     assert.equal(EVIDENCE_BUY_TXS.DRB.startsWith("0xe0f846a8"), true);
     assert.equal(EVIDENCE_BUY_TXS.BNKR.startsWith("0xeef39d62"), true);
+    assert.equal(
+      EVIDENCE_BUY_TXS.VIRTUAL,
+      "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
+    );
     assert.equal(DRB_TROUGH_BUY_TX.startsWith("0x53a00788"), true);
     assert.equal(EVIDENCE_ADDON_BUY_TXS.DRB, DRB_TROUGH_BUY_TX);
     assert.equal(normalizeTxHash(DRB_TROUGH_BUY_TX), DRB_TROUGH_BUY_TX);
@@ -414,6 +418,7 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.ok(hashes.DRB.includes(EVIDENCE_BUY_TXS.DRB));
     assert.ok(hashes.DRB.includes(DRB_TROUGH_BUY_TX), "DRB trough add-on must be seeded");
     assert.ok(hashes.BNKR.includes(EVIDENCE_BUY_TXS.BNKR));
+    assert.ok(hashes.VIRTUAL.includes(EVIDENCE_BUY_TXS.VIRTUAL), "VIRTUAL fill-book hash must seed rebuild");
   });
 
   it("receipt with only one leg is not a lot (no invented cost)", () => {
