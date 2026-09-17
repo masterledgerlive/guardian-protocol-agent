@@ -162,10 +162,14 @@ as 0-ETH gas-only self-txs. Not a 28-shard dump. Does **not** turn
 
 | Env | Default | Meaning |
 |---|---|---|
-| `WAVE_PROOF_LIVE` | **OFF** | Must be `yes`/`true`/`1` for Telegram to send. Auto-disables after the batch. |
+| `WAVE_PROOF_LIVE` | **OFF** | Must be `yes`/`true`/`1` to send. Auto-disables after the batch. |
+| `WAVE_PROOF_AUTOFIRE` | **OFF** | One-shot boot fire when live is on. Clears itself (and live latch still fires). |
 | `WAVE_PROOF_MIN_LIQUID_USD` | **1** | Refuse live if RISK liquid USD is below floor. Reuses `VITAFEED_MIN_LIQUID_USD` if unset. |
 
-Telegram `/waveproof` · HTML `/waveproof` (SIM) · board `GET /vita/waveproof` (SIM).
+Telegram `/waveproof` · HTML `/waveproof` (SIM) · public `GET /vita/waveproof` (SIM).
+Desk (no Telegram): `POST /vita/waveproof` or `GET /vita/waveproof?live=1` with
+`VITA_WEBHOOK_SECRET` (`x-vita-secret` or `x-vita-webhook-secret`). Unauthed
+live stays 401. Public GET stays SIM.
 Live reconstruct: fetch calldata by hash → join 3 bodies → match answer-key
 shard digests 1–3. PASS/FAIL + Basescan links + VIN.
 

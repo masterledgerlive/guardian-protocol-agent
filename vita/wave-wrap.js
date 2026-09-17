@@ -892,7 +892,7 @@ export function waveTestUsageText() {
     "SIM by default (content-addressed locations). Live one-shot needs WAVE_MIRROR_PAID=yes.",
     "Does NOT enable VITAFEED_PAID. Mother brain (/vitasave) untouched.",
     "Covered leftover: attachWaveOnCoveredLeftover hitch — never solo-send.",
-    "Capped live 3-token proof: /waveproof (WAVE_PROOF_LIVE=yes). /wavetest live aliases it.",
+    "Capped live 3-token proof: /waveproof or desk POST /vita/waveproof (WAVE_PROOF_LIVE=yes). /wavetest live aliases it.",
     "CLI: node scripts/wave-mirror-test.js",
   ].join("\n");
 }

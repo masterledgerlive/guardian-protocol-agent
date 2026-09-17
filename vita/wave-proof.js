@@ -28,6 +28,7 @@ import {
 
 export const WAVE_PROOF_ID = "wave-proof-v1";
 export const WAVE_PROOF_LIVE_ENV = "WAVE_PROOF_LIVE";
+export const WAVE_PROOF_AUTOFIRE_ENV = "WAVE_PROOF_AUTOFIRE";
 export const WAVE_PROOF_MIN_LIQUID_USD_ENV = "WAVE_PROOF_MIN_LIQUID_USD";
 export const WAVE_PROOF_MIN_LIQUID_USD_DEFAULT = 1;
 export const WAVE_PROOF_MAX_SENDS = 3;
@@ -40,6 +41,7 @@ const CALLDATA_GAS_PER_NONZERO_BYTE = 16;
 const BTP_INSCRIBE_GAS_UNITS = 50_000;
 
 let _waveProofLiveSpent = false;
+let _waveProofAutofireSpent = false;
 
 function envFlagOnExplicit(raw) {
   const v = String(raw ?? "").trim().toLowerCase();
@@ -55,6 +57,11 @@ function envNumber(raw, fallback) {
 /** WAVE_PROOF_LIVE must be yes|true|1. Default OFF. Does not touch VITAFEED_PAID. */
 export function waveProofLiveEnabled(env = process.env) {
   return envFlagOnExplicit(env?.[WAVE_PROOF_LIVE_ENV] ?? "");
+}
+
+/** WAVE_PROOF_AUTOFIRE must be yes|true|1. Default OFF. One-shot boot fire. */
+export function waveProofAutofireEnabled(env = process.env) {
+  return envFlagOnExplicit(env?.[WAVE_PROOF_AUTOFIRE_ENV] ?? "");
 }
 
 /** Default $1. WAVE_PROOF_MIN_LIQUID_USD, else VITAFEED_MIN_LIQUID_USD, else 1. Set 0 to disable. */
@@ -77,6 +84,30 @@ export function resetWaveProofLiveLatch() {
 export function markWaveProofLiveSpent(env = null) {
   _waveProofLiveSpent = true;
   if (env && typeof env === "object") env[WAVE_PROOF_LIVE_ENV] = "no";
+}
+
+export function waveProofAutofireSpent() {
+  return _waveProofAutofireSpent;
+}
+
+export function resetWaveProofAutofireLatch() {
+  _waveProofAutofireSpent = false;
+}
+
+export function markWaveProofAutofireSpent(env = null) {
+  _waveProofAutofireSpent = true;
+  if (env && typeof env === "object") env[WAVE_PROOF_AUTOFIRE_ENV] = "no";
+}
+
+/** True for desk POST or GET ?live=1|yes|true — not public GET SIM. */
+export function wantsDeskWaveProofLive({ method = "GET", searchParams, body } = {}) {
+  const m = String(method || "GET").toUpperCase();
+  if (m === "POST") return true;
+  const q = searchParams && typeof searchParams.get === "function"
+    ? String(searchParams.get("live") || "")
+    : String(searchParams?.live || "");
+  const b = body && typeof body === "object" ? String(body.live || "") : "";
+  return envFlagOnExplicit(q) || envFlagOnExplicit(b);
 }
 
 export function parseWaveProofSymbols(raw = "", env = process.env) {
@@ -112,6 +143,8 @@ export function waveProofUsageText() {
     "Capped 3-token WAVE proof: least-size 8B Heraclitus shards, SYM in header.",
     "Default SYMs: VIRTUAL CLANKER AERO. Max 3 gas-only self-txs.",
     "Live needs WAVE_PROOF_LIVE=yes (default OFF). Auto-disables after the batch.",
+    "Desk: POST /vita/waveproof or GET ?live=1 with VITA_WEBHOOK_SECRET (x-vita-secret / x-vita-webhook-secret).",
+    "WAVE_PROOF_AUTOFIRE=yes fires once on boot then disables. Default OFF.",
     "Does NOT enable VITAFEED_PAID / WAVE_MIRROR_PAID. Mother brain untouched.",
   ].join("\n");
 }
@@ -487,8 +520,58 @@ export function formatWaveProofCard(result) {
     );
   }
   lines.push(result.pass ? "PASS — reconstruct-from-chain-only matches answer-key shard digests" : "FAIL — " + (result.reason || "mismatch"));
-  lines.push("WAVE_PROOF_LIVE default off; auto-disable after live batch. VITAFEED_PAID untouched. Mother brain untouched.");
+  lines.push("WAVE_PROOF_LIVE default off; auto-disable after live batch. Desk POST /vita/waveproof (auth). VITAFEED_PAID untouched. Mother brain untouched.");
   return lines.join("\n");
+}
+
+/** JSON desk/board payload — VIN + hashes + reconstruct PASS/FAIL. Never invents hashes. */
+export function formatWaveProofHttpResult(out = {}) {
+  const result = out.result || null;
+  const inscribed = result?.inscribed || null;
+  const chunks = (inscribed?.chunks || []).map((c) => ({
+    symbol: c.symbol,
+    index: c.index,
+    txHash: c.txHash || null,
+    basescan: c.basescan || null,
+    loc8: c.loc8,
+  }));
+  const txHashes = (inscribed?.txHashes || []).filter(Boolean);
+  const basescan = chunks.map((c) => c.basescan).filter(Boolean);
+  const live = result?.live === true;
+  const pass = out.pass === true;
+  return {
+    ok: out.ok !== false,
+    pass,
+    send: out.send === true,
+    live,
+    sim: result ? result.sim === true : !live,
+    vitafeedPaidDefault: "off",
+    waveProofLiveDefault: "off",
+    waveProofAutofireDefault: "off",
+    motherBrain: "untouched",
+    maxSends: WAVE_PROOF_MAX_SENDS,
+    telegram: ["/waveproof"],
+    desk: ["POST /vita/waveproof", "GET /vita/waveproof?live=1"],
+    vinId: result?.vinId || null,
+    reconstruct: pass ? "PASS" : "FAIL",
+    txHashes,
+    basescan,
+    reply: out.reply,
+    result: result
+      ? {
+          pass: result.pass,
+          sim: result.sim,
+          live: result.live,
+          vinId: result.vinId,
+          symbols: result.symbols,
+          key8: result.key8,
+          txHashes,
+          chunks,
+          compared: result.compared,
+          reason: result.reason,
+        }
+      : null,
+  };
 }
 
 export async function handleWaveProofAction({
@@ -522,5 +605,56 @@ export async function handleWaveProofAction({
     reply: result.ok === false && !result.inscribed
       ? "WAVE PROOF REFUSE\n" + (result.reason || "gate")
       : formatWaveProofCard(result),
+  };
+}
+
+/**
+ * One-shot boot fire. Requires WAVE_PROOF_AUTOFIRE=yes AND WAVE_PROOF_LIVE=yes.
+ * Clears autofire before the batch so a retry cannot burn twice. Live latch
+ * still auto-disables WAVE_PROOF_LIVE after the capped 3-send. Default OFF.
+ */
+export async function maybeAutofireWaveProof({
+  env = process.env,
+  sendTx = null,
+  fetchCalldata = null,
+  liquidUsd = null,
+  quotes = null,
+  symbols = "",
+} = {}) {
+  if (!waveProofAutofireEnabled(env)) {
+    return { ok: true, fired: false, autofire: false, reason: "WAVE_PROOF_AUTOFIRE default off" };
+  }
+  if (_waveProofAutofireSpent) {
+    return {
+      ok: true,
+      fired: false,
+      autofire: false,
+      reason: "WAVE_PROOF_AUTOFIRE already spent this process — refuse further",
+    };
+  }
+  markWaveProofAutofireSpent(env);
+  if (!waveProofLiveEnabled(env)) {
+    return {
+      ok: true,
+      fired: false,
+      autofire: false,
+      reason: "WAVE_PROOF_AUTOFIRE needs WAVE_PROOF_LIVE=yes — cleared autofire, no send",
+    };
+  }
+  const out = await handleWaveProofAction({
+    action: "run",
+    symbols,
+    env,
+    live: true,
+    sendTx,
+    fetchCalldata,
+    liquidUsd,
+    quotes,
+  });
+  return {
+    ...out,
+    fired: out.send === true,
+    autofire: true,
+    reason: out.result?.reason || out.reply || out.reason,
   };
 }

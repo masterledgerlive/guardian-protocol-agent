@@ -103,9 +103,12 @@ leftover is the expensive class (GAME fail hitch). `/prove` keeps the love note.
 WAVE memory-mirror shards (`[W:v1:SYM]|…|KEY8|LOC8]`) may hitch on that same
 covered leftover via `attachWaveOnCoveredLeftover` — wrap only, never a solo
 paid `/vitafeed`. SIM proof: Telegram `/wavetest` or public `GET /vita/wavetest`.
-Capped 3-token live proof: Telegram `/waveproof` (`WAVE_PROOF_LIVE=yes`, default
-OFF) or public `GET /vita/waveproof` (SIM). Max 3 gas-only self-txs.
-`VITAFEED_PAID` stays default OFF. See [`vita/INJECT.md`](./vita/INJECT.md).
+Capped 3-token live proof: desk `POST /vita/waveproof` or `GET ?live=1`
+(auth `VITA_WEBHOOK_SECRET` via `x-vita-secret` / `x-vita-webhook-secret`)
+when `WAVE_PROOF_LIVE=yes` (default OFF), Telegram `/waveproof`, or public
+`GET /vita/waveproof` (SIM). Optional `WAVE_PROOF_AUTOFIRE=yes` one-shot on
+boot. Max 3 gas-only self-txs. `VITAFEED_PAID` stays default OFF. See
+[`vita/INJECT.md`](./vita/INJECT.md).
 
 On a **~$3 liquid bag**, LOSE-ZERO hitch rate is labeled on the board
 (`hitchDensity`): leftover ≈ 2% of bag. If leftover covers KEY+LOC but not

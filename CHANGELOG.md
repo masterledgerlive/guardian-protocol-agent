@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added — desk HTTP live WAVE proof (no Telegram)
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. Caps stay: max 3 sends, `WAVE_PROOF_MIN_LIQUID_USD`,
+SYM `VIRTUAL`/`CLANKER`/`AERO`.
+
+Risk desk cannot fire Telegram (no plaintext bot token). Tip `9aff7f7`
+had `WAVE_PROOF_LIVE=yes` but `GET /vita/waveproof` was SIM-only
+(`live:false`).
+
+- `POST /vita/waveproof` and `GET /vita/waveproof?live=1` run the same
+  capped 3 gas-only sendTx batch as Telegram `/waveproof` when
+  `WAVE_PROOF_LIVE=yes`. JSON: 3 Basescan hashes + VIN + reconstruct
+  PASS/FAIL.
+- Auth: `VITA_WEBHOOK_SECRET` via `x-vita-secret` or
+  `x-vita-webhook-secret` (or `Authorization: Bearer`). Unauthed live
+  is 401. Public GET stays SIM.
+- Optional `WAVE_PROOF_AUTOFIRE=yes` — on boot, if live is on, fire
+  once then disable autofire (live latch still auto-disables after the
+  batch). Default OFF.
+
 ### Fixed — race start shows full Eureka love note (IKN Living Network)
 
 Game: race cards / first-order hitch had been cutting off before

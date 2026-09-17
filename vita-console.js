@@ -337,7 +337,7 @@ function helpText() {
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
     "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
-    "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is Telegram + WAVE_PROOF_LIVE)",
+    "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -472,7 +472,7 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
       const out = await handleWaveProofAction({ action: "run", env: process.env, live: false });
       return reply(
         out.reply +
-        "\nHTML SIM only — WAVE_PROOF_LIVE live batch is Telegram. VITAFEED_PAID stays default off." +
+        "\nHTML SIM only — WAVE_PROOF_LIVE live batch is desk POST /vita/waveproof or Telegram. VITAFEED_PAID stays default off." +
         "\nMother brain (/vitasave) untouched.",
       );
     }
@@ -487,7 +487,7 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     );
   }
 
-  // /waveproof — capped 3-token WAVE proof SIM (live send is Telegram + WAVE_PROOF_LIVE)
+  // /waveproof — capped 3-token WAVE proof SIM (live send is desk HTTP or Telegram + WAVE_PROOF_LIVE)
   if (text === "/waveproof" || text.startsWith("/waveproof")) {
     const parsed = parseWaveProofCommand(raw);
     const out = await handleWaveProofAction({
@@ -498,7 +498,7 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     });
     return reply(
       out.reply +
-      "\nHTML SIM only — WAVE_PROOF_LIVE live batch is Telegram. VITAFEED_PAID stays default off." +
+      "\nHTML SIM only — WAVE_PROOF_LIVE live batch is desk POST /vita/waveproof or Telegram. VITAFEED_PAID stays default off." +
       "\nMother brain (/vitasave) untouched.",
     );
   }

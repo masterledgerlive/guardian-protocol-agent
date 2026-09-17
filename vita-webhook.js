@@ -28,7 +28,9 @@
 //   GET  /vita/locations     — squashed location depository
 //   GET  /vita/leftover     — public leftover hitch scan (hashes + class, no utf8)
 //   GET  /vita/wavetest     — WAVE memory-mirror SIM (shards→read-back vs answer key; no spend)
-//   GET  /vita/waveproof    — capped 3-token WAVE proof SIM (live only via Telegram + WAVE_PROOF_LIVE)
+//   GET  /vita/waveproof    — capped 3-token WAVE proof SIM (public)
+//   POST /vita/waveproof    — desk live batch when WAVE_PROOF_LIVE=yes (auth: VITA_WEBHOOK_SECRET)
+//   GET  /vita/waveproof?live=1 — same live path as POST (auth)
 //   GET  /vita/xmem/spec    — public XMEM v1 agent spec + instructions
 //   GET  /vita/lib/xmem.js  — same XMEM parser as the bot
 //   GET|POST /vita/xmem/decode — parse/search provided utf8/hex (no chain fetch)
@@ -95,7 +97,14 @@ import {
   playFromLibrary,
 } from "./vita/vita-feed-library.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
-import { handleWaveProofAction } from "./vita/wave-proof.js";
+import {
+  formatWaveProofHttpResult,
+  handleWaveProofAction,
+  maybeAutofireWaveProof,
+  wantsDeskWaveProofLive,
+  waveProofAutofireEnabled,
+  waveProofLiveEnabled,
+} from "./vita/wave-proof.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -120,7 +129,9 @@ const XMEM_JS = join(ROOT, "xmem.js");
 function isAuthorized(req) {
   const SECRET = getSecret();
   if (!SECRET) return false; // no secret set = locked
-  const header = req.headers["x-vita-secret"] || req.headers["authorization"];
+  const header = req.headers["x-vita-secret"]
+    || req.headers["x-vita-webhook-secret"]
+    || req.headers["authorization"];
   return header === SECRET || header === "Bearer " + SECRET;
 }
 
@@ -190,6 +201,60 @@ function readBody(req, { maxBytes = MAX_JSON_BODY_BYTES } = {}) {
 // ── Handler — injected with live bot state by agent.js ────────────────────────
 let botState = null;
 export function injectBotState(state) { botState = state; }
+
+async function resolveWaveProofLiveDeps() {
+  if (typeof botState?.waveProofLiveContext === "function") {
+    return botState.waveProofLiveContext();
+  }
+  return {
+    sendTx: typeof botState?.waveProofSendTx === "function" ? botState.waveProofSendTx : null,
+    fetchCalldata: typeof botState?.waveProofFetchCalldata === "function"
+      ? botState.waveProofFetchCalldata
+      : null,
+    liquidUsd: botState?.waveProofLiquidUsd ?? null,
+    quotes: botState?.waveProofQuotes ?? null,
+  };
+}
+
+async function runWaveProofHttp({ live = false, symbols = "" } = {}) {
+  let sendTx = null;
+  let fetchCalldata = null;
+  let liquidUsd = null;
+  let quotes = null;
+  if (live) {
+    const deps = await resolveWaveProofLiveDeps();
+    sendTx = deps?.sendTx || null;
+    fetchCalldata = deps?.fetchCalldata || null;
+    liquidUsd = deps?.liquidUsd ?? null;
+    quotes = deps?.quotes ?? null;
+  }
+  const out = await handleWaveProofAction({
+    action: "run",
+    symbols,
+    env: process.env,
+    live,
+    sendTx,
+    fetchCalldata,
+    liquidUsd,
+    quotes,
+  });
+  return formatWaveProofHttpResult(out);
+}
+
+/** Boot one-shot: WAVE_PROOF_AUTOFIRE=yes + WAVE_PROOF_LIVE=yes → same 3-send batch. Default OFF. */
+export async function maybeAutofireWaveProofOnBoot(env = process.env) {
+  if (!waveProofAutofireEnabled(env)) {
+    return { ok: true, fired: false, reason: "WAVE_PROOF_AUTOFIRE default off" };
+  }
+  const deps = await resolveWaveProofLiveDeps();
+  return maybeAutofireWaveProof({
+    env,
+    sendTx: deps?.sendTx || null,
+    fetchCalldata: deps?.fetchCalldata || null,
+    liquidUsd: deps?.liquidUsd ?? null,
+    quotes: deps?.quotes ?? null,
+  });
+}
 
 let webhookBound = false;
 
@@ -313,7 +378,7 @@ function boardSnapshotPayload(authorized) {
 async function handleVitaRequest(req, res) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "x-vita-secret, authorization, content-type");
+  res.setHeader("Access-Control-Allow-Headers", "x-vita-secret, x-vita-webhook-secret, authorization, content-type");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
   if (req.method === "OPTIONS") {
@@ -446,44 +511,26 @@ async function handleVitaRequest(req, res) {
           : null,
       });
     }
-    if ((path === "/vita/waveproof" || path === "/vita/waveproof/") && req.method === "GET") {
-      const out = await handleWaveProofAction({
-        action: "run",
-        symbols: String(url.searchParams.get("syms") || url.searchParams.get("symbols") || ""),
-        env: process.env,
-        live: false,
+    if ((path === "/vita/waveproof" || path === "/vita/waveproof/") && (req.method === "GET" || req.method === "POST")) {
+      const body = req.method === "POST" ? (await readBody(req) || {}) : {};
+      const wantLive = wantsDeskWaveProofLive({
+        method: req.method,
+        searchParams: url.searchParams,
+        body,
       });
-      return json(res, {
-        ok: out.ok !== false,
-        pass: out.pass === true,
-        send: false,
-        vitafeedPaidDefault: "off",
-        waveProofLiveDefault: "off",
-        motherBrain: "untouched",
-        maxSends: 3,
-        telegram: ["/waveproof"],
-        reply: out.reply,
-        result: out.result
-          ? {
-              pass: out.result.pass,
-              sim: out.result.sim,
-              live: out.result.live,
-              vinId: out.result.vinId,
-              symbols: out.result.symbols,
-              key8: out.result.key8,
-              txHashes: out.result.inscribed?.txHashes || [],
-              chunks: (out.result.inscribed?.chunks || []).map((c) => ({
-                symbol: c.symbol,
-                index: c.index,
-                txHash: c.txHash,
-                basescan: c.basescan,
-                loc8: c.loc8,
-              })),
-              compared: out.result.compared,
-              reason: out.result.reason,
-            }
-          : null,
-      });
+      if (wantLive && !isAuthorized(req)) {
+        return err(res, "unauthorized — set x-vita-secret or x-vita-webhook-secret", 401);
+      }
+      return json(res, await runWaveProofHttp({
+        live: wantLive === true,
+        symbols: String(
+          url.searchParams.get("syms")
+          || url.searchParams.get("symbols")
+          || body.syms
+          || body.symbols
+          || "",
+        ),
+      }));
     }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {
@@ -818,6 +865,7 @@ export function startVitaWebhook() {
     console.log("   /vita/registry — full filing registry");
     console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
     console.log("   /vita/locations — squashed location depository");
+    console.log("   /vita/waveproof — WAVE 3-token proof (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");

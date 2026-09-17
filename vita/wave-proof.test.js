@@ -13,12 +13,18 @@ import {
   WAVE_PROOF_MIN_LIQUID_USD_DEFAULT,
   compareProofShardsToAnswerKey,
   evaluateWaveProofGate,
+  formatWaveProofHttpResult,
   handleWaveProofAction,
+  maybeAutofireWaveProof,
   parseWaveProofCommand,
   planWaveProof,
+  resetWaveProofAutofireLatch,
   resetWaveProofLiveLatch,
   runCappedWaveProofSends,
   runWaveProof,
+  wantsDeskWaveProofLive,
+  waveProofAutofireEnabled,
+  waveProofAutofireSpent,
   waveProofLiveEnabled,
   waveProofLiveSpent,
   waveProofMinLiquidUsd,
@@ -74,7 +80,10 @@ describe("WAVE proof planner", () => {
 });
 
 describe("WAVE proof caps + gate", () => {
-  beforeEach(() => resetWaveProofLiveLatch());
+  beforeEach(() => {
+    resetWaveProofLiveLatch();
+    resetWaveProofAutofireLatch();
+  });
 
   it("WAVE_PROOF_LIVE default off; liquid floor default $1", () => {
     assert.equal(waveProofLiveEnabled({}), false);
@@ -165,10 +174,71 @@ describe("WAVE proof caps + gate", () => {
     assert.equal(second.ok, false);
     assert.match(second.reason, /already spent|refuse further/);
   });
+
+  it("WAVE_PROOF_AUTOFIRE default off; fires once then disables", async () => {
+    assert.equal(waveProofAutofireEnabled({}), false);
+    assert.equal(waveProofAutofireEnabled({ WAVE_PROOF_AUTOFIRE: "" }), false);
+    assert.equal(waveProofAutofireEnabled({ WAVE_PROOF_AUTOFIRE: "no" }), false);
+    assert.equal(waveProofAutofireEnabled({ WAVE_PROOF_AUTOFIRE: "yes" }), true);
+    const skipped = await maybeAutofireWaveProof({
+      env: { WAVE_PROOF_LIVE: "yes" },
+      sendTx: async () => "0x" + "c".repeat(64),
+      liquidUsd: 10,
+    });
+    assert.equal(skipped.fired, false);
+    assert.match(skipped.reason, /default off/);
+
+    const env = { WAVE_PROOF_LIVE: "yes", WAVE_PROOF_AUTOFIRE: "yes" };
+    const chain = createWaveSimChain();
+    const first = await maybeAutofireWaveProof({
+      env,
+      sendTx: chain.sendTx,
+      fetchCalldata: chain.fetchCalldata,
+      liquidUsd: 10,
+      quotes: { gwei: 0.05, ethUsd: 2481 },
+    });
+    assert.equal(first.fired, true);
+    assert.equal(first.pass, true);
+    assert.equal(first.send, true);
+    assert.equal(first.result.inscribed.txHashes.length, 3);
+    assert.equal(env.WAVE_PROOF_AUTOFIRE, "no");
+    assert.equal(env.WAVE_PROOF_LIVE, "no");
+    assert.equal(waveProofAutofireSpent(), true);
+    assert.equal(vitaFeedPaidEnabled(env), false);
+
+    env.WAVE_PROOF_LIVE = "yes";
+    env.WAVE_PROOF_AUTOFIRE = "yes";
+    const second = await maybeAutofireWaveProof({
+      env,
+      sendTx: chain.sendTx,
+      fetchCalldata: chain.fetchCalldata,
+      liquidUsd: 10,
+    });
+    assert.equal(second.fired, false);
+    assert.match(second.reason, /already spent|refuse further/);
+  });
+
+  it("desk live request is POST or GET ?live=1; HTTP payload has VIN + hashes + reconstruct", async () => {
+    assert.equal(wantsDeskWaveProofLive({ method: "GET" }), false);
+    assert.equal(wantsDeskWaveProofLive({ method: "GET", searchParams: { live: "1" } }), true);
+    assert.equal(wantsDeskWaveProofLive({ method: "POST" }), true);
+    const out = await handleWaveProofAction({ action: "run", env: {} });
+    const http = formatWaveProofHttpResult(out);
+    assert.equal(http.pass, true);
+    assert.equal(http.live, false);
+    assert.equal(http.reconstruct, "PASS");
+    assert.ok(http.vinId);
+    assert.equal(http.txHashes.length, 3);
+    assert.equal(http.vitafeedPaidDefault, "off");
+    assert.deepEqual(http.desk, ["POST /vita/waveproof", "GET /vita/waveproof?live=1"]);
+  });
 });
 
 describe("WAVE proof reconstruct + handlers", () => {
-  beforeEach(() => resetWaveProofLiveLatch());
+  beforeEach(() => {
+    resetWaveProofLiveLatch();
+    resetWaveProofAutofireLatch();
+  });
 
   it("SIM /waveproof reconstructs vs answer-key shards and does not pay", async () => {
     assert.equal(parseWaveProofCommand("/waveproof").action, "run");
@@ -219,14 +289,18 @@ describe("WAVE proof wiring stays off mother brain", () => {
     const agent = readFileSync(join(root, "agent.js"), "utf8");
     assert.match(agent, /\/waveproof/);
     assert.match(agent, /handleWaveProofAction/);
+    assert.match(agent, /buildWaveProofLiveContext/);
+    assert.match(agent, /maybeAutofireWaveProofOnBoot/);
+    assert.match(agent, /waveProofLiveContext/);
     const wStart = agent.indexOf("/waveproof");
     assert.ok(wStart >= 0);
     const slice = agent.slice(wStart, wStart + 2200);
     assert.ok(slice.includes("handleWaveProofAction"));
+    assert.ok(slice.includes("buildWaveProofLiveContext"));
     assert.ok(!slice.includes("vitaSave("));
     assert.ok(!slice.includes("inscribeChunk("));
     assert.ok(!slice.includes('VITAFEED_PAID: "yes"'));
     assert.ok(!slice.includes("ALLOW_LOSSY"));
-    assert.ok(slice.includes("value: BigInt(0)") || slice.includes("value: 0n"));
+    assert.ok(agent.includes("value: BigInt(0)") || agent.includes("value: 0n"));
   });
 });

@@ -6,7 +6,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createVitaServer } from "./vita-webhook.js";
+import { createVitaServer, injectBotState, maybeAutofireWaveProofOnBoot } from "./vita-webhook.js";
+import { createWaveSimChain } from "./vita/wave-wrap.js";
+import {
+  resetWaveProofAutofireLatch,
+  resetWaveProofLiveLatch,
+} from "./vita/wave-proof.js";
 
 let server;
 let base;
@@ -295,6 +300,7 @@ describe("control board HTTP", () => {
     assert.equal(json.ok, true);
     assert.equal(json.pass, true);
     assert.equal(json.send, false);
+    assert.equal(json.live, false);
     assert.equal(json.vitafeedPaidDefault, "off");
     assert.equal(json.waveProofLiveDefault, "off");
     assert.equal(json.motherBrain, "untouched");
@@ -303,8 +309,127 @@ describe("control board HTTP", () => {
     assert.equal(json.result.live, false);
     assert.deepEqual(json.result.symbols, ["VIRTUAL", "CLANKER", "AERO"]);
     assert.equal(json.result.txHashes.length, 3);
+    assert.equal(json.reconstruct, "PASS");
+    assert.ok(json.vinId);
     assert.match(json.reply, /PASS/);
     assert.match(json.reply, /VIRTUAL/);
+  });
+
+  it("POST /vita/waveproof and GET ?live=1 stay 401 without webhook secret", async () => {
+    const post = await fetch(base + "/vita/waveproof", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const postJson = await post.json();
+    assert.equal(post.status, 401);
+    assert.match(postJson.error || "", /unauthorized/i);
+
+    const liveGet = await get("/vita/waveproof?live=1");
+    assert.equal(liveGet.res.status, 401);
+    assert.match(liveGet.json.error || "", /unauthorized/i);
+  });
+
+  it("POST /vita/waveproof with secret + WAVE_PROOF_LIVE runs the capped 3-send batch", async () => {
+    const prevSecret = process.env.VITA_WEBHOOK_SECRET;
+    const prevLive = process.env.WAVE_PROOF_LIVE;
+    const prevPaid = process.env.VITAFEED_PAID;
+    const prevAuto = process.env.WAVE_PROOF_AUTOFIRE;
+    process.env.VITA_WEBHOOK_SECRET = "desk-test-secret";
+    process.env.WAVE_PROOF_LIVE = "yes";
+    delete process.env.VITAFEED_PAID;
+    delete process.env.WAVE_PROOF_AUTOFIRE;
+    resetWaveProofLiveLatch();
+    resetWaveProofAutofireLatch();
+    const chain = createWaveSimChain();
+    injectBotState({
+      waveProofLiveContext: async () => ({
+        sendTx: chain.sendTx,
+        fetchCalldata: chain.fetchCalldata,
+        liquidUsd: 10,
+        quotes: { gwei: 0.05, ethUsd: 2481 },
+      }),
+    });
+    try {
+      const res = await fetch(base + "/vita/waveproof", {
+        method: "POST",
+        headers: {
+          "x-vita-webhook-secret": "desk-test-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(json.ok, true);
+      assert.equal(json.live, true);
+      assert.equal(json.send, true);
+      assert.equal(json.pass, true);
+      assert.equal(json.reconstruct, "PASS");
+      assert.ok(json.vinId);
+      assert.equal(json.txHashes.length, 3);
+      assert.equal(json.basescan.length, 3);
+      assert.ok(json.txHashes.every((h) => /^0x[0-9a-fA-F]{64}$/.test(h)));
+      assert.equal(json.vitafeedPaidDefault, "off");
+      assert.equal(json.motherBrain, "untouched");
+      assert.equal(process.env.WAVE_PROOF_LIVE, "no");
+      assert.equal(process.env.VITAFEED_PAID, undefined);
+    } finally {
+      injectBotState(null);
+      resetWaveProofLiveLatch();
+      resetWaveProofAutofireLatch();
+      if (prevSecret == null) delete process.env.VITA_WEBHOOK_SECRET;
+      else process.env.VITA_WEBHOOK_SECRET = prevSecret;
+      if (prevLive == null) delete process.env.WAVE_PROOF_LIVE;
+      else process.env.WAVE_PROOF_LIVE = prevLive;
+      if (prevPaid == null) delete process.env.VITAFEED_PAID;
+      else process.env.VITAFEED_PAID = prevPaid;
+      if (prevAuto == null) delete process.env.WAVE_PROOF_AUTOFIRE;
+      else process.env.WAVE_PROOF_AUTOFIRE = prevAuto;
+    }
+  });
+
+  it("WAVE_PROOF_AUTOFIRE on boot fires once then disables; default off", async () => {
+    const prevLive = process.env.WAVE_PROOF_LIVE;
+    const prevAuto = process.env.WAVE_PROOF_AUTOFIRE;
+    const prevPaid = process.env.VITAFEED_PAID;
+    resetWaveProofLiveLatch();
+    resetWaveProofAutofireLatch();
+    const off = await maybeAutofireWaveProofOnBoot({ WAVE_PROOF_LIVE: "yes" });
+    assert.equal(off.fired, false);
+
+    const env = { WAVE_PROOF_LIVE: "yes", WAVE_PROOF_AUTOFIRE: "yes" };
+    const chain = createWaveSimChain();
+    injectBotState({
+      waveProofLiveContext: async () => ({
+        sendTx: chain.sendTx,
+        fetchCalldata: chain.fetchCalldata,
+        liquidUsd: 10,
+        quotes: { gwei: 0.05, ethUsd: 2481 },
+      }),
+    });
+    try {
+      const first = await maybeAutofireWaveProofOnBoot(env);
+      assert.equal(first.fired, true);
+      assert.equal(first.pass, true);
+      assert.equal(first.result.inscribed.txHashes.length, 3);
+      assert.equal(env.WAVE_PROOF_AUTOFIRE, "no");
+      assert.equal(env.WAVE_PROOF_LIVE, "no");
+      assert.equal(process.env.VITAFEED_PAID, prevPaid);
+
+      env.WAVE_PROOF_LIVE = "yes";
+      env.WAVE_PROOF_AUTOFIRE = "yes";
+      const second = await maybeAutofireWaveProofOnBoot(env);
+      assert.equal(second.fired, false);
+    } finally {
+      injectBotState(null);
+      resetWaveProofLiveLatch();
+      resetWaveProofAutofireLatch();
+      if (prevLive == null) delete process.env.WAVE_PROOF_LIVE;
+      else process.env.WAVE_PROOF_LIVE = prevLive;
+      if (prevAuto == null) delete process.env.WAVE_PROOF_AUTOFIRE;
+      else process.env.WAVE_PROOF_AUTOFIRE = prevAuto;
+    }
   });
 
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
