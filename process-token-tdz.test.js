@@ -103,6 +103,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellBody.includes("attachWaveOnCoveredLeftover"), "WAVE hitch caller must be attachWaveOnCoveredLeftover");
     assert.ok(sellBody.indexOf("hitchWaveOnSellLeftover") > sellBody.indexOf("planVoiceHitch"));
     assert.ok(!sellBody.includes("oneShot: true"), "WAVE_MIRROR_PAID one-shot must stay off the sell path");
+    assert.ok(sellBody.includes("knownLotSellTokens"), "evidence-latched sell caps to known lot qty");
     assert.ok(sellBody.includes("gateLeftoverEth"), "WAVE leftover binding must not shadow fill leftoverEth");
     assert.ok(sellBody.includes("applyLotToToken"), "executeSell must apply FIFO lot before entrySold");
     assert.ok(sellBody.includes("tryRebuildLotFromReceipts"), "VIRTUAL evidence buy must rebuild at sell");

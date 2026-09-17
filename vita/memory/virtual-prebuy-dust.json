@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-17T20:42:00.000Z",
+  "topic": "virtual-evidence-lot-prebuy-dust",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. Do not use ALLOW_LOSSY_OPERATOR_SELL. #119 hitchWaveOnSellLeftover, #120 HOURLY_BALANCE_CATALOG / EVIDENCE_BUY_TXS.VIRTUAL, and #121 native-ETH FIFO latch stay. After Online, VIRTUAL OPERATOR_SELL still HOLDed entrySold=0: wallet ≈1.67510 vs evidence tokensIn ≈1.64196 (buy 0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879) → remain/bought ≈1.02018 > 1.02 by ≈0.00030 tokens. Quoter green +~9.6e-6 ETH. Exclude pre-buy dust from remain/bought when evidence FIFO is latched; sell only known lot qty; leave dust unsold / piggy. DRB trough remain >> tokensIn still unknown. Do not invent P&L.",
+  "locations": [],
+  "hypothesis": {
+    "id": "unknown-lots-band-vs-evidence-prebuy-dust",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "ALLOW_LOSSY_OPERATOR_SELL as the sell path",
+      "WAVE_MIRROR_PAID / VITAFEED_PAID",
+      "invent VIRTUAL P&L instead of receipt cost",
+      "widen 1.02 for all bags",
+      "sell the whole wallet including unknown-cost dust"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

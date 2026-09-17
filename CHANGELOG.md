@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed — VIRTUAL evidence lot sells under always-plus despite pre-buy dust
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. Do **not** use `ALLOW_LOSSY_OPERATOR_SELL`. #119 WAVE
+sell-hitch, #120 hourly catalog, and #121 FIFO latch stay.
+
+After #121 Online, VIRTUAL OPERATOR_SELL still HOLDed `entrySold=0`:
+wallet ≈1.67510 vs evidence `tokensIn` ≈1.64196 → remain/bought ≈1.02018,
+just over the 1.02 unknown-lots band by ≈0.00030 tokens. Quoter was green
+(~+9.6e-6 ETH vs buy `0x33aac652…`). Pre-buy dust is not a missing add-on.
+
+- Evidence-latched lots: exclude pre-buy dust from remain/bought (cost =
+  recorded `tokensIn` / `ethIn`). Missing lots (DRB trough, remain >>
+  `tokensIn`) still unknown.
+- Sell only known lot qty; leave dust unsold / piggy. Do not invent P&L.
+- Evidence dust band 1.025 (VIRTUAL 1.02018). Default 1.02 unchanged for
+  non-evidence bags.
+
 ### Fixed — latch VIRTUAL FIFO from evidence buy so always-plus can sell
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`

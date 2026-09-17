@@ -1434,19 +1434,65 @@ export function cashFlowNetEth(ethIn = 0, ethOut = 0) {
  * → unknown (do not sell red to discover). Persisted `totalInvestedEth` is
  * not trusted when lots cannot be allocated — that figure can still be
  * cash-flow leftover from a prior boot.
+ *
+ * Evidence-latched lots (VIRTUAL 0x33aac652 class): pre-buy dust just over
+ * the 2% band is not a missing add-on. Exclude that dust from remain/bought
+ * (cost = recorded tokensIn) and sell only the known lot qty. Missing lots
+ * (DRB trough, remain >> tokensIn) still unknown. Do not invent P&L.
  */
+/** Default unknown-lots band: remain > tokensIn × this → missing lots. */
+export const UNKNOWN_LOTS_BAND = 1.02;
+/**
+ * Evidence FIFO only. Live VIRTUAL remain/bought ≈ 1.02018 (> 1.02 by
+ * ≈0.00030 tokens). Keep tight — DRB trough (remain >> tokensIn) still unknown.
+ */
+export const EVIDENCE_LOT_DUST_BAND = 1.025;
+
+export function fifoUnknownLots({
+  remainingTokens = 0,
+  tokensIn = 0,
+  evidenceLot = false,
+} = {}) {
+  const remain = Number(remainingTokens);
+  const bought = Number(tokensIn);
+  if (!Number.isFinite(remain) || !Number.isFinite(bought) || bought <= 0) return false;
+  const band = evidenceLot ? EVIDENCE_LOT_DUST_BAND : UNKNOWN_LOTS_BAND;
+  return remain > bought * band + 1e-9;
+}
+
+/**
+ * Remain used for FIFO cost / known-lot sell cap.
+ * Evidence-latched pre-buy dust (within EVIDENCE_LOT_DUST_BAND) is excluded
+ * so remain/bought does not trip unknown-lots; extra stays unsold / piggy.
+ */
+export function fifoKnownLotRemain(remainingTokens, tokensIn, { evidenceLot = false } = {}) {
+  const remain = Number(remainingTokens);
+  const bought = Number(tokensIn);
+  if (!Number.isFinite(remain) || remain <= 0) return remain;
+  if (!Number.isFinite(bought) || bought <= 0) return remain;
+  if (
+    evidenceLot
+    && remain > bought
+    && !fifoUnknownLots({ remainingTokens: remain, tokensIn: bought, evidenceLot: true })
+  ) {
+    return bought;
+  }
+  return remain;
+}
+
 export function fifoRemainingCostEth({
   ethIn = 0,
   tokensIn = 0,
   remainingTokens = 0,
   persistedInvestedEth = 0,
+  evidenceLot = false,
 } = {}) {
-  const remain = Number(remainingTokens);
+  const remainRaw = Number(remainingTokens);
   const spent = Number(ethIn);
   const bought = Number(tokensIn);
   const persisted = Number(persistedInvestedEth);
 
-  if (!Number.isFinite(remain) || remain <= 0) {
+  if (!Number.isFinite(remainRaw) || remainRaw <= 0) {
     return { unknown: false, investedEth: 0, reason: "empty", proportional: 0 };
   }
   if (!Number.isFinite(spent) || spent <= 0) {
@@ -1455,9 +1501,10 @@ export function fifoRemainingCostEth({
   if (!Number.isFinite(bought) || bought <= 0) {
     return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
   }
-  if (remain > bought * 1.02 + 1e-9) {
+  if (fifoUnknownLots({ remainingTokens: remainRaw, tokensIn: bought, evidenceLot })) {
     return { unknown: true, investedEth: 0, reason: "unknown-lots", proportional: 0 };
   }
+  const remain = fifoKnownLotRemain(remainRaw, bought, { evidenceLot });
   const proportional = spent * Math.min(1, remain / bought);
   const investedEth = Math.max(
     proportional,

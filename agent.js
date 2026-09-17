@@ -189,6 +189,7 @@ import {
   tokenHasKnownFifoCost,
   bootKnownCostLabel,
   seededRebuildRemaining,
+  knownLotSellTokens,
 } from "./fifo-lot-store.js";
 import {
   liveGithubToken,
@@ -6594,6 +6595,16 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         }
       }
     }
+    // Evidence-latched lots: sell only recorded tokensIn. Pre-buy dust
+    // (VIRTUAL remain/bought ≈ 1.02018) stays unsold / piggy — never lossy.
+    const lotSellQty = knownLotSellTokens(fifoLots[token.symbol], totalBal);
+    if (Number.isFinite(lotSellQty) && lotSellQty + 1e-12 < totalBal) {
+      const dustUnsold = totalBal - lotSellQty;
+      token.piggyReserve = Math.max(Number(token.piggyReserve) || 0, dustUnsold);
+      console.log(
+        `   🐷 ${token.symbol}: sell known lot ${lotSellQty} — pre-buy dust ${dustUnsold.toFixed(5)} unsold / piggy`,
+      );
+    }
     // Never treat fractional high-unit bags (CBBTC ~0.00006) as dust — that
     // cleared a real $ bag without selling. Dust is USD-based.
     // Piggy-only dust stays on-chain — keep the reserve high-water mark and
@@ -6645,20 +6656,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       dustUsd: priorLedger.dustUsd || ((token.piggyReserve || 0) * price),
       piggyMinUsd: piggyBankMinUsd(process.env, piggyOptsFromToken(token)),
     });
+    const sellUnits = Number.isFinite(lotSellQty) && lotSellQty > 0 ? lotSellQty : totalBal;
     const prelimReserve = ratchetPiggyReserve(
       token.piggyReserve,
-      totalBal,
+      sellUnits,
       price,
       process.env,
       piggyOptsFromToken(token, { savedEarningsUsd: priorSaved }),
     );
-    const prelimSellable = computeSellable(totalBal, prelimReserve, { unlock: isPiggyUnlock(reason) });
+    const prelimSellable = computeSellable(sellUnits, prelimReserve, { unlock: isPiggyUnlock(reason) });
     const hitchEstUsd = (() => {
       // Conservative: assume message may ride — bank math uses buffer need.
       return 0; // actual hitch cost applied after gate; preview uses buffer only
     })();
     const prelimPreview = previewPiggySellNetUsd({
-      balance: totalBal,
+      balance: sellUnits,
       sellable: prelimSellable * Math.max(0, Math.min(1, Number(sellPct) || 0)),
       investedEth: costBasisEth(token),
       priceUsd: price,
@@ -6678,7 +6690,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
 
     const overrideSell = canBypassSellLossGate(reason, process.env, token.symbol);
     const piggy = applyPiggyToSell({
-      balance: totalBal,
+      balance: sellUnits,
       sellPct,
       piggyReserve: token.piggyReserve,
       priceUsd: price,
@@ -6696,7 +6708,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   🐷 ${token.symbol}: banking +$${projectedBank.toFixed(3)} bear-min → piggy target $${targetSaved.toFixed(3)} (was $${priorSaved.toFixed(3)})`);
     }
 
-    const soldFrac       = sellFractionAfterPiggy({ balance: totalBal, tokensToSell: piggy.tokensToSell });
+    const soldFrac       = sellFractionAfterPiggy({ balance: sellUnits, tokensToSell: piggy.tokensToSell });
     const investedBefore = sellEntryEthWithLotFloor(token.totalInvestedEth || 0, token);
     const entryEthSold   = costBasisForSoldFraction(investedBefore, soldFrac);
     const markProcEth    = (piggy.tokensToSell * price) / ethUsd;
