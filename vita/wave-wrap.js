@@ -504,6 +504,88 @@ export function attachWaveOnCoveredLeftover(input = {}) {
   };
 }
 
+/**
+ * Next Heraclitus WAVE shard for the sell leftover hitch loop.
+ * Cursor stays put until commitWaveHitchShard after the trailer actually lands.
+ * Does not replace KEY+LOC. Never solo-sends.
+ */
+let _waveHitchPlan = null;
+let _waveHitchIndex = 0;
+
+export function resetWaveHitchCursor() {
+  _waveHitchPlan = null;
+  _waveHitchIndex = 0;
+}
+
+export function ensureWaveHitchPlan(opts = {}) {
+  if (_waveHitchPlan?.ok && !opts.force) return _waveHitchPlan;
+  _waveHitchPlan = prepareWaveWrap(opts.body || WAVE_WISE_MESSAGE, {
+    symbol: opts.symbol || WAVE_WISE_SYM,
+    vinId: opts.vinId,
+    maxBytes: opts.maxBytes,
+  });
+  _waveHitchIndex = 0;
+  return _waveHitchPlan;
+}
+
+export function peekNextWaveHitchShard(opts = {}) {
+  const plan = ensureWaveHitchPlan(opts);
+  if (!plan?.ok) return null;
+  if (_waveHitchIndex >= plan.lines.length) return null;
+  return plan.lines[_waveHitchIndex];
+}
+
+export function waveHitchCursorIndex() {
+  return _waveHitchIndex;
+}
+
+/**
+ * Sell leftover hitch wrap: invoke attachWaveOnCoveredLeftover for the next
+ * Heraclitus shard. Hitch when leftover covers on a paired sell; bank when
+ * uncovered. WAVE_MIRROR_PAID stays default off — this path never one-shots.
+ */
+export function hitchWaveOnSellLeftover(input = {}) {
+  const attach = typeof input.attach === "function" ? input.attach : attachWaveOnCoveredLeftover;
+  const shard = input.shard !== undefined ? input.shard : peekNextWaveHitchShard();
+  if (!shard?.line) {
+    const decision = attach({
+      line: "",
+      leftoverEth: 0,
+      hitchCostEth: Number(input.hitchCostEth) > 0 ? input.hitchCostEth : 1,
+      pairedUniswapSell: input.pairedUniswapSell !== false,
+      env: input.env,
+    });
+    return {
+      ...decision,
+      hitch: false,
+      send: false,
+      banked: true,
+      shard: null,
+      utf8: "",
+      txHash: null,
+      reason: "no pending WAVE shard — bank; WAVE_MIRROR_PAID default off; VITAFEED_PAID untouched",
+    };
+  }
+  const decision = attach({
+    line: shard.line,
+    leftoverEth: input.leftoverEth,
+    hitchCostEth: input.hitchCostEth,
+    pairedUniswapSell: input.pairedUniswapSell !== false,
+    sameTxTradeLeftover: input.sameTxTradeLeftover,
+    pairedDataTx: input.pairedDataTx,
+    env: input.env,
+  });
+  return { ...decision, shard, utf8: shard.line };
+}
+
+export function commitWaveHitchShard(decision) {
+  if (decision?.hitch && decision?.shard && decision.send !== true) {
+    _waveHitchIndex += 1;
+    return true;
+  }
+  return false;
+}
+
 export function wrapWaveSelfCall(input = {}) {
   return attachWaveOnCoveredLeftover({ ...input, topic: input.topic || "wave" });
 }

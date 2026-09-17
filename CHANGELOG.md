@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Fixed — WAVE hitch on covered leftover sell (Heraclitus shards)
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. BASECAT / GAME stay CUT frozen.
+
+Sell leftover hitch loop was KEY+LOC only — `attachWaveOnCoveredLeftover`
+existed (#117) but was never called from `executeSell`. Game's Heraclitus
+WAVE shards therefore would not auto-embed on the next PLUS green sell.
+
+- `hitchWaveOnSellLeftover` peeks the next Heraclitus shard and calls
+  `attachWaveOnCoveredLeftover` from `executeSell` after KEY+LOC.
+- Covered leftover + paired sell → hitch WAVE trailer (`send: false`).
+- Uncovered leftover / KEY+LOC skipped / WAVE extra would wipe plus → bank.
+- Never solo-send WAVE. Cursor advances only after the trailer lands.
+
 ### Fixed — TIBBIR catalog unfreeze + `UNFREEZE_SYMBOLS` process.env reader
 
 HARD STOP: mother brain untouched. BASECAT / GAME stay CUT frozen.

@@ -99,6 +99,10 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellBody.includes("earningsEth: 0"), "earnings must not add hitch fuel on top of leftover");
     assert.ok(sellBody.includes("sellSkipHitch"), "orch must not re-embed hitch after plus strip");
     assert.ok(sellBody.includes("leftoverEth"), "KEY+LOC planner must see leftover, not hitch-force");
+    assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "sell leftover hitch must call WAVE wrap");
+    assert.ok(sellBody.includes("attachWaveOnCoveredLeftover"), "WAVE hitch caller must be attachWaveOnCoveredLeftover");
+    assert.ok(sellBody.indexOf("hitchWaveOnSellLeftover") > sellBody.indexOf("planVoiceHitch"));
+    assert.ok(!sellBody.includes("oneShot: true"), "WAVE_MIRROR_PAID one-shot must stay off the sell path");
   });
 
   it("still reaches buy / MANUAL SELL / sellhalf after the armed-idle log", () => {

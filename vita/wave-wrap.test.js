@@ -1,7 +1,7 @@
 /**
  * WAVE wrap unit tests — mother brain untouched, VITAFEED_PAID stays off.
  */
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -17,17 +17,23 @@ import {
   WAVE_WRAP_ID,
   attachWaveOnCoveredLeftover,
   clampWaveBodyBudget,
+  commitWaveHitchShard,
   hexToUtf8,
+  hitchWaveOnSellLeftover,
   parseWaveLine,
+  peekNextWaveHitchShard,
   planWaveShards,
   prepareWaveWrap,
   reconstructWaveBody,
+  resetWaveHitchCursor,
   utf8FromWaveCalldata,
   utf8ToHex,
+  waveHitchCursorIndex,
   waveMirrorPaidEnabled,
   WAVE_EXACT_INPUT_BYTES,
 } from "./wave-wrap.js";
 import { vitaFeedPaidEnabled } from "./vita-feed.js";
+import { KEYCAT_PLAIN_SWAP, appendUtf8Hitch } from "../swap-minout.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -142,6 +148,112 @@ describe("WAVE leftover hitch wrap", () => {
     assert.match(w.reason, /VITAFEED_PAID untouched/);
     assert.equal(vitaFeedPaidEnabled({}), false);
     assert.equal(vitaFeedPaidEnabled({ VITAFEED_PAID: "" }), false);
+  });
+});
+
+describe("WAVE sell leftover hitch caller", () => {
+  beforeEach(() => resetWaveHitchCursor());
+
+  it("hitchWaveOnSellLeftover invokes attachWaveOnCoveredLeftover when leftover covers", () => {
+    let attached = 0;
+    const shard = peekNextWaveHitchShard();
+    assert.ok(shard?.line);
+    const w = hitchWaveOnSellLeftover({
+      shard,
+      leftoverEth: 0.0004,
+      hitchCostEth: 0.0002,
+      pairedUniswapSell: true,
+      attach: (input) => {
+        attached += 1;
+        return attachWaveOnCoveredLeftover(input);
+      },
+    });
+    assert.equal(attached, 1);
+    assert.equal(w.hitch, true);
+    assert.equal(w.send, false);
+    assert.equal(w.banked, false);
+    assert.equal(w.txHash, null);
+    assert.equal(w.utf8, shard.line);
+    assert.equal(parseWaveLine(w.utf8).symbol, "WISE");
+    assert.equal(waveHitchCursorIndex(), 0, "cursor waits until trailer lands");
+    assert.equal(commitWaveHitchShard(w), true);
+    assert.equal(waveHitchCursorIndex(), 1);
+    const next = peekNextWaveHitchShard();
+    assert.ok(next);
+    assert.notEqual(next.line, shard.line);
+  });
+
+  it("banks/skips when leftover is uncovered — cursor does not advance", () => {
+    const before = waveHitchCursorIndex();
+    const w = hitchWaveOnSellLeftover({
+      leftoverEth: 0.00001,
+      hitchCostEth: 0.0002,
+      pairedUniswapSell: true,
+      env: {},
+    });
+    assert.equal(w.hitch, false);
+    assert.equal(w.banked, true);
+    assert.equal(w.send, false);
+    assert.equal(w.txHash, null);
+    assert.match(w.reason, /bank WAVE hex|uncovered/i);
+    assert.equal(commitWaveHitchShard(w), false);
+    assert.equal(waveHitchCursorIndex(), before);
+    assert.equal(waveMirrorPaidEnabled({}), false);
+    assert.equal(vitaFeedPaidEnabled({}), false);
+  });
+
+  it("KEY+LOC skipped / leftoverEth 0 banks WAVE — never solo-send even if WAVE_MIRROR_PAID=yes", () => {
+    const w = hitchWaveOnSellLeftover({
+      leftoverEth: 0,
+      hitchCostEth: 0.0002,
+      pairedUniswapSell: true,
+      env: { WAVE_MIRROR_PAID: "yes" },
+    });
+    assert.equal(w.hitch, false);
+    assert.equal(w.send, false);
+    assert.equal(w.banked, true);
+    assert.equal(w.txHash, null);
+  });
+
+  it("WAVE trailer appends after KEY+LOC on a paired leftover swap", () => {
+    const loc = appendUtf8Hitch(KEYCAT_PLAIN_SWAP, "§$STORE§ §KEY§eureka♥Krystian,Kai,Koda§LOC§n=1|t=aaaa");
+    assert.equal(loc.onChain, true);
+    const w = hitchWaveOnSellLeftover({
+      leftoverEth: 0.0004,
+      hitchCostEth: 0.0001,
+      pairedUniswapSell: true,
+    });
+    assert.equal(w.hitch, true);
+    const packed = appendUtf8Hitch(loc.data, w.utf8);
+    assert.equal(packed.ok, true);
+    assert.equal(packed.onChain, true);
+    const decoded = utf8FromWaveCalldata(packed.data);
+    assert.equal(parseWaveLine(decoded).body, parseWaveLine(w.utf8).body);
+    assert.ok(loc.utf8.includes("Krystian"), "KEY+LOC names stay on the leftover hitch");
+    assert.equal(packed.data.startsWith(KEYCAT_PLAIN_SWAP.slice(0, 10)), true);
+  });
+
+  it("executeSell leftover hitch loop calls hitchWaveOnSellLeftover → attachWaveOnCoveredLeftover", () => {
+    const agent = readFileSync(join(root, "agent.js"), "utf8");
+    const sellFn = agent.indexOf("async function executeSell(");
+    assert.ok(sellFn >= 0);
+    const sellEnd = agent.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = agent.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 12000);
+    assert.ok(sellBody.includes("planVoiceHitch"), "KEY+LOC leftover hitch stays");
+    const planAt = sellBody.indexOf("planVoiceHitch");
+    const waveAt = sellBody.indexOf("hitchWaveOnSellLeftover");
+    assert.ok(waveAt > planAt, "WAVE hitch runs after KEY+LOC leftover hitch");
+    assert.ok(sellBody.includes("attachWaveOnCoveredLeftover"), "sell hitch caller must invoke attachWaveOnCoveredLeftover");
+    assert.ok(sellBody.includes("pairedUniswapSell: true"));
+    assert.ok(sellBody.includes("commitWaveHitchShard"));
+    assert.ok(!sellBody.includes("oneShot: true"), "sell path must never WAVE one-shot");
+    assert.ok(!sellBody.includes('WAVE_MIRROR_PAID: "yes"'));
+    assert.ok(!sellBody.includes('VITAFEED_PAID: "yes"'));
+    assert.ok(!sellBody.includes("vitaSave("), "must not call mother brain vitaSave");
+    assert.ok(!sellBody.includes("inscribeChunk("));
+    const wrap = readFileSync(join(root, "vita/wave-wrap.js"), "utf8");
+    const helper = wrap.slice(wrap.indexOf("export function hitchWaveOnSellLeftover"));
+    assert.match(helper, /attachWaveOnCoveredLeftover/);
   });
 });
 

@@ -1,0 +1,10 @@
+{
+  "strandId": "wave-sell-hitch",
+  "sparse": true,
+  "source": "wave-wrap-helper",
+  "header": "[W:v1:SYM]|<vinId>|<ii>/<nn>|prev=<8hex>|next=<ii|END>|<KEY8>|<LOC8>]",
+  "learn": "Sell leftover hitch calls hitchWaveOnSellLeftover → attachWaveOnCoveredLeftover after KEY+LOC. Covered leftover on a paired PLUS sell hitches the next Heraclitus shard as a WAVE trailer (send:false). Uncovered leftover banks the shard; cursor does not advance. WAVE_MIRROR_PAID and VITAFEED_PAID stay default off. Never solo-send. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": ["/wavetest hitch"],
+  "caller": "executeSell"
+}
