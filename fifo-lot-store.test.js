@@ -9,7 +9,9 @@ import { fileURLToPath } from "node:url";
 
 import {
   TRANSFER_TOPIC,
+  WETH_DEPOSIT_TOPIC,
   WETH_BASE,
+  SWAP_ROUTER02_BASE,
   EVIDENCE_BUY_TXS,
   DRB_TROUGH_BUY_TX,
   EVIDENCE_ADDON_BUY_TXS,
@@ -62,6 +64,9 @@ const WALLET = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
 const AERO = "0x940181a94A35A4569E4529A3CDfB74e38FD98631";
 const DRB = "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2";
 const BNKR = "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b";
+const VIRTUAL = "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b";
+/** Live VIRTUAL Uni V3 WETH pool (buy 0x33aac652). */
+const VIRTUAL_POOL = "0x9c087eb773291e50cf6c6a90ef0f4500e349b903";
 
 /** Live AERO buy 0x94faa542… — WETH from wallet + AERO Transfer in. */
 const AERO_ETH_WEI = 786757301107754n;
@@ -76,6 +81,14 @@ function transferLog(token, from, to, amountWei) {
   return {
     address: token,
     topics: [TRANSFER_TOPIC, padAddr(from), padAddr(to)],
+    data: `0x${BigInt(amountWei).toString(16).padStart(64, "0")}`,
+  };
+}
+
+function depositLog(dst, amountWei) {
+  return {
+    address: WETH_BASE,
+    topics: [WETH_DEPOSIT_TOPIC, padAddr(dst)],
     data: `0x${BigInt(amountWei).toString(16).padStart(64, "0")}`,
   };
 }
@@ -147,6 +160,33 @@ function bnkrReceipt() {
     tx: { hash: EVIDENCE_BUY_TXS.BNKR, value: "0x0" },
     tokenAddress: BNKR,
     symbol: "BNKR",
+    wallet: WALLET,
+  };
+}
+
+/** Live VIRTUAL buy 0x33aac652 — native ETH via SwapRouter02 (nonce 6011). */
+const VIRTUAL_ETH_WEI = 407247374272554n;
+const VIRTUAL_TOK_WEI = 1641959873796611381n;
+
+function virtualReceipt({ withTxValue = true } = {}) {
+  return {
+    receipt: {
+      status: "0x1",
+      transactionHash: EVIDENCE_BUY_TXS.VIRTUAL,
+      gasUsed: "0x1a69f",
+      effectiveGasPrice: "0x5b8d80",
+      logs: [
+        transferLog(VIRTUAL, VIRTUAL_POOL, WALLET, VIRTUAL_TOK_WEI),
+        depositLog(SWAP_ROUTER02_BASE, VIRTUAL_ETH_WEI),
+        transferLog(WETH_BASE, SWAP_ROUTER02_BASE, VIRTUAL_POOL, VIRTUAL_ETH_WEI),
+      ],
+    },
+    tx: {
+      hash: EVIDENCE_BUY_TXS.VIRTUAL,
+      value: withTxValue ? `0x${VIRTUAL_ETH_WEI.toString(16)}` : "0x0",
+    },
+    tokenAddress: VIRTUAL,
+    symbol: "VIRTUAL",
     wallet: WALLET,
   };
 }
@@ -232,10 +272,10 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.ok(green.leftover > 0);
   });
 
-  it("rebuilds AERO / DRB / BNKR from buy receipt when persist is missing", () => {
+  it("rebuilds AERO / DRB / BNKR / VIRTUAL from buy receipt when persist is missing", () => {
     const rebuilt = rebuildLotsAfterRestart({
       persisted: {},
-      remainingBySymbol: { AERO: 3.42, DRB: 8238, BNKR: 8449 },
+      remainingBySymbol: { AERO: 3.42, DRB: 8238, BNKR: 8449, VIRTUAL: 1.641959873796611381 },
       receipts: [
         {
           symbol: "AERO",
@@ -248,15 +288,17 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
         },
         drbReceipt(),
         bnkrReceipt(),
+        virtualReceipt(),
       ],
       tokens: [
         { symbol: "AERO", address: AERO },
         { symbol: "DRB", address: DRB },
         { symbol: "BNKR", address: BNKR },
+        { symbol: "VIRTUAL", address: VIRTUAL },
       ],
     });
     assert.deepEqual(rebuilt.unknown, []);
-    for (const sym of ["AERO", "DRB", "BNKR"]) {
+    for (const sym of ["AERO", "DRB", "BNKR", "VIRTUAL"]) {
       assert.ok(isUsableLot(rebuilt.lots[sym]), sym);
       assert.equal(rebuilt.lots[sym].source, "onchain-receipt");
       assert.ok(rebuilt.applied[sym].totalInvestedEth > 0, sym);
@@ -291,7 +333,7 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.equal(github.content, null);
     const rebuilt = recoverLotsAfterGithubReadFailure({
       persisted: {},
-      remainingBySymbol: { AERO: 3.42, DRB: 8238, BNKR: 8449 },
+      remainingBySymbol: { AERO: 3.42, DRB: 8238, BNKR: 8449, VIRTUAL: 1.641959873796611381 },
       receipts: [
         {
           symbol: "AERO",
@@ -304,15 +346,17 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
         },
         drbReceipt(),
         bnkrReceipt(),
+        virtualReceipt({ withTxValue: false }),
       ],
       tokens: [
         { symbol: "AERO", address: AERO },
         { symbol: "DRB", address: DRB },
         { symbol: "BNKR", address: BNKR },
+        { symbol: "VIRTUAL", address: VIRTUAL },
       ],
     });
     assert.deepEqual(rebuilt.unknown, []);
-    for (const sym of ["AERO", "DRB", "BNKR"]) {
+    for (const sym of ["AERO", "DRB", "BNKR", "VIRTUAL"]) {
       assert.ok(isUsableLot(rebuilt.lots[sym]), `${sym} lot after GitHub 401`);
       assert.equal(rebuilt.lots[sym].source, "onchain-receipt");
       assert.equal(rebuilt.applied[sym].unknownEntry, false);
@@ -959,5 +1003,111 @@ describe("fifo-lot-store — latch DRB trough 0x53a00788 FIFO", () => {
     const gate = buy.indexOf("evaluateAddOnFifoRedGate");
     const encode = buy.indexOf("encodeSwap(");
     assert.ok(gate >= 0 && encode > gate, "#84 gate still runs before encodeSwap");
+  });
+});
+
+describe("fifo-lot-store — latch VIRTUAL FIFO from evidence buy 0x33aac652", () => {
+  const VIRTUAL_REMAIN = Number(VIRTUAL_TOK_WEI) / 1e18;
+  const VIRTUAL_ETH = Number(VIRTUAL_ETH_WEI) / 1e18;
+
+  function latchVirtual(receiptRow) {
+    const lot = lotFromBuyReceipt({
+      symbol: "VIRTUAL",
+      tokenAddress: VIRTUAL,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.VIRTUAL,
+      receipt: receiptRow.receipt,
+      tx: receiptRow.tx,
+    });
+    const lots = {};
+    mergeBuyReceiptIntoLots(lots, lot, { remainingTokens: VIRTUAL_REMAIN });
+    return { lot, lots };
+  }
+
+  it("parses live native-ETH SwapRouter02 receipt (WETH from router, not wallet)", () => {
+    const { lot, lots } = latchVirtual(virtualReceipt());
+    assert.equal(isUsableLot(lot), true);
+    assert.ok(Math.abs(lot.tokensIn - VIRTUAL_REMAIN) < 1e-12);
+    assert.ok(Math.abs(lot.ethIn - VIRTUAL_ETH) < 1e-15, "ethIn from tx.value / Deposit, not invented");
+    assert.equal(lotHasBuyTx(lots.VIRTUAL, EVIDENCE_BUY_TXS.VIRTUAL), true);
+    assert.equal(lots.VIRTUAL.source, "onchain-receipt");
+  });
+
+  it("still latches when tx.value is missing — Deposit / router WETH is the ETH leg", () => {
+    const half = lotFromBuyReceipt({
+      symbol: "VIRTUAL",
+      tokenAddress: VIRTUAL,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.VIRTUAL,
+      receipt: {
+        status: "0x1",
+        transactionHash: EVIDENCE_BUY_TXS.VIRTUAL,
+        logs: [transferLog(VIRTUAL, VIRTUAL_POOL, WALLET, VIRTUAL_TOK_WEI)],
+      },
+      tx: { value: "0x0" },
+    });
+    assert.equal(half, null, "token-only log is not a lot");
+
+    const { lot } = latchVirtual(virtualReceipt({ withTxValue: false }));
+    assert.equal(isUsableLot(lot), true);
+    assert.ok(Math.abs(lot.ethIn - VIRTUAL_ETH) < 1e-15, "Deposit/router WETH must prove ethIn");
+    assert.ok(Math.abs(lot.tokensIn - VIRTUAL_REMAIN) < 1e-12);
+  });
+
+  it("does not double-count tx.value + Deposit + router WETH", () => {
+    const { lot } = latchVirtual(virtualReceipt({ withTxValue: true }));
+    assert.ok(lot.ethIn < VIRTUAL_ETH * 1.01);
+    assert.ok(lot.ethIn > VIRTUAL_ETH * 0.99);
+  });
+
+  it("empty persist + evidence hash → known entrySold so always-plus can green", () => {
+    assert.equal(
+      shouldLatchBuyReceipt(undefined, EVIDENCE_BUY_TXS.VIRTUAL, { remainingTokens: VIRTUAL_REMAIN }),
+      true,
+    );
+    const { lots } = latchVirtual(virtualReceipt({ withTxValue: false }));
+    const token = { symbol: "VIRTUAL", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.VIRTUAL, { remainingTokens: VIRTUAL_REMAIN });
+    assert.equal(fifo.unknown, false);
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > 0);
+    assert.equal(lotAppliedOk(token, fifo), true);
+    const entrySold = sellEntryEthWithLotFloor(token.totalInvestedEth, token);
+    assert.ok(entrySold > 0, "entrySold must be known — LOSE_ZERO cannot HOLD unknown");
+
+    const red = plusGate({ symbol: "VIRTUAL", entryEth: entrySold, proceeds: entrySold * 0.7 });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+
+    const green = plusGate({
+      symbol: "VIRTUAL",
+      entryEth: entrySold,
+      proceeds: entrySold + 9.60e-6,
+    });
+    assert.equal(green.allow, true, "Quoter green vs receipt cost must not HOLD unknown");
+    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+    assert.ok(green.leftover > 0);
+  });
+
+  it("agent.js hydrates VIRTUAL FIFO before unknown stamp and sell entrySold", () => {
+    const src = readFileSync(join(root, "agent.js"), "utf8");
+    const processFn = src.indexOf("async function processToken(");
+    const processEnd = src.indexOf("\nasync function ", processFn + 1);
+    const processBody = src.slice(processFn, processEnd > 0 ? processEnd : processFn + 12000);
+    const rebuild = processBody.indexOf("tryRebuildLotFromReceipts");
+    const unknown = processBody.indexOf("applyUnknownChainHolding");
+    assert.ok(rebuild >= 0 && unknown > rebuild, "cycle must latch evidence FIFO before unknown stamp");
+
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 9000);
+    assert.ok(sellBody.includes("applyLotToToken"), "executeSell must apply FIFO lot before entrySold");
+    assert.ok(sellBody.includes("tryRebuildLotFromReceipts"), "executeSell must rebuild evidence buy when persist empty");
+    assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "#119 WAVE hitch stays");
+    assert.ok(sellBody.includes("gateLeftoverEth"), "WAVE leftover must not shadow fill leftoverEth");
+    assert.equal((sellBody.match(/const leftoverEth/g) || []).length, 1, "only fill leftoverEth remains");
+    assert.ok(!sellBody.includes("oneShot: true"), "WAVE_MIRROR_PAID one-shot stays off sell path");
+    assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=/.test(src), "VIRTUAL latch is not the lossy sell path");
+    assert.ok(src.includes("EVIDENCE_BUY_TXS"), "evidence map stays imported");
   });
 });

@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Fixed — latch VIRTUAL FIFO from evidence buy so always-plus can sell
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. Do **not** use `ALLOW_LOSSY_OPERATOR_SELL`. #119 WAVE
+sell-hitch and #120 hourly catalog / `EVIDENCE_BUY_TXS.VIRTUAL` stay.
+
+VIRTUAL QuoterV2 was green (~+9.60e-6 ETH vs buy
+`0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879`)
+but GPA HOLDed `entrySold=0` / unknown cost. LOSE_ZERO will not sell
+unknown. Hash was seeded in #120; boot/hydrate never rebuilt FIFO the
+way the DRB trough latch does.
+
+Root cause (verified on Base): the fill is native ETH via SwapRouter02.
+WETH Deposit lands on the router, then Transfer router→pool — wallet
+never sends WETH. `lotFromBuyReceipt` only counted WETH-from-wallet +
+`tx.value`. A missing tx (receipt-only) returned null. Cycle
+`processToken` then stamped unknown without retrying the evidence hash.
+
+- Parse WETH Deposit / router-out as the ETH leg when wallet-WETH +
+  `tx.value` are empty. Do not sum with `tx.value` (same ETH). Amounts
+  from the receipt only (~1.642 VIRTUAL / 0.000407 ETH).
+- Cycle + `executeSell` rebuild from `EVIDENCE_BUY_TXS.VIRTUAL` and
+  apply the lot **before** the unknown stamp / `entrySold` gate.
+- Source-rename WAVE leftover to `gateLeftoverEth` (boot-patch needle
+  already-applied) so executeSell parses without the shadow SyntaxError.
+- Wallet-WETH fills (AERO/BNKR) and DRB trough add-on unchanged.
+
 ### Added — VIRTUAL on hourly balance catalog + fill-book hash
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`

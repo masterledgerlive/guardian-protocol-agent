@@ -20,7 +20,11 @@ import {
 
 export const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+/** WETH `Deposit(address indexed dst, uint256 wad)` — native ETH wrap on SwapRouter02. */
+export const WETH_DEPOSIT_TOPIC =
+  "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
 export const WETH_BASE = "0x4200000000000000000000000000000000000006";
+export const SWAP_ROUTER02_BASE = "0x2626664c2603336e57b271c5c0b26f421741e481";
 export const FIFO_LOTS_FILENAME = "fifo-lots.json";
 
 /** Live operator fills. Amounts come from receipts / persist — not invented. */
@@ -594,6 +598,11 @@ export function collectRebuildTxs({
 /**
  * Rebuild one lot from a successful buy receipt (Transfer to wallet + WETH/ETH in).
  * Returns null when logs cannot prove both legs — do not invent.
+ *
+ * Native-ETH SwapRouter02 buys (VIRTUAL 0x33aac652 class) wrap via WETH Deposit
+ * to the router, then Transfer router→pool. Wallet never sends WETH, so the
+ * WETH-from-wallet leg is empty. Count tx.value, else Deposit, else router out
+ * — never sum those three (same ETH). Wallet-WETH fills (AERO/BNKR) unchanged.
  */
 export function lotFromBuyReceipt({
   symbol,
@@ -615,24 +624,37 @@ export function lotFromBuyReceipt({
 
   let tokenWei = 0n;
   let wethWei = 0n;
+  let wethDepositWei = 0n;
+  let wethRouterOutWei = 0n;
   for (const log of receipt.logs || []) {
     const topics = log?.topics || [];
     if (!topics.length) continue;
-    if (String(topics[0] || "").toLowerCase() !== TRANSFER_TOPIC) continue;
-    if (topics.length < 3) continue;
+    const topic0 = String(topics[0] || "").toLowerCase();
     const addr = String(log.address || "").toLowerCase();
+    let amt = 0n;
+    try { amt = BigInt(log.data || "0x0"); } catch { amt = 0n; }
+    if (topic0 === WETH_DEPOSIT_TOPIC && addr === WETH_BASE && amt > 0n && topics.length >= 2) {
+      const dst = topicAddress(topics[1]);
+      if (dst === to || dst === SWAP_ROUTER02_BASE) wethDepositWei += amt;
+      continue;
+    }
+    if (topic0 !== TRANSFER_TOPIC) continue;
+    if (topics.length < 3) continue;
     const frm = topicAddress(topics[1]);
     const dest = topicAddress(topics[2]);
-    let amt = 0n;
-    try { amt = BigInt(log.data || "0x0"); } catch { continue; }
     if (amt <= 0n) continue;
     if (addr === token && dest === to) tokenWei += amt;
     if (addr === WETH_BASE && frm === to) wethWei += amt;
+    if (addr === WETH_BASE && frm === SWAP_ROUTER02_BASE && dest !== to) wethRouterOutWei += amt;
   }
   let ethValue = 0n;
   try { ethValue = BigInt(tx?.value || receipt?.value || 0); } catch { ethValue = 0n; }
+  let ethInWei = wethWei + ethValue;
+  if (ethInWei === 0n) {
+    ethInWei = wethDepositWei > 0n ? wethDepositWei : wethRouterOutWei;
+  }
   const tokensIn = weiToAmount(tokenWei, tokenDecimals);
-  const ethIn = weiToAmount(wethWei + ethValue, 18);
+  const ethIn = weiToAmount(ethInWei, 18);
   if (!(tokensIn > 0) || !(ethIn > 0)) return null;
 
   let gasCostEth = 0;

@@ -6580,6 +6580,20 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       token.piggyReserve = 0;
       return null;
     }
+    // Latch FIFO from persist / evidence buy receipt before entrySold.
+    // VIRTUAL native-ETH SwapRouter02 fills were unknown (entrySold=0) while
+    // Quoter was green — LOSE_ZERO HOLD. Do not invent; receipt or persist only.
+    if (isUsableLot(fifoLots[token.symbol])) {
+      applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
+    } else {
+      const remain = seededRebuildRemaining(totalBal);
+      if (remain != null) {
+        try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
+        if (isUsableLot(fifoLots[token.symbol])) {
+          applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
+        }
+      }
+    }
     // Never treat fractional high-unit bags (CBBTC ~0.00006) as dust — that
     // cleared a real $ bag without selling. Dust is USD-based.
     // Piggy-only dust stays on-chain — keep the reserve high-water mark and
@@ -6928,7 +6942,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // WAVE wrap trailer on the next covered leftover of a paired PLUS sell.
     // KEY+LOC leftover hitch stays. attachWaveOnCoveredLeftover never solo-sends.
     // Uncovered leftover (or KEY+LOC skipped) banks the Heraclitus shard.
-    const leftoverEth = Math.max(0, Number(sellGate.leftover) || 0);
+    const gateLeftoverEth = Math.max(0, Number(sellGate.leftover) || 0);
     const waveShard = peekNextWaveHitchShard();
     const waveBytes = Number(waveShard?.calldataBytes) || 0;
     const waveL1 = hitchL1?.ok && wantedHitchBytes > 0 && waveBytes > 0
@@ -6938,14 +6952,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       ? estimateCalldataHitchEth(waveBytes, gwei) + waveL1
       : 0;
     const remainingLeftover = sellVoice.onChain
-      ? Math.max(0, leftoverEth - voiceHitchCost)
+      ? Math.max(0, gateLeftoverEth - voiceHitchCost)
       : 0;
     const waveCovered = !sellSkipHitch
       && !!sellVoice.onChain
       && remainingLeftover > 0
       && waveCost > 0
       && remainingLeftover + 1e-18 >= waveCost
-      && plusAfterHitchEth(leftoverEth, voiceHitchCost + waveCost) > 0;
+      && plusAfterHitchEth(gateLeftoverEth, voiceHitchCost + waveCost) > 0;
     const waveRide = hitchWaveOnSellLeftover({
       shard: waveShard,
       leftoverEth: waveCovered ? remainingLeftover : 0,
@@ -7839,12 +7853,24 @@ async function processToken(cdp, token, bal) {
 
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
+    // Evidence hashes (VIRTUAL 0x33aac652 / DRB trough class) must rebuild
+    // FIFO *before* the unknown stamp — boot-only latch left entrySold=0.
+    const heldBal = getCachedBalance(token.symbol);
     if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
-        (getCachedBalance(token.symbol) > 0.001 || token.unknownEntry)) {
-      applyUnknownChainHolding(token, {
-        units: getCachedBalance(token.symbol),
-        priceUsd: price,
-      });
+        (heldBal > 0.001 || token.unknownEntry)) {
+      const remain = seededRebuildRemaining(heldBal);
+      if (remain != null) {
+        try { await tryRebuildLotFromReceipts(token, remain); } catch { /* receipt miss stays unknown */ }
+      }
+      if (isUsableLot(fifoLots[token.symbol])) {
+        applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: heldBal });
+      }
+      if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] })) {
+        applyUnknownChainHolding(token, {
+          units: heldBal,
+          priceUsd: price,
+        });
+      }
     }
 
     recordPrice(token.symbol, price);
