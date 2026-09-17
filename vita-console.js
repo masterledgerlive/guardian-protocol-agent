@@ -48,6 +48,7 @@ import {
 import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./vita/feed-wrap.js";
 import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js";
 import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js";
+import { handleWaveProofAction, parseWaveProofCommand } from "./vita/wave-proof.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -77,6 +78,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/encodegenesisreveal",
   "/vitafeed",
   "/wavetest",
+  "/waveproof",
 ]);
 
 function shortLoc(location) {
@@ -335,6 +337,7 @@ function helpText() {
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
     "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
+    "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is Telegram + WAVE_PROOF_LIVE)",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -465,6 +468,14 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
   // /wavetest — WAVE memory-mirror SIM (does not pay; VITAFEED_PAID stays off)
   if (text === "/wavetest" || text.startsWith("/wavetest")) {
     const parsed = parseWaveTestCommand(raw);
+    if (parsed.action === "proof") {
+      const out = await handleWaveProofAction({ action: "run", env: process.env, live: false });
+      return reply(
+        out.reply +
+        "\nHTML SIM only — WAVE_PROOF_LIVE live batch is Telegram. VITAFEED_PAID stays default off." +
+        "\nMother brain (/vitasave) untouched.",
+      );
+    }
     const out = await handleWaveTestAction({
       action: parsed.action || "run",
       env: process.env,
@@ -472,6 +483,22 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     return reply(
       out.reply +
       "\nHTML SIM only — WAVE hitch rides covered leftover; WAVE_MIRROR_PAID / VITAFEED_PAID stay default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
+  }
+
+  // /waveproof — capped 3-token WAVE proof SIM (live send is Telegram + WAVE_PROOF_LIVE)
+  if (text === "/waveproof" || text.startsWith("/waveproof")) {
+    const parsed = parseWaveProofCommand(raw);
+    const out = await handleWaveProofAction({
+      action: parsed.action || "run",
+      symbols: parsed.symbols || "",
+      env: process.env,
+      live: false,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE_PROOF_LIVE live batch is Telegram. VITAFEED_PAID stays default off." +
       "\nMother brain (/vitasave) untouched.",
     );
   }

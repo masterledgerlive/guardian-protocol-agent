@@ -1,0 +1,10 @@
+{
+  "strandId": "wave-proof-3-token",
+  "sparse": true,
+  "source": "wave-proof-helper",
+  "learn": "Capped 3-token WAVE proof: plan 3 least-size 8B Heraclitus shards with SYM VIRTUAL/CLANKER/AERO, gas-only self-tx when WAVE_PROOF_LIVE=yes, reconstruct calldata vs answer-key shard digests 1-3. Max 3 sends. Liquid floor $1. Auto-disable after batch. VITAFEED_PAID / WAVE_MIRROR_PAID stay default off. Mother brain untouched. Preserve #119-#122 hitch/catalog/FIFO/dust.",
+  "formula": "original-message-first",
+  "telegram": ["/waveproof"],
+  "board": "GET /vita/waveproof",
+  "neverSoloSendUnlessProofEnv": true
+}

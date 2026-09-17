@@ -23,6 +23,10 @@ Hex shards `[W:v1:SYM]|…|KEY8|LOC8]` + VIN/tailwind like `/vitafeed`. Answer k
 `vita/memory/wave-heraclitus-key.json`. Reconstruct-from-chain-only tests.
 `VITAFEED_PAID` stays default OFF. Hitch on covered leftover; do not solo-send.
 
+**WAVE 3-token proof:** Telegram `/waveproof` + `GET /vita/waveproof`. Exactly 3×8B
+Heraclitus shards (`VIRTUAL`/`CLANKER`/`AERO`). Live needs `WAVE_PROOF_LIVE=yes`
+(default OFF). Does not re-enable `VITAFEED_PAID`.
+
 ```js
 import {
   infectVitaHtmlDocument,

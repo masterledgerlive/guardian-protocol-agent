@@ -32,6 +32,8 @@ The letter to Krystian, Kai & Koda is **true** on Telegram **`/prove`** (dedicat
 
 **`/wavetest`** (WAVE memory mirror): shard the Heraclitus gift into hex-only WAVE packets, file them, read calldata back, pass only if bytes match the off-chain answer key. SIM by default. Hitch WAVE on covered leftover; does **not** re-enable `VITAFEED_PAID`. CLI: `node scripts/wave-mirror-test.js`.
 
+**`/waveproof`** (capped 3-token WAVE proof): send exactly 3 least-size (8B) Heraclitus shards (SYM `VIRTUAL`/`CLANKER`/`AERO`) as 0-ETH self-txs when `WAVE_PROOF_LIVE=yes` (default OFF, auto-disables after the batch). Reconstruct vs answer-key shard digests. Does **not** enable `VITAFEED_PAID`. Board: `GET /vita/waveproof`.
+
 ---
 
 ## What Makes It Different

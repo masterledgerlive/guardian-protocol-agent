@@ -483,6 +483,11 @@ import {
   peekNextWaveHitchShard,
 } from "./vita/wave-wrap.js";
 import {
+  handleWaveProofAction,
+  parseWaveProofCommand,
+  waveProofLiveEnabled,
+} from "./vita/wave-proof.js";
+import {
   beginVitaFeedFileAwait,
   clearVitaFeedFileAwait,
   downloadTelegramFileBytes,
@@ -12475,6 +12480,56 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           }
         }
 
+      // ── /waveproof — capped 3-token WAVE live proof (WAVE_PROOF_LIVE, not VITAFEED_PAID)
+      } else if (text === "/waveproof" || (text && text.startsWith("/waveproof"))) {
+        try {
+          const parsed = parseWaveProofCommand(raw);
+          const wantLive = waveProofLiveEnabled(process.env);
+          let sendTx = null;
+          let liquidUsd = null;
+          let quotes = null;
+          if (wantLive) {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0))
+              + Math.max(0, Number(bal?.weth ?? 0));
+            liquidUsd = liquidEth * Number(ethUsd || 0);
+            let gwei = 0.05;
+            try { gwei = await getCurrentGasGwei(); } catch { /* demo gwei */ }
+            quotes = { gwei, ethUsd: Number(ethUsd || 0) };
+            if (!(cdp || cdpClient)?.evm?.sendTransaction) {
+              await tg("❌ waveproof live needs the RISK wallet client — no send.");
+              continue;
+            }
+            sendTx = async (hex) => {
+              const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash || null;
+            };
+          }
+          const out = await handleWaveProofAction({
+            action: parsed.action || "run",
+            symbols: parsed.symbols || "",
+            env: process.env,
+            live: wantLive,
+            sendTx,
+            fetchCalldata: wantLive ? fetchTxCalldataHex : null,
+            liquidUsd: wantLive ? liquidUsd : null,
+            quotes,
+          });
+          await tg(
+            "🌊 <b>WAVE PROOF</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>Max 3 gas-only self-txs. WAVE_PROOF_LIVE default off. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ waveproof failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       // ── /wavetest — WAVE memory-mirror SIM (does not enable VITAFEED_PAID)
       } else if (text === "/wavetest" || (text && text.startsWith("/wavetest"))) {
         try {
@@ -13096,6 +13151,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitalearn [text] — inject any custom knowledge\n` +
           `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
           `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
+          `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B shards; WAVE_PROOF_LIVE=yes for 3 gas-only self-txs)\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +

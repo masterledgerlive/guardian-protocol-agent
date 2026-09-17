@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added — capped live 3-token WAVE proof (`/waveproof`)
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. Do **not** use `ALLOW_LOSSY_OPERATOR_SELL`. #119–#122
+hitch/catalog/FIFO/dust stay.
+
+Uni Quoter-red vs FIFO on VIRTUAL means hitch-on-sell will not fire, and
+`/wavetest` is SIM-only. This path proves WAVE with **exactly 3** least-size
+(8B) Heraclitus shards (SYM `VIRTUAL` / `CLANKER` / `AERO`) as **0-ETH
+gas-only self-txs**. Not a 28-shard dump. Not `/vitafeed` paid.
+
+- Telegram `/waveproof` + board `GET /vita/waveproof`. HTML console is SIM.
+- `WAVE_PROOF_LIVE=yes` (default OFF). Live batch max 3 sends, then latch.
+- Liquid floor `WAVE_PROOF_MIN_LIQUID_USD` default **$1**. Abort if breach.
+- Reconstruct-from-chain-only vs answer-key per-shard digests. Record a
+  txHash only when `sendTx` returns one.
+
 ### Fixed — VIRTUAL evidence lot sells under always-plus despite pre-buy dust
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`

@@ -881,6 +881,7 @@ export function parseWaveTestCommand(raw = "") {
   if (!after || /^help$/i.test(after)) return { ok: true, action: "run" };
   if (/^(run|mirror|test)$/i.test(after)) return { ok: true, action: "run" };
   if (/^hitch$/i.test(after)) return { ok: true, action: "hitch" };
+  if (/^(live|proof|waveproof)\b/i.test(after)) return { ok: true, action: "proof" };
   return { ok: true, action: "run" };
 }
 
@@ -891,6 +892,7 @@ export function waveTestUsageText() {
     "SIM by default (content-addressed locations). Live one-shot needs WAVE_MIRROR_PAID=yes.",
     "Does NOT enable VITAFEED_PAID. Mother brain (/vitasave) untouched.",
     "Covered leftover: attachWaveOnCoveredLeftover hitch — never solo-send.",
+    "Capped live 3-token proof: /waveproof (WAVE_PROOF_LIVE=yes). /wavetest live aliases it.",
     "CLI: node scripts/wave-mirror-test.js",
   ].join("\n");
 }
@@ -902,6 +904,16 @@ export async function handleWaveTestAction({
   fetchCalldata = null,
   live = false,
 } = {}) {
+  if (action === "proof" || action === "live") {
+    const { handleWaveProofAction } = await import("./wave-proof.js");
+    return handleWaveProofAction({
+      action: "run",
+      env,
+      live: live === true,
+      sendTx,
+      fetchCalldata,
+    });
+  }
   if (action === "hitch") {
     const prepared = prepareWaveWrap(WAVE_WISE_MESSAGE, { symbol: WAVE_WISE_SYM });
     const demo = attachWaveOnCoveredLeftover({

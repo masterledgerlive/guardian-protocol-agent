@@ -289,6 +289,24 @@ describe("control board HTTP", () => {
     assert.match(json.reply, /PASS/);
   });
 
+  it("GET /vita/waveproof is a public 3-token WAVE proof SIM (no spend)", async () => {
+    const { res, json } = await get("/vita/waveproof");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.pass, true);
+    assert.equal(json.send, false);
+    assert.equal(json.vitafeedPaidDefault, "off");
+    assert.equal(json.waveProofLiveDefault, "off");
+    assert.equal(json.motherBrain, "untouched");
+    assert.equal(json.maxSends, 3);
+    assert.equal(json.result.sim, true);
+    assert.equal(json.result.live, false);
+    assert.deepEqual(json.result.symbols, ["VIRTUAL", "CLANKER", "AERO"]);
+    assert.equal(json.result.txHashes.length, 3);
+    assert.match(json.reply, /PASS/);
+    assert.match(json.reply, /VIRTUAL/);
+  });
+
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
     const first = await get("/vita/leftover");
     assert.equal(first.res.status, 200);
