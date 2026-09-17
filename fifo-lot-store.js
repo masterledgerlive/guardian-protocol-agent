@@ -15,6 +15,7 @@ import { writeFileSync, readFileSync, mkdirSync, existsSync, renameSync } from "
 import { dirname } from "node:path";
 import {
   fifoRemainingCostEth,
+  fifoKnownLotRemain,
   latchFreshLot,
 } from "./lose-zero-gate.js";
 
@@ -373,6 +374,26 @@ export function applyLotToNet(netPositions, lot) {
   return nets;
 }
 
+/** Receipt-latched lots (buy hash or onchain-receipt). Not hashless persist. */
+export function lotIsEvidenceLatched(lot) {
+  return isUsableLot(lot) && (lotHasAnyBuyTx(lot) || lot.source === "onchain-receipt");
+}
+
+/**
+ * Sell only recorded tokensIn when an evidence lot is latched and wallet
+ * extra is pre-buy dust. Leave dust unsold / piggy. Missing add-on bags
+ * (remain >> tokensIn) return the wallet balance — apply still HOLDs unknown.
+ */
+export function knownLotSellTokens(lot, walletBal) {
+  const bal = Number(walletBal);
+  if (!Number.isFinite(bal) || !(bal > 0)) return bal;
+  if (!isUsableLot(lot)) return bal;
+  const bought = Number(lot.tokensIn);
+  if (!(bought > 0)) return bal;
+  if (!lotIsEvidenceLatched(lot)) return bal;
+  return fifoKnownLotRemain(bal, bought, { evidenceLot: true });
+}
+
 export function applyLotToToken(token, lot, { remainingTokens } = {}) {
   if (!token || !isUsableLot(lot)) {
     return { unknown: true, investedEth: 0, reason: "unknown-cost" };
@@ -382,6 +403,7 @@ export function applyLotToToken(token, lot, { remainingTokens } = {}) {
     : Number(lot.tokensIn);
   const ethIn = Number(lot.fillCostEth) > 0 ? Number(lot.fillCostEth) : Number(lot.ethIn);
   const bought = Number(lot.tokensIn);
+  const evidenceLot = lotIsEvidenceLatched(lot);
   // Sized leftover (chain < recorded buy): proportional only. Flooring on
   // remainingCostEth (the full fill) HOLDs a true PLUS on leftover bags.
   const leftover = Number.isFinite(Number(remainingTokens)) && Number(remainingTokens) > 0
@@ -391,6 +413,7 @@ export function applyLotToToken(token, lot, { remainingTokens } = {}) {
     tokensIn: bought,
     remainingTokens: remain,
     persistedInvestedEth: leftover ? 0 : (Number(lot.remainingCostEth) || 0),
+    evidenceLot,
   });
   if (fifo.unknown || !(fifo.investedEth > 0)) {
     return fifo;

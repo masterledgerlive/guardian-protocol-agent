@@ -45,7 +45,8 @@ import {
   lotHasBuyTx,
   lotHasAnyBuyTx,
   shouldLatchBuyReceipt,
-  mergeBuyReceiptIntoLots,
+  knownLotSellTokens,
+  lotIsEvidenceLatched,
 } from "./fifo-lot-store.js";
 import {
   fifoRemainingCostEth,
@@ -1109,5 +1110,47 @@ describe("fifo-lot-store — latch VIRTUAL FIFO from evidence buy 0x33aac652", (
     assert.ok(!sellBody.includes("oneShot: true"), "WAVE_MIRROR_PAID one-shot stays off sell path");
     assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=/.test(src), "VIRTUAL latch is not the lossy sell path");
     assert.ok(src.includes("EVIDENCE_BUY_TXS"), "evidence map stays imported");
+    assert.ok(sellBody.includes("knownLotSellTokens"), "executeSell must cap amount to evidence lot tokensIn");
+    assert.ok(sellBody.includes("pre-buy dust"), "known-lot cap must leave dust unsold / piggy");
+  });
+
+  it("remain/bought just over 1.02 with evidence lot + dust → known entrySold, sell capped to tokensIn", () => {
+    const bought = Number(VIRTUAL_TOK_WEI) / 1e18;
+    const remain = 1.67510;
+    const ratio = remain / bought;
+    assert.ok(ratio > 1.02, "wallet dust trips the default unknown-lots band");
+    assert.ok(ratio < 1.025, "still evidence-dust, not a missing add-on");
+
+    const { lots } = latchVirtual(virtualReceipt());
+    assert.equal(lotIsEvidenceLatched(lots.VIRTUAL), true);
+    assert.equal(knownLotSellTokens(lots.VIRTUAL, remain), lots.VIRTUAL.tokensIn);
+
+    const token = { symbol: "VIRTUAL", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const before = applyLotToToken(
+      { symbol: "VIRTUAL", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 },
+      { ...lots.VIRTUAL, buyTxs: [] , source: "persisted" },
+      { remainingTokens: remain },
+    );
+    assert.equal(before.unknown, true, "hashless persist still unknown-lots at 1.02018");
+
+    const fifo = applyLotToToken(token, lots.VIRTUAL, { remainingTokens: remain });
+    assert.equal(fifo.unknown, false, "evidence latch excludes pre-buy dust from remain/bought");
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > 0);
+    assert.equal(lotAppliedOk(token, fifo), true);
+    const entrySold = sellEntryEthWithLotFloor(token.totalInvestedEth, token);
+    assert.ok(entrySold > 0, "entrySold known — OPERATOR_SELL can fire under always-plus");
+
+    const green = plusGate({
+      symbol: "VIRTUAL",
+      entryEth: entrySold,
+      proceeds: entrySold + 9.60e-6,
+    });
+    assert.equal(green.allow, true);
+    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+
+    const red = plusGate({ symbol: "VIRTUAL", entryEth: entrySold, proceeds: entrySold * 0.7 });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
   });
 });

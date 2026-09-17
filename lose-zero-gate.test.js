@@ -85,6 +85,10 @@ import {
   MIN_PLUS_ETH,
   cashFlowNetEth,
   fifoRemainingCostEth,
+  fifoKnownLotRemain,
+  fifoUnknownLots,
+  UNKNOWN_LOTS_BAND,
+  EVIDENCE_LOT_DUST_BAND,
   plusFloorOutWei,
   applySellPlusFloorMinOut,
   isForceExitLockedReason,
@@ -1925,6 +1929,72 @@ describe("always-plus harden — FIFO remaining cost + plus floor (defense in de
     });
     assert.equal(d.allow, false);
     assert.equal(d.verdict, "HOLD");
+  });
+
+  it("evidence-latched remain/bought just over 1.02 excludes pre-buy dust (VIRTUAL class)", () => {
+    assert.equal(UNKNOWN_LOTS_BAND, 1.02);
+    assert.equal(EVIDENCE_LOT_DUST_BAND, 1.025);
+    const bought = 1.64196;
+    const remain = 1.67510;
+    const dust = remain - bought;
+    assert.ok(Math.abs(dust - 0.03314) < 1e-9);
+    const ratio = remain / bought;
+    assert.ok(ratio > UNKNOWN_LOTS_BAND, "live VIRTUAL trips the default 1.02 band");
+    assert.ok(ratio < EVIDENCE_LOT_DUST_BAND, "still inside evidence dust band");
+    assert.ok(remain - bought * UNKNOWN_LOTS_BAND > 0.00029);
+    assert.ok(remain - bought * UNKNOWN_LOTS_BAND < 0.00032);
+
+    const bare = fifoRemainingCostEth({
+      ethIn: 0.000407,
+      tokensIn: bought,
+      remainingTokens: remain,
+    });
+    assert.equal(bare.unknown, true, "without evidence latch, 1.02018 still unknown-lots");
+    assert.equal(bare.reason, "unknown-lots");
+    assert.equal(fifoUnknownLots({ remainingTokens: remain, tokensIn: bought }), true);
+
+    const latched = fifoRemainingCostEth({
+      ethIn: 0.000407,
+      tokensIn: bought,
+      remainingTokens: remain,
+      evidenceLot: true,
+    });
+    assert.equal(latched.unknown, false);
+    assert.equal(latched.reason, "fifo-remaining");
+    assert.ok(Math.abs(latched.investedEth - 0.000407) < 1e-12, "cost is known lot ethIn, not invented");
+    assert.equal(fifoKnownLotRemain(remain, bought, { evidenceLot: true }), bought);
+    assert.equal(fifoUnknownLots({ remainingTokens: remain, tokensIn: bought, evidenceLot: true }), false);
+
+    const missingAddon = fifoRemainingCostEth({
+      ethIn: 0.000407,
+      tokensIn: bought,
+      remainingTokens: remain * 2,
+      evidenceLot: true,
+    });
+    assert.equal(missingAddon.unknown, true, "remain >> tokensIn still unknown even with evidence");
+    assert.equal(missingAddon.reason, "unknown-lots");
+
+    const green = evaluateSellGate({
+      projectedProceedsEth: 0.000407 + 9.6e-6,
+      entryEth: latched.investedEth,
+      unknownEntry: latched.unknown,
+      sellPct: 1,
+      symbol: "VIRTUAL",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(green.allow, true, "always-plus greens when quote covers known lot cost");
+    assert.ok(green.leftover > 0);
+
+    const red = evaluateSellGate({
+      projectedProceedsEth: 0.000407 * 0.7,
+      entryEth: latched.investedEth,
+      unknownEntry: latched.unknown,
+      sellPct: 1,
+      symbol: "VIRTUAL",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
   });
 
   it("plus floor HOLDs when quote is below FIFO cost; raises minOut otherwise", () => {
