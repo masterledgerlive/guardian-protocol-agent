@@ -302,7 +302,7 @@ describe("cost-edge-gate: operator /buy bypasses near-term; auto still gated", (
     const prelude = body.slice(Math.max(0, edgeIdx - 600), edgeIdx);
     assert.match(
       prelude,
-      /if\s*\(\s*!isManualOperatorBuy\(reason\)\s*\)/,
+      /if\s*\(\s*!isManualOperatorBuy\(reason\)(?:\s*&&\s*!isVitaFeedBuyIn\(reason\))?\s*\)/,
       "operator / Telegram /buy must bypass COST_EDGE",
     );
     assert.ok(
