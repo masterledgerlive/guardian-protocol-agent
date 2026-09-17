@@ -26,11 +26,17 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 ## Commands that must keep working
 
 `/vitanote` `/vitasave` `/inject` `/vitapull` `/vitascan` `/reader` `/prove`
-`/xmem` — HTML console mirrors Telegram.
+`/xmem` `/vitafeed` — HTML console mirrors Telegram. File/song/video: reply with
+`/vitafeed` then `/vitafeed override` → PLAY PROOF on `/vita/feed-player`.
+Library: `/vitafeed files` · `/vitafeed play <n|name>` · `/vitafeed keys`
+(§VITALIB§ name→key→locs keys chain).
 
 **Large dumps (mother brain untouched):** `/vitamothergenesis` (plain N batches +
 reader key), `/vitamotherGenesisencoded` (AES + loc commitment + two-part key),
 `/encodegenesisreveal` — see `vita/mother-genesis.js`.
+
+**Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
+`public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
 
 ## Merge stance
 

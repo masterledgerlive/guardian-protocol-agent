@@ -11,6 +11,18 @@ we keep shipping on this avenue until merge.
 
 Start here: [`AGENTS.md`](./AGENTS.md) → [`ORIGINAL_FORMULA.md`](./ORIGINAL_FORMULA.md) → [`FILING.md`](./FILING.md).
 
+**Storage Token game:** Telegram `/vitafeed` — exact plain UTF-8 or any-file
+`§VITAFILE§` packets, cost card, then `/vitafeed confirm|override` pays RISK
+**only when `VITAFEED_PAID=yes`** (default OFF). Liquid floor $5. Rate limited.
+Library: `/vitafeed files` · `play <n|name>` · `keys` (§VITALIB§).
+Play proof: [`/vita/feed-player`](../public/vita-feed-player.html). See
+[`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain.
+
+**WAVE memory mirror:** Telegram `/wavetest` (also HTML console + `GET /vita/wavetest`).
+Hex shards `[W:v1:SYM]|…|KEY8|LOC8]` + VIN/tailwind like `/vitafeed`. Answer key
+`vita/memory/wave-heraclitus-key.json`. Reconstruct-from-chain-only tests.
+`VITAFEED_PAID` stays default OFF. Hitch on covered leftover; do not solo-send.
+
 ```js
 import {
   infectVitaHtmlDocument,

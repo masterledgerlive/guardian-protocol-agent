@@ -20,8 +20,13 @@ import {
   ADD_ON_BAG_MIN_USD,
   isCatalogFrozen,
   frozenBuySkipLog,
+  parseUnfreezeSymbols,
+  applyUnfreezeSymbols,
+  isUnfreezeSymbol,
   hasClearEdge,
   isManualOperatorBuy,
+  isVitaFeedBuyIn,
+  vitaFeedBuyInReason,
   parseBuyUsdArg,
   parseManualBuyCommand,
   usdToForcedEth,
@@ -609,6 +614,44 @@ describe("catalog freeze — buy-side gate", () => {
     assert.equal(result.queued, true);
     assert.deepEqual(commands, [{ symbol: "BASECAT", action: "buy", usd: 3, source: "OPERATOR_BUY" }]);
   });
+
+  it("OPERATOR_BUY queues TIBBIR:1.25 once catalog freeze is clear", () => {
+    const commands = [];
+    const known = new Set(["TIBBIR", "GAME", "BASECAT"]);
+    const frozen = new Set(["GAME", "BASECAT"]);
+    const result = queueOperatorBuyOnce(commands, "TIBBIR:1.25", known, { done: false }, frozen);
+    assert.equal(result.queued, true);
+    assert.deepEqual(commands, [{ symbol: "TIBBIR", action: "buy", usd: 1.25, source: "OPERATOR_BUY" }]);
+    const blocked = queueOperatorBuyOnce([], "GAME:1.25", known, { done: false }, frozen);
+    assert.equal(blocked.queued, false);
+    assert.equal(blocked.reason, "frozen");
+  });
+
+  it("UNFREEZE_SYMBOLS parses comma/semicolon/whitespace lists", () => {
+    assert.deepEqual(parseUnfreezeSymbols({}), []);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "" }), []);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "TIBBIR" }), ["TIBBIR"]);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "tibbir, vvv;GAME" }), ["TIBBIR", "VVV", "GAME"]);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "TIBBIR TIBBIR" }), ["TIBBIR"]);
+    assert.equal(isUnfreezeSymbol("TIBBIR", { UNFREEZE_SYMBOLS: "TIBBIR" }), true);
+    assert.equal(isUnfreezeSymbol("GAME", { UNFREEZE_SYMBOLS: "TIBBIR" }), false);
+  });
+
+  it("UNFREEZE_SYMBOLS clears isCatalogFrozen for listed names only", () => {
+    const env = { UNFREEZE_SYMBOLS: "TIBBIR" };
+    assert.equal(isCatalogFrozen({ symbol: "TIBBIR", frozen: true }, env), false);
+    assert.equal(isCatalogFrozen({ symbol: "GAME", frozen: true }, env), true);
+    assert.equal(isCatalogFrozen({ symbol: "BASECAT", frozen: true }, env), true);
+    const multi = { UNFREEZE_SYMBOLS: "TIBBIR, VVV" };
+    assert.equal(isCatalogFrozen({ symbol: "VVV", frozen: true }, multi), false);
+    assert.equal(isCatalogFrozen({ symbol: "TIBBIR", frozen: "yes" }, multi), false);
+    const thawed = applyUnfreezeSymbols({ symbol: "TIBBIR", frozen: true, frozenReason: "data-only" }, env);
+    assert.equal(thawed.frozen, false);
+    assert.equal(thawed.frozenReason, undefined);
+    const game = applyUnfreezeSymbols({ symbol: "GAME", frozen: true, frozenReason: "CUT" }, env);
+    assert.equal(game.frozen, true);
+    assert.equal(game.frozenReason, "CUT");
+  });
 });
 
 describe("manual /buy parse", () => {
@@ -641,6 +684,40 @@ describe("manual /buy parse", () => {
     assert.equal(manualBuyReason(3), "MANUAL BUY (operator) $3");
     assert.equal(isManualOperatorBuy("MANUAL BUY"), false);
     assert.equal(isManualOperatorBuy("🎯 MIN TROUGH [PRIORITY]"), false);
+    assert.equal(isManualOperatorBuy("VITAFEED BUYIN $0.80"), false, "vitafeed must not weaken leftover/edge");
+    assert.equal(isManualOperatorBuy("VITAFEED EXIT"), false);
+    assert.equal(isVitaFeedBuyIn("VITAFEED BUYIN $0.80"), true);
+    assert.equal(isVitaFeedBuyIn(vitaFeedBuyInReason(1.25)), true);
+    assert.equal(isVitaFeedBuyIn(manualBuyReason(3)), false);
+    assert.equal(vitaFeedBuyInReason(1.5), "VITAFEED BUYIN $1.50");
+  });
+
+  it("evaluateBuyGate allows VITAFEED BUYIN without clear edge", () => {
+    const r = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "AERO",
+      reason: "VITAFEED BUYIN $1.00",
+      tradeEth: 0.001,
+      hitchCostEth: 0.0001,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(r.allow, true);
+    assert.match(r.log, /VITAFEED BUYIN/);
+  });
+
+  it("ADD_ON_FIFO_RED allows VITAFEED BUYIN into an existing red bag", () => {
+    const r = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 10,
+      remainingFifoEth: 0.01,
+      markProceedsEth: 0.005,
+      reason: "VITAFEED BUYIN $1.00",
+      bagUsd: 5,
+      env: {},
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.reason, "vitafeed-buyin");
   });
 });
 

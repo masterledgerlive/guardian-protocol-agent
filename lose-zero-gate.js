@@ -267,7 +267,6 @@ export function evaluateAddOnFifoRedGate({
   bagUsd,
   env = process.env,
 } = {}) {
-  void reason;
   if (isUnknownCostBlockingAddOn({ unknownEntry, tokenBal, bagUsd })) {
     return {
       allow: false,
@@ -289,6 +288,16 @@ export function evaluateAddOnFifoRedGate({
   const mark = Number(markProceedsEth);
   const fifo = Number(remainingFifoEth);
   const cmp = `mark ${mark.toExponential(2)} < remaining FIFO ${fifo.toExponential(2)}`;
+  // /vitafeed buy-in is deliberately red (low-3% bottoms) — add-on into an
+  // existing red bag is the product, not a Game override of always-plus sells.
+  if (isVitaFeedBuyIn(reason)) {
+    return {
+      allow: true,
+      blocked: false,
+      reason: "vitafeed-buyin",
+      log: `ADD_ON_FIFO_RED: allow add-on ${symbol} VITAFEED BUYIN transmission seat (${cmp})`,
+    };
+  }
   if (isAllowAddOnFifoRed(env)) {
     return {
       allow: true,
@@ -428,8 +437,13 @@ export function ethEdgeLeftoverEth({
  * This is the shared predicate for executeBuy — do not rely on UI, Telegram
  * /frozenlist, or processToken early-return (those miss cascade/ripple and
  * frozen names that already have entryPrice).
+ *
+ * Railway `UNFREEZE_SYMBOLS=TIBBIR` (comma / semicolon / whitespace list)
+ * clears catalog freeze at runtime for those symbols. Telegram `/unfreeze`
+ * is a separate in-memory flip + runtime buy-freeze clear; it does not
+ * rewrite DEFAULT_TOKENS, so a restart re-applies catalog `frozen`.
  */
-export function isCatalogFrozen(token) {
+function catalogFrozenFlag(token) {
   const flag = token?.frozen;
   if (flag === true || flag === 1) return true;
   if (typeof flag === "string") {
@@ -437,6 +451,41 @@ export function isCatalogFrozen(token) {
     return s === "true" || s === "1" || s === "yes";
   }
   return false;
+}
+
+/**
+ * Native Railway env: `UNFREEZE_SYMBOLS=TIBBIR` or `TIBBIR,VVV`.
+ * Empty / unset → no override. Does not persist into DEFAULT_TOKENS.
+ */
+export function parseUnfreezeSymbols(env = process.env) {
+  const raw = env?.UNFREEZE_SYMBOLS;
+  if (raw == null || String(raw).trim() === "") return [];
+  return [...new Set(
+    String(raw)
+      .split(/[,;\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean),
+  )];
+}
+
+export function isUnfreezeSymbol(symbol, env = process.env) {
+  const sym = String(symbol || "").toUpperCase();
+  if (!sym) return false;
+  return parseUnfreezeSymbols(env).includes(sym);
+}
+
+/** Clear catalog freeze on a token row when UNFREEZE_SYMBOLS lists it. */
+export function applyUnfreezeSymbols(token, env = process.env) {
+  if (!token || !isUnfreezeSymbol(token.symbol, env)) return token;
+  if (!catalogFrozenFlag(token)) return token;
+  const next = { ...token, frozen: false };
+  delete next.frozenReason;
+  return next;
+}
+
+export function isCatalogFrozen(token, env = process.env) {
+  if (isUnfreezeSymbol(token?.symbol, env)) return false;
+  return catalogFrozenFlag(token);
 }
 
 /** Console line when a buy is skipped because the catalog name is frozen. */
@@ -451,6 +500,24 @@ export const MANUAL_BUY_OPERATOR_PREFIX = "MANUAL BUY (operator)";
 
 export function isManualOperatorBuy(reason = "") {
   return String(reason || "").startsWith(MANUAL_BUY_OPERATOR_PREFIX);
+}
+
+/**
+ * /vitafeed transmission buy-in — NOT an operator /buy.
+ * Must not weaken leftover/edge for MANUAL BUY or auto paths; this is a
+ * separate allow so each message can still buy ≥$0.25 leave-behind + cost.
+ */
+export const VITAFEED_BUYIN_PREFIX = "VITAFEED BUYIN";
+
+export function isVitaFeedBuyIn(reason = "") {
+  return String(reason || "").toUpperCase().startsWith(VITAFEED_BUYIN_PREFIX);
+}
+
+export function vitaFeedBuyInReason(usd = 0) {
+  const n = Number(usd);
+  return Number.isFinite(n) && n > 0
+    ? `${VITAFEED_BUYIN_PREFIX} $${n.toFixed(2)}`
+    : VITAFEED_BUYIN_PREFIX;
 }
 
 /** Parse optional USD size: `3`, `$3`, `$3.50`. Invalid / missing → 0. */
@@ -885,6 +952,19 @@ export function evaluateBuyGate({
       skipHitch: !covers,
       log: `${tag}: allow buy ${symbol} MANUAL BUY (operator) ${covers ? "hitch covered" : "plain swap (hitch not covered)"}`,
       reason: covers ? "operator-hitch" : "operator-plain",
+    };
+  }
+
+  // /vitafeed buy-in: transmission revenue seat (red low-3% + predicted up).
+  // Separate from operator — does not weaken leftover/edge for other buys.
+  if (isVitaFeedBuyIn(reason)) {
+    const covers = leftoverCoversInject(leftover);
+    return {
+      allow: true,
+      leftover,
+      skipHitch: !covers,
+      log: `${tag}: allow buy ${symbol} VITAFEED BUYIN (transmission seat; leftover/edge waived for message cost recovery)`,
+      reason: covers ? "vitafeed-hitch" : "vitafeed-plain",
     };
   }
 

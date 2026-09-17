@@ -255,6 +255,7 @@ describe("V3 inject surfaces (agent.js catalog as text)", () => {
     assert.ok(bySym.DOGINME);
     assert.ok(bySym.DRB);
     assert.ok(bySym.CLANKER);
+    assert.ok(bySym.TIBBIR, "TIBBIR is tradeable Base RISK (WATCH/BATTLE-TEST)");
     assert.equal(bySym.GAME, undefined);
     assert.equal(bySym.AIXBT, undefined);
     assert.equal(bySym.KEYCAT, undefined);

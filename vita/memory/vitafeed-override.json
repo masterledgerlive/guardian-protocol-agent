@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-15T05:35:00.000Z",
+  "topic": "vitafeed-override-refuse",
+  "text": "Operator asked for /vitafeed override to bypass the RISK balance REFUSE added with buy-in stake reservation. Confirm still refuses when RISK < inscription+stake+gas; override proceeds anyway (message-first force-through). Typo /vitafeed overide accepted. Does not weaken LOSE_ZERO leftover/edge or mother brain.",
+  "commands": ["/vitafeed", "/vitafeed confirm", "/vitafeed override", "/vitafeed overide"],
+  "hypothesis": {
+    "id": "vitafeed-override-underfunded-refuse",
+    "status": "operating",
+    "note": "Force-through when operator wants transmission+buy despite thin RISK; still may fail on-chain."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

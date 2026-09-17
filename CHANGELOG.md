@@ -2,6 +2,247 @@
 
 ## Unreleased
 
+### Fixed — TIBBIR catalog unfreeze + `UNFREEZE_SYMBOLS` process.env reader
+
+HARD STOP: mother brain untouched. BASECAT / GAME stay CUT frozen.
+
+Risk desk: TIBBIR catalog `frozen:true` blocked Game cascade micros after
+CLANKER fills. Railway `UNFREEZE_SYMBOLS=TIBBIR` plus `OPERATOR_BUY=TIBBIR:1.25`
+did not clear it — `UNFREEZE_SYMBOLS` had **no process.env reader**.
+
+- **Catalog:** TIBBIR `frozen: false` (WATCH/BATTLE-TEST Base RISK). Address /
+  fee unchanged. STONKEX / BLUECHIP / VELVET / KTA stay data-only frozen.
+- **Runtime:** `parseUnfreezeSymbols` / `applyUnfreezeSymbols` read
+  `UNFREEZE_SYMBOLS` (comma / semicolon / whitespace). `isCatalogFrozen` honors
+  the list so executeBuy / cascade / ripple / OPERATOR_BUY open. Hydrate runs
+  after WETH-dead freeze so the env actually clears `token.frozen`.
+- **Telegram `/unfreeze` is different:** in-memory `token.frozen=false` plus
+  `clearBuyFreeze` (slippage runtime freeze). It does **not** rewrite
+  `DEFAULT_TOKENS`. Boot re-applies catalog freeze unless this env/catalog fix
+  is present.
+
+### Added — WAVE memory wrap (blockchain as a memory mirror)
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF.
+
+Thin helper `vita/wave-wrap.js` shards UTF-8 into hex-only WAVE lines
+(`[W:v1:SYM]|VIN|ii/nn|prev=|next=|KEY8|LOC8]`) with VIN/tailwind like
+`/vitafeed`. Answer-key bank `vita/memory/wave-heraclitus-key.json` stores
+sha256 of the Heraclitus gift plus per-shard digests (never invented hashes).
+
+Transmission tests (`vita/wave-mirror.test.js` + `node scripts/wave-mirror-test.js`):
+split into least-size 8–128 B shards, SIM inject (record txHash only when
+sendTx returns one), read-back from hashes/fixture hex, ≥3 ping/pong ACKs,
+pass only if reconstructed bytes match the answer key.
+
+Telegram `/wavetest`, HTML `/wavetest`, board `GET /vita/wavetest`. Hitch
+WAVE on covered leftover via `attachWaveOnCoveredLeftover` — do not solo-send.
+`WAVE_MIRROR_PAID` one-shot default off. Docs: `vita/INJECT.md`.
+
+### Added — Telegram `/vitafeed` named library (files → play → keys chain)
+
+HARD STOP: mother brain untouched.
+
+After a song/video/file seals, the bot **saves the name + reader key + locations**
+into an in-memory keys library so Telegram can list and open instantly:
+
+1. Seal via `/vitafeed file` → confirm|override (as before; still needs `VITAFEED_PAID=yes`)
+2. `/vitafeed files` — numbered list of saved names
+3. `/vitafeed play <n|name>` (also `open` / `pull`) — rebuild blob → player
+4. `/vitafeed keys` — stage `§VITALIB§` catalog (name→key→locs) as the keys
+   chain for reader quick access; same confirm|override path
+
+Deep-link: `/vita/feed-player?lib=N` · `GET /vita/feed-library` ·
+`GET /vita/feed-library/play?lib=N`. Helper: `vita/vita-feed-library.js`.
+Never invents tx hashes; content packets stay on the file VIN chain.
+
+### Added — `/vitafeed` emergency thrift kill-switch (paid default OFF)
+
+HARD STOP: mother brain untouched. `/vitasave` bank stays. Does not re-enable
+`VITA_AUTO_INSCRIBE`.
+
+Live RISK drain: +383 VITAFEED self-calls n5624→6007 hitch 0/383 (~74% DD).
+`/vitafeed confirm` is an intentional paid path; that volume is runaway.
+
+- **Default-off paid confirm:** `VITAFEED_PAID` or `VITAFEED_ENABLED` must be
+  `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Default OFF
+  banks with a clear Telegram reply. Cost card / preview still works.
+- **`/vitafeed override` cannot bypass `VITAFEED_PAID=no`** (only the RISK ETH
+  underfunded REFUSE).
+- **Liquid floor:** `VITAFEED_MIN_LIQUID_USD` default **$5**. Confirm/override
+  refuse below floor. Set `0` to disable.
+- **Rate limit:** second confirm same chat within 60s OR max 24 chunks/hour
+  (`VITAFEED_RATE_LIMIT=no` disables). Stale Telegram confirms (>180s) refused
+  to stop getUpdates replay after restart. File await stays preview-only.
+
+### Added — Telegram `/vitafeed file` please-insert-file await
+
+HARD STOP: mother brain untouched.
+
+Either Telegram path works:
+
+1. `/vitafeed file` → bot says **please insert the file now** → send song/video/doc
+2. Reply to an attachment with `/vitafeed file` (or `/vitafeed`)
+
+Bot packetizes to `§VITAFILE§` spaced VIN UTF-8; cost card; then
+`confirm` / `override` → PLAY PROOF on `/vita/feed-player`.
+`/vitafeed cancel` also clears a pending file wait.
+Helpers: `beginVitaFeedFileAwait` / `packetizeTelegramMessageForVitaFeed`.
+
+### Added — `/vitafeed` any-file packets + Tailwind play proof
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+
+Upload any bytes (song / video / code / blob) as spaced UTF-8 packets:
+
+- `§VITAFILE§` base64 wire → same VIN `/vitafeed` chunking (720 B payload)
+- Telegram: reply to attachment with `/vitafeed` or `/vitafeed file`
+- `/vitafeed override` (typo `overide` still accepted) sends → completes →
+  **PLAY PROOF** (locations peaced + blob ready)
+- Tailwind reader: `GET /vita/feed-player` — upload, demo seal, play
+- Thin helpers: `vita/vita-feed-file.js`, `vita/vita-feed-player.js`
+- Never invents tx hashes; demo seals are labeled DEMO only
+
+### Added — `/vitafeed override` bypasses RISK balance REFUSE
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+Normal `/vitafeed confirm` still REFUSEs when RISK cannot cover inscription +
+buy-in stake + gas. New operator gate:
+
+- `/vitafeed override` (typo `/vitafeed overide` accepted)
+- Same paid path as confirm (buy seats first, then inscribe)
+- Skips the underfunded REFUSE and proceeds anyway
+- Reply labels `VITAFEED OVERRIDE`; on-chain buys/inscription may still fail
+
+### Fixed — `/vitafeed` confirm actually buys the ≥$0.25 leave-behind seat
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+`isManualOperatorBuy` still false for `VITAFEED BUYIN` (leftover/edge not weakened).
+
+Live complaint: each transmission only showed message payment — no token buy to
+sell for profit. Confirm planned WRAP seats then `executeBuy("VITAFEED BUYIN")`
+hit auto gates (LOSE_ZERO no-edge, tier OUT, COST_EDGE, min-entry, FIFO-red
+add-on), RISK need ignored buy stake, and buys ran *after* inscription on a
+stale `bal`.
+
+Fix:
+
+- `isVitaFeedBuyIn` / `vitaFeedBuyInReason` — dedicated allow in buy gate +
+  FIFO add-on + executeBuy (outside tiers, skip min-entry/COST_EDGE)
+- Confirm buys seats **first** (live `getFullBalance`), then pays message RISK
+- RISK must cover inscription + buy-in stake + gas (or refuse before any spend)
+- Stake floor ≥ leave-behind (**$0.25** piggies)
+
+### Changed — `/vitafeed` buy-in: lottery piggy + full-stack tax + red rotation
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` untouched.
+
+Per `/vitafeed` injection leave-behind is now **AI $0.10 + human $0.10 + lottery
+$0.05** (≥ **$0.25**) plus **1.5% of the whole inject-time stack**
+(transmission/chars + piggies + gwei + other + hidden). Seats stay **red**
+(low ≤3% + predicted up); each injection prefers a **different** deepest-red /
+fewest-trades token. Exit ASAP when green / revenue prints — piggies+tax stay
+parked. No seat → still inscribe (message-first).
+
+Thin helper: `vita/vita-feed-buyin.js` (`vita-feed-buyin-v2`).
+
+
+### Added — `/vitafeed` buy-in: low-3% wave, $0.20 piggies, 1.5% tax (new math)
+
+HARD STOP: mother brain untouched. Live-trader `piggy-bank.js` defaults
+untouched. This math is **`/vitafeed` only**.
+
+After the cost card, each injection may buy a seat that is in the **lowest 3%**
+of peak–trough **and** predicted up. Stake is sized from **character cost**.
+Leave **$0.10 AI + $0.10 human** (≥ $0.20) plus **1.5% of whole cost** (chars +
+piggies + gwei + other fees). Exit the same % up as the dip, plus that stack,
+as soon as the target prints. No seat → still inscribe (message-first).
+
+Thin helper: `vita/vita-feed-buyin.js`.
+
+### Added — `/vitafeed` exact plain paid inject + cost math (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js` /
+`mother-genesis.js` core). `/vitasave` stays bank-by-default (#106 wrap).
+`/vitafeed` is a separate confirm-paid RISK path — does not set
+`VITA_AUTO_INSCRIBE`.
+
+Telegram **`/vitafeed`** is a Storage Token game: exact UTF-8 (no summarization),
+cost card (chars/bytes/bits + `VITAFEED_MAX_CHUNK_BYTES=720` + injections +
+ETH/$ labeled DEMO vs LIVE), VIN/tailwind prev→next headers, then
+`/vitafeed confirm` pays **RISK only** for each max chunk. Vault / save
+bucket never spend. Receipt lists Basescan links + reader key.
+
+Thin helper: `vita/vita-feed.js`. Docs: `vita/INJECT.md`.
+
+### Fixed — wrap `/vitasave` n5557–5566 [VITA:1:]/[VITA:2:] STORE (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js` /
+`ORIGINAL_FORMULA` / `FILING` / `AGENTS` / `anchors.json` / mother-genesis core).
+`/vitasave` command stays. `/prove` stays.
+
+Live after #102/#105 Online: RISK still paid **+10 VITA self-calls n5557–5566**
+(sel `0x5b564954`), 0 Uniswap fills. STORE on `0x640ed7b8fd1a9447…` (n5561) and
+`0xfee4d5022bddcaa3…` (n5566). Liquid ~$2.14.
+
+Decoded calldata is mother-brain `inscribeChunk` headers `[VITA:1:…]` then
+`[VITA:2:…]` plus first-handler sessionCtx (`SESSION:2026-09-14 WALLET:0x50e1…`
+`FILES_IN_REPO:agent.js,vault-loader.js,…`). That is Telegram **`/vitasave` →
+`vitaSave`**, twice — not queue / vitalearn / MGPLAIN (already wrapped).
+
+Thin wrap at those **callers only**:
+
+- both Telegram `/vitasave` handlers → `wrapVitaSaveSelfCall` (bank unpaired)
+- POST `/vita/save` webhook → same wrap, never `sendTransaction`
+- `VITA_AUTO_INSCRIBE` default OFF = bank; `yes` restores `vitaSave`
+
+No invented hashes. Mother brain files stay diff-zero vs main.
+
+### Fixed — wrap /vitamothergenesis MGPLAIN + VITA-KNOW auto batches (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js`).
+`/vitasave` stays.
+
+Live after #101/#102 wraps: RISK still saw gas-only self-calls n5551–5556 —
+**MGPLAIN** + **VITA-KNOW** 01/05–05/05 “this is a test”, hitch 0/6, 0 Uniswap
+fills. Liquid ~$2.14. That was #103 `/vitamothergenesis` N-batch plain 0-ETH
+self-txs (and trivial VITA-KNOW test dumps).
+
+Thin wrap at those **callers only**:
+
+- `/vitamothergenesis` / encoded → `wrapMotherGenesisSelfCall` (bank unpaired;
+  hitch only on covered leftover + paired sell)
+- `VITA_MOTHER_GENESIS_AUTO` sibling of `VITA_AUTO_INSCRIBE`, default OFF
+- Operator-explicit paid genesis needs `CONFIRM` **and** env on
+- Trivial “this is a test” body never sends
+- Queue VITA-KNOW already wrapped in #101; `/vitalearn` also refuses the test dump
+
+No invented hashes. Mother brain files stay diff-zero vs main.
+
+### Fixed — wrap remaining AUTO solo STORE callers after #101 (mother brain untouched)
+
+HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /
+`inscribeChunk` / `memory-engine.js` inscription core / `vita/mainframe.js`).
+Operators still call `/vitasave` deliberately.
+
+Live after #101: queue body was wrapped, but RISK desk still saw +5 VIT
+self-calls n5546–5550 (sel `0x5b564954`), 0 Uniswap fills, n5550 had
+`§$STORE§`. Remaining AUTO callers still `sendTransaction` wallet→self:
+
+- `/vitalearn` 5-chunk `[VITA:` loop
+- `/vitadata` → `vitaSave` (not the operator `/vitasave` path)
+- `/savesession` → `inscribeMemory`
+- trade-loop `btpInscribe` dedicated self-tx
+
+Thin wrap at those **callers only** (`wrapAutoSelfCall` +
+`VITA_AUTO_INSCRIBE` / `VITA_AUTO_QUEUE_LEARN` kill-switch, default OFF =
+bank). Hitch only on covered leftover + paired sell. No invented hashes.
+Integrity agent still does not send. Mother brain files stay diff-zero vs
+main.
+
 ### Fixed — wrap vita-queue unpaired self-calls (mother brain untouched)
 
 HARD STOP: do not tear VITA root (`vita-memory.js` / `vitaSave` /

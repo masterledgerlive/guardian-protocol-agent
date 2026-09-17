@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITAFEED Tailwind Reader — upload · space · play</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0f1f2e;
+      --foam: #d6eef7;
+      --tide: #1a6b8a;
+      --sand: #f3ebe0;
+      --coral: #e07a5f;
+      --ok: #2a9d8f;
+      --display: "Syne", sans-serif;
+      --mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--mono);
+      background:
+        radial-gradient(900px 420px at 85% -5%, rgba(26,107,138,.28), transparent 55%),
+        radial-gradient(700px 380px at 5% 10%, rgba(224,122,95,.18), transparent 50%),
+        linear-gradient(168deg, #f7f3ec 0%, #e4f1f6 48%, #d5e4ee 100%);
+    }
+    .stage {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: clamp(1.25rem, 4vw, 2.5rem);
+    }
+    .brand {
+      font-family: var(--display);
+      font-size: clamp(2.4rem, 8vw, 4.2rem);
+      letter-spacing: -.04em;
+      line-height: .95;
+      margin: 0 0 .35rem;
+      animation: rise .7s ease-out both;
+    }
+    .lede {
+      max-width: 36rem;
+      color: #3d5566;
+      font-size: .95rem;
+      margin: 0 0 1.6rem;
+      animation: rise .7s .08s ease-out both;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes fillPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    @keyframes seam {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+    .row {
+      display: grid;
+      gap: 1.25rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 820px) {
+      .row { grid-template-columns: 1.05fr .95fr; align-items: start; }
+    }
+    section.block {
+      padding: 1rem 0 1.4rem;
+      border-top: 1px solid rgba(15,31,46,.12);
+    }
+    h2 {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      margin: 0 0 .55rem;
+      letter-spacing: -.02em;
+    }
+    p.hint { margin: 0 0 .9rem; color: #3d5566; font-size: .82rem; }
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin: .7rem 0 1rem;
+    }
+    button, label.filebtn {
+      font-family: var(--mono);
+      font-size: .78rem;
+      font-weight: 600;
+      border: 1.5px solid var(--ink);
+      background: var(--ink);
+      color: var(--sand);
+      padding: .55rem .85rem;
+      cursor: pointer;
+    }
+    button.ghost, label.filebtn {
+      background: transparent;
+      color: var(--ink);
+    }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input[type="file"] { display: none; }
+    .pieces {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+      gap: 6px;
+      margin: .8rem 0 1rem;
+    }
+    .piece {
+      aspect-ratio: 1;
+      border: 1.5px solid rgba(15,31,46,.25);
+      background: rgba(255,255,255,.45);
+      display: grid;
+      place-items: center;
+      font-size: .65rem;
+      color: #5a7182;
+      transition: background .25s, border-color .25s, color .25s;
+    }
+    .piece.filled {
+      background: var(--tide);
+      border-color: var(--ink);
+      color: #fff;
+      animation: fillPulse .45s ease;
+    }
+    .piece.filled.done {
+      background: var(--ok);
+    }
+    .seam {
+      height: 3px;
+      background: rgba(15,31,46,.12);
+      margin: .4rem 0 1rem;
+      overflow: hidden;
+    }
+    .seam > i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--coral), var(--tide), var(--ok));
+      width: 0;
+      animation: none;
+    }
+    .seam > i.run { animation: seam 1.1s ease forwards; }
+    pre.card {
+      white-space: pre-wrap;
+      font-size: .72rem;
+      line-height: 1.4;
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(15,31,46,.14);
+      padding: .85rem 1rem;
+      max-height: 240px;
+      overflow: auto;
+    }
+    .player-shell {
+      background: rgba(255,255,255,.7);
+      border: 1.5px solid rgba(15,31,46,.18);
+      padding: 1rem;
+      min-height: 120px;
+    }
+    .player-shell audio,
+    .player-shell video {
+      width: 100%;
+      display: block;
+      margin-top: .5rem;
+    }
+    .player-shell img {
+      max-width: 100%;
+      max-height: 280px;
+      display: block;
+      margin-top: .5rem;
+    }
+    .stat {
+      font-family: var(--display);
+      font-size: 1.55rem;
+      margin: .15rem 0 .4rem;
+    }
+    .okpill {
+      display: inline-block;
+      background: var(--ok);
+      color: #fff;
+      font-weight: 600;
+      font-size: .75rem;
+      padding: .28rem .55rem;
+      margin-bottom: .7rem;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: .35s ease;
+    }
+    .okpill.show { opacity: 1; transform: none; }
+    code { font-size: .7rem; word-break: break-all; }
+    table { width: 100%; border-collapse: collapse; font-size: .68rem; }
+    th, td { border-bottom: 1px solid rgba(15,31,46,.12); padding: .4rem .3rem; text-align: left; vertical-align: top; }
+    th { font-family: var(--display); }
+    a { color: var(--tide); }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1 class="brand">VITAFEED</h1>
+    <p class="lede">
+      Upload any data — song, video, code, blob. It becomes spaced UTF-8 packets
+      (code-ready). Tailwind reader peaces sealed locations together and plays the proof.
+      No local hold after seal — chain field is the source.
+    </p>
+
+    <div class="row">
+      <div>
+        <section class="block">
+          <h2>1 · Upload</h2>
+          <p class="hint">Bytes → §VITAFILE§ base64 text → VIN packets (720 B payload). Telegram: reply with a file + <code>/vitafeed</code> then <code>/vitafeed override</code>.</p>
+          <div class="cta">
+            <label class="filebtn">Choose file<input id="fileIn" type="file" /></label>
+            <button type="button" id="btnDemo" class="ghost">Demo song (WAV)</button>
+            <button type="button" id="btnPacketize" disabled>Packetize</button>
+          </div>
+          <pre class="card" id="costCard">Drop a file or load the demo song to see spaced packet plan.</pre>
+        </section>
+
+        <section class="block">
+          <h2>2 · Override seal → piece locations</h2>
+          <p class="hint">DEMO seals spaced synthetic locations (labeled — never LIVE Basescan). LIVE uses Telegram <code>/vitafeed override</code>.</p>
+          <div class="cta">
+            <button type="button" id="btnSeal" disabled>Demo override · seal all</button>
+            <button type="button" id="btnPlay" disabled>Play proof</button>
+          </div>
+          <div class="seam"><i id="seamBar"></i></div>
+          <div class="pieces" id="pieces" aria-label="Spaced locations"></div>
+          <div class="okpill" id="okPill">✓ ASSEMBLED — ready to play from locations</div>
+        </section>
+      </div>
+
+      <div>
+        <section class="block">
+          <h2>3 · Tailwind reader play</h2>
+          <p class="stat" id="statLine">0 / 0 locations</p>
+          <div class="player-shell" id="playerShell">
+            <p class="hint" style="margin:0">Player waits until every spaced packet is peaced together.</p>
+          </div>
+          <pre class="card" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
+        </section>
+
+        <section class="block">
+          <h2>Locations</h2>
+          <div style="overflow:auto">
+            <table>
+              <thead><tr><th>#</th><th>block</th><th>location</th></tr></thead>
+              <tbody id="locBody"><tr><td colspan="3">None yet.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const MAX_CHUNK = 720;
+    const MAGIC = "§VITAFILE§";
+
+    let prepared = null;
+    let proof = null;
+    let fileBytes = null;
+    let fileName = "blob.bin";
+    let fileMime = "application/octet-stream";
+
+    const el = (id) => document.getElementById(id);
+
+    function guessMime(name, hint) {
+      if (hint && hint.includes("/")) return hint;
+      const n = String(name || "").toLowerCase();
+      if (n.endsWith(".mp3")) return "audio/mpeg";
+      if (n.endsWith(".wav")) return "audio/wav";
+      if (n.endsWith(".ogg")) return "audio/ogg";
+      if (n.endsWith(".mp4")) return "video/mp4";
+      if (n.endsWith(".webm")) return "video/webm";
+      if (n.endsWith(".png")) return "image/png";
+      if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
+      if (n.endsWith(".js")) return "text/javascript";
+      if (n.endsWith(".txt") || n.endsWith(".md")) return "text/plain";
+      return "application/octet-stream";
+    }
+
+    function playKind(mime) {
+      if (mime.startsWith("audio/")) return "audio";
+      if (mime.startsWith("video/")) return "video";
+      if (mime.startsWith("image/")) return "image";
+      if (mime.startsWith("text/")) return "text";
+      return "file";
+    }
+
+    async function sha256Hex(buf) {
+      const h = await crypto.subtle.digest("SHA-256", buf);
+      return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function bytesToBase64(bytes) {
+      let s = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        s += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      return btoa(s);
+    }
+
+    function splitUtf8ByBytes(text, maxBytes) {
+      const enc = new TextEncoder();
+      const buf = enc.encode(text);
+      const chunks = [];
+      let i = 0;
+      while (i < buf.length) {
+        let end = Math.min(i + maxBytes, buf.length);
+        if (end < buf.length) {
+          while (end > i && (buf[end] & 0xc0) === 0x80) end--;
+        }
+        if (end === i) end = Math.min(i + 4, buf.length);
+        chunks.push(new TextDecoder().decode(buf.subarray(i, end)));
+        i = end;
+      }
+      return chunks;
+    }
+
+    function shortHex(hex, n = 8) {
+      return String(hex || "").replace(/^0x/i, "").toLowerCase().slice(0, n);
+    }
+
+    async function sha256Text(text) {
+      return sha256Hex(new TextEncoder().encode(text));
+    }
+
+    async function encodeVitaFile(name, mime, bytes) {
+      const sha = await sha256Hex(bytes);
+      const b64 = bytesToBase64(bytes);
+      const header =
+        MAGIC + "v1|name=" + name + "|mime=" + mime +
+        "|bytes=" + bytes.length + "|sha256=" + sha + "|enc=b64§\n";
+      return { body: header + b64, sha, name, mime, rawBytes: bytes.length };
+    }
+
+    async function preparePackets(body) {
+      const chunks = splitUtf8ByBytes(body, MAX_CHUNK);
+      const vinId = "VIN-" + Math.random().toString(16).slice(2, 12).toUpperCase();
+      const lines = [];
+      let prev = "00000000";
+      for (let i = 0; i < chunks.length; i++) {
+        const index = i + 1;
+        const next = index < chunks.length ? String(index + 1) : "END";
+        const header =
+          "[VITAFEED:" + vinId + ":" +
+          String(index).padStart(2, "0") + "/" + String(chunks.length).padStart(2, "0") +
+          ":prev=" + prev + ":next=" + next + "]";
+        const line = header + chunks[i];
+        const hash = shortHex(await sha256Text(line));
+        lines.push({ index, total: chunks.length, vinId, prevHash: prev, nextPtr: next, body: chunks[i], line, hash });
+        prev = hash;
+      }
+      return {
+        vinId,
+        readerKey: "VITAFEED." + vinId,
+        totalChunks: lines.length,
+        totalBytes: new TextEncoder().encode(body).length,
+        lines,
+        body,
+      };
+    }
+
+    function makeDemoWav() {
+      const sampleRate = 8000;
+      const seconds = 0.2;
+      const n = Math.floor(seconds * sampleRate);
+      const dataSize = n * 2;
+      const buf = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buf);
+      const u8 = new Uint8Array(buf);
+      const w = (o, s) => { for (let i = 0; i < s.length; i++) u8[o + i] = s.charCodeAt(i); };
+      w(0, "RIFF"); view.setUint32(4, 36 + dataSize, true); w(8, "WAVE"); w(12, "fmt ");
+      view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true); view.setUint16(34, 16, true); w(36, "data");
+      view.setUint32(40, dataSize, true);
+      for (let i = 0; i < n; i++) {
+        const sample = Math.sin(2 * Math.PI * 523.25 * (i / sampleRate)) * 0.35 * 32767;
+        view.setInt16(44 + i * 2, sample, true);
+      }
+      return new Uint8Array(buf);
+    }
+
+    function renderPieces(total, filled) {
+      const box = el("pieces");
+      box.innerHTML = "";
+      for (let i = 0; i < total; i++) {
+        const d = document.createElement("div");
+        d.className = "piece" + (i < filled ? " filled" : "") + (filled >= total && i < filled ? " done" : "");
+        d.textContent = String(i + 1);
+        box.appendChild(d);
+      }
+      el("statLine").textContent = filled + " / " + total + " locations";
+      const seam = el("seamBar");
+      seam.style.width = total ? ((filled / total) * 100) + "%" : "0%";
+      seam.classList.toggle("run", filled > 0);
+    }
+
+    function renderLocs(chunks) {
+      const body = el("locBody");
+      if (!chunks?.length) {
+        body.innerHTML = "<tr><td colspan=3>None yet.</td></tr>";
+        return;
+      }
+      body.innerHTML = chunks.map((c, i) =>
+        "<tr><td>" + (i + 1) + "</td><td>" + (c.blockNumber ?? "—") +
+        "</td><td><code>" + (c.demo ? "DEMO " : "") + String(c.location || "").slice(0, 18) + "…</code></td></tr>"
+      ).join("");
+    }
+
+    function showPlay(proof) {
+      const shell = el("playerShell");
+      shell.innerHTML = "";
+      const play = proof.play;
+      if (!play) {
+        shell.innerHTML = "<p class='hint' style='margin:0'>No playable payload.</p>";
+        return;
+      }
+      if (play.kind === "audio") {
+        const a = document.createElement("audio");
+        a.controls = true;
+        a.autoplay = true;
+        a.src = play.dataUrl;
+        shell.appendChild(a);
+      } else if (play.kind === "video") {
+        const v = document.createElement("video");
+        v.controls = true;
+        v.autoplay = true;
+        v.src = play.dataUrl;
+        shell.appendChild(v);
+      } else if (play.kind === "image") {
+        const img = document.createElement("img");
+        img.alt = play.name || "image";
+        img.src = play.dataUrl;
+        shell.appendChild(img);
+      } else if (play.kind === "text") {
+        const pre = document.createElement("pre");
+        pre.className = "card";
+        pre.textContent = play.text || "";
+        shell.appendChild(pre);
+      } else {
+        const a = document.createElement("a");
+        a.href = play.dataUrl;
+        a.download = play.name || "file.bin";
+        a.textContent = "Download " + (play.name || "file");
+        shell.appendChild(a);
+      }
+    }
+
+    async function packetize() {
+      if (!fileBytes) return;
+      const enc = await encodeVitaFile(fileName, fileMime, fileBytes);
+      prepared = await preparePackets(enc.body);
+      prepared.file = {
+        name: enc.name,
+        mime: enc.mime,
+        playKind: playKind(enc.mime),
+        rawBytes: enc.rawBytes,
+        sha256: enc.sha,
+      };
+      el("costCard").textContent =
+        "VITAFEED COST CARD · DEMO · BEFORE\n" +
+        "VITAFILE · " + enc.name + " · mime=" + enc.mime + " · raw=" + enc.rawBytes + "B · play=" + playKind(enc.mime) + "\n" +
+        "spaced UTF-8 packets (base64) — code-ready for Tailwind reader play\n" +
+        "IN  chars=" + enc.body.length + "  bytes=" + prepared.totalBytes + "\n" +
+        "max payload/chunk = " + MAX_CHUNK + " bytes (VITAFEED_MAX_CHUNK_BYTES)\n" +
+        "injections/blocks = " + prepared.totalChunks + "\n" +
+        "VIN " + prepared.vinId + "  reader " + prepared.readerKey + "\n" +
+        "CONFIRM / OVERRIDE on Telegram — or Demo override below";
+      el("btnSeal").disabled = false;
+      el("btnPlay").disabled = true;
+      el("okPill").classList.remove("show");
+      renderPieces(prepared.totalChunks, 0);
+      renderLocs([]);
+      proof = null;
+    }
+
+    async function demoSeal() {
+      if (!prepared) return;
+      const spacing = 3;
+      const blockStart = 37000000;
+      const chunks = [];
+      for (let i = 0; i < prepared.lines.length; i++) {
+        const line = prepared.lines[i];
+        await new Promise((r) => setTimeout(r, 180));
+        const h = String(line.hash || "deadbeef").padEnd(64, "0").slice(0, 64);
+        const tx = "0x" + h.replace(/[^0-9a-f]/gi, "0").toLowerCase().padEnd(64, "0").slice(0, 64);
+        chunks.push({
+          ...line,
+          fullLine: line.line,
+          txHash: tx,
+          location: tx,
+          sealed: true,
+          demo: true,
+          blockNumber: blockStart + i * spacing,
+        });
+        renderPieces(prepared.totalChunks, chunks.length);
+        renderLocs(chunks);
+      }
+      // Rebuild play payload locally (same as chain reader would).
+      const body = prepared.body;
+      const b64 = body.slice(body.indexOf("§\n") + 2);
+      const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const dataUrl = "data:" + prepared.file.mime + ";base64," + b64;
+      proof = {
+        complete: true,
+        play: {
+          kind: prepared.file.playKind,
+          mime: prepared.file.mime,
+          name: prepared.file.name,
+          dataUrl,
+        },
+        card:
+          "VITAFEED PLAY PROOF · DEMO · COMPLETE\n" +
+          "VIN " + prepared.vinId + "\n" +
+          "reader " + prepared.readerKey + "\n" +
+          "VITAFILE · " + prepared.file.name + " · mime=" + prepared.file.mime +
+          " · raw=" + prepared.file.rawBytes + "B · play=" + prepared.file.playKind + "\n" +
+          "locations " + chunks.length + "/" + chunks.length + " spaced · " + chunks.length + " txs\n" +
+          "File assembled from " + chunks.length + " spaced blockchain locations across " + chunks.length + " blocks\n" +
+          "PLAY — Tailwind reader peaces locations together and plays the blob",
+        chunks,
+        bytes: bin.length,
+      };
+      el("playCard").textContent = proof.card;
+      el("okPill").classList.add("show");
+      el("btnPlay").disabled = false;
+    }
+
+    el("fileIn").addEventListener("change", async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      fileName = f.name || "blob.bin";
+      fileMime = guessMime(fileName, f.type);
+      fileBytes = new Uint8Array(await f.arrayBuffer());
+      el("btnPacketize").disabled = false;
+      el("costCard").textContent = "Ready: " + fileName + " (" + fileBytes.length + " bytes, " + fileMime + "). Click Packetize.";
+    });
+
+    el("btnDemo").addEventListener("click", () => {
+      fileBytes = makeDemoWav();
+      fileName = "demo-song.wav";
+      fileMime = "audio/wav";
+      el("btnPacketize").disabled = false;
+      el("costCard").textContent = "Demo song loaded (short WAV). Click Packetize.";
+    });
+
+    el("btnPacketize").addEventListener("click", () => packetize());
+    el("btnSeal").addEventListener("click", () => demoSeal());
+    el("btnPlay").addEventListener("click", () => {
+      if (proof) showPlay(proof);
+    });
+
+    // Telegram library deep-link: /vita/feed-player?lib=N
+    (async function loadLibraryFromQuery() {
+      const q = new URLSearchParams(location.search);
+      const sel = q.get("lib") || q.get("n") || q.get("name") || q.get("key");
+      if (!sel) return;
+      el("costCard").textContent = "Loading library #" + sel + " from keys chain…";
+      try {
+        const res = await fetch("/vita/feed-library/play?lib=" + encodeURIComponent(sel));
+        const data = await res.json();
+        if (!data?.ok || !data.play) {
+          el("costCard").textContent = "Library open failed: " + (data?.error || res.status);
+          return;
+        }
+        proof = {
+          complete: data.complete === true,
+          play: data.play,
+          card: data.card || ("LIBRARY #" + data.n + " · " + (data.entry?.name || "")),
+          chunks: (data.locations || []).map((l, i) => ({
+            location: l.location || l,
+            blockNumber: l.blockNumber ?? null,
+            demo: false,
+          })),
+        };
+        el("playCard").textContent = proof.card;
+        el("costCard").textContent =
+          "LIBRARY #" + data.n + " · " + (data.entry?.name || "?") +
+          "\nreader " + (data.entry?.readerKey || "—") +
+          "\nOpen from Telegram /vitafeed play " + data.n;
+        renderPieces(proof.chunks.length || data.entry?.totalChunks || 1, proof.chunks.length || 0);
+        renderLocs(proof.chunks);
+        if (data.complete) {
+          el("okPill").classList.add("show");
+          el("btnPlay").disabled = false;
+          showPlay(proof);
+        }
+      } catch (e) {
+        el("costCard").textContent = "Library fetch error: " + (e.message || e);
+      }
+    })();
+  </script>
+</body>
+</html>

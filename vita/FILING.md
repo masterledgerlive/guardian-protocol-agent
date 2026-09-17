@@ -14,6 +14,11 @@ findable.
 | `vita/mainframe.js` | `MAINFRAME` | Anchors, HTML infect, sparse plan, message-first gate |
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
+| `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override) |
+| `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
+| `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
+| `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
+| `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play |
 | `vita/memory/` | `MEMORY` | Learned notes (`*.json` strands of §TOKEN§ / hypotheses) — append-only |
 | `vita/strands/` | `STRAND` | Sparse inject chunk plans keyed by sealed loc short-hash |
 | `public/vita.html` | `HTML` | Infected console — memory until `/inject` |

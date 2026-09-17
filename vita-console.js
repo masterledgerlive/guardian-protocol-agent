@@ -45,6 +45,9 @@ import {
   revealMotherGenesis,
   runMotherGenesisInscribe,
 } from "./vita/mother-genesis.js";
+import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./vita/feed-wrap.js";
+import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js";
+import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -72,6 +75,8 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/vitamothergenesis",
   "/vitamothergenesisencoded",
   "/encodegenesisreveal",
+  "/vitafeed",
+  "/wavetest",
 ]);
 
 function shortLoc(location) {
@@ -327,8 +332,10 @@ function helpText() {
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
-    "/vitamothergenesis [code…] — plain tx, N batches as needed (>5 ok), reader key → locs",
-    "/vitamotherGenesisencoded [code…] — AES + loc commitment; two-part key",
+    "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
+    "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
+    "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
+    "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
     "/plain — plaintext open source (default)",
@@ -455,14 +462,56 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     return reply("learned locally:\n" + topic.slice(0, 280) + "\nNot on chain until /inject pulls or a leftover hitch seals.");
   }
 
+  // /wavetest — WAVE memory-mirror SIM (does not pay; VITAFEED_PAID stays off)
+  if (text === "/wavetest" || text.startsWith("/wavetest")) {
+    const parsed = parseWaveTestCommand(raw);
+    const out = await handleWaveTestAction({
+      action: parsed.action || "run",
+      env: process.env,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE hitch rides covered leftover; WAVE_MIRROR_PAID / VITAFEED_PAID stay default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
+  }
+
+  // /vitafeed — Storage Token game preview (paid RISK path is Telegram confirm)
+  if (text === "/vitafeed" || text.startsWith("/vitafeed")) {
+    const parsed = parseVitaFeedCommand(raw);
+    const out = await handleVitaFeedAction({
+      action: parsed.action || "usage",
+      body: parsed.body || parsed.selector || "",
+      chatId: "html-console",
+    });
+    const paidNote =
+      parsed.action === "files" || parsed.action === "play"
+        ? "\nLibrary list/open is local keys chain — content packets stay on Base."
+        : "\nHTML preview only — paid RISK injections run on Telegram /vitafeed confirm." +
+          "\nVITAFEED_PAID default off. Mother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.";
+    return reply(out.reply + paidNote);
+  }
+
   // Mother genesis — large dump path (does not touch vitaSave 5-chunk brain)
   if (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis") {
     const body = raw.slice("/vitamothergenesis".length).trim();
     if (!body) {
       return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]");
     }
-    const prepared = preparePlainMotherGenesis(body);
-    const result = await runMotherGenesisInscribe(prepared, async () => null);
+    const parsed = parseMotherGenesisOperatorIntent(body);
+    if (!parsed.body) {
+      return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]\nDefault HTML bank. Telegram paid path needs CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes.");
+    }
+    const prepared = preparePlainMotherGenesis(parsed.body);
+    const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+      wrapMotherGenesisSelfCall({
+        data: hex,
+        text: line.line,
+        pairedUniswapSell: false,
+        topic: "mgplain",
+      });
+      return null;
+    });
     state.motherGenesis = state.motherGenesis || [];
     state.motherGenesis.push({
       strandId: prepared.strandId,
@@ -473,7 +522,7 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     });
     return reply(
       formatMotherGenesisReceipt(result) +
-      "\nHTML-local bank (Telegram bot mines plain 0-ETH txs)." +
+      "\nHTML-local bank (never solo-sends MGPLAIN). Hitch on leftover-covered paired sell." +
       "\nMother brain (/vitasave 5-chunk) untouched.",
     );
   }
@@ -487,8 +536,20 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     if (!body) {
       return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
     }
-    const prepared = prepareEncodedMotherGenesis(body);
-    const result = await runMotherGenesisInscribe(prepared, async () => null);
+    const parsed = parseMotherGenesisOperatorIntent(body);
+    if (!parsed.body) {
+      return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
+    }
+    const prepared = prepareEncodedMotherGenesis(parsed.body);
+    const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+      wrapMotherGenesisSelfCall({
+        data: hex,
+        text: line.line,
+        pairedUniswapSell: false,
+        topic: "mgenc",
+      });
+      return null;
+    });
     state.motherGenesis = state.motherGenesis || [];
     state.motherGenesis.push({
       strandId: prepared.strandId,
