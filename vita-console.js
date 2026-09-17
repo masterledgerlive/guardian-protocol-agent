@@ -47,6 +47,7 @@ import {
 } from "./vita/mother-genesis.js";
 import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./vita/feed-wrap.js";
 import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js";
+import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -75,6 +76,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/vitamothergenesisencoded",
   "/encodegenesisreveal",
   "/vitafeed",
+  "/wavetest",
 ]);
 
 function shortLoc(location) {
@@ -332,6 +334,7 @@ function helpText() {
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
     "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
+    "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -457,6 +460,20 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     const refined = refineVitaPacket(state.packet, { LEARN: topic.slice(0, 400) });
     state.packet = refined.packed;
     return reply("learned locally:\n" + topic.slice(0, 280) + "\nNot on chain until /inject pulls or a leftover hitch seals.");
+  }
+
+  // /wavetest — WAVE memory-mirror SIM (does not pay; VITAFEED_PAID stays off)
+  if (text === "/wavetest" || text.startsWith("/wavetest")) {
+    const parsed = parseWaveTestCommand(raw);
+    const out = await handleWaveTestAction({
+      action: parsed.action || "run",
+      env: process.env,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE hitch rides covered leftover; WAVE_MIRROR_PAID / VITAFEED_PAID stay default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
   }
 
   // /vitafeed — Storage Token game preview (paid RISK path is Telegram confirm)

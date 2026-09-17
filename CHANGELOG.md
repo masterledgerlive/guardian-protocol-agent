@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added — WAVE memory wrap (blockchain as a memory mirror)
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF.
+
+Thin helper `vita/wave-wrap.js` shards UTF-8 into hex-only WAVE lines
+(`[W:v1:SYM]|VIN|ii/nn|prev=|next=|KEY8|LOC8]`) with VIN/tailwind like
+`/vitafeed`. Answer-key bank `vita/memory/wave-heraclitus-key.json` stores
+sha256 of the Heraclitus gift plus per-shard digests (never invented hashes).
+
+Transmission tests (`vita/wave-mirror.test.js` + `node scripts/wave-mirror-test.js`):
+split into least-size 8–128 B shards, SIM inject (record txHash only when
+sendTx returns one), read-back from hashes/fixture hex, ≥3 ping/pong ACKs,
+pass only if reconstructed bytes match the answer key.
+
+Telegram `/wavetest`, HTML `/wavetest`, board `GET /vita/wavetest`. Hitch
+WAVE on covered leftover via `attachWaveOnCoveredLeftover` — do not solo-send.
+`WAVE_MIRROR_PAID` one-shot default off. Docs: `vita/INJECT.md`.
+
 ### Added — Telegram `/vitafeed` named library (files → play → keys chain)
 
 HARD STOP: mother brain untouched.

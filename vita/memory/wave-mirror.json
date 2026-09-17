@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-17T17:54:00.000Z",
+  "topic": "wave-memory-mirror",
+  "text": "Blockchain as a memory mirror: WAVE thin wrap shards hex-only [W:v1:SYM]|VIN|ii/nn|prev=|next=|KEY8|LOC8] + UTF-8 body. Answer-key bank stores sha256 of the Heraclitus gift plus per-shard digests. Transmission tests file hex, read calldata by hash (or fixture hex), reconstruct, pass only if chain bytes match. ≥3 ping/pong ACK rounds. Hitch WAVE on covered leftover via attachWaveOnCoveredLeftover; WAVE_MIRROR_PAID one-shot default off. VITAFEED_PAID stays default off. Mother brain / vitaSave / inscribeChunk / memory-engine / mainframe / mother-genesis DIFF ZERO.",
+  "locations": [],
+  "hypothesis": {
+    "id": "wave-mirror-reconstruct-from-chain-only",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "re-enable VITAFEED_PAID by default",
+      "invent tx hashes for sim shards",
+      "mute leftover hitch to chase micro extract"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

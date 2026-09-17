@@ -18,6 +18,11 @@ Library: `/vitafeed files` · `play <n|name>` · `keys` (§VITALIB§).
 Play proof: [`/vita/feed-player`](../public/vita-feed-player.html). See
 [`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain.
 
+**WAVE memory mirror:** Telegram `/wavetest` (also HTML console + `GET /vita/wavetest`).
+Hex shards `[W:v1:SYM]|…|KEY8|LOC8]` + VIN/tailwind like `/vitafeed`. Answer key
+`vita/memory/wave-heraclitus-key.json`. Reconstruct-from-chain-only tests.
+`VITAFEED_PAID` stays default OFF. Hitch on covered leftover; do not solo-send.
+
 ```js
 import {
   infectVitaHtmlDocument,

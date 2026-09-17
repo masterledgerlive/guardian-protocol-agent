@@ -105,6 +105,51 @@ If a message has no unused red seat, that wrap line shows `NO SEAT` and is
 skipped; inscription still pays RISK after confirm (message-first).
 
 
+## WAVE memory mirror (bits → shards → locations → read-back)
+
+Blockchain as a **memory mirror**: inject knowledge, find it on-chain, remember
+and refine without off-chain hallucination. Thin wrap only —
+`vita/wave-wrap.js`. Mother brain (`vitaSave` / `inscribeChunk` / memory-engine /
+mainframe / mother-genesis) is **DIFF ZERO**. `VITAFEED_PAID` stays **default
+OFF** (this path does not re-enable solo paid `/vitafeed`).
+
+### Wire
+
+```
+[W:v1:SYM]|<vinId>|<ii>/<nn>|prev=<8hex>|next=<ii|END>|<KEY8>|<LOC8>]<utf8 body>
+```
+
+VIN/tailwind `prev=` / `next=` like `/vitafeed`. `KEY8` = `sha256(full message)[:8]`.
+`LOC8` = `sha256(shard body)[:8]`. Body budget **8–128 B**, **least-size default 8**.
+
+Exact wise-world UTF-8 (answer-key bank `vita/memory/wave-heraclitus-key.json`):
+
+```
+Heraclitus: No one steps in the same river twice, for it is not the same river and they are not the same person. We gift recursive memory: what is written in the stream can be read again, refined, and never forgotten.
+```
+
+### vs Railway board
+
+| Step | WAVE mirror | Railway `/board` |
+|---|---|---|
+| **Bits** | UTF-8 → bytes → bits (`messageBits` on the answer key) | leftover / hitch capacity on `/board/api/inject` |
+| **Shards** | least-size 8–128 B WAVE lines (hex-only calldata) | KEY+LOC leftover hitch (~69 B) when leftover covers |
+| **Locations** | real `txHash` **only** when `sendTx` returns one (SIM uses content-addressed hashes, never claimed as Base) | leftover hitch hashes on `/vita/leftover` after a covered sell |
+| **Read-back** | given only txHashes → fetch/decode calldata (or fixture hex) → join bodies → compare sha256 to answer key | `/inject` / `/vitapull` reconstruct `§TOKEN§` from sealed locs |
+| **Pass** | chain/fixture **bytes** match the answer key after ≥3 ping/pong ACKs | never invent P&L or hashes |
+
+### Hitch attach (do not solo-send)
+
+Guardian leftover hitch stays **KEY+LOC**. WAVE may hitch as a wrap trailer
+**when leftover covers** on a paired sell via `attachWaveOnCoveredLeftover`
+(`send: false`). Uncovered leftover **banks hex**. Gated one-shot env
+`WAVE_MIRROR_PAID=yes` (default OFF) is the only solo-send gate — it does
+**not** turn `VITAFEED_PAID` on.
+
+Telegram `/wavetest` · HTML console `/wavetest` · board `GET /vita/wavetest`
+(SIM, no spend) · CLI `node scripts/wave-mirror-test.js`.
+
+
 ## What this is not
 
 - Not `/vitasave` (5-chunk mother brain stays bank-by-default / operator-deliberate).

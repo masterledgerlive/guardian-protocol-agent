@@ -30,6 +30,8 @@ The letter to Krystian, Kai & Koda is **true** on Telegram **`/prove`** (dedicat
 
 **`/vitafeed`** (Storage Token game, before public StorageToken): paste exact plain text → cost card (chars/bytes/bits + injections + ETH/$) → `/vitafeed confirm` pays **RISK only** when **`VITAFEED_PAID=yes`** (default OFF; override cannot bypass). Liquid floor `$5`. Rate limited. Vault / save bucket never spend. Does not re-enable `VITA_AUTO_INSCRIBE` for `/vitasave`. See [`vita/INJECT.md`](./vita/INJECT.md).
 
+**`/wavetest`** (WAVE memory mirror): shard the Heraclitus gift into hex-only WAVE packets, file them, read calldata back, pass only if bytes match the off-chain answer key. SIM by default. Hitch WAVE on covered leftover; does **not** re-enable `VITAFEED_PAID`. CLI: `node scripts/wave-mirror-test.js`.
+
 ---
 
 ## What Makes It Different

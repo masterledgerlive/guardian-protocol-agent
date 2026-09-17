@@ -27,6 +27,7 @@
 //   GET  /vita/router        — secondary hitch router (vita|eureka|hat|auto)
 //   GET  /vita/locations     — squashed location depository
 //   GET  /vita/leftover     — public leftover hitch scan (hashes + class, no utf8)
+//   GET  /vita/wavetest     — WAVE memory-mirror SIM (shards→read-back vs answer key; no spend)
 //   GET  /vita/xmem/spec    — public XMEM v1 agent spec + instructions
 //   GET  /vita/lib/xmem.js  — same XMEM parser as the bot
 //   GET|POST /vita/xmem/decode — parse/search provided utf8/hex (no chain fetch)
@@ -92,6 +93,7 @@ import {
   listLibraryEntries,
   playFromLibrary,
 } from "./vita/vita-feed-library.js";
+import { handleWaveTestAction } from "./vita/wave-wrap.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -408,6 +410,39 @@ async function handleVitaRequest(req, res) {
       } catch (e) {
         return err(res, "leftover scan failed: " + (e.message || e), 502);
       }
+    }
+    if ((path === "/vita/wavetest" || path === "/vita/wavetest/") && req.method === "GET") {
+      const hitch = String(url.searchParams.get("hitch") || "") === "1"
+        || String(url.searchParams.get("action") || "") === "hitch";
+      const out = await handleWaveTestAction({
+        action: hitch ? "hitch" : "run",
+        env: process.env,
+      });
+      return json(res, {
+        ok: out.ok !== false,
+        pass: out.pass === true,
+        send: false,
+        vitafeedPaidDefault: "off",
+        waveMirrorPaidDefault: "off",
+        motherBrain: "untouched",
+        hitch: "attachWaveOnCoveredLeftover when leftover covers on a paired sell",
+        telegram: ["/wavetest", "/wavetest hitch"],
+        cli: "node scripts/wave-mirror-test.js",
+        reply: out.reply,
+        result: out.result
+          ? {
+              pass: out.result.pass,
+              sim: out.result.sim,
+              live: out.result.live,
+              rounds: out.result.rounds,
+              totalChunks: out.result.totalChunks,
+              contentCommit: out.result.contentCommit,
+              answerKey: out.result.answerKey,
+              acks: out.result.acks,
+              reason: out.result.reason,
+            }
+          : null,
+      });
     }
 
     if ((path === "/board/health" || path === "/health") && req.method === "GET") {

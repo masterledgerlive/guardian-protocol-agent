@@ -1,0 +1,220 @@
+{
+  "at": "2026-09-17T00:00:00.000Z",
+  "id": "wave-heraclitus-v1",
+  "kind": "answer-key",
+  "neverInventHashes": true,
+  "formula": "original-message-first",
+  "symbol": "WISE",
+  "messageUtf8": "Heraclitus: No one steps in the same river twice, for it is not the same river and they are not the same person. We gift recursive memory: what is written in the stream can be read again, refined, and never forgotten.",
+  "messageBytes": 217,
+  "messageBits": 1736,
+  "sha256": "fde449b78f5ba78bbe12671dfea87bf958de6b03980824c0ca3b1b0e2f77b08f",
+  "key8": "fde449b7",
+  "bodyBudget": {
+    "min": 8,
+    "max": 128,
+    "used": 8,
+    "rule": "least-size"
+  },
+  "totalShards": 28,
+  "shards": [
+    {
+      "index": 1,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "7ef326db2866b88b378fbbcfae12f4e65cd9b7ddd1d03511f081c85f6d9db191",
+      "loc8": "7ef326db"
+    },
+    {
+      "index": 2,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "287104ceef2cead42f21697d5ce00e3289683c3620d1d7b83b06e01a785a2e3c",
+      "loc8": "287104ce"
+    },
+    {
+      "index": 3,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "054b8e690ee9928a61a51933191607b530224c75ef3ab81d94491f84cd3755a8",
+      "loc8": "054b8e69"
+    },
+    {
+      "index": 4,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "2ac51b0d4b90df90db54fdeeb86e4b8598befc4db2e4064ddd32479510e6d202",
+      "loc8": "2ac51b0d"
+    },
+    {
+      "index": 5,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "3011bf62c0c146dc9ac0fb8f1280f3ec556f104bee37c34b96e8f9893e944680",
+      "loc8": "3011bf62"
+    },
+    {
+      "index": 6,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "d4eec1e326f6c08f778c23c6610e5fad03363a4be0665e4db22bd40db1c0e576",
+      "loc8": "d4eec1e3"
+    },
+    {
+      "index": 7,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "8b59dba483633213a222600acdb0b62ed25a6e7eb8ecb977348134e79af334d5",
+      "loc8": "8b59dba4"
+    },
+    {
+      "index": 8,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "3bbd39eff9012330d108c0d6c10d32d3da0fe4a685b199a288566714b95da163",
+      "loc8": "3bbd39ef"
+    },
+    {
+      "index": 9,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "fa0487f2dc91544ab4b9f5b1d59b7eb2bf68807a6e42cdf22fce4e0bc4b84cb2",
+      "loc8": "fa0487f2"
+    },
+    {
+      "index": 10,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "822e9bdf38005db4b6071059e1496c90a18b5f1fa65c5612d87d178017239c6a",
+      "loc8": "822e9bdf"
+    },
+    {
+      "index": 11,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "87c5ecb3f0043c100747cefaea04fe1c0e8141860942cae09963e1245857f534",
+      "loc8": "87c5ecb3"
+    },
+    {
+      "index": 12,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "202ae06feadc991e4d525b84c502b47816fa4e6200fea0d1753613cbd585a129",
+      "loc8": "202ae06f"
+    },
+    {
+      "index": 13,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "fa0487f2dc91544ab4b9f5b1d59b7eb2bf68807a6e42cdf22fce4e0bc4b84cb2",
+      "loc8": "fa0487f2"
+    },
+    {
+      "index": 14,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "8846c92d35f3520581571aab352186ab3e0af614e4d867495753304f4d1a9472",
+      "loc8": "8846c92d"
+    },
+    {
+      "index": 15,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "a77e1963349ff6a3be3df0dd98e9a5a6eadf9c52a08b5ccf3f2f7b12fb5962d0",
+      "loc8": "a77e1963"
+    },
+    {
+      "index": 16,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "1e7bbf16073dead100586a781268ce5f466aea907967c45f54905c1d6da70ed3",
+      "loc8": "1e7bbf16"
+    },
+    {
+      "index": 17,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "b9cd04a8c89d2359889e0d08de463abb0e9965f4f43f307d44354bf0c3a71be1",
+      "loc8": "b9cd04a8"
+    },
+    {
+      "index": 18,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "931c86bf3b9264195859514e5cc58686e41e8521e091c843106ee0ce5f30c9a2",
+      "loc8": "931c86bf"
+    },
+    {
+      "index": 19,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "eca01be46259ccf88868346cd99614e2c1896f2fca22ef967648c57db2428c35",
+      "loc8": "eca01be4"
+    },
+    {
+      "index": 20,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "eb2d2d0090db85ab0b9fab3a49acf8783f7d7db8eace76ac24b8120a02e4f670",
+      "loc8": "eb2d2d00"
+    },
+    {
+      "index": 21,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "85f46fcbbdd26e6e61279bd9e284e90366a9e483eae8942321f711bc94541a41",
+      "loc8": "85f46fcb"
+    },
+    {
+      "index": 22,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "87306baa953739fe85d37ab7ec5455596db7c39200a818710b5fdfee09422a69",
+      "loc8": "87306baa"
+    },
+    {
+      "index": 23,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "6ad618eaa60da688e1ecc0dbf3d3630af5103f3ca847483eca33de5467cbabfd",
+      "loc8": "6ad618ea"
+    },
+    {
+      "index": 24,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "4032983a4ecc392a85708a4d266c9811d2c764293730c395632c9fbbaa605adb",
+      "loc8": "4032983a"
+    },
+    {
+      "index": 25,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "a60da61cac8062c651c03bcb142e35223c9b0c2739ed55e092ee7be53f93e173",
+      "loc8": "a60da61c"
+    },
+    {
+      "index": 26,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "5464353ce1766ee86482d8f394be97183533132a16c41508fdbd20e2c0dcb880",
+      "loc8": "5464353c"
+    },
+    {
+      "index": 27,
+      "total": 28,
+      "bodyBytes": 8,
+      "sha256": "d486ba45bda5c6467bdbfbb33019dfca6d5489cce96ea6f28272e7377ff80f88",
+      "loc8": "d486ba45"
+    },
+    {
+      "index": 28,
+      "total": 28,
+      "bodyBytes": 1,
+      "sha256": "cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8",
+      "loc8": "cdb4ee2a"
+    }
+  ],
+  "note": "Pass reconstruct-from-chain-only iff sha256(joined bodies) matches and each shard digest matches. VIN headers are not part of the answer. Never invent tx hashes.",
+  "neverForget": true
+}

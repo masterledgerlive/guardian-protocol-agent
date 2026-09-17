@@ -243,6 +243,7 @@ function helpText() {
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
     "/vitafeed [text|file] exact plain / VITAFILE; files|play|keys; confirm|override; /vita/feed-player",
+    "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
     "/vitamotherGenesisencoded [code]  bank encoded hex; two-part key",
     "/encodegenesisreveal KEY  pull locs + decode",
     "/zk  locations-only preview (future ZK path)",
