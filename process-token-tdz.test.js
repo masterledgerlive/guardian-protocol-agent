@@ -103,6 +103,15 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellBody.includes("attachWaveOnCoveredLeftover"), "WAVE hitch caller must be attachWaveOnCoveredLeftover");
     assert.ok(sellBody.indexOf("hitchWaveOnSellLeftover") > sellBody.indexOf("planVoiceHitch"));
     assert.ok(!sellBody.includes("oneShot: true"), "WAVE_MIRROR_PAID one-shot must stay off the sell path");
+    assert.ok(sellBody.includes("gateLeftoverEth"), "WAVE leftover binding must not shadow fill leftoverEth");
+    assert.ok(sellBody.includes("applyLotToToken"), "executeSell must apply FIFO lot before entrySold");
+    assert.ok(sellBody.includes("tryRebuildLotFromReceipts"), "VIRTUAL evidence buy must rebuild at sell");
+    const processFn = src.indexOf("async function processToken(");
+    const processEnd = src.indexOf("\nasync function ", processFn + 1);
+    const processBody = src.slice(processFn, processEnd > 0 ? processEnd : processFn + 12000);
+    const rebuild = processBody.indexOf("tryRebuildLotFromReceipts");
+    const unknown = processBody.indexOf("applyUnknownChainHolding");
+    assert.ok(rebuild >= 0 && unknown > rebuild, "evidence FIFO rebuild before unknown stamp");
   });
 
   it("still reaches buy / MANUAL SELL / sellhalf after the armed-idle log", () => {
