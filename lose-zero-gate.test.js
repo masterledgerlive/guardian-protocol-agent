@@ -20,6 +20,9 @@ import {
   ADD_ON_BAG_MIN_USD,
   isCatalogFrozen,
   frozenBuySkipLog,
+  parseUnfreezeSymbols,
+  applyUnfreezeSymbols,
+  isUnfreezeSymbol,
   hasClearEdge,
   isManualOperatorBuy,
   isVitaFeedBuyIn,
@@ -610,6 +613,44 @@ describe("catalog freeze — buy-side gate", () => {
     const result = queueOperatorBuyOnce(commands, "BASECAT:3", known, { done: false }, frozen);
     assert.equal(result.queued, true);
     assert.deepEqual(commands, [{ symbol: "BASECAT", action: "buy", usd: 3, source: "OPERATOR_BUY" }]);
+  });
+
+  it("OPERATOR_BUY queues TIBBIR:1.25 once catalog freeze is clear", () => {
+    const commands = [];
+    const known = new Set(["TIBBIR", "GAME", "BASECAT"]);
+    const frozen = new Set(["GAME", "BASECAT"]);
+    const result = queueOperatorBuyOnce(commands, "TIBBIR:1.25", known, { done: false }, frozen);
+    assert.equal(result.queued, true);
+    assert.deepEqual(commands, [{ symbol: "TIBBIR", action: "buy", usd: 1.25, source: "OPERATOR_BUY" }]);
+    const blocked = queueOperatorBuyOnce([], "GAME:1.25", known, { done: false }, frozen);
+    assert.equal(blocked.queued, false);
+    assert.equal(blocked.reason, "frozen");
+  });
+
+  it("UNFREEZE_SYMBOLS parses comma/semicolon/whitespace lists", () => {
+    assert.deepEqual(parseUnfreezeSymbols({}), []);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "" }), []);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "TIBBIR" }), ["TIBBIR"]);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "tibbir, vvv;GAME" }), ["TIBBIR", "VVV", "GAME"]);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "TIBBIR TIBBIR" }), ["TIBBIR"]);
+    assert.equal(isUnfreezeSymbol("TIBBIR", { UNFREEZE_SYMBOLS: "TIBBIR" }), true);
+    assert.equal(isUnfreezeSymbol("GAME", { UNFREEZE_SYMBOLS: "TIBBIR" }), false);
+  });
+
+  it("UNFREEZE_SYMBOLS clears isCatalogFrozen for listed names only", () => {
+    const env = { UNFREEZE_SYMBOLS: "TIBBIR" };
+    assert.equal(isCatalogFrozen({ symbol: "TIBBIR", frozen: true }, env), false);
+    assert.equal(isCatalogFrozen({ symbol: "GAME", frozen: true }, env), true);
+    assert.equal(isCatalogFrozen({ symbol: "BASECAT", frozen: true }, env), true);
+    const multi = { UNFREEZE_SYMBOLS: "TIBBIR, VVV" };
+    assert.equal(isCatalogFrozen({ symbol: "VVV", frozen: true }, multi), false);
+    assert.equal(isCatalogFrozen({ symbol: "TIBBIR", frozen: "yes" }, multi), false);
+    const thawed = applyUnfreezeSymbols({ symbol: "TIBBIR", frozen: true, frozenReason: "data-only" }, env);
+    assert.equal(thawed.frozen, false);
+    assert.equal(thawed.frozenReason, undefined);
+    const game = applyUnfreezeSymbols({ symbol: "GAME", frozen: true, frozenReason: "CUT" }, env);
+    assert.equal(game.frozen, true);
+    assert.equal(game.frozenReason, "CUT");
   });
 });
 

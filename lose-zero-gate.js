@@ -437,8 +437,13 @@ export function ethEdgeLeftoverEth({
  * This is the shared predicate for executeBuy — do not rely on UI, Telegram
  * /frozenlist, or processToken early-return (those miss cascade/ripple and
  * frozen names that already have entryPrice).
+ *
+ * Railway `UNFREEZE_SYMBOLS=TIBBIR` (comma / semicolon / whitespace list)
+ * clears catalog freeze at runtime for those symbols. Telegram `/unfreeze`
+ * is a separate in-memory flip + runtime buy-freeze clear; it does not
+ * rewrite DEFAULT_TOKENS, so a restart re-applies catalog `frozen`.
  */
-export function isCatalogFrozen(token) {
+function catalogFrozenFlag(token) {
   const flag = token?.frozen;
   if (flag === true || flag === 1) return true;
   if (typeof flag === "string") {
@@ -446,6 +451,41 @@ export function isCatalogFrozen(token) {
     return s === "true" || s === "1" || s === "yes";
   }
   return false;
+}
+
+/**
+ * Native Railway env: `UNFREEZE_SYMBOLS=TIBBIR` or `TIBBIR,VVV`.
+ * Empty / unset → no override. Does not persist into DEFAULT_TOKENS.
+ */
+export function parseUnfreezeSymbols(env = process.env) {
+  const raw = env?.UNFREEZE_SYMBOLS;
+  if (raw == null || String(raw).trim() === "") return [];
+  return [...new Set(
+    String(raw)
+      .split(/[,;\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean),
+  )];
+}
+
+export function isUnfreezeSymbol(symbol, env = process.env) {
+  const sym = String(symbol || "").toUpperCase();
+  if (!sym) return false;
+  return parseUnfreezeSymbols(env).includes(sym);
+}
+
+/** Clear catalog freeze on a token row when UNFREEZE_SYMBOLS lists it. */
+export function applyUnfreezeSymbols(token, env = process.env) {
+  if (!token || !isUnfreezeSymbol(token.symbol, env)) return token;
+  if (!catalogFrozenFlag(token)) return token;
+  const next = { ...token, frozen: false };
+  delete next.frozenReason;
+  return next;
+}
+
+export function isCatalogFrozen(token, env = process.env) {
+  if (isUnfreezeSymbol(token?.symbol, env)) return false;
+  return catalogFrozenFlag(token);
 }
 
 /** Console line when a buy is skipped because the catalog name is frozen. */

@@ -111,13 +111,13 @@ Live DexScreener scout + prune notes: see `UNIVERSE.md`. TOSHI stays tradeable (
 **Active (tradeable):**
 AERO · BRETT · VIRTUAL · MORPHO · **UNI** (inject main / T1 reserved) · LINK · DEGEN · TOSHI  
 ❄️ FROZEN exits-only: CBBTC · AAVE · GAME · AIXBT · KEYCAT · SKI · LUNA · REI · BASECAT · …
-DOGINME · DRB · CLANKER · VVV · ZORA · BNKR
+DOGINME · DRB · CLANKER · **TIBBIR** (WATCH/BATTLE-TEST) · VVV · ZORA · BNKR
 
 **Inject main players (Tier-1 seat reserved for UNI first):**
 UNI · LINK · AERO · MORPHO _(CBBTC / AAVE deferred on thin RISK — COST_EDGE)_
 
 **Frozen (no new capital):**
-SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · **GAME** (thin Uni V3 WETH vs Uni V2 GAME/VIRTUAL) · **AIXBT / KEYCAT / SKI / LUNA / REI** (thin Uni V3 WETH hitch / gas burn) · **BASECAT** (CAUTION/CUT — FIFO 12/31 red sells) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
+SEAM · MOG · BASE · **XCN** (WETH-dead / USDC-primary) · **GAME** (thin Uni V3 WETH vs Uni V2 GAME/VIRTUAL) · **AIXBT / KEYCAT / SKI / LUNA / REI** (thin Uni V3 WETH hitch / gas burn) · **BASECAT** (CAUTION/CUT — FIFO 12/31 red sells) · STONKEX · BLUECHIP · VELVET · KTA · PRIME · HIGHER · MOCHI
 TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA
 CRASH · BRIUN · NORMIE · OGGY · FREN
 
@@ -237,6 +237,7 @@ BASE_RPC / RPC_URL / BASE_RPC_URL  ← preferred Base RPC (e.g. https://mainnet.
 DISABLE_DOW_BIAS          ← yes / true / 1 / on **or unset** = zero Friday sellMod +0.08 and skip Fri-close UTC 19–22 de-risk (hotfix default ON). After calm: DISABLE_DOW_BIAS=no restores day-of-week mods. Always-plus still HOLDs FIFO-eth-red / USD-below-breakeven operator lots even if bias is restored.
 LOT_REBUILD_TXS           ← optional `AERO:0x…,DRB:0x…,BNKR:0x…` extra buy hashes for FIFO rebuild after restart. Evidence fills (AERO `0x94faa542…` / DRB `0xe0f846a8…` + trough `0x53a00788…` / BNKR `0xeef39d62…`) are already seeded. Amounts come from Transfer+WETH receipts — never invented. GitHub 401 on ledger/fifo-lots/positions still runs this on-chain path (live `token` + `STATE_BRANCH=bot-state`; no Bearer).
 SKIP_OHLC_SEED            ← yes / true / 1 / on = skip the 90-day candle seed entirely (no frozen 8s timeout path). Live ticks still arm waves.
+UNFREEZE_SYMBOLS          ← TIBBIR or TIBBIR,VVV = clear catalog freeze at runtime for those names (comma / semicolon / whitespace). Does not rewrite DEFAULT_TOKENS. Telegram `/unfreeze` is in-memory only + runtime slippage buy-freeze clear — it does not persist across restart. Frozen catalog still blocks OPERATOR_BUY until this env or a catalog `frozen: false`.
 OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready) and flush it before OHLC seed / after recon. Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Leftover+edge and COST_EDGE near-term do not block; hitch if leftover covers, else plain. Frozen catalog names are never queued. AERO fills Uni V3 WETH 0x3d5D1433…, not Aerodrome-primary.
 OPERATOR_SELL             ← AERO:all / DRB:100 / TOSHI:50 = queue those operator sells after CDP ready. Bare `AERO,DRB,BNKR` = 100% each. Latch is per-symbol after the swap executes. Bypasses wave gates as MANUAL SELL (operator). With ALLOW_LOSSY_OPERATOR_SELL=yes, FIFO-red operator/fresh lots unwind (hitch SKIP; piggy unlock). Auto stays gated when the flag is off.
 PRICE_INSANE_MIN_RATIO    ← mark / DexScreener-Gecko (or last sane) floor (default 0.01)
