@@ -13,7 +13,7 @@ findable.
 | `vita/FILING.md` | `FILING` | This map |
 | `vita/mainframe.js` | `MAINFRAME` | Anchors, HTML infect, sparse plan, message-first gate |
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
-| `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
+| `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override) |
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |

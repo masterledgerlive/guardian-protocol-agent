@@ -11929,7 +11929,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const prepared = preparePlainMotherGenesis(body);
             await tg(
               maySend
-                ? "📦 " + prepared.totalChunks + " plain chunks — inscribing 0-ETH self-txs…"
+                ? "📦 " + prepared.totalChunks + " plain chunks — then full loc list on-chain…"
                 : "📦 " + prepared.totalChunks + " plain chunks — banking unpaired MGPLAIN (auto wrap)…"
             );
             const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
@@ -11960,6 +11960,11 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               if (!parsed.confirmed) {
                 msg += "\nIntentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code> + VITA_MOTHER_GENESIS_AUTO=yes";
               }
+            } else if (result.locListTxs?.length) {
+              msg += "\n📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
             }
             if (result.strand?.readerKey) {
               msg += "\n🔑 Reader key:\n<code>" + result.strand.readerKey + "</code>\n";
@@ -12000,7 +12005,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const prepared = prepareEncodedMotherGenesis(body);
             await tg(
               maySend
-                ? "📦 " + prepared.totalChunks + " encoded chunks — inscribing…"
+                ? "📦 " + prepared.totalChunks + " encoded chunks — then full loc list on-chain…"
                 : "📦 " + prepared.totalChunks + " encoded chunks — banking unpaired MGENC (auto wrap)…"
             );
             const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
@@ -12029,6 +12034,11 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             msg += "<pre>" + formatMotherGenesisReceipt(result).slice(0, 2800) + "</pre>\n";
             if (!maySend) {
               msg += "📦 hex banked — hitch on leftover-covered paired sell (MGENC wrap; /vitasave still has mother brain)\n";
+            } else if (result.locListTxs?.length) {
+              msg += "📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
             }
             msg += "🔑 Two-part key:\n<code>" + keys.part1 + "</code>\n<code>" + keys.part2 + "</code>\n";
             msg += "Reveal: <code>/encodegenesisreveal " + keys.combined + "</code>";
