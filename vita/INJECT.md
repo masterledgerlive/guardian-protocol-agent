@@ -142,7 +142,11 @@ Heraclitus: No one steps in the same river twice, for it is not the same river a
 
 Guardian leftover hitch stays **KEY+LOC**. WAVE may hitch as a wrap trailer
 **when leftover covers** on a paired sell via `attachWaveOnCoveredLeftover`
-(`send: false`). Uncovered leftover **banks hex**. Gated one-shot env
+(`send: false`). The sell leftover hitch loop (`executeSell` →
+`hitchWaveOnSellLeftover({ attach: attachWaveOnCoveredLeftover })`) invokes
+that helper after KEY+LOC: hitch the next Heraclitus shard when leftover
+remaining covers; **bank/skip** when uncovered or KEY+LOC was stripped.
+Never solo-send. Uncovered leftover **banks hex**. Gated one-shot env
 `WAVE_MIRROR_PAID=yes` (default OFF) is the only solo-send gate — it does
 **not** turn `VITAFEED_PAID` on.
 

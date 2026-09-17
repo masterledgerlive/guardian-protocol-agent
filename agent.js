@@ -472,8 +472,12 @@ import {
   peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
+  attachWaveOnCoveredLeftover,
+  commitWaveHitchShard,
   handleWaveTestAction,
+  hitchWaveOnSellLeftover,
   parseWaveTestCommand,
+  peekNextWaveHitchShard,
 } from "./vita/wave-wrap.js";
 import {
   beginVitaFeedFileAwait,
@@ -6917,6 +6921,53 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       // Orch must not re-embed hitch after we stripped VITA to keep plus.
       sellSkipHitch = true;
     }
+    // WAVE wrap trailer on the next covered leftover of a paired PLUS sell.
+    // KEY+LOC leftover hitch stays. attachWaveOnCoveredLeftover never solo-sends.
+    // Uncovered leftover (or KEY+LOC skipped) banks the Heraclitus shard.
+    const leftoverEth = Math.max(0, Number(sellGate.leftover) || 0);
+    const waveShard = peekNextWaveHitchShard();
+    const waveBytes = Number(waveShard?.calldataBytes) || 0;
+    const waveL1 = hitchL1?.ok && wantedHitchBytes > 0 && waveBytes > 0
+      ? (Number(hitchL1.l1FeeEth) || 0) * waveBytes / wantedHitchBytes
+      : 0;
+    const waveCost = waveBytes > 0
+      ? estimateCalldataHitchEth(waveBytes, gwei) + waveL1
+      : 0;
+    const remainingLeftover = sellVoice.onChain
+      ? Math.max(0, leftoverEth - voiceHitchCost)
+      : 0;
+    const waveCovered = !sellSkipHitch
+      && !!sellVoice.onChain
+      && remainingLeftover > 0
+      && waveCost > 0
+      && remainingLeftover + 1e-18 >= waveCost
+      && plusAfterHitchEth(leftoverEth, voiceHitchCost + waveCost) > 0;
+    const waveRide = hitchWaveOnSellLeftover({
+      shard: waveShard,
+      leftoverEth: waveCovered ? remainingLeftover : 0,
+      hitchCostEth: waveCost > 0 ? waveCost : 1,
+      pairedUniswapSell: true,
+      attach: attachWaveOnCoveredLeftover,
+    });
+    if (waveRide.hitch && waveRide.utf8 && sellVoice?.data) {
+      const packed = appendUtf8Hitch(sellVoice.data, waveRide.utf8);
+      if (packed.ok && packed.onChain) {
+        sellVoice = {
+          ...sellVoice,
+          data: packed.data,
+          utf8: String(sellVoice.utf8 || "") + packed.utf8,
+          hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+          waveHitch: true,
+          waveUtf8: packed.utf8,
+        };
+        commitWaveHitchShard(waveRide);
+        console.log(`   🌊 WAVE leftover hitch ${packed.hitchBytes} B — ${waveRide.reason}`);
+      } else {
+        console.log(`   🌊 WAVE leftover banked — append refused (${packed.log || waveRide.reason})`);
+      }
+    } else if (waveRide.banked) {
+      console.log(`   🌊 WAVE leftover banked — ${waveRide.reason}`);
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -6964,6 +7015,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // True earnings after hitch message — never list WAVE COMPLETE gains the letter wiped.
     const hitchCostEth = sellVoice?.onChain
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
+        + (sellVoice?.waveHitch ? waveCost : 0)
       : 0;
     let earn = piggyEarningsAfterMessage({
       netUsd,
