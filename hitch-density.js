@@ -52,7 +52,7 @@ export function measureKeyLocHitchBytes(loc = "n=24|t=0000|r=0000") {
 export function measureEurekaLeftoverBytes() {
   return utf8ByteLength(buildStoreVoice({
     tag: STORE_VOICE_TAG,
-    message: "Eureka! VITA lives ♥ love you Krystian, Kai & Koda!",
+    message: VITA_PROOF_FULL,
   }));
 }
 

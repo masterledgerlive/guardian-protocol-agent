@@ -49,6 +49,8 @@ describe("V3 vs V4 race scoreboard — formatting, no invented P&L", () => {
     assert.equal(v4.dryRun, true);
     const html = formatRaceScoreboardHtml({ v3, v4 });
     assert.match(html, new RegExp(RACE_HEADER));
+    assert.match(html, /Living Network/);
+    assert.match(html, /IKN/);
     assert.match(html, /\[V3\]/);
     assert.match(html, /\[V4\]/);
     assert.match(html, /dry-run yes — liquid unknown \(not invented\)/);

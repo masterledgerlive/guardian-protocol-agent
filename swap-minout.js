@@ -283,7 +283,9 @@ export function clipUtf8(text, maxBytes) {
 
 export function buildStoreVoice({
   tag = STORE_VOICE_TAG,
-  message = VITA_PROOF_MESSAGE,
+  // Default = full family love note (IKN Living Network). Short class stays
+  // VITA_PROOF_MESSAGE for leftover density math — pass it explicitly.
+  message = VITA_PROOF_FULL,
   maxBytes,
 } = {}) {
   const body = message ? `${tag} ${message}` : String(tag || "");
