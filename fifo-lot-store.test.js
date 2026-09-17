@@ -45,6 +45,7 @@ import {
   lotHasBuyTx,
   lotHasAnyBuyTx,
   shouldLatchBuyReceipt,
+  mergeBuyReceiptIntoLots,
   knownLotSellTokens,
   lotIsEvidenceLatched,
 } from "./fifo-lot-store.js";
