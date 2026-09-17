@@ -115,6 +115,8 @@ import {
   isInjectCoverRequired,
   isCatalogFrozen,
   frozenBuySkipLog,
+  parseUnfreezeSymbols,
+  applyUnfreezeSymbols,
   buildBuyGateDecision,
   buildSellGateDecision,
   shouldArmStopLoss,
@@ -1955,9 +1957,9 @@ const DEFAULT_TOKENS = [
     notes: "Venice Token — inject main. Uni v3 VVV/WETH 1% + VVV/USDC 0.3% deep. Top-100-class hitch surface." },
 
   { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    frozen: false,
     score: { liquidity:8, waveQuality:6, fundamentals:6, coinbaseFit:7, community:7, total:34 },
-    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. FROZEN data-only until Uni V3 proven." },
+    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. TRADEABLE Base RISK — WATCH/BATTLE-TEST (cascade after CLANKER)." },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ❄️  FROZEN — price/wave data collected, NO capital deployed
@@ -8914,6 +8916,11 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
   return n;
 }
 
+function hydrateCatalogToken(def) {
+  // WETH-dead freeze first, then UNFREEZE_SYMBOLS (process.env) clears listed names.
+  return applyUnfreezeSymbols(applyWethDeadFreeze(def), process.env);
+}
+
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
   const tf = await githubGet("tokens.json");
@@ -8922,7 +8929,7 @@ async function loadFromGitHub() {
     // FIX v18: Restore state but preserve frozen/disabled flags from code definition.
     // Never let saved state override code-defined frozen status.
     tokens = DEFAULT_TOKENS.map(def => {
-      const base = applyWethDeadFreeze(def);
+      const base = hydrateCatalogToken(def);
       return {
       ...base, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null,
       ...(saved.find(s => s.symbol === def.symbol) || {}),
@@ -8933,6 +8940,7 @@ async function loadFromGitHub() {
       totalInvestedEth: Math.max(0, (saved.find(s => s.symbol === def.symbol) || {}).totalInvestedEth || 0),
       piggyReserve: loadPiggyReserve(saved.find(s => s.symbol === def.symbol) || {}, null),
       // Always re-apply frozen/disabled from code — never let saved state override
+      // UNFREEZE_SYMBOLS then clears catalog freeze at runtime for listed names.
       frozen: base.frozen || false,
       frozenReason: base.frozenReason || undefined,
       disabled: base.disabled || false,
@@ -8943,11 +8951,13 @@ async function loadFromGitHub() {
     });
     tokensSha = tf.sha;
   } else {
-    tokens = DEFAULT_TOKENS.map(t => ({ ...applyWethDeadFreeze(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
-    // Sync frozen flags from DEFAULT_TOKENS definition (authoritative)
+    tokens = DEFAULT_TOKENS.map(t => ({ ...hydrateCatalogToken(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
+    // Sync frozen flags from DEFAULT_TOKENS definition (authoritative),
+    // then UNFREEZE_SYMBOLS (process.env) clears listed catalog freezes.
     for (const t of tokens) {
-      const def = applyWethDeadFreeze(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
+      const def = hydrateCatalogToken(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
       if (def?.frozen) { t.frozen = true; t.frozenReason = def.frozenReason; }
+      else { t.frozen = false; delete t.frozenReason; }
       if (def?.minBuyUsd != null) t.minBuyUsd = def.minBuyUsd;
     }
 
@@ -13040,6 +13050,8 @@ function applyOperatorBuyEnv() {
     ...tokens.map(t => t.symbol),
   ]);
   // Live token.frozen wins (runtime /unfreeze). Catalog defaults fill gaps.
+  // isCatalogFrozen also honors UNFREEZE_SYMBOLS so OPERATOR_BUY is not
+  // blocked when Railway lists the name but DEFAULT_TOKENS is still frozen.
   const frozen = new Set(DEFAULT_TOKENS.filter(t => isCatalogFrozen(t)).map(t => t.symbol));
   for (const t of tokens) {
     if (isCatalogFrozen(t)) frozen.add(t.symbol);
@@ -13262,12 +13274,16 @@ function bootstrapWavesFromCandles() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 async function main() {
-  const bootActive = DEFAULT_TOKENS.filter(t => !t.frozen && !t.disabled).map(t => t.symbol);
-  const bootFrozen = DEFAULT_TOKENS.filter(t => t.frozen && !t.disabled).length;
+  const bootActive = DEFAULT_TOKENS.filter(t => !isCatalogFrozen(t) && !t.disabled).map(t => t.symbol);
+  const bootFrozen = DEFAULT_TOKENS.filter(t => isCatalogFrozen(t) && !t.disabled).length;
+  const unfreezeSyms = parseUnfreezeSymbols(process.env);
   console.log("═══════════════════════════════════════════════════════════");
   console.log("⚔️💓  GUARDIAN PROTOCOL — HEARTBEAT EDITION v18.1 — CHAIN-FIRST + INSTANT WAVE ARM + 3-SOURCE DATA");
   console.log(`   ✅ Active (${bootActive.length}): ${bootActive.join(" ")}`);
   console.log(`   ❄️  Frozen: ${bootFrozen} collecting wave data, no new capital`);
+  if (unfreezeSyms.length) {
+    console.log(`   ❄️→✅ UNFREEZE_SYMBOLS=${unfreezeSyms.join(",")} (catalog freeze cleared at runtime)`);
+  }
   console.log("   🔧 Inject surface: Uni V3 WETH books + §$STORE§ hitch on leftover swaps");
   console.log("      ETH+WETH unified | Auto gas top-up | Ledger wave seeding");
   console.log("      Live ETH price | Gas spike guard | Drawdown breaker");

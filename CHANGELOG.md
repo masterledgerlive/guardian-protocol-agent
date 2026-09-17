@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Fixed — TIBBIR catalog unfreeze + `UNFREEZE_SYMBOLS` process.env reader
+
+HARD STOP: mother brain untouched. BASECAT / GAME stay CUT frozen.
+
+Risk desk: TIBBIR catalog `frozen:true` blocked Game cascade micros after
+CLANKER fills. Railway `UNFREEZE_SYMBOLS=TIBBIR` plus `OPERATOR_BUY=TIBBIR:1.25`
+did not clear it — `UNFREEZE_SYMBOLS` had **no process.env reader**.
+
+- **Catalog:** TIBBIR `frozen: false` (WATCH/BATTLE-TEST Base RISK). Address /
+  fee unchanged. STONKEX / BLUECHIP / VELVET / KTA stay data-only frozen.
+- **Runtime:** `parseUnfreezeSymbols` / `applyUnfreezeSymbols` read
+  `UNFREEZE_SYMBOLS` (comma / semicolon / whitespace). `isCatalogFrozen` honors
+  the list so executeBuy / cascade / ripple / OPERATOR_BUY open. Hydrate runs
+  after WETH-dead freeze so the env actually clears `token.frozen`.
+- **Telegram `/unfreeze` is different:** in-memory `token.frozen=false` plus
+  `clearBuyFreeze` (slippage runtime freeze). It does **not** rewrite
+  `DEFAULT_TOKENS`. Boot re-applies catalog freeze unless this env/catalog fix
+  is present.
+
 ### Added — WAVE memory wrap (blockchain as a memory mirror)
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF.

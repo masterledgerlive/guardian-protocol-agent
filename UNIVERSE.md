@@ -49,10 +49,11 @@ Bot = **Uniswap V3 only**. Many CoinMarketCap top-100 names have **no** liquid B
 | **GAME** | Uni V2 GAME/VIRTUAL ~$2.14M; Uni V3 WETH 0.3% ghost (`liquidity()=0`) | **CUT** — frozen buys / ghost Uni V3. Always-plus leftover sells remain. |
 | **LINK AAVE UNI** | Uni V3 WETH (factory fee above) | **NEW** top-100 injection targets |
 | **VVV ZORA BNKR** | Uni V3 WETH 1% | **THAWED** |
+| **TIBBIR** | Aero TIBBIR/WETH ~$385k; Uni v2 TIBBIR/VIRTUAL ~$3.28M | **THAWED** WATCH/BATTLE-TEST — cascade after CLANKER |
 
 ### Still frozen
 
-XCN (WETH-dead) · GAME (thin Uni V3 WETH) · AIXBT · KEYCAT · SKI · LUNA · REI · BASECAT (CAUTION/CUT) · TIBBIR · STONKEX · BLUECHIP · VELVET · KTA · SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN · NORMIE · OGGY · FREN
+XCN (WETH-dead) · GAME (thin Uni V3 WETH) · AIXBT · KEYCAT · SKI · LUNA · REI · BASECAT (CAUTION/CUT) · STONKEX · BLUECHIP · VELVET · KTA · SEAM · MOG · BASE · PRIME · HIGHER · MOCHI · TYBG · MIGGLES · BENJI · ROOST · TALENT · TOBY · SIMBA · CRASH · BRIUN · NORMIE · OGGY · FREN
 
 MIGGLES stays frozen (Uni V2 primary; Uni V3 thin — WELL lesson).
 GAME stays frozen **CUT class** (Uni V2 GAME/VIRTUAL 0xD418…7789 ~$2.14M is the liquid book; Uni V3 WETH feeTier 3000 0x70fbffe3… `liquidity()=0` / ghost — not a hitch seat; leftover-green exits stay open). Catalog fee is 10000 so exits quote the live Uni V3 book first (#61).
