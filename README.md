@@ -34,6 +34,8 @@ The letter to Krystian, Kai & Koda is **true** on Telegram **`/prove`** (dedicat
 
 **`/waveproof`** (capped 3-token WAVE proof): send exactly 3 least-size (8B) Heraclitus shards (SYM `VIRTUAL`/`CLANKER`/`AERO`) as 0-ETH self-txs when `WAVE_PROOF_LIVE=yes` (default OFF, auto-disables after the batch). Reconstruct vs answer-key shard digests. Does **not** enable `VITAFEED_PAID`. Desk (no Telegram): `POST /vita/waveproof` or `GET /vita/waveproof?live=1` with `VITA_WEBHOOK_SECRET`. Public `GET /vita/waveproof` stays SIM. Optional `WAVE_PROOF_AUTOFIRE=yes` fires once on boot.
 
+**`/wavefull`** (full 28-shard Heraclitus quote): send all 28 least-size shards on a **new VIN** (`01/28`…`28/28`) as 0-ETH self-txs when `WAVE_FULL_LIVE=yes` (default OFF). SYM rotates `VIRTUAL`/`CLANKER`/`AERO`. Reconstruct PASS only if joined calldata bodies match message sha256 **and** each LOC8 matches. Desk (no Telegram): `POST /vita/wavefull` or `GET /vita/wavefull?live=1` with `VITA_WEBHOOK_SECRET`. Optional `WAVE_FULL_AUTOFIRE=yes` fires once on boot then disables LIVE. Does **not** change `/waveproof` (still 3). Does **not** enable `VITAFEED_PAID`.
+
 ---
 
 ## What Makes It Different

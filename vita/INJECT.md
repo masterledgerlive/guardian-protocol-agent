@@ -173,6 +173,58 @@ live stays 401. Public GET stays SIM.
 Live reconstruct: fetch calldata by hash → join 3 bodies → match answer-key
 shard digests 1–3. PASS/FAIL + Basescan links + VIN.
 
+### Full-quote WAVE inject (`/wavefull`) — 28 shards
+
+Gated path that finishes the **entire** Heraclitus answer key as 0-ETH
+gas-only self-txs. **New VIN** (`01/28`…`28/28`) — do not pretend the
+thrift `01/03` VIN is 28. SYM rotates `VIRTUAL` / `CLANKER` / `AERO`
+(same liquid majors as `/waveproof`). Last shard is 1 B. Does **not**
+turn `VITAFEED_PAID` or `WAVE_MIRROR_PAID` on. `/waveproof` stays
+capped at exactly 3.
+
+| Env | Default | Meaning |
+|---|---|---|
+| `WAVE_FULL_LIVE` | **OFF** | Must be `yes`/`true`/`1` to send. Auto-disables after the batch. |
+| `WAVE_FULL_AUTOFIRE` | **OFF** | One-shot boot fire when live is on. Clears itself; live latch still fires. |
+| `WAVE_FULL_MIN_LIQUID_USD` | **1** | Refuse live if RISK liquid USD is below floor. Reuses `WAVE_PROOF_MIN_LIQUID_USD` then `VITAFEED_MIN_LIQUID_USD` if unset. |
+
+Desk (no Telegram):
+
+```bash
+# After Online + WAVE_FULL_LIVE=yes
+# Secret is VITA_WEBHOOK_SECRET (never the Telegram bot token; vault never)
+
+curl -sS -X POST "https://<host>/vita/wavefull" \
+  -H "x-vita-webhook-secret: $VITA_WEBHOOK_SECRET" \
+  -H "content-type: application/json" \
+  -d '{}'
+```
+
+Equivalent GET: `GET /vita/wavefull?live=1` with `x-vita-secret`. Unauthed
+live is 401. Public `GET /vita/wavefull` stays SIM.
+
+Optional one-shot on next deploy (then disable):
+
+```
+WAVE_FULL_LIVE=yes
+WAVE_FULL_AUTOFIRE=yes
+```
+
+**Public reconstruct:** given VIN + the 28 Basescan hashes, fetch calldata
+UTF-8, strip `[W:v1:SYM|VIN|ii/28|prev=|next=|KEY8|LOC8]`, join bodies.
+PASS only if `sha256(joined) == fde449b7…b08f` **and** each header `LOC8`
+equals `sha256(shard body)[:8]` from `vita/memory/wave-heraclitus-key.json`.
+`KEY8=fde449b7` is the message fingerprint. VIN headers are not part of
+the answer. Never invent hashes.
+
+### Hitch continues learning after the quote
+
+Sell leftover hitch still calls `attachWaveOnCoveredLeftover` (via
+`hitchWaveOnSellLeftover`) for remaining banked WAVE / learn shards when
+leftover covers a paired PLUS sell (LOSE-ZERO). Cursor walks the same
+28-shard Heraclitus plan. Uncovered leftover banks; never solo-send.
+`WAVE_MIRROR_PAID` stays default off.
+
 
 ## What this is not
 

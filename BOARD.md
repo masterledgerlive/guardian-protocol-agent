@@ -107,7 +107,10 @@ Capped 3-token live proof: desk `POST /vita/waveproof` or `GET ?live=1`
 (auth `VITA_WEBHOOK_SECRET` via `x-vita-secret` / `x-vita-webhook-secret`)
 when `WAVE_PROOF_LIVE=yes` (default OFF), Telegram `/waveproof`, or public
 `GET /vita/waveproof` (SIM). Optional `WAVE_PROOF_AUTOFIRE=yes` one-shot on
-boot. Max 3 gas-only self-txs. `VITAFEED_PAID` stays default OFF. See
+boot. Max 3 gas-only self-txs. Full 28-shard quote is a **separate** gated
+path: desk `POST /vita/wavefull` / `GET ?live=1` when `WAVE_FULL_LIVE=yes`
+(optional `WAVE_FULL_AUTOFIRE=yes`). New VIN, SYM rotate, reconstruct
+sha256+LOC8. `VITAFEED_PAID` stays default OFF. See
 [`vita/INJECT.md`](./vita/INJECT.md).
 
 On a **~$3 liquid bag**, LOSE-ZERO hitch rate is labeled on the board
