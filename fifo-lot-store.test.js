@@ -17,6 +17,7 @@ import {
   DRB_TROUGH_BUY_TX,
   EVIDENCE_ADDON_BUY_TXS,
   CLANKER_ADDON_BUY_TX,
+  EVIDENCE_SELL_TXS,
   FIFO_LOTS_FILENAME,
   normalizeTxHash,
   isUsableLot,
@@ -47,6 +48,7 @@ import {
   lotHasBuyTx,
   lotHasAnyBuyTx,
   shouldLatchBuyReceipt,
+  isSeededAddonBuyTx,
   isEvidenceSiblingBuyTx,
   mergeBuyReceiptIntoLots,
   knownLotSellTokens,
@@ -213,9 +215,7 @@ const CLANKER_TOK1_WEI = 176300625186131008n;
 /** Live CLANKER buy 0xcb7dd5a6 — WETH from wallet (nonce 6010). */
 const CLANKER_ETH2_WEI = 520483887364034n;
 const CLANKER_TOK2_WEI = 112885574807334430n;
-const CLANKER_HASH1 = Array.isArray(EVIDENCE_BUY_TXS.CLANKER)
-  ? EVIDENCE_BUY_TXS.CLANKER[0]
-  : EVIDENCE_BUY_TXS.CLANKER;
+const CLANKER_HASH1 = EVIDENCE_BUY_TXS.CLANKER;
 const CLANKER_HASH2 = CLANKER_ADDON_BUY_TX;
 
 function clankerReceipt(which = 1, { nativeEth = false } = {}) {
@@ -277,17 +277,18 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
       "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
     );
     assert.equal(
-      CLANKER_HASH1,
+      EVIDENCE_BUY_TXS.CLANKER,
       "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
     );
+    assert.equal(typeof EVIDENCE_BUY_TXS.CLANKER, "string", "CLANKER parent is a string like DRB/VIRTUAL");
     assert.equal(
-      CLANKER_HASH2,
+      EVIDENCE_ADDON_BUY_TXS.CLANKER,
       "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
     );
-    assert.ok(Array.isArray(EVIDENCE_BUY_TXS.CLANKER));
-    assert.ok(EVIDENCE_BUY_TXS.CLANKER.includes(CLANKER_HASH1));
-    assert.ok(EVIDENCE_BUY_TXS.CLANKER.includes(CLANKER_HASH2));
     assert.equal(EVIDENCE_ADDON_BUY_TXS.CLANKER, CLANKER_ADDON_BUY_TX);
+    assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2), true);
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), false, "second fill is addon not array sibling");
+    assert.equal(EVIDENCE_SELL_TXS.VIRTUAL, undefined, "VIRTUAL sell is auto-append, not hardcoded invent");
     assert.equal(DRB_TROUGH_BUY_TX.startsWith("0x53a00788"), true);
     assert.equal(EVIDENCE_ADDON_BUY_TXS.DRB, DRB_TROUGH_BUY_TX);
     assert.equal(normalizeTxHash(DRB_TROUGH_BUY_TX), DRB_TROUGH_BUY_TX);
@@ -534,6 +535,67 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.ok(hashes.VIRTUAL.includes(EVIDENCE_BUY_TXS.VIRTUAL), "VIRTUAL fill-book hash must seed rebuild");
     assert.ok(hashes.CLANKER.includes(CLANKER_HASH1), "CLANKER first fill must seed rebuild");
     assert.ok(hashes.CLANKER.includes(CLANKER_HASH2), "CLANKER add-on fill must seed rebuild");
+    const sealedVirtualSell = "0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8";
+    const sells = collectRebuildSellTxs({
+      ledgerTrades: [{ type: "SELL", symbol: "VIRTUAL", tx: sealedVirtualSell }],
+    });
+    assert.ok(sells.VIRTUAL.includes(sealedVirtualSell), "VIRTUAL 0x88105ec1 auto-appends from fills/ledger");
+    assert.equal(EVIDENCE_SELL_TXS.VIRTUAL, undefined);
+  });
+
+  it("LOT_REBUILD_TXS / ledger hashes merge CLANKER add-on without waiting on desk book", () => {
+    const env = {
+      LOT_REBUILD_TXS: `CLANKER:${CLANKER_HASH1},CLANKER:${CLANKER_HASH2}`,
+    };
+    const hashes = collectRebuildTxs({
+      persistedLots: {},
+      env,
+      evidence: {},
+      extras: {},
+      ledgerTrades: [
+        { type: "BUY", symbol: "CLANKER", tx: CLANKER_HASH1 },
+        { type: "BUY", symbol: "CLANKER", tx: CLANKER_HASH2 },
+      ],
+    });
+    assert.ok(hashes.CLANKER.includes(CLANKER_HASH1));
+    assert.ok(hashes.CLANKER.includes(CLANKER_HASH2));
+    const first = lotFromBuyReceipt({
+      symbol: "CLANKER",
+      tokenAddress: CLANKER,
+      wallet: WALLET,
+      txHash: CLANKER_HASH1,
+      receipt: clankerReceipt(1).receipt,
+      tx: clankerReceipt(1).tx,
+    });
+    const lots = {};
+    mergeBuyReceiptIntoLots(lots, first, {
+      remainingTokens: Number(CLANKER_TOK1_WEI + CLANKER_TOK2_WEI) / 1e18,
+      evidence: {},
+      extras: {},
+      rebuildHashes: hashes.CLANKER,
+    });
+    const second = lotFromBuyReceipt({
+      symbol: "CLANKER",
+      tokenAddress: CLANKER,
+      wallet: WALLET,
+      txHash: CLANKER_HASH2,
+      receipt: clankerReceipt(2).receipt,
+      tx: clankerReceipt(2).tx,
+    });
+    mergeBuyReceiptIntoLots(lots, second, {
+      remainingTokens: Number(CLANKER_TOK1_WEI + CLANKER_TOK2_WEI) / 1e18,
+      evidence: {},
+      extras: {},
+      rebuildHashes: hashes.CLANKER,
+    });
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH1), true);
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH2), true, "env/ledger second fill must merge");
+    const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.CLANKER, {
+      remainingTokens: Number(CLANKER_TOK1_WEI + CLANKER_TOK2_WEI) / 1e18,
+    });
+    assert.equal(fifo.unknown, false);
+    assert.ok(token.totalInvestedEth > 0);
   });
 
   it("receipt with only one leg is not a lot (no invented cost)", () => {
@@ -1327,6 +1389,50 @@ describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 
     assert.equal(lotAppliedOk(known, fifo), true);
   });
 
+  it("usable first-slice refuses add-on unless seeded addon / sibling / rebuildHashes", () => {
+    const first = parseClanker(1);
+    const lots = {};
+    const parentOnly = { CLANKER: CLANKER_HASH1 };
+    mergeBuyReceiptIntoLots(lots, first, {
+      remainingTokens: LIVE_REMAIN,
+      evidence: parentOnly,
+      extras: {},
+      rebuildHashes: [],
+    });
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH1), true);
+    assert.ok(LIVE_REMAIN > lots.CLANKER.tokensIn * 1.02, "remain vs first-slice trips unknown-lots");
+    const second = parseClanker(2);
+    mergeBuyReceiptIntoLots(lots, second, {
+      remainingTokens: LIVE_REMAIN,
+      evidence: parentOnly,
+      extras: {},
+      rebuildHashes: [],
+    });
+    assert.equal(
+      lotHasBuyTx(lots.CLANKER, CLANKER_HASH2),
+      false,
+      "LOT_REBUILD_TXS env-only cannot merge — remain>bought*1.02 is unreachable on a usable first lot",
+    );
+    assert.equal(
+      shouldLatchBuyReceipt(lots.CLANKER, CLANKER_HASH2, {
+        remainingTokens: LIVE_REMAIN,
+        evidence: parentOnly,
+        extras: {},
+        rebuildHashes: [],
+      }),
+      false,
+    );
+    mergeBuyReceiptIntoLots(lots, second, {
+      remainingTokens: LIVE_REMAIN,
+      evidence: parentOnly,
+      extras: { CLANKER: CLANKER_HASH2 },
+    });
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH2), true, "EVIDENCE_ADDON_BUY_TXS.CLANKER merges like DRB trough");
+    const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.CLANKER, { remainingTokens: LIVE_REMAIN });
+    assert.equal(fifo.unknown, false);
+  });
+
   it("empty persist + both evidence hashes → known entrySold so always-plus can green", () => {
     assert.equal(
       shouldLatchBuyReceipt(undefined, CLANKER_HASH1, { remainingTokens: LIVE_REMAIN }),
@@ -1338,7 +1444,8 @@ describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 
       false,
       "already latched add-on must not double-merge",
     );
-    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), true);
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), false);
+    assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2), true, "second hash merges as DRB-class addon");
     assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH1), false);
 
     const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
@@ -1419,6 +1526,13 @@ describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 
     const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
     const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 9000);
     assert.ok(sellBody.includes("tryRebuildLotFromReceipts"));
+    const remainIdx = sellBody.indexOf("seededRebuildRemaining");
+    const applyIdx = sellBody.indexOf("applyLotToToken");
+    assert.ok(remainIdx >= 0 && applyIdx > remainIdx, "executeSell must rebuild evidence/add-on before apply/entrySold");
+    assert.ok(src.includes("ledgerRebuildTrades"), "desk ledger hashes must seed collectRebuildTxs");
+    assert.ok(src.includes("EVIDENCE_ADDON_BUY_TXS"), "CLANKER add-on extras must be passed");
+    assert.ok(src.includes("EVIDENCE_SELL_TXS"), "VIRTUAL 0x88105ec1 sell auto-appends via sell rebuild");
+    assert.ok(src.includes("rebuildHashes"), "env/ledger extra hashes merge like DRB trough");
     assert.ok(sellBody.includes("knownLotSellTokens"));
     assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "#119 WAVE hitch stays");
     assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=/.test(src), "CLANKER latch is not the lossy sell path");

@@ -22,15 +22,29 @@ First slice alone vs ~0.289 rem is unknown-lots (DRB trough class). Live
 wallet rem matches the merged lot — no pre-buy dust. Amounts from receipts
 only; do not invent P&L.
 
-- `EVIDENCE_BUY_TXS.CLANKER` = both hashes (array). Add-on
-  `EVIDENCE_ADDON_BUY_TXS.CLANKER` = second hash. Evidence siblings auto-append
-  onto the first lot like DRB trough.
+- Durable seed is DRB-class parent + add-on (not an array):
+  `EVIDENCE_BUY_TXS.CLANKER` = `0x23d8a0c5…` (nonce 6009) and
+  `EVIDENCE_ADDON_BUY_TXS.CLANKER` = `0xcb7dd5a6…` (nonce 6010). After the
+  first slice latches, `shouldLatchBuyReceipt` refuses a second hash unless
+  `isSeededAddonBuyTx` / evidence sibling / `rebuildHashes` — the
+  remain>bought×1.02 branch is unreachable on a usable first lot. That is why
+  env-only `LOT_REBUILD_TXS` on live Railway latched VIRTUAL and left CLANKER
+  `entrySold=0`.
+- Cycle `processToken` and `executeSell` rebuild from evidence **before**
+  the unknown stamp / `entrySold`, even when a first-slice lot is already
+  usable. After Online, CLANKER is known-cost so always-plus can arm when
+  Quoter is green.
 - Deposit / router-out parser (VIRTUAL class) still counts native ETH if the
   wallet-WETH + `tx.value` legs are empty. Live fills are wallet-WETH.
 - Dust piggy stays separate if extra vs `tokensIn` appears; live rem has none.
 - `HOURLY_BALANCE_CATALOG.CLANKER` so hourly /bag polls the rem bag.
-- Cycle + `executeSell` already rebuild from evidence hashes before unknown
-  stamp / `entrySold`.
+- Desk book / ledger fills alone do **not** latch Railway (`fifo-lots.json`
+  is missing on `bot-state`). Ledger + `LOT_REBUILD_TXS=CLANKER:0x23d8…,CLANKER:0xcb7d…`
+  can merge via `rebuildHashes` as interim; the code seed is durable.
+- VIRTUAL sealed sell
+  `0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8`
+  auto-appends from persist/ledger receipt rebuild. Do not hardcode-invent
+  amounts or a guessed hash in `EVIDENCE_SELL_TXS`.
 
 ### Fixed — FIFO rem after partial VIRTUAL sell + green=sendable
 
