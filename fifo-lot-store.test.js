@@ -215,7 +215,9 @@ const CLANKER_TOK1_WEI = 176300625186131008n;
 /** Live CLANKER buy 0xcb7dd5a6 — WETH from wallet (nonce 6010). */
 const CLANKER_ETH2_WEI = 520483887364034n;
 const CLANKER_TOK2_WEI = 112885574807334430n;
-const CLANKER_HASH1 = EVIDENCE_BUY_TXS.CLANKER;
+const CLANKER_HASH1 = Array.isArray(EVIDENCE_BUY_TXS.CLANKER)
+  ? EVIDENCE_BUY_TXS.CLANKER[0]
+  : EVIDENCE_BUY_TXS.CLANKER;
 const CLANKER_HASH2 = CLANKER_ADDON_BUY_TX;
 
 function clankerReceipt(which = 1, { nativeEth = false } = {}) {
@@ -277,17 +279,19 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
       "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
     );
     assert.equal(
-      EVIDENCE_BUY_TXS.CLANKER,
+      CLANKER_HASH1,
       "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
     );
-    assert.equal(typeof EVIDENCE_BUY_TXS.CLANKER, "string", "CLANKER parent is a string like DRB/VIRTUAL");
+    assert.ok(Array.isArray(EVIDENCE_BUY_TXS.CLANKER), "CLANKER evidence is both hashes so sibling latch fires");
+    assert.ok(EVIDENCE_BUY_TXS.CLANKER.includes(CLANKER_HASH1));
+    assert.ok(EVIDENCE_BUY_TXS.CLANKER.includes(CLANKER_HASH2));
     assert.equal(
       EVIDENCE_ADDON_BUY_TXS.CLANKER,
       "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
     );
     assert.equal(EVIDENCE_ADDON_BUY_TXS.CLANKER, CLANKER_ADDON_BUY_TX);
     assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2), true);
-    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), false, "second fill is addon not array sibling");
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), true, "second fill is evidence sibling");
     assert.equal(EVIDENCE_SELL_TXS.VIRTUAL, undefined, "VIRTUAL sell is auto-append, not hardcoded invent");
     assert.equal(DRB_TROUGH_BUY_TX.startsWith("0x53a00788"), true);
     assert.equal(EVIDENCE_ADDON_BUY_TXS.DRB, DRB_TROUGH_BUY_TX);
@@ -1433,6 +1437,35 @@ describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 
     assert.equal(fifo.unknown, false);
   });
 
+  it("evidence array sibling latches second hash even with empty extras", () => {
+    const first = parseClanker(1);
+    const lots = {};
+    const evidence = { CLANKER: [CLANKER_HASH1, CLANKER_HASH2] };
+    mergeBuyReceiptIntoLots(lots, first, {
+      remainingTokens: LIVE_REMAIN,
+      evidence,
+      extras: {},
+    });
+    const second = parseClanker(2);
+    mergeBuyReceiptIntoLots(lots, second, {
+      remainingTokens: LIVE_REMAIN,
+      evidence,
+      extras: {},
+    });
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2, evidence), true);
+    assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2, {}), false);
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH1), true);
+    assert.equal(
+      lotHasBuyTx(lots.CLANKER, CLANKER_HASH2),
+      true,
+      "array sibling merges without addon extras — env-only cannot",
+    );
+    const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.CLANKER, { remainingTokens: LIVE_REMAIN });
+    assert.equal(fifo.unknown, false);
+    assert.ok(token.totalInvestedEth > 0);
+  });
+
   it("empty persist + both evidence hashes → known entrySold so always-plus can green", () => {
     assert.equal(
       shouldLatchBuyReceipt(undefined, CLANKER_HASH1, { remainingTokens: LIVE_REMAIN }),
@@ -1444,8 +1477,8 @@ describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 
       false,
       "already latched add-on must not double-merge",
     );
-    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), false);
-    assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2), true, "second hash merges as DRB-class addon");
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), true, "array sibling latch");
+    assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2), true, "add-on extras also merge");
     assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH1), false);
 
     const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };

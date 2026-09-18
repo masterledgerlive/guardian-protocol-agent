@@ -22,14 +22,15 @@ First slice alone vs ~0.289 rem is unknown-lots (DRB trough class). Live
 wallet rem matches the merged lot — no pre-buy dust. Amounts from receipts
 only; do not invent P&L.
 
-- Durable seed is DRB-class parent + add-on (not an array):
-  `EVIDENCE_BUY_TXS.CLANKER` = `0x23d8a0c5…` (nonce 6009) and
-  `EVIDENCE_ADDON_BUY_TXS.CLANKER` = `0xcb7dd5a6…` (nonce 6010). After the
-  first slice latches, `shouldLatchBuyReceipt` refuses a second hash unless
-  `isSeededAddonBuyTx` / evidence sibling / `rebuildHashes` — the
-  remain>bought×1.02 branch is unreachable on a usable first lot. That is why
-  env-only `LOT_REBUILD_TXS` on live Railway latched VIRTUAL and left CLANKER
-  `entrySold=0`.
+- Durable seed is **array + add-on** (both paths, because env-only two hashes
+  cannot merge): `EVIDENCE_BUY_TXS.CLANKER` = `[0x23d8a0c5…, 0xcb7dd5a6…]`
+  so `isEvidenceSiblingBuyTx` latches the second fill, and
+  `EVIDENCE_ADDON_BUY_TXS.CLANKER` = `0xcb7dd5a6…` so `isSeededAddonBuyTx`
+  also merges like DRB trough. After the first slice latches,
+  `shouldLatchBuyReceipt` refuses a second hash unless addon / sibling /
+  `rebuildHashes` — the remain>bought×1.02 branch is unreachable on a usable
+  first lot. That is why env-only `LOT_REBUILD_TXS` on live Railway latched
+  VIRTUAL and left CLANKER `entrySold=0` / HOLD unknown cost.
 - Cycle `processToken` and `executeSell` rebuild from evidence **before**
   the unknown stamp / `entrySold`, even when a first-slice lot is already
   usable. After Online, CLANKER is known-cost so always-plus can arm when

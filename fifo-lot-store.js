@@ -37,10 +37,16 @@ export const EVIDENCE_BUY_TXS = Object.freeze({
   // Risk-desk VIRTUAL buy on Base. Size is on the receipt (~1.642 VIRTUAL /
   // 0.000407 ETH) — do not invent P&L here; rebuild from the hash.
   VIRTUAL: "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
-  // Risk-desk CLANKER parent fill (nonce 6009). WETH from wallet → CLANKER
-  // via SwapRouter02. Size on the receipt (~0.17630 CLANKER) — do not invent.
-  // Second fill is EVIDENCE_ADDON_BUY_TXS.CLANKER (DRB trough merge).
-  CLANKER: "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
+  // Risk-desk CLANKER buys on Base (nonce 6009 then 6010). WETH from wallet
+  // → CLANKER via SwapRouter02. Sizes on the receipts (~0.17630 + ~0.11289).
+  // First fill alone vs rem ~0.289 is unknown-lots. Array sibling +
+  // EVIDENCE_ADDON_BUY_TXS.CLANKER both merge the second hash — env-only
+  // LOT_REBUILD_TXS cannot (remain>bought*1.02 is unreachable on a usable
+  // first lot). Do not invent P&L; rebuild from the hashes.
+  CLANKER: Object.freeze([
+    "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
+    "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
+  ]),
 });
 
 /**
@@ -677,7 +683,7 @@ export function isSeededAddonBuyTx(symbol, hash, extras = EVIDENCE_ADDON_BUY_TXS
   return !!h && evidenceHashForSymbol(extras, symbol).includes(h);
 }
 
-/** Later hashes in EVIDENCE_BUY_TXS arrays merge like extras (DRB-class sibling). */
+/** Later hashes in EVIDENCE_BUY_TXS arrays (CLANKER 0xcb7dd5a6) merge like extras. */
 export function isEvidenceSiblingBuyTx(symbol, hash, evidence = EVIDENCE_BUY_TXS) {
   const h = normalizeTxHash(hash);
   const hashes = evidenceHashForSymbol(evidence, symbol);

@@ -6736,9 +6736,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     // Latch FIFO from persist / evidence buy receipts before entrySold.
     // Desk book / ledger fills alone do not seed Railway (no fifo-lots.json on
-    // bot-state). CLANKER parent 0x23d8a0c5 + add-on 0xcb7dd5a6 (DRB trough)
-    // and VIRTUAL rebuild even when a first-slice lot is already usable —
+    // bot-state). CLANKER array 0x23d8a0c5+0xcb7dd5a6 + add-on sibling (and
+    // VIRTUAL) rebuild even when a first-slice lot is already usable —
     // otherwise rem ~0.289 vs first 0.176 stays unknown-lots / entrySold=0.
+    // LOT_REBUILD_TXS env-only cannot merge the second hash.
     const remain = seededRebuildRemaining(totalBal);
     if (remain != null) {
       try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
