@@ -16,6 +16,8 @@ import {
   resetWaveFullAutofireLatch,
   resetWaveFullLiveLatch,
 } from "./vita/wave-full.js";
+import { classifyWavePhase } from "./engine-board.js";
+import { classifySellArmedDisplay } from "./sell-armed-display.js";
 
 let server;
 let base;
@@ -52,6 +54,7 @@ describe("control board HTTP", () => {
     assert.match(text, /Bot usage piggy/);
     assert.match(text, /\$20\/mo/);
     assert.match(text, /Queue buy ~\$2/);
+    assert.match(text, /w\.phase\?\.label \|\| w\.phase\?\.phase/);
     assert.doesNotMatch(text, /encode V4/);
   });
 
@@ -65,6 +68,8 @@ describe("control board HTTP", () => {
     const engine = await get("/engine");
     assert.equal(engine.res.status, 200);
     assert.match(engine.text, /Guardian Engine/);
+    assert.match(engine.text, /phase\.PEAK\.hold/);
+    assert.match(engine.text, /holdCode/);
     const v4 = await get("/v4");
     assert.equal(v4.res.status, 200);
     assert.match(v4.text, /SEPARATE PROCESS/);
@@ -201,6 +206,56 @@ describe("control board HTTP", () => {
     assert.equal(json.vitaRouter.kind, "vita-secondary-router");
     assert.ok(Array.isArray(json.engine.waves[0].series));
     assert.ok(json.engine.waves[0].series.length >= 8);
+  });
+
+  it("live /engine snapshot paints HOLD FIFO_RED not green SELLING", async () => {
+    const prevSecret = process.env.VITA_WEBHOOK_SECRET;
+    process.env.VITA_WEBHOOK_SECRET = "desk-test-secret";
+    const hold = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "HOLD",
+      allow: false,
+      reason: "LOSE_ZERO: hold sell VIRTUAL leftover after fees ≤ 0 — FIFO red",
+    });
+    const phase = classifyWavePhase({
+      price: 11.6,
+      entry: 10,
+      rideHigh: 12,
+      holding: true,
+      sellArmed: hold,
+    });
+    injectBotState({
+      getEngineSnapshot: () => ({
+        ok: true,
+        demo: false,
+        waves: [{
+          symbol: "VIRTUAL",
+          holding: true,
+          price: 11.6,
+          series: [10, 11, 12, 11.6],
+          phase,
+          sellArmed: hold,
+        }],
+      }),
+    });
+    try {
+      const res = await fetch(base + "/engine/api/snapshot", {
+        headers: { "x-vita-secret": "desk-test-secret" },
+      });
+      const json = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(json.demo, false);
+      assert.equal(json.waves[0].symbol, "VIRTUAL");
+      assert.equal(json.waves[0].phase.label, "HOLD FIFO_RED");
+      assert.equal(json.waves[0].phase.armed, false);
+      assert.equal(json.waves[0].sellArmed.green, false);
+      assert.notEqual(json.waves[0].phase.label, "SELLING");
+    } finally {
+      injectBotState(null);
+      if (prevSecret == null) delete process.env.VITA_WEBHOOK_SECRET;
+      else process.env.VITA_WEBHOOK_SECRET = prevSecret;
+    }
   });
 
   it("POST /board/api/sim rejects oversized bodies", async () => {

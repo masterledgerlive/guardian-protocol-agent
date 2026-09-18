@@ -629,6 +629,13 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("bankSkipHitchLearnShard"), "SKIP_HITCH banks learn shard");
     assert.ok(src.includes("allowPartial: true"), "thrift partial unwrap");
     assert.ok(src.includes("OPERATOR_UNWRAP"), "desk unwrap latch");
+    assert.ok(src.includes("autoUnwrapTowardCascadeFloor"), "auto gate uses thrift unwrap");
+    const snapFn = src.indexOf("function buildEngineWaveRows");
+    assert.ok(snapFn >= 0, "live /engine snapshot builder");
+    const snapBody = src.slice(snapFn, src.indexOf("injectBotState", snapFn));
+    assert.ok(snapBody.includes("classifySellArmedDisplay"), "snapshot recomputes green=sendable");
+    assert.ok(snapBody.includes("sellArmed"), "snapshot passes sellArmed into classifyWavePhase");
+    assert.ok(snapBody.includes("lastQuoterExecutable"), "snapshot uses last Quoter flag");
     assert.ok(!src.includes("from \"./guardian-v4/agent.js\""), "must not merge V4 into agent.js");
   });
 });
@@ -1239,10 +1246,20 @@ describe("fifo-lot-store — partial VIRTUAL sell rem cost + dust piggy", () => 
     const green = plusGate({
       symbol: "VIRTUAL",
       entryEth: token.totalInvestedEth,
-      proceeds: token.totalInvestedEth + 9.60e-6,
+      proceeds: token.totalInvestedEth * 2,
     });
     assert.equal(green.allow, true, "always-plus greens rem lot when quote is plus");
-    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+    assert.equal(green.verdict, "PLUS", "fat green quote must be PLUS not SKIP_HITCH");
+    const selling = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: green.verdict,
+      allow: green.allow,
+      unknownEntry: token.unknownEntry,
+      reason: green.log || green.reason || "",
+    });
+    assert.equal(selling.green, true);
+    assert.equal(selling.label, "SELLING");
 
     const red = plusGate({
       symbol: "VIRTUAL",
@@ -1365,6 +1382,12 @@ describe("fifo-lot-store — partial VIRTUAL sell rem cost + dust piggy", () => 
     });
     assert.equal(thin.code, "THIN_LIQUID");
     assert.equal(thin.green, false);
+
+    const engineHtml = readFileSync(join(root, "public/engine.html"), "utf8");
+    assert.ok(engineHtml.includes("phase.PEAK.hold"), "engine UI paints HOLD not armed SELLING");
+    assert.ok(engineHtml.includes("holdCode"), "engine snapshot dump keeps holdCode");
+    const boardHtml = readFileSync(join(root, "public/board.html"), "utf8");
+    assert.ok(boardHtml.includes("w.phase?.label || w.phase?.phase"), "hub board prefers HOLD label over PEAK");
   });
 
   it("SKIP_HITCH uncovered leftover banks learn shard and does not unpaired burn", () => {

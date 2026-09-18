@@ -223,9 +223,9 @@ export function cascadeGasFloorEth({
   const abs = Math.max(0, Number(absoluteFloorEth) || 0);
   const raw = base + moves * per;
   const cap = abs > 0 ? abs : CASCADE_GAS_FLOOR_ETH;
-  // Documented default 0.001 caps reserve+3×0.00025 (0.00125) so a ~$2
+  // Cap reserve+3×0.00025 (0.00125) at documented 0.001 so a ~$2
   // full unwrap (~0.000904) can still feed thrift micro-cascade.
-  return Math.max(THRIFT_CASCADE_GAS_FLOOR_ETH, Math.min(cap, Math.max(raw, cap)));
+  return Math.max(THRIFT_CASCADE_GAS_FLOOR_ETH, Math.min(raw, cap));
 }
 
 /**
@@ -295,6 +295,51 @@ export function parseOperatorUnwrapEnv(raw) {
 
 export function isOperatorUnwrapArmed(env = process.env) {
   return parseOperatorUnwrapEnv(env?.OPERATOR_UNWRAP).armed === true;
+}
+
+/**
+ * Cycle-start auto unwrap — thrift partial toward the cascade floor.
+ * Does **not** require WETH > 0.003 or a full gap (those gates stalled
+ * ETH~0.000904 / ~$2 liquid). Unwrap is not a red sell (always-plus/safe).
+ */
+export function autoUnwrapTowardCascadeFloor({
+  nativeEth = 0,
+  weth = 0,
+  gasReserveEth = 0.0005,
+  allowPartial = true,
+  operatorUnlock = false,
+  minPartialEth = MIN_PARTIAL_UNWRAP_ETH,
+} = {}) {
+  const native = Math.max(0, Number(nativeEth) || 0);
+  const w = Math.max(0, Number(weth) || 0);
+  const floor = effectiveCascadeGasFloor(native + w, { gasReserveEth });
+  return unwrapForCascadeGas({
+    nativeEth: native,
+    weth: w,
+    floorEth: floor,
+    keepWethMin: 0,
+    allowPartial,
+    operatorUnlock,
+    minPartialEth,
+  });
+}
+
+/** After a best-effort unwrap, native ETH can fund the next move. */
+export function cascadeNativeGasOk({
+  nativeEth = 0,
+  floorEth = CASCADE_GAS_FLOOR_ETH,
+  gasReserveEth = 0.0005,
+  thriftFloorEth = THRIFT_CASCADE_GAS_FLOOR_ETH,
+  didPartialUnwrap = false,
+} = {}) {
+  const native = Math.max(0, Number(nativeEth) || 0);
+  const floor = Math.max(0, Number(floorEth) || 0);
+  const reserve = Math.max(0, Number(gasReserveEth) || 0);
+  const thrift = Math.max(0, Number(thriftFloorEth) || 0);
+  if (native + 1e-12 >= Math.min(floor, reserve)) return true;
+  if (native + 1e-12 >= floor) return true;
+  if (didPartialUnwrap && native + 1e-12 >= Math.min(thrift, reserve)) return true;
+  return false;
 }
 
 /**

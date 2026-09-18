@@ -22,12 +22,15 @@ import {
   cascadeGasFloorEth,
   effectiveCascadeGasFloor,
   unwrapForCascadeGas,
+  autoUnwrapTowardCascadeFloor,
+  cascadeNativeGasOk,
   maxCascadeDeployWithoutDepletion,
   injectProveStatus,
   INJECT_ALL_USD,
   CASCADE_SEED_USD,
   FULL_SELL_RESERVE_ETH,
   CASCADE_GAS_FLOOR_ETH,
+  THRIFT_CASCADE_GAS_FLOOR_ETH,
   INJECT_PROVE_TARGET,
   parseOperatorUnwrapEnv,
   isOperatorUnwrapArmed,
@@ -202,6 +205,7 @@ describe("cascade-rollover: gas floor + unwrap", () => {
     });
     assert.equal(CASCADE_GAS_FLOOR_ETH, 0.001);
     assert.ok(f <= CASCADE_GAS_FLOOR_ETH + 1e-12, "must not stall at 0.00125");
+    assert.equal(f, 0.001, "documented default is 0.001 not 0.00125");
     assert.ok(f >= 0.0005 - 1e-12);
   });
 
@@ -242,6 +246,43 @@ describe("cascade-rollover: gas floor + unwrap", () => {
     });
     assert.ok(towardThrift > 0);
     assert.ok(towardThrift <= 0.000904 + 1e-12);
+  });
+
+  it("~$2 liquid (ETH~0.000904) thrift-unwraps without WETH>0.003 and can run cascade", () => {
+    const FULL_UNWRAP_ETH = 0.000904;
+    const OLD_WETH_GATE = 0.003;
+    const OLD_FLOOR = 0.00125;
+    assert.ok(FULL_UNWRAP_ETH < OLD_FLOOR, "risk desk: still under 0.00125");
+    assert.ok(FULL_UNWRAP_ETH < OLD_WETH_GATE, "old auto gate would refuse");
+    const twoDollarUsd = FULL_UNWRAP_ETH * 2212;
+    assert.ok(twoDollarUsd > 1.8 && twoDollarUsd < 2.2, `~$2 liquid got ${twoDollarUsd}`);
+
+    const floor = effectiveCascadeGasFloor(FULL_UNWRAP_ETH, { gasReserveEth: 0.0005 });
+    assert.ok(floor <= CASCADE_GAS_FLOOR_ETH + 1e-12);
+    assert.ok(floor <= THRIFT_CASCADE_GAS_FLOOR_ETH + 1e-12);
+
+    const autoAmt = autoUnwrapTowardCascadeFloor({
+      nativeEth: 0,
+      weth: FULL_UNWRAP_ETH,
+      gasReserveEth: 0.0005,
+      allowPartial: true,
+    });
+    assert.ok(autoAmt > 0, "must unwrap parked WETH toward floor");
+    assert.ok(autoAmt <= FULL_UNWRAP_ETH + 1e-12);
+    assert.equal(
+      cascadeNativeGasOk({
+        nativeEth: autoAmt,
+        floorEth: floor,
+        gasReserveEth: 0.0005,
+        didPartialUnwrap: true,
+      }),
+      true,
+      "0.000904 native clears thrift floor — no vault top-up",
+    );
+    assert.equal(
+      unwrapForCascadeGas({ nativeEth: autoAmt, weth: 0, floorEth: floor }),
+      0,
+    );
   });
 
   it("OPERATOR_UNWRAP latch parses desk one-shot", () => {
@@ -369,9 +410,11 @@ describe("cascade-rollover: wired into agent.js", () => {
     assert.ok(agentSrc.includes("cascadeDeployEth"));
     assert.ok(agentSrc.includes("liquidBalanceStatus"));
     assert.ok(agentSrc.includes("effectiveCascadeGasFloor"));
-    assert.ok(agentSrc.includes("unwrapForCascadeGas"));
+    assert.ok(agentSrc.includes("autoUnwrapTowardCascadeFloor"));
+    assert.ok(agentSrc.includes("cascadeNativeGasOk"));
     assert.ok(agentSrc.includes("OPERATOR_UNWRAP"));
     assert.ok(agentSrc.includes("allowPartial: true"));
+    assert.ok(!/bal\.weth > GAS_TOPUP_TARGET/.test(agentSrc), "auto gate must not require WETH>0.003");
     assert.ok(agentSrc.includes("injectProveStatus"));
     assert.ok(agentSrc.includes("microSpendableEth"));
     assert.ok(agentSrc.includes("resolveMinEntryForBook"));
