@@ -184,9 +184,14 @@ capped at exactly 3.
 
 | Env | Default | Meaning |
 |---|---|---|
-| `WAVE_FULL_LIVE` | **OFF** | Must be `yes`/`true`/`1` to send. Auto-disables after the batch. |
-| `WAVE_FULL_AUTOFIRE` | **OFF** | One-shot boot fire when live is on. Clears itself; live latch still fires. |
+| `WAVE_FULL_LIVE` | **OFF** | Must be `yes`/`true`/`1` to send. Auto-disables only after a **full** 28. Partial CDP/RPC abort leaves LIVE armed for resume. |
+| `WAVE_FULL_AUTOFIRE` | **OFF** | One-shot boot fire (always a **new VIN**). Clears itself. Does **not** resume an incomplete VIN — that is desk POST. |
 | `WAVE_FULL_MIN_LIQUID_USD` | **1** | Refuse live if RISK liquid USD is below floor. Reuses `WAVE_PROOF_MIN_LIQUID_USD` then `VITAFEED_MIN_LIQUID_USD` if unset. |
+| `WAVE_FULL_RESUME_VIN` | — | Continue this VIN (`01/28`…`28/28` same prev chain). |
+| `WAVE_FULL_RESUME_FROM` | — | 1-based start index (e.g. `6` after 5 sealed). Implied as `len(txHashes)+1` if hashes given. |
+| `WAVE_FULL_RESUME_TXS` | — | Already-sealed hashes (comma/space). Needed for reconstruct PASS. |
+| `WAVE_FULL_SEND_RETRIES` | **3** | Attempts per shard on transient CDP/RPC (`Service unavailable`, 429, 502/503/504). |
+| `WAVE_FULL_RETRY_MS` | **400** | Backoff base (ms); doubles each retry. |
 
 Desk (no Telegram):
 
@@ -203,12 +208,23 @@ curl -sS -X POST "https://<host>/vita/wavefull" \
 Equivalent GET: `GET /vita/wavefull?live=1` with `x-vita-secret`. Unauthed
 live is 401. Public `GET /vita/wavefull` stays SIM.
 
-Optional one-shot on next deploy (then disable):
+Optional one-shot on next deploy (new VIN; autofire will not resume):
 
 ```
 WAVE_FULL_LIVE=yes
 WAVE_FULL_AUTOFIRE=yes
 ```
+
+Resume an incomplete VIN (desk, not a second autofire):
+
+```bash
+curl -sS -X POST "https://<host>/vita/wavefull" \
+  -H "x-vita-webhook-secret: $VITA_WEBHOOK_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"vinId":"VIN-5785B9B4E1","fromIndex":6,"txHashes":["0x…", "0x…"]}'
+```
+
+Same VIN / prev= chain. Sends only remaining shards. LIVE stays armed until 28 seal or you turn it off. Never invent hashes.
 
 **Public reconstruct:** given VIN + the 28 Basescan hashes, fetch calldata
 UTF-8, strip `[W:v1:SYM|VIN|ii/28|prev=|next=|KEY8|LOC8]`, join bodies.

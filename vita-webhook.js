@@ -272,7 +272,14 @@ async function resolveWaveFullLiveDeps() {
   return resolveWaveProofLiveDeps();
 }
 
-async function runWaveFullHttp({ live = false, symbols = "" } = {}) {
+async function runWaveFullHttp({
+  live = false,
+  symbols = "",
+  vinId = "",
+  fromIndex = 0,
+  txHashes = [],
+  fresh = false,
+} = {}) {
   let sendTx = null;
   let fetchCalldata = null;
   let liquidUsd = null;
@@ -293,6 +300,10 @@ async function runWaveFullHttp({ live = false, symbols = "" } = {}) {
     fetchCalldata,
     liquidUsd,
     quotes,
+    vinId,
+    fromIndex,
+    sealedHashes: txHashes,
+    fresh,
   });
   return formatWaveFullHttpResult(out);
 }
@@ -607,6 +618,10 @@ async function handleVitaRequest(req, res) {
           || body.symbols
           || "",
         ),
+        vinId: String(url.searchParams.get("vinId") || url.searchParams.get("vin") || body.vinId || body.vin || ""),
+        fromIndex: url.searchParams.get("fromIndex") || url.searchParams.get("from") || body.fromIndex || body.from || 0,
+        txHashes: body.txHashes || body.hashes || url.searchParams.get("txHashes") || "",
+        fresh: body.fresh === true || String(url.searchParams.get("fresh") || body.fresh || "") === "1",
       }));
     }
 
