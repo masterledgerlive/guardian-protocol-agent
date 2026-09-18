@@ -24,13 +24,15 @@ export const MAX_TURN_HISTORY = 50;
  * Hourly / bag-report token inventory — symbol → Base ERC-20.
  * Separate from DEFAULT_TOKENS so a live bag is polled even when the
  * injector catalog is a superset (or a saved tokens.json subset).
- * VIRTUAL stays tradeable; this map does not freeze.
+ * VIRTUAL stays tradeable; this map does not freeze. CLANKER is polled so
+ * the ~0.289 rem bag is on hourly /bag even if the injector list omitted it.
  */
 export const HOURLY_BALANCE_CATALOG = Object.freeze({
   AERO: "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
   DRB: "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2",
   BNKR: "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b",
   VIRTUAL: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+  CLANKER: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb",
 });
 export const RECALL_SLEEVES = Object.freeze(Object.keys(HOURLY_BALANCE_CATALOG));
 export const TURN_RECALL_FILENAME = "turn-recall.json";

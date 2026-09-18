@@ -343,7 +343,7 @@ describe("recall payload + /bag /recall parse", () => {
     assert.match(html, /DRB: FIFO unknown/);
     assert.match(html, /BNKR:.*mark unknown/);
     assert.doesNotMatch(html, /Grok/i);
-    assert.deepEqual(RECALL_SLEEVES, ["AERO", "DRB", "BNKR", "VIRTUAL"]);
+    assert.deepEqual(RECALL_SLEEVES, ["AERO", "DRB", "BNKR", "VIRTUAL", "CLANKER"]);
   });
 
   it("persists fills + hitch events to disk without inventing dollars", () => {
@@ -599,27 +599,35 @@ describe("agent wires turn cards + /bag without weakening gates", () => {
   });
 });
 
-describe("hourly balance catalog — VIRTUAL bag inventory", () => {
+describe("hourly balance catalog — VIRTUAL + CLANKER bag inventory", () => {
   const VIRTUAL_ADDR = "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b";
+  const CLANKER_ADDR = "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb";
 
-  it("maps VIRTUAL to the Base contract and keeps it on the sleeve list", () => {
+  it("maps VIRTUAL and CLANKER to the Base contracts and keeps them on the sleeve list", () => {
     assert.equal(String(HOURLY_BALANCE_CATALOG.VIRTUAL).toLowerCase(), VIRTUAL_ADDR);
     assert.equal(catalogAddress("virtual").toLowerCase(), VIRTUAL_ADDR);
+    assert.equal(String(HOURLY_BALANCE_CATALOG.CLANKER).toLowerCase(), CLANKER_ADDR);
+    assert.equal(catalogAddress("clanker").toLowerCase(), CLANKER_ADDR);
     assert.ok(RECALL_SLEEVES.includes("VIRTUAL"));
-    assert.deepEqual([...RECALL_SLEEVES], ["AERO", "DRB", "BNKR", "VIRTUAL"]);
+    assert.ok(RECALL_SLEEVES.includes("CLANKER"));
+    assert.deepEqual([...RECALL_SLEEVES], ["AERO", "DRB", "BNKR", "VIRTUAL", "CLANKER"]);
   });
 
-  it("polls VIRTUAL even when the injector token list omitted it", () => {
+  it("polls VIRTUAL and CLANKER even when the injector token list omitted them", () => {
     const rows = hourlyBalancePollRows([
       { symbol: "AERO", address: HOURLY_BALANCE_CATALOG.AERO },
     ]);
     const virt = rows.find((r) => r.symbol === "VIRTUAL");
     assert.ok(virt, "VIRTUAL must be on the hourly poll list");
     assert.equal(String(virt.address).toLowerCase(), VIRTUAL_ADDR);
+    const clank = rows.find((r) => r.symbol === "CLANKER");
+    assert.ok(clank, "CLANKER must be on the hourly poll list");
+    assert.equal(String(clank.address).toLowerCase(), CLANKER_ADDR);
     const report = hourlyReportTokens([
       { symbol: "AERO", address: HOURLY_BALANCE_CATALOG.AERO },
     ]);
     assert.ok(report.some((t) => t.symbol === "VIRTUAL"));
+    assert.ok(report.some((t) => t.symbol === "CLANKER"));
   });
 
   it("does not duplicate VIRTUAL when DEFAULT_TOKENS already has it", () => {
@@ -630,7 +638,7 @@ describe("hourly balance catalog — VIRTUAL bag inventory", () => {
     assert.equal(rows.filter((r) => r.symbol === "VIRTUAL").length, 1);
   });
 
-  it("agent hourly/boot path unions the catalog; VIRTUAL stays tradeable", () => {
+  it("agent hourly/boot path unions the catalog; VIRTUAL and CLANKER stay tradeable", () => {
     assert.ok(body.includes("hourlyBalancePollRows(tokens)"));
     assert.ok(body.includes("hourlyReportTokens(tokens)"));
     const virt = body.indexOf('symbol: "VIRTUAL"');
@@ -639,6 +647,12 @@ describe("hourly balance catalog — VIRTUAL bag inventory", () => {
     const row = body.slice(virt, next > 0 ? next : virt + 500);
     assert.equal(row.includes("frozen: true"), false, "do not freeze VIRTUAL");
     assert.ok(row.toLowerCase().includes(VIRTUAL_ADDR));
+    const clank = body.indexOf('symbol: "CLANKER"');
+    assert.ok(clank >= 0, "CLANKER remains in DEFAULT_TOKENS");
+    const clankNext = body.indexOf("{ symbol:", clank + 1);
+    const clankRow = body.slice(clank, clankNext > 0 ? clankNext : clank + 500);
+    assert.equal(clankRow.includes("frozen: true"), false, "do not freeze CLANKER");
+    assert.ok(clankRow.toLowerCase().includes(CLANKER_ADDR));
     const refresh = body.indexOf("async function refreshTokenBalances");
     const refreshEnd = body.indexOf("\nasync function ", refresh + 1);
     const refreshBody = body.slice(refresh, refreshEnd > 0 ? refreshEnd : refresh + 800);

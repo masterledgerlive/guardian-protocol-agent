@@ -1435,10 +1435,11 @@ export function cashFlowNetEth(ethIn = 0, ethOut = 0) {
  * not trusted when lots cannot be allocated — that figure can still be
  * cash-flow leftover from a prior boot.
  *
- * Evidence-latched lots (VIRTUAL 0x33aac652 class): pre-buy dust just over
- * the 2% band is not a missing add-on. Exclude that dust from remain/bought
- * (cost = recorded tokensIn) and sell only the known lot qty. Missing lots
- * (DRB trough, remain >> tokensIn) still unknown. Do not invent P&L.
+ * Evidence-latched lots (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5 class):
+ * pre-buy dust just over the 2% band is not a missing add-on. Exclude that
+ * dust from remain/bought (cost = recorded tokensIn) and sell only the known
+ * lot qty. Missing lots (DRB trough, CLANKER first-slice vs ~0.289 rem)
+ * still unknown until the add-on merges. Do not invent P&L.
  */
 /** Default unknown-lots band: remain > tokensIn × this → missing lots. */
 export const UNKNOWN_LOTS_BAND = 1.02;
