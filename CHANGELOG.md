@@ -20,7 +20,8 @@ while peak/board still painted green SELLING. Sell hash was not auto-appended.
   invent the rest of `0x659db825…`.
 - Peak/board "SELLING" / armed green only when Quoter-executable AND
   always-plus would pass as PLUS. Otherwise HOLD + FIFO_RED / UNKNOWN_COST /
-  SKIP_HITCH / THIN_LIQUID.
+  SKIP_HITCH / THIN_LIQUID. Live `/engine` snapshot recomputes sellArmed from
+  current FIFO (not a stale green after a partial).
 - SKIP_HITCH uncovered leftover banks a learn shard — no unpaired burn.
   Hitch when leftover covers unchanged.
 - Thrift partial WETH→ETH unwrap toward cascade floor. Documented default

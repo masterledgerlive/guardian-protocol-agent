@@ -3234,6 +3234,8 @@ const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL l
 const operatorUnwrapState = { done: false, executed: false }; // OPERATOR_UNWRAP one-shot
 /** Last QuoterV2 executable flag per symbol — green SELLING only when true. */
 const lastQuoterExecutable = Object.create(null);
+/** Last peak/board armed paint per symbol — snapshot must match console HOLD codes. */
+const lastSellArmed = Object.create(null);
 /** Per-token no-loss succession streaks (wave completes with net > 0). */
 const successionTracker   = createSuccessionTracker();
 const waveState    = {};
@@ -8321,6 +8323,7 @@ async function processToken(cdp, token, bal) {
       unknownEntry: previewUnknown,
       reason: previewGate.log || previewGate.reason || "",
     });
+    lastSellArmed[token.symbol] = sellArmed;
     if (entry && sellableUsdOk && Math.random() < 0.04) {
       console.log(`  🛡️ [${token.symbol}] ${formatPeakRideDecision(peakRide)}`);
     }
@@ -14150,8 +14153,43 @@ async function main() {
         const leftoverUsd = holding && entry && price
           ? Math.max(0, ((price - entry) / entry) * 2 - feesUsdApprox)
           : 2.5;
+        const phaseHint = classifyWavePhase({
+          price, entry, rideHigh, trough, peak, predEntry, predExit, holding,
+        });
+        const peakWantsSell = phaseHint.phase === "PEAK" || phaseHint.phase === "TRICK"
+          || !!(lastSellArmed[t.symbol]?.armed || lastSellArmed[t.symbol]?.code);
+        const fifoEth = costBasisEth(t);
+        const previewEntryEth = sellEntryEthWithLotFloor(fifoEth || t.totalInvestedEth || 0, t);
+        const previewUnknown = !!t.unknownEntry || !(previewEntryEth > 0);
+        const sellable = Number(tokenBalanceCache[t.symbol]) || 0;
+        const previewMarkEth = ethUsdApprox > 0 && price > 0 ? (sellable * price) / ethUsdApprox : 0;
+        const previewGate = (peakWantsSell || previewEntryEth > 0)
+          ? buildSellGateDecision({
+              symbol: t.symbol,
+              reason: "engine snapshot",
+              sellPct: 0.98,
+              entryEth: previewEntryEth,
+              lotCostEth: freshLotCostFloor(t),
+              usdMarkProceedsEth: previewMarkEth,
+              operatorLot: !!t.operatorLot,
+              freshLot: freshLotCostFloor(t) > 0 || !!t.operatorLot,
+              projectedProceedsEth: previewMarkEth,
+              feePct: t.poolFeePct || 0.006,
+              unknownEntry: previewUnknown,
+            })
+          : { allow: false, verdict: "HOLD", reason: "no position", log: "" };
+        // Recompute from live FIFO — do not reuse a stale green lastSellArmed after a partial.
+        const sellArmed = classifySellArmedDisplay({
+          peakWantsSell,
+          quoterExecutable: lastQuoterExecutable[t.symbol] === true,
+          verdict: previewGate.verdict,
+          allow: previewGate.allow,
+          unknownEntry: previewUnknown,
+          reason: previewGate.log || previewGate.reason || "",
+        });
         const phase = classifyWavePhase({
           price, entry, rideHigh, trough, peak, predEntry, predExit, holding,
+          sellArmed,
         });
         const lights = piggyPaymentLights({
           leftoverUsd,
@@ -14187,6 +14225,7 @@ async function main() {
           holding,
           leftoverUsd,
           phase,
+          sellArmed,
           lights,
           options,
           basescanToken: `https://basescan.org/token/${t.address}?a=${WALLET_ADDRESS}`,

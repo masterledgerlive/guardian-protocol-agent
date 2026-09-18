@@ -69,6 +69,7 @@ describe("classifyWavePhase", () => {
     });
     assert.match(h.label, /HOLD FIFO_RED/);
     assert.equal(h.armed, false);
+    assert.equal(h.holdCode, "FIFO_RED");
   });
 
   it("marks trick when exiting", () => {
