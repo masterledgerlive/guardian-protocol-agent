@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-18T06:12:00.000Z",
+  "topic": "clanker-fifo-latch-evidence-buys",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. Do not use ALLOW_LOSSY_OPERATOR_SELL. #119 hitch / #120 catalog / #121 FIFO / #122 dust / #127 rem / #128 thrift unwrap stay. CLANKER entrySold unknown blocked PRIMED always-plus (~0.289 rem). Risk-desk buys on Base: 0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b (0.17630062518613102 CLANKER / 0.000812862739997724 WETH, nonce 6009) and 0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5 (0.11288557480733443 CLANKER / 0.000520483887364034 WETH, nonce 6010). WETH from wallet via SwapRouter02 — Deposit/router-out parser still used when native ETH. First slice vs rem is unknown-lots until add-on merges (DRB trough). Live rem matches merged tokensIn — no pre-buy dust; piggy stays separate if extra appears. Latch FIFO from both hashes so always-plus can arm when Quoter is green. Do not invent P&L.",
+  "locations": [],
+  "hypothesis": {
+    "id": "clanker-evidence-buys-weth-from-wallet-addon-merge",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "ALLOW_LOSSY_OPERATOR_SELL as the sell path",
+      "WAVE_MIRROR_PAID / VITAFEED_PAID",
+      "invent CLANKER P&L instead of receipt rebuild",
+      "latch only the first hash (remain ~0.289 unknown-lots vs 0.176 tokensIn)"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

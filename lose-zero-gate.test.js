@@ -1997,6 +1997,58 @@ describe("always-plus harden — FIFO remaining cost + plus floor (defense in de
     assert.equal(red.verdict, "HOLD");
   });
 
+  it("CLANKER first-slice rem vs both evidence fills: missing add-on unknown, merged known", () => {
+    const firstTok = Number(176300625186131008n) / 1e18;
+    const secondTok = Number(112885574807334430n) / 1e18;
+    const remain = Number(176300625186131008n + 112885574807334430n) / 1e18;
+    const firstEth = Number(812862739997724n) / 1e18;
+    const secondEth = Number(520483887364034n) / 1e18;
+    assert.ok(remain / firstTok > EVIDENCE_LOT_DUST_BAND, "first slice vs live rem is a missing add-on");
+    assert.equal(fifoUnknownLots({
+      remainingTokens: remain,
+      tokensIn: firstTok,
+      evidenceLot: true,
+    }), true);
+    const firstOnly = fifoRemainingCostEth({
+      ethIn: firstEth,
+      tokensIn: firstTok,
+      remainingTokens: remain,
+      evidenceLot: true,
+    });
+    assert.equal(firstOnly.unknown, true);
+    assert.equal(firstOnly.reason, "unknown-lots");
+
+    const merged = fifoRemainingCostEth({
+      ethIn: firstEth + secondEth,
+      tokensIn: firstTok + secondTok,
+      remainingTokens: remain,
+      evidenceLot: true,
+    });
+    assert.equal(merged.unknown, false);
+    assert.equal(merged.reason, "fifo-remaining");
+    assert.ok(Math.abs(merged.investedEth - (firstEth + secondEth)) < 1e-12);
+
+    const green = evaluateSellGate({
+      projectedProceedsEth: merged.investedEth + 9.6e-6,
+      entryEth: merged.investedEth,
+      unknownEntry: merged.unknown,
+      sellPct: 1,
+      symbol: "CLANKER",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(green.allow, true, "always-plus greens when quote covers merged lot cost");
+    const red = evaluateSellGate({
+      projectedProceedsEth: merged.investedEth * 0.7,
+      entryEth: merged.investedEth,
+      unknownEntry: merged.unknown,
+      sellPct: 1,
+      symbol: "CLANKER",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+  });
+
   it("after partial sell, same dust vs original buy stays known (not remain/bought of rem lot)", () => {
     const bought = 1.641959873796611;
     const sold = 0.34732176459228256;

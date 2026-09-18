@@ -37,6 +37,15 @@ export const EVIDENCE_BUY_TXS = Object.freeze({
   // Risk-desk VIRTUAL buy on Base. Size is on the receipt (~1.642 VIRTUAL /
   // 0.000407 ETH) — do not invent P&L here; rebuild from the hash.
   VIRTUAL: "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
+  // Risk-desk CLANKER buys on Base (nonce 6009 then 6010). WETH from wallet
+  // → CLANKER via SwapRouter02 exactInputSingle. Sizes on the receipts
+  // (~0.1763 + ~0.1129 CLANKER / ~0.000813 + ~0.000520 ETH). First fill
+  // alone leaves rem ~0.289 unknown-lots; merge the add-on like DRB trough.
+  // Do not invent P&L; rebuild from the hashes. Auto-append both.
+  CLANKER: Object.freeze([
+    "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
+    "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
+  ]),
 });
 
 /**
@@ -47,8 +56,13 @@ export const EVIDENCE_BUY_TXS = Object.freeze({
 export const DRB_TROUGH_BUY_TX =
   "0x53a00788e4cfef87001e02855cb27aee86923e365bfe175347fbe35e753c9b26";
 
+/** CLANKER second fill (nonce 6010) — merge onto 0x23d8a0c5 like DRB trough. */
+export const CLANKER_ADDON_BUY_TX =
+  "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5";
+
 export const EVIDENCE_ADDON_BUY_TXS = Object.freeze({
   DRB: DRB_TROUGH_BUY_TX,
+  CLANKER: CLANKER_ADDON_BUY_TX,
 });
 
 /**
@@ -668,11 +682,19 @@ export function isSeededAddonBuyTx(symbol, hash, extras = EVIDENCE_ADDON_BUY_TXS
   return !!h && evidenceHashForSymbol(extras, symbol).includes(h);
 }
 
+/** Later hashes in EVIDENCE_BUY_TXS arrays (CLANKER 0xcb7dd5a6) merge like extras. */
+export function isEvidenceSiblingBuyTx(symbol, hash, evidence = EVIDENCE_BUY_TXS) {
+  const h = normalizeTxHash(hash);
+  const hashes = evidenceHashForSymbol(evidence, symbol);
+  return !!h && hashes.length > 1 && hashes.includes(h) && hashes[0] !== h;
+}
+
 /**
  * Latch a receipt onto persist only when it belongs to this cycle.
  * Empty / unusable → seed (same as #79). Sold-all `cleared` tombstone is
- * not an empty seed. Already-usable → merge seeded add-ons onto the same
- * first lot only. Never rematerialize #78 first fills onto a later bag.
+ * not an empty seed. Already-usable → merge seeded add-ons / evidence
+ * siblings onto the same first lot only. Never rematerialize #78 first
+ * fills onto a later bag.
  */
 export function shouldLatchBuyReceipt(existing, hash, {
   remainingTokens,
@@ -685,7 +707,8 @@ export function shouldLatchBuyReceipt(existing, hash, {
   if (isClearedLot(existing)) return false;
   if (!isUsableLot(existing)) return true;
   const key = String(existing.symbol || "").toUpperCase();
-  if (!isSeededAddonBuyTx(key, h, extras)) return false;
+  const sibling = isEvidenceSiblingBuyTx(key, h, evidence);
+  if (!isSeededAddonBuyTx(key, h, extras) && !sibling) return false;
   const parent = evidenceHashForSymbol(evidence, key)[0];
   if (parent && lotHasBuyTx(existing, parent)) return true;
   if (lotHasAnyBuyTx(existing)) return false;
@@ -811,7 +834,8 @@ export function collectRebuildSellTxs({
  * Native-ETH SwapRouter02 buys (VIRTUAL 0x33aac652 class) wrap via WETH Deposit
  * to the router, then Transfer router→pool. Wallet never sends WETH, so the
  * WETH-from-wallet leg is empty. Count tx.value, else Deposit, else router out
- * — never sum those three (same ETH). Wallet-WETH fills (AERO/BNKR) unchanged.
+ * — never sum those three (same ETH). Wallet-WETH fills (AERO/BNKR/CLANKER
+ * 0x23d8a0c5 / 0xcb7dd5a6) unchanged.
  */
 export function lotFromBuyReceipt({
   symbol,

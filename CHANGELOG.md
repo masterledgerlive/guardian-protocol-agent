@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Fixed — latch CLANKER FIFO from evidence buys so always-plus can sell
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF. Do **not** use
+`ALLOW_LOSSY_OPERATOR_SELL`. #119–#122 hitch/catalog/FIFO/dust and #127/#128
+FIFO rem / thrift unwrap stay.
+
+Live CLANKER rem ≈0.2891861999934654 blocked PRIMED always-plus because
+`entrySold` was unknown. Two RISK fills on Base (SwapRouter02
+exactInputSingle, WETH from wallet → CLANKER):
+
+1. `0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b`
+   (nonce 6009) 0.000812862739997724 WETH → 0.17630062518613102 CLANKER
+2. `0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5`
+   (nonce 6010) 0.000520483887364034 WETH → 0.11288557480733443 CLANKER
+
+First slice alone vs ~0.289 rem is unknown-lots (DRB trough class). Live
+wallet rem matches the merged lot — no pre-buy dust. Amounts from receipts
+only; do not invent P&L.
+
+- `EVIDENCE_BUY_TXS.CLANKER` = both hashes (array). Add-on
+  `EVIDENCE_ADDON_BUY_TXS.CLANKER` = second hash. Evidence siblings auto-append
+  onto the first lot like DRB trough.
+- Deposit / router-out parser (VIRTUAL class) still counts native ETH if the
+  wallet-WETH + `tx.value` legs are empty. Live fills are wallet-WETH.
+- Dust piggy stays separate if extra vs `tokensIn` appears; live rem has none.
+- `HOURLY_BALANCE_CATALOG.CLANKER` so hourly /bag polls the rem bag.
+- Cycle + `executeSell` already rebuild from evidence hashes before unknown
+  stamp / `entrySold`.
+
 ### Fixed — FIFO rem after partial VIRTUAL sell + green=sendable
 
 HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.

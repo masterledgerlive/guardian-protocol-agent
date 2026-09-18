@@ -16,6 +16,7 @@ import {
   EVIDENCE_BUY_TXS,
   DRB_TROUGH_BUY_TX,
   EVIDENCE_ADDON_BUY_TXS,
+  CLANKER_ADDON_BUY_TX,
   FIFO_LOTS_FILENAME,
   normalizeTxHash,
   isUsableLot,
@@ -46,6 +47,7 @@ import {
   lotHasBuyTx,
   lotHasAnyBuyTx,
   shouldLatchBuyReceipt,
+  isEvidenceSiblingBuyTx,
   mergeBuyReceiptIntoLots,
   knownLotSellTokens,
   lotIsEvidenceLatched,
@@ -78,6 +80,9 @@ const BNKR = "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b";
 const VIRTUAL = "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b";
 /** Live VIRTUAL Uni V3 WETH pool (buy 0x33aac652). */
 const VIRTUAL_POOL = "0x9c087eb773291e50cf6c6a90ef0f4500e349b903";
+const CLANKER = "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb";
+/** Live CLANKER Uni V3 WETH pool (buys 0x23d8a0c5 / 0xcb7dd5a6). */
+const CLANKER_POOL = "0xc1a6FBedAE68E1472DbB91fe29b51F7A0bD44F97";
 
 /** Live AERO buy 0x94faa542… — WETH from wallet + AERO Transfer in. */
 const AERO_ETH_WEI = 786757301107754n;
@@ -202,6 +207,47 @@ function virtualReceipt({ withTxValue = true } = {}) {
   };
 }
 
+/** Live CLANKER buy 0x23d8a0c5 — WETH from wallet (nonce 6009). */
+const CLANKER_ETH1_WEI = 812862739997724n;
+const CLANKER_TOK1_WEI = 176300625186131008n;
+/** Live CLANKER buy 0xcb7dd5a6 — WETH from wallet (nonce 6010). */
+const CLANKER_ETH2_WEI = 520483887364034n;
+const CLANKER_TOK2_WEI = 112885574807334430n;
+const CLANKER_HASH1 = Array.isArray(EVIDENCE_BUY_TXS.CLANKER)
+  ? EVIDENCE_BUY_TXS.CLANKER[0]
+  : EVIDENCE_BUY_TXS.CLANKER;
+const CLANKER_HASH2 = CLANKER_ADDON_BUY_TX;
+
+function clankerReceipt(which = 1, { nativeEth = false } = {}) {
+  const tok = which === 2 ? CLANKER_TOK2_WEI : CLANKER_TOK1_WEI;
+  const eth = which === 2 ? CLANKER_ETH2_WEI : CLANKER_ETH1_WEI;
+  const hash = which === 2 ? CLANKER_HASH2 : CLANKER_HASH1;
+  const logs = nativeEth
+    ? [
+        transferLog(CLANKER, CLANKER_POOL, WALLET, tok),
+        depositLog(SWAP_ROUTER02_BASE, eth),
+        transferLog(WETH_BASE, SWAP_ROUTER02_BASE, CLANKER_POOL, eth),
+      ]
+    : [
+        transferLog(CLANKER, CLANKER_POOL, WALLET, tok),
+        transferLog(WETH_BASE, WALLET, CLANKER_POOL, eth),
+      ];
+  return {
+    receipt: {
+      status: "0x1",
+      transactionHash: hash,
+      logs,
+    },
+    tx: {
+      hash,
+      value: nativeEth ? `0x${eth.toString(16)}` : "0x0",
+    },
+    tokenAddress: CLANKER,
+    symbol: "CLANKER",
+    wallet: WALLET,
+  };
+}
+
 function plusGate({ symbol, entryEth, proceeds, operatorLot = true }) {
   return buildSellGateDecision({
     symbol,
@@ -230,6 +276,18 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
       EVIDENCE_BUY_TXS.VIRTUAL,
       "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
     );
+    assert.equal(
+      CLANKER_HASH1,
+      "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
+    );
+    assert.equal(
+      CLANKER_HASH2,
+      "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
+    );
+    assert.ok(Array.isArray(EVIDENCE_BUY_TXS.CLANKER));
+    assert.ok(EVIDENCE_BUY_TXS.CLANKER.includes(CLANKER_HASH1));
+    assert.ok(EVIDENCE_BUY_TXS.CLANKER.includes(CLANKER_HASH2));
+    assert.equal(EVIDENCE_ADDON_BUY_TXS.CLANKER, CLANKER_ADDON_BUY_TX);
     assert.equal(DRB_TROUGH_BUY_TX.startsWith("0x53a00788"), true);
     assert.equal(EVIDENCE_ADDON_BUY_TXS.DRB, DRB_TROUGH_BUY_TX);
     assert.equal(normalizeTxHash(DRB_TROUGH_BUY_TX), DRB_TROUGH_BUY_TX);
@@ -474,6 +532,8 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.ok(hashes.DRB.includes(DRB_TROUGH_BUY_TX), "DRB trough add-on must be seeded");
     assert.ok(hashes.BNKR.includes(EVIDENCE_BUY_TXS.BNKR));
     assert.ok(hashes.VIRTUAL.includes(EVIDENCE_BUY_TXS.VIRTUAL), "VIRTUAL fill-book hash must seed rebuild");
+    assert.ok(hashes.CLANKER.includes(CLANKER_HASH1), "CLANKER first fill must seed rebuild");
+    assert.ok(hashes.CLANKER.includes(CLANKER_HASH2), "CLANKER add-on fill must seed rebuild");
   });
 
   it("receipt with only one leg is not a lot (no invented cost)", () => {
@@ -1176,6 +1236,188 @@ describe("fifo-lot-store — latch VIRTUAL FIFO from evidence buy 0x33aac652", (
     const red = plusGate({ symbol: "VIRTUAL", entryEth: entrySold, proceeds: entrySold * 0.7 });
     assert.equal(red.allow, false);
     assert.equal(red.verdict, "HOLD");
+  });
+});
+
+describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 0xcb7dd5a6", () => {
+  const TOK1 = Number(CLANKER_TOK1_WEI) / 1e18;
+  const TOK2 = Number(CLANKER_TOK2_WEI) / 1e18;
+  const ETH1 = Number(CLANKER_ETH1_WEI) / 1e18;
+  const ETH2 = Number(CLANKER_ETH2_WEI) / 1e18;
+  const BOUGHT = TOK1 + TOK2;
+  const ETH_IN = ETH1 + ETH2;
+  /** Live wallet rem matches both fills — no pre-buy dust. */
+  const LIVE_REMAIN = Number(CLANKER_TOK1_WEI + CLANKER_TOK2_WEI) / 1e18;
+
+  function parseClanker(which, opts) {
+    const row = clankerReceipt(which, opts);
+    return lotFromBuyReceipt({
+      symbol: "CLANKER",
+      tokenAddress: CLANKER,
+      wallet: WALLET,
+      txHash: which === 2 ? CLANKER_HASH2 : CLANKER_HASH1,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+  }
+
+  function latchBoth({ nativeEth = false, remainingTokens = LIVE_REMAIN } = {}) {
+    const lots = {};
+    const first = parseClanker(1, { nativeEth });
+    mergeBuyReceiptIntoLots(lots, first, { remainingTokens });
+    const second = parseClanker(2, { nativeEth });
+    mergeBuyReceiptIntoLots(lots, second, { remainingTokens });
+    return { lots, first, second };
+  }
+
+  it("parses live WETH-from-wallet receipts (CLANKER in, WETH out of wallet)", () => {
+    const first = parseClanker(1);
+    assert.equal(isUsableLot(first), true);
+    assert.ok(Math.abs(first.tokensIn - TOK1) < 1e-12);
+    assert.ok(Math.abs(first.ethIn - ETH1) < 1e-15, "ethIn from wallet WETH, not invented");
+    const second = parseClanker(2);
+    assert.equal(isUsableLot(second), true);
+    assert.ok(Math.abs(second.tokensIn - TOK2) < 1e-12);
+    assert.ok(Math.abs(second.ethIn - ETH2) < 1e-15);
+  });
+
+  it("native-ETH Deposit / router-out still latches (VIRTUAL class parser)", () => {
+    const first = parseClanker(1, { nativeEth: true });
+    assert.equal(isUsableLot(first), true);
+    assert.ok(Math.abs(first.ethIn - ETH1) < 1e-15);
+    assert.ok(Math.abs(first.tokensIn - TOK1) < 1e-12);
+    const missingEth = lotFromBuyReceipt({
+      symbol: "CLANKER",
+      tokenAddress: CLANKER,
+      wallet: WALLET,
+      txHash: CLANKER_HASH1,
+      receipt: {
+        status: "0x1",
+        transactionHash: CLANKER_HASH1,
+        logs: [transferLog(CLANKER, CLANKER_POOL, WALLET, CLANKER_TOK1_WEI)],
+      },
+      tx: { value: "0x0" },
+    });
+    assert.equal(missingEth, null, "token-only log is not a lot");
+  });
+
+  it("does not double-count tx.value + Deposit + wallet WETH", () => {
+    const first = parseClanker(1, { nativeEth: true });
+    assert.ok(first.ethIn < ETH1 * 1.01);
+    assert.ok(first.ethIn > ETH1 * 0.99);
+  });
+
+  it("first fill alone vs ~0.289 rem is unknown-lots until add-on merges", () => {
+    const first = parseClanker(1);
+    const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const before = applyLotToToken(token, first, { remainingTokens: LIVE_REMAIN });
+    assert.equal(before.unknown, true, "remain >> first tokensIn must be unknown-lots");
+    assert.equal(before.reason, "unknown-lots");
+
+    const { lots } = latchBoth();
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH1), true);
+    assert.equal(lotHasBuyTx(lots.CLANKER, CLANKER_HASH2), true);
+    assert.ok(Math.abs(lots.CLANKER.tokensIn - BOUGHT) < 1e-12);
+    assert.ok(Math.abs(lots.CLANKER.ethIn - ETH_IN) < 1e-15);
+    const known = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(known, lots.CLANKER, { remainingTokens: LIVE_REMAIN });
+    assert.equal(fifo.unknown, false);
+    assert.equal(known.unknownEntry, false);
+    assert.ok(Math.abs(known.totalInvestedEth - ETH_IN) < 1e-12);
+    assert.equal(lotAppliedOk(known, fifo), true);
+  });
+
+  it("empty persist + both evidence hashes → known entrySold so always-plus can green", () => {
+    assert.equal(
+      shouldLatchBuyReceipt(undefined, CLANKER_HASH1, { remainingTokens: LIVE_REMAIN }),
+      true,
+    );
+    const { lots } = latchBoth();
+    assert.equal(
+      shouldLatchBuyReceipt(lots.CLANKER, CLANKER_HASH2, { remainingTokens: LIVE_REMAIN }),
+      false,
+      "already latched add-on must not double-merge",
+    );
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), true);
+    assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH1), false);
+
+    const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.CLANKER, { remainingTokens: LIVE_REMAIN });
+    assert.equal(fifo.unknown, false);
+    const entrySold = sellEntryEthWithLotFloor(token.totalInvestedEth, token);
+    assert.ok(entrySold > 0, "entrySold must be known — LOSE_ZERO cannot HOLD unknown");
+
+    const red = plusGate({ symbol: "CLANKER", entryEth: entrySold, proceeds: entrySold * 0.7 });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+
+    const green = plusGate({
+      symbol: "CLANKER",
+      entryEth: entrySold,
+      proceeds: entrySold + 9.60e-6,
+    });
+    assert.equal(green.allow, true, "Quoter green vs receipt cost must not HOLD unknown");
+    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+    assert.ok(green.leftover > 0);
+  });
+
+  it("live rem matches bought — piggy dust stays 0; synthetic extra stays piggy", () => {
+    const { lots } = latchBoth();
+    latchPiggyDust(lots.CLANKER, LIVE_REMAIN);
+    assert.equal(Number(lots.CLANKER.piggyDustTokens) || 0, 0, "no pre-buy dust on live rem");
+    assert.equal(knownLotSellTokens(lots.CLANKER, LIVE_REMAIN), lots.CLANKER.tokensIn);
+
+    const dustyRemain = LIVE_REMAIN + 0.006;
+    const ratio = dustyRemain / lots.CLANKER.tokensIn;
+    assert.ok(ratio > 1.02 && ratio < 1.025, "tiny extra is evidence dust, not a missing add-on");
+    latchPiggyDust(lots.CLANKER, dustyRemain);
+    assert.ok(lots.CLANKER.piggyDustTokens >= 0.006 - 1e-12);
+    assert.equal(knownLotSellTokens(lots.CLANKER, dustyRemain), lots.CLANKER.tokensIn);
+
+    const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.CLANKER, { remainingTokens: dustyRemain });
+    assert.equal(fifo.unknown, false, "evidence latch excludes pre-buy dust from remain/bought");
+    const red = plusGate({ symbol: "CLANKER", entryEth: token.totalInvestedEth, proceeds: token.totalInvestedEth * 0.7 });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+  });
+
+  it("rebuild after restart merges both hashes so always-plus can still green", () => {
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: {},
+      remainingBySymbol: { CLANKER: LIVE_REMAIN },
+      receipts: [clankerReceipt(1), clankerReceipt(2)],
+      tokens: [{ symbol: "CLANKER", address: CLANKER }],
+    });
+    assert.deepEqual(rebuilt.unknown, []);
+    assert.ok(rebuilt.rebuilt.includes("CLANKER"));
+    assert.equal(rebuilt.applied.CLANKER.unknownEntry, false);
+    assert.ok(Math.abs(rebuilt.applied.CLANKER.totalInvestedEth - ETH_IN) < 1e-11);
+    assert.equal(lotHasBuyTx(rebuilt.lots.CLANKER, CLANKER_HASH1), true);
+    assert.equal(lotHasBuyTx(rebuilt.lots.CLANKER, CLANKER_HASH2), true);
+    const hashes = collectRebuildTxs({ persistedLots: rebuilt.lots });
+    assert.ok(hashes.CLANKER.includes(CLANKER_HASH1));
+    assert.ok(hashes.CLANKER.includes(CLANKER_HASH2));
+  });
+
+  it("agent.js hydrates CLANKER FIFO before unknown stamp; WAVE hitch stays", () => {
+    const src = readFileSync(join(root, "agent.js"), "utf8");
+    assert.ok(src.includes("EVIDENCE_BUY_TXS"), "evidence map stays imported");
+    assert.ok(src.includes("tryRebuildLotFromReceipts"));
+    assert.ok(src.includes("mergeBuyReceiptIntoLots"));
+    const processFn = src.indexOf("async function processToken(");
+    const processEnd = src.indexOf("\nasync function ", processFn + 1);
+    const processBody = src.slice(processFn, processEnd > 0 ? processEnd : processFn + 12000);
+    const rebuild = processBody.indexOf("tryRebuildLotFromReceipts");
+    const unknown = processBody.indexOf("applyUnknownChainHolding");
+    assert.ok(rebuild >= 0 && unknown > rebuild, "cycle must latch evidence FIFO before unknown stamp");
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 9000);
+    assert.ok(sellBody.includes("tryRebuildLotFromReceipts"));
+    assert.ok(sellBody.includes("knownLotSellTokens"));
+    assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "#119 WAVE hitch stays");
+    assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=/.test(src), "CLANKER latch is not the lossy sell path");
   });
 });
 
