@@ -1997,6 +1997,52 @@ describe("always-plus harden — FIFO remaining cost + plus floor (defense in de
     assert.equal(red.verdict, "HOLD");
   });
 
+  it("after partial sell, same dust vs original buy stays known (not remain/bought of rem lot)", () => {
+    const bought = 1.641959873796611;
+    const sold = 0.34732176459228256;
+    const knownRem = bought - sold;
+    const onChain = 1.3277735025554778;
+    const extra = onChain - knownRem;
+    assert.ok(extra > 0.033 && extra < 0.034);
+    assert.ok(onChain / knownRem > EVIDENCE_LOT_DUST_BAND, "old remain/bought of rem lot trips 1.025");
+
+    const wiped = fifoUnknownLots({
+      remainingTokens: onChain,
+      tokensIn: knownRem,
+      evidenceLot: true,
+    });
+    assert.equal(wiped, true, "without originalTokensIn the rem-lot ratio still trips");
+
+    const ok = fifoUnknownLots({
+      remainingTokens: onChain,
+      tokensIn: knownRem,
+      evidenceLot: true,
+      originalTokensIn: bought,
+      piggyDustTokens: extra,
+    });
+    assert.equal(ok, false, "original buy + dust piggy never unknown the rem lot");
+
+    const cost = fifoRemainingCostEth({
+      ethIn: 0.000407247374272554 * knownRem / bought,
+      tokensIn: knownRem,
+      remainingTokens: onChain,
+      evidenceLot: true,
+      originalTokensIn: bought,
+      piggyDustTokens: extra,
+    });
+    assert.equal(cost.unknown, false);
+    assert.ok(cost.investedEth > 0);
+    const green = evaluateSellGate({
+      projectedProceedsEth: cost.investedEth + 9.6e-6,
+      entryEth: cost.investedEth,
+      unknownEntry: cost.unknown,
+      sellPct: 1,
+      symbol: "VIRTUAL",
+      reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(green.allow, true);
+  });
+
   it("plus floor HOLDs when quote is below FIFO cost; raises minOut otherwise", () => {
     const entry = 0.01;
     const floor = plusFloorOutWei(entry);

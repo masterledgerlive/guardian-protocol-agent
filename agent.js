@@ -179,10 +179,13 @@ import {
   applyLotToToken,
   seedNetPositionsFromFifoLots,
   lotFromBuyReceipt,
+  lotFromSellReceipt,
   ledgerBuyHasLotSizes,
   collectRebuildTxs,
+  collectRebuildSellTxs,
   shouldLatchBuyReceipt,
   mergeBuyReceiptIntoLots,
+  mergeSellReceiptIntoLots,
   writeFifoLotsSync,
   readFifoLotsSync,
   lotAppliedOk,
@@ -190,7 +193,11 @@ import {
   bootKnownCostLabel,
   seededRebuildRemaining,
   knownLotSellTokens,
+  lotHasSellTx,
+  latchPiggyDust,
 } from "./fifo-lot-store.js";
+import { classifySellArmedDisplay } from "./sell-armed-display.js";
+import { bankSkipHitchLearnShard } from "./vita/skip-hitch-learn.js";
 import {
   liveGithubToken,
   liveGithubRepo,
@@ -240,6 +247,10 @@ import {
   injectProveStatus,
   INJECT_PROVE_TARGET,
   DEFAULT_IMPACT_PCT,
+  parseOperatorUnwrapEnv,
+  isOperatorUnwrapArmed,
+  CASCADE_GAS_FLOOR_ETH,
+  THRIFT_CASCADE_GAS_FLOOR_ETH,
 } from "./cascade-rollover.js";
 import {
   evaluateCostEdgeGate,
@@ -3220,6 +3231,9 @@ let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
 const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
 const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
+const operatorUnwrapState = { done: false, executed: false }; // OPERATOR_UNWRAP one-shot
+/** Last QuoterV2 executable flag per symbol — green SELLING only when true. */
+const lastQuoterExecutable = Object.create(null);
 /** Per-token no-loss succession streaks (wave completes with net > 0). */
 const successionTracker   = createSuccessionTracker();
 const waveState    = {};
@@ -5534,7 +5548,7 @@ async function ensureApproved(cdp, tokenAddress, amountIn, spenders = sellApprov
 // Runs before every buy decision. Ensures the bot never runs out of either.
 // ETH and WETH are interchangeable — whichever is up, the other can be refilled.
 // ═══════════════════════════════════════════════════════════════════════════════
-const ETH_MIN_OPERATING  = 0.003;  // always keep at least 0.003 ETH liquid for gas
+const ETH_MIN_OPERATING  = 0.003;  // rich-book gas pad — thin books use thrift cascade floor
 const WETH_MIN_OPERATING = 0.002;  // always keep at least 0.002 WETH ready for swaps
 
 async function manageEthWethBalance(cdp) {
@@ -5542,9 +5556,26 @@ async function manageEthWethBalance(cdp) {
     const eth  = await getEthBalance();
     const weth = await getWethBalance();
     const total = eth + weth;
-    // Case 1: ETH running low but WETH available — unwrap some to keep gas funded
-    if (eth < ETH_MIN_OPERATING && weth > ETH_MIN_OPERATING) {
-      const needed = ETH_MIN_OPERATING - eth + 0.001; // top up with a small buffer
+    const floor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
+    const opUnwrap = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
+    const need = unwrapForCascadeGas({
+      nativeEth: eth,
+      weth,
+      floorEth: floor,
+      keepWethMin: 0,
+      allowPartial: true,
+      operatorUnlock: opUnwrap.armed && !operatorUnwrapState.done,
+    });
+    if (need > 0) {
+      const amt = opUnwrap.amountEth > 0 ? Math.min(need, opUnwrap.amountEth) : need;
+      console.log(`   💱 CASCADE UNWRAP native ${eth.toFixed(6)} < floor ${floor.toFixed(6)} — thrift ${amt.toFixed(6)} WETH→ETH`);
+      await unwrapWeth(cdp, amt);
+      if (opUnwrap.armed) {
+        operatorUnwrapState.done = true;
+        operatorUnwrapState.executed = true;
+      }
+    } else if (eth < ETH_MIN_OPERATING && weth > ETH_MIN_OPERATING && total >= 0.01) {
+      const needed = ETH_MIN_OPERATING - eth + 0.001;
       if (needed > 0.0005 && weth - needed >= WETH_MIN_OPERATING) {
         console.log(`   💱 ETH low (${eth.toFixed(4)}) — unwrapping ${needed.toFixed(4)} WETH to top up gas`);
         await unwrapWeth(cdp, needed);
@@ -5576,6 +5607,8 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
       weth,
       floorEth: floor,
       keepWethMin: 0,
+      allowPartial: true,
+      operatorUnlock: isOperatorUnwrapArmed(process.env) && !operatorUnwrapState.done,
     });
     if (need > 0) {
       console.log(`   ⛽ CASCADE GAS [${label}]: native ${eth.toFixed(6)} < floor ${floor.toFixed(6)} — unwrap ${need.toFixed(6)} WETH`);
@@ -5587,6 +5620,10 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
     }
     const after = await getEthBalance();
     if (after + 1e-12 < Math.min(floor, GAS_RESERVE)) {
+      if (after + 1e-12 >= Math.min(THRIFT_CASCADE_GAS_FLOOR_ETH, GAS_RESERVE) && need > 0) {
+        console.log(`   ⛽ CASCADE GAS [${label}]: thrift partial unwrap — native ${after.toFixed(6)} (floor ${floor.toFixed(6)})`);
+        return true;
+      }
       console.log(`   🛑 CASCADE GAS [${label}]: still below reserve (${after.toFixed(6)}) — cannot fund next moves`);
       return false;
     }
@@ -6692,6 +6729,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // Quoter was green — LOSE_ZERO HOLD. Do not invent; receipt or persist only.
     if (isUsableLot(fifoLots[token.symbol])) {
       applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
+      latchPiggyDust(fifoLots[token.symbol], totalBal);
     } else {
       const remain = seededRebuildRemaining(totalBal);
       if (remain != null) {
@@ -6889,10 +6927,12 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       side: "sell",
     });
     if (!quoteGate.allow) {
+      lastQuoterExecutable[token.symbol] = false;
       noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
       console.log(`   ${quoteGate.log}`);
       return null;
     }
+    lastQuoterExecutable[token.symbol] = true;
     if (sellFactoryLiq != null) {
       const depthGate = requireFactoryLiquidity({
         liquidity: sellFactoryLiq,
@@ -7314,10 +7354,30 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       token.projectedEarningsUsd = null;
       token.minSellPrice = null;
       clearFibLevels(token.symbol); // FIX: reset fib memory so next position starts fresh
-      recordSellFill(fifoLots, { symbol: token.symbol, remainingTokens: 0 });
+      recordSellFill(fifoLots, {
+        symbol: token.symbol,
+        remainingTokens: 0,
+        tokensSold: piggy.tokensToSell,
+        txHash: transactionHash,
+        ethOut: received,
+        piggyDustTokens: Number(fifoLots[token.symbol]?.piggyDustTokens) || 0,
+      });
     } else {
       token.totalInvestedEth = investedBefore * (1 - soldFrac);
-      recordSellFill(fifoLots, { symbol: token.symbol, soldFrac });
+      const knownBefore = Number(fifoLots[token.symbol]?.tokensIn) || 0;
+      const dustPiggy = Math.max(
+        Number(fifoLots[token.symbol]?.piggyDustTokens) || 0,
+        Number(token.piggyReserve) || 0,
+      );
+      recordSellFill(fifoLots, {
+        symbol: token.symbol,
+        soldFrac,
+        tokensSold: piggy.tokensToSell,
+        txHash: transactionHash,
+        ethOut: received,
+        piggyDustTokens: dustPiggy,
+      });
+      if (knownBefore > 0) latchPiggyDust(fifoLots[token.symbol], knownBefore * (1 - soldFrac) + dustPiggy);
       // Clear buy-plan projection once banked so the next wave re-plans.
       if (actualBank > 0) token.projectedEarningsUsd = null;
     }
@@ -7404,6 +7464,15 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (hitchSkippedFill) {
       const bank = creditHitchBank(sellGate.hitchBankedEth, { symbol: token.symbol, reason: "skip" });
       if (bank.log) console.log(`   ${bank.log}`);
+      const shard = bankSkipHitchLearnShard({
+        symbol: token.symbol,
+        leftoverEth: leftoverEth,
+        hitchWouldEth: sellGate.hitchWouldEth ?? sellGate.reservedHitchEth,
+        reason: sellGate.reason || "SKIP_HITCH leftover too thin",
+      });
+      if (shard.uncovered) {
+        console.log(`   📝 SKIP_HITCH learn shard banked for ${shard.symbol} — no unpaired burn; hitch when leftover covers`);
+      }
     } else if (sellVoice.onChain) {
       const cleared = consumeHitchBankOnSend({ symbol: token.symbol });
       if (cleared.log) console.log(`   ${cleared.log}`);
@@ -8226,6 +8295,32 @@ async function processToken(cdp, token, bal) {
     // Peak-ride is the authority: hist touch / mid-range pred no longer eject alone.
     const shouldSell = (peakRide.sell || instantPeakSell)
                     && sellableUsdOk && netIfSellNow > breakEvenBuffer;
+    const previewEntryEth = sellEntryEthWithLotFloor(fifoEth || token.totalInvestedEth || 0, token);
+    const previewUnknown = !!token.unknownEntry || !(previewEntryEth > 0);
+    const previewMarkEth = ethUsd > 0 ? (sellable * price) / ethUsd : 0;
+    const previewGate = (shouldSell || previewEntryEth > 0)
+      ? buildSellGateDecision({
+          symbol: token.symbol,
+          reason: peakRide.reason || "🎯 PEAK RIDE",
+          sellPct: sellPreview.soldFrac || 0.98,
+          entryEth: previewEntryEth,
+          lotCostEth: freshLotCostFloor(token),
+          usdMarkProceedsEth: previewMarkEth,
+          operatorLot: !!token.operatorLot,
+          freshLot: freshLotCostFloor(token) > 0 || !!token.operatorLot,
+          projectedProceedsEth: previewMarkEth,
+          feePct: token.poolFeePct || 0.006,
+          unknownEntry: previewUnknown,
+        })
+      : { allow: false, verdict: "HOLD", reason: "no position", log: "" };
+    const sellArmed = classifySellArmedDisplay({
+      peakWantsSell: shouldSell,
+      quoterExecutable: lastQuoterExecutable[token.symbol] === true,
+      verdict: previewGate.verdict,
+      allow: previewGate.allow,
+      unknownEntry: previewUnknown,
+      reason: previewGate.log || previewGate.reason || "",
+    });
     if (entry && sellableUsdOk && Math.random() < 0.04) {
       console.log(`  🛡️ [${token.symbol}] ${formatPeakRideDecision(peakRide)}`);
     }
@@ -8383,7 +8478,9 @@ async function processToken(cdp, token, bal) {
     }
 
     // ── ZONE ───────────────────────────────────────────────────────────────
-    const zone = shouldSell     ? "🔴 AT MAX PEAK — SELLING" :
+    const zone = (shouldSell && sellArmed.green) ? "🔴 AT MAX PEAK — SELLING" :
+                 (shouldSell && sellArmed.code) ? `🛑 HOLD ${sellArmed.code}` :
+                 shouldSell     ? "🛑 HOLD" :
                  stopLossHit    ? "🛑 STOP LOSS" :
                  shouldBuy      ? `🟢 AT MIN TROUGH — BUYING` :
                  atMaxPosition  ? "🏇 RIDING (max position — holding)" :
@@ -9072,8 +9169,31 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
   }
   const current = fifoLots[token.symbol];
   if (!isUsableLot(current)) return null;
-  applyLotToNet(netPositions, current);
-  const fifo = applyLotToToken(token, current, { remainingTokens });
+  const sellHashes = collectRebuildSellTxs({
+    persistedLots: fifoLots,
+    ledgerTrades: tradeLog,
+  })[token.symbol] || [];
+  for (const hash of sellHashes) {
+    if (lotHasSellTx(fifoLots[token.symbol], hash)) continue;
+    try {
+      const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
+      const tx = await rpcCall((c) => c.getTransaction({ hash }));
+      const sold = lotFromSellReceipt({
+        symbol: token.symbol,
+        tokenAddress: token.address,
+        wallet: WALLET_ADDRESS,
+        txHash: hash,
+        receipt,
+        tx,
+        tokenDecimals: token.decimals || 18,
+      });
+      if (sold) mergeSellReceiptIntoLots(fifoLots, sold, { remainingTokens });
+    } catch (e) {
+      console.log(`   ⚠️  ${token.symbol}: sell receipt ${hash.slice(0, 10)}… ${e.message}`);
+    }
+  }
+  applyLotToNet(netPositions, fifoLots[token.symbol]);
+  const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens });
   if (!lotAppliedOk(token, fifo)) return null;
   if (latchedHash) {
     console.log(`   🔗 ${token.symbol}: FIFO lot rebuilt from buy ${latchedHash.slice(0, 10)}… remaining=${fifo.investedEth.toFixed(6)}ETH`);
@@ -13428,6 +13548,18 @@ function applyOperatorSellEnv() {
   return result;
 }
 
+function applyOperatorUnwrapEnv() {
+  const parsed = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
+  if (!parsed.armed) return parsed;
+  if (operatorUnwrapState.done) return { ...parsed, reason: "already-applied" };
+  console.log(
+    `⛽ OPERATOR_UNWRAP armed — thrift partial WETH→ETH toward cascade floor ` +
+    `${CASCADE_GAS_FLOOR_ETH} (thrift ${THRIFT_CASCADE_GAS_FLOOR_ETH})` +
+    (parsed.amountEth ? ` amount=${parsed.amountEth}` : ""),
+  );
+  return parsed;
+}
+
 /**
  * Free stranded CBBTC/AAVE bags once — exitonly + piggy unlock, NO cascade.
  * Keeps names frozen so capital returns to profit-hunting liquid books.
@@ -13660,6 +13792,7 @@ async function main() {
   await loadFromGitHub();
   applyOperatorBuyEnv();
   applyOperatorSellEnv();
+  applyOperatorUnwrapEnv();
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.
   await flushPendingOperatorBuys(cdpClient);

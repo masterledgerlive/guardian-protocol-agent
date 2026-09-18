@@ -30,14 +30,20 @@ export const THIN_BOOK_ETH = 0.01;
 
 /**
  * Native ETH that must survive every cascade hop.
- * Base gas is native-only; WETH cannot pay. Default covers ~2 moves beyond the
- * hard GAS_RESERVE (0.0005) so sell→cascade→exit never dies mid-chain.
+ * Documented default is **0.001** (not 0.00125). Reserve + 3×0.00025 would
+ * print 0.00125 and stall a ~$2 book (full unwrap ETH ~0.000904 still under
+ * 0.00125). Cap at this floor so micro-cascade can run without vault top-up.
+ * Thin books still scale toward GAS_RESERVE via effectiveCascadeGasFloor.
  */
 export const CASCADE_GAS_FLOOR_ETH = 0.001;
+/** Thrift floor for ~$2 liquid books — one Base tx of gas, vault never. */
+export const THRIFT_CASCADE_GAS_FLOOR_ETH = 0.0005;
 /** How many future Base txs we always keep fuel for (buy + sell + next cascade). */
 export const CASCADE_MOVES_RESERVE = 3;
 /** Per-move native cushion when live gas quote is missing (conservative Base). */
 export const CASCADE_GAS_PER_MOVE_ETH = 0.00025;
+/** Dust below this is not worth an unwrap tx (gas of withdraw itself). */
+export const MIN_PARTIAL_UNWRAP_ETH = 0.00012;
 /** Prove milestone: successful on-chain hitch injections before capital top-up. */
 export const INJECT_PROVE_TARGET = 20;
 
@@ -215,7 +221,11 @@ export function cascadeGasFloorEth({
   const moves = Math.max(0, Math.floor(Number(movesReserve) || 0));
   const per = Math.max(0, Number(perMoveEth) || 0);
   const abs = Math.max(0, Number(absoluteFloorEth) || 0);
-  return Math.max(abs, base + moves * per);
+  const raw = base + moves * per;
+  const cap = abs > 0 ? abs : CASCADE_GAS_FLOOR_ETH;
+  // Documented default 0.001 caps reserve+3×0.00025 (0.00125) so a ~$2
+  // full unwrap (~0.000904) can still feed thrift micro-cascade.
+  return Math.max(THRIFT_CASCADE_GAS_FLOOR_ETH, Math.min(cap, Math.max(raw, cap)));
 }
 
 /**
@@ -233,13 +243,23 @@ export function effectiveCascadeGasFloor(totalLiquidEth, opts = {}) {
 
 /**
  * How much WETH→ETH unwrap is needed so native ETH can fund the next moves.
- * Returns 0 when already above floor or WETH cannot cover.
+ *
+ * Thrift partial: if WETH cannot cover the full gap, still unwrap what we
+ * have toward the floor (always-plus / safe — unwrap is not a red sell).
+ * Old gate required avail ≥ need (or WETH > 0.003 in manageEthWethBalance)
+ * and stalled when ETH~0.000904 after a full unwrap sat under 0.00125.
+ *
+ * operatorUnlock: desk/operator one-shot (`OPERATOR_UNWRAP`) may unwrap
+ * even a thin leftover toward the thrift floor.
  */
 export function unwrapForCascadeGas({
   nativeEth = 0,
   weth = 0,
   floorEth = CASCADE_GAS_FLOOR_ETH,
   keepWethMin = 0,
+  allowPartial = true,
+  operatorUnlock = false,
+  minPartialEth = MIN_PARTIAL_UNWRAP_ETH,
 } = {}) {
   const native = Math.max(0, Number(nativeEth) || 0);
   const w = Math.max(0, Number(weth) || 0);
@@ -248,9 +268,33 @@ export function unwrapForCascadeGas({
   if (native + 1e-12 >= floor) return 0;
   const need = floor - native;
   const avail = Math.max(0, w - keep);
-  if (avail + 1e-12 < need) return 0;
-  // Small buffer so the next gwei spike does not immediately re-trip
-  return Math.min(avail, need + 0.00015);
+  if (!(avail > 0)) return 0;
+  const minPartial = Math.max(0, Number(minPartialEth) || 0);
+  if (avail + 1e-12 >= need) {
+    return Math.min(avail, need + 0.00015);
+  }
+  if (!allowPartial && !operatorUnlock) return 0;
+  if (avail + 1e-12 < minPartial && !operatorUnlock) return 0;
+  return avail;
+}
+
+/** Parse desk/operator one-shot unwrap latch. yes/true/1/on or ETH amount. */
+export function parseOperatorUnwrapEnv(raw) {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return { armed: false, amountEth: null };
+  if (s === "yes" || s === "true" || s === "1" || s === "on") {
+    return { armed: true, amountEth: null };
+  }
+  if (s === "no" || s === "false" || s === "0" || s === "off") {
+    return { armed: false, amountEth: null };
+  }
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 0) return { armed: true, amountEth: n };
+  return { armed: false, amountEth: null };
+}
+
+export function isOperatorUnwrapArmed(env = process.env) {
+  return parseOperatorUnwrapEnv(env?.OPERATOR_UNWRAP).armed === true;
 }
 
 /**

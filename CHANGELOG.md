@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Fixed — FIFO rem after partial VIRTUAL sell + green=sendable
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF.
+
+Live: buy `0x33aac652…` 0.000407247374272554 ETH → 1.641959873796611 VIRTUAL;
+partial sell `0x659db825…` 0.34732176459228256 VIRTUAL → 0.000090206411822417 WETH;
+on-chain rem ≈1.3277735025554778 including pre-buy dust ~0.033135. After the
+sell, remain/bought of the *shrunken* lot tripped unknown-lots → FIFO red HOLD
+while peak/board still painted green SELLING. Sell hash was not auto-appended.
+
+- Persist remaining cost = entry × knownRemain / knownBefore for the sold
+  known-lot slice. Pre-buy dust piggy stays unknown/zero and never blocks
+  known-lot sells (extra vs originalTokensIn × (band−1), not rem-lot %).
+- Auto-append sealed buy/sell hashes (`sellTxs` + receipt rebuild). Do not
+  invent the rest of `0x659db825…`.
+- Peak/board "SELLING" / armed green only when Quoter-executable AND
+  always-plus would pass as PLUS. Otherwise HOLD + FIFO_RED / UNKNOWN_COST /
+  SKIP_HITCH / THIN_LIQUID.
+- SKIP_HITCH uncovered leftover banks a learn shard — no unpaired burn.
+  Hitch when leftover covers unchanged.
+- Thrift partial WETH→ETH unwrap toward cascade floor. Documented default
+  **0.001** (not 0.00125). Optional `OPERATOR_UNWRAP` desk one-shot.
+
 ### Fixed — WAVE_FULL retry + resume after mid-batch CDP abort
 
 HARD STOP: mother brain untouched. `/waveproof` stays 3.

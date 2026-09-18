@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-18T05:50:00.000Z",
+  "topic": "virtual-partial-fifo-rem",
+  "text": "HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never / VITAFEED_PAID off stay. After VIRTUAL buy 0x33aac652 (0.000407247374272554 ETH → 1.641959873796611 VIRTUAL) a partial sell 0x659db825… (0.34732176459228256 VIRTUAL → 0.000090206411822417 WETH) left on-chain rem ≈1.3277735025554778 including pre-buy dust ~0.033135. tokensIn shrank; remain/bought of the rem lot tripped unknown-lots / FIFO red HOLD while peak painted SELLING green. Persist rem cost = entry × knownRemain/knownBefore; keep dust piggy separate (unknown/zero, never blocks known-lot sells). Auto-append sealed buy/sell hashes. Green SELLING only when Quoter-executable AND always-plus PLUS. SKIP_HITCH uncovered leftover banks a learn shard — no unpaired burn. Hitch when leftover covers unchanged.",
+  "locations": [],
+  "hypothesis": {
+    "id": "partial-sell-rem-cost-dust-piggy",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "ALLOW_LOSSY_OPERATOR_SELL as the sell path",
+      "WAVE_MIRROR_PAID / VITAFEED_PAID",
+      "invent 0x659db825 full hash",
+      "widen 1.02 for all bags",
+      "assign remaining cost to dust",
+      "vault spend / top-up for cascade gas"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
