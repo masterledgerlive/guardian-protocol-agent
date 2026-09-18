@@ -169,6 +169,8 @@ import {
 import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
+  EVIDENCE_ADDON_BUY_TXS,
+  EVIDENCE_SELL_TXS,
   isUsableLot,
   recordBuyFill,
   recordSellFill,
@@ -3245,6 +3247,8 @@ let netPositions   = {};
 /** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
 let fifoLots       = {};
 let fifoLotsSha    = null;
+/** Ledger trades from bot-state (desk fills). Hash seed only — amounts from receipts. */
+let ledgerRebuildTrades = [];
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
 // Cached token balances — refreshed each main loop cycle, used in Telegram responses
 const tokenBalanceCache = {};
@@ -6730,20 +6734,18 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       token.piggyReserve = 0;
       return null;
     }
-    // Latch FIFO from persist / evidence buy receipt before entrySold.
-    // VIRTUAL native-ETH SwapRouter02 fills were unknown (entrySold=0) while
-    // Quoter was green — LOSE_ZERO HOLD. Do not invent; receipt or persist only.
+    // Latch FIFO from persist / evidence buy receipts before entrySold.
+    // Desk book / ledger fills alone do not seed Railway (no fifo-lots.json on
+    // bot-state). EVIDENCE_BUY_TXS (CLANKER both hashes, VIRTUAL) + add-ons
+    // rebuild even when a first-slice lot is already usable — otherwise rem
+    // ~0.289 vs first 0.176 stays unknown-lots / entrySold=0.
+    const remain = seededRebuildRemaining(totalBal);
+    if (remain != null) {
+      try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
+    }
     if (isUsableLot(fifoLots[token.symbol])) {
       applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
       latchPiggyDust(fifoLots[token.symbol], totalBal);
-    } else {
-      const remain = seededRebuildRemaining(totalBal);
-      if (remain != null) {
-        try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
-        if (isUsableLot(fifoLots[token.symbol])) {
-          applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
-        }
-      }
     }
     // Evidence-latched lots: sell only recorded tokensIn. Pre-buy dust
     // (VIRTUAL remain/bought ≈ 1.02018) stays unsold / piggy — never lossy.
@@ -8046,8 +8048,9 @@ async function processToken(cdp, token, bal) {
 
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
-    // Evidence hashes (VIRTUAL 0x33aac652 / DRB trough class) must rebuild
-    // FIFO *before* the unknown stamp — boot-only latch left entrySold=0.
+    // Evidence hashes (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5+0xcb7dd5a6 /
+    // DRB trough class) must rebuild FIFO *before* the unknown stamp —
+    // boot-only latch and desk-book fills left entrySold=0.
     const heldBal = getCachedBalance(token.symbol);
     if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
         (heldBal > 0.001 || token.unknownEntry)) {
@@ -9148,11 +9151,17 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
     persistedLots: fifoLots,
     env: process.env,
     evidence: EVIDENCE_BUY_TXS,
+    extras: EVIDENCE_ADDON_BUY_TXS,
+    ledgerTrades: [...ledgerRebuildTrades, ...tradeLog],
   })[token.symbol] || [];
   if (!hashes.length) return null;
   let latchedHash = "";
   for (const hash of hashes) {
-    if (!shouldLatchBuyReceipt(fifoLots[token.symbol], hash, { remainingTokens })) continue;
+    if (!shouldLatchBuyReceipt(fifoLots[token.symbol], hash, {
+      remainingTokens,
+      extras: EVIDENCE_ADDON_BUY_TXS,
+      rebuildHashes: hashes,
+    })) continue;
     try {
       const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
       const tx = await rpcCall((c) => c.getTransaction({ hash }));
@@ -9168,7 +9177,11 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
         reason: "MANUAL BUY (operator)",
       });
       if (!isUsableLot(lot)) continue;
-      mergeBuyReceiptIntoLots(fifoLots, lot, { remainingTokens });
+      mergeBuyReceiptIntoLots(fifoLots, lot, {
+        remainingTokens,
+        extras: EVIDENCE_ADDON_BUY_TXS,
+        rebuildHashes: hashes,
+      });
       latchedHash = hash;
     } catch (e) {
       console.log(`   ⚠️  ${token.symbol}: receipt rebuild ${hash.slice(0, 10)}… ${e.message}`);
@@ -9178,7 +9191,8 @@ async function tryRebuildLotFromReceipts(token, remainingTokens) {
   if (!isUsableLot(current)) return null;
   const sellHashes = collectRebuildSellTxs({
     persistedLots: fifoLots,
-    ledgerTrades: tradeLog,
+    ledgerTrades: [...ledgerRebuildTrades, ...tradeLog],
+    evidence: EVIDENCE_SELL_TXS,
   })[token.symbol] || [];
   for (const hash of sellHashes) {
     if (lotHasSellTx(fifoLots[token.symbol], hash)) continue;
@@ -9214,6 +9228,8 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
     persistedLots: fifoLots,
     env: process.env,
     evidence: EVIDENCE_BUY_TXS,
+    extras: EVIDENCE_ADDON_BUY_TXS,
+    ledgerTrades: [...ledgerRebuildTrades, ...tradeLog],
   });
   let n = 0;
   for (const token of tokens) {
@@ -9221,7 +9237,11 @@ async function rebuildSeededLotsFromChain(reason = "boot") {
     const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
     if (remain == null) continue; // dust / sold-all / cache miss — do not invent
     const missingAddon = (hashes[token.symbol] || []).some((h) =>
-      shouldLatchBuyReceipt(fifoLots[token.symbol], h, { remainingTokens: remain }),
+      shouldLatchBuyReceipt(fifoLots[token.symbol], h, {
+        remainingTokens: remain,
+        extras: EVIDENCE_ADDON_BUY_TXS,
+        rebuildHashes: hashes[token.symbol],
+      }),
     );
     if (isUsableLot(fifoLots[token.symbol]) && !missingAddon) {
       // Persist may already have the lot (AERO) while DRB/BNKR still need apply.
@@ -13895,6 +13915,7 @@ async function main() {
       }
 
       if (ledgerData) {
+        ledgerRebuildTrades = ledgerData.slice();
         for (const t of ledgerData) {
           if (!t.symbol || !t.price || t.price <= 0) continue;
           if (t.type === "BUY" && !ledgerBuyHasLotSizes(t)) {
@@ -13933,7 +13954,7 @@ async function main() {
     let found = 0, recovered = 0, ghosts = 0, confirmed = 0;
 
     // Fetch all balances in parallel for speed. Union hourly catalog
-    // (VIRTUAL + AERO/DRB/BNKR) so a live bag is never skipped.
+    // (VIRTUAL + CLANKER + AERO/DRB/BNKR) so a live bag is never skipped.
     const balanceResults = await Promise.allSettled(
       hourlyBalancePollRows(tokens).map(async (token) => {
         const bal = await getTokenBalance(token.address);
@@ -13947,7 +13968,7 @@ async function main() {
     }
 
     // After cache is live — sized remaining, not the full fill. GitHub 401
-    // must not skip seeded AERO/DRB/BNKR/VIRTUAL receipt latch.
+    // must not skip seeded AERO/DRB/BNKR/VIRTUAL/CLANKER receipt latch.
     await rebuildSeededLotsFromChain(
       githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
     );
@@ -14429,7 +14450,7 @@ async function main() {
             continue;
           }
         }
-        if (liveBal > 0.001 && !isUsableLot(fifoLots[token.symbol])) {
+        if (liveBal > 0.001) {
           const rebuilt = await tryRebuildLotFromReceipts(token, liveBal);
           if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
             tokenBalanceCache[token.symbol] = liveBal;

@@ -30,7 +30,15 @@ only; do not invent P&L.
 - Dust piggy stays separate if extra vs `tokensIn` appears; live rem has none.
 - `HOURLY_BALANCE_CATALOG.CLANKER` so hourly /bag polls the rem bag.
 - Cycle + `executeSell` already rebuild from evidence hashes before unknown
-  stamp / `entrySold`.
+  stamp / `entrySold`. After Online, CLANKER is known-cost so always-plus can
+  arm when Quoter is green.
+- Desk book / ledger fills alone do **not** latch Railway (`fifo-lots.json`
+  is missing on `bot-state`). `executeSell` now rebuilds missing add-ons even
+  when a first-slice lot is already usable. Ledger + `LOT_REBUILD_TXS` hashes
+  merge like DRB trough (`rebuildHashes`).
+- VIRTUAL sealed sells from Base: `0x659db825…` and desk-fill
+  `0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8`
+  auto-append via `EVIDENCE_SELL_TXS` (full hashes from receipts, not invented).
 
 ### Fixed — FIFO rem after partial VIRTUAL sell + green=sendable
 

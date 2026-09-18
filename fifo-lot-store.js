@@ -67,11 +67,15 @@ export const EVIDENCE_ADDON_BUY_TXS = Object.freeze({
 
 /**
  * Sealed sells auto-append when executeSell / rebuild sees a hash.
- * Do not invent a full hash here — live prefix 0x659db825… is the
- * VIRTUAL partial class (0.34732 VIRTUAL → 0.0000902 WETH). Persist +
- * receipt rebuild latch it; never a hardcoded guess.
+ * VIRTUAL partials (desk fills): 0x659db825… then 0x88105ec1… — full hashes
+ * from Base receipts, never invented. Persist + receipt rebuild latch them.
  */
-export const EVIDENCE_SELL_TXS = Object.freeze({});
+export const EVIDENCE_SELL_TXS = Object.freeze({
+  VIRTUAL: Object.freeze([
+    "0x659db8256ec0726392dedb0c03c7806c245eeb11287577fe74b70bea8934ab4c",
+    "0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8",
+  ]),
+});
 
 /** WETH `Withdrawal(address indexed src, uint256 wad)` — unwrap after a sell. */
 export const WETH_WITHDRAWAL_TOPIC =
@@ -700,6 +704,7 @@ export function shouldLatchBuyReceipt(existing, hash, {
   remainingTokens,
   evidence = EVIDENCE_BUY_TXS,
   extras = EVIDENCE_ADDON_BUY_TXS,
+  rebuildHashes = [],
 } = {}) {
   const h = normalizeTxHash(hash);
   if (!h) return false;
@@ -708,8 +713,12 @@ export function shouldLatchBuyReceipt(existing, hash, {
   if (!isUsableLot(existing)) return true;
   const key = String(existing.symbol || "").toUpperCase();
   const sibling = isEvidenceSiblingBuyTx(key, h, evidence);
-  if (!isSeededAddonBuyTx(key, h, extras) && !sibling) return false;
-  const parent = evidenceHashForSymbol(evidence, key)[0];
+  const listed = (Array.isArray(rebuildHashes) ? rebuildHashes : [])
+    .map((x) => normalizeTxHash(x))
+    .filter(Boolean);
+  const rebuildSibling = listed.length > 1 && listed.includes(h) && listed[0] !== h;
+  if (!isSeededAddonBuyTx(key, h, extras) && !sibling && !rebuildSibling) return false;
+  const parent = evidenceHashForSymbol(evidence, key)[0] || listed[0];
   if (parent && lotHasBuyTx(existing, parent)) return true;
   if (lotHasAnyBuyTx(existing)) return false;
   const remain = Number(remainingTokens);
@@ -738,6 +747,7 @@ export function mergeBuyReceiptIntoLots(lots, receiptLot, {
   remainingTokens,
   evidence = EVIDENCE_BUY_TXS,
   extras = EVIDENCE_ADDON_BUY_TXS,
+  rebuildHashes = [],
 } = {}) {
   const map = lots && typeof lots === "object" ? lots : {};
   if (!isUsableLot(receiptLot)) return map;
@@ -748,7 +758,7 @@ export function mergeBuyReceiptIntoLots(lots, receiptLot, {
       .find((h) => normalizeTxHash(h)),
   );
   if (!key || !hash) return map;
-  if (!shouldLatchBuyReceipt(map[key], hash, { remainingTokens, evidence, extras })) return map;
+  if (!shouldLatchBuyReceipt(map[key], hash, { remainingTokens, evidence, extras, rebuildHashes })) return map;
   if (isUsableLot(map[key])) {
     recordBuyFill(map, {
       symbol: key,

@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-18T06:21:00.000Z",
+  "topic": "clanker-desk-book-does-not-latch-railway",
+  "text": "HARD STOP: mother brain untouched. Desk book fills 492 already list CLANKER 0x23d8a0c5… (≈0.17630) + 0xcb7dd5a6… (≈0.11289) sum ≈0.28919 rem, and VIRTUAL sell 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8. Book alone does not latch Online GPA: bot-state has no fifo-lots.json and ledger.json does not carry those hashes. Railway needs EVIDENCE_BUY_TXS.CLANKER both hashes + extras + executeSell rebuild even when first-slice lot is usable. LOT_REBUILD_TXS / ledger hashes merge via rebuildHashes. VIRTUAL sells 0x659db825… + 0x88105ec1… auto-append from Base receipts (never invent). Do not use ALLOW_LOSSY_OPERATOR_SELL.",
+  "locations": [],
+  "hypothesis": {
+    "id": "desk-book-fills-not-railway-fifo-seed",
+    "status": "operating-rule",
+    "discarded": [
+      "rely on desk book / ledger.json to seed Online GPA FIFO",
+      "invent rest of 0x88105ec1",
+      "ALLOW_LOSSY_OPERATOR_SELL"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
