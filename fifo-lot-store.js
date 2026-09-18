@@ -38,10 +38,11 @@ export const EVIDENCE_BUY_TXS = Object.freeze({
   // 0.000407 ETH) — do not invent P&L here; rebuild from the hash.
   VIRTUAL: "0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879",
   // Risk-desk CLANKER buys on Base (nonce 6009 then 6010). WETH from wallet
-  // → CLANKER via SwapRouter02 exactInputSingle. Sizes on the receipts
-  // (~0.1763 + ~0.1129 CLANKER / ~0.000813 + ~0.000520 ETH). First fill
-  // alone leaves rem ~0.289 unknown-lots; merge the add-on like DRB trough.
-  // Do not invent P&L; rebuild from the hashes. Auto-append both.
+  // → CLANKER via SwapRouter02. Sizes on the receipts (~0.17630 + ~0.11289).
+  // First fill alone vs rem ~0.289 is unknown-lots. Array sibling +
+  // EVIDENCE_ADDON_BUY_TXS.CLANKER both merge the second hash — env-only
+  // LOT_REBUILD_TXS cannot (remain>bought*1.02 is unreachable on a usable
+  // first lot). Do not invent P&L; rebuild from the hashes.
   CLANKER: Object.freeze([
     "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
     "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
@@ -56,7 +57,7 @@ export const EVIDENCE_BUY_TXS = Object.freeze({
 export const DRB_TROUGH_BUY_TX =
   "0x53a00788e4cfef87001e02855cb27aee86923e365bfe175347fbe35e753c9b26";
 
-/** CLANKER second fill (nonce 6010) — merge onto 0x23d8a0c5 like DRB trough. */
+/** CLANKER second fill (nonce 6010, ~0.11289) — merge onto 0x23d8a0c5 like DRB trough. */
 export const CLANKER_ADDON_BUY_TX =
   "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5";
 
@@ -67,9 +68,9 @@ export const EVIDENCE_ADDON_BUY_TXS = Object.freeze({
 
 /**
  * Sealed sells auto-append when executeSell / rebuild sees a hash.
- * Do not invent a full hash here — live prefix 0x659db825… is the
- * VIRTUAL partial class (0.34732 VIRTUAL → 0.0000902 WETH). Persist +
- * receipt rebuild latch it; never a hardcoded guess.
+ * VIRTUAL desk fill 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8
+ * is already sealed — persist + ledger receipt rebuild latch it. Do not
+ * hardcode-invent amounts or a guessed hash here.
  */
 export const EVIDENCE_SELL_TXS = Object.freeze({});
 
@@ -700,6 +701,7 @@ export function shouldLatchBuyReceipt(existing, hash, {
   remainingTokens,
   evidence = EVIDENCE_BUY_TXS,
   extras = EVIDENCE_ADDON_BUY_TXS,
+  rebuildHashes = [],
 } = {}) {
   const h = normalizeTxHash(hash);
   if (!h) return false;
@@ -708,8 +710,12 @@ export function shouldLatchBuyReceipt(existing, hash, {
   if (!isUsableLot(existing)) return true;
   const key = String(existing.symbol || "").toUpperCase();
   const sibling = isEvidenceSiblingBuyTx(key, h, evidence);
-  if (!isSeededAddonBuyTx(key, h, extras) && !sibling) return false;
-  const parent = evidenceHashForSymbol(evidence, key)[0];
+  const listed = (Array.isArray(rebuildHashes) ? rebuildHashes : [])
+    .map((x) => normalizeTxHash(x))
+    .filter(Boolean);
+  const rebuildSibling = listed.length > 1 && listed.includes(h) && listed[0] !== h;
+  if (!isSeededAddonBuyTx(key, h, extras) && !sibling && !rebuildSibling) return false;
+  const parent = evidenceHashForSymbol(evidence, key)[0] || listed[0];
   if (parent && lotHasBuyTx(existing, parent)) return true;
   if (lotHasAnyBuyTx(existing)) return false;
   const remain = Number(remainingTokens);
@@ -738,6 +744,7 @@ export function mergeBuyReceiptIntoLots(lots, receiptLot, {
   remainingTokens,
   evidence = EVIDENCE_BUY_TXS,
   extras = EVIDENCE_ADDON_BUY_TXS,
+  rebuildHashes = [],
 } = {}) {
   const map = lots && typeof lots === "object" ? lots : {};
   if (!isUsableLot(receiptLot)) return map;
@@ -748,7 +755,7 @@ export function mergeBuyReceiptIntoLots(lots, receiptLot, {
       .find((h) => normalizeTxHash(h)),
   );
   if (!key || !hash) return map;
-  if (!shouldLatchBuyReceipt(map[key], hash, { remainingTokens, evidence, extras })) return map;
+  if (!shouldLatchBuyReceipt(map[key], hash, { remainingTokens, evidence, extras, rebuildHashes })) return map;
   if (isUsableLot(map[key])) {
     recordBuyFill(map, {
       symbol: key,

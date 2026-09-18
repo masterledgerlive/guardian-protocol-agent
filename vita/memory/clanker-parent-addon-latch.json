@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-18T06:26:00.000Z",
+  "topic": "clanker-parent-addon-like-drb",
+  "text": "HARD STOP: mother brain untouched. Vault never. No invented P&L. CLANKER FIFO seed is parent+addon like DRB: EVIDENCE_BUY_TXS.CLANKER = 0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b, EVIDENCE_ADDON_BUY_TXS.CLANKER = 0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5. Cycle/executeSell rebuild from evidence before unknown stamp. LOT_REBUILD_TXS=CLANKER:0x23d8…,CLANKER:0xcb7d… is interim only; code seed is durable. VIRTUAL sell 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8 already sealed — auto-append, do not hardcode invent.",
+  "locations": [],
+  "hypothesis": {
+    "id": "clanker-parent-addon-drb-trough",
+    "status": "operating-rule",
+    "discarded": [
+      "EVIDENCE_BUY_TXS.CLANKER array as the durable latch",
+      "rely on LOT_REBUILD_TXS env-only",
+      "hardcode-invent EVIDENCE_SELL_TXS.VIRTUAL"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
