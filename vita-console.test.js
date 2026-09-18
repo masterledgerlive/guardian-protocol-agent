@@ -187,6 +187,18 @@ describe("vita HTML console", () => {
     assert.match(r.text, /HTML SIM only/);
   });
 
+  it("/wavefull runs the 28-shard Heraclitus quote SIM without paying", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/wavefull");
+    assert.match(r.text, /WAVE FULL/);
+    assert.match(r.text, /PASS/);
+    assert.match(r.text, /VIRTUAL/);
+    assert.match(r.text, /28/);
+    assert.match(r.text, /VITAFEED_PAID/);
+    assert.match(r.text, /HTML SIM only/);
+    assert.match(r.text, /waveproof stays 3/i);
+  });
+
   it("/vitafeed shows a cost card and confirm gate without paying", async () => {
     const state = createVitaConsole();
     const preview = await handleVitaConsole(state, "/vitafeed hello from html");

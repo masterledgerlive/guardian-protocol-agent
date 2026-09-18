@@ -31,6 +31,9 @@
 //   GET  /vita/waveproof    — capped 3-token WAVE proof SIM (public)
 //   POST /vita/waveproof    — desk live batch when WAVE_PROOF_LIVE=yes (auth: VITA_WEBHOOK_SECRET)
 //   GET  /vita/waveproof?live=1 — same live path as POST (auth)
+//   GET  /vita/wavefull     — full 28-shard Heraclitus quote SIM (public)
+//   POST /vita/wavefull     — desk live 28-send when WAVE_FULL_LIVE=yes (auth)
+//   GET  /vita/wavefull?live=1 — same live path as POST (auth)
 //   GET  /vita/xmem/spec    — public XMEM v1 agent spec + instructions
 //   GET  /vita/lib/xmem.js  — same XMEM parser as the bot
 //   GET|POST /vita/xmem/decode — parse/search provided utf8/hex (no chain fetch)
@@ -103,8 +106,14 @@ import {
   maybeAutofireWaveProof,
   wantsDeskWaveProofLive,
   waveProofAutofireEnabled,
-  waveProofLiveEnabled,
 } from "./vita/wave-proof.js";
+import {
+  formatWaveFullHttpResult,
+  handleWaveFullAction,
+  maybeAutofireWaveFull,
+  wantsDeskWaveFullLive,
+  waveFullAutofireEnabled,
+} from "./vita/wave-full.js";
 
 function listenPort() {
   return Number(process.env.VITA_WEBHOOK_PORT || 3000) || 3000;
@@ -248,6 +257,53 @@ export async function maybeAutofireWaveProofOnBoot(env = process.env) {
   }
   const deps = await resolveWaveProofLiveDeps();
   return maybeAutofireWaveProof({
+    env,
+    sendTx: deps?.sendTx || null,
+    fetchCalldata: deps?.fetchCalldata || null,
+    liquidUsd: deps?.liquidUsd ?? null,
+    quotes: deps?.quotes ?? null,
+  });
+}
+
+async function resolveWaveFullLiveDeps() {
+  if (typeof botState?.waveFullLiveContext === "function") {
+    return botState.waveFullLiveContext();
+  }
+  return resolveWaveProofLiveDeps();
+}
+
+async function runWaveFullHttp({ live = false, symbols = "" } = {}) {
+  let sendTx = null;
+  let fetchCalldata = null;
+  let liquidUsd = null;
+  let quotes = null;
+  if (live) {
+    const deps = await resolveWaveFullLiveDeps();
+    sendTx = deps?.sendTx || null;
+    fetchCalldata = deps?.fetchCalldata || null;
+    liquidUsd = deps?.liquidUsd ?? null;
+    quotes = deps?.quotes ?? null;
+  }
+  const out = await handleWaveFullAction({
+    action: "run",
+    symbols,
+    env: process.env,
+    live,
+    sendTx,
+    fetchCalldata,
+    liquidUsd,
+    quotes,
+  });
+  return formatWaveFullHttpResult(out);
+}
+
+/** Boot one-shot: WAVE_FULL_AUTOFIRE=yes + WAVE_FULL_LIVE=yes → all 28 gas-only shards. Default OFF. */
+export async function maybeAutofireWaveFullOnBoot(env = process.env) {
+  if (!waveFullAutofireEnabled(env)) {
+    return { ok: true, fired: false, reason: "WAVE_FULL_AUTOFIRE default off" };
+  }
+  const deps = await resolveWaveFullLiveDeps();
+  return maybeAutofireWaveFull({
     env,
     sendTx: deps?.sendTx || null,
     fetchCalldata: deps?.fetchCalldata || null,
@@ -522,6 +578,27 @@ async function handleVitaRequest(req, res) {
         return err(res, "unauthorized — set x-vita-secret or x-vita-webhook-secret", 401);
       }
       return json(res, await runWaveProofHttp({
+        live: wantLive === true,
+        symbols: String(
+          url.searchParams.get("syms")
+          || url.searchParams.get("symbols")
+          || body.syms
+          || body.symbols
+          || "",
+        ),
+      }));
+    }
+    if ((path === "/vita/wavefull" || path === "/vita/wavefull/") && (req.method === "GET" || req.method === "POST")) {
+      const body = req.method === "POST" ? (await readBody(req) || {}) : {};
+      const wantLive = wantsDeskWaveFullLive({
+        method: req.method,
+        searchParams: url.searchParams,
+        body,
+      });
+      if (wantLive && !isAuthorized(req)) {
+        return err(res, "unauthorized — set x-vita-secret or x-vita-webhook-secret", 401);
+      }
+      return json(res, await runWaveFullHttp({
         live: wantLive === true,
         symbols: String(
           url.searchParams.get("syms")
@@ -866,6 +943,7 @@ export function startVitaWebhook() {
     console.log("   /vita/router   — secondary hitch router (vita parse + loc squash)");
     console.log("   /vita/locations — squashed location depository");
     console.log("   /vita/waveproof — WAVE 3-token proof (GET SIM; POST/?live=1 auth live)");
+    console.log("   /vita/wavefull  — WAVE 28-shard quote (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");

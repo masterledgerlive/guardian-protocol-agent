@@ -29,6 +29,14 @@ Desk live: `POST /vita/waveproof` or `GET /vita/waveproof?live=1` with
 fires the capped 3-send once on boot then disables. Exactly 3×8B Heraclitus shards
 (`VIRTUAL`/`CLANKER`/`AERO`). Does not re-enable `VITAFEED_PAID`.
 
+**WAVE full quote:** Telegram `/wavefull` + public `GET /vita/wavefull` (SIM).
+Desk live: `POST /vita/wavefull` or `GET /vita/wavefull?live=1` with
+`VITA_WEBHOOK_SECRET` when `WAVE_FULL_LIVE=yes`. Optional `WAVE_FULL_AUTOFIRE=yes`
+fires all 28 least-size shards once on boot then disables. New VIN (`01/28`…`28/28`).
+SYM rotates `VIRTUAL`/`CLANKER`/`AERO`. Reconstruct PASS only if joined sha256
+and each LOC8 match the answer key. `/waveproof` stays 3. Does not re-enable
+`VITAFEED_PAID`. Hitch on covered leftover still calls `attachWaveOnCoveredLeftover`.
+
 ```js
 import {
   infectVitaHtmlDocument,

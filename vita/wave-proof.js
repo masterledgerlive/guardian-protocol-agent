@@ -3,6 +3,7 @@
  *
  * Exactly 3 least-size (8B) Heraclitus shards, SYM = VIRTUAL|CLANKER|AERO.
  * Live only when WAVE_PROOF_LIVE=yes (default OFF). Max 3 sends, then latch.
+ * Full 28-shard quote is vita/wave-full.js — this path stays capped at 3.
  * Does NOT enable VITAFEED_PAID / WAVE_MIRROR_PAID. Mother brain untouched.
  * Never invents tx hashes. LOSE-ZERO: no ALLOW_LOSSY sells.
  */

@@ -22,7 +22,7 @@ import {
 import { maybeFundV4FromV3 } from "./v4-fund-once.js";
 
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
-import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot } from "./vita-webhook.js";
+import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot } from "./vita-webhook.js";
 
 // ── 🌟 VITA MEMORY — autonomous blockchain memory for Claude/VITA ──────────────
 import {
@@ -493,6 +493,11 @@ import {
   waveProofLiveEnabled,
 } from "./vita/wave-proof.js";
 import {
+  handleWaveFullAction,
+  parseWaveFullCommand,
+  waveFullLiveEnabled,
+} from "./vita/wave-full.js";
+import {
   beginVitaFeedFileAwait,
   clearVitaFeedFileAwait,
   downloadTelegramFileBytes,
@@ -572,8 +577,8 @@ const orch = new MempoolOrchestrator({
 });
 let orchReady = false;
 
-async function buildWaveProofLiveContext({ cdp = cdpClient, bal = null, ethUsd = null } = {}) {
-  const wantLive = waveProofLiveEnabled(process.env);
+async function buildWaveGasOnlyLiveContext({ liveEnabled = false, cdp = cdpClient, bal = null, ethUsd = null } = {}) {
+  const wantLive = liveEnabled === true;
   if (!wantLive) {
     return { wantLive: false, sendTx: null, liquidUsd: null, quotes: null, fetchCalldata: null };
   }
@@ -603,6 +608,20 @@ async function buildWaveProofLiveContext({ cdp = cdpClient, bal = null, ethUsd =
     };
   }
   return { wantLive: true, sendTx, liquidUsd, quotes, fetchCalldata: fetchTxCalldataHex };
+}
+
+async function buildWaveProofLiveContext(opts = {}) {
+  return buildWaveGasOnlyLiveContext({
+    ...opts,
+    liveEnabled: waveProofLiveEnabled(process.env),
+  });
+}
+
+async function buildWaveFullLiveContext(opts = {}) {
+  return buildWaveGasOnlyLiveContext({
+    ...opts,
+    liveEnabled: waveFullLiveEnabled(process.env),
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -12590,6 +12609,34 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           await tg("❌ waveproof failed: " + (e.message || e) + "\nNothing invented.");
         }
 
+      // ── /wavefull — 28-shard Heraclitus quote (WAVE_FULL_LIVE, not VITAFEED_PAID)
+      } else if (text === "/wavefull" || (text && text.startsWith("/wavefull"))) {
+        try {
+          const parsed = parseWaveFullCommand(raw);
+          const ctx = await buildWaveFullLiveContext({ cdp, bal, ethUsd });
+          if (ctx.wantLive && !ctx.sendTx) {
+            await tg("❌ wavefull live needs the RISK wallet client — no send.");
+            continue;
+          }
+          const out = await handleWaveFullAction({
+            action: parsed.action || "run",
+            symbols: parsed.symbols || "",
+            env: process.env,
+            live: ctx.wantLive,
+            sendTx: ctx.sendTx,
+            fetchCalldata: ctx.fetchCalldata,
+            liquidUsd: ctx.liquidUsd,
+            quotes: ctx.quotes,
+          });
+          await tg(
+            "🌊 <b>WAVE FULL</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>28 gas-only self-txs on a new VIN. WAVE_FULL_LIVE default off. /waveproof stays 3. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ wavefull failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       // ── /wavetest — WAVE memory-mirror SIM (does not enable VITAFEED_PAID)
       } else if (text === "/wavetest" || (text && text.startsWith("/wavetest"))) {
         try {
@@ -13212,6 +13259,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
           `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
           `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B; WAVE_PROOF_LIVE=yes; desk POST /vita/waveproof)\n` +
+          `/wavefull — full 28-shard Heraclitus quote (WAVE_FULL_LIVE=yes; desk POST /vita/wavefull; /waveproof stays 3)\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
@@ -14150,6 +14198,7 @@ async function main() {
         ...engineGlobalCommands.map(c => ({ ...c })),
       ],
       waveProofLiveContext: () => buildWaveProofLiveContext({ cdp: cdpClient }),
+      waveFullLiveContext: () => buildWaveFullLiveContext({ cdp: cdpClient }),
     });
   }
   updateWebhookState(); // initial inject
@@ -14162,6 +14211,16 @@ async function main() {
     }
   } catch (e) {
     console.log("⚠️  WAVE_PROOF_AUTOFIRE failed: " + (e.message || e));
+  }
+
+  // Desk one-shot: WAVE_FULL_AUTOFIRE=yes + WAVE_FULL_LIVE=yes → all 28 gas-only shards (no Telegram).
+  try {
+    const autoFull = await maybeAutofireWaveFullOnBoot(process.env);
+    if (autoFull?.fired || autoFull?.autofire) {
+      console.log("🌊 WAVE_FULL_AUTOFIRE: " + (autoFull.reason || autoFull.reply || (autoFull.fired ? "fired" : "cleared")));
+    }
+  } catch (e) {
+    console.log("⚠️  WAVE_FULL_AUTOFIRE failed: " + (e.message || e));
   }
 
   // ── CHAIN-TRUTH POSITION RECONCILIATION (replaces stale emergency inject) ─

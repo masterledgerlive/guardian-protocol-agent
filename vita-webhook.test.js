@@ -6,12 +6,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createVitaServer, injectBotState, maybeAutofireWaveProofOnBoot } from "./vita-webhook.js";
+import { createVitaServer, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot } from "./vita-webhook.js";
 import { createWaveSimChain } from "./vita/wave-wrap.js";
 import {
   resetWaveProofAutofireLatch,
   resetWaveProofLiveLatch,
 } from "./vita/wave-proof.js";
+import {
+  resetWaveFullAutofireLatch,
+  resetWaveFullLiveLatch,
+} from "./vita/wave-full.js";
 
 let server;
 let base;
@@ -315,6 +319,26 @@ describe("control board HTTP", () => {
     assert.match(json.reply, /VIRTUAL/);
   });
 
+  it("GET /vita/wavefull is a public 28-shard WAVE quote SIM (no spend)", async () => {
+    const { res, json } = await get("/vita/wavefull");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.pass, true);
+    assert.equal(json.send, false);
+    assert.equal(json.live, false);
+    assert.equal(json.vitafeedPaidDefault, "off");
+    assert.equal(json.waveFullLiveDefault, "off");
+    assert.equal(json.waveProofUnchanged, true);
+    assert.equal(json.motherBrain, "untouched");
+    assert.equal(json.expectedShards, 28);
+    assert.equal(json.result.sim, true);
+    assert.equal(json.result.live, false);
+    assert.equal(json.txHashes.length, 28);
+    assert.equal(json.reconstruct, "PASS");
+    assert.ok(json.vinId);
+    assert.match(json.reply, /PASS/);
+  });
+
   it("POST /vita/waveproof and GET ?live=1 stay 401 without webhook secret", async () => {
     const post = await fetch(base + "/vita/waveproof", {
       method: "POST",
@@ -429,6 +453,124 @@ describe("control board HTTP", () => {
       else process.env.WAVE_PROOF_LIVE = prevLive;
       if (prevAuto == null) delete process.env.WAVE_PROOF_AUTOFIRE;
       else process.env.WAVE_PROOF_AUTOFIRE = prevAuto;
+    }
+  });
+
+  it("POST /vita/wavefull and GET ?live=1 stay 401 without webhook secret", async () => {
+    const post = await fetch(base + "/vita/wavefull", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const postJson = await post.json();
+    assert.equal(post.status, 401);
+    assert.match(postJson.error || "", /unauthorized/i);
+
+    const liveGet = await get("/vita/wavefull?live=1");
+    assert.equal(liveGet.res.status, 401);
+    assert.match(liveGet.json.error || "", /unauthorized/i);
+  });
+
+  it("POST /vita/wavefull with secret + WAVE_FULL_LIVE runs the 28-send batch", async () => {
+    const prevSecret = process.env.VITA_WEBHOOK_SECRET;
+    const prevLive = process.env.WAVE_FULL_LIVE;
+    const prevPaid = process.env.VITAFEED_PAID;
+    const prevAuto = process.env.WAVE_FULL_AUTOFIRE;
+    process.env.VITA_WEBHOOK_SECRET = "desk-test-secret";
+    process.env.WAVE_FULL_LIVE = "yes";
+    delete process.env.VITAFEED_PAID;
+    delete process.env.WAVE_FULL_AUTOFIRE;
+    resetWaveFullLiveLatch();
+    resetWaveFullAutofireLatch();
+    const chain = createWaveSimChain();
+    injectBotState({
+      waveFullLiveContext: async () => ({
+        sendTx: chain.sendTx,
+        fetchCalldata: chain.fetchCalldata,
+        liquidUsd: 10,
+        quotes: { gwei: 0.05, ethUsd: 2481 },
+      }),
+    });
+    try {
+      const res = await fetch(base + "/vita/wavefull", {
+        method: "POST",
+        headers: {
+          "x-vita-webhook-secret": "desk-test-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      assert.equal(res.status, 200);
+      assert.equal(json.ok, true);
+      assert.equal(json.live, true);
+      assert.equal(json.send, true);
+      assert.equal(json.pass, true);
+      assert.equal(json.reconstruct, "PASS");
+      assert.ok(json.vinId);
+      assert.equal(json.txHashes.length, 28);
+      assert.equal(json.basescan.length, 28);
+      assert.ok(json.txHashes.every((h) => /^0x[0-9a-fA-F]{64}$/.test(h)));
+      assert.equal(json.vitafeedPaidDefault, "off");
+      assert.equal(json.waveProofUnchanged, true);
+      assert.equal(json.motherBrain, "untouched");
+      assert.equal(process.env.WAVE_FULL_LIVE, "no");
+      assert.equal(process.env.VITAFEED_PAID, undefined);
+    } finally {
+      injectBotState(null);
+      resetWaveFullLiveLatch();
+      resetWaveFullAutofireLatch();
+      if (prevSecret == null) delete process.env.VITA_WEBHOOK_SECRET;
+      else process.env.VITA_WEBHOOK_SECRET = prevSecret;
+      if (prevLive == null) delete process.env.WAVE_FULL_LIVE;
+      else process.env.WAVE_FULL_LIVE = prevLive;
+      if (prevPaid == null) delete process.env.VITAFEED_PAID;
+      else process.env.VITAFEED_PAID = prevPaid;
+      if (prevAuto == null) delete process.env.WAVE_FULL_AUTOFIRE;
+      else process.env.WAVE_FULL_AUTOFIRE = prevAuto;
+    }
+  });
+
+  it("WAVE_FULL_AUTOFIRE on boot fires once then disables; default off", async () => {
+    const prevLive = process.env.WAVE_FULL_LIVE;
+    const prevAuto = process.env.WAVE_FULL_AUTOFIRE;
+    const prevPaid = process.env.VITAFEED_PAID;
+    resetWaveFullLiveLatch();
+    resetWaveFullAutofireLatch();
+    const off = await maybeAutofireWaveFullOnBoot({ WAVE_FULL_LIVE: "yes" });
+    assert.equal(off.fired, false);
+
+    const env = { WAVE_FULL_LIVE: "yes", WAVE_FULL_AUTOFIRE: "yes" };
+    const chain = createWaveSimChain();
+    injectBotState({
+      waveFullLiveContext: async () => ({
+        sendTx: chain.sendTx,
+        fetchCalldata: chain.fetchCalldata,
+        liquidUsd: 10,
+        quotes: { gwei: 0.05, ethUsd: 2481 },
+      }),
+    });
+    try {
+      const first = await maybeAutofireWaveFullOnBoot(env);
+      assert.equal(first.fired, true);
+      assert.equal(first.pass, true);
+      assert.equal(first.result.inscribed.txHashes.length, 28);
+      assert.equal(env.WAVE_FULL_AUTOFIRE, "no");
+      assert.equal(env.WAVE_FULL_LIVE, "no");
+      assert.equal(process.env.VITAFEED_PAID, prevPaid);
+
+      env.WAVE_FULL_LIVE = "yes";
+      env.WAVE_FULL_AUTOFIRE = "yes";
+      const second = await maybeAutofireWaveFullOnBoot(env);
+      assert.equal(second.fired, false);
+    } finally {
+      injectBotState(null);
+      resetWaveFullLiveLatch();
+      resetWaveFullAutofireLatch();
+      if (prevLive == null) delete process.env.WAVE_FULL_LIVE;
+      else process.env.WAVE_FULL_LIVE = prevLive;
+      if (prevAuto == null) delete process.env.WAVE_FULL_AUTOFIRE;
+      else process.env.WAVE_FULL_AUTOFIRE = prevAuto;
     }
   });
 

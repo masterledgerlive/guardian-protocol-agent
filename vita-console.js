@@ -49,6 +49,7 @@ import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./v
 import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js";
 import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js";
 import { handleWaveProofAction, parseWaveProofCommand } from "./vita/wave-proof.js";
+import { handleWaveFullAction, parseWaveFullCommand } from "./vita/wave-full.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -79,6 +80,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/vitafeed",
   "/wavetest",
   "/waveproof",
+  "/wavefull",
 ]);
 
 function shortLoc(location) {
@@ -338,6 +340,7 @@ function helpText() {
     "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
+    "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -499,6 +502,22 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     return reply(
       out.reply +
       "\nHTML SIM only — WAVE_PROOF_LIVE live batch is desk POST /vita/waveproof or Telegram. VITAFEED_PAID stays default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
+  }
+
+  // /wavefull — 28-shard Heraclitus quote SIM (live send is desk HTTP or Telegram + WAVE_FULL_LIVE)
+  if (text === "/wavefull" || text.startsWith("/wavefull")) {
+    const parsed = parseWaveFullCommand(raw);
+    const out = await handleWaveFullAction({
+      action: parsed.action || "run",
+      symbols: parsed.symbols || "",
+      env: process.env,
+      live: false,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE_FULL_LIVE live batch is desk POST /vita/wavefull or Telegram. /waveproof stays 3. VITAFEED_PAID stays default off." +
       "\nMother brain (/vitasave) untouched.",
     );
   }

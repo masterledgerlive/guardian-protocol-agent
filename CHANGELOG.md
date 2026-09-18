@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Added — gated full-quote WAVE inject (28 shards)
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. `/waveproof` stays capped at exactly 3. Do **not**
+use `ALLOW_LOSSY_OPERATOR_SELL`. Vault never spends.
+
+Thrift 3-token VIN (`01/03`) is **not** the full quote. This path mints
+a new VIN and sends all 28 least-size Heraclitus shards as 0-ETH
+gas-only self-txs. SYM rotates `VIRTUAL`/`CLANKER`/`AERO`. Reconstruct
+PASS only if joined calldata bodies match message sha256
+`fde449b7…b08f` **and** each LOC8 matches.
+
+- Desk (no Telegram): `POST /vita/wavefull` or `GET /vita/wavefull?live=1`
+  with `VITA_WEBHOOK_SECRET`. Public GET stays SIM. Unauthed live is 401.
+- `WAVE_FULL_LIVE=yes` (default OFF). Auto-disables after the batch.
+- Optional `WAVE_FULL_AUTOFIRE=yes` — one-shot boot, then self-clear +
+  disable LIVE. Default OFF.
+- Liquid floor `WAVE_FULL_MIN_LIQUID_USD` default **$1** (reuses
+  `WAVE_PROOF_MIN_LIQUID_USD`).
+- Sell leftover hitch still calls `attachWaveOnCoveredLeftover` for
+  remaining banked WAVE shards when leftover covers (LOSE-ZERO).
+
 ### Added — desk HTTP live WAVE proof (no Telegram)
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
