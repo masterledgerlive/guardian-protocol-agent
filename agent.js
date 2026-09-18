@@ -243,7 +243,8 @@ import {
   belowMinEntrySkip,
   effectiveSellReserve,
   effectiveCascadeGasFloor,
-  unwrapForCascadeGas,
+  autoUnwrapTowardCascadeFloor,
+  cascadeNativeGasOk,
   injectProveStatus,
   INJECT_PROVE_TARGET,
   DEFAULT_IMPACT_PCT,
@@ -1127,10 +1128,10 @@ const SLIPPAGE_GUARD    = 0.85;    // min 85% of expected output
 
 // ── AUTO GAS TOP-UP ───────────────────────────────────────────────────────────
 // Native ETH is always required for gas — WETH cannot pay gas directly.
-// When native ETH drops below GAS_TOPUP_THRESHOLD, auto-unwrap WETH to restore it.
-// This keeps the bot trading even when all capital is held as WETH.
-const GAS_TOPUP_THRESHOLD = 0.0015; // unwrap when native ETH < 0.0015 (~$3)
-const GAS_TOPUP_TARGET    = 0.003;  // unwrap enough to reach 0.003 ETH (~$6)
+// Thrift partial unwrap toward cascade floor (0.001 cap / 0.0005 thrift).
+// Do NOT require WETH > 0.003 — that stalled ~$2 books (ETH~0.000904).
+const GAS_TOPUP_THRESHOLD = 0.0015; // rich-book note only — thin books use cascade floor
+const GAS_TOPUP_TARGET    = 0.003;  // rich-book pad (total ≥ 0.01); not the thin auto gate
 
 // ── WAVE RULES ────────────────────────────────────────────────────────────────
 const MIN_PEAKS_TO_TRADE   = 2;      // was 4 — start trading after just 2 confirmed peaks
@@ -4946,7 +4947,7 @@ async function unwrapWeth(cdp, amountWeth) {
 
 // Unwraps WETH → native ETH so gas fees can be paid.
 // Gas on Base always requires native ETH — WETH cannot pay gas directly.
-// This is called automatically when native ETH drops below GAS_TOPUP_THRESHOLD.
+// Thrift auto unwrap uses cascade floor (not GAS_TOPUP_TARGET 0.003).
 const WETH_ABI_WITHDRAW = [{ name: "withdraw", type: "function", stateMutability: "nonpayable", inputs: [{ name: "wad", type: "uint256" }], outputs: [] }];
 async function unwrapEth(cdp, amountEth) {
   try {
@@ -5560,11 +5561,10 @@ async function manageEthWethBalance(cdp) {
     const total = eth + weth;
     const floor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
     const opUnwrap = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
-    const need = unwrapForCascadeGas({
+    const need = autoUnwrapTowardCascadeFloor({
       nativeEth: eth,
       weth,
-      floorEth: floor,
-      keepWethMin: 0,
+      gasReserveEth: GAS_RESERVE,
       allowPartial: true,
       operatorUnlock: opUnwrap.armed && !operatorUnwrapState.done,
     });
@@ -5604,11 +5604,10 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
     const eth = await getEthBalance();
     const weth = await getWethBalance();
     const floor = effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
-    const need = unwrapForCascadeGas({
+    const need = autoUnwrapTowardCascadeFloor({
       nativeEth: eth,
       weth,
-      floorEth: floor,
-      keepWethMin: 0,
+      gasReserveEth: GAS_RESERVE,
       allowPartial: true,
       operatorUnlock: isOperatorUnwrapArmed(process.env) && !operatorUnwrapState.done,
     });
@@ -5621,15 +5620,20 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
       }
     }
     const after = await getEthBalance();
-    if (after + 1e-12 < Math.min(floor, GAS_RESERVE)) {
-      if (after + 1e-12 >= Math.min(THRIFT_CASCADE_GAS_FLOOR_ETH, GAS_RESERVE) && need > 0) {
+    if (cascadeNativeGasOk({
+      nativeEth: after,
+      floorEth: floor,
+      gasReserveEth: GAS_RESERVE,
+      thriftFloorEth: THRIFT_CASCADE_GAS_FLOOR_ETH,
+      didPartialUnwrap: need > 0,
+    })) {
+      if (need > 0 && after + 1e-12 < floor) {
         console.log(`   ⛽ CASCADE GAS [${label}]: thrift partial unwrap — native ${after.toFixed(6)} (floor ${floor.toFixed(6)})`);
-        return true;
       }
-      console.log(`   🛑 CASCADE GAS [${label}]: still below reserve (${after.toFixed(6)}) — cannot fund next moves`);
-      return false;
+      return true;
     }
-    return true;
+    console.log(`   🛑 CASCADE GAS [${label}]: still below reserve (${after.toFixed(6)}) — cannot fund next moves`);
+    return false;
   } catch (e) {
     console.log(`   ⚠️  CASCADE GAS [${label}] check failed: ${e.message}`);
     return false;
@@ -14715,17 +14719,27 @@ async function main() {
       }
       console.log();
 
-      // ── AUTO GAS TOP-UP: unwrap WETH → ETH when native ETH runs low ──────────
+      // ── AUTO GAS TOP-UP: thrift partial WETH→ETH toward cascade floor ────────
       // Gas on Base ALWAYS requires native ETH. WETH cannot pay gas.
-      // If native ETH drops below threshold AND we have WETH, unwrap just enough
-      // to restore a safe gas buffer — keeps the bot running indefinitely.
-      if (bal.eth < GAS_TOPUP_THRESHOLD && bal.weth > GAS_TOPUP_TARGET) {
-        const unwrapAmt = Math.min(GAS_TOPUP_TARGET - bal.eth, bal.weth - GAS_RESERVE);
-        if (unwrapAmt > 0.0002) {
-          console.log(`⛽ Native ETH low (${bal.eth.toFixed(6)}) — auto-unwrapping ${unwrapAmt.toFixed(6)} WETH for gas`);
-          await tg(`⛽ <b>AUTO GAS TOP-UP</b>\nNative ETH: ${bal.eth.toFixed(6)} → unwrapping ${unwrapAmt.toFixed(6)} WETH\nKeeps bot running without manual intervention`);
-          await unwrapEth(cdpClient, unwrapAmt);
-          // Refresh balance after unwrap
+      // Old gate required weth > 0.003 (GAS_TOPUP_TARGET) and stalled ~$2
+      // books (full unwrap ETH ~0.000904). Unwrap is not a red sell.
+      {
+        const opUnwrap = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
+        const unwrapAmt = autoUnwrapTowardCascadeFloor({
+          nativeEth: bal.eth,
+          weth: bal.weth,
+          gasReserveEth: GAS_RESERVE,
+          allowPartial: true,
+          operatorUnlock: opUnwrap.armed && !operatorUnwrapState.done,
+        });
+        if (unwrapAmt > 0) {
+          const amt = opUnwrap.amountEth > 0 ? Math.min(unwrapAmt, opUnwrap.amountEth) : unwrapAmt;
+          console.log(`⛽ Native ETH ${bal.eth.toFixed(6)} — thrift unwrap ${amt.toFixed(6)} WETH toward cascade floor (not WETH>0.003)`);
+          await unwrapEth(cdpClient, amt);
+          if (opUnwrap.armed) {
+            operatorUnwrapState.done = true;
+            operatorUnwrapState.executed = true;
+          }
           const freshBal = await getFullBalance();
           cachedBal = freshBal;
           Object.assign(bal, freshBal);

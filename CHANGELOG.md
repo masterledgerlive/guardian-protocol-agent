@@ -25,7 +25,8 @@ while peak/board still painted green SELLING. Sell hash was not auto-appended.
 - SKIP_HITCH uncovered leftover banks a learn shard — no unpaired burn.
   Hitch when leftover covers unchanged.
 - Thrift partial WETH→ETH unwrap toward cascade floor. Documented default
-  **0.001** (not 0.00125). Optional `OPERATOR_UNWRAP` desk one-shot.
+  **0.001** (not 0.00125). Cycle-start auto unwrap no longer requires
+  WETH>0.003. Optional `OPERATOR_UNWRAP` desk one-shot.
 
 ### Fixed — WAVE_FULL retry + resume after mid-batch CDP abort
 

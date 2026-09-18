@@ -629,6 +629,7 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("bankSkipHitchLearnShard"), "SKIP_HITCH banks learn shard");
     assert.ok(src.includes("allowPartial: true"), "thrift partial unwrap");
     assert.ok(src.includes("OPERATOR_UNWRAP"), "desk unwrap latch");
+    assert.ok(src.includes("autoUnwrapTowardCascadeFloor"), "auto gate uses thrift unwrap");
     const snapFn = src.indexOf("function buildEngineWaveRows");
     assert.ok(snapFn >= 0, "live /engine snapshot builder");
     const snapBody = src.slice(snapFn, src.indexOf("injectBotState", snapFn));
