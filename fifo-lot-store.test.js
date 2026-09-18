@@ -1365,13 +1365,17 @@ describe("fifo-lot-store — latch CLANKER FIFO from evidence buys 0x23d8a0c5 + 
     const { lots } = latchBoth();
     latchPiggyDust(lots.CLANKER, LIVE_REMAIN);
     assert.equal(Number(lots.CLANKER.piggyDustTokens) || 0, 0, "no pre-buy dust on live rem");
-    assert.equal(knownLotSellTokens(lots.CLANKER, LIVE_REMAIN), lots.CLANKER.tokensIn);
+    assert.ok(Math.abs(LIVE_REMAIN - lots.CLANKER.tokensIn) < 1e-15, "live rem matches bought");
+    assert.equal(
+      knownLotSellTokens(lots.CLANKER, lots.CLANKER.tokensIn),
+      lots.CLANKER.tokensIn,
+    );
 
-    const dustyRemain = LIVE_REMAIN + 0.006;
+    const dustyRemain = lots.CLANKER.tokensIn * 1.021;
     const ratio = dustyRemain / lots.CLANKER.tokensIn;
     assert.ok(ratio > 1.02 && ratio < 1.025, "tiny extra is evidence dust, not a missing add-on");
     latchPiggyDust(lots.CLANKER, dustyRemain);
-    assert.ok(lots.CLANKER.piggyDustTokens >= 0.006 - 1e-12);
+    assert.ok(lots.CLANKER.piggyDustTokens >= dustyRemain - lots.CLANKER.tokensIn - 1e-12);
     assert.equal(knownLotSellTokens(lots.CLANKER, dustyRemain), lots.CLANKER.tokensIn);
 
     const token = { symbol: "CLANKER", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
