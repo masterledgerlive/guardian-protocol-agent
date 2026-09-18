@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -48,7 +49,15 @@ import {
   mergeBuyReceiptIntoLots,
   knownLotSellTokens,
   lotIsEvidenceLatched,
+  lotFromSellReceipt,
+  mergeSellReceiptIntoLots,
+  lotHasSellTx,
+  lotOriginalTokensIn,
+  collectRebuildSellTxs,
+  latchPiggyDust,
 } from "./fifo-lot-store.js";
+import { classifySellArmedDisplay } from "./sell-armed-display.js";
+import { bankSkipHitchLearnShard } from "./vita/skip-hitch-learn.js";
 import {
   fifoRemainingCostEth,
   buildSellGateDecision,
@@ -613,6 +622,13 @@ describe("fifo-lot-store — #78 / #76 / #74 stay armed", () => {
     assert.ok(src.includes("evaluateAddOnFifoRedGate"), "must not add-on into FIFO-red lots");
     assert.ok(src.includes("shouldLatchBuyReceipt"), "must not rematerialize closed-cycle fills");
     assert.ok(src.includes("mergeBuyReceiptIntoLots"), "must merge trough add-on onto first lot");
+    assert.ok(src.includes("recordSellFill"), "sells persist rem cost");
+    assert.ok(src.includes("lotFromSellReceipt"), "sealed sells rebuild from receipt");
+    assert.ok(src.includes("mergeSellReceiptIntoLots"), "auto-append sell hashes");
+    assert.ok(src.includes("classifySellArmedDisplay"), "green SELLING only when sendable");
+    assert.ok(src.includes("bankSkipHitchLearnShard"), "SKIP_HITCH banks learn shard");
+    assert.ok(src.includes("allowPartial: true"), "thrift partial unwrap");
+    assert.ok(src.includes("OPERATOR_UNWRAP"), "desk unwrap latch");
     assert.ok(!src.includes("from \"./guardian-v4/agent.js\""), "must not merge V4 into agent.js");
   });
 });
@@ -1155,3 +1171,237 @@ describe("fifo-lot-store — latch VIRTUAL FIFO from evidence buy 0x33aac652", (
     assert.equal(red.verdict, "HOLD");
   });
 });
+
+describe("fifo-lot-store — partial VIRTUAL sell rem cost + dust piggy", () => {
+  const BUY_ETH = 0.000407247374272554;
+  const BUY_TOK = 1.641959873796611;
+  const SOLD_TOK = 0.34732176459228256;
+  const SOLD_WETH = 0.000090206411822417;
+  const ONCHAIN_REM = 1.3277735025554778;
+  const DUST = ONCHAIN_REM - (BUY_TOK - SOLD_TOK);
+  const KNOWN_REM = BUY_TOK - SOLD_TOK;
+  const REM_COST = BUY_ETH * KNOWN_REM / BUY_TOK;
+  /** Test fixture hash — live sealed prefix is 0x659db825…; do not invent the rest. */
+  const SELL_HASH = "0x2222222222222222222222222222222222222222222222222222222222222222";
+
+  function virtualSellReceipt() {
+    const tokWei = BigInt(Math.round(SOLD_TOK * 1e18));
+    const wethWei = BigInt(Math.round(SOLD_WETH * 1e18));
+    return {
+      receipt: {
+        status: "0x1",
+        transactionHash: SELL_HASH,
+        logs: [
+          transferLog(VIRTUAL, WALLET, VIRTUAL_POOL, tokWei),
+          transferLog(WETH_BASE, VIRTUAL_POOL, WALLET, wethWei),
+        ],
+      },
+      tx: { hash: SELL_HASH, value: "0x0" },
+      tokenAddress: VIRTUAL,
+      symbol: "VIRTUAL",
+      wallet: WALLET,
+    };
+  }
+
+  it("partial sell persists proportional rem cost; dust piggy does not wipe known lot", () => {
+    assert.ok(DUST > 0.033 && DUST < 0.034, "pre-buy dust ~0.033135");
+    const lots = {};
+    recordBuyFill(lots, {
+      symbol: "VIRTUAL",
+      ethIn: BUY_ETH,
+      tokensIn: BUY_TOK,
+      txHash: EVIDENCE_BUY_TXS.VIRTUAL,
+      fillCostEth: BUY_ETH,
+      reason: "MANUAL BUY (operator)",
+    });
+    latchPiggyDust(lots.VIRTUAL, BUY_TOK + DUST);
+    recordSellFill(lots, {
+      symbol: "VIRTUAL",
+      tokensSold: SOLD_TOK,
+      txHash: SELL_HASH,
+      ethOut: SOLD_WETH,
+      piggyDustTokens: DUST,
+    });
+    assert.ok(Math.abs(lots.VIRTUAL.tokensIn - KNOWN_REM) < 1e-9);
+    assert.ok(Math.abs(lots.VIRTUAL.remainingCostEth - REM_COST) < 1e-12);
+    assert.ok(lots.VIRTUAL.piggyDustTokens >= DUST - 1e-9);
+    assert.equal(lotHasSellTx(lots.VIRTUAL, SELL_HASH), true);
+    assert.ok(lotOriginalTokensIn(lots.VIRTUAL) >= BUY_TOK - 1e-9);
+
+    const token = { symbol: "VIRTUAL", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.VIRTUAL, { remainingTokens: ONCHAIN_REM });
+    assert.equal(fifo.unknown, false, "on-chain rem + dust must not unknown the known slice");
+    assert.equal(token.unknownEntry, false);
+    assert.ok(Math.abs(token.totalInvestedEth - REM_COST) < 1e-12);
+    assert.equal(lotAppliedOk(token, fifo), true);
+    assert.equal(knownLotSellTokens(lots.VIRTUAL, ONCHAIN_REM), lots.VIRTUAL.tokensIn);
+
+    const green = plusGate({
+      symbol: "VIRTUAL",
+      entryEth: token.totalInvestedEth,
+      proceeds: token.totalInvestedEth + 9.60e-6,
+    });
+    assert.equal(green.allow, true, "always-plus greens rem lot when quote is plus");
+    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+
+    const red = plusGate({
+      symbol: "VIRTUAL",
+      entryEth: token.totalInvestedEth,
+      proceeds: token.totalInvestedEth * 0.7,
+    });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+  });
+
+  it("auto-appends sealed sell hash onto the book via receipt merge", () => {
+    const lots = {};
+    recordBuyFill(lots, {
+      symbol: "VIRTUAL",
+      ethIn: BUY_ETH,
+      tokensIn: BUY_TOK,
+      txHash: EVIDENCE_BUY_TXS.VIRTUAL,
+      fillCostEth: BUY_ETH,
+    });
+    const row = virtualSellReceipt();
+    const sold = lotFromSellReceipt({
+      symbol: "VIRTUAL",
+      tokenAddress: VIRTUAL,
+      wallet: WALLET,
+      txHash: SELL_HASH,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+    assert.ok(sold);
+    assert.ok(Math.abs(sold.tokensSold - SOLD_TOK) < 1e-8);
+    assert.ok(Math.abs(sold.ethOut - SOLD_WETH) < 1e-12);
+    mergeSellReceiptIntoLots(lots, sold, { remainingTokens: ONCHAIN_REM });
+    assert.equal(lotHasSellTx(lots.VIRTUAL, SELL_HASH), true);
+    mergeSellReceiptIntoLots(lots, sold, { remainingTokens: ONCHAIN_REM });
+    assert.equal(lots.VIRTUAL.sellTxs.filter((s) => s.hash === SELL_HASH).length, 1);
+    const token = { symbol: "VIRTUAL", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.VIRTUAL, { remainingTokens: ONCHAIN_REM });
+    assert.equal(fifo.unknown, false);
+    assert.ok(token.totalInvestedEth > 0);
+  });
+
+  it("rebuild after restart applies persisted rem cost so always-plus can still green", () => {
+    const live = {};
+    recordBuyFill(live, {
+      symbol: "VIRTUAL",
+      ethIn: BUY_ETH,
+      tokensIn: BUY_TOK,
+      txHash: EVIDENCE_BUY_TXS.VIRTUAL,
+      fillCostEth: BUY_ETH,
+    });
+    recordSellFill(live, {
+      symbol: "VIRTUAL",
+      tokensSold: SOLD_TOK,
+      txHash: SELL_HASH,
+      ethOut: SOLD_WETH,
+      piggyDustTokens: DUST,
+    });
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(live),
+      remainingBySymbol: { VIRTUAL: ONCHAIN_REM },
+    });
+    assert.deepEqual(rebuilt.unknown, []);
+    assert.ok(rebuilt.rebuilt.includes("VIRTUAL"));
+    assert.equal(rebuilt.applied.VIRTUAL.unknownEntry, false);
+    assert.ok(Math.abs(rebuilt.applied.VIRTUAL.totalInvestedEth - REM_COST) < 1e-11);
+    const hashes = collectRebuildSellTxs({ persistedLots: rebuilt.lots });
+    assert.ok(hashes.VIRTUAL.includes(SELL_HASH));
+  });
+
+  it("green SELLING only when quoter-executable AND always-plus PLUS", () => {
+    const selling = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "PLUS",
+      allow: true,
+      unknownEntry: false,
+    });
+    assert.equal(selling.green, true);
+    assert.equal(selling.label, "SELLING");
+    assert.equal(selling.code, null);
+
+    const fifoHold = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "HOLD",
+      allow: false,
+      unknownEntry: false,
+      reason: "LOSE_ZERO: hold sell VIRTUAL leftover after fees ≤ 0 — FIFO red",
+    });
+    assert.equal(fifoHold.green, false);
+    assert.equal(fifoHold.code, "FIFO_RED");
+    assert.match(fifoHold.label, /HOLD FIFO_RED/);
+
+    const unknown = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "HOLD",
+      allow: false,
+      unknownEntry: true,
+      reason: "unknown cost — cannot prove plus vs entry",
+    });
+    assert.equal(unknown.code, "UNKNOWN_COST");
+
+    const skip = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "SKIP_HITCH",
+      allow: true,
+      unknownEntry: false,
+    });
+    assert.equal(skip.green, false);
+    assert.equal(skip.code, "SKIP_HITCH");
+
+    const thin = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: false,
+      verdict: "PLUS",
+      allow: true,
+      unknownEntry: false,
+    });
+    assert.equal(thin.code, "THIN_LIQUID");
+    assert.equal(thin.green, false);
+  });
+
+  it("SKIP_HITCH uncovered leftover banks learn shard and does not unpaired burn", () => {
+    const shard = bankSkipHitchLearnShard({
+      symbol: "VIRTUAL",
+      leftoverEth: 1e-8,
+      hitchWouldEth: 4e-6,
+      reason: "SKIP_HITCH leftover too thin",
+    });
+    assert.equal(shard.banked, true);
+    assert.equal(shard.burned, false);
+    assert.equal(shard.unpairedBurn, false);
+    assert.equal(shard.hitchWhenCovered, true);
+    assert.equal(shard.motherBrain, "untouched");
+    assert.equal(shard.uncovered, true);
+  });
+
+  it("mother brain DIFF ZERO vs main", () => {
+    const frozen = [
+      "vita-memory.js",
+      "memory-engine.js",
+      "vita/mainframe.js",
+      "vita/ORIGINAL_FORMULA.md",
+      "vita/anchors.json",
+      "vita/mother-genesis.js",
+      "vita/FILING.md",
+      "vita/AGENTS.md",
+    ];
+    for (const f of frozen) {
+      let diff = "";
+      try {
+        diff = execSync("git diff main -- " + f, { encoding: "utf8", cwd: root });
+      } catch {
+        diff = execSync("git diff origin/main -- " + f, { encoding: "utf8", cwd: root });
+      }
+      assert.equal(diff, "", f + " must stay untouched vs main");
+    }
+  });
+});
+

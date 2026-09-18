@@ -29,6 +29,8 @@ import {
   FULL_SELL_RESERVE_ETH,
   CASCADE_GAS_FLOOR_ETH,
   INJECT_PROVE_TARGET,
+  parseOperatorUnwrapEnv,
+  isOperatorUnwrapArmed,
 } from "./cascade-rollover.js";
 import { tierBookParams } from "./inject-revenue.js";
 
@@ -191,15 +193,16 @@ describe("cascade-rollover: deploy sizing", () => {
 });
 
 describe("cascade-rollover: gas floor + unwrap", () => {
-  it("floor covers reserve + N moves", () => {
+  it("floor covers reserve + N moves but caps at documented 0.001", () => {
     const f = cascadeGasFloorEth({
       gasReserveEth: 0.0005,
       movesReserve: 3,
       perMoveEth: 0.00025,
       absoluteFloorEth: CASCADE_GAS_FLOOR_ETH,
     });
-    assert.ok(f >= CASCADE_GAS_FLOOR_ETH);
-    assert.ok(f >= 0.0005 + 3 * 0.00025 - 1e-12);
+    assert.equal(CASCADE_GAS_FLOOR_ETH, 0.001);
+    assert.ok(f <= CASCADE_GAS_FLOOR_ETH + 1e-12, "must not stall at 0.00125");
+    assert.ok(f >= 0.0005 - 1e-12);
   });
 
   it("thin books shrink cascade gas floor toward reserve", () => {
@@ -214,6 +217,39 @@ describe("cascade-rollover: gas floor + unwrap", () => {
     const amt = unwrapForCascadeGas({ nativeEth: 0.0002, weth: 0.01, floorEth: 0.001 });
     assert.ok(amt >= 0.0008 - 1e-9);
     assert.ok(amt <= 0.0012);
+  });
+
+  it("thrift partial unwrap when WETH cannot cover the full gap", () => {
+    // Risk desk: full unwrap ETH ~0.000904 still under the old 0.00125 floor.
+    const refused = unwrapForCascadeGas({
+      nativeEth: 0,
+      weth: 0.000904,
+      floorEth: 0.00125,
+      allowPartial: false,
+    });
+    assert.equal(refused, 0, "old full-gap gate still refuse-able");
+    const partial = unwrapForCascadeGas({
+      nativeEth: 0,
+      weth: 0.000904,
+      floorEth: 0.00125,
+      allowPartial: true,
+    });
+    assert.ok(Math.abs(partial - 0.000904) < 1e-12);
+    const towardThrift = unwrapForCascadeGas({
+      nativeEth: 0,
+      weth: 0.000904,
+      floorEth: CASCADE_GAS_FLOOR_ETH,
+    });
+    assert.ok(towardThrift > 0);
+    assert.ok(towardThrift <= 0.000904 + 1e-12);
+  });
+
+  it("OPERATOR_UNWRAP latch parses desk one-shot", () => {
+    assert.equal(parseOperatorUnwrapEnv("").armed, false);
+    assert.equal(parseOperatorUnwrapEnv("yes").armed, true);
+    assert.equal(parseOperatorUnwrapEnv("0.0004").amountEth, 0.0004);
+    assert.equal(isOperatorUnwrapArmed({ OPERATOR_UNWRAP: "yes" }), true);
+    assert.equal(isOperatorUnwrapArmed({}), false);
   });
 
   it("max deploy leaves gas floor in liquid", () => {
@@ -334,6 +370,8 @@ describe("cascade-rollover: wired into agent.js", () => {
     assert.ok(agentSrc.includes("liquidBalanceStatus"));
     assert.ok(agentSrc.includes("effectiveCascadeGasFloor"));
     assert.ok(agentSrc.includes("unwrapForCascadeGas"));
+    assert.ok(agentSrc.includes("OPERATOR_UNWRAP"));
+    assert.ok(agentSrc.includes("allowPartial: true"));
     assert.ok(agentSrc.includes("injectProveStatus"));
     assert.ok(agentSrc.includes("microSpendableEth"));
     assert.ok(agentSrc.includes("resolveMinEntryForBook"));

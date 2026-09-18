@@ -1452,28 +1452,54 @@ export function fifoUnknownLots({
   remainingTokens = 0,
   tokensIn = 0,
   evidenceLot = false,
+  originalTokensIn = 0,
+  piggyDustTokens = 0,
 } = {}) {
   const remain = Number(remainingTokens);
   const bought = Number(tokensIn);
   if (!Number.isFinite(remain) || !Number.isFinite(bought) || bought <= 0) return false;
+  if (remain <= bought + 1e-9) return false;
+  const extra = remain - bought;
+  const dust = Math.max(0, Number(piggyDustTokens) || 0);
+  if (dust > 0 && extra <= dust + 1e-9) return false;
+  // Pre-buy dust is an absolute leftover of the *original* buy, not a % of
+  // the remaining known lot. After a partial sell, tokensIn shrinks and the
+  // same ~0.033 dust would trip remain/bought > 1.025. Compare extra to
+  // originalTokensIn × (band − 1) so rem lots stay known.
+  const original = Number(originalTokensIn) > 0 ? Number(originalTokensIn) : bought;
   const band = evidenceLot ? EVIDENCE_LOT_DUST_BAND : UNKNOWN_LOTS_BAND;
-  return remain > bought * band + 1e-9;
+  return extra > original * (band - 1) + 1e-9;
 }
 
 /**
  * Remain used for FIFO cost / known-lot sell cap.
- * Evidence-latched pre-buy dust (within EVIDENCE_LOT_DUST_BAND) is excluded
- * so remain/bought does not trip unknown-lots; extra stays unsold / piggy.
+ * Evidence-latched pre-buy dust (within EVIDENCE_LOT_DUST_BAND of the
+ * original buy) is excluded so remain/bought does not trip unknown-lots;
+ * extra stays unsold / piggy. Persisted piggyDustTokens is the same carve-out
+ * after a partial (tokensIn already shrank).
  */
-export function fifoKnownLotRemain(remainingTokens, tokensIn, { evidenceLot = false } = {}) {
+export function fifoKnownLotRemain(remainingTokens, tokensIn, {
+  evidenceLot = false,
+  originalTokensIn = 0,
+  piggyDustTokens = 0,
+} = {}) {
   const remain = Number(remainingTokens);
   const bought = Number(tokensIn);
   if (!Number.isFinite(remain) || remain <= 0) return remain;
   if (!Number.isFinite(bought) || bought <= 0) return remain;
+  const dust = Math.max(0, Number(piggyDustTokens) || 0);
+  if (dust > 0 && remain > bought && remain <= bought + dust + 1e-9) {
+    return bought;
+  }
   if (
-    evidenceLot
-    && remain > bought
-    && !fifoUnknownLots({ remainingTokens: remain, tokensIn: bought, evidenceLot: true })
+    remain > bought
+    && !fifoUnknownLots({
+      remainingTokens: remain,
+      tokensIn: bought,
+      evidenceLot,
+      originalTokensIn,
+      piggyDustTokens: dust,
+    })
   ) {
     return bought;
   }
@@ -1486,11 +1512,15 @@ export function fifoRemainingCostEth({
   remainingTokens = 0,
   persistedInvestedEth = 0,
   evidenceLot = false,
+  originalTokensIn = 0,
+  piggyDustTokens = 0,
 } = {}) {
   const remainRaw = Number(remainingTokens);
   const spent = Number(ethIn);
   const bought = Number(tokensIn);
   const persisted = Number(persistedInvestedEth);
+  const original = Number(originalTokensIn) > 0 ? Number(originalTokensIn) : bought;
+  const dust = Math.max(0, Number(piggyDustTokens) || 0);
 
   if (!Number.isFinite(remainRaw) || remainRaw <= 0) {
     return { unknown: false, investedEth: 0, reason: "empty", proportional: 0 };
@@ -1501,10 +1531,20 @@ export function fifoRemainingCostEth({
   if (!Number.isFinite(bought) || bought <= 0) {
     return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
   }
-  if (fifoUnknownLots({ remainingTokens: remainRaw, tokensIn: bought, evidenceLot })) {
+  if (fifoUnknownLots({
+    remainingTokens: remainRaw,
+    tokensIn: bought,
+    evidenceLot,
+    originalTokensIn: original,
+    piggyDustTokens: dust,
+  })) {
     return { unknown: true, investedEth: 0, reason: "unknown-lots", proportional: 0 };
   }
-  const remain = fifoKnownLotRemain(remainRaw, bought, { evidenceLot });
+  const remain = fifoKnownLotRemain(remainRaw, bought, {
+    evidenceLot,
+    originalTokensIn: original,
+    piggyDustTokens: dust,
+  });
   const proportional = spent * Math.min(1, remain / bought);
   const investedEth = Math.max(
     proportional,

@@ -46,6 +46,7 @@ export function classifyWavePhase({
   predExit = 0,
   holding = false,
   exiting = false,
+  sellArmed = null,
 } = {}) {
   const px = Number(price) || 0;
   if (exiting) return { phase: "TRICK", label: "Trick out", dance: "exit" };
@@ -73,6 +74,28 @@ export function classifyWavePhase({
   }
   // Peak made / turning / fast drop off a risen high — trick armed.
   if ((near && risen && !printingHighs) || (risen && drop >= FAST_CRASH_PCT * 0.5)) {
+    if (sellArmed && sellArmed.green) {
+      return {
+        phase: "PEAK",
+        label: "SELLING",
+        dance: "exit",
+        risen,
+        dropPct: drop,
+        armed: true,
+        holdCode: null,
+      };
+    }
+    if (sellArmed && !sellArmed.green) {
+      return {
+        phase: "PEAK",
+        label: sellArmed.label || `HOLD ${sellArmed.code || ""}`.trim(),
+        dance: "hold",
+        risen,
+        dropPct: drop,
+        armed: false,
+        holdCode: sellArmed.code || "HOLD",
+      };
+    }
     return {
       phase: "PEAK",
       label: drop >= FAST_CRASH_PCT ? "Peak turning — fast drop" : "Peak zone — trick armed",

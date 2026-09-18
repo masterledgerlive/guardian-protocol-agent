@@ -1,0 +1,9 @@
+{
+  "strandId": "virtual-partial-fifo-rem",
+  "sparse": true,
+  "source": "fifo-lot-store",
+  "learn": "Partial VIRTUAL sell: rem cost = proportional remaining of entry for the sold known-lot slice. Pre-buy dust piggy stays unknown/zero and never blocks known-lot sells. Compare extra to originalTokensIn × (band−1), not remain/bought of the shrunken lot. Auto-append sellTxs on sealed hashes. Peak/board SELLING green only when Quoter-executable AND always-plus PLUS; else HOLD FIFO_RED / UNKNOWN_COST / SKIP_HITCH / THIN_LIQUID. SKIP_HITCH uncovered leftover banks learn shard, no unpaired burn. Cascade gas floor documented 0.001 (not 0.00125); thrift partial WETH unwrap toward floor. VITAFEED_PAID / WAVE_MIRROR_PAID / ALLOW_LOSSY_OPERATOR_SELL stay default off. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "recordSellFill"
+}
