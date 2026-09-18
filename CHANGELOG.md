@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed — WAVE_FULL retry + resume after mid-batch CDP abort
+
+HARD STOP: mother brain untouched. `/waveproof` stays 3.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF.
+
+Live autofire on tip `29c5833` sealed 5/28 on `VIN-5785B9B4E1` then CDP
+`Service unavailable`. The live latch marked spent in `finally`, so the
+in-process batch could not continue. Reconstruct FAIL.
+
+- Retry each shard 3× with short backoff on transient CDP/RPC
+  (`Service unavailable`, 429, 502/503/504).
+- Resume: desk `POST { vinId, fromIndex, txHashes }` or
+  `WAVE_FULL_RESUME_VIN` / `FROM` / `TXS`. Same VIN + prev chain;
+  send only remaining shards.
+- Mark `WAVE_FULL_LIVE` spent only after a full 28. Partial leaves
+  LIVE armed. Autofire stays one-shot (new VIN) — resume is desk POST,
+  not a second autofire of all 28.
+
 ### Added — gated full-quote WAVE inject (28 shards)
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`

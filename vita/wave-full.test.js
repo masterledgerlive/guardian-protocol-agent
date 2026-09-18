@@ -16,13 +16,17 @@ import {
   evaluateWaveFullGate,
   formatWaveFullHttpResult,
   handleWaveFullAction,
+  isTransientWaveSendError,
   maybeAutofireWaveFull,
   parseWaveFullCommand,
+  peekWaveFullPartial,
   planWaveFull,
   resetWaveFullAutofireLatch,
   resetWaveFullLiveLatch,
+  resolveWaveFullResume,
   runFullWaveSends,
   runWaveFull,
+  sendWaveTxWithRetry,
   wantsDeskWaveFullLive,
   waveFullAutofireEnabled,
   waveFullAutofireSpent,
@@ -250,6 +254,98 @@ describe("WAVE full-quote caps + gate", () => {
     });
     assert.equal(second.fired, false);
     assert.match(second.reason, /already spent|refuse further/);
+  });
+
+  it("retries transient CDP/RPC errors then seals the shard", async () => {
+    assert.equal(isTransientWaveSendError(new Error("Service unavailable")), true);
+    assert.equal(isTransientWaveSendError({ status: 429, message: "rate" }), true);
+    assert.equal(isTransientWaveSendError(new Error("sender returned non-hash")), false);
+    let calls = 0;
+    const hash = await sendWaveTxWithRetry(async () => {
+      calls += 1;
+      if (calls < 3) throw new Error("Service unavailable");
+      return "0x" + "a".repeat(64);
+    }, "0x11", {}, { retries: 3, backoffMs: 1, sleep: async () => {} });
+    assert.equal(calls, 3);
+    assert.match(hash, /^0xa+$/);
+  });
+
+  it("partial live abort leaves LIVE armed; resume same VIN then PASS reconstruct", async () => {
+    const env = { WAVE_FULL_LIVE: "yes", WAVE_FULL_RETRY_MS: "0", WAVE_FULL_SEND_RETRIES: "3" };
+    const chain = createWaveSimChain();
+    let sealed = 0;
+    const flaky = async (hex) => {
+      if (sealed >= 5) throw new Error("Service unavailable");
+      sealed += 1;
+      return chain.sendTx(hex);
+    };
+    const first = await runWaveFull({
+      live: true,
+      env,
+      vinId: "VIN-5785B9B4E1",
+      sendTx: flaky,
+      fetchCalldata: chain.fetchCalldata,
+      liquidUsd: 10,
+      quotes: { gwei: 0.05, ethUsd: 2481 },
+      sleep: async () => {},
+    });
+    assert.equal(first.ok, true);
+    assert.equal(first.pass, false);
+    assert.equal(first.partial, true);
+    assert.equal(first.inscribed.sealedCount, 5);
+    assert.equal(first.vinId, "VIN-5785B9B4E1");
+    assert.equal(waveFullLiveSpent(), false);
+    assert.equal(env.WAVE_FULL_LIVE, "yes");
+    const partial = peekWaveFullPartial();
+    assert.equal(partial.vinId, "VIN-5785B9B4E1");
+    assert.equal(partial.fromIndex, 6);
+
+    const planned = planWaveFull({ vinId: "VIN-5785B9B4E1" });
+    const again = planWaveFull({ vinId: "VIN-5785B9B4E1" });
+    assert.equal(again.lines[5].line, planned.lines[5].line);
+    assert.equal(again.lines[5].prevHash, planned.lines[5].prevHash);
+
+    const resume = await runWaveFull({
+      live: true,
+      env,
+      vinId: "VIN-5785B9B4E1",
+      fromIndex: 6,
+      sealedHashes: first.inscribed.txHashes,
+      sendTx: chain.sendTx,
+      fetchCalldata: chain.fetchCalldata,
+      liquidUsd: 10,
+      quotes: { gwei: 0.05, ethUsd: 2481 },
+      sleep: async () => {},
+    });
+    assert.equal(resume.ok, true);
+    assert.equal(resume.pass, true);
+    assert.equal(resume.vinId, "VIN-5785B9B4E1");
+    assert.equal(resume.inscribed.txHashes.length, 28);
+    assert.equal(resume.inscribed.chunks[0].resumed, true);
+    assert.equal(resume.inscribed.chunks[5].resumed, false);
+    assert.equal(resume.compared.messageMatch, true);
+    assert.equal(resume.compared.loc8Match, true);
+    assert.equal(waveFullLiveSpent(), true);
+    assert.equal(env.WAVE_FULL_LIVE, "no");
+    assert.equal(vitaFeedPaidEnabled(env), false);
+  });
+
+  it("autofire does not resume WAVE_FULL_RESUME_VIN (desk POST resumes)", () => {
+    const resolved = resolveWaveFullResume({
+      env: { WAVE_FULL_RESUME_VIN: "VIN-5785B9B4E1", WAVE_FULL_RESUME_FROM: "6" },
+      autofire: true,
+    });
+    assert.equal(resolved.resume, false);
+    assert.equal(resolved.fromIndex, 1);
+    const desk = resolveWaveFullResume({
+      vinId: "VIN-5785B9B4E1",
+      fromIndex: 6,
+      sealedHashes: ["0x" + "b".repeat(64)],
+    });
+    assert.equal(desk.resume, true);
+    assert.equal(desk.fromIndex, 6);
+    assert.equal(parseWaveFullCommand("/wavefull resume VIN-5785B9B4E1 6").vinId, "VIN-5785B9B4E1");
+    assert.equal(parseWaveFullCommand("/wavefull resume VIN-5785B9B4E1 6").fromIndex, 6);
   });
 });
 

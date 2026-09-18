@@ -1,0 +1,9 @@
+{
+  "strandId": "wave-full-resume-retry",
+  "sparse": true,
+  "source": "wave-full-helper",
+  "learn": "After a mid-batch CDP Service unavailable, retry the shard 3× then abort remaining. Do not mark WAVE_FULL_LIVE spent until 28 seal. Resume the same VIN via desk POST {vinId,fromIndex,txHashes} (or WAVE_FULL_RESUME_VIN). Autofire is new-VIN only — never a second full 28. Reconstruct still requires all 28 hashes + LOC8. /waveproof stays 3. Mother brain untouched.",
+  "formula": "original-message-first",
+  "desk": ["POST /vita/wavefull"],
+  "neverSoloSendUnlessFullEnv": true
+}

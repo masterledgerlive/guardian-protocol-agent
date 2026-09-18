@@ -12627,6 +12627,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             fetchCalldata: ctx.fetchCalldata,
             liquidUsd: ctx.liquidUsd,
             quotes: ctx.quotes,
+            vinId: parsed.vinId || "",
+            fromIndex: parsed.fromIndex || 0,
           });
           await tg(
             "🌊 <b>WAVE FULL</b>\n<pre>" +

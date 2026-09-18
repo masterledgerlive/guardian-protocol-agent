@@ -34,15 +34,24 @@ export const WAVE_FULL_MIN_LIQUID_USD_DEFAULT = 1;
 export const WAVE_FULL_EXPECTED_SHARDS = 28;
 export const WAVE_FULL_DEFAULT_SYMS = Object.freeze(["VIRTUAL", "CLANKER", "AERO"]);
 export const WAVE_FULL_SYMS_ENV = "WAVE_FULL_SYMS";
+export const WAVE_FULL_RESUME_VIN_ENV = "WAVE_FULL_RESUME_VIN";
+export const WAVE_FULL_RESUME_FROM_ENV = "WAVE_FULL_RESUME_FROM";
+export const WAVE_FULL_RESUME_TXS_ENV = "WAVE_FULL_RESUME_TXS";
+export const WAVE_FULL_SEND_RETRIES_ENV = "WAVE_FULL_SEND_RETRIES";
+export const WAVE_FULL_RETRY_MS_ENV = "WAVE_FULL_RETRY_MS";
+export const WAVE_FULL_SEND_RETRIES_DEFAULT = 3;
+export const WAVE_FULL_RETRY_MS_DEFAULT = 400;
 export const WAVE_FULL_BASESCAN_TX = "https://basescan.org/tx/";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
+const VIN_RE = /^VIN-[A-Z0-9]+$/i;
 const CALLDATA_GAS_PER_NONZERO_BYTE = 16;
 const BTP_INSCRIBE_GAS_UNITS = 50_000;
 const WAVE_PROOF_MIN_LIQUID_USD_ENV = "WAVE_PROOF_MIN_LIQUID_USD";
 
 let _waveFullLiveSpent = false;
 let _waveFullAutofireSpent = false;
+let _waveFullPartial = null;
 
 function envFlagOnExplicit(raw) {
   const v = String(raw ?? "").trim().toLowerCase();
@@ -85,6 +94,38 @@ export function waveFullLiveSpent() {
 
 export function resetWaveFullLiveLatch() {
   _waveFullLiveSpent = false;
+  _waveFullPartial = null;
+}
+
+export function peekWaveFullPartial() {
+  return _waveFullPartial
+    ? {
+        vinId: _waveFullPartial.vinId,
+        fromIndex: _waveFullPartial.fromIndex,
+        txHashes: _waveFullPartial.txHashes.slice(),
+        symbols: _waveFullPartial.symbols ? _waveFullPartial.symbols.slice() : [],
+        sealedCount: _waveFullPartial.txHashes.length,
+      }
+    : null;
+}
+
+export function rememberWaveFullPartial(row = {}) {
+  const txHashes = parseWaveFullTxHashes(row.txHashes);
+  const fromIndex = Math.max(
+    1,
+    Math.floor(Number(row.fromIndex) || (txHashes.length + 1)),
+  );
+  _waveFullPartial = {
+    vinId: sanitizeWaveFullVin(row.vinId),
+    fromIndex,
+    txHashes,
+    symbols: Array.isArray(row.symbols) ? row.symbols.slice() : [],
+  };
+  return peekWaveFullPartial();
+}
+
+export function clearWaveFullPartial() {
+  _waveFullPartial = null;
 }
 
 export function markWaveFullLiveSpent(env = null) {
@@ -149,6 +190,16 @@ export function parseWaveFullCommand(raw = "") {
   }
   const after = s.replace(/^\/wavefull(?:@\w+)?/i, "").trim();
   if (/^help$/i.test(after)) return { ok: true, action: "help", symbols: "" };
+  if (/^resume\b/i.test(after)) {
+    const parts = after.replace(/^resume\b/i, "").trim().split(/[\s,;]+/).filter(Boolean);
+    return {
+      ok: true,
+      action: "run",
+      symbols: "",
+      vinId: sanitizeWaveFullVin(parts[0] || ""),
+      fromIndex: parseWaveFullFromIndex(parts[1], 0) || 0,
+    };
+  }
   return { ok: true, action: "run", symbols: after };
 }
 
@@ -157,9 +208,10 @@ export function waveFullUsageText() {
     "usage: /wavefull [SYM SYM SYM]",
     "Full-quote WAVE inject: all 28 least-size Heraclitus shards, new VIN, SYM rotates.",
     "Default SYMs: VIRTUAL CLANKER AERO (cycle across 01/28…28/28). Last shard is 1B.",
-    "Live needs WAVE_FULL_LIVE=yes (default OFF). Auto-disables after the batch.",
+    "Live needs WAVE_FULL_LIVE=yes (default OFF). Auto-disables after a FULL 28.",
+    "Partial (CDP/RPC) leaves LIVE armed. Resume: POST { vinId, fromIndex, txHashes } or WAVE_FULL_RESUME_VIN.",
     "Desk: POST /vita/wavefull or GET ?live=1 with VITA_WEBHOOK_SECRET (x-vita-secret / x-vita-webhook-secret).",
-    "WAVE_FULL_AUTOFIRE=yes fires once on boot then disables LIVE. Default OFF.",
+    "WAVE_FULL_AUTOFIRE=yes fires once on boot (new VIN). Resume is desk POST — not a second autofire.",
     "Does NOT change /waveproof (still exactly 3). Does NOT enable VITAFEED_PAID / WAVE_MIRROR_PAID.",
     "Mother brain untouched. Vault never spends.",
   ].join("\n");
@@ -175,16 +227,136 @@ export function estimateWaveFullSendUsd({ calldataBytes, gwei = 0.05, ethUsd = 2
   return eth * px;
 }
 
+export function sanitizeWaveFullVin(raw = "") {
+  const s = String(raw || "").trim().toUpperCase();
+  return VIN_RE.test(s) ? s : "";
+}
+
+export function parseWaveFullFromIndex(raw, fallback = 1) {
+  if (raw == null || String(raw).trim() === "") return fallback;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.min(WAVE_FULL_EXPECTED_SHARDS + 1, n);
+}
+
+export function parseWaveFullTxHashes(raw) {
+  const parts = Array.isArray(raw)
+    ? raw
+    : String(raw || "").split(/[\s,;]+/);
+  const out = [];
+  for (const p of parts) {
+    const h = String(p || "").trim();
+    if (TX_HASH_RE.test(h) && !out.includes(h)) out.push(h);
+  }
+  return out;
+}
+
+export function isTransientWaveSendError(err) {
+  if (err == null) return false;
+  const status = Number(err.status || err.statusCode || err.code || 0);
+  if (status === 429 || status === 502 || status === 503 || status === 504) return true;
+  const code = String(err.code || "").toUpperCase();
+  if (/^(ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|ECONNREFUSED)$/.test(code)) return true;
+  const s = String(err.message || err || "");
+  return /service unavailable|unavailable|too many requests|429|502|503|504|econnreset|etimedout|timeout|temporar|try again|rate limit|fetch failed|network/i.test(s);
+}
+
+export function waveFullSendRetries(env = process.env) {
+  const n = envNumber(env?.[WAVE_FULL_SEND_RETRIES_ENV], WAVE_FULL_SEND_RETRIES_DEFAULT);
+  if (!Number.isFinite(n) || n < 1) return WAVE_FULL_SEND_RETRIES_DEFAULT;
+  return Math.min(8, Math.floor(n));
+}
+
+export function waveFullRetryMs(env = process.env) {
+  const n = envNumber(env?.[WAVE_FULL_RETRY_MS_ENV], WAVE_FULL_RETRY_MS_DEFAULT);
+  if (!Number.isFinite(n) || n < 0) return WAVE_FULL_RETRY_MS_DEFAULT;
+  return Math.min(10_000, Math.floor(n));
+}
+
+function defaultSleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** 3 attempts by default (initial + 2 retries) on transient CDP/RPC errors. */
+export async function sendWaveTxWithRetry(sendTx, hex, line, {
+  retries = WAVE_FULL_SEND_RETRIES_DEFAULT,
+  backoffMs = WAVE_FULL_RETRY_MS_DEFAULT,
+  sleep = defaultSleep,
+} = {}) {
+  const attempts = Math.max(1, Math.floor(Number(retries) || WAVE_FULL_SEND_RETRIES_DEFAULT));
+  const base = Math.max(0, Number(backoffMs) || 0);
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await sendTx(hex, line);
+    } catch (e) {
+      lastErr = e;
+      const more = i < attempts - 1 && isTransientWaveSendError(e);
+      if (!more) throw e;
+      if (base > 0 && typeof sleep === "function") {
+        await sleep(base * (2 ** i));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Autofire never resumes (avoids a second full 28). Desk/env resume
+ * continues an incomplete VIN from fromIndex with the same prev chain.
+ */
+export function resolveWaveFullResume({
+  vinId,
+  fromIndex,
+  sealedHashes,
+  env = process.env,
+  autofire = false,
+  fresh = false,
+} = {}) {
+  if (autofire === true || fresh === true) {
+    return {
+      resume: false,
+      vinId: sanitizeWaveFullVin(vinId) || "",
+      fromIndex: 1,
+      sealedHashes: [],
+    };
+  }
+  const bodyVin = sanitizeWaveFullVin(vinId);
+  const envVin = sanitizeWaveFullVin(env?.[WAVE_FULL_RESUME_VIN_ENV]);
+  const partial = peekWaveFullPartial();
+  const resolvedVin = bodyVin || envVin || partial?.vinId || "";
+  const hashes = (() => {
+    const fromArg = parseWaveFullTxHashes(sealedHashes);
+    if (fromArg.length) return fromArg;
+    const fromEnv = parseWaveFullTxHashes(env?.[WAVE_FULL_RESUME_TXS_ENV]);
+    if (fromEnv.length) return fromEnv;
+    if (partial && resolvedVin && partial.vinId === resolvedVin) return partial.txHashes.slice();
+    return [];
+  })();
+  let from = parseWaveFullFromIndex(fromIndex, 0)
+    || parseWaveFullFromIndex(env?.[WAVE_FULL_RESUME_FROM_ENV], 0);
+  if (!from && hashes.length) from = hashes.length + 1;
+  if (!from && partial && resolvedVin && partial.vinId === resolvedVin) from = partial.fromIndex;
+  if (!from) from = 1;
+  return {
+    resume: Boolean(resolvedVin && from > 1),
+    vinId: resolvedVin,
+    fromIndex: from,
+    sealedHashes: hashes,
+  };
+}
+
 export function evaluateWaveFullGate({
   live = false,
   env = process.env,
   liquidUsd = null,
   sendTx = null,
+  resume = false,
 } = {}) {
   if (!live) {
     return { ok: true, live: false, code: "sim", reason: "SIM — WAVE_FULL_LIVE default off" };
   }
-  if (_waveFullLiveSpent) {
+  if (_waveFullLiveSpent && resume !== true) {
     return {
       ok: false,
       live: false,
@@ -350,17 +522,47 @@ export async function runFullWaveSends(planned, sendTx, {
   liquidUsd = null,
   costUsdPerSend = 0,
   floor = 0,
+  fromIndex = 1,
+  priorTxHashes = [],
+  retries = WAVE_FULL_SEND_RETRIES_DEFAULT,
+  backoffMs = WAVE_FULL_RETRY_MS_DEFAULT,
+  sleep = defaultSleep,
 } = {}) {
   if (!planned?.ok) return planned;
   if (typeof sendTx !== "function") {
     return { ok: false, reason: "no sendTx — refuse invent", chunks: [], txHashes: [] };
   }
   const needed = planned.lines.length;
+  const start = Math.min(needed + 1, Math.max(1, Math.floor(Number(fromIndex) || 1)));
+  const prior = parseWaveFullTxHashes(priorTxHashes);
   const chunks = [];
   const txHashes = [];
   let remaining = liquidUsd == null ? null : Number(liquidUsd);
   let aborted = null;
-  for (let i = 0; i < needed; i++) {
+  let sentThisRun = 0;
+  for (let i = 0; i < start - 1; i++) {
+    const line = planned.lines[i];
+    const txHash = prior[i] || null;
+    const sealed = Boolean(txHash);
+    if (txHash) txHashes.push(txHash);
+    chunks.push({
+      index: line.index,
+      total: line.total,
+      vinId: line.vinId,
+      symbol: line.symbol,
+      key8: line.key8,
+      loc8: line.loc8,
+      body: line.body,
+      bodyBytes: line.bodyBytes,
+      line: line.line,
+      hex: line.hex || utf8ToHex(line.line),
+      txHash: txHash || null,
+      sealed,
+      resumed: true,
+      basescan: txHash ? WAVE_FULL_BASESCAN_TX + txHash : null,
+    });
+  }
+  for (let i = start - 1; i < needed; i++) {
     const cost = Number(costUsdPerSend) || 0;
     if (floor > 0 && remaining != null && Number.isFinite(remaining)) {
       if (remaining < floor || remaining - cost < floor) {
@@ -370,12 +572,21 @@ export async function runFullWaveSends(planned, sendTx, {
     }
     const line = planned.lines[i];
     const hex = line.hex || utf8ToHex(line.line);
-    const txHash = await sendTx(hex, line);
+    let txHash;
+    try {
+      txHash = await sendWaveTxWithRetry(sendTx, hex, line, { retries, backoffMs, sleep });
+    } catch (e) {
+      aborted = isTransientWaveSendError(e)
+        ? "abort mid-batch — transient send error after retries: " + (e.message || e)
+        : "abort mid-batch — sendTx threw: " + (e.message || e);
+      break;
+    }
     if (txHash && !TX_HASH_RE.test(String(txHash))) {
       return { ok: false, reason: "sender returned non-hash — refuse invent", chunks, txHashes };
     }
     const sealed = Boolean(txHash);
     if (txHash) txHashes.push(txHash);
+    sentThisRun += 1;
     chunks.push({
       index: line.index,
       total: line.total,
@@ -389,13 +600,21 @@ export async function runFullWaveSends(planned, sendTx, {
       hex,
       txHash: txHash || null,
       sealed,
+      resumed: false,
       basescan: txHash ? WAVE_FULL_BASESCAN_TX + txHash : null,
     });
     if (remaining != null && Number.isFinite(remaining) && cost) remaining -= cost;
+    if (!txHash) {
+      aborted = "abort mid-batch — sendTx returned null (never invent)";
+      break;
+    }
   }
   return {
     ok: true,
     aborted,
+    resume: start > 1,
+    fromIndex: start,
+    sentThisRun,
     banked: txHashes.length < needed || Boolean(aborted),
     sealedCount: txHashes.length,
     needed,
@@ -422,8 +641,26 @@ export async function runWaveFull({
   liquidUsd = null,
   quotes = null,
   vinId,
+  fromIndex,
+  sealedHashes,
+  autofire = false,
+  fresh = false,
+  sleep,
 } = {}) {
-  const planned = planWaveFull({ body, symbols, env, vinId });
+  const resolved = resolveWaveFullResume({
+    vinId,
+    fromIndex,
+    sealedHashes,
+    env,
+    autofire,
+    fresh,
+  });
+  const planned = planWaveFull({
+    body,
+    symbols,
+    env,
+    vinId: resolved.vinId || vinId,
+  });
   if (!planned.ok) return { ok: false, pass: false, reason: planned.reason };
 
   const wantLive = live === true;
@@ -432,6 +669,7 @@ export async function runWaveFull({
     env,
     liquidUsd,
     sendTx,
+    resume: resolved.resume,
   });
 
   let chain = null;
@@ -464,9 +702,38 @@ export async function runWaveFull({
       liquidUsd: isLive ? liquidUsd : null,
       costUsdPerSend: isLive ? costUsdPerSend : 0,
       floor: isLive ? floor : 0,
+      fromIndex: resolved.fromIndex,
+      priorTxHashes: resolved.sealedHashes,
+      retries: waveFullSendRetries(env),
+      backoffMs: isLive ? waveFullRetryMs(env) : 0,
+      sleep,
     });
-  } finally {
-    if (isLive) markWaveFullLiveSpent(env);
+  } catch (e) {
+    return {
+      ok: false,
+      pass: false,
+      live: isLive,
+      sim: !isLive,
+      gate,
+      resume: resolved.resume,
+      vinId: planned.vinId,
+      reason: "send batch threw — LIVE left armed: " + (e.message || e),
+    };
+  }
+
+  const complete = inscribed?.ok
+    && inscribed.sealedCount === planned.expectedShards
+    && !inscribed.aborted;
+  if (isLive && complete) {
+    markWaveFullLiveSpent(env);
+    clearWaveFullPartial();
+  } else if (isLive && inscribed?.ok && inscribed.sealedCount > 0 && inscribed.sealedCount < planned.expectedShards) {
+    rememberWaveFullPartial({
+      vinId: planned.vinId,
+      fromIndex: inscribed.sealedCount + 1,
+      txHashes: inscribed.txHashes,
+      symbols: planned.symbols,
+    });
   }
 
   if (!inscribed?.ok) {
@@ -474,9 +741,9 @@ export async function runWaveFull({
   }
 
   const key = loadWaveAnswerKey();
-  const sealedHashes = inscribed.txHashes;
-  const fullRead = sealedHashes.length === planned.expectedShards
-    ? await readWaveFromLocations(sealedHashes, reader)
+  const chainHashes = inscribed.txHashes;
+  const fullRead = chainHashes.length === planned.expectedShards
+    ? await readWaveFromLocations(chainHashes, reader)
     : { ok: false, reason: inscribed.aborted || "incomplete seal — cannot reconstruct from chain only", body: "", lines: [] };
 
   const compared = fullRead.ok
@@ -494,12 +761,19 @@ export async function runWaveFull({
     && !inscribed.aborted
     && compared.ok === true;
 
+  const nextFrom = !complete && inscribed.sealedCount > 0
+    ? inscribed.sealedCount + 1
+    : resolved.fromIndex;
   return {
     ok: true,
     pass,
     live: isLive,
     sim: !isLive,
     gate,
+    resume: resolved.resume || inscribed.resume === true,
+    fromIndex: inscribed.fromIndex || resolved.fromIndex,
+    nextFromIndex: complete ? null : nextFrom,
+    partial: !complete,
     vinId: planned.vinId,
     symbols: planned.symbols,
     rotated: planned.rotated,
@@ -515,7 +789,9 @@ export async function runWaveFull({
         : "WAVE full-quote PASS — SIM reconstruct matches message sha256 + LOC8 (not Base)")
       : compared.ok
         ? (inscribed.aborted || inscribed.reason || "incomplete seal")
-        : "reconstruct does not match answer-key sha256 and/or LOC8",
+        : inscribed.aborted
+          ? inscribed.aborted + " — LIVE left armed; resume POST { vinId, fromIndex, txHashes }"
+          : "reconstruct does not match answer-key sha256 and/or LOC8",
   };
 }
 
@@ -544,8 +820,15 @@ export function formatWaveFullCard(result) {
       ? "PASS — reconstruct-from-chain-only matches message sha256 + each LOC8"
       : "FAIL — " + (result.reason || "mismatch"),
   );
+  if (result.partial && result.vinId) {
+    lines.push(
+      "RESUME desk POST { \"vinId\": \"" + result.vinId
+        + "\", \"fromIndex\": " + (result.nextFromIndex || result.fromIndex || 1)
+        + ", \"txHashes\": [<sealed>] } — LIVE left armed. Autofire will not re-send 28.",
+    );
+  }
   lines.push(
-    "WAVE_FULL_LIVE default off; auto-disable after live batch. Desk POST /vita/wavefull (auth). "
+    "WAVE_FULL_LIVE default off; auto-disable after a FULL 28. Desk POST /vita/wavefull (auth). "
       + "/waveproof stays 3. VITAFEED_PAID untouched. Mother brain untouched.",
   );
   return lines.join("\n");
@@ -585,6 +868,10 @@ export function formatWaveFullHttpResult(out = {}) {
     vinId: result?.vinId || null,
     key8: result?.key8 || result?.answerKey?.key8 || null,
     reconstruct: pass ? "PASS" : "FAIL",
+    resume: result?.resume === true,
+    fromIndex: result?.fromIndex || 1,
+    nextFromIndex: result?.nextFromIndex || null,
+    partial: result?.partial === true,
     txHashes,
     basescan,
     reply: out.reply,
@@ -624,6 +911,12 @@ export async function handleWaveFullAction({
   fetchCalldata = null,
   liquidUsd = null,
   quotes = null,
+  vinId,
+  fromIndex,
+  sealedHashes,
+  autofire = false,
+  fresh = false,
+  sleep,
 } = {}) {
   if (action === "help") {
     return { ok: true, send: false, reply: waveFullUsageText() };
@@ -637,6 +930,12 @@ export async function handleWaveFullAction({
     fetchCalldata,
     liquidUsd,
     quotes,
+    vinId,
+    fromIndex,
+    sealedHashes,
+    autofire,
+    fresh,
+    sleep,
   });
   return {
     ok: result.ok,
@@ -651,8 +950,9 @@ export async function handleWaveFullAction({
 
 /**
  * One-shot boot fire. Requires WAVE_FULL_AUTOFIRE=yes AND WAVE_FULL_LIVE=yes.
- * Clears autofire before the batch so a retry cannot burn twice. Live latch
- * still auto-disables WAVE_FULL_LIVE after the 28-send. Default OFF.
+ * Clears autofire before the batch so a retry cannot burn twice. Always a
+ * new VIN — never resumes WAVE_FULL_RESUME_VIN (desk POST resumes).
+ * Live latch only disables WAVE_FULL_LIVE after a FULL 28. Default OFF.
  */
 export async function maybeAutofireWaveFull({
   env = process.env,
@@ -691,6 +991,8 @@ export async function maybeAutofireWaveFull({
     fetchCalldata,
     liquidUsd,
     quotes,
+    autofire: true,
+    fresh: true,
   });
   return {
     ...out,

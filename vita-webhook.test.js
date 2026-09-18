@@ -574,6 +574,95 @@ describe("control board HTTP", () => {
     }
   });
 
+  it("POST /vita/wavefull resume continues a partial VIN without a second autofire", async () => {
+    const prevSecret = process.env.VITA_WEBHOOK_SECRET;
+    const prevLive = process.env.WAVE_FULL_LIVE;
+    const prevAuto = process.env.WAVE_FULL_AUTOFIRE;
+    const prevRetry = process.env.WAVE_FULL_RETRY_MS;
+    const prevTries = process.env.WAVE_FULL_SEND_RETRIES;
+    process.env.VITA_WEBHOOK_SECRET = "desk-test-secret";
+    process.env.WAVE_FULL_LIVE = "yes";
+    process.env.WAVE_FULL_RETRY_MS = "0";
+    process.env.WAVE_FULL_SEND_RETRIES = "3";
+    delete process.env.WAVE_FULL_AUTOFIRE;
+    resetWaveFullLiveLatch();
+    resetWaveFullAutofireLatch();
+    const chain = createWaveSimChain();
+    let sealed = 0;
+    const flaky = async (hex) => {
+      if (sealed >= 5) throw new Error("Service unavailable");
+      sealed += 1;
+      return chain.sendTx(hex);
+    };
+    injectBotState({
+      waveFullLiveContext: async () => ({
+        sendTx: sealed >= 5 ? chain.sendTx : flaky,
+        fetchCalldata: chain.fetchCalldata,
+        liquidUsd: 10,
+        quotes: { gwei: 0.05, ethUsd: 2481 },
+      }),
+    });
+    try {
+      const firstRes = await fetch(base + "/vita/wavefull", {
+        method: "POST",
+        headers: {
+          "x-vita-webhook-secret": "desk-test-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ vinId: "VIN-5785B9B4E1" }),
+      });
+      const first = await firstRes.json();
+      assert.equal(firstRes.status, 200);
+      assert.equal(first.pass, false);
+      assert.equal(first.partial, true);
+      assert.equal(first.txHashes.length, 5);
+      assert.equal(process.env.WAVE_FULL_LIVE, "yes");
+      assert.equal(first.vinId, "VIN-5785B9B4E1");
+
+      injectBotState({
+        waveFullLiveContext: async () => ({
+          sendTx: chain.sendTx,
+          fetchCalldata: chain.fetchCalldata,
+          liquidUsd: 10,
+          quotes: { gwei: 0.05, ethUsd: 2481 },
+        }),
+      });
+      const resumeRes = await fetch(base + "/vita/wavefull", {
+        method: "POST",
+        headers: {
+          "x-vita-webhook-secret": "desk-test-secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          vinId: "VIN-5785B9B4E1",
+          fromIndex: 6,
+          txHashes: first.txHashes,
+        }),
+      });
+      const resume = await resumeRes.json();
+      assert.equal(resumeRes.status, 200);
+      assert.equal(resume.pass, true);
+      assert.equal(resume.reconstruct, "PASS");
+      assert.equal(resume.vinId, "VIN-5785B9B4E1");
+      assert.equal(resume.txHashes.length, 28);
+      assert.equal(process.env.WAVE_FULL_LIVE, "no");
+    } finally {
+      injectBotState(null);
+      resetWaveFullLiveLatch();
+      resetWaveFullAutofireLatch();
+      if (prevSecret == null) delete process.env.VITA_WEBHOOK_SECRET;
+      else process.env.VITA_WEBHOOK_SECRET = prevSecret;
+      if (prevLive == null) delete process.env.WAVE_FULL_LIVE;
+      else process.env.WAVE_FULL_LIVE = prevLive;
+      if (prevAuto == null) delete process.env.WAVE_FULL_AUTOFIRE;
+      else process.env.WAVE_FULL_AUTOFIRE = prevAuto;
+      if (prevRetry == null) delete process.env.WAVE_FULL_RETRY_MS;
+      else process.env.WAVE_FULL_RETRY_MS = prevRetry;
+      if (prevTries == null) delete process.env.WAVE_FULL_SEND_RETRIES;
+      else process.env.WAVE_FULL_SEND_RETRIES = prevTries;
+    }
+  });
+
   it("GET /vita/leftover is a public leftover hitch scan (hashes + class, no utf8)", { timeout: 25000 }, async () => {
     const first = await get("/vita/leftover");
     assert.equal(first.res.status, 200);
