@@ -23,6 +23,7 @@ findable.
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
 | `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play |
+| `vita/inject-fuel-arm.js` | `INJECT_FUEL_ARM` | Known-bag INJECT FUEL HOLD → arm KEY+LOC memory hitch for PLUS recycle (never sell red) |
 | `vita/memory/` | `MEMORY` | Learned notes (`*.json` strands of §TOKEN§ / hypotheses) — append-only |
 | `vita/strands/` | `STRAND` | Sparse inject chunk plans keyed by sealed loc short-hash |
 | `public/vita.html` | `HTML` | Infected console — memory until `/inject` |

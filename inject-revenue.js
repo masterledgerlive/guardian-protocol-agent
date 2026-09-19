@@ -25,7 +25,7 @@ export const STALE_TROUGH_GAP = 0.18; // 90d min >18% below mark → ignore for 
 export const INJECT_FUEL_MIN_USD = 0.75;
 /** Velocity names that historically compounded on thin Base books. */
 export const INJECT_VELOCITY_SYMBOLS = Object.freeze([
-  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT",
+  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT", "CLANKER",
 ]);
 
 /**

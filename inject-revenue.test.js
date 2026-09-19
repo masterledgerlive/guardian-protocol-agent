@@ -259,6 +259,8 @@ describe("inject-revenue: capital velocity snowball", () => {
   it("boosts velocity names on inject-all and sorts largest bags first", () => {
     assert.ok(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: true }) >
       injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
+    assert.ok(injectVelocityScoreBoost({ symbol: "CLANKER", injectAll: true }) >
+      injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
     assert.equal(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: false, liquidStarved: false }), 0);
     const sorted = sortRecycleCandidatesByUsd([
       { posUsd: 1.98, symbol: "MORPHO" },
