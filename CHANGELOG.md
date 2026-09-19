@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — arm CLANKER inject-fuel memory hitch while LOSE-ZERO HOLDs
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+Do **not** use `ALLOW_LOSSY_OPERATOR_SELL`. `VITAFEED_PAID` / `WAVE_MIRROR_PAID`
+stay default OFF. #129/#130 FIFO latch stays.
+
+Live: CLANKER rem ~0.289 / bag ~$3.35 FIFO-known but INJECT FUEL HOLD
+(FIFO red ~−4.1% — leftover after fees ≤ 0). Catalog is **not** frozen.
+Never sell red to place code.
+
+- `vita/inject-fuel-arm.js` — arm KEY+LOC memory hitch + %‑to‑green log when
+  known inject-fuel bags HOLD; recycle + hitch when PLUS.
+- `INJECT_VELOCITY_SYMBOLS` includes **CLANKER** so starved books prefer it
+  when green.
+- Storage Token can charge transmission delta (message-first). Mother brain
+  DIFF ZERO.
+
 ### Fixed — latch CLANKER FIFO from evidence buys so always-plus can sell
 
 HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.

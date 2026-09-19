@@ -201,6 +201,10 @@ import {
 import { classifySellArmedDisplay } from "./sell-armed-display.js";
 import { bankSkipHitchLearnShard } from "./vita/skip-hitch-learn.js";
 import {
+  armInjectFuelMemoryHitch,
+  formatInjectFuelHoldArmLog,
+} from "./vita/inject-fuel-arm.js";
+import {
   liveGithubToken,
   liveGithubRepo,
   liveStateBranch,
@@ -2032,7 +2036,7 @@ const DEFAULT_TOKENS = [
 
   { symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
-    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317." },
+    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317. Inject-velocity fuel: recycle when PLUS for cascade + KEY+LOC memory hitch; LOSE-ZERO HOLD when FIFO red (never sell red to inject)." },
 
   { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     injectMain: true,
@@ -15167,7 +15171,23 @@ async function main() {
         if (moonGate.alwaysPlusLog) console.log(`   ${moonGate.alwaysPlusLog}`);
         if (!moonGate.allow) {
           const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
-          console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 or unknown cost (would lose money)`);
+          // Known inject-fuel bag: arm memory hitch for the PLUS recycle — never sell red.
+          if (recycleKnown) {
+            const arm = armInjectFuelMemoryHitch({
+              symbol: token.symbol,
+              posUsd,
+              leftoverEth: moonGate.leftover,
+              entrySoldEth: moonGate.entrySoldEth,
+              markProceedsEth: moonMarkEth,
+              feePct: token.poolFeePct || 0.006,
+              impactPct: PRICE_IMPACT_EST,
+              reason: moonGate.log || "INJECT FUEL HOLD",
+            });
+            console.log(formatInjectFuelHoldArmLog(arm) ||
+              `🌙 ${label} ${token.symbol}: HOLD — wait PLUS; memory hitch armed (never sell red)`);
+          } else {
+            console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 or unknown cost (would lose money)`);
+          }
           continue;
         }
         const moonHitchNote = moonGate.skipHitch
