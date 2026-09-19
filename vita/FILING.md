@@ -19,6 +19,9 @@ findable.
 | `vita/memory/vitafeed-backlog.json` | `FEED_BACKLOG` | Pending→sealed feed queue + growth roots |
 | `vita/brain-seed.js` | `BRAIN` / `BRAIN_SEED` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
 | `vita/brain-learn.js` | `BRAIN_LEARN` | Old→new learn cycle, filing refine, library + zero-proof growth |
+| `vita/ref-memory.js` | `REF_LIB` / `PROVEN_TEST` / `TRANSLATOR_CODEX` | Proven recursive search — calculator true-name + multilingual aliases; ask\|self labels; answers cite Base anchors only |
+| `vita/memory/ref-lib-*.json` | `REF_LIB` | Reference catalogue entries (trueName, ask\|self, sealed locs) |
+| `vita/memory/proven-test-*.json` | `PROVEN_TEST` | Proven test series notes for ledger search |
 | `vita/memory/filing-labels-learned.json` | `FILING` (refined) | Self-refining label map (PEER_REVIEW, ZERO_PROOF, …) |
 | `vita/memory/brain-learn-log.json` | `ZERO_PROOF` | Append-only learn cycles + hash-chain roots |
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
@@ -50,6 +53,9 @@ findable.
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
 | `ZERO_PROOF` | Squashed content-addressed retrieval growth (`§ZEROPROOF§`) |
 | `FEED_BACKLOG` | Offline `/vitafeed` inject queue (`§VITABACKLOG§`) — pending→sealed without agent AI |
+| `REF_LIB` | Reference library search (`§VITAREF§`) — trueName + ask\|self; calculator first domain |
+| `PROVEN_TEST` | Proven test series (`§PROVENTEST§`) — recursive memory must answer from packaged locs |
+| `TRANSLATOR_CODEX` | Free multilingual alias map (`§VITATRANS§`) — read once, never forget |
 | `VITA_SAVE_LEARN` | Bankable §TOKEN§ learn packet for `/vitasave` retrieval |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
