@@ -337,7 +337,7 @@ function helpText() {
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
-    "/vitafeed [text|file] — VITAFILE packets; files|play|keys library; confirm|override → /vita/feed-player",
+    "/vitafeed [text|file|brain|backlog|enqueue|next] — VITAFILE packets; backlog drain; files|play|keys; confirm|override → /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",

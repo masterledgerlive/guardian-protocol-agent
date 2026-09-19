@@ -58,6 +58,7 @@ export const FILING_LABELS_CORE = Object.freeze({
   BRAIN_LEARN: "Old→new learn delta from activate cycle",
   PEER_REVIEW: "One peer review of learn delta (separate label)",
   ZERO_PROOF: "Squashed content-addressed retrieval growth proof",
+  FEED_BACKLOG: "Offline /vitafeed inject queue — pending→sealed without agent AI",
   VITA_SAVE_LEARN: "Bankable §TOKEN§ learn packet for /vitasave retrieval",
   VITALIB: "Named library name→key→locs",
   MEMORY: "Append-only learned notes",

@@ -1,0 +1,51 @@
+{
+  "at": "2026-09-19T06:49:19.667Z",
+  "topic": "vitafeed-backlog-growth",
+  "filingLabel": "FEED_BACKLOG",
+  "text": "§VITABACKLOG§v1|growth§\npending=27 sealed=0 partial=0 locs=0 enqueued=27\nformula=original-message-first\nneverInvent=true\nagentAi=not-required\ndrain=/vitafeed next → confirm|override\n",
+  "growth": {
+    "enqueued": 27,
+    "sealed": 0,
+    "partial": 0,
+    "skipped": 0,
+    "pending": 27,
+    "sealedLocCount": 0,
+    "roots": [
+      "fe63758a1e4a057c4570800b585d44a5506fd63e7d841d7d5760bc646241a4b2",
+      "813b79bfb44ef169249b337dcd615b6e28ed470f0b92c7ead5fcf1f196bd447f",
+      "4c390da9af64f8ba1410d687f1eef3d6d2152b1dd1a085fdbb5d8db8e4943ca5",
+      "c08aec8eec2bd88d176209d70d9bc86705049e5eab5d7cb385f36a729a0d7935",
+      "48d3cd9e37735bc0cc80a460da644d6bb96f14a8d73f68b501bf1be0e4da03ec",
+      "9e63aa8e896048102edd540961dc269f91c427269be1a11a5105e372f0da0a62",
+      "02d199ef72ce62d8b7377c5bf6ea54b15b35a06e1ebc4fea532647ea9f76073b",
+      "9e668856e2cc56971768d8456d58b52e572f28257f25475776edca771e16126a",
+      "a04200ac533aa639cdd6d59ff25439cbd6c7edd9ac11dd3507aa37718a88c6bb",
+      "a3bc5202d677b3c2f050db66220539811884ad6fef8e37039b5849c411504ac3",
+      "5bd11a07b172d12fe0f58d66d6fb14246e97bf54da170959e1a17d74f7164bec",
+      "63f0689b12beedbd62ade64f1033e2efb4164c8a4a5117fbb369ebb9a43dce46",
+      "83b54a12612d707d6a8e10f51ba50d531312f7fb8f82ac72a7b993b61382b477",
+      "d28afa4a6a92df284fa1cb08af5486b66b75f0c07058c9215a26a3c5b4f90777",
+      "8f497da549a084a764b08b1c250ed34433f7db96f80d0f598cce0365afe1999b",
+      "49b1deafdb6ffec59ddeebf03be486fd3202c422aea31f864f6b8ee9cd923d1d",
+      "8ec6de1085683c8adef08d9e0e709b193fc2cfb4fadc690e807df59e5250b75b",
+      "e6245e9293157779b5cf612944a9f90377d72a0f63d71d25148c5d3a4a198bfd",
+      "88fc7ea5971c78d39317f4b48c67911a95ff85d096b36686971b9158cdb7e61f",
+      "879dfb9a06de9d5847f980070ac4c4567b165486c45ad15adcb0d3e2229d442a",
+      "196291eec7fb032a99f75c231981ad7f7754dabf8d7be37ae764778f31dd245d",
+      "cd455e54a263907810ca5e38063f3ba92fe7932ee2ac1f9ca0176831a771f805",
+      "5c13d581390cede2050aac6842a0becd0774cca7e681a1817c7b03f0786edfde",
+      "101bd3e177e09633953758c36b79bdef3022e94e43f308f4805bc84ae13181a9",
+      "40eba7a56aeb035f35ca7126fc22983ebab15202fbf43a533756df6a433aacbc",
+      "31f591d6552d2ac840b289c84ea33c8623363edd59274aa8ab735d956edb2aef",
+      "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "hypothesis": {
+    "id": "vitafeed-backlog-grows-offline",
+    "status": "operating",
+    "note": "Backlog feeds vita brain via /vitafeed without agentic AI — log, file, prove growth."
+  }
+}

@@ -26,6 +26,16 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
      **keys chain** for reader quick access; confirm|override seals it like
      any other feed body
    Player deep-link: `/vita/feed-player?lib=N` · API: `GET /vita/feed-library`
+9. **BACKLOG (feed brain without agentic AI):** inject was cheap enough to keep
+   feeding even when Cursor is off. Disk queue parks brain seed + memory files;
+   drain one item at a time under thrift caps:
+   - `/vitafeed enqueue seed` — queue brain seed + compact memory topics (no send)
+   - `/vitafeed backlog` — pending→sealed growth card
+   - `/vitafeed next` — stage next pending → confirm|override
+   - `/vitafeed proof` includes backlog growth proof
+   Desk: `GET /vita/feed-backlog` · auth `POST /vita/feed-backlog/seed`
+   Prefer ≤4 chunks/item (hard max 24 = hourly thrift). Never invents hashes.
+   Does **not** turn `VITAFEED_PAID` on.
 
 `/vitafeed cancel` drops a staged payload **and** clears a pending file wait.
 Confirm is always required so a 1000+ character paste cannot burn by accident.
