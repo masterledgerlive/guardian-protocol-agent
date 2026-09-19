@@ -573,6 +573,14 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^(?:proof|zeroproof|zero-proof)(?:\s|$)/i.test(trimmed)) {
     return { ok: true, action: "proof", body: "", source: "proof" };
   }
+  // Reference memory search — calculator true-name + translator codex (ask|self).
+  if (/^(?:ref|ask|recallref)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:ref|ask|recallref)\s*/i, "").trim();
+    return { ok: true, action: "ref", body: rest, source: "ref" };
+  }
+  if (/^(?:proven|tests|proventest|proven-tests)(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "proven", body: "", source: "proven" };
+  }
   // Named library: list sealed files, open one into the player, seal keys catalog.
   if (/^(?:files|list)$/i.test(trimmed)) {
     return { ok: true, action: "files", body: "", source: "files" };
@@ -647,6 +655,10 @@ export function vitaFeedUsageText() {
     "  zero-proof growth + library + vita-save packet) then stage for override.",
     "  /vitafeed learn  — last cycle old→new card (no restage).",
     "  /vitafeed proof  — squashed zero-proof retrieval growth + backlog growth.",
+    "REF MEMORY (proven recursive search from packaged ledger):",
+    "  /vitafeed ref <q>   — search true-name (calculator/calc/calculadora/電卓/…)",
+    "  /vitafeed ask <q>   — same as ref (ask|self label from query)",
+    "  /vitafeed proven    — run calculator proven-test series (never invent)",
     "BACKLOG (feed brain without agentic AI):",
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
@@ -1306,6 +1318,42 @@ export async function handleVitaFeedAction({
         "\n\n" + formatLibraryListCard() +
         "\n\n" + researchNotesForFiling() +
         "\n\nActivate/grow: /vitafeed brain · /vitafeed enqueue seed · /vitafeed next",
+    };
+  }
+  if (action === "ref") {
+    const {
+      searchRefMemory,
+      formatRefMemoryCard,
+      buildRefMemoryFeedBody,
+    } = await import("./ref-memory.js");
+    const q = String(body || "").trim() || "calculator";
+    const found = searchRefMemory(q);
+    return {
+      ok: found.ok || found.invent === false,
+      phase: "ref",
+      query: q,
+      result: found,
+      feedBody: buildRefMemoryFeedBody(),
+      reply:
+        formatRefMemoryCard(found) +
+        "\n\nSeries: /vitafeed proven  ·  Seal: /vitafeed enqueue topic ref-lib-calculator",
+    };
+  }
+  if (action === "proven") {
+    const {
+      runProvenTests,
+      formatProvenTestCard,
+      buildRefMemoryFeedBody,
+    } = await import("./ref-memory.js");
+    const report = runProvenTests();
+    return {
+      ok: report.ok,
+      phase: "proven",
+      report,
+      feedBody: buildRefMemoryFeedBody(),
+      reply:
+        formatProvenTestCard(report) +
+        "\n\nTry: /vitafeed ref calculadora  ·  /vitafeed ask I built a calc for payroll",
     };
   }
   if (action === "backlog") {

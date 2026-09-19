@@ -30,6 +30,9 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 `/vitafeed` then `/vitafeed override` → PLAY PROOF on `/vita/feed-player`.
 `/vitafeed brain` activates learn (old→new + one peer review + zero-proof
 growth + library) then stages for override. `/vitafeed learn` · `/vitafeed proof`.
+**Ref memory (proven recursive search):** `/vitafeed ref <q>` · `/vitafeed ask <q>`
+· `/vitafeed proven` — calculator true-name + translator codex (ask|self); cites
+Base anchors only (`vita/ref-memory.js`).
 **Backlog (no agent AI required):** `/vitafeed enqueue seed` queues brain seed +
 memory files; `/vitafeed backlog` shows pending→sealed growth; `/vitafeed next`
 stages the next item for confirm|override. Library: `/vitafeed files` ·

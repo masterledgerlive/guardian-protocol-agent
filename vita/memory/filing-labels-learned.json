@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-19T06:49:42.614Z",
+  "at": "2026-09-19T21:39:33.198Z",
   "id": "filing-labels-learned-v1",
   "formula": "original-message-first",
   "labels": {
@@ -13,14 +13,15 @@
     "BRAIN_LEARN": "Old→new learn delta from activate cycle",
     "PEER_REVIEW": "One peer review of learn delta (separate label)",
     "ZERO_PROOF": "Squashed content-addressed retrieval growth proof",
+    "FEED_BACKLOG": "Offline /vitafeed inject queue — pending→sealed without agent AI",
+    "REF_LIB": "Reference library search — trueName + ask|self; calculator first domain",
+    "PROVEN_TEST": "Proven test series — recursive memory answers from packaged locs only",
+    "TRANSLATOR_CODEX": "Free multilingual alias map — read once, never forget",
     "VITA_SAVE_LEARN": "Bankable §TOKEN§ learn packet for /vitasave retrieval",
     "VITALIB": "Named library name→key→locs",
     "MEMORY": "Append-only learned notes",
-    "STRAND": "Sparse inject chunk plans",
-    "FEED_BACKLOG": "Offline /vitafeed inject queue — pending→sealed without agent AI"
+    "STRAND": "Sparse inject chunk plans"
   },
-  "lastAdded": [
-    "FEED_BACKLOG"
-  ],
+  "lastAdded": [],
   "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
 }

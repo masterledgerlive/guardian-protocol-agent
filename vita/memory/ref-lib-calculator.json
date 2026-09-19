@@ -1,0 +1,57 @@
+{
+  "at": "2026-09-19T21:40:00.000Z",
+  "topic": "ref-lib-calculator",
+  "filingLabel": "REF_LIB",
+  "trueName": "calculator",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "text": "Reference library seed — calculator is the true name. Ask = anyone who made a calculator / catalogue search. Self = clearly built for one specific job (built-in proven ledger arithmetic). Free translator codex maps calc/calculadora/電卓/计算器/калькулятор/… → calculator so any LLM reads once from the packaged tree. Proven tests cite hardcoded Base anchors only.",
+  "hypothesis": {
+    "id": "recursive-ref-memory-calculator",
+    "status": "operating",
+    "note": "Proven recursive memory search: query → trueName → ask|self → cite sealed locs."
+  },
+  "entries": [
+    {
+      "id": "REF-CALC-DISK-ASK",
+      "trueName": "calculator",
+      "label": "ask",
+      "title": "Disk catalogue — calculator makers (ask)",
+      "text": "Append-only disk entry: search hits for calculator true-name under ask label.",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "filingLabel": "REF_LIB",
+      "kind": "ask-catalogue"
+    },
+    {
+      "id": "REF-CALC-DISK-SELF",
+      "trueName": "calculator",
+      "label": "self",
+      "job": "proven-ledger-arithmetic",
+      "title": "Disk catalogue — self calculator job",
+      "text": "Self-labeled: one specific job calculator sealed in vita/ref-memory.js.",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "filingLabel": "REF_LIB",
+      "kind": "self-code"
+    }
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ],
+  "commands": [
+    "/vitafeed ref calculator",
+    "/vitafeed ask calculadora",
+    "/vitafeed proven",
+    "/vitafeed enqueue topic ref-lib-calculator"
+  ]
+}
