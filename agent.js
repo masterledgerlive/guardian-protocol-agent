@@ -12425,6 +12425,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "sends what gas allows, restages remainder. Cannot bypass VITAFEED_PAID=no or rate limit.\n" +
             "<code>/vitafeed brain</code> — activate learn (old→new + peer review + zero-proof + library + vita-save)\n" +
             "<code>/vitafeed learn</code> · <code>/vitafeed proof</code> — last cycle / growth card\n" +
+            "<b>Backlog (feed brain without agent AI):</b>\n" +
+            "<code>/vitafeed backlog</code> — pending→sealed growth\n" +
+            "<code>/vitafeed enqueue seed</code> — queue brain seed + memory files (no send)\n" +
+            "<code>/vitafeed next</code> — stage next pending for confirm|override\n" +
             "<b>Library (quick pull):</b>\n" +
             "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
             "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +

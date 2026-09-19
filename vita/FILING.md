@@ -15,6 +15,8 @@ findable.
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
+| `vita/vita-feed-backlog.js` | `FEED_BACKLOG` | Append-only queue of memory/files for `/vitafeed` drain without agentic AI |
+| `vita/memory/vitafeed-backlog.json` | `FEED_BACKLOG` | Pending→sealed feed queue + growth roots |
 | `vita/brain-seed.js` | `BRAIN` / `BRAIN_SEED` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
 | `vita/brain-learn.js` | `BRAIN_LEARN` | Old→new learn cycle, filing refine, library + zero-proof growth |
 | `vita/memory/filing-labels-learned.json` | `FILING` (refined) | Self-refining label map (PEER_REVIEW, ZERO_PROOF, …) |
@@ -47,6 +49,7 @@ findable.
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
 | `ZERO_PROOF` | Squashed content-addressed retrieval growth (`§ZEROPROOF§`) |
+| `FEED_BACKLOG` | Offline `/vitafeed` inject queue (`§VITABACKLOG§`) — pending→sealed without agent AI |
 | `VITA_SAVE_LEARN` | Bankable §TOKEN§ learn packet for `/vitasave` retrieval |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML

@@ -99,6 +99,12 @@ import {
   listLibraryEntries,
   playFromLibrary,
 } from "./vita/vita-feed-library.js";
+import {
+  listFeedBacklog,
+  formatFeedBacklogCard,
+  formatFeedBacklogGrowthProof,
+  seedFeedBacklogFromMemory,
+} from "./vita/vita-feed-backlog.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import {
   formatWaveProofHttpResult,
@@ -485,6 +491,36 @@ async function handleVitaRequest(req, res) {
         entries: listLibraryEntries(),
         player: "/vita/feed-player?lib=<n>",
         telegram: ["/vitafeed files", "/vitafeed play <n|name>", "/vitafeed keys"],
+      });
+    }
+    if ((path === "/vita/feed-backlog" || path === "/vita/feed-backlog/") && req.method === "GET") {
+      const list = listFeedBacklog({ limit: 40 });
+      return json(res, {
+        ok: true,
+        id: "vita-feed-backlog-v1",
+        filingLabel: "FEED_BACKLOG",
+        growth: list.growth,
+        items: list.items,
+        card: formatFeedBacklogCard(list),
+        proof: formatFeedBacklogGrowthProof(),
+        telegram: [
+          "/vitafeed backlog",
+          "/vitafeed enqueue seed",
+          "/vitafeed next",
+          "/vitafeed override",
+        ],
+        note: "Queue grows offline; drain needs VITAFEED_PAID=yes. Never invents hashes.",
+      });
+    }
+    if ((path === "/vita/feed-backlog/seed" || path === "/vita/feed-backlog/seed/") && req.method === "POST") {
+      if (!isAuthorized(req)) return err(res, "unauthorized", 401);
+      const seeded = seedFeedBacklogFromMemory({ includeBrainSeed: true, includeTopics: true });
+      return json(res, {
+        ok: true,
+        added: seeded.added,
+        skipped: seeded.skipped,
+        growth: seeded.growth,
+        card: seeded.card,
       });
     }
     if ((path === "/vita/feed-library/play" || path === "/vita/feed-library/play/") && req.method === "GET") {

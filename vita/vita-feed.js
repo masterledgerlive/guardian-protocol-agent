@@ -582,6 +582,19 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^keys\s*/i, "").trim();
     return { ok: true, action: "keys", body: rest, source: "keys" };
   }
+  // Offline brain feed queue — enqueue memory/files, drain without agent AI.
+  if (/^(?:backlog|queue)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:backlog|queue)\s*/i, "").trim();
+    return { ok: true, action: "backlog", body: rest, source: "backlog" };
+  }
+  if (/^(?:enqueue|enque|feedqueue)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:enqueue|enque|feedqueue)\s*/i, "").trim();
+    return { ok: true, action: "enqueue", body: rest, source: "enqueue" };
+  }
+  if (/^(?:next|drain)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:next|drain)\s*/i, "").trim();
+    return { ok: true, action: "next", body: rest, source: "next" };
+  }
   // Reply-to-file / explicit file cue — Telegram handler encodes attachment.
   if (/^file(?:\s|$)/i.test(trimmed) || /^upload(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:file|upload)\s*/i, "");
@@ -621,7 +634,11 @@ export function vitaFeedUsageText() {
     "BRAIN: /vitafeed brain — activate learn cycle (old→new + peer review +",
     "  zero-proof growth + library + vita-save packet) then stage for override.",
     "  /vitafeed learn  — last cycle old→new card (no restage).",
-    "  /vitafeed proof  — squashed zero-proof retrieval growth.",
+    "  /vitafeed proof  — squashed zero-proof retrieval growth + backlog growth.",
+    "BACKLOG (feed brain without agentic AI):",
+    "  /vitafeed backlog        — pending→sealed growth card",
+    "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
+    "  /vitafeed next           — stage next pending for confirm|override",
     "LIBRARY (Telegram quick pull):",
     "  /vitafeed files          — list saved names (auto-saved on seal)",
     "  /vitafeed play <n|name>  — open from keys → player (also: open|pull)",
@@ -1122,6 +1139,17 @@ export async function handleVitaFeedAction({
     }
     const cost = estimateVitaFeedCost(prepared, quotes);
     const buyIn = planVitaFeedBuyIns({ prepared, cost, seats, quotes });
+    // Park same stage on disk backlog so drain can continue without agent AI.
+    let backlogPark = null;
+    try {
+      const { enqueueBrainStageOnBacklog, formatFeedBacklogCard } =
+        await import("./vita-feed-backlog.js");
+      backlogPark = enqueueBrainStageOnBacklog({
+        stageBody: seedBody,
+        cycleIndex: cycle.cycleIndex,
+      });
+      backlogPark.card = formatFeedBacklogCard();
+    } catch { /* backlog is best-effort */ }
     stageVitaFeed(chatId, {
       prepared,
       cost,
@@ -1130,6 +1158,7 @@ export async function handleVitaFeedAction({
       buyIn,
       seats,
       brain: true,
+      backlogId: backlogPark?.item?.id || null,
       brainLearn: {
         cycleIndex: cycle.cycleIndex,
         zeroProofRoot: cycle.zeroProof?.root,
@@ -1146,14 +1175,16 @@ export async function handleVitaFeedAction({
       buyIn,
       brain: cycle.localSeed,
       brainLearn: cycle,
+      backlog: backlogPark,
       reply:
         cycle.card +
         "\n\n" + formatLibraryListCard() +
         "\n\n" + researchNotesForFiling() +
+        (backlogPark?.card ? "\n\n" + backlogPark.card : "") +
         "\n\n" +
         formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
         "\n\n" + formatVitaFeedBuyInCard(buyIn) +
-        "\n\nNext: /vitafeed override (money stall OK) · /vitafeed proof · /vitanote+vitasave",
+        "\n\nNext: /vitafeed override (money stall OK) · /vitafeed next · /vitafeed proof",
     };
   }
   if (action === "learn") {
@@ -1209,6 +1240,8 @@ export async function handleVitaFeedAction({
     const { formatZeroProofGrowthCard, loadBrainLearnLog, researchNotesForFiling } =
       await import("./brain-learn.js");
     const { formatLibraryListCard } = await import("./vita-feed-library.js");
+    const { formatFeedBacklogGrowthProof, formatFeedBacklogCard } =
+      await import("./vita-feed-backlog.js");
     const log = loadBrainLearnLog();
     return {
       ok: true,
@@ -1217,9 +1250,152 @@ export async function handleVitaFeedAction({
       roots: log.zeroProof?.roots || [],
       reply:
         formatZeroProofGrowthCard() +
+        "\n\n" + formatFeedBacklogGrowthProof() +
+        "\n\n" + formatFeedBacklogCard() +
         "\n\n" + formatLibraryListCard() +
         "\n\n" + researchNotesForFiling() +
-        "\n\nActivate/grow: /vitafeed brain",
+        "\n\nActivate/grow: /vitafeed brain · /vitafeed enqueue seed · /vitafeed next",
+    };
+  }
+  if (action === "backlog") {
+    const {
+      listFeedBacklog,
+      formatFeedBacklogCard,
+      formatFeedBacklogGrowthProof,
+    } = await import("./vita-feed-backlog.js");
+    const list = listFeedBacklog({ limit: 40 });
+    return {
+      ok: true,
+      phase: "backlog",
+      growth: list.growth,
+      items: list.items,
+      reply:
+        formatFeedBacklogCard(list) +
+        "\n\n" + formatFeedBacklogGrowthProof() +
+        "\n\nSeed: /vitafeed enqueue seed  ·  Drain: /vitafeed next",
+    };
+  }
+  if (action === "enqueue") {
+    const {
+      seedFeedBacklogFromMemory,
+      enqueueFeedBacklogItem,
+      formatFeedBacklogCard,
+      buildMemoryTopicFeedBody,
+    } = await import("./vita-feed-backlog.js");
+    const { readFileSync, existsSync } = await import("node:fs");
+    const { join, dirname } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const arg = String(body || "").trim().toLowerCase();
+    let result;
+    if (!arg || arg === "seed" || arg === "all" || arg === "memory") {
+      result = seedFeedBacklogFromMemory({
+        includeBrainSeed: true,
+        includeTopics: true,
+        maxTopics: arg === "all" ? 48 : 24,
+      });
+    } else if (arg === "brain" || arg === "brain-seed") {
+      const { buildBrainSeedBody } = await import("./brain-seed.js");
+      result = enqueueFeedBacklogItem({
+        body: buildBrainSeedBody(),
+        topic: "brain-seed",
+        name: "brain-seed.txt",
+        kind: "brain",
+        source: "enqueue-brain",
+      });
+      result.card = formatFeedBacklogCard();
+    } else {
+      const memDir = join(dirname(fileURLToPath(import.meta.url)), "memory");
+      const topic = arg.replace(/\.json$/i, "");
+      const path = join(memDir, topic + ".json");
+      if (!existsSync(path)) {
+        return {
+          ok: false,
+          phase: "enqueue",
+          reply: "VITAFEED ENQUEUE: no memory topic " + topic + "\nTry: /vitafeed enqueue seed",
+        };
+      }
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(path, "utf8"));
+      } catch (e) {
+        return { ok: false, phase: "enqueue", reply: "bad json: " + (e.message || e) };
+      }
+      result = enqueueFeedBacklogItem({
+        body: buildMemoryTopicFeedBody(topic, obj),
+        topic,
+        name: topic + ".txt",
+        kind: "plain",
+        source: "enqueue-topic",
+      });
+      result.card = formatFeedBacklogCard();
+    }
+    return {
+      ok: result.ok !== false,
+      phase: "enqueue",
+      added: result.added ?? (result.item && !result.deduped ? 1 : 0),
+      growth: result.growth,
+      reply:
+        (result.card || formatFeedBacklogCard()) +
+        (result.added != null
+          ? "\n\nenqueued +" + result.added + " · skipped " + (result.skipped || 0)
+          : result.deduped
+            ? "\n\ndeduped — already on backlog"
+            : result.item
+              ? "\n\nenqueued " + result.item.id
+              : "") +
+        "\n\nNext: /vitafeed next → /vitafeed override",
+    };
+  }
+  if (action === "next") {
+    const {
+      takeNextFeedBacklogForStage,
+      formatFeedBacklogCard,
+    } = await import("./vita-feed-backlog.js");
+    const taken = takeNextFeedBacklogForStage();
+    if (!taken.ok) {
+      return {
+        ok: false,
+        phase: "next",
+        reply: (taken.reason || "backlog empty") + "\n\n" + formatFeedBacklogCard(),
+      };
+    }
+    const prepared = prepareVitaFeed(taken.body);
+    if (!prepared.ok) {
+      return {
+        ok: false,
+        phase: "next",
+        reply: prepared.reason || "prepare failed for backlog item " + taken.backlogId,
+      };
+    }
+    const cost = estimateVitaFeedCost(prepared, quotes);
+    const buyIn = planVitaFeedBuyIns({ prepared, cost, seats, quotes });
+    stageVitaFeed(chatId, {
+      prepared,
+      cost,
+      body: taken.body,
+      quotes,
+      buyIn,
+      seats,
+      backlogId: taken.backlogId,
+      backlogItem: taken.item,
+    });
+    return {
+      ok: true,
+      phase: "before",
+      staged: true,
+      prepared,
+      cost,
+      buyIn,
+      backlogId: taken.backlogId,
+      backlogItem: taken.item,
+      reply:
+        "VITAFEED NEXT · " + taken.backlogId + " · " + (taken.item?.name || "?") +
+        " · " + (taken.item?.chunks || "?") + " chunks\n" +
+        formatFeedBacklogCard() +
+        "\n\n" +
+        formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
+        "\n\n" + formatVitaFeedBuyInCard(buyIn) +
+        "\n\nNext: /vitafeed override (or confirm) — then /vitafeed next again",
     };
   }
   // Named library — list / open / stage keys catalog (lazy import avoids cycle).
@@ -1433,6 +1609,8 @@ export async function handleVitaFeedAction({
           quotes: quotesNow,
           buyIn: nextBuyIn,
           seats: seatsNow,
+          backlogId: row.backlogId || null,
+          backlogItem: row.backlogItem || null,
           resume: {
             priorVinId: row.prepared.vinId,
             priorLocations: result.priorLocations || [],
@@ -1476,6 +1654,29 @@ export async function handleVitaFeedAction({
         }
       }
     } catch { /* library is best-effort — never block seal receipt */ }
+    // Backlog growth proof — record real sealed locs when this stage came from queue/brain.
+    let backlogSeal = null;
+    try {
+      if (row.backlogId && result?.sealedCount > 0) {
+        const { markFeedBacklogSeal, formatFeedBacklogCard } =
+          await import("./vita-feed-backlog.js");
+        const locs = (result.strand?.locations || result.priorLocations || [])
+          .map(String)
+          .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+        backlogSeal = markFeedBacklogSeal({
+          backlogId: row.backlogId,
+          locations: locs,
+          vinId: result.strand?.vinId || row.prepared?.vinId || null,
+          readerKey: result.strand?.readerKey || null,
+          partial: Boolean(restaged || result.banked),
+          sealedCount: result.sealedCount,
+          needed: result.needed,
+        });
+        if (backlogSeal?.ok) {
+          backlogSeal.card = formatFeedBacklogCard();
+        }
+      }
+    } catch { /* backlog seal is best-effort */ }
     const card = formatVitaFeedCostCard(cost, row.prepared, { phase: "after" });
     const receipt = formatVitaFeedReceipt(result, cost);
     const buyCard = formatVitaFeedBuyInCard(buyIn);
@@ -1491,6 +1692,10 @@ export async function handleVitaFeedAction({
         "\n/vitafeed files  ·  /vitafeed play " + librarySave.n +
         "  ·  /vita/feed-player?lib=" + librarySave.n
       : "";
+    const backlogExtra = backlogSeal?.card
+      ? "\n\n" + backlogSeal.card +
+        (restaged ? "" : "\nDrain more: /vitafeed next")
+      : "";
     const resumeExtra = restaged
       ? "\n\nPARTIAL — sealed " + result.sealedCount + "/" + result.needed +
         ". Remainder restaged. /vitafeed override again when RISK has gas."
@@ -1504,11 +1709,13 @@ export async function handleVitaFeedAction({
       result,
       playProof,
       library: librarySave,
+      backlog: backlogSeal,
       forcedOverride: override,
       restaged,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
-        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra + libExtra + resumeExtra,
+        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra + libExtra +
+        backlogExtra + resumeExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

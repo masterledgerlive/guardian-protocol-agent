@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added — `/vitafeed` backlog feeds brain without agentic AI
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF.
+Never invent hashes. Thrift prefer ≤4 chunks/item (hard max 24).
+
+Inject was cheap enough to keep feeding. New `FEED_BACKLOG` disk queue parks
+brain seed + compact memory files so growth can log/file/prove while Cursor
+is off:
+
+- `/vitafeed enqueue seed` — queue (no send)
+- `/vitafeed backlog` — pending→sealed growth card
+- `/vitafeed next` — stage next → confirm|override
+- `/vitafeed proof` includes backlog growth
+- Desk: `GET /vita/feed-backlog` · auth `POST /vita/feed-backlog/seed`
+- Helper: `vita/vita-feed-backlog.js` · seeded `vita/memory/vitafeed-backlog.json`
+
 ### Fixed — force CLANKER out of stale FIFO-red inject fuel
 
 HARD STOP: mother brain untouched. Vault never. `VITAFEED_PAID` /

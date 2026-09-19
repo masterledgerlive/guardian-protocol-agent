@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-19T03:38:35.364Z",
+  "at": "2026-09-19T06:49:42.614Z",
   "id": "filing-labels-learned-v1",
   "formula": "original-message-first",
   "labels": {
@@ -16,8 +16,11 @@
     "VITA_SAVE_LEARN": "Bankable §TOKEN§ learn packet for /vitasave retrieval",
     "VITALIB": "Named library name→key→locs",
     "MEMORY": "Append-only learned notes",
-    "STRAND": "Sparse inject chunk plans"
+    "STRAND": "Sparse inject chunk plans",
+    "FEED_BACKLOG": "Offline /vitafeed inject queue — pending→sealed without agent AI"
   },
-  "lastAdded": [],
+  "lastAdded": [
+    "FEED_BACKLOG"
+  ],
   "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
 }

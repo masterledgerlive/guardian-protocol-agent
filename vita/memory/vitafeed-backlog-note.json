@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-19T06:50:00.000Z",
+  "topic": "vitafeed-backlog",
+  "filingLabel": "FEED_BACKLOG",
+  "text": "Inject was cheap enough to keep feeding /vitafeed. New FEED_BACKLOG queue parks brain seed + compact memory files on disk so the vita brain can log/file/prove growth without agentic AI. Drain: /vitafeed enqueue seed → /vitafeed backlog → /vitafeed next → confirm|override (VITAFEED_PAID still gates send; thrift prefer ≤4 chunks/item, hard max 24). Desk GET /vita/feed-backlog. Never invents hashes. Mother brain untouched.",
+  "commands": [
+    "/vitafeed backlog",
+    "/vitafeed enqueue seed",
+    "/vitafeed next",
+    "/vitafeed override",
+    "/vitafeed proof"
+  ],
+  "hypothesis": {
+    "id": "vitafeed-backlog-offline-growth",
+    "status": "operating",
+    "note": "Backlog of data feeds vita brain while Cursor/agent is off; pending→sealed counts prove growth."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "helper": "vita/vita-feed-backlog.js",
+  "desk": [
+    "GET /vita/feed-backlog",
+    "POST /vita/feed-backlog/seed"
+  ]
+}

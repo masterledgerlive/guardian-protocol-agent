@@ -30,8 +30,10 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 `/vitafeed` then `/vitafeed override` → PLAY PROOF on `/vita/feed-player`.
 `/vitafeed brain` activates learn (old→new + one peer review + zero-proof
 growth + library) then stages for override. `/vitafeed learn` · `/vitafeed proof`.
-Library: `/vitafeed files` · `/vitafeed play <n|name>` · `/vitafeed keys`
-(§VITALIB§ name→key→locs keys chain).
+**Backlog (no agent AI required):** `/vitafeed enqueue seed` queues brain seed +
+memory files; `/vitafeed backlog` shows pending→sealed growth; `/vitafeed next`
+stages the next item for confirm|override. Library: `/vitafeed files` ·
+`/vitafeed play <n|name>` · `/vitafeed keys` (§VITALIB§ name→key→locs keys chain).
 
 **Large dumps (mother brain untouched):** `/vitamothergenesis` (plain N batches +
 reader key), `/vitamotherGenesisencoded` (AES + loc commitment + two-part key),

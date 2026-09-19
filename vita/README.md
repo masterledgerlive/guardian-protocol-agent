@@ -18,6 +18,9 @@ Start here: [`AGENTS.md`](./AGENTS.md) → [`ORIGINAL_FORMULA.md`](./ORIGINAL_FO
 remainder. `/vitafeed brain` activates learn (old→new + peer review + zero-proof
 growth + library) and stages for override; `/vitafeed learn` · `/vitafeed proof`.
 Queues `VITA_SAVE_LEARN` §TOKEN§ for `/vitasave`. Rate limited.
+**Backlog:** `/vitafeed enqueue seed` parks brain seed + memory files on disk;
+`/vitafeed next` drains one item at a time (confirm|override). Proves growth
+without agentic AI (`GET /vita/feed-backlog`). Prefer ≤4 chunks/item (thrift).
 Library: `/vitafeed files` · `play <n|name>` · `keys` (§VITALIB§).
 Play proof: [`/vita/feed-player`](../public/vita-feed-player.html). See
 [`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain send.
