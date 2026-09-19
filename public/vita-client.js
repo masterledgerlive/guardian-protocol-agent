@@ -242,7 +242,7 @@ function helpText() {
     "/reader           show reconstructed packet from locations",
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
-    "/vitafeed [text|file|brain] exact plain / VITAFILE / mind seed; files|play|keys; confirm|override (partial OK); /vita/feed-player",
+    "/vitafeed [text|file|brain|learn|proof] exact/VITAFILE/mind; files|play|keys; confirm|override; /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO 8B; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",

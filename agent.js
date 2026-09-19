@@ -12419,7 +12419,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
             "<code>/vitafeed override</code> — bypass RISK balance REFUSE + liquid floor; " +
             "sends what gas allows, restages remainder. Cannot bypass VITAFEED_PAID=no or rate limit.\n" +
-            "<code>/vitafeed brain</code> — stage recursive-AI mind seed (formula+anchors+recall)\n" +
+            "<code>/vitafeed brain</code> — activate learn (old→new + peer review + zero-proof + library + vita-save)\n" +
+            "<code>/vitafeed learn</code> · <code>/vitafeed proof</code> — last cycle / growth card\n" +
             "<b>Library (quick pull):</b>\n" +
             "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
             "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
@@ -12596,9 +12597,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
             } else if (parsed.action === "brain") {
               await tg(
-                "📡 <b>VITAFEED BRAIN</b> — staging recursive-AI mind seed " +
-                "(formula + anchors + KEY+LOC recall)…",
+                "📡 <b>VITAFEED BRAIN</b> — activating learn cycle " +
+                "(old→new · peer review · zero-proof · library · vita-save)…",
               );
+            } else if (parsed.action === "learn") {
+              await tg("📡 <b>VITAFEED LEARN</b> — last old→new cycle…");
+            } else if (parsed.action === "proof") {
+              await tg("📡 <b>VITAFEED ZERO PROOF</b> — retrieval growth…");
             }
 
             // Buy tokens BEFORE inscription so RISK still holds the stake and
@@ -12709,8 +12714,29 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               liquidUsd: isPaidConfirm ? liquidUsdForGate : null,
               messageAtMs,
             });
+            // Brain activate → queue §TOKEN§ learn for next /vitasave (bank path).
+            if (parsed.action === "brain" && out.brainLearn?.vitaSave?.tokenPacket) {
+              if (!global._vitaNotes) global._vitaNotes = [];
+              global._vitaNotes.push({
+                note: out.brainLearn.vitaSave.tokenPacket,
+                ts: new Date().toISOString(),
+                filingLabel: "VITA_SAVE_LEARN",
+                source: "vitafeed-brain",
+              });
+            }
             let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
             msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+            if (parsed.action === "brain" && out.brainLearn?.cycleIndex) {
+              msg +=
+                "\n🧠 Learn cycle <b>#" + out.brainLearn.cycleIndex + "</b>" +
+                " · peer <b>" + (out.brainLearn.peer?.verdict || "?") + "</b>" +
+                " · zero-proof <code>" +
+                String(out.brainLearn.zeroProof?.root || "").slice(0, 12) +
+                "…</code>";
+              msg +=
+                "\n📝 Queued <code>VITA_SAVE_LEARN</code> for /vitasave (" +
+                (global._vitaNotes?.length || 0) + " notes)";
+            }
             const locs = out.result?.strand?.locations || [];
             if (locs.length) {
               msg += "\n";

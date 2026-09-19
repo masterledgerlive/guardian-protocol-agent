@@ -15,10 +15,12 @@ Start here: [`AGENTS.md`](./AGENTS.md) → [`ORIGINAL_FORMULA.md`](./ORIGINAL_FO
 `§VITAFILE§` packets, cost card, then `/vitafeed confirm|override` pays RISK
 **only when `VITAFEED_PAID=yes`** (default OFF). Confirm respects liquid floor $5;
 **override bypasses liquid floor + RISK REFUSE**, seals what gas allows, restages
-remainder. `/vitafeed brain` stages the recursive-AI mind seed. Rate limited.
+remainder. `/vitafeed brain` activates learn (old→new + peer review + zero-proof
+growth + library) and stages for override; `/vitafeed learn` · `/vitafeed proof`.
+Queues `VITA_SAVE_LEARN` §TOKEN§ for `/vitasave`. Rate limited.
 Library: `/vitafeed files` · `play <n|name>` · `keys` (§VITALIB§).
 Play proof: [`/vita/feed-player`](../public/vita-feed-player.html). See
-[`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain.
+[`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain send.
 
 **WAVE memory mirror:** Telegram `/wavetest` (also HTML console + `GET /vita/wavetest`).
 Hex shards `[W:v1:SYM]|…|KEY8|LOC8]` + VIN/tailwind like `/vitafeed`. Answer key

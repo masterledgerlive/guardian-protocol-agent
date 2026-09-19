@@ -28,8 +28,8 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 `/vitanote` `/vitasave` `/inject` `/vitapull` `/vitascan` `/reader` `/prove`
 `/xmem` `/vitafeed` — HTML console mirrors Telegram. File/song/video: reply with
 `/vitafeed` then `/vitafeed override` → PLAY PROOF on `/vita/feed-player`.
-`/vitafeed brain` stages the recursive-AI mind seed. Override bypasses liquid
-floor + RISK REFUSE; seals what gas allows and restages the remainder.
+`/vitafeed brain` activates learn (old→new + one peer review + zero-proof
+growth + library) then stages for override. `/vitafeed learn` · `/vitafeed proof`.
 Library: `/vitafeed files` · `/vitafeed play <n|name>` · `/vitafeed keys`
 (§VITALIB§ name→key→locs keys chain).
 
