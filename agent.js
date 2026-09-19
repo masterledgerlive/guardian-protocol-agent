@@ -22,7 +22,7 @@ import {
 import { maybeFundV4FromV3 } from "./v4-fund-once.js";
 
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
-import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot } from "./vita-webhook.js";
+import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot, maybeAutofireVitaFeedOnBoot } from "./vita-webhook.js";
 
 // ── 🌟 VITA MEMORY — autonomous blockchain memory for Claude/VITA ──────────────
 import {
@@ -640,6 +640,51 @@ async function buildWaveFullLiveContext(opts = {}) {
     ...opts,
     liveEnabled: waveFullLiveEnabled(process.env),
   });
+}
+
+/** Live RISK self-tx context for /vitafeed desk + autofire (plain body, no BL- id). */
+async function buildVitaFeedLiveContext(opts = {}) {
+  const cdp = opts.cdp || cdpClient;
+  const bal = opts.bal || null;
+  const ethUsd = opts.ethUsd;
+  let riskBalanceEth = null;
+  try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? lastEthBalance ?? null; }
+  let weth = bal?.weth;
+  if (weth == null) {
+    try { weth = await getWethBalance(); } catch { weth = lastWethBalance ?? 0; }
+  }
+  const mark = Number(ethUsd ?? cachedEthUsd ?? 0);
+  const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0)) + Math.max(0, Number(weth ?? 0));
+  const liquidUsd = liquidEth * mark;
+  let gwei = 0.05;
+  try { gwei = await getCurrentGasGwei(); } catch { /* demo gwei */ }
+  const quotes = { gwei, ethUsd: mark, live: true, label: "LIVE" };
+  let sendTx = null;
+  if (cdp?.evm?.sendTransaction) {
+    sendTx = async (hex) => {
+      try {
+        const { transactionHash } = await cdp.evm.sendTransaction({
+          address: WALLET_ADDRESS,
+          network: "base",
+          transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+        });
+        if (transactionHash) {
+          recordLocation({
+            location: transactionHash,
+            kind: "vitafeed",
+            sealed: true,
+            hitchKind: "plain",
+          });
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+        return transactionHash || null;
+      } catch (e) {
+        console.warn("vitafeed live sendTx failed:", e?.message || e);
+        return null;
+      }
+    };
+  }
+  return { sendTx, liquidUsd, riskBalanceEth, quotes };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -14452,6 +14497,7 @@ async function main() {
       ],
       waveProofLiveContext: () => buildWaveProofLiveContext({ cdp: cdpClient }),
       waveFullLiveContext: () => buildWaveFullLiveContext({ cdp: cdpClient }),
+      vitaFeedLiveContext: () => buildVitaFeedLiveContext({ cdp: cdpClient }),
     });
   }
   updateWebhookState(); // initial inject
@@ -14474,6 +14520,21 @@ async function main() {
     }
   } catch (e) {
     console.log("⚠️  WAVE_FULL_AUTOFIRE failed: " + (e.message || e));
+  }
+
+  // Desk one-shot: VITAFEED_AUTOFIRE=yes + plain body → override seal (no BL- id, no Telegram).
+  try {
+    const autoFeed = await maybeAutofireVitaFeedOnBoot(process.env);
+    if (autoFeed?.fired || autoFeed?.autofire) {
+      const locs = (autoFeed.locations || []).join(" ");
+      console.log(
+        "📡 VITAFEED_AUTOFIRE: " +
+        (autoFeed.reason || autoFeed.reply || (autoFeed.fired ? "fired" : "cleared")) +
+        (locs ? " locs=" + locs : ""),
+      );
+    }
+  } catch (e) {
+    console.log("⚠️  VITAFEED_AUTOFIRE failed: " + (e.message || e));
   }
 
   // ── CHAIN-TRUTH POSITION RECONCILIATION (replaces stale emergency inject) ─

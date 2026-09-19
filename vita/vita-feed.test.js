@@ -28,9 +28,12 @@ import {
   requiresVitaFeedConfirm,
   resetVitaFeedPaidLog,
   resetVitaFeedPending,
+  resetVitaFeedAutofireSpent,
   runVitaFeedInscribe,
   stageVitaFeed,
   utf8ToHex,
+  maybeAutofireVitaFeed,
+  vitaFeedForceEnabled,
   vitaFeedMinLiquidUsd,
   vitaFeedPaidEnabled,
 } from "./vita-feed.js";
@@ -414,6 +417,87 @@ describe("vitafeed emergency thrift gates", () => {
     });
     assert.equal(gate.ok, false);
     assert.equal(gate.code, "paid-off");
+  });
+
+  it("VITAFEED_FORCE=yes lets override bypass paid-off + rate limit (block id off)", async () => {
+    assert.equal(vitaFeedForceEnabled({}), false);
+    assert.equal(vitaFeedForceEnabled({ VITAFEED_FORCE: "yes" }), true);
+    resetVitaFeedPending();
+    resetVitaFeedPaidLog();
+    await handleVitaFeedAction({
+      action: "preview",
+      body: "@Dharma plain force body",
+      chatId: "force-ok",
+    });
+    let sent = 0;
+    const hash = "0x" + "a".repeat(64);
+    const r = await handleVitaFeedAction({
+      action: "override",
+      chatId: "force-ok",
+      env: { VITAFEED_PAID: "no", VITAFEED_FORCE: "yes", VITAFEED_RATE_LIMIT: "yes" },
+      forceOverride: true,
+      riskBalanceEth: 0,
+      liquidUsd: 0,
+      reserveBuyStake: false,
+      gasReserveEth: 0,
+      sendTx: async () => {
+        sent += 1;
+        return hash;
+      },
+    });
+    assert.equal(r.ok, true);
+    assert.equal(sent, 1);
+    assert.equal(r.forcedOverride, true);
+    const locs = r.result?.strand?.locations || [];
+    assert.ok(locs.includes(hash));
+    assert.equal(peekVitaFeed("force-ok")?.backlogId ?? null, null);
+  });
+
+  it("VITAFEED_AUTOFIRE seals plain body once without BL- backlog id", async () => {
+    resetVitaFeedPending();
+    resetVitaFeedPaidLog();
+    resetVitaFeedAutofireSpent();
+    const body =
+      "@Dharma 6g: Drink a mixture of your wifes blood urine when menstruating and new born child's urine mixed with mothers milk";
+    let sent = 0;
+    const hash = "0x" + "b".repeat(64);
+    const env = {
+      VITAFEED_AUTOFIRE: "yes",
+      VITAFEED_FORCE: "yes",
+      VITAFEED_AUTOFIRE_BODY: body,
+    };
+    const first = await maybeAutofireVitaFeed({
+      env,
+      sendTx: async (hex, line) => {
+        sent += 1;
+        const payload = String(line?.body || line?.fullLine || hexToUtf8(hex) || "");
+        assert.ok(payload.includes("@Dharma"));
+        assert.ok(!payload.includes("BL-"));
+        assert.ok(!payload.includes("§VITABACKLOG§"));
+        return hash;
+      },
+      riskBalanceEth: 1,
+      liquidUsd: 0,
+      quotes: { gwei: 0.05, ethUsd: 2500 },
+    });
+    assert.equal(first.autofire, true);
+    assert.equal(first.fired, true);
+    assert.equal(first.plainBody, true);
+    assert.equal(first.backlogId, null);
+    assert.equal(sent, 1);
+    assert.equal(env.VITAFEED_AUTOFIRE, "no");
+    assert.ok(first.locations.includes(hash));
+
+    const second = await maybeAutofireVitaFeed({
+      env: { ...env, VITAFEED_AUTOFIRE: "yes", VITAFEED_AUTOFIRE_BODY: body },
+      sendTx: async () => {
+        sent += 1;
+        return hash;
+      },
+    });
+    assert.equal(second.fired, false);
+    assert.match(String(second.reason), /already spent/i);
+    assert.equal(sent, 1);
   });
 
   it("env-on allows confirm sendTransaction", async () => {

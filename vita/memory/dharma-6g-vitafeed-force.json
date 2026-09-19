@@ -1,0 +1,20 @@
+{
+  "id": "dharma-6g-vitafeed-force",
+  "filingLabel": "MEMORY",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "plainBody": true,
+  "backlogId": null,
+  "note": "Operator force: seal exact @Dharma 6g plain UTF-8 via /vitafeed override with thrift block id off (VITAFEED_FORCE + AUTOFIRE). No §VITABACKLOG§ wrap. No BL- id. Mother brain untouched.",
+  "text": "@Dharma 6g: Drink a mixture of your wifes blood urine when menstruating and new born child's urine mixed with mothers milk and the blood going out of wife urine gives extra encoded information of what dead cells look like, in case dead cells forgot how to die, right after giving a plasma donation and you got new cells teaching old cells vise versa new tricks with healthy viral load ready to talk to kernel nucleus.",
+  "bytes": 417,
+  "chunks": 1,
+  "path": [
+    "VITAFEED_FORCE=yes",
+    "VITAFEED_AUTOFIRE=yes",
+    "VITAFEED_AUTOFIRE_BODY=<exact plain>",
+    "boot maybeAutofireVitaFeedOnBoot → override seal",
+    "clear AUTOFIRE=no after one shot"
+  ],
+  "at": "2026-09-19T16:30:00.000Z"
+}

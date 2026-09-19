@@ -14,7 +14,7 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    Nothing held after seal.
 3. Bot replies with a **cost card** (before): chars / UTF-8 bytes / bits, max payload per chunk, injection count, ETH/$ per injection × N, VIN/tailwind pointers, IN bytes vs OUT (pending).
 4. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain **only when `VITAFEED_PAID=yes` (or `VITAFEED_ENABLED=yes|true|1`)**. Default OFF → bank/refuse, cost card still works.
-5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain. **Override cannot bypass `VITAFEED_PAID=no`, the liquid floor, or the rate limit.**
+5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain. **Override cannot bypass `VITAFEED_PAID=no` or the rate limit unless `VITAFEED_FORCE=yes`.** Liquid floor is already bypassed by override. When FORCE is on, override is the thrift “block id off” path — plain body seal, no BL- backlog wrap.
 6. When every location seals → **PLAY PROOF**: Tailwind reader peaces spaced
    locations together and plays the blob (`/vita/feed-player`).
 7. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
@@ -36,6 +36,10 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    Desk: `GET /vita/feed-backlog` · auth `POST /vita/feed-backlog/seed`
    Prefer ≤4 chunks/item (hard max 24 = hourly thrift). Never invents hashes.
    Does **not** turn `VITAFEED_PAID` on.
+10. **FORCE / AUTOFIRE (desk):** `VITAFEED_FORCE=yes` + override (or
+    `VITAFEED_AUTOFIRE=yes` + `VITAFEED_AUTOFIRE_BODY=…` one-shot on boot) seals
+    exact plain UTF-8 with **no BL- backlog id**. Desk: auth `POST /vita/vitafeed`
+    `{ "body": "…", "force": true, "live": true }`. Autofire self-clears to `no`.
 
 `/vitafeed cancel` drops a staged payload **and** clears a pending file wait.
 Confirm is always required so a 1000+ character paste cannot burn by accident.
@@ -63,7 +67,10 @@ upload or load demo song → Packetize → Demo override → Play proof.
 | `VITAFEED_CONFIRM_CHARS` | 1000 | Large-body warning on the cost card |
 | `VITAFEED_TX_GAS_UNITS` | 50_000 | Documented self-tx gas class (`BTP_INSCRIBE_GAS_UNITS`) |
 | Payer | RISK `0x50e1…7915` | Vault / save bucket never spend |
-| `VITAFEED_PAID` / `VITAFEED_ENABLED` | default **OFF** | Must be `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Override cannot bypass. |
+| `VITAFEED_PAID` / `VITAFEED_ENABLED` | default **OFF** | Must be `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Override cannot bypass unless `VITAFEED_FORCE`. |
+| `VITAFEED_FORCE` | default **OFF** | When `yes`, `/vitafeed override` (and autofire) bypasses paid-off + rate limit. Liquid floor already bypassed by override. Plain body; no BL- id. |
+| `VITAFEED_AUTOFIRE` | default **OFF** | One-shot boot/desk seal of `VITAFEED_AUTOFIRE_BODY`; self-clears to `no`. Needs PAID or FORCE. |
+| `VITAFEED_AUTOFIRE_BODY` | empty | Exact plain UTF-8 (no §VITABACKLOG§ / BL- wrap). |
 | `VITAFEED_MIN_LIQUID_USD` | default **5** | Refuse confirm/override when RISK liquid USD is below floor. Set `0` to disable. |
 | `VITAFEED_CONFIRM_COOLDOWN_SEC` | default **60** | Refuse a second paid confirm for the same chat within N seconds. |
 | `VITAFEED_MAX_CHUNKS_PER_HOUR` | default **24** | Refuse a batch that would exceed hourly chunk cap (stops 383-tx file dumps). |
