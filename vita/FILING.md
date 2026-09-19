@@ -15,7 +15,10 @@ findable.
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
-| `vita/brain-seed.js` | `BRAIN` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
+| `vita/brain-seed.js` | `BRAIN` / `BRAIN_SEED` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
+| `vita/brain-learn.js` | `BRAIN_LEARN` | Old→new learn cycle, filing refine, library + zero-proof growth |
+| `vita/memory/filing-labels-learned.json` | `FILING` (refined) | Self-refining label map (PEER_REVIEW, ZERO_PROOF, …) |
+| `vita/memory/brain-learn-log.json` | `ZERO_PROOF` | Append-only learn cycles + hash-chain roots |
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
@@ -40,6 +43,11 @@ findable.
 | `vita` | `§TOKEN§` / KEY+LOC leftover hitch |
 | `hat` | HAT bit stream on leftover |
 | `tag` | Short tag hitch |
+| `BRAIN_SEED` | Mind seed body (`§VITABRAIN§`) |
+| `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |
+| `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
+| `ZERO_PROOF` | Squashed content-addressed retrieval growth (`§ZEROPROOF§`) |
+| `VITA_SAVE_LEARN` | Bankable §TOKEN§ learn packet for `/vitasave` retrieval |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
 (`#vita-mainframe`). Hitch trailers only carry squashed `§LOC§`.

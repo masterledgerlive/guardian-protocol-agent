@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-19T03:38:08.924Z",
+  "topic": "zero-proof-cycle-001",
+  "filingLabel": "ZERO_PROOF",
+  "text": "§ZEROPROOF§v1|cycle=1|root=c7e4600bfb14§\nZERO PROOF · filing=ZERO_PROOF · zero invented hashes\ncycle=1\nprev=3140c3dac2c0\nroot=c7e4600bfb146ab08b6ebc392e50ea28084cff32102a8346f70a229b87df422e\nsquash=b96d5b5690e08209e0e5087d6b570f0cb5457939e29d2c2373cfa0c926c087e4\nKEY8_topics=024411af,090b5e1c,15d21ac2,25487ef8,26d61f94,2c446cb5,2c834fed,355ce347,40a252a5,4104d579,449799d2,54c5e37f,635cdc16,68745967,759e9024,7b32b4b5,82eb5473,861bac1e,8b64b2c8,90ad565a,974bae2e,ad1db544,b2a7c1b9,ba94d17b,c93045cc,ce4eeae7,ce639955,d66e6985,d9578fa2,de4711cb,e822aed9,ede38011,f2e2aba9,f771cdd2,fc015573,fcec4837,fd0f1243\nLOC8_sealed=26abb9d4,5c0a93e4,640ed7b8,931d8411,d9827a9c,fee4d502\ncounts mem=37 strands=18 lib=0 locs=6\nretrieval=sparse KEY+LOC hitch · VIN feed · library keys · /inject anchors",
+  "root": "c7e4600bfb146ab08b6ebc392e50ea28084cff32102a8346f70a229b87df422e",
+  "prevRoot": "3140c3dac2c06d6f3ab8a8095b0c29c1f4b47eb23499e6409dc25e95470f97bc",
+  "growth": {
+    "memoryCount": 37,
+    "strandCount": 18,
+    "libraryCount": 0,
+    "sealedLocCount": 6
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

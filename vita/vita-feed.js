@@ -553,9 +553,16 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^cancel$/i.test(trimmed)) {
     return { ok: true, action: "cancel", body: "", source: "cancel" };
   }
-  // Blockchain brain seed — formula + anchors + recall rules for recursive AI.
+  // Blockchain brain seed — formula + anchors + recall for recursive AI.
   if (/^brain(?:\s|$)/i.test(trimmed)) {
     return { ok: true, action: "brain", body: "", source: "brain" };
+  }
+  // Learn cycle card / zero-proof growth (no new stage unless brain).
+  if (/^learn(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "learn", body: "", source: "learn" };
+  }
+  if (/^(?:proof|zeroproof|zero-proof)(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "proof", body: "", source: "proof" };
   }
   // Named library: list sealed files, open one into the player, seal keys catalog.
   if (/^(?:files|list)$/i.test(trimmed)) {
@@ -611,7 +618,10 @@ export function vitaFeedUsageText() {
     "  Sends each VIN chunk until on-chain/gas error — keeps sealed locs,",
     "  restages remainder so you can override again when funded.",
     "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
-    "BRAIN: /vitafeed brain — stage recursive-AI mind seed (formula+anchors+recall).",
+    "BRAIN: /vitafeed brain — activate learn cycle (old→new + peer review +",
+    "  zero-proof growth + library + vita-save packet) then stage for override.",
+    "  /vitafeed learn  — last cycle old→new card (no restage).",
+    "  /vitafeed proof  — squashed zero-proof retrieval growth.",
     "LIBRARY (Telegram quick pull):",
     "  /vitafeed files          — list saved names (auto-saved on seal)",
     "  /vitafeed play <n|name>  — open from keys → player (also: open|pull)",
@@ -1091,21 +1101,23 @@ export async function handleVitaFeedAction({
       reply: had ? "VITAFEED cancelled — staged payload dropped. RISK unspent." : "VITAFEED: nothing staged.",
     };
   }
-  // Blockchain brain seed — formula + anchors + recall for recursive AI.
+  // Blockchain brain activate — learn cycle + peer review + zero-proof + stage.
   if (action === "brain") {
+    const { listLibraryEntries, formatLibraryListCard } = await import("./vita-feed-library.js");
     const {
-      buildBrainSeedBody,
-      formatBrainSeedCard,
-      proveBrainSeedLocal,
-    } = await import("./brain-seed.js");
-    const seedBody = buildBrainSeedBody();
-    const local = proveBrainSeedLocal();
+      activateBrainLearnCycle,
+      researchNotesForFiling,
+    } = await import("./brain-learn.js");
+    const libraryEntries = listLibraryEntries();
+    const cycle = activateBrainLearnCycle({ libraryEntries });
+    const seedBody = cycle.stageBody || cycle.seedBody;
     const prepared = prepareVitaFeed(seedBody);
     if (!prepared.ok) {
       return {
         ok: false,
         phase: "brain",
         reply: prepared.reason || "brain seed empty",
+        cycle,
       };
     }
     const cost = estimateVitaFeedCost(prepared, quotes);
@@ -1118,6 +1130,12 @@ export async function handleVitaFeedAction({
       buyIn,
       seats,
       brain: true,
+      brainLearn: {
+        cycleIndex: cycle.cycleIndex,
+        zeroProofRoot: cycle.zeroProof?.root,
+        peerVerdict: cycle.peer?.verdict,
+        vitaSaveCommit: cycle.vitaSave?.contentCommit,
+      },
     });
     return {
       ok: true,
@@ -1126,14 +1144,82 @@ export async function handleVitaFeedAction({
       prepared,
       cost,
       buyIn,
-      brain: local,
+      brain: cycle.localSeed,
+      brainLearn: cycle,
       reply:
-        formatBrainSeedCard(local.mind) +
-        "\n\n" + local.card +
+        cycle.card +
+        "\n\n" + formatLibraryListCard() +
+        "\n\n" + researchNotesForFiling() +
         "\n\n" +
         formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
         "\n\n" + formatVitaFeedBuyInCard(buyIn) +
-        "\n\nNext: /vitafeed override (money stall OK) or /vitafeed confirm",
+        "\n\nNext: /vitafeed override (money stall OK) · /vitafeed proof · /vitanote+vitasave",
+    };
+  }
+  if (action === "learn") {
+    const { loadBrainLearnLog, formatBrainLearnCard, formatZeroProofGrowthCard } =
+      await import("./brain-learn.js");
+    const { formatLibraryListCard, listLibraryEntries } = await import("./vita-feed-library.js");
+    const log = loadBrainLearnLog();
+    if (!log.cycles?.length) {
+      return {
+        ok: true,
+        phase: "learn",
+        reply:
+          "VITA BRAIN LEARN — no cycles yet.\nRun /vitafeed brain to activate.\n\n" +
+          formatLibraryListCard() +
+          "\n\n" + formatZeroProofGrowthCard(),
+      };
+    }
+    const last = log.cycles[log.cycles.length - 1];
+    const card = formatBrainLearnCard({
+      cycleIndex: last.cycleIndex,
+      old: last.old,
+      new: last.new,
+      diff: last.diff,
+      peer: { verdict: last.peerVerdict, pass: [], fail: [] },
+      zeroProof: {
+        cycleIndex: last.cycleIndex,
+        root: last.zeroProofRoot,
+        prevRoot: log.zeroProof?.roots?.[log.zeroProof.roots.length - 2] ||
+          log.zeroProof?.genesis,
+        growth: {
+          memoryCount: last.new?.memoryCount,
+          strandCount: last.new?.strandCount,
+          libraryCount: last.new?.libraryCount,
+          sealedLocCount: last.new?.sealedLocCount,
+        },
+      },
+      vitaSave: { chars: 0, contentCommit: last.vitaSaveCommit },
+      filingRefine: { added: [] },
+    });
+    return {
+      ok: true,
+      phase: "learn",
+      cycle: last,
+      library: listLibraryEntries(),
+      reply:
+        card +
+        "\n\n" + formatLibraryListCard() +
+        "\n\n" + formatZeroProofGrowthCard() +
+        "\n\nRe-activate: /vitafeed brain",
+    };
+  }
+  if (action === "proof") {
+    const { formatZeroProofGrowthCard, loadBrainLearnLog, researchNotesForFiling } =
+      await import("./brain-learn.js");
+    const { formatLibraryListCard } = await import("./vita-feed-library.js");
+    const log = loadBrainLearnLog();
+    return {
+      ok: true,
+      phase: "proof",
+      cycles: log.cycles?.length || 0,
+      roots: log.zeroProof?.roots || [],
+      reply:
+        formatZeroProofGrowthCard() +
+        "\n\n" + formatLibraryListCard() +
+        "\n\n" + researchNotesForFiling() +
+        "\n\nActivate/grow: /vitafeed brain",
     };
   }
   // Named library — list / open / stage keys catalog (lazy import avoids cycle).

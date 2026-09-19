@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-19T03:38:08.933Z",
+  "topic": "zero-proof-cycle-002",
+  "filingLabel": "ZERO_PROOF",
+  "text": "§ZEROPROOF§v1|cycle=2|root=a0cd88f9d375§\nZERO PROOF · filing=ZERO_PROOF · zero invented hashes\ncycle=2\nprev=c7e4600bfb14\nroot=a0cd88f9d375b4168060a46c75c1c002c8fe50703f3974037518dc2601b6fe7c\nsquash=7a320b6c7ed773d740969b705281edfa511e3e488b21474eb30106dd903e7726\nKEY8_topics=024411af,090b5e1c,0cbe7c00,15d21ac2,25487ef8,26d61f94,2c446cb5,2c834fed,34aacadd,355ce347,40a252a5,4104d579,449799d2,54c5e37f,584374b1,635cdc16,68745967,6c89a8e1,759e9024,7b32b4b5,82eb5473,861bac1e,8b64b2c8,90ad565a,974bae2e,9d7c721c,ad1db544,b2a7c1b9,ba94d17b,c93045cc,ce4eeae7,ce639955,d66e6985,d9578fa2,de4711cb,e822aed9,ede38011,f2e2aba9,f771cdd2,fc015573,fcec4837,fd0f1243\nLOC8_sealed=26abb9d4,5c0a93e4,640ed7b8,931d8411,d9827a9c,fee4d502\ncounts mem=42 strands=19 lib=0 locs=6\nretrieval=sparse KEY+LOC hitch · VIN feed · library keys · /inject anchors",
+  "root": "a0cd88f9d375b4168060a46c75c1c002c8fe50703f3974037518dc2601b6fe7c",
+  "prevRoot": "c7e4600bfb146ab08b6ebc392e50ea28084cff32102a8346f70a229b87df422e",
+  "growth": {
+    "memoryCount": 42,
+    "strandCount": 19,
+    "libraryCount": 0,
+    "sealedLocCount": 6
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

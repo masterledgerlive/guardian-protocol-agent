@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-19T03:38:35.364Z",
+  "id": "filing-labels-learned-v1",
+  "formula": "original-message-first",
+  "labels": {
+    "FORMULA": "Frozen invariants — do not weaken",
+    "AGENT": "On-ramp + read order",
+    "FILING": "Directory + label contract",
+    "MAINFRAME": "Anchors, HTML infect, sparse plan, message-first",
+    "ANCHORS": "Hardcoded Base txs / router / wallet",
+    "BRAIN": "Recursive-AI mind seed",
+    "BRAIN_SEED": "Mind seed body for /vitafeed brain",
+    "BRAIN_LEARN": "Old→new learn delta from activate cycle",
+    "PEER_REVIEW": "One peer review of learn delta (separate label)",
+    "ZERO_PROOF": "Squashed content-addressed retrieval growth proof",
+    "VITA_SAVE_LEARN": "Bankable §TOKEN§ learn packet for /vitasave retrieval",
+    "VITALIB": "Named library name→key→locs",
+    "MEMORY": "Append-only learned notes",
+    "STRAND": "Sparse inject chunk plans"
+  },
+  "lastAdded": [],
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
+}

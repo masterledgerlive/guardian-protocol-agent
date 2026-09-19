@@ -537,10 +537,12 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(r.ok, true);
     assert.equal(r.phase, "before");
     assert.ok(r.prepared?.ok);
-    assert.match(r.reply, /BLOCKCHAIN BRAIN/i);
+    assert.match(r.reply, /BLOCKCHAIN BRAIN|BRAIN ACTIVATE/i);
     assert.match(r.reply, /keycat-plain|eureka-prove|vita-strand/);
+    assert.match(r.reply, /PEER REVIEW|ZERO PROOF/i);
     assert.equal(parseVitaFeedCommand("/vitafeed brain").action, "brain");
     assert.ok(peekVitaFeed("brain-chat"));
+    assert.ok(r.brainLearn?.vitaSave?.tokenPacket);
   });
 
   it("rate limit refuses a second confirm in the same chat / 383-chunk hour cap", async () => {
