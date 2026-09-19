@@ -743,8 +743,10 @@ export function isListedForceExitSymbol(symbol, env = process.env) {
   return forceExitSymbols(env).includes(sym);
 }
 
-/** Game/desk FORCE_EXIT priority — bags >$0.30. Dust names are not this unwind. */
-export const GAME_FORCE_EXIT_PRIORITY = Object.freeze(["AERO", "DRB", "BNKR"]);
+/** Game/desk FORCE_EXIT priority — bags >$0.30. Dust names are not this unwind.
+ * CLANKER (~$3 inject-fuel bag) joins AERO/DRB/BNKR so ALLOW_LOSSY / FORCE_EXIT
+ * can free stale FIFO-red capital for cascade + memory hitch. */
+export const GAME_FORCE_EXIT_PRIORITY = Object.freeze(["AERO", "DRB", "BNKR", "CLANKER"]);
 
 export function isGameForceExitPriority(symbol) {
   return GAME_FORCE_EXIT_PRIORITY.includes(String(symbol || "").toUpperCase());

@@ -86,15 +86,17 @@ describe("inject-fuel-arm: CLANKER velocity + agent wire", () => {
     );
   });
 
-  it("agent recycle HOLD arms inject-fuel memory hitch (never lossy)", () => {
+  it("agent recycle HOLD arms hitch and can FORCE UNWIND CLANKER when lossy", () => {
     assert.ok(agentSrc.includes("armInjectFuelMemoryHitch"));
     assert.ok(agentSrc.includes("formatInjectFuelHoldArmLog"));
     assert.ok(agentSrc.includes("memory hitch armed"));
+    assert.ok(agentSrc.includes("FORCE UNWIND"));
+    assert.ok(agentSrc.includes("canBypassSellLossGate(forceReason"));
     assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=\s*[\"']yes[\"']/.test(agentSrc));
     const clank = agentSrc.indexOf('symbol: "CLANKER"');
     assert.ok(clank >= 0);
     const row = agentSrc.slice(clank, agentSrc.indexOf("{ symbol:", clank + 1));
     assert.equal(row.includes("frozen: true"), false, "CLANKER stays catalog-tradeable");
-    assert.match(row, /Inject-velocity fuel|KEY\+LOC memory hitch/);
+    assert.match(row, /GAME_FORCE_EXIT_PRIORITY|FORCE UNWIND|KEY\+LOC/);
   });
 });
