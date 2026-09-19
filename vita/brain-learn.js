@@ -59,6 +59,7 @@ export const FILING_LABELS_CORE = Object.freeze({
   PEER_REVIEW: "One peer review of learn delta (separate label)",
   ZERO_PROOF: "Squashed content-addressed retrieval growth proof",
   FEED_BACKLOG: "Offline /vitafeed inject queue — pending→sealed without agent AI",
+  MG_RECALL: "Force-banked mother-genesis recall stack — last layer is refined queries",
   REF_LIB: "Reference library search — trueName + ask|self; calculator first domain",
   PROVEN_TEST: "Proven test series — recursive memory answers from packaged locs only",
   TRANSLATOR_CODEX: "Free multilingual alias map — read once, never forget",

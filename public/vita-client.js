@@ -242,6 +242,7 @@ function helpText() {
     "/reader           show reconstructed packet from locations",
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
+    "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",
     "/vitafeed [text|file|brain|learn|proof|backlog|enqueue|next] exact/VITAFILE/mind; files|play|keys; confirm|override; /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO 8B; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",

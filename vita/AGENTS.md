@@ -41,6 +41,10 @@ stages the next item for confirm|override. Library: `/vitafeed files` ·
 **Large dumps (mother brain untouched):** `/vitamothergenesis` (plain N batches +
 reader key), `/vitamotherGenesisencoded` (AES + loc commitment + two-part key),
 `/encodegenesisreveal` — see `vita/mother-genesis.js`.
+**Recall bank:** `/vitamothergenesis FORCE recall` force-banks the layered
+memory stack (`vita/mg-recall-bank.js`). Last layer is the refined query
+index. Pull that reader key after seal; until then the bank holds every note.
+No invented hashes.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.

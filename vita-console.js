@@ -337,6 +337,7 @@ function helpText() {
     "/vita [question] — answer from local + pulled memory",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
+    "/vitamothergenesis FORCE recall — force-bank layered recall stack (queries last)",
     "/vitafeed [text|file|brain|backlog|enqueue|next] — VITAFILE packets; backlog drain; files|play|keys; confirm|override → /vita/feed-player",
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
@@ -541,6 +542,16 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
   // Mother genesis — large dump path (does not touch vitaSave 5-chunk brain)
   if (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis") {
     const body = raw.slice("/vitamothergenesis".length).trim();
+    if (/^(?:FORCE\s+)?recall$/i.test(body)) {
+      const { forceInjectMotherGenesisRecall, formatRecallPullCard } =
+        await import("./vita/mg-recall-bank.js");
+      const result = await forceInjectMotherGenesisRecall();
+      return reply(
+        formatRecallPullCard(result) +
+        "\nHTML force-bank — notes + last refined-query layer attached. No invented txs." +
+        "\nMother brain (/vitasave 5-chunk) untouched.",
+      );
+    }
     if (!body) {
       return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]");
     }

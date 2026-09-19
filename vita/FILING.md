@@ -14,6 +14,7 @@ findable.
 | `vita/mainframe.js` | `MAINFRAME` | Anchors, HTML infect, sparse plan, message-first gate |
 | `vita/anchors.json` | `ANCHORS` | Hardcoded Base txs / router / wallet |
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
+| `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
 | `vita/vita-feed-backlog.js` | `FEED_BACKLOG` | Append-only queue of memory/files for `/vitafeed` drain without agentic AI |
 | `vita/memory/vitafeed-backlog.json` | `FEED_BACKLOG` | Pending→sealed feed queue + growth roots |
@@ -49,6 +50,8 @@ findable.
 | `hat` | HAT bit stream on leftover |
 | `tag` | Short tag hitch |
 | `BRAIN_SEED` | Mind seed body (`§VITABRAIN§`) |
+| `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
+| `MG_RECALL` | Force-banked recall stack (`§MGRECALL§`) — pull one location; last layer is refined queries |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
 | `ZERO_PROOF` | Squashed content-addressed retrieval growth (`§ZEROPROOF§`) |
