@@ -1,8 +1,12 @@
 /**
  * INJECT FUEL HOLD arm — known bag is recycle-ready but LOSE-ZERO red.
  *
- * Never sell red to place code. Arm a learn shard so the moment leftover
- * clears PLUS, recycle fires with message-first KEY+LOC memory hitch.
+ * Default: never sell red to place code. Arm a learn shard so the moment
+ * leftover clears PLUS, recycle fires with message-first KEY+LOC memory hitch.
+ *
+ * Game force path (CLANKER on GAME_FORCE_EXIT_PRIORITY + ALLOW_LOSSY /
+ * FORCE_EXIT): agent may FORCE UNWIND FIFO-red inject fuel → hitch SKIP on
+ * the red sell, then cascade redeploys for memory hitch on the next seat.
  * Storage Token can charge the transmission delta. Mother brain untouched.
  */
 

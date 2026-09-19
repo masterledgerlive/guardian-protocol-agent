@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed — force CLANKER out of stale FIFO-red inject fuel
+
+HARD STOP: mother brain untouched. Vault never. `VITAFEED_PAID` /
+`WAVE_MIRROR_PAID` stay default OFF.
+
+Live CLANKER ~$3.35 stayed INJECT FUEL HOLD (~−4.1% FIFO red). Memory inject
+stalled. `ALLOW_LOSSY_OPERATOR_SELL` could not unwind it because
+`GAME_FORCE_EXIT_PRIORITY` was only AERO/DRB/BNKR.
+
+- Add **CLANKER** to `GAME_FORCE_EXIT_PRIORITY`.
+- INJECT FUEL HOLD → **FORCE UNWIND** when `canBypassSellLossGate` (ALLOW_LOSSY
+  / FORCE_EXIT): hitch SKIP on the red sell; cascade redeploys for memory hitch.
+- Desk one-shot: `OPERATOR_SELL=CLANKER:all` + `ALLOW_LOSSY_OPERATOR_SELL=yes`.
+
 ### Fixed — arm CLANKER inject-fuel memory hitch while LOSE-ZERO HOLDs
 
 HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.

@@ -2036,7 +2036,7 @@ const DEFAULT_TOKENS = [
 
   { symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
-    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317. Inject-velocity fuel: recycle when PLUS for cascade + KEY+LOC memory hitch; LOSE-ZERO HOLD when FIFO red (never sell red to inject)." },
+    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317. Inject-velocity + GAME_FORCE_EXIT_PRIORITY: FIFO-red inject fuel may FORCE UNWIND when ALLOW_LOSSY_OPERATOR_SELL is yes (hitch SKIP on red; cascade redeploys for memory hitch). Plus path still message-first KEY+LOC." },
 
   { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     injectMain: true,
@@ -15171,6 +15171,60 @@ async function main() {
         if (moonGate.alwaysPlusLog) console.log(`   ${moonGate.alwaysPlusLog}`);
         if (!moonGate.allow) {
           const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+          // Game force-exit priority + ALLOW_LOSSY: re-gate as operator unwind so
+          // stale FIFO-red inject fuel (CLANKER class) frees ETH → cascade + hitch.
+          const forceReason = manualSellReason(starveSellPct);
+          if (
+            recycleKnown
+            && canBypassSellLossGate(forceReason, process.env, token.symbol)
+          ) {
+            const forceGate = buildSellGateDecision({
+              symbol: token.symbol,
+              reason: forceReason,
+              sellPct: moonSoldFrac,
+              entryEth: moonEntryEth,
+              lotCostEth: moonLotCost,
+              usdMarkProceedsEth: moonMarkEth,
+              operatorLot: !!token.operatorLot,
+              freshLot: moonLotCost > 0 || !!token.operatorLot,
+              projectedProceedsEth: moonMarkEth,
+              feePct: token.poolFeePct || 0.006,
+              impactPct: PRICE_IMPACT_EST,
+              gasCostEth: gasCostForTier,
+              gwei: moonGwei,
+              wantedHitchBytes: moonWantedHitchBytes,
+              wantBtpInscribe: moonWantBtp,
+              piggyEarningsBufferEth: moonMarkEth * piggyEarningsBufferPct(),
+              unknownEntry: !!(unknownBag || !(moonEntryEth > 0)),
+              leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
+              exitsOnly: !!token.frozen,
+              ...hitchL1GateArgs(moonL1),
+            });
+            if (forceGate.log) console.log(`   ${forceGate.log}`);
+            if (forceGate.allow) {
+              console.log(
+                `🌙 ${label} ${token.symbol}: FORCE UNWIND $${posUsd.toFixed(2)} ` +
+                `(FIFO-red → ALLOW_LOSSY/FORCE_EXIT; hitch SKIP on red; cascade redeploys for memory hitch)`,
+              );
+              try {
+                const p = await executeSell(cdpClient, token, starveSellPct, forceReason, price, true);
+                if (p > 0) {
+                  await tg(
+                    `🌙 <b>${label} FORCE — ${token.symbol}</b>\n` +
+                    `Freed ${p.toFixed(6)} ETH (lossy unwind) → cascade for memory hitch\n` +
+                    `Score: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`,
+                  );
+                  const freshBal = await getFullBalance();
+                  cachedBal = freshBal;
+                  Object.assign(bal, freshBal);
+                  await triggerCascade(cdpClient, token.symbol, p, freshBal);
+                }
+              } catch (e) {
+                console.log(`⚠️ Inject fuel force unwind ${token.symbol}: ${e.message}`);
+              }
+              continue;
+            }
+          }
           // Known inject-fuel bag: arm memory hitch for the PLUS recycle — never sell red.
           if (recycleKnown) {
             const arm = armInjectFuelMemoryHitch({

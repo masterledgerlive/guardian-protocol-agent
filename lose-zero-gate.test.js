@@ -2222,6 +2222,34 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
     assert.equal(lossyDrb.skipHitch, true);
     assert.equal(lossyDrb.verdict, "LOSSY_OPERATOR");
 
+    const lossyClanker = evaluateSellGate({
+      symbol: "CLANKER",
+      reason: "🌙 INJECT FUEL — recycle known bag for cascade",
+      sellPct: 0.9,
+      entryEth: 1.335e-3,
+      lotCostEth: 1.335e-3,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 1.16e-3,
+      usdMarkProceedsEth: 1.16e-3,
+      feePct: 0.01,
+      gasCostEth: 1.8e-5,
+      impactPct: 0.003,
+      gwei: 0.05,
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
+    });
+    assert.equal(lossyClanker.allow, true, "CLANKER on GAME_FORCE_EXIT_PRIORITY + ALLOW_LOSSY unwinds FIFO-red inject fuel");
+    assert.equal(lossyClanker.skipHitch, true, "red force unwind hitch SKIP — cascade redeploys for memory");
+    assert.equal(lossyClanker.verdict, "LOSSY_OPERATOR");
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "CLANKER"),
+      true,
+    );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "no" }, "CLANKER"),
+      false,
+    );
+
     const forceBnkr = evaluateSellGate({
       symbol: "BNKR",
       reason: "📅 Friday weekend de-risk sell+8%",

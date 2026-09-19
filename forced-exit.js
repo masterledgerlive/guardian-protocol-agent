@@ -1,6 +1,6 @@
 /**
  * Forced exit for locked high-unit majors (CBBTC / AAVE) and Game priority
- * bags listed in FORCE_EXIT_SYMBOLS (AERO / DRB / BNKR).
+ * bags listed in FORCE_EXIT_SYMBOLS (AERO / DRB / BNKR / CLANKER).
  *
  * Live lesson: fractional CBBTC locked most of the RISK book. Goal is free the
  * cash with a CLEAN EXIT (no cascade redeploy), freeze the name so it cannot
