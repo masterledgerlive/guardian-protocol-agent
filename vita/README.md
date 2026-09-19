@@ -13,7 +13,9 @@ Start here: [`AGENTS.md`](./AGENTS.md) → [`ORIGINAL_FORMULA.md`](./ORIGINAL_FO
 
 **Storage Token game:** Telegram `/vitafeed` — exact plain UTF-8 or any-file
 `§VITAFILE§` packets, cost card, then `/vitafeed confirm|override` pays RISK
-**only when `VITAFEED_PAID=yes`** (default OFF). Liquid floor $5. Rate limited.
+**only when `VITAFEED_PAID=yes`** (default OFF). Confirm respects liquid floor $5;
+**override bypasses liquid floor + RISK REFUSE**, seals what gas allows, restages
+remainder. `/vitafeed brain` stages the recursive-AI mind seed. Rate limited.
 Library: `/vitafeed files` · `play <n|name>` · `keys` (§VITALIB§).
 Play proof: [`/vita/feed-player`](../public/vita-feed-player.html). See
 [`INJECT.md`](./INJECT.md). Does not touch `/vitasave` mother brain.

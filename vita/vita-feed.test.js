@@ -435,7 +435,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(peekVitaFeed("on-allow"), null);
   });
 
-  it("liquid floor refuses confirm and override below $5", async () => {
+  it("liquid floor refuses confirm but override bypasses money floor", async () => {
     const env = {
       VITAFEED_PAID: "yes",
       VITAFEED_MIN_LIQUID_USD: "5",
@@ -458,6 +458,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(sent, 0);
     assert.match(confirm.reply, /liquid floor/i);
     assert.match(confirm.reply, /\$2\.97/);
+    assert.match(confirm.reply, /override bypasses/i);
 
     await handleVitaFeedAction({ action: "preview", body: "floor2", chatId: "liq-override" });
     const over = await handleVitaFeedAction({
@@ -471,10 +472,75 @@ describe("vitafeed emergency thrift gates", () => {
         return "0x" + "c".repeat(64);
       },
     });
-    assert.equal(over.ok, false);
-    assert.equal(over.thrift, "liquid-floor");
-    assert.equal(sent, 0);
-    assert.match(over.reply, /VITAFEED_MIN_LIQUID_USD/);
+    assert.equal(over.ok, true);
+    assert.equal(over.phase, "after");
+    assert.equal(over.forcedOverride, true);
+    assert.equal(sent, 1);
+    assert.match(over.reply, /money floor bypassed|liquid ≈/i);
+    assert.equal(peekVitaFeed("liq-override"), null);
+  });
+
+  it("partial seal keeps sealed locs and restages remainder after error", async () => {
+    const env = {
+      VITAFEED_PAID: "yes",
+      VITAFEED_MIN_LIQUID_USD: "0",
+      VITAFEED_RATE_LIMIT: "no",
+    };
+    const body = "AAAA".repeat(200) + "BBBB".repeat(200);
+    await handleVitaFeedAction({ action: "preview", body, chatId: "partial" });
+    const staged = peekVitaFeed("partial");
+    assert.ok(staged.prepared.totalChunks >= 2);
+    let n = 0;
+    const r = await handleVitaFeedAction({
+      action: "override",
+      chatId: "partial",
+      env,
+      forceOverride: true,
+      riskBalanceEth: 0,
+      sendTx: async () => {
+        n += 1;
+        if (n === 1) return "0x" + "d".repeat(64);
+        throw new Error("insufficient funds for gas");
+      },
+    });
+    assert.equal(r.ok, true);
+    assert.equal(r.result.sealedCount, 1);
+    assert.equal(r.result.banked, true);
+    assert.equal(r.restaged, true);
+    assert.match(r.reply, /PARTIAL/i);
+    const again = peekVitaFeed("partial");
+    assert.ok(again, "remainder restaged");
+    assert.ok(again.prepared.totalChunks >= 1);
+    assert.ok(again.resume?.priorLocations?.length === 1);
+
+    // Resume override must not be blocked by cooldown after partial.
+    const resume = await handleVitaFeedAction({
+      action: "override",
+      chatId: "partial",
+      env: {
+        VITAFEED_PAID: "yes",
+        VITAFEED_MIN_LIQUID_USD: "0",
+        VITAFEED_CONFIRM_COOLDOWN_SEC: "60",
+        VITAFEED_MAX_CHUNKS_PER_HOUR: "24",
+      },
+      forceOverride: true,
+      riskBalanceEth: 0,
+      now: Date.now(),
+      sendTx: async () => "0x" + "e".repeat(64),
+    });
+    assert.equal(resume.ok, true);
+    assert.ok((resume.result?.sealedCount || 0) >= 1);
+  });
+
+  it("/vitafeed brain stages mind seed for override", async () => {
+    const r = await handleVitaFeedAction({ action: "brain", chatId: "brain-chat" });
+    assert.equal(r.ok, true);
+    assert.equal(r.phase, "before");
+    assert.ok(r.prepared?.ok);
+    assert.match(r.reply, /BLOCKCHAIN BRAIN/i);
+    assert.match(r.reply, /keycat-plain|eureka-prove|vita-strand/);
+    assert.equal(parseVitaFeedCommand("/vitafeed brain").action, "brain");
+    assert.ok(peekVitaFeed("brain-chat"));
   });
 
   it("rate limit refuses a second confirm in the same chat / 383-chunk hour cap", async () => {

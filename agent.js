@@ -12417,8 +12417,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "2. Reply to an attachment with <code>/vitafeed file</code> (or <code>/vitafeed</code>)\n" +
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
             "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
-            "<code>/vitafeed override</code> — same as confirm but bypasses RISK balance REFUSE; " +
-            "cannot bypass VITAFEED_PAID=no, $5 liquid floor, or rate limit.\n" +
+            "<code>/vitafeed override</code> — bypass RISK balance REFUSE + liquid floor; " +
+            "sends what gas allows, restages remainder. Cannot bypass VITAFEED_PAID=no or rate limit.\n" +
+            "<code>/vitafeed brain</code> — stage recursive-AI mind seed (formula+anchors+recall)\n" +
             "<b>Library (quick pull):</b>\n" +
             "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
             "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
@@ -12533,6 +12534,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               liquidUsd,
               chunkCount,
               messageAtMs,
+              forceOverride,
+              skipCooldown: Boolean(forceOverride && staged?.resume),
             });
             if (!gate.ok) {
               await tg(
@@ -12550,21 +12553,26 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               continue;
             }
             sendTx = async (hex) => {
-              const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
-                address: WALLET_ADDRESS,
-                network: "base",
-                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
-              });
-              if (transactionHash) {
-                recordLocation({
-                  location: transactionHash,
-                  kind: "vitafeed",
-                  sealed: true,
-                  hitchKind: "plain",
+              try {
+                const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
+                  address: WALLET_ADDRESS,
+                  network: "base",
+                  transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
                 });
+                if (transactionHash) {
+                  recordLocation({
+                    location: transactionHash,
+                    kind: "vitafeed",
+                    sealed: true,
+                    hitchKind: "plain",
+                  });
+                }
+                await new Promise((r) => setTimeout(r, 2000));
+                return transactionHash || null;
+              } catch (e) {
+                console.warn("vitafeed sendTx chunk failed:", e?.message || e);
+                return null;
               }
-              await new Promise((r) => setTimeout(r, 2000));
-              return transactionHash || null;
             };
           }
 
@@ -12581,11 +12589,16 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
             } else if (parsed.action === "override") {
               await tg(
-                "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK balance REFUSE; " +
-                "buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…",
+                "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK REFUSE + liquid floor; " +
+                "buy-in seats best-effort, then seal chunks until gas/error (partial OK)…",
               );
             } else if (parsed.action === "confirm") {
               await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
+            } else if (parsed.action === "brain") {
+              await tg(
+                "📡 <b>VITAFEED BRAIN</b> — staging recursive-AI mind seed " +
+                "(formula + anchors + KEY+LOC recall)…",
+              );
             }
 
             // Buy tokens BEFORE inscription so RISK still holds the stake and
@@ -12707,6 +12720,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             }
             if (out.result?.strand?.readerKey) {
               msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>\n";
+            }
+            if (out.restaged || out.result?.restaged) {
+              msg +=
+                "\n♻️ <b>PARTIAL SEAL</b> — kept " +
+                (out.result?.sealedCount ?? 0) + "/" + (out.result?.needed ?? "?") +
+                " locs. Remainder restaged — <code>/vitafeed override</code> again when funded.\n";
             }
             if (out.playProof?.complete) {
               msg +=

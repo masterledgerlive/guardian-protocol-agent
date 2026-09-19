@@ -11,6 +11,8 @@
  *
  * Emergency thrift (n5624→6007 +383 self-call class): paid confirm/override
  * default OFF. /vitafeed override cannot bypass VITAFEED_PAID=no.
+ * Override DOES bypass liquid floor + RISK balance REFUSE (money stall).
+ * Inscribe sends what it can before an error, then restages the remainder.
  */
 
 import { createHash, randomBytes } from "node:crypto";
@@ -485,7 +487,10 @@ export function formatVitaFeedCostCard(cost, prepared, { phase = "before" } = {}
     lines.push("WARN: body > " + VITAFEED_CONFIRM_CHARS + " chars — confirm to avoid a burn");
   }
   lines.push("CONFIRM required: /vitafeed confirm   (or /vitafeed cancel)");
-  lines.push("OVERRIDE: /vitafeed override — bypass RISK balance REFUSE if underfunded");
+  lines.push(
+    "OVERRIDE: /vitafeed override — bypass RISK balance REFUSE + liquid floor; " +
+    "send chunks until gas/error, keep sealed locs, restage remainder",
+  );
   return lines.join("\n");
 }
 
@@ -548,6 +553,10 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^cancel$/i.test(trimmed)) {
     return { ok: true, action: "cancel", body: "", source: "cancel" };
   }
+  // Blockchain brain seed — formula + anchors + recall rules for recursive AI.
+  if (/^brain(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "brain", body: "", source: "brain" };
+  }
   // Named library: list sealed files, open one into the player, seal keys catalog.
   if (/^(?:files|list)$/i.test(trimmed)) {
     return { ok: true, action: "files", body: "", source: "files" };
@@ -593,14 +602,16 @@ export function vitaFeedUsageText() {
     "leave $0.10 AI + $0.10 human + 1.5% tax; sell same % up + cost overlay.",
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
     "PAID PATH DEFAULT OFF: set VITAFEED_PAID=yes (or VITAFEED_ENABLED=yes|true|1)",
-    "  or confirm/override BANKS (no sendTransaction). Override cannot bypass.",
-    "Liquid floor: VITAFEED_MIN_LIQUID_USD default $5 (set 0 to disable).",
+    "  or confirm/override BANKS (no sendTransaction). Override cannot bypass paid-off.",
+    "Liquid floor: VITAFEED_MIN_LIQUID_USD default $5 (confirm blocked; override bypasses).",
     "Rate limit: one confirm / chat / 60s and max 24 chunks/hour",
-    "  (VITAFEED_RATE_LIMIT=no disables).",
-    "/vitafeed override — same as confirm but bypasses the RISK balance REFUSE",
-    "  (proceed despite underfunded inscription+buy-in+gas check).",
-    "  Does NOT bypass VITAFEED_PAID=no, liquid floor, or rate limit.",
+    "  (VITAFEED_RATE_LIMIT=no disables). Override does not bypass rate limit.",
+    "/vitafeed override — force-through money stalls:",
+    "  bypasses RISK balance REFUSE + liquid floor; still needs VITAFEED_PAID=yes.",
+    "  Sends each VIN chunk until on-chain/gas error — keeps sealed locs,",
+    "  restages remainder so you can override again when funded.",
     "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
+    "BRAIN: /vitafeed brain — stage recursive-AI mind seed (formula+anchors+recall).",
     "LIBRARY (Telegram quick pull):",
     "  /vitafeed files          — list saved names (auto-saved on seal)",
     "  /vitafeed play <n|name>  — open from keys → player (also: open|pull)",
@@ -730,7 +741,8 @@ export function formatVitaFeedLiquidFloorReply({ liquidUsd, floor }) {
     "VITAFEED REFUSE — liquid floor",
     "RISK liquid ≈ $" + Number(liquidUsd).toFixed(2) +
       " < $" + Number(floor).toFixed(2) + " (VITAFEED_MIN_LIQUID_USD, default 5).",
-    "confirm/override blocked to stop drain. Set VITAFEED_MIN_LIQUID_USD=0 to disable floor.",
+    "confirm blocked to stop drain. /vitafeed override bypasses this money floor.",
+    "Set VITAFEED_MIN_LIQUID_USD=0 to disable floor for confirm too.",
   ].join("\n");
 }
 
@@ -755,7 +767,8 @@ export function formatVitaFeedRateLimitReply({ reason, cooldownSec, cap, used, n
 
 /**
  * Kill-switch + liquid floor + rate limit for confirm/override.
- * /vitafeed override cannot bypass paid-off, liquid floor, or rate limit.
+ * /vitafeed override cannot bypass paid-off or rate limit.
+ * Override DOES bypass liquid floor (money stall) when forceOverride/action=override.
  */
 export function evaluateVitaFeedThriftGate({
   action,
@@ -765,8 +778,12 @@ export function evaluateVitaFeedThriftGate({
   chunkCount = 1,
   now = Date.now(),
   messageAtMs = null,
+  forceOverride = false,
+  /** Partial-seal resume: skip per-chat cooldown so remainder can continue. */
+  skipCooldown = false,
 } = {}) {
   const paidAction = action === "confirm" || action === "override";
+  const override = forceOverride === true || action === "override";
   if (!paidAction) {
     return { ok: true, send: false, code: "not-paid-action" };
   }
@@ -782,6 +799,7 @@ export function evaluateVitaFeedThriftGate({
 
   const floor = vitaFeedMinLiquidUsd(env);
   if (
+    !override &&
     floor > 0 &&
     liquidUsd != null &&
     Number.isFinite(Number(liquidUsd)) &&
@@ -819,7 +837,7 @@ export function evaluateVitaFeedThriftGate({
 
   const key = String(chatId || "default");
   const cooldownSec = vitaFeedConfirmCooldownSec(env);
-  if (cooldownSec > 0) {
+  if (cooldownSec > 0 && !skipCooldown) {
     let lastAt = 0;
     for (const row of paidSends) {
       if (row.chatId === key && row.atMs > lastAt) lastAt = row.atMs;
@@ -858,16 +876,113 @@ export function evaluateVitaFeedThriftGate({
 /**
  * Send each VIN line via sendTx(hex, line) → txHash | null.
  * Never invents hashes. Caller must already have passed the confirm gate.
+ * On throw / null / non-hash: stop further sends, keep sealed locs (partial).
  */
 export async function runVitaFeedInscribe(prepared, sendTx) {
   if (!prepared?.ok) return prepared;
   const chunks = [];
   const txHashes = [];
+  let stopReason = null;
+  let stoppedAt = null;
   for (const line of prepared.lines) {
+    if (stopReason) {
+      chunks.push({
+        index: line.index,
+        total: line.total,
+        vinId: line.vinId,
+        prevHash: line.prevHash,
+        nextIndex: line.nextIndex,
+        nextPtr: line.nextPtr,
+        hash: line.hash,
+        bodyBytes: line.bodyBytes,
+        calldataBytes: line.calldataBytes,
+        linePreview: line.line.slice(0, 80),
+        fullLine: line.line,
+        body: line.body,
+        txHash: null,
+        sealed: false,
+        location: null,
+        basescan: null,
+        skipped: true,
+        error: stopReason,
+      });
+      continue;
+    }
     const hex = line.hex || utf8ToHex(line.line);
-    const txHash = await sendTx(hex, line);
+    let txHash = null;
+    try {
+      txHash = await sendTx(hex, line);
+    } catch (e) {
+      stopReason = String(e?.message || e || "sendTx threw");
+      stoppedAt = line.index;
+      chunks.push({
+        index: line.index,
+        total: line.total,
+        vinId: line.vinId,
+        prevHash: line.prevHash,
+        nextIndex: line.nextIndex,
+        nextPtr: line.nextPtr,
+        hash: line.hash,
+        bodyBytes: line.bodyBytes,
+        calldataBytes: line.calldataBytes,
+        linePreview: line.line.slice(0, 80),
+        fullLine: line.line,
+        body: line.body,
+        txHash: null,
+        sealed: false,
+        location: null,
+        basescan: null,
+        error: stopReason,
+      });
+      continue;
+    }
     if (txHash && !/^0x[0-9a-fA-F]{64}$/.test(String(txHash))) {
-      return { ok: false, reason: "sender returned non-hash — refuse invent", chunks, txHashes };
+      stopReason = "sender returned non-hash — refuse invent";
+      stoppedAt = line.index;
+      chunks.push({
+        index: line.index,
+        total: line.total,
+        vinId: line.vinId,
+        prevHash: line.prevHash,
+        nextIndex: line.nextIndex,
+        nextPtr: line.nextPtr,
+        hash: line.hash,
+        bodyBytes: line.bodyBytes,
+        calldataBytes: line.calldataBytes,
+        linePreview: line.line.slice(0, 80),
+        fullLine: line.line,
+        body: line.body,
+        txHash: null,
+        sealed: false,
+        location: null,
+        basescan: null,
+        error: stopReason,
+      });
+      continue;
+    }
+    if (!txHash) {
+      stopReason = "send returned null — stop; keep sealed locs";
+      stoppedAt = line.index;
+      chunks.push({
+        index: line.index,
+        total: line.total,
+        vinId: line.vinId,
+        prevHash: line.prevHash,
+        nextIndex: line.nextIndex,
+        nextPtr: line.nextPtr,
+        hash: line.hash,
+        bodyBytes: line.bodyBytes,
+        calldataBytes: line.calldataBytes,
+        linePreview: line.line.slice(0, 80),
+        fullLine: line.line,
+        body: line.body,
+        txHash: null,
+        sealed: false,
+        location: null,
+        basescan: null,
+        error: stopReason,
+      });
+      continue;
     }
     chunks.push({
       index: line.index,
@@ -881,13 +996,20 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
       calldataBytes: line.calldataBytes,
       linePreview: line.line.slice(0, 80),
       fullLine: line.line,
-      txHash: txHash || null,
-      sealed: Boolean(txHash),
-      location: txHash || null,
-      basescan: txHash ? VITAFEED_BASESCAN_TX + txHash : null,
+      body: line.body,
+      txHash,
+      sealed: true,
+      location: txHash,
+      basescan: VITAFEED_BASESCAN_TX + txHash,
     });
-    if (txHash) txHashes.push(txHash);
+    txHashes.push(txHash);
   }
+
+  const remainingBody = chunks
+    .filter((c) => !c.sealed)
+    .map((c) => c.body ?? "")
+    .join("");
+  const priorLocations = txHashes.slice();
 
   const strand = {
     vinId: prepared.vinId,
@@ -905,25 +1027,36 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
     chunks,
     locations: txHashes.slice(),
     at: new Date().toISOString(),
+    stopReason: stopReason || null,
+    stoppedAt,
   };
 
+  const banked = txHashes.length < prepared.totalChunks;
   return {
     ok: true,
-    banked: txHashes.length < prepared.totalChunks,
+    banked,
     sealedCount: txHashes.length,
     needed: prepared.totalChunks,
     strand,
+    remainingBody: banked && remainingBody.length ? remainingBody : "",
+    priorLocations,
+    stopReason: stopReason || null,
+    stoppedAt,
     reason: txHashes.length === prepared.totalChunks
       ? "sealed — every injection returned a real hash"
       : txHashes.length
-        ? "partial seal — remaining chunks not hashed (never invent)"
-        : "no hashes yet — never invent txs",
+        ? "partial seal — kept " + txHashes.length + "/" + prepared.totalChunks +
+          " locs" + (stopReason ? " (stop: " + stopReason + ")" : "") +
+          "; remainder restaged — never invent"
+        : "no hashes yet — never invent txs" +
+          (stopReason ? " (stop: " + stopReason + ")" : ""),
   };
 }
 
 /**
  * Thin Telegram/HTML action router. Paid send only when confirm + sendTx
  * AND VITAFEED_PAID=yes. Override cannot bypass the paid kill-switch.
+ * Override bypasses liquid floor + RISK balance REFUSE; partial seal restages.
  */
 export async function handleVitaFeedAction({
   action,
@@ -936,7 +1069,7 @@ export async function handleVitaFeedAction({
   seats = [],
   /** When false, RISK need is inscription+gas only (buy-in already spent). */
   reserveBuyStake = true,
-  /** /vitafeed override — bypass RISK balance REFUSE and proceed anyway. */
+  /** /vitafeed override — bypass RISK balance REFUSE + liquid floor. */
   forceOverride = false,
   /** Env snapshot (tests pass {}). Default process.env. */
   env = process.env,
@@ -956,6 +1089,51 @@ export async function handleVitaFeedAction({
       ok: true,
       phase: "cancel",
       reply: had ? "VITAFEED cancelled — staged payload dropped. RISK unspent." : "VITAFEED: nothing staged.",
+    };
+  }
+  // Blockchain brain seed — formula + anchors + recall for recursive AI.
+  if (action === "brain") {
+    const {
+      buildBrainSeedBody,
+      formatBrainSeedCard,
+      proveBrainSeedLocal,
+    } = await import("./brain-seed.js");
+    const seedBody = buildBrainSeedBody();
+    const local = proveBrainSeedLocal();
+    const prepared = prepareVitaFeed(seedBody);
+    if (!prepared.ok) {
+      return {
+        ok: false,
+        phase: "brain",
+        reply: prepared.reason || "brain seed empty",
+      };
+    }
+    const cost = estimateVitaFeedCost(prepared, quotes);
+    const buyIn = planVitaFeedBuyIns({ prepared, cost, seats, quotes });
+    stageVitaFeed(chatId, {
+      prepared,
+      cost,
+      body: seedBody,
+      quotes,
+      buyIn,
+      seats,
+      brain: true,
+    });
+    return {
+      ok: true,
+      phase: "before",
+      staged: true,
+      prepared,
+      cost,
+      buyIn,
+      brain: local,
+      reply:
+        formatBrainSeedCard(local.mind) +
+        "\n\n" + local.card +
+        "\n\n" +
+        formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
+        "\n\n" + formatVitaFeedBuyInCard(buyIn) +
+        "\n\nNext: /vitafeed override (money stall OK) or /vitafeed confirm",
     };
   }
   // Named library — list / open / stage keys catalog (lazy import avoids cycle).
@@ -1062,6 +1240,8 @@ export async function handleVitaFeedAction({
       chunkCount,
       now,
       messageAtMs,
+      forceOverride: override,
+      skipCooldown: Boolean(override && row.resume),
     });
     if (!thrift.ok) {
       const quotesNowEarly = Object.keys(quotes || {}).length ? quotes : (row.quotes || {});
@@ -1119,7 +1299,17 @@ export async function handleVitaFeedAction({
       overrideNote =
         "VITAFEED OVERRIDE — proceeding despite RISK ETH " +
         Number(riskBalanceEth).toFixed(6) + " < need " + need.toFixed(6) +
-        " (inscription + buy-in + gas). Buys/inscription may still fail on-chain.";
+        " (inscription + buy-in + gas). Sends what gas allows; remainder restaged.";
+    }
+    if (liquidUsd != null && Number.isFinite(Number(liquidUsd))) {
+      const floor = vitaFeedMinLiquidUsd(env);
+      if (override && floor > 0 && Number(liquidUsd) < floor) {
+        overrideNote =
+          (overrideNote ? overrideNote + "\n" : "") +
+          "VITAFEED OVERRIDE — liquid ≈ $" + Number(liquidUsd).toFixed(2) +
+          " < floor $" + Number(floor).toFixed(2) +
+          "; money floor bypassed. Partial seal OK.";
+      }
     }
     if (typeof sendTx !== "function") {
       return {
@@ -1137,7 +1327,43 @@ export async function handleVitaFeedAction({
     }
     noteVitaFeedPaidSend({ chatId, chunks: chunkCount, now });
     const result = await runVitaFeedInscribe(row.prepared, sendTx);
-    takeVitaFeed(chatId);
+    // Partial seal: restage remainder so override can continue when funded.
+    // Full seal or zero progress with no remainder: clear / keep as appropriate.
+    let restaged = false;
+    if (result?.banked && result.remainingBody) {
+      const nextPrepared = prepareVitaFeed(result.remainingBody);
+      if (nextPrepared.ok) {
+        const nextCost = estimateVitaFeedCost(nextPrepared, quotesNow);
+        const nextBuyIn = planVitaFeedBuyIns({
+          prepared: nextPrepared,
+          cost: nextCost,
+          seats: seatsNow,
+          quotes: quotesNow,
+        });
+        stageVitaFeed(chatId, {
+          prepared: nextPrepared,
+          cost: nextCost,
+          body: result.remainingBody,
+          quotes: quotesNow,
+          buyIn: nextBuyIn,
+          seats: seatsNow,
+          resume: {
+            priorVinId: row.prepared.vinId,
+            priorLocations: result.priorLocations || [],
+            sealedCount: result.sealedCount,
+            stopReason: result.stopReason,
+          },
+        });
+        restaged = true;
+      } else {
+        takeVitaFeed(chatId);
+      }
+    } else if (result?.sealedCount === 0 && result?.banked) {
+      // Nothing landed — keep original staged for retry.
+      restaged = false;
+    } else {
+      takeVitaFeed(chatId);
+    }
     // Lazy import — avoid ESM cycle (player → file → feed).
     const { playProofFromInscribeResult } = await import("./vita-feed-player.js");
     const playProof = playProofFromInscribeResult(result, {
@@ -1146,6 +1372,7 @@ export async function handleVitaFeedAction({
     });
     if (result && typeof result === "object") {
       result.playProof = playProof;
+      result.restaged = restaged;
     }
     // Auto-save name + reader key + locations into the keys library.
     let librarySave = null;
@@ -1178,6 +1405,10 @@ export async function handleVitaFeedAction({
         "\n/vitafeed files  ·  /vitafeed play " + librarySave.n +
         "  ·  /vita/feed-player?lib=" + librarySave.n
       : "";
+    const resumeExtra = restaged
+      ? "\n\nPARTIAL — sealed " + result.sealedCount + "/" + result.needed +
+        ". Remainder restaged. /vitafeed override again when RISK has gas."
+      : "";
     return {
       ok: result.ok !== false,
       phase: "after",
@@ -1188,9 +1419,10 @@ export async function handleVitaFeedAction({
       playProof,
       library: librarySave,
       forcedOverride: override,
+      restaged,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
-        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra + libExtra,
+        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra + libExtra + resumeExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

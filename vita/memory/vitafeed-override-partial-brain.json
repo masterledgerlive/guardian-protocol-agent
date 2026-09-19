@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-19T03:20:00.000Z",
+  "topic": "vitafeed-override-partial-brain",
+  "text": "Override was still blocked by liquid floor while money-stalled. Override now bypasses liquid floor + RISK balance REFUSE (still cannot bypass VITAFEED_PAID=no or rate limit). runVitaFeedInscribe sends chunks until throw/null/non-hash, keeps sealed locs, restages remainder. /vitafeed brain stages recursive-AI mind seed (formula+anchors+KEY+LOC recall) for chain inject. Telegram sendTx catches per-chunk errors → null so partial path runs.",
+  "commands": [
+    "/vitafeed",
+    "/vitafeed brain",
+    "/vitafeed confirm",
+    "/vitafeed override",
+    "/vitafeed cancel"
+  ],
+  "hypothesis": {
+    "id": "vitafeed-override-money-partial",
+    "status": "operating",
+    "note": "Money stall: force-through liquid floor; seal what gas allows; resume via restaged remainder. Brain seed is the design payload for recursive AI memory on Base."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "brainSeed": "vita/brain-seed.js",
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}
