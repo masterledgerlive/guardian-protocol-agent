@@ -105,6 +105,14 @@ import {
   formatFeedBacklogGrowthProof,
   seedFeedBacklogFromMemory,
 } from "./vita/vita-feed-backlog.js";
+import {
+  handleVitaFeedAction,
+  maybeAutofireVitaFeed,
+  vitaFeedAutofireEnabled,
+  vitaFeedForceEnabled,
+  vitaFeedPaidEnabled,
+  VITAFEED_AUTOFIRE_CHAT_ID,
+} from "./vita/vita-feed.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import {
   formatWaveProofHttpResult,
@@ -329,6 +337,120 @@ export async function maybeAutofireWaveFullOnBoot(env = process.env) {
   });
 }
 
+async function resolveVitaFeedLiveDeps() {
+  if (typeof botState?.vitaFeedLiveContext === "function") {
+    return botState.vitaFeedLiveContext();
+  }
+  return {
+    sendTx: typeof botState?.vitaFeedSendTx === "function" ? botState.vitaFeedSendTx : null,
+    liquidUsd: botState?.vitaFeedLiquidUsd ?? null,
+    riskBalanceEth: botState?.vitaFeedRiskBalanceEth ?? null,
+    quotes: botState?.vitaFeedQuotes ?? null,
+  };
+}
+
+/**
+ * Boot one-shot: VITAFEED_AUTOFIRE=yes + plain VITAFEED_AUTOFIRE_BODY → override seal.
+ * Needs VITAFEED_PAID=yes or VITAFEED_FORCE=yes. No BL- backlog id. Default OFF.
+ */
+export async function maybeAutofireVitaFeedOnBoot(env = process.env) {
+  if (!vitaFeedAutofireEnabled(env)) {
+    return { ok: true, fired: false, reason: "VITAFEED_AUTOFIRE default off" };
+  }
+  const deps = await resolveVitaFeedLiveDeps();
+  return maybeAutofireVitaFeed({
+    env,
+    sendTx: deps?.sendTx || null,
+    liquidUsd: deps?.liquidUsd ?? null,
+    riskBalanceEth: deps?.riskBalanceEth ?? null,
+    quotes: deps?.quotes ?? null,
+    chatId: VITAFEED_AUTOFIRE_CHAT_ID,
+  });
+}
+
+async function runVitaFeedHttp({
+  body = "",
+  force = false,
+  live = false,
+} = {}) {
+  const plain = String(body || "").trim();
+  if (!plain) {
+    return {
+      ok: false,
+      reply: "VITAFEED desk: missing body (exact UTF-8; no BL- backlog id)",
+    };
+  }
+  let sendTx = null;
+  let liquidUsd = null;
+  let riskBalanceEth = null;
+  let quotes = {};
+  if (live) {
+    const deps = await resolveVitaFeedLiveDeps();
+    sendTx = deps?.sendTx || null;
+    liquidUsd = deps?.liquidUsd ?? null;
+    riskBalanceEth = deps?.riskBalanceEth ?? null;
+    quotes = deps?.quotes || {};
+  }
+  const env = { ...process.env };
+  if (force || vitaFeedForceEnabled(env)) {
+    env.VITAFEED_FORCE = "yes";
+  }
+  const chatId = "vitafeed-desk";
+  const preview = await handleVitaFeedAction({
+    action: "preview",
+    body: plain,
+    chatId,
+    quotes,
+    env,
+  });
+  if (!live) {
+    return {
+      ok: true,
+      live: false,
+      phase: "before",
+      reply: preview.reply,
+      prepared: preview.prepared || null,
+      cost: preview.cost || null,
+      note: "SIM cost card only — POST with live=1 + VITAFEED_PAID|FORCE for seal",
+    };
+  }
+  if (!vitaFeedPaidEnabled(env) && !vitaFeedForceEnabled(env)) {
+    return {
+      ok: false,
+      live: true,
+      phase: "bank",
+      reply: "VITAFEED desk live needs VITAFEED_PAID=yes or VITAFEED_FORCE=yes",
+      preview,
+    };
+  }
+  const out = await handleVitaFeedAction({
+    action: "override",
+    chatId,
+    env,
+    sendTx,
+    liquidUsd,
+    riskBalanceEth,
+    quotes,
+    forceOverride: true,
+    gasReserveEth: 0,
+    reserveBuyStake: false,
+  });
+  const locs = (out?.result?.strand?.locations || [])
+    .map(String)
+    .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+  return {
+    ok: out.ok !== false,
+    live: true,
+    forced: true,
+    backlogId: null,
+    locations: locs,
+    basescan: locs.map((tx) => "https://basescan.org/tx/" + tx),
+    reply: out.reply,
+    result: out.result || null,
+    thrift: out.thrift || null,
+  };
+}
+
 let webhookBound = false;
 
 export function isAddrInUseError(err) {
@@ -522,6 +644,32 @@ async function handleVitaRequest(req, res) {
         growth: seeded.growth,
         card: seeded.card,
       });
+    }
+    // Desk /vita/vitafeed — exact plain body (no BL- id). GET/POST SIM; live needs auth + paid|force.
+    if ((path === "/vita/vitafeed" || path === "/vita/vitafeed/") && (req.method === "GET" || req.method === "POST")) {
+      const payload = req.method === "POST" ? (await readBody(req) || {}) : {};
+      const wantLive = req.method === "POST"
+        || url.searchParams.get("live") === "1"
+        || url.searchParams.get("live") === "yes"
+        || payload.live === true
+        || payload.live === "yes"
+        || payload.live === 1;
+      if (wantLive && !isAuthorized(req)) {
+        return err(res, "unauthorized — set x-vita-secret for live vitafeed", 401);
+      }
+      let body = String(
+        url.searchParams.get("body")
+        || payload.body
+        || payload.text
+        || "",
+      ).trim();
+      const force = url.searchParams.get("force") === "1"
+        || url.searchParams.get("force") === "yes"
+        || payload.force === true
+        || payload.force === "yes"
+        || payload.force === 1;
+      const out = await runVitaFeedHttp({ body, force, live: wantLive === true });
+      return json(res, out, out.ok === false ? 400 : 200);
     }
     if ((path === "/vita/feed-library/play" || path === "/vita/feed-library/play/") && req.method === "GET") {
       const sel = String(url.searchParams.get("lib") || url.searchParams.get("n") || url.searchParams.get("name") || url.searchParams.get("key") || "").trim();
@@ -995,6 +1143,7 @@ export function startVitaWebhook() {
     console.log("   /vita/locations — squashed location depository");
     console.log("   /vita/waveproof — WAVE 3-token proof (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/wavefull  — WAVE 28-shard quote (GET SIM; POST/?live=1 auth live)");
+    console.log("   /vita/vitafeed  — exact plain feed (GET SIM; POST live+force auth)");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");
