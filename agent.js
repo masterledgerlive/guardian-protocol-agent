@@ -194,6 +194,7 @@ import {
   isRotateRemBag,
   isRotateSellSkipped,
   applyRotateQuoterMiss,
+  applyRotateUnquotedSkip,
 } from "./operator-rotate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -6808,6 +6809,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     if (!isValidUsdPrice(price)) {
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: no live USD quote — refusing to size from $0`);
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const cached = getCachedBalance(token.symbol) || 0;
+        const skip = applyRotateUnquotedSkip({
+          state: operatorRotateState,
+          commands: manualCommands,
+          symbol: token.symbol,
+          remBag: isRotateRemBag(cached),
+          kind: "NO QUOTE",
+          code: "NO_QUOTE",
+          balance: cached,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} NO QUOTE — drop from outstanding (HOME must not wait)`);
+        }
+      }
       return null;
     }
 
@@ -6816,6 +6832,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   ⚠️  ${token.symbol}: zero balance — clearing ledger`);
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
       token.piggyReserve = 0;
+      tokenBalanceCache[token.symbol] = 0;
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const skip = applyRotateUnquotedSkip({
+          state: operatorRotateState,
+          commands: manualCommands,
+          symbol: token.symbol,
+          remBag: false,
+          kind: "NO QUOTE",
+          code: "NO_QUOTE",
+          balance: 0,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} zero-bal — drop from outstanding (HOME must not wait)`);
+        }
+      }
       return null;
     }
     // Latch FIFO from persist / evidence buy receipts before entrySold.
@@ -8120,6 +8151,28 @@ ${modeLabel}: [${sourceNames}] → [${targetNames}] | ~$${totalSellUsd.toFixed(2
 }
 
 
+function noteRotateUnquotedSkip(token, { kind = "NO QUOTE", code = "NO_QUOTE", balance } = {}) {
+  if (!isOperatorRotateArmed() || operatorRotateState.finished) return false;
+  const units = Number.isFinite(Number(balance)) ? Number(balance) : (getCachedBalance(token.symbol) || 0);
+  const skip = applyRotateUnquotedSkip({
+    commands: manualCommands,
+    state: operatorRotateState,
+    symbol: token.symbol,
+    remBag: isRotateRemBag(units),
+    kind,
+    code,
+    balance: units,
+  });
+  if (skip.dropped) {
+    console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} ${skip.reason || kind} — drop from outstanding (HOME must not wait)`);
+    maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+      env: process.env,
+      wallet: WALLET_ADDRESS,
+    });
+  }
+  return !!skip.dropped;
+}
+
 async function processToken(cdp, token, bal) {
   try {
     // Skip disabled tokens — they have no viable Uniswap pool
@@ -8127,6 +8180,8 @@ async function processToken(cdp, token, bal) {
       // Still track price for signal purposes, just never trade
       const price = await getTokenPrice(token.address, false);
       if (price) { recordPrice(token.symbol, price); updateWaves(token.symbol, price); }
+      // KITE-class: disabled early-return must still drop rotate outstanding.
+      noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE" });
       return;
     }
     // ── ❄️ FROZEN TOKENS — collect wave data, NEVER open a NEW buy ────────────
@@ -8144,7 +8199,11 @@ async function processToken(cdp, token, bal) {
       // USD-aware: CBBTC 0.00006 units is a real bag — never skip exits on unit count
       const px = history[token.symbol]?.lastPrice || 0;
       const held = balUnits > 0 && (hasSellableUsd(balUnits, px, BAG_DUST_USD) || balUnits > 0.001);
-      if (!pending && !held) return; // no buys, no logs, no capital
+      if (!pending && !held) {
+        // Frozen idle names can still sit in rotate pendingSells from boot queue.
+        noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE", balance: balUnits });
+        return; // no buys, no logs, no capital
+      }
     }
     // FIX: Skip dead-wave tokens that will never clear fees — stops them burning
     // 0.8s + RPC calls per loop on tokens mathematically impossible to trade.
@@ -8159,6 +8218,8 @@ async function processToken(cdp, token, bal) {
     if (!isValidUsdPrice(price)) {
       noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
       console.log(`   ⏳ ${token.symbol}: NO QUOTE — skip trade (pool dry or unindexed) ${token.address}`);
+      // CRASH/BRIUN/NORMIE/OGGY/FREN/ROOST-class: do not leave rotate sells outstanding.
+      noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE" });
       if (pendingManual) await flushPendingOperatorBuys(cdp);
       return false;
     }

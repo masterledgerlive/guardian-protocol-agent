@@ -211,6 +211,15 @@ export function isRotateQuoterMiss(kind = "", code = "") {
   return /QuoterV2 miss|QUOTE_MISS/i.test(`${kind} ${code}`);
 }
 
+/** DexScreener/Quoter mark missing — processToken NO QUOTE / unindexed pool. */
+export function isRotateNoQuote(kind = "", code = "") {
+  return /NO[\s_-]?QUOTE|missing[\s\S]{0,80}mark|unindexed|pool dry/i.test(`${kind} ${code}`);
+}
+
+export function isRotateUnquotedSkip(kind = "", code = "") {
+  return isRotateQuoterMiss(kind, code) || isRotateNoQuote(kind, code);
+}
+
 export function dropRotateSellCommand(commands, symbol) {
   const sym = normSym(symbol);
   if (!Array.isArray(commands) || !sym) return commands;
@@ -251,30 +260,51 @@ export function markOperatorRotateSellSkipped(state, symbol, reason = "quoter-mi
 }
 
 /**
- * Quoter miss during OPERATOR_ROTATE_TO=HOME:
- * rem bags drop on first miss; any bag drops after N misses.
+ * Unquoted / unsellable rotate bag during OPERATOR_ROTATE_TO=HOME:
+ * zero on-chain balance drops immediately; NO-QUOTE / missing DexScreener-or-
+ * Quoter mark / QuoterV2 miss drop rem on first miss (any bag after N misses).
  * Does not invent a fill — leftover stays on-chain.
  */
-export function applyRotateQuoterMiss({
+export function applyRotateUnquotedSkip({
   commands,
   state = {},
   symbol,
   remBag = false,
-  kind = "QuoterV2 miss",
+  kind = "NO QUOTE",
   code = "",
+  balance,
 } = {}) {
   const outstanding = () => rotateSellsOutstanding(commands, state);
-  if (!isRotateQuoterMiss(kind, code)) {
-    return { dropped: false, misses: 0, remBag: !!remBag, outstanding: outstanding() };
+  const units = Number(balance);
+  if (Number.isFinite(units) && !isRotateRemBag(units)) {
+    markOperatorRotateSellSkipped(state, symbol, "zero-bal");
+    dropRotateSellCommand(commands, symbol);
+    return { dropped: true, misses: 0, remBag: false, reason: "zero-bal", outstanding: outstanding() };
+  }
+  if (!isRotateUnquotedSkip(kind, code)) {
+    return { dropped: false, misses: 0, remBag: !!remBag, reason: "not-unquoted", outstanding: outstanding() };
   }
   const misses = recordRotateQuoterMiss(state, symbol);
   const drop = !!remBag || misses >= ROTATE_QUOTER_MISS_SKIP;
   if (!drop) {
-    return { dropped: false, misses, remBag: !!remBag, outstanding: outstanding() };
+    return { dropped: false, misses, remBag: !!remBag, reason: "counted", outstanding: outstanding() };
   }
-  markOperatorRotateSellSkipped(state, symbol, "quoter-miss");
+  const skipReason = isRotateNoQuote(kind, code) ? "no-quote" : "quoter-miss";
+  markOperatorRotateSellSkipped(state, symbol, skipReason);
   dropRotateSellCommand(commands, symbol);
-  return { dropped: true, misses, remBag: !!remBag, outstanding: outstanding() };
+  return { dropped: true, misses, remBag: !!remBag, reason: skipReason, outstanding: outstanding() };
+}
+
+/**
+ * Quoter miss during OPERATOR_ROTATE_TO=HOME:
+ * rem bags drop on first miss; any bag drops after N misses.
+ * Does not invent a fill — leftover stays on-chain.
+ */
+export function applyRotateQuoterMiss(opts = {}) {
+  return applyRotateUnquotedSkip({
+    kind: "QuoterV2 miss",
+    ...opts,
+  });
 }
 
 /**
