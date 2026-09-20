@@ -23,6 +23,7 @@ import { prepareVitaFeed, VITAFEED_MAX_CHUNK_BYTES } from "./vita-feed.js";
 import { encodeVitaFile } from "./vita-feed-file.js";
 import { buildBrainSeedBody } from "./brain-seed.js";
 import { FORMULA_ID, MAINFRAME_ANCHORS } from "./mainframe.js";
+import { recordBacklogFeedFlow } from "./feed-flow.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -42,6 +43,8 @@ const SKIP_TOPICS = new Set([
   "vitafeed-backlog-growth",
   "brain-learn-log",
   "wave-heraclitus-key",
+  "feed-flow-ledger",
+  "mg-recall-bank",
 ]);
 
 function sha256Hex(text) {
@@ -302,6 +305,11 @@ export function enqueueFeedBacklogItem({
   store.growth.roots = store.growth.roots || [];
   store.growth.roots.push(root);
   persistFeedBacklog(store);
+  try {
+    recordBacklogFeedFlow({ item: publicItem(item), phase: "enqueue" });
+  } catch {
+    /* feed-flow is best-effort proof lane */
+  }
   return { ok: true, item: publicItem(item), growth: store.growth };
 }
 
@@ -411,6 +419,15 @@ export function markFeedBacklogSeal({
     hit.note = null;
   }
   persistFeedBacklog(store);
+  try {
+    recordBacklogFeedFlow({
+      item: publicItem(hit),
+      phase: partial ? "partial-seal" : "seal",
+      locations: locs,
+    });
+  } catch {
+    /* feed-flow is best-effort proof lane */
+  }
   return { ok: true, item: publicItem(hit), growth: store.growth };
 }
 

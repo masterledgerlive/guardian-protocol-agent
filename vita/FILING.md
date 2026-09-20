@@ -23,7 +23,10 @@ findable.
 | `vita/vita-feed-dual.js` | `VITADUAL` | Human plain ↔ machine ZK-short dual lane; side-by-side cost/size; Basescan Input Data UTF-8 read receipt; restart exit ≥$0.50 |
 | `vita/vita-feed-loader.js` | `FEED_LOADER` | Curated knowledge packs → backlog preload + dual cost mirror; Telegram know/recall; cipher hierarchy; animated `/vita/feed-loader` |
 | `vita/vita-feed-backlog.js` | `FEED_BACKLOG` | Append-only queue of memory/files for `/vitafeed` drain without agentic AI |
+| `vita/feed-flow.js` | `FEED_FLOW` | Append-only feed ledger + Basescan Input Data → UTF-8 IDM chat of locs being fed |
 | `vita/memory/vitafeed-backlog.json` | `FEED_BACKLOG` | Pending→sealed feed queue + growth roots |
+| `vita/memory/feed-flow-ledger.json` | `FEED_FLOW` | Event log proving memory is fed; directory counts + IDM Basescan locs |
+| `vita/memory/feed-flow-growth.json` | `FEED_FLOW` | Latest growth snapshot (memory/strands file+byte counts) |
 | `vita/brain-seed.js` | `BRAIN` / `BRAIN_SEED` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
 | `vita/brain-learn.js` | `BRAIN_LEARN` | Old→new learn cycle, filing refine, library + zero-proof growth |
 | `vita/ref-memory.js` | `REF_LIB` / `PROVEN_TEST` / `TRANSLATOR_CODEX` | Proven recursive search — calculator true-name + multilingual aliases; ask\|self labels; answers cite Base anchors only |
@@ -64,6 +67,7 @@ findable.
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
 | `ZERO_PROOF` | Squashed content-addressed retrieval growth (`§ZEROPROOF§`) |
 | `FEED_BACKLOG` | Offline `/vitafeed` inject queue (`§VITABACKLOG§`) — pending→sealed without agent AI |
+| `FEED_FLOW` | Feed-flow ledger (`§VITAFLOW§`) — IDM Basescan chat of locs + directory growth proof |
 | `REF_LIB` | Reference library search (`§VITAREF§`) — trueName + ask\|self; calculator first domain |
 | `PROVEN_TEST` | Proven test series (`§PROVENTEST§`) — recursive memory must answer from packaged locs |
 | `TRANSLATOR_CODEX` | Free multilingual alias map (`§VITATRANS§`) — read once, never forget |

@@ -30,6 +30,10 @@ original formula in this folder. Do not abandon message-send for micro P&L.
 `/vitafeed` then `/vitafeed override` → PLAY PROOF on `/vita/feed-player`.
 `/vitafeed brain` activates learn (old→new + one peer review + zero-proof
 growth + library) then stages for override. `/vitafeed learn` · `/vitafeed proof`.
+**Feed-flow proof (IDM chat):** every brain/enqueue/seal appends
+`vita/memory/feed-flow-ledger.json` with Basescan Input Data → UTF-8 locations
+of what is being fed (`vita/feed-flow.js`). Directory growth is visible under
+`vita/memory/` + `vita/strands/`.
 **Dual lane (human ↔ machine):** `/vitafeed translate <text>` · `/vitafeed dual <text>`
 then confirm — side-by-side costs/sizes + Basescan Input Data → UTF-8 read
 receipts for spaced locs. `/vitafeed restart` lists bags ≥ $0.50 to exit for

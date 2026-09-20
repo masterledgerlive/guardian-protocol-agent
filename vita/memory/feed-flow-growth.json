@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-20T19:53:21.243Z",
+  "topic": "feed-flow-growth",
+  "filingLabel": "FEED_FLOW",
+  "text": "§VITAFLOW§v1|growth|events=20§\nFEED FLOW GROWTH · filing=FEED_FLOW\nevents=20\nmemory=105 files / 356869 B\nstrands=37 files / 28659 B\nlast=idm-chat-proof · feed-flow-idm-chat-proof\ncommit=82198547df36d972\nidm locs=3 (anchors+sealed · never invent)\nformula=original-message-first\nneverInvent=true\nread: Basescan → Input Data → View as UTF-8  (on-chain chat of what is fed)",
+  "growth": {
+    "eventCount": 20,
+    "memoryCount": 105,
+    "strandCount": 37,
+    "memoryBytes": 356869,
+    "strandBytes": 28659
+  },
+  "lastEventId": "FF-82198547",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+  ],
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "hypothesis": {
+    "id": "feed-flow-idm-chat-visible",
+    "status": "operating",
+    "note": "Ledger + IDM Basescan receipts prove memory is fed and directory grows."
+  }
+}
