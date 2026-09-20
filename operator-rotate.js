@@ -23,6 +23,8 @@ export const RISK_WALLET = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
 export const ROTATE_GAS_FLOOR_ETH = 0.0005;
 /** Rem bag floor — lottery wei stays, anything above must unlock+sell. */
 export const ROTATE_MIN_BALANCE = 1e-9;
+/** After this many QuoterV2 misses, drop a rotate bag even if it is not rem. */
+export const ROTATE_QUOTER_MISS_SKIP = 3;
 export const OPERATOR_ROTATE_SOURCE = "OPERATOR_ROTATE";
 export const OPERATOR_ROTATE_SELL_REASON = "MANUAL SELL (operator) ROTATE";
 export const OPERATOR_ROTATE_BUY_REASON = "MANUAL BUY (operator) ROTATE HOME";
@@ -184,15 +186,95 @@ function pendingRotateSells(commands = []) {
   );
 }
 
+export function isRotateSellSkipped(state, symbol) {
+  const skipped = state?.skippedBySymbol;
+  if (!skipped || typeof skipped !== "object") return false;
+  return !!skipped[normSym(symbol)];
+}
+
 export function rotateSellsOutstanding(commands = [], state = {}) {
   const done = state.doneBySymbol && typeof state.doneBySymbol === "object" ? state.doneBySymbol : {};
+  const skipped = state.skippedBySymbol && typeof state.skippedBySymbol === "object"
+    ? state.skippedBySymbol
+    : {};
+  const blocked = (s) => !s || !!done[s] || !!skipped[s];
   const queued = pendingRotateSells(commands)
     .map((c) => normSym(c.symbol))
-    .filter((s) => s && !done[s]);
+    .filter((s) => !blocked(s));
   const pending = Array.isArray(state.pendingSells)
-    ? state.pendingSells.map(normSym).filter((s) => s && !done[s])
+    ? state.pendingSells.map(normSym).filter((s) => !blocked(s))
     : [];
   return [...new Set([...queued, ...pending])];
+}
+
+export function isRotateQuoterMiss(kind = "", code = "") {
+  return /QuoterV2 miss|QUOTE_MISS/i.test(`${kind} ${code}`);
+}
+
+export function dropRotateSellCommand(commands, symbol) {
+  const sym = normSym(symbol);
+  if (!Array.isArray(commands) || !sym) return commands;
+  for (let i = commands.length - 1; i >= 0; i--) {
+    const c = commands[i];
+    if (isOperatorRotateCommand(c) && normSym(c.symbol) === sym && (c.action === "sell" || c.action === "sellhalf")) {
+      commands.splice(i, 1);
+    }
+  }
+  return commands;
+}
+
+export function recordRotateQuoterMiss(state, symbol) {
+  if (!state || typeof state !== "object") return 0;
+  const sym = normSym(symbol);
+  if (!sym) return 0;
+  if (!state.quoterMissBySymbol || typeof state.quoterMissBySymbol !== "object") {
+    state.quoterMissBySymbol = {};
+  }
+  state.quoterMissBySymbol[sym] = (Number(state.quoterMissBySymbol[sym]) || 0) + 1;
+  return state.quoterMissBySymbol[sym];
+}
+
+/** Mark sold-or-skipped so rem rematch cannot re-queue a dead Quoter bag. */
+export function markOperatorRotateSellSkipped(state, symbol, reason = "quoter-miss") {
+  if (!state) return state;
+  const sym = normSym(symbol);
+  if (!state.doneBySymbol || typeof state.doneBySymbol !== "object") state.doneBySymbol = {};
+  if (!state.skippedBySymbol || typeof state.skippedBySymbol !== "object") state.skippedBySymbol = {};
+  if (sym) {
+    state.doneBySymbol[sym] = true;
+    state.skippedBySymbol[sym] = reason || "quoter-miss";
+  }
+  if (Array.isArray(state.pendingSells)) {
+    state.pendingSells = state.pendingSells.filter((s) => normSym(s) !== sym);
+  }
+  return state;
+}
+
+/**
+ * Quoter miss during OPERATOR_ROTATE_TO=HOME:
+ * rem bags drop on first miss; any bag drops after N misses.
+ * Does not invent a fill — leftover stays on-chain.
+ */
+export function applyRotateQuoterMiss({
+  commands,
+  state = {},
+  symbol,
+  remBag = false,
+  kind = "QuoterV2 miss",
+  code = "",
+} = {}) {
+  const outstanding = () => rotateSellsOutstanding(commands, state);
+  if (!isRotateQuoterMiss(kind, code)) {
+    return { dropped: false, misses: 0, remBag: !!remBag, outstanding: outstanding() };
+  }
+  const misses = recordRotateQuoterMiss(state, symbol);
+  const drop = !!remBag || misses >= ROTATE_QUOTER_MISS_SKIP;
+  if (!drop) {
+    return { dropped: false, misses, remBag: !!remBag, outstanding: outstanding() };
+  }
+  markOperatorRotateSellSkipped(state, symbol, "quoter-miss");
+  dropRotateSellCommand(commands, symbol);
+  return { dropped: true, misses, remBag: !!remBag, outstanding: outstanding() };
 }
 
 /**
@@ -223,6 +305,7 @@ export function queueOperatorRotateOnce(
   armRotateAllowLossy(env);
 
   if (!state.doneBySymbol || typeof state.doneBySymbol !== "object") state.doneBySymbol = {};
+  if (!state.skippedBySymbol || typeof state.skippedBySymbol !== "object") state.skippedBySymbol = {};
   if (!Array.isArray(state.pendingSells)) state.pendingSells = [];
 
   const list = [];
@@ -232,6 +315,7 @@ export function queueOperatorRotateOnce(
     const symbol = normSym(raw);
     if (!symbol || seen.has(symbol)) continue;
     if (shouldSkipRotateSell({ symbol, wallet, env })) continue;
+    if (isRotateSellSkipped(state, symbol)) continue;
     const units = opts.balances && typeof opts.balances === "object"
       ? Number(opts.balances[symbol])
       : undefined;
