@@ -19,16 +19,20 @@ harvested by a human — never auto-merged.
 4. **Last-root, not a dump.** Content stays off-chain. Each mutation updates a
    Merkle last-root. Short tag anchors (`§GRAFT§`) are compact proofs ready
    for a later chain inject. **Never invent a tx hash.**
-5. **Directory of location slots.** `GRAFT:\` maps node → artifact → optional
-   loc link. Locs stay empty until a human harvests a survivor into VITA.
+5. **Directory of location slots.** `GRAFT:\` maps node → artifact → **local
+   `cas://sha256:` loc** (always) + optional chain loc. Chain locs stay empty
+   until a human harvests a survivor into VITA. Use `/graft raw` to see RAW DATA.
 6. **File then activate.** `/graft insert` only stores. `/graft activate`
    turns thought ON. Sleep does not delete. Think refuses until the idea is ON.
+   After `/graft inject local|github`, activate works **without GitHub** (CAS).
 7. **Money-gated thought.** Throw ETH (paper by default) with `/graft fund`.
    Think cycles debit the GRAFT piggy. Refuse think when empty.
 8. **Survival, then harvest.** `survive` / `die` / `harvest` are human marks.
    Harvest marks a candidate for later study. It does not write into `vita/`.
 9. **Dedicated Telegram poller.** Poll `getUpdates` only with
    `GRAFT_TELEGRAM_BOT_TOKEN`. Never steal the live bot's updates.
+10. **Snark-compress.** `/graft snark code` packs the whole rooted library into
+    a content-commitment short. Edits refine around rooted originals.
 
 ## Proof classes
 
