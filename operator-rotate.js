@@ -148,6 +148,28 @@ export function isOperatorRotateBuyReason(reason = "") {
     || (/ROTATE/i.test(String(reason || "")) && String(reason || "").startsWith("MANUAL BUY (operator)"));
 }
 
+/**
+ * Uni V3 DexScreener depth codes that freeze HOME on the ghost 1% book
+ * (0xd4d6870f… ~$18). Liquid book is Aero Slipstream 0.3% / catalog fee 3000.
+ */
+export const ROTATE_HOME_THIN_V3_CODES = Object.freeze([
+  "THIN_V3_WETH",
+  "NO_V3_WETH",
+  "PRIMARY_NOT_V3_WETH",
+]);
+
+/**
+ * OPERATOR_ROTATE HOME buy only — bypass isBuyFrozen / THIN_V3_WETH.
+ * Does not unfreeze GAME or any other token. Normal HOME /buy still freezes.
+ */
+export function rotateHomeBuyBypassesV3Freeze(reason, symbol) {
+  return isOperatorRotateBuyReason(reason) && normSym(symbol) === VERIFIED_HOME_SYMBOL;
+}
+
+export function rotateHomeBuyAllowsRouteCode(code) {
+  return ROTATE_HOME_THIN_V3_CODES.includes(String(code || ""));
+}
+
 export function isOperatorRotateCommand(cmd) {
   return String(cmd?.source || "") === OPERATOR_ROTATE_SOURCE;
 }

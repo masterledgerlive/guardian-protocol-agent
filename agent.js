@@ -177,10 +177,13 @@ import {
   HOME_POOL_FEE_PCT,
   OPERATOR_ROTATE_SELL_REASON,
   OPERATOR_ROTATE_BUY_REASON,
+  HOME_UNI_V3_WETH_POOL,
   ROTATE_MIN_BALANCE,
   isOperatorRotateArmed,
   isOperatorRotateCommand,
   isOperatorRotateReason,
+  rotateHomeBuyBypassesV3Freeze,
+  rotateHomeBuyAllowsRouteCode,
   isRotateTarget,
   shouldSkipRotateSell,
   excessWethToSell,
@@ -2472,9 +2475,10 @@ async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
 }
 
 /** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
-async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferredPool = null } = {}) {
+async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferredPool = null, skipPools = [] } = {}) {
   const fees = feeTierCandidates(feeTier);
   const wanted = poolAddr(preferredPool);
+  const skipped = new Set((Array.isArray(skipPools) ? skipPools : []).map(poolAddr).filter(Boolean));
   const candidates = [];
   for (const fee of fees) {
     const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
@@ -2489,6 +2493,7 @@ async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferred
     // Buy path binds to the DexScreener Uni V3 WETH pair. Factory flake
     // (no pool address) is not proof this fee is that book — skip it.
     if (wanted && poolAddr(depth.pool) !== wanted) continue;
+    if (skipped.has(poolAddr(depth.pool))) continue;
     const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
     if (amountOut && amountOut > 0n) {
       candidates.push({ amountOut, fee, liquidity: depth.liquidity, pool: depth.pool });
@@ -6132,7 +6137,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
-    if (isBuyFrozen(token.symbol)) {
+    // Rotate HOME buy: Uni V3 ghost probe (THIN_V3_WETH) must not block
+    // WETH→HOME. Other tokens stay frozen. Normal HOME /buy still honors freeze.
+    const rotateHomeBuy = rotateHomeBuyBypassesV3Freeze(reason, token.symbol);
+    if (isBuyFrozen(token.symbol) && !rotateHomeBuy) {
       return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
     }
     // Per-token min buy floor — smoke tests must clear the book minimum.
@@ -6376,6 +6384,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // SwapRouter02 encodeSwap is Uni V3 WETH only. GAME's liquid book is Uni V2
     // VIRTUAL (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
+    // Rotate HOME: liquid book is Aero Slipstream 0.3% (catalog fee 3000).
+    // Uni V3 HOME/WETH 1% ghost must not freeze or bind the quote.
     let preferredPool = null;
     {
       const pairs = await fetchDexScreenerPairs(token.address);
@@ -6387,16 +6397,21 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       });
       if (route.log) console.log(`   ${route.log}`);
       if (!route.allow) {
-        if (route.freezeBuys) {
-          noteSwapPathFail(token.symbol, {
-            kind: route.code || "NO_V3_WETH",
-            freezeBuys: true,
-          });
+        if (rotateHomeBuy && rotateHomeBuyAllowsRouteCode(route.code)) {
+          console.log(`🏠 ROTATE HOME — bypass ${route.code}; catalog fee ${HOME_FEE_TIER} Aero Slipstream, no Uni V3 depth`);
+        } else {
+          if (route.freezeBuys) {
+            noteSwapPathFail(token.symbol, {
+              kind: route.code || "NO_V3_WETH",
+              freezeBuys: true,
+            });
+          }
+          return await skipBuy(reason, token.symbol, route.log);
         }
-        return await skipBuy(reason, token.symbol, route.log);
+      } else if (!rotateHomeBuy) {
+        if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
+        else if (token.symbol === "AERO") preferredPool = AERO_UNI_V3_WETH_POOL;
       }
-      if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
-      else if (token.symbol === "AERO") preferredPool = AERO_UNI_V3_WETH_POOL;
     }
 
     // Slippage guard: factory liquidity then QuoterV2, BEFORE wrap/send.
@@ -6413,7 +6428,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     let swapFee = token.feeTier;
     let factoryLiq = null;
     try {
-      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, { preferredPool });
+      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, {
+        preferredPool,
+        skipPools: rotateHomeBuy ? [HOME_UNI_V3_WETH_POOL] : [],
+      });
       quotedTokens = live?.amountOut ?? null;
       if (live?.fee) swapFee = live.fee;
       if (live?.liquidity != null) factoryLiq = live.liquidity;

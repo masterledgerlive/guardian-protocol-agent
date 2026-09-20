@@ -5,6 +5,9 @@ import {
   VERIFIED_HOME_ADDRESS,
   VERIFIED_HOME_SYMBOL,
   HOME_FEE_TIER,
+  HOME_AERO_SLIPSTREAM_POOL,
+  HOME_UNI_V3_WETH_POOL,
+  OPERATOR_ROTATE_BUY_REASON,
   VAULT_NEVER_ADDRESS,
   ROTATE_GAS_FLOOR_ETH,
   parseOperatorRotateTo,
@@ -30,9 +33,14 @@ import {
   applyRotateUnquotedSkip,
   isRotateSellSkipped,
   isRotateNoQuote,
+  isOperatorRotateBuyReason,
+  rotateHomeBuyBypassesV3Freeze,
+  rotateHomeBuyAllowsRouteCode,
   ROTATE_QUOTER_MISS_SKIP,
   verifiedHomeCatalogRow,
 } from "./operator-rotate.js";
+import { isBuyFrozen, freezeNewBuys } from "./price-insane.js";
+import { evaluateSwapRouterRoute, MIN_SWAP_POOL_LIQ_USD } from "./quote-swap-guard.js";
 import {
   canBypassSellLossGate,
   consumeAllowLossyOperatorSell,
@@ -556,5 +564,93 @@ describe("OPERATOR_ROTATE NO-QUOTE / zero-bal rem does not block HOME", () => {
     const sellEnd = agentSrc.indexOf("\nasync function ", sellFn + 1);
     const sellBody = agentSrc.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 14000);
     assert.ok(sellBody.includes("applyRotateUnquotedSkip"), "executeSell must drop rotate NO-QUOTE / zero-bal");
+  });
+});
+
+const HOME_DEX_PAIRS = [
+  {
+    chainId: "base",
+    dexId: "aerodrome",
+    labels: ["slipstream", "v3"],
+    pairAddress: HOME_AERO_SLIPSTREAM_POOL,
+    liquidity: { usd: 12_500 },
+    volume: { h24: 8_000 },
+    baseToken: { address: VERIFIED_HOME_ADDRESS, symbol: "HOME" },
+    quoteToken: { address: "0x4200000000000000000000000000000000000006", symbol: "WETH" },
+  },
+  {
+    chainId: "base",
+    dexId: "uniswap",
+    labels: ["v3"],
+    pairAddress: HOME_UNI_V3_WETH_POOL,
+    liquidity: { usd: 18 },
+    volume: { h24: 1 },
+    baseToken: { address: VERIFIED_HOME_ADDRESS, symbol: "HOME" },
+    quoteToken: { address: "0x4200000000000000000000000000000000000006", symbol: "WETH" },
+  },
+];
+
+describe("OPERATOR_ROTATE HOME buy vs THIN_V3_WETH freeze", () => {
+  it("rotate HOME buy is not frozen by THIN_V3_WETH; normal HOME buy still is", () => {
+    const store = Object.create(null);
+    freezeNewBuys("HOME", "THIN_V3_WETH", store);
+    freezeNewBuys("GAME", "THIN_V3_WETH", store);
+    assert.equal(isBuyFrozen("HOME", store), true);
+    assert.equal(isBuyFrozen("GAME", store), true);
+
+    assert.equal(isOperatorRotateBuyReason(OPERATOR_ROTATE_BUY_REASON), true);
+    assert.equal(rotateHomeBuyBypassesV3Freeze(OPERATOR_ROTATE_BUY_REASON, "HOME"), true);
+    assert.equal(rotateHomeBuyBypassesV3Freeze(OPERATOR_ROTATE_BUY_REASON, "home"), true);
+    assert.equal(
+      rotateHomeBuyBypassesV3Freeze("MANUAL BUY (operator) ROTATE HOME", "HOME"),
+      true,
+    );
+
+    // Normal operator /buy and auto path still honor the freeze.
+    assert.equal(rotateHomeBuyBypassesV3Freeze("MANUAL BUY (operator) $3", "HOME"), false);
+    assert.equal(rotateHomeBuyBypassesV3Freeze("🎯 MIN TROUGH [PRIORITY]", "HOME"), false);
+    assert.equal(rotateHomeBuyBypassesV3Freeze(OPERATOR_ROTATE_BUY_REASON, "GAME"), false);
+    assert.equal(isBuyFrozen("GAME", store), true, "do not unfreeze other tokens");
+    assert.equal(isBuyFrozen("HOME", store), true, "HOME freeze row stays; rotate only bypasses");
+  });
+
+  it("HOME DexScreener Uni V3 ghost is THIN_V3_WETH; rotate allows catalog fee 3000", () => {
+    const r = evaluateSwapRouterRoute({
+      pairs: HOME_DEX_PAIRS,
+      tokenAddress: VERIFIED_HOME_ADDRESS,
+      tradeUsd: 5,
+      symbol: "HOME",
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.freezeBuys, true);
+    assert.equal(r.code, "THIN_V3_WETH");
+    assert.ok(r.swap.liqUsd < MIN_SWAP_POOL_LIQ_USD);
+    assert.equal(r.swap.pairAddress.toLowerCase(), HOME_UNI_V3_WETH_POOL.toLowerCase());
+    assert.equal(r.primary.pairAddress.toLowerCase(), HOME_AERO_SLIPSTREAM_POOL.toLowerCase());
+
+    assert.equal(rotateHomeBuyAllowsRouteCode(r.code), true);
+    assert.equal(rotateHomeBuyAllowsRouteCode("NO_V3_WETH"), true);
+    assert.equal(rotateHomeBuyAllowsRouteCode("PRIMARY_NOT_V3_WETH"), true);
+    assert.equal(rotateHomeBuyAllowsRouteCode("EMPTY_V3_POOL"), false);
+    assert.equal(rotateHomeBuyAllowsRouteCode("TRADE_TOO_BIG"), false);
+
+    assert.equal(HOME_FEE_TIER, 3000);
+    assert.equal(HOME_AERO_SLIPSTREAM_POOL.toLowerCase(), "0x098a4de96305bafaea0c0ce07cf6456e2c64982a");
+    assert.equal(VERIFIED_HOME_ADDRESS, "0x4BfAa776991E85e5f8b1255461cbbd216cFc714f");
+  });
+
+  it("executeBuy rotate HOME bypasses freeze and does not bind the Uni V3 ghost", () => {
+    const buyFn = agentSrc.indexOf("async function executeBuy(");
+    const buyEnd = agentSrc.indexOf("\nasync function ", buyFn + 1);
+    const buyBody = agentSrc.slice(buyFn, buyEnd > 0 ? buyEnd : buyFn + 16000);
+    assert.ok(buyFn >= 0 && buyEnd > buyFn, "executeBuy must exist");
+    assert.ok(buyBody.includes("rotateHomeBuyBypassesV3Freeze"), "rotate HOME must bypass isBuyFrozen");
+    assert.ok(buyBody.includes("isBuyFrozen(token.symbol) && !rotateHomeBuy"), "normal HOME buy still freezes");
+    assert.ok(buyBody.includes("rotateHomeBuyAllowsRouteCode"), "THIN_V3_WETH must not skipBuy on rotate HOME");
+    assert.ok(buyBody.includes("HOME_FEE_TIER"), "rotate HOME prefers catalog fee 3000");
+    assert.ok(buyBody.includes("HOME_UNI_V3_WETH_POOL"), "must skip Uni V3 ghost 0xd4d6870f");
+    assert.ok(buyBody.includes("skipPools: rotateHomeBuy ? [HOME_UNI_V3_WETH_POOL] : []"));
+    assert.ok(buyBody.includes("OPERATOR_ROTATE_BUY_REASON") || agentSrc.includes("OPERATOR_ROTATE_BUY_REASON"));
+    assert.equal(ROTATE_GAS_FLOOR_ETH, 0.0005);
   });
 });
