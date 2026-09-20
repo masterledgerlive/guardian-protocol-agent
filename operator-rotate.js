@@ -322,20 +322,15 @@ export function maybeQueueRotateHomeBuy(commands, state = {}, opts = {}) {
   return { queued: true, reason: "queued", symbol: VERIFIED_HOME_SYMBOL };
 }
 
-/** Clear rotate only after HOME buy attempted or leftover WETH is below dust. */
-export function canFinishOperatorRotate({
-  homeBuyAttempted = false,
-  nativeEth = 0,
-  wethEth = 0,
-} = {}) {
-  if (homeBuyAttempted) return true;
-  return excessWethToSell({ nativeEth, wethEth }) <= 0;
+/** Clear rotate only after HOME buy attempted (including no-excess-WETH skip). */
+export function canFinishOperatorRotate({ homeBuyAttempted = false } = {}) {
+  return !!homeBuyAttempted;
 }
 
 /**
  * Consume ALLOW_LOSSY + clear rotate after all sells and the HOME buy finish.
  * Railway dashboard should also drop OPERATOR_ROTATE_TO / ALLOW_LOSSY after.
- * Does not clear while rem WETH can still sweep and HOME buy has not run.
+ * Does not clear until HOME buy attempted.
  */
 export function finishOperatorRotate(env = process.env, state = {}, opts = {}) {
   if (!env || typeof env !== "object") return { consumed: false, finished: false };

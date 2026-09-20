@@ -302,7 +302,7 @@ describe("OPERATOR_ROTATE rem piggy-dust unlock", () => {
     assert.equal(state.doneBySymbol.TOSHI, undefined, "TOSHI rem >1e-9 re-queues after false done latch");
   });
 
-  it("does not clear OPERATOR_ROTATE_TO until HOME buy attempted or WETH is dust", () => {
+  it("does not clear OPERATOR_ROTATE_TO until HOME buy attempted", () => {
     const env = { OPERATOR_ROTATE_TO: "HOME", ALLOW_LOSSY_OPERATOR_SELL: "yes" };
     const state = { done: false };
     assert.equal(canFinishOperatorRotate({
@@ -310,21 +310,21 @@ describe("OPERATOR_ROTATE rem piggy-dust unlock", () => {
       nativeEth: 0.000680,
       wethEth: 0.001545,
     }), false);
+    assert.equal(canFinishOperatorRotate({
+      homeBuyAttempted: false,
+      nativeEth: 0.000680,
+      wethEth: 0,
+    }), false);
     const held = finishOperatorRotate(env, state, {
       homeBuyAttempted: false,
       nativeEth: 0.000680,
-      wethEth: 0.001545,
+      wethEth: 0,
     });
     assert.equal(held.finished, false);
     assert.equal(held.reason, "home-buy-pending");
     assert.equal(env.OPERATOR_ROTATE_TO, "HOME");
     assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "yes");
 
-    assert.equal(canFinishOperatorRotate({
-      homeBuyAttempted: false,
-      nativeEth: 0.000680,
-      wethEth: 0,
-    }), true);
     assert.equal(canFinishOperatorRotate({ homeBuyAttempted: true }), true);
 
     const done = finishOperatorRotate(env, state, { homeBuyAttempted: true });

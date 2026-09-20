@@ -19,8 +19,7 @@ When `OPERATOR_ROTATE_TO=HOME` is armed:
 - executeSell bypasses the piggy-only dust early return
 - rem latch is 1e-9 (AIXBT 0.044 no longer marks done unsold)
 - excess WETH → HOME after sells; keep ≥0.0005 ETH gas
-- do not clear `OPERATOR_ROTATE_TO` until HOME buy attempted or leftover
-  WETH is below dust
+- do not clear `OPERATOR_ROTATE_TO` until HOME buy attempted
 
 ### Added — OPERATOR_ROTATE_TO=HOME empty-to-verified Defi App $HOME
 
