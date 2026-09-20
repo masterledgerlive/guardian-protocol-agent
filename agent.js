@@ -177,13 +177,15 @@ import {
   HOME_POOL_FEE_PCT,
   OPERATOR_ROTATE_SELL_REASON,
   OPERATOR_ROTATE_BUY_REASON,
-  HOME_UNI_V3_WETH_POOL,
   ROTATE_MIN_BALANCE,
   isOperatorRotateArmed,
   isOperatorRotateCommand,
   isOperatorRotateReason,
   rotateHomeBuyBypassesV3Freeze,
-  rotateHomeBuyAllowsRouteCode,
+  rotateHomeBuyUsesSlipstream,
+  rotateHomeBuyBypassesQuoterCooldown,
+  rotateHomeBuyIgnoresUniQuoterMiss,
+  clearRotateHomeQuoterCooldown,
   isRotateTarget,
   shouldSkipRotateSell,
   excessWethToSell,
@@ -447,6 +449,15 @@ import {
   VITA_PROOF_FULL,
   utf8ByteLength,
 } from "./swap-minout.js";
+import {
+  rotateHomeSlipstreamBuyPath,
+  encodeSlipstreamExactInputSingle,
+  slipstreamDeadline,
+  slipstreamApproveSpenders,
+  SLIPSTREAM_QUOTER_ABI,
+  SLIPSTREAM_QUOTER_V2,
+  HOME_SLIPSTREAM_TICK_SPACING,
+} from "./aero-slipstream.js";
 import {
   feeTierCandidates,
   requireLiveQuoterFill,
@@ -2179,7 +2190,7 @@ const DEFAULT_TOKENS = [
 
   { symbol: "HOME",    address: VERIFIED_HOME_ADDRESS, feeTier: HOME_FEE_TIER, poolFeePct: HOME_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:8, waveQuality:6, fundamentals:8, coinbaseFit:10, community:7, total:39 },
-    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… (~$12.5k). Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). Catalog fee 3000 matches liquid 0.3%; Quoter probes Uni V3 tiers. OPERATOR_ROTATE_TO target — do not sell HOME. Vault never." },
+    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… tickSpacing 200. Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). OPERATOR_ROTATE_TO buy uses Slipstream quoter+router, not Uni QuoterV2. Do not sell HOME. Vault never." },
 
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -2472,6 +2483,74 @@ async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
     // A 6s timeout is failover-class; draining rpcCall would cool every URL.
     return null;
   }
+}
+
+async function quoteSlipstreamExactInputSingle(tokenIn, tokenOut, amountIn, tickSpacing) {
+  const simulate = (client) => client.simulateContract({
+    address: SLIPSTREAM_QUOTER_V2,
+    abi: SLIPSTREAM_QUOTER_ABI,
+    functionName: "quoteExactInputSingle",
+    args: [{
+      tokenIn,
+      tokenOut,
+      amountIn,
+      tickSpacing: Number(tickSpacing),
+      sqrtPriceLimitX96: 0n,
+    }],
+  });
+  const outOf = (result) => {
+    const out = result?.result?.[0];
+    return (typeof out === "bigint" && out > 0n) ? out : null;
+  };
+  try {
+    return outOf(await raceWithTimeout(simulate(getClient())));
+  } catch {
+    return null;
+  }
+}
+
+async function readSlipstreamPoolLiquidity(pool) {
+  try {
+    const liquidity = await raceWithTimeout(getClient().readContract({
+      address: pool,
+      abi: V3_POOL_LIQ_ABI,
+      functionName: "liquidity",
+    }));
+    const liq = typeof liquidity === "bigint" ? liquidity : 0n;
+    return { pool, liquidity: liq, empty: liq <= 0n };
+  } catch {
+    return { pool, liquidity: null, empty: false };
+  }
+}
+
+/** Rotate HOME WETH→HOME: Slipstream quoter + pool liquidity, never Uni QuoterV2. */
+async function getSlipstreamHomeBuyQuote(amountIn) {
+  const path = rotateHomeSlipstreamBuyPath();
+  const depth = await readSlipstreamPoolLiquidity(path.pool);
+  if (depth.empty) {
+    console.log(`   🛑 EMPTY SLIPSTREAM POOL ${path.pool} — liquidity=0, not sending`);
+    return null;
+  }
+  const amountOut = await quoteSlipstreamExactInputSingle(
+    path.tokenIn,
+    path.tokenOut,
+    amountIn,
+    path.tickSpacing,
+  );
+  if (!amountOut) {
+    console.log(`   ⚠️  Slipstream quote miss tickSpacing ${path.tickSpacing} — not sending (no Uni QuoterV2 fallback)`);
+    return null;
+  }
+  return {
+    amountOut,
+    fee: path.fee,
+    tickSpacing: path.tickSpacing,
+    liquidity: depth.liquidity,
+    pool: path.pool,
+    router: path.router,
+    quoter: path.quoter,
+    venue: path.venue,
+  };
 }
 
 /** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
@@ -6139,7 +6218,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     // Rotate HOME buy: Uni V3 ghost probe (THIN_V3_WETH) must not block
     // WETH→HOME. Other tokens stay frozen. Normal HOME /buy still honors freeze.
-    const rotateHomeBuy = rotateHomeBuyBypassesV3Freeze(reason, token.symbol);
+    const rotateHomeBuy = rotateHomeBuyBypassesV3Freeze(reason, token.symbol)
+      || rotateHomeBuyUsesSlipstream(reason, token.symbol);
+    if (rotateHomeBuy) {
+      clearRotateHomeQuoterCooldown(token.symbol, clearSlippageFails);
+    }
     if (isBuyFrozen(token.symbol) && !rotateHomeBuy) {
       return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
     }
@@ -6158,7 +6241,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (!buyPriceGate.allow) {
       return await skipBuy(reason, token.symbol, buyPriceGate.log || `PRICE_INSANE — ${token.symbol} mark refused`);
     }
-    if (isSlippageCooledDown(token.symbol)) {
+    if (isSlippageCooledDown(token.symbol) && !rotateHomeBuyBypassesQuoterCooldown(reason, token.symbol)) {
       return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "buy" }));
     }
     if (!canTrade(token.symbol, isCascade)) {
@@ -6384,10 +6467,17 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // SwapRouter02 encodeSwap is Uni V3 WETH only. GAME's liquid book is Uni V2
     // VIRTUAL (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
-    // Rotate HOME: liquid book is Aero Slipstream 0.3% (catalog fee 3000).
-    // Uni V3 HOME/WETH 1% ghost must not freeze or bind the quote.
+    // Rotate HOME: liquid book is Aero Slipstream 0.3% tickSpacing 200.
+    // Uni V3 HOME/WETH 1% ghost + QuoterV2 fee probe must not bind or cooldown.
     let preferredPool = null;
-    {
+    let slipstreamBuy = null;
+    if (rotateHomeBuy) {
+      slipstreamBuy = rotateHomeSlipstreamBuyPath();
+      console.log(
+        `🏠 ROTATE HOME — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
+        `tickSpacing ${slipstreamBuy.tickSpacing} (not Uni QuoterV2)`,
+      );
+    } else {
       const pairs = await fetchDexScreenerPairs(token.address);
       const route = evaluateSwapRouterRoute({
         pairs,
@@ -6397,24 +6487,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       });
       if (route.log) console.log(`   ${route.log}`);
       if (!route.allow) {
-        if (rotateHomeBuy && rotateHomeBuyAllowsRouteCode(route.code)) {
-          console.log(`🏠 ROTATE HOME — bypass ${route.code}; catalog fee ${HOME_FEE_TIER} Aero Slipstream, no Uni V3 depth`);
-        } else {
-          if (route.freezeBuys) {
-            noteSwapPathFail(token.symbol, {
-              kind: route.code || "NO_V3_WETH",
-              freezeBuys: true,
-            });
-          }
-          return await skipBuy(reason, token.symbol, route.log);
+        if (route.freezeBuys) {
+          noteSwapPathFail(token.symbol, {
+            kind: route.code || "NO_V3_WETH",
+            freezeBuys: true,
+          });
         }
-      } else if (!rotateHomeBuy) {
-        if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
-        else if (token.symbol === "AERO") preferredPool = AERO_UNI_V3_WETH_POOL;
+        return await skipBuy(reason, token.symbol, route.log);
       }
+      if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
+      else if (token.symbol === "AERO") preferredPool = AERO_UNI_V3_WETH_POOL;
     }
 
-    // Slippage guard: factory liquidity then QuoterV2, BEFORE wrap/send.
+    // Slippage guard: factory liquidity then quote, BEFORE wrap/send.
     // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 liquidity()=0 —
     // do not quote or wrap into a ghost pool.
     const tokenDecimals = await getTokenDecimals(token.address);
@@ -6428,13 +6513,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     let swapFee = token.feeTier;
     let factoryLiq = null;
     try {
-      const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, {
-        preferredPool,
-        skipPools: rotateHomeBuy ? [HOME_UNI_V3_WETH_POOL] : [],
-      });
-      quotedTokens = live?.amountOut ?? null;
-      if (live?.fee) swapFee = live.fee;
-      if (live?.liquidity != null) factoryLiq = live.liquidity;
+      if (slipstreamBuy) {
+        const live = await getSlipstreamHomeBuyQuote(amountIn);
+        quotedTokens = live?.amountOut ?? null;
+        if (live?.fee) swapFee = live.fee;
+        if (live?.liquidity != null) factoryLiq = live.liquidity;
+      } else {
+        const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, {
+          preferredPool,
+        });
+        quotedTokens = live?.amountOut ?? null;
+        if (live?.fee) swapFee = live.fee;
+        if (live?.liquidity != null) factoryLiq = live.liquidity;
+      }
     } catch { quotedTokens = null; }
     const quoteGate = requireLiveQuoterFill({
       quotedOut: quotedTokens,
@@ -6446,26 +6537,33 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       // QUOTE_MISS increments the N=3 streak only. Immediate freeze is for
       // structural books (EMPTY_V3_POOL / THIN_V3_WETH / PRIMARY_NOT_V3_WETH).
       // quoteAtFee maps RPC timeout to the same null as a pool miss.
-      noteSwapPathFail(token.symbol, {
-        kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
-      });
+      // Rotate HOME Slipstream miss must not arm Uni QuoterV2 cooldown.
+      if (!rotateHomeBuyIgnoresUniQuoterMiss(reason, token.symbol)) {
+        noteSwapPathFail(token.symbol, {
+          kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
+        });
+      } else {
+        console.log(`🏠 ROTATE HOME — Slipstream quote miss; Uni QuoterV2 cooldown not armed`);
+      }
       return await skipBuy(reason, token.symbol, quoteGate.log);
     }
     if (factoryLiq != null) {
       const depthGate = requireFactoryLiquidity({
         liquidity: factoryLiq,
         symbol: token.symbol,
-        fee: swapFee,
+        fee: slipstreamBuy ? `slipstream-${HOME_SLIPSTREAM_TICK_SPACING}` : swapFee,
       });
       if (!depthGate.allow) {
-        noteSwapPathFail(token.symbol, { kind: "EMPTY_V3_POOL", freezeBuys: true });
+        if (!rotateHomeBuy) {
+          noteSwapPathFail(token.symbol, { kind: "EMPTY_V3_POOL", freezeBuys: true });
+        }
         return await skipBuy(reason, token.symbol, depthGate.log);
       }
     }
     quotedTokens = quoteGate.quotedOut;
     const gatedPct = token.poolFeePct || 0.006;
     const feeCost = liveFeeWithinGatedCost(gatedPct, swapFee);
-    if (swapFee !== token.feeTier) {
+    if (swapFee !== token.feeTier && !slipstreamBuy) {
       const adopted = adoptLivePoolFee(token, swapFee);
       if (adopted.changed) {
         console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
@@ -6486,15 +6584,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     });
     if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
     if (!buyMinOut.allow) {
-      noteSwapPathFail(token.symbol, { kind: "minOut reject" });
+      if (!rotateHomeBuy) noteSwapPathFail(token.symbol, { kind: "minOut reject" });
       return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
     }
     minTokens = buyMinOut.amountOutMinimum;
-    console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+    if (slipstreamBuy) {
+      console.log(`   📐 Slipstream buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) tickSpacing ${slipstreamBuy.tickSpacing}`);
+    } else {
+      console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+    }
 
     // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
     // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor.
-    // Wrap only after a live non-empty Uni V3 quote.
+    // Wrap only after a live quote (Uni V3 or rotate HOME Slipstream).
     let useWeth = weth >= ethToSpend;
     if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
       // Have enough ETH to cover — use ETH directly (no wrap needed)
@@ -6526,7 +6628,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const tokensBefore = await getTokenBalance(token.address);
-    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
+    const swapRouter = slipstreamBuy ? slipstreamBuy.router : SWAP_ROUTER;
+    const buySwap = slipstreamBuy
+      ? encodeSlipstreamExactInputSingle({
+          tokenIn: WETH_ADDRESS,
+          tokenOut: token.address,
+          tickSpacing: slipstreamBuy.tickSpacing,
+          recipient: WALLET_ADDRESS,
+          deadline: slipstreamDeadline(),
+          amountIn,
+          amountOutMinimum: minTokens,
+        })
+      : encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
@@ -6548,9 +6661,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // A missing voice hitch must still let the silo queue ride.
     const buySkipAllHitch = buySkipHitch || buyVoice.kind === "plain-thin";
     if (useWeth) {
-      await ensureApproved(cdp, WETH_ADDRESS, amountIn);
+      await ensureApproved(
+        cdp,
+        WETH_ADDRESS,
+        amountIn,
+        slipstreamBuy ? slipstreamApproveSpenders() : sellApproveSpenders(),
+      );
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, data: buyVoice.data } };
+        transaction: { to: swapRouter, gas: GAS_CEILING, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
           ? orch.injectAndSend(_txParams1, {
@@ -6565,7 +6683,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       txHash = transactionHash;
     } else {
       const _txParams2 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, value: amountIn, data: buyVoice.data } };
+        transaction: { to: swapRouter, gas: GAS_CEILING, value: amountIn, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
           ? orch.injectAndSend(_txParams2, {
@@ -6786,7 +6904,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
   } catch (e) {
     console.log(`      ❌ BUY FAILED: ${e.message}`);
     if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
-      noteSwapPathFail(token.symbol, { kind: "Too little received" });
+      if (!rotateHomeBuyIgnoresUniQuoterMiss(reason, token.symbol)) {
+        noteSwapPathFail(token.symbol, { kind: "Too little received" });
+      } else {
+        console.log(`🏠 ROTATE HOME — swap revert; Uni QuoterV2 cooldown not armed`);
+      }
     }
     await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\n${e.message}\nThe letter is not claimed.`);
     return false;
