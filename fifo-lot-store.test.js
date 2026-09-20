@@ -85,6 +85,9 @@ const VIRTUAL_POOL = "0x9c087eb773291e50cf6c6a90ef0f4500e349b903";
 const CLANKER = "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb";
 /** Live CLANKER Uni V3 WETH pool (buys 0x23d8a0c5 / 0xcb7dd5a6). */
 const CLANKER_POOL = "0xc1a6FBedAE68E1472DbB91fe29b51F7A0bD44F97";
+const MORPHO = "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842";
+/** Live MORPHO Uni V3 WETH pool (buy 0x9260992e / sell 0xd6cd2fa2). */
+const MORPHO_POOL = "0x2f42dF4aF5312b492E9d7F7b2110d9c7Bf2d9e4f";
 
 /** Live AERO buy 0x94faa542… — WETH from wallet + AERO Transfer in. */
 const AERO_ETH_WEI = 786757301107754n;
@@ -250,6 +253,51 @@ function clankerReceipt(which = 1, { nativeEth = false } = {}) {
   };
 }
 
+/** Live MORPHO buy 0x9260992e — WETH from wallet (nonce 6054, hitch ~457B). */
+const MORPHO_ETH_WEI = 1549217606946090n;
+const MORPHO_TOK_WEI = 1500852629446225758n;
+/** Live MORPHO plain sell 0xd6cd2fa2 (nonce 6056) — auto-append, not EVIDENCE_SELL_TXS. */
+const MORPHO_SELL_HASH = "0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86";
+const MORPHO_SOLD_TOK_WEI = 1353995353938468608n;
+const MORPHO_SOLD_WETH_WEI = 1421365052369950n;
+
+function morphoBuyReceipt() {
+  return {
+    receipt: {
+      status: "0x1",
+      transactionHash: EVIDENCE_BUY_TXS.MORPHO,
+      logs: [
+        transferLog(MORPHO, MORPHO_POOL, WALLET, MORPHO_TOK_WEI),
+        transferLog(WETH_BASE, WALLET, MORPHO_POOL, MORPHO_ETH_WEI),
+      ],
+    },
+    tx: {
+      hash: EVIDENCE_BUY_TXS.MORPHO,
+      value: "0x0",
+    },
+    tokenAddress: MORPHO,
+    symbol: "MORPHO",
+    wallet: WALLET,
+  };
+}
+
+function morphoSellReceipt() {
+  return {
+    receipt: {
+      status: "0x1",
+      transactionHash: MORPHO_SELL_HASH,
+      logs: [
+        transferLog(WETH_BASE, MORPHO_POOL, WALLET, MORPHO_SOLD_WETH_WEI),
+        transferLog(MORPHO, WALLET, MORPHO_POOL, MORPHO_SOLD_TOK_WEI),
+      ],
+    },
+    tx: { hash: MORPHO_SELL_HASH, value: "0x0" },
+    tokenAddress: MORPHO,
+    symbol: "MORPHO",
+    wallet: WALLET,
+  };
+}
+
 function plusGate({ symbol, entryEth, proceeds, operatorLot = true }) {
   return buildSellGateDecision({
     symbol,
@@ -293,6 +341,11 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.equal(isSeededAddonBuyTx("CLANKER", CLANKER_HASH2), true);
     assert.equal(isEvidenceSiblingBuyTx("CLANKER", CLANKER_HASH2), true, "second fill is evidence sibling");
     assert.equal(EVIDENCE_SELL_TXS.VIRTUAL, undefined, "VIRTUAL sell is auto-append, not hardcoded invent");
+    assert.equal(
+      EVIDENCE_BUY_TXS.MORPHO,
+      "0x9260992e6061d9c05f78c29826d0bc6cb5c83a1c93a32c7792169dfe0cadc09e",
+    );
+    assert.equal(EVIDENCE_SELL_TXS.MORPHO, undefined, "MORPHO sell is auto-append, not hardcoded invent");
     assert.equal(DRB_TROUGH_BUY_TX.startsWith("0x53a00788"), true);
     assert.equal(EVIDENCE_ADDON_BUY_TXS.DRB, DRB_TROUGH_BUY_TX);
     assert.equal(normalizeTxHash(DRB_TROUGH_BUY_TX), DRB_TROUGH_BUY_TX);
@@ -539,12 +592,19 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
     assert.ok(hashes.VIRTUAL.includes(EVIDENCE_BUY_TXS.VIRTUAL), "VIRTUAL fill-book hash must seed rebuild");
     assert.ok(hashes.CLANKER.includes(CLANKER_HASH1), "CLANKER first fill must seed rebuild");
     assert.ok(hashes.CLANKER.includes(CLANKER_HASH2), "CLANKER add-on fill must seed rebuild");
+    assert.ok(hashes.MORPHO.includes(EVIDENCE_BUY_TXS.MORPHO), "MORPHO fill-book hash must seed rebuild");
     const sealedVirtualSell = "0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8";
+    const sealedMorphoSell = "0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86";
     const sells = collectRebuildSellTxs({
-      ledgerTrades: [{ type: "SELL", symbol: "VIRTUAL", tx: sealedVirtualSell }],
+      ledgerTrades: [
+        { type: "SELL", symbol: "VIRTUAL", tx: sealedVirtualSell },
+        { type: "SELL", symbol: "MORPHO", tx: sealedMorphoSell },
+      ],
     });
     assert.ok(sells.VIRTUAL.includes(sealedVirtualSell), "VIRTUAL 0x88105ec1 auto-appends from fills/ledger");
+    assert.ok(sells.MORPHO.includes(sealedMorphoSell), "MORPHO 0xd6cd2fa2 auto-appends from fills/ledger");
     assert.equal(EVIDENCE_SELL_TXS.VIRTUAL, undefined);
+    assert.equal(EVIDENCE_SELL_TXS.MORPHO, undefined);
   });
 
   it("LOT_REBUILD_TXS / ledger hashes merge CLANKER add-on without waiting on desk book", () => {
@@ -1818,6 +1878,188 @@ describe("fifo-lot-store — partial VIRTUAL sell rem cost + dust piggy", () => 
       }
       assert.equal(diff, "", f + " must stay untouched vs main");
     }
+  });
+});
+
+describe("fifo-lot-store — latch MORPHO FIFO from evidence buy 0x9260992e", () => {
+  const BUY_TOK = Number(MORPHO_TOK_WEI) / 1e18;
+  const BUY_ETH = Number(MORPHO_ETH_WEI) / 1e18;
+  const SOLD_TOK = Number(MORPHO_SOLD_TOK_WEI) / 1e18;
+  const SOLD_WETH = Number(MORPHO_SOLD_WETH_WEI) / 1e18;
+  const KNOWN_REM = BUY_TOK - SOLD_TOK;
+  /** Live wallet rem — 4 wei extra vs buy−sell; dust piggy stays 0. */
+  const LIVE_REM = Number(146857275507757154n) / 1e18;
+  const REM_COST = BUY_ETH * KNOWN_REM / BUY_TOK;
+
+  function latchBuy() {
+    const row = morphoBuyReceipt();
+    const lot = lotFromBuyReceipt({
+      symbol: "MORPHO",
+      tokenAddress: MORPHO,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.MORPHO,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+    const lots = {};
+    mergeBuyReceiptIntoLots(lots, lot, { remainingTokens: BUY_TOK });
+    return { lot, lots };
+  }
+
+  it("parses live wallet-WETH SwapRouter02 buy (receipt amounts, not invented)", () => {
+    const { lot, lots } = latchBuy();
+    assert.equal(isUsableLot(lot), true);
+    assert.ok(Math.abs(lot.tokensIn - BUY_TOK) < 1e-12);
+    assert.ok(Math.abs(lot.ethIn - BUY_ETH) < 1e-15, "ethIn from wallet-WETH Transfer, not invented");
+    assert.equal(lotHasBuyTx(lots.MORPHO, EVIDENCE_BUY_TXS.MORPHO), true);
+    assert.equal(lots.MORPHO.source, "onchain-receipt");
+  });
+
+  it("empty persist + evidence hash → known entrySold so always-plus can green rem", () => {
+    assert.equal(
+      shouldLatchBuyReceipt(undefined, EVIDENCE_BUY_TXS.MORPHO, { remainingTokens: LIVE_REM }),
+      true,
+    );
+    const { lots } = latchBuy();
+    const token = { symbol: "MORPHO", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.MORPHO, { remainingTokens: LIVE_REM });
+    assert.equal(fifo.unknown, false, "remain < bought is leftover, not unknown-lots");
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > 0);
+    assert.equal(lotAppliedOk(token, fifo), true);
+    const entrySold = sellEntryEthWithLotFloor(token.totalInvestedEth, token);
+    assert.ok(entrySold > 0, "entrySold must be known — LOSE_ZERO cannot HOLD unknown");
+    assert.ok(Math.abs(entrySold - REM_COST) < 1e-12, "rem cost is proportional of receipt ethIn");
+
+    const red = plusGate({ symbol: "MORPHO", entryEth: entrySold, proceeds: entrySold * 0.7 });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+
+    const green = plusGate({
+      symbol: "MORPHO",
+      entryEth: entrySold,
+      proceeds: entrySold + 9.60e-6,
+    });
+    assert.equal(green.allow, true, "Quoter green vs receipt rem cost must not HOLD unknown");
+    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+    assert.ok(green.leftover > 0);
+  });
+
+  it("rebuilds sell 0xd6cd2fa2 even when first-slice buy lot is already usable", () => {
+    const { lots } = latchBuy();
+    assert.equal(isUsableLot(lots.MORPHO), true, "first-slice buy is usable");
+    assert.equal(lotHasSellTx(lots.MORPHO, MORPHO_SELL_HASH), false);
+
+    const sells = collectRebuildSellTxs({
+      persistedLots: lots,
+      ledgerTrades: [{ type: "SELL", symbol: "MORPHO", tx: MORPHO_SELL_HASH }],
+    });
+    assert.ok(sells.MORPHO.includes(MORPHO_SELL_HASH), "ledger auto-appends sealed sell");
+    assert.equal(EVIDENCE_SELL_TXS.MORPHO, undefined, "do not hardcode-invent the sell hash");
+
+    const row = morphoSellReceipt();
+    const sold = lotFromSellReceipt({
+      symbol: "MORPHO",
+      tokenAddress: MORPHO,
+      wallet: WALLET,
+      txHash: MORPHO_SELL_HASH,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+    assert.ok(sold);
+    assert.ok(Math.abs(sold.tokensSold - SOLD_TOK) < 1e-12);
+    assert.ok(Math.abs(sold.ethOut - SOLD_WETH) < 1e-15);
+    mergeSellReceiptIntoLots(lots, sold, { remainingTokens: LIVE_REM });
+    assert.equal(lotHasSellTx(lots.MORPHO, MORPHO_SELL_HASH), true);
+    mergeSellReceiptIntoLots(lots, sold, { remainingTokens: LIVE_REM });
+    assert.equal(lots.MORPHO.sellTxs.filter((s) => s.hash === MORPHO_SELL_HASH).length, 1);
+    assert.ok(Math.abs(lots.MORPHO.tokensIn - KNOWN_REM) < 1e-12);
+    assert.ok(Math.abs(lots.MORPHO.remainingCostEth - REM_COST) < 1e-12);
+
+    const token = { symbol: "MORPHO", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.MORPHO, { remainingTokens: LIVE_REM });
+    assert.equal(fifo.unknown, false);
+    assert.ok(Math.abs(token.totalInvestedEth - REM_COST) < 1e-12);
+    const sellQty = knownLotSellTokens(lots.MORPHO, LIVE_REM);
+    assert.ok(sellQty > 0);
+    assert.ok(sellQty <= LIVE_REM + 1e-18, "never sell more than live rem");
+    assert.ok(
+      Math.abs(sellQty - LIVE_REM) < 1e-14 || Math.abs(sellQty - lots.MORPHO.tokensIn) < 1e-14,
+      "known-lot sell is rem bag (4 wei extra vs float tokensIn)",
+    );
+  });
+
+  it("live rem matches buy−sell — piggy dust stays 0", () => {
+    const { lots } = latchBuy();
+    const row = morphoSellReceipt();
+    const sold = lotFromSellReceipt({
+      symbol: "MORPHO",
+      tokenAddress: MORPHO,
+      wallet: WALLET,
+      txHash: MORPHO_SELL_HASH,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+    mergeSellReceiptIntoLots(lots, sold, { remainingTokens: LIVE_REM });
+    latchPiggyDust(lots.MORPHO, LIVE_REM);
+    assert.equal(Number(lots.MORPHO.piggyDustTokens) || 0, 0, "4 wei extra is not pre-buy dust");
+    assert.ok(Math.abs(LIVE_REM - lots.MORPHO.tokensIn) < 1e-14);
+  });
+
+  it("rebuild after restart applies persisted rem cost so always-plus can still green", () => {
+    const live = {};
+    recordBuyFill(live, {
+      symbol: "MORPHO",
+      ethIn: BUY_ETH,
+      tokensIn: BUY_TOK,
+      txHash: EVIDENCE_BUY_TXS.MORPHO,
+      fillCostEth: BUY_ETH,
+    });
+    recordSellFill(live, {
+      symbol: "MORPHO",
+      tokensSold: SOLD_TOK,
+      txHash: MORPHO_SELL_HASH,
+      ethOut: SOLD_WETH,
+    });
+    const rebuilt = rebuildLotsAfterRestart({
+      persisted: serializeFifoLots(live),
+      remainingBySymbol: { MORPHO: LIVE_REM },
+    });
+    assert.deepEqual(rebuilt.unknown, []);
+    assert.ok(rebuilt.rebuilt.includes("MORPHO"));
+    assert.equal(rebuilt.applied.MORPHO.unknownEntry, false);
+    assert.ok(Math.abs(rebuilt.applied.MORPHO.totalInvestedEth - REM_COST) < 1e-11);
+    const hashes = collectRebuildSellTxs({ persistedLots: rebuilt.lots });
+    assert.ok(hashes.MORPHO.includes(MORPHO_SELL_HASH));
+  });
+
+  it("agent.js hydrates MORPHO FIFO before unknown stamp and sell entrySold", () => {
+    const src = readFileSync(join(root, "agent.js"), "utf8");
+    assert.ok(src.includes("EVIDENCE_BUY_TXS"), "evidence map stays imported");
+    assert.ok(src.includes("tryRebuildLotFromReceipts"));
+    const processFn = src.indexOf("async function processToken(");
+    const processEnd = src.indexOf("\nasync function ", processFn + 1);
+    const processBody = src.slice(processFn, processEnd > 0 ? processEnd : processFn + 12000);
+    const rebuild = processBody.indexOf("tryRebuildLotFromReceipts");
+    const unknown = processBody.indexOf("applyUnknownChainHolding");
+    assert.ok(rebuild >= 0 && unknown > rebuild, "cycle must latch evidence FIFO before unknown stamp");
+    assert.ok(processBody.includes("MORPHO 0x9260992e"), "cycle comment names the evidence buy");
+
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 9000);
+    assert.ok(sellBody.includes("tryRebuildLotFromReceipts"), "executeSell must rebuild even if first-slice usable");
+    const remainIdx = sellBody.indexOf("seededRebuildRemaining");
+    const applyIdx = sellBody.indexOf("applyLotToToken");
+    assert.ok(remainIdx >= 0 && applyIdx > remainIdx, "executeSell must rebuild evidence before apply/entrySold");
+    assert.ok(sellBody.includes("0x9260992e"), "#130 pattern: rebuild even when first-slice usable");
+    assert.ok(src.includes("EVIDENCE_SELL_TXS"), "MORPHO 0xd6cd2fa2 sell auto-appends via sell rebuild");
+    assert.ok(src.includes("ledgerRebuildTrades"), "desk ledger hashes must seed collectRebuildTxs");
+    assert.ok(sellBody.includes("knownLotSellTokens"));
+    assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "#119 WAVE hitch stays");
+    assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=/.test(src), "MORPHO latch is not the lossy sell path");
+    assert.ok(!src.includes('VITAFEED_PAID: "yes"'));
+    assert.ok(!src.includes('WAVE_MIRROR_PAID: "yes"'));
   });
 });
 

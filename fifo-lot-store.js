@@ -47,6 +47,12 @@ export const EVIDENCE_BUY_TXS = Object.freeze({
     "0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b",
     "0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5",
   ]),
+  // Risk-desk MORPHO buy on Base (nonce 6054). WETH from wallet → MORPHO via
+  // SwapRouter02 with leftover hitch (§$STORE§, ~457B). Size is on the
+  // receipt (~1.50085 MORPHO / ~0.001549 WETH). Partial plain sell
+  // 0xd6cd2fa2… auto-appends from persist/ledger — rem ~0.1469 stays
+  // known-cost. Do not invent P&L; rebuild from the hash.
+  MORPHO: "0x9260992e6061d9c05f78c29826d0bc6cb5c83a1c93a32c7792169dfe0cadc09e",
 });
 
 /**
@@ -69,7 +75,8 @@ export const EVIDENCE_ADDON_BUY_TXS = Object.freeze({
 /**
  * Sealed sells auto-append when executeSell / rebuild sees a hash.
  * VIRTUAL desk fill 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8
- * is already sealed — persist + ledger receipt rebuild latch it. Do not
+ * and MORPHO plain sell 0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86
+ * are already sealed — persist + ledger receipt rebuild latch them. Do not
  * hardcode-invent amounts or a guessed hash here.
  */
 export const EVIDENCE_SELL_TXS = Object.freeze({});
@@ -842,7 +849,7 @@ export function collectRebuildSellTxs({
  * to the router, then Transfer router→pool. Wallet never sends WETH, so the
  * WETH-from-wallet leg is empty. Count tx.value, else Deposit, else router out
  * — never sum those three (same ETH). Wallet-WETH fills (AERO/BNKR/CLANKER
- * 0x23d8a0c5 / 0xcb7dd5a6) unchanged.
+ * 0x23d8a0c5 / 0xcb7dd5a6 / MORPHO 0x9260992e) unchanged.
  */
 export function lotFromBuyReceipt({
   symbol,

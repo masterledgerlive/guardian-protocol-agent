@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Fixed — latch MORPHO FIFO from evidence buy so always-plus can sell rem
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF. Do **not** use
+`ALLOW_LOSSY_OPERATOR_SELL`. #119–#122 hitch/catalog/FIFO/dust, #127/#128
+FIFO rem / thrift unwrap, and #129/#130 CLANKER latch stay.
+
+Live RISK wallet `0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915` bought
+MORPHO on Base (SwapRouter02 exactInputSingle, WETH from wallet, leftover
+hitch `§$STORE§`, ~457B, nonce 6054):
+
+- Buy `0x9260992e6061d9c05f78c29826d0bc6cb5c83a1c93a32c7792169dfe0cadc09e`
+  0.001549217606946090 WETH → 1.500852629446225758 MORPHO
+- Plain sell `0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86`
+  (nonce 6056) 1.353995353938468608 MORPHO → 0.001421365052369950 WETH
+- Rem ≈0.14685727550775715 still in wallet. GPA logged UNKNOWN ENTRY /
+  unknown cost — LOSE_ZERO HOLDs rem.
+
+Amounts from receipts only; do not invent P&L.
+
+- Durable seed: `EVIDENCE_BUY_TXS.MORPHO` = `0x9260992e…`. Receipt rebuild
+  supplies tokensIn/ethIn. Same class as VIRTUAL #121 / CLANKER #129/#130.
+- Cycle `processToken` and `executeSell` rebuild from evidence **before**
+  the unknown stamp / `entrySold`, even when a first-slice lot is already
+  usable (#130). After Online, MORPHO rem is known-cost so always-plus can
+  arm when Quoter is green.
+- Sealed sell `0xd6cd2fa2…` auto-appends from persist/ledger receipt rebuild.
+  Do not hardcode-invent amounts or a guessed hash in `EVIDENCE_SELL_TXS`.
+- Wallet rem matches buy − sell (4 wei extra). Dust piggy stays 0.
+- `HOURLY_BALANCE_CATALOG.MORPHO` so hourly /bag polls the rem bag.
+
 ### Added — `/vitafeed` backlog feeds brain without agentic AI
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF.
