@@ -36,11 +36,14 @@ describe("vita HTML console", () => {
     assert.equal(state.injected, false);
   });
 
-  it("answers from KEY without Anthropic", async () => {
+  it("reads vault-unlock.js from local disk without Anthropic", async () => {
     const state = createVitaConsole();
-    const r = await handleVitaConsole(state, "/vita who is in KEY?");
-    assert.match(r.text, /Krystian/);
-    assert.match(r.text, /Koda/);
+    const r = await handleVitaConsole(state, "/vita read vault-unlock.js");
+    assert.match(r.text, /vault-unlock\.js/);
+    assert.match(r.text, /local=YES/);
+    assert.match(r.text, /VITASESS/);
+    const q = await handleVitaConsole(state, "/vita who is in KEY?");
+    assert.match(q.text, /Krystian/);
   });
 
   it("searches genesis KEY via /xmem without inventing an id", async () => {

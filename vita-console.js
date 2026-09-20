@@ -50,6 +50,7 @@ import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js"
 import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js";
 import { handleWaveProofAction, parseWaveProofCommand } from "./vita/wave-proof.js";
 import { handleWaveFullAction, parseWaveFullCommand } from "./vita/wave-full.js";
+import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -335,6 +336,8 @@ function helpText() {
     "/xmem [query] — search pulled hitch UTF-8 for XMEM / STORE KEY / tags",
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
+    "/vita read FILE — open file (local + GitHub lanes) + SNARK + Basescan IDM",
+    "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
     "/vitamothergenesis FORCE recall — force-bank layered recall stack (queries last)",
@@ -730,6 +733,18 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
   }
 
   if (text.startsWith("/vita ")) {
+    const parsed = parseVitaMirrorCommand(raw);
+    if (parsed.action && parsed.action !== "ask") {
+      const out = await handleVitaMirrorAction({
+        action: parsed.action,
+        filename: parsed.filename || null,
+        key: parsed.key || null,
+        kind: parsed.kind || null,
+        chatId: "html-console",
+        cwd: process.cwd(),
+      });
+      return reply(out.reply || "mirror miss");
+    }
     return reply(answerFromMemory(state, raw.slice("/vita ".length)));
   }
 

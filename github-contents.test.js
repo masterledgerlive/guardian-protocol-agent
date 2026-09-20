@@ -15,6 +15,8 @@ import {
   githubReadAuthFailed,
   shouldRetryGithubRead,
   decodeGithubContentsJson,
+  decodeGithubContentsUtf8,
+  githubBlobHtmlUrl,
   preferRemoteOrKeep,
   isFreshLocalState,
   latestHistoryReadingMs,
@@ -76,6 +78,13 @@ describe("github-contents — token / branch / header", () => {
     const wrapped = b64.replace(/(.{20})/g, "$1\n");
     assert.deepEqual(decodeGithubContentsJson({ content: wrapped, sha: "abc" }), blob);
     assert.equal(decodeGithubContentsJson({}), null);
+    const js = "export const x = 1;\n";
+    const jsB64 = Buffer.from(js, "utf8").toString("base64");
+    assert.equal(decodeGithubContentsUtf8({ content: jsB64 }), js);
+    assert.equal(
+      githubBlobHtmlUrl({ repo: "owner/repo", filename: "vault-unlock.js", branch: "main" }),
+      "https://github.com/owner/repo/blob/main/vault-unlock.js",
+    );
   });
 
   it("agent.js ledger/fifo-lots path uses live token + no Bearer", () => {

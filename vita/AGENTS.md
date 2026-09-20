@@ -61,6 +61,11 @@ No invented hashes.
 · `/vitafeed unlock CODEX\math-euler.txt` — open-source unlock by file name
 (never a private key). Instant ZK-short unwrap → English + machine blocks so
 you can see what agentic AI filed and recover html/song/movie/code.
+**GitHub mirror chain:** `/vita read FILE` · `/vita files` · `/vita proof FILE`
+· `/vita unwrap [KEY]` · `/vita chain` · `/vita session` — local Railway disk
++ GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed
+Base locs. Session keys = Railway env (permanent / ttl / destroy-on-unwrap).
+Never invent tx hashes. Anthropic not required to open a file.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.

@@ -250,6 +250,7 @@ import {
   githubReadAuthFailed,
   shouldRetryGithubRead,
   decodeGithubContentsJson,
+  decodeGithubContentsUtf8,
   preferRemoteOrKeep,
   readLocalStateJson,
   writeLocalStateJson,
@@ -581,6 +582,10 @@ import {
   openVitaFeedTicket,
   vitaFeedExitSellPct,
 } from "./vita/vita-feed-buyin.js";
+import {
+  handleVitaMirrorAction,
+  parseVitaMirrorCommand,
+} from "./vita/mirror-chain.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -9479,6 +9484,28 @@ async function githubGet(path) {
   } catch (e) { console.log(`GitHub read error (${path}): ${e.message}`); return { content: null, sha: null, status: 0 }; }
 }
 
+/** UTF-8 blob from a specific branch — code files are not JSON. */
+async function githubGetUtf8FromBranch(filename, branch) {
+  try {
+    const url = githubContentsUrl({
+      repo: liveGithubRepo(),
+      filename,
+      branch: branch || liveGithubBranch(),
+    });
+    const res = await fetch(url, { headers: githubAuthHeaders(liveGithubToken()) });
+    if (!res.ok) {
+      return { text: null, sha: null, status: res.status, miss: true };
+    }
+    const data = await res.json();
+    const text = decodeGithubContentsUtf8(data);
+    if (text == null) return { text: null, sha: data.sha || null, status: res.status, miss: true };
+    return { text, sha: data.sha, status: res.status, miss: false, branch };
+  } catch (e) {
+    console.log(`GitHub utf8 read error (${filename}): ${e.message}`);
+    return { text: null, sha: null, status: 0, miss: true };
+  }
+}
+
 async function githubSave(path, content, sha, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -10038,17 +10065,22 @@ function esc(str) {
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-async function tg(msg) {
+async function tg(msg, extra = {}) {
   try {
     const tok = process.env.TELEGRAM_BOT_TOKEN;
     const cid = process.env.TELEGRAM_CHAT_ID;
     if (!tok || !cid) { console.log("⚠️  Telegram: no token/chat_id set"); return; }
     // Telegram messages >4096 chars get rejected — split them
     const chunks = splitTelegramHtmlChunks(sanitizeTelegramHtml(msg), 4000);
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const last = i === chunks.length - 1;
+      const payload = { chat_id: cid.trim(), text: chunk, parse_mode: "HTML" };
+      if (extra.disable_web_page_preview) payload.disable_web_page_preview = true;
+      if (last && extra.reply_markup) payload.reply_markup = extra.reply_markup;
       const res = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: cid.trim(), text: chunk, parse_mode: "HTML" }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -10061,9 +10093,11 @@ async function tg(msg) {
             .replace(/&gt;/g, ">")
             .replace(/&amp;/g, "&")
             .replace(/&quot;/g, '"');
+          const retry = { chat_id: cid.trim(), text: plain };
+          if (last && extra.reply_markup) retry.reply_markup = extra.reply_markup;
           await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: cid.trim(), text: plain }),
+            body: JSON.stringify(retry),
           });
         } catch (re) { console.log(`⚠️  Telegram plain-text retry failed: ${re.message}`); }
       }
@@ -10194,10 +10228,21 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
     for (const upd of data.result) {
       lastUpdateId = upd.update_id;
+      const cb = upd.callback_query;
+      if (cb?.id) {
+        try {
+          await fetch(`https://api.telegram.org/bot${tok}/answerCallbackQuery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ callback_query_id: cb.id }),
+          });
+        } catch { /* spinner stop is best-effort */ }
+      }
       // Caption counts too — file uploads often put /vitafeed file in caption.
-      const raw = (upd.message?.text || upd.message?.caption || "").trim();
+      // Inline buttons send callback_data as /vita read FILE (click-through).
+      const raw = (cb?.data || upd.message?.text || upd.message?.caption || "").trim();
       const text = raw.toLowerCase();
-      const msgChatId = upd.message?.chat?.id?.toString().trim();
+      const msgChatId = (cb?.message?.chat?.id || upd.message?.chat?.id)?.toString().trim();
       const expectedChatId = cid.trim();
       const mediaOnMessage = pickTelegramMedia(upd.message || {});
       const awaitingVitaFile = msgChatId ? peekVitaFeedFileAwait(msgChatId) : null;
@@ -13262,69 +13307,43 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         }
 
       } else if (text && text.startsWith("/vita ")) {
+        const parsedMirror = parseVitaMirrorCommand(raw);
+        if (parsedMirror.action && parsedMirror.action !== "ask") {
+          // Click-through file read / SNARK proof / unwrap / GitHub-as-chain.
+          // Does NOT require Anthropic — local Railway disk + GitHub CODE/STATE.
+          const label = parsedMirror.filename
+            ? parsedMirror.action + " <code>" + esc(parsedMirror.filename) + "</code>"
+            : parsedMirror.action;
+          await tg("🌟 <b>VITA</b> " + label + "...");
+          try {
+            const out = await handleVitaMirrorAction({
+              action: parsedMirror.action,
+              filename: parsedMirror.filename || null,
+              key: parsedMirror.key || null,
+              kind: parsedMirror.kind || null,
+              chatId: msgChatId || "telegram",
+              cwd: process.cwd(),
+              githubFetch: githubGetUtf8FromBranch,
+              codeBranch: liveGithubBranch(),
+              stateBranch: liveStateBranch(),
+              repo: liveGithubRepo(),
+            });
+            await tg(
+              "🌟 <b>VITA " + esc(parsedMirror.action) + "</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+              { reply_markup: out.keyboard || undefined, disable_web_page_preview: true },
+            );
+          } catch (e) {
+            await tg("❌ VITA " + parsedMirror.action + " failed: " + (e.message || e) + "\nNothing invented.");
+          }
+        } else {
         const vitaInput = raw.slice("/vita ".length).trim();
         const vitaKey   = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
 
         if (!vitaKey) {
-          await tg("🌟 VITA needs VITA_ANTHROPIC_KEY in Railway to answer");
-
-        // ── /vita read FILENAME — VITA reads her own files ──────────────────
-        } else if (vitaInput.startsWith("read ")) {
-          const filename = vitaInput.slice("read ".length).trim();
-          await tg("🌟 <b>VITA reading</b> <code>" + filename + "</code>...");
-          try {
-            const fileData = await githubGet(filename);
-            if (!fileData?.content) {
-              await tg("❌ File not found: " + filename);
-            } else {
-              // Feed file content to Claude API — VITA reads and summarizes her own code
-              const fileStr = typeof fileData.content === "string"
-                ? fileData.content
-                : JSON.stringify(fileData.content, null, 2);
-
-              const response = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-api-key": vitaKey,
-                  "anthropic-version": "2023-06-01",
-                },
-                body: JSON.stringify({
-                  model: nextVitaModel().model,
-                  max_tokens: 600,
-                  system: "You are VITA — an autonomous AI agent reading your own codebase. Summarize what this file does, what functions it exports, and how it fits into the Guardian Protocol / IKN ecosystem. Be concise and direct.",
-                  messages: [{
-                    role: "user",
-                    content: "File: " + filename + "\n\nContent:\n" + fileStr.slice(0, 3000)
-                  }]
-                })
-              });
-              const data   = await response.json();
-              const answer = data?.content?.[0]?.text || "Could not read file";
-              await tg(
-                "🌟 <b>VITA reads: " + filename + "</b>\n" +
-                "━━━━━━━━━━━━━━━━━━━━\n" +
-                answer + "\n\n" +
-                "<i>— VITA | ᛞᚨᚡᛁᛞ | IKN</i>"
-              );
-            }
-          } catch (e) { await tg("❌ VITA read failed: " + e.message); }
-
-        // ── /vita files — list all files VITA can read ──────────────────────
-        } else if (vitaInput === "files") {
-          const knownFiles = [
-            "agent.js", "vault-loader.js", "vault-unlock.js",
-            "keystore.js", "memory-engine.js", "vita-memory.js",
-            "log-formatter.js", "encryptkey.js",
-            "vita-registry.json", "memory-registry.json",
-            "ledger.json", "positions.json", "tokens.json",
-          ];
-          let msg = "🌟 <b>VITA can read these files:</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-          msg += "<b>Code files:</b>\n";
-          knownFiles.filter(f => f.endsWith(".js")).forEach(f => msg += "   /vita read " + f + "\n");
-          msg += "\n<b>Data files:</b>\n";
-          knownFiles.filter(f => f.endsWith(".json")).forEach(f => msg += "   /vita read " + f + "\n");
-          await tg(msg);
+          await tg(
+            "🌟 VITA needs VITA_ANTHROPIC_KEY in Railway to answer questions.\n" +
+            "File click-through still works: <code>/vita read vault-unlock.js</code> · <code>/vita files</code> · <code>/vita chain</code>",
+          );
 
         // ── /vita [question] — answer from memory registry ──────────────────
         } else {
@@ -13451,6 +13470,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               finalAnswer + "\n\n<i>— VITA | ᛞᚨᚡᛁᛞ | IKN</i>"
             );
           } catch (e) { await tg("❌ VITA error: " + e.message); }
+        }
         }
 
       // ── 🧠 MEMORY COMMANDS ──────────────────────────────────────────────────
@@ -13853,8 +13873,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/keystatus NAME — view locations + metadata\n\n` +
           `<b>🌟 VITA Memory:</b>\n` +
           `/vita [question] — ask VITA using blockchain memory\n` +
-          `/vita read FILE — VITA reads her own files\n` +
-          `/vita files — list readable files\n` +
+          `/vita read FILE — open file (local + GitHub CODE/STATE) + SNARK + IDM locs — no Anthropic\n` +
+          `/vita files — click-through catalog (tap Open / Unwrap / Proof / Basescan)\n` +
+          `/vita proof FILE — does the file exist? merkle SNARK + Basescan Input Data → UTF-8\n` +
+          `/vita unwrap [KEY] — instant SNARK unwrap with the session key\n` +
+          `/vita chain — GitHub-as-blockchain map + plugins (Railway-style keys)\n` +
+          `/vita session — mint permanent / ttl / destroyable keys (new set each session)\n` +
           `/vitasave — compress session + live trading data on Base\n` +
           `/vitadata — snapshot full token/wave/trade dataset\n` +
           `/vitapicture — VITA picture tailwind status (arm with /vitapicture arm)\n` +
@@ -14753,6 +14777,7 @@ async function main() {
 
     injectBotState({
       githubGet,
+      githubGetUtf8FromBranch,
       walletAddress: WALLET_ADDRESS,
       tradeCount,
       piggyBank,
