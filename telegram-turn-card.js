@@ -26,6 +26,7 @@ export const MAX_TURN_HISTORY = 50;
  * injector catalog is a superset (or a saved tokens.json subset).
  * VIRTUAL stays tradeable; this map does not freeze. CLANKER is polled so
  * the ~0.289 rem bag is on hourly /bag even if the injector list omitted it.
+ * MORPHO rem ~0.1469 is the same class — poll even if injector omitted it.
  */
 export const HOURLY_BALANCE_CATALOG = Object.freeze({
   AERO: "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
@@ -33,6 +34,7 @@ export const HOURLY_BALANCE_CATALOG = Object.freeze({
   BNKR: "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b",
   VIRTUAL: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
   CLANKER: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb",
+  MORPHO: "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
 });
 export const RECALL_SLEEVES = Object.freeze(Object.keys(HOURLY_BALANCE_CATALOG));
 export const TURN_RECALL_FILENAME = "turn-recall.json";

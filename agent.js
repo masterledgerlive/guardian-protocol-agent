@@ -6786,9 +6786,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // Latch FIFO from persist / evidence buy receipts before entrySold.
     // Desk book / ledger fills alone do not seed Railway (no fifo-lots.json on
     // bot-state). CLANKER array 0x23d8a0c5+0xcb7dd5a6 + add-on sibling (and
-    // VIRTUAL) rebuild even when a first-slice lot is already usable —
-    // otherwise rem ~0.289 vs first 0.176 stays unknown-lots / entrySold=0.
-    // LOT_REBUILD_TXS env-only cannot merge the second hash.
+    // VIRTUAL / MORPHO 0x9260992e) rebuild even when a first-slice lot is
+    // already usable — otherwise rem ~0.289 vs first 0.176 stays unknown-lots
+    // / entrySold=0. LOT_REBUILD_TXS env-only cannot merge the second hash.
+    // MORPHO rem ~0.1469 after plain sell 0xd6cd2fa2 auto-appends via ledger.
     const remain = seededRebuildRemaining(totalBal);
     if (remain != null) {
       try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
@@ -8099,8 +8100,8 @@ async function processToken(cdp, token, bal) {
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
     // Evidence hashes (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5+0xcb7dd5a6 /
-    // DRB trough class) must rebuild FIFO *before* the unknown stamp —
-    // boot-only latch and desk-book fills left entrySold=0.
+    // MORPHO 0x9260992e / DRB trough class) must rebuild FIFO *before* the
+    // unknown stamp — boot-only latch and desk-book fills left entrySold=0.
     const heldBal = getCachedBalance(token.symbol);
     if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
         (heldBal > 0.001 || token.unknownEntry)) {

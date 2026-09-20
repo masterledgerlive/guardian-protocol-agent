@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-20T00:51:00.000Z",
+  "topic": "morpho-fifo-latch-evidence-buy",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. Do not use ALLOW_LOSSY_OPERATOR_SELL. #119 hitch / #120 catalog / #121 FIFO / #122 dust / #127 rem / #128 thrift unwrap / #129/#130 CLANKER latch stay. MORPHO entrySold unknown blocked rem always-plus (~0.1469). Risk-desk buy on Base: 0x9260992e6061d9c05f78c29826d0bc6cb5c83a1c93a32c7792169dfe0cadc09e (1.500852629446225758 MORPHO / 0.001549217606946090 WETH, nonce 6054, leftover hitch §$STORE§ ~457B). Plain sell 0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86 (1.353995353938468608 MORPHO → 0.001421365052369950 WETH, nonce 6056) auto-appends from persist/ledger — do not hardcode invent in EVIDENCE_SELL_TXS. WETH from wallet via SwapRouter02. Live rem matches buy−sell (4 wei extra). Latch FIFO from the buy hash so always-plus can arm rem when Quoter is green. Cycle + executeSell rebuild before unknown stamp / entrySold even if first-slice usable (#130). Do not invent P&L.",
+  "locations": [],
+  "hypothesis": {
+    "id": "morpho-evidence-buy-weth-from-wallet-sell-auto-append",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "ALLOW_LOSSY_OPERATOR_SELL as the sell path",
+      "WAVE_MIRROR_PAID / VITAFEED_PAID",
+      "invent MORPHO P&L instead of receipt rebuild",
+      "hardcode-invent EVIDENCE_SELL_TXS.MORPHO"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
