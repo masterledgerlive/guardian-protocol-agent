@@ -31,7 +31,12 @@ export const FIFO_LOTS_FILENAME = "fifo-lots.json";
 
 /** Live operator fills. Amounts come from receipts / persist — not invented. */
 export const EVIDENCE_BUY_TXS = Object.freeze({
-  AERO: "0x94faa542b54eb06804bfde79354701cd0a7fa4964cf230791bfd07fc10a22b25",
+  // Risk-desk AERO buy on Base (nonce 6058). WETH from wallet → AERO via
+  // SwapRouter02 exactInputSingle on Uni V3 WETH 0x3d5D1433. Size on the
+  // receipt (~5.78730 AERO / ~0.001445 WETH). Partial FIFO-red sell
+  // 0x15ac4a73… (n6059) auto-appends from persist/ledger — rem ~0.28936
+  // stays known-cost. Do not invent P&L; rebuild from the hash.
+  AERO: "0x53b9844ca04d920cb9e02e45bb2770610932dac098ec067ba2e8148bb090eb6e",
   DRB: "0xe0f846a80fe8d5c541b500e51b9cf365866cd97eb5d84a47c674100fac7da6e9",
   BNKR: "0xeef39d62453fd9b09708a5661bd8465d5f2d82cebd0986d01e466f9ac95822e4",
   // Risk-desk VIRTUAL buy on Base. Size is on the receipt (~1.642 VIRTUAL /
@@ -74,8 +79,9 @@ export const EVIDENCE_ADDON_BUY_TXS = Object.freeze({
 
 /**
  * Sealed sells auto-append when executeSell / rebuild sees a hash.
- * VIRTUAL desk fill 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8
- * and MORPHO plain sell 0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86
+ * VIRTUAL desk fill 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8,
+ * MORPHO plain sell 0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86,
+ * and AERO FIFO-red partial 0x15ac4a7315e6b7086921cd1c01953b6655a9f8232e29ba431a651d7ff4dd70c5
  * are already sealed — persist + ledger receipt rebuild latch them. Do not
  * hardcode-invent amounts or a guessed hash here.
  */

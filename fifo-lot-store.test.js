@@ -89,7 +89,7 @@ const MORPHO = "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842";
 /** Live MORPHO Uni V3 WETH pool (buy 0x9260992e / sell 0xd6cd2fa2). */
 const MORPHO_POOL = "0x2f42dF4aF5312b492E9d7F7b2110d9c7Bf2d9e4f";
 
-/** Live AERO buy 0x94faa542… — WETH from wallet + AERO Transfer in. */
+/** Persist-machinery AERO receipt (wallet-WETH Transfer in). Live n6058 seed is 0x53b9844c. */
 const AERO_ETH_WEI = 786757301107754n;
 const AERO_TOK_WEI = 3426611425491222000n;
 const AERO_HASH = EVIDENCE_BUY_TXS.AERO;
@@ -319,7 +319,10 @@ describe("fifo-lot-store — persist + rebuild after restart", () => {
   it("normalizes full hashes and rejects prefixes", () => {
     assert.equal(normalizeTxHash(AERO_HASH), AERO_HASH);
     assert.equal(normalizeTxHash("0x94faa542"), "");
-    assert.equal(EVIDENCE_BUY_TXS.AERO.startsWith("0x94faa542"), true);
+    assert.equal(
+      EVIDENCE_BUY_TXS.AERO,
+      "0x53b9844ca04d920cb9e02e45bb2770610932dac098ec067ba2e8148bb090eb6e",
+    );
     assert.equal(EVIDENCE_BUY_TXS.DRB.startsWith("0xe0f846a8"), true);
     assert.equal(EVIDENCE_BUY_TXS.BNKR.startsWith("0xeef39d62"), true);
     assert.equal(
@@ -2058,6 +2061,188 @@ describe("fifo-lot-store — latch MORPHO FIFO from evidence buy 0x9260992e", ()
     assert.ok(sellBody.includes("knownLotSellTokens"));
     assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "#119 WAVE hitch stays");
     assert.ok(!/ALLOW_LOSSY_OPERATOR_SELL\s*=/.test(src), "MORPHO latch is not the lossy sell path");
+    assert.ok(!src.includes('VITAFEED_PAID: "yes"'));
+    assert.ok(!src.includes('WAVE_MIRROR_PAID: "yes"'));
+  });
+});
+
+describe("fifo-lot-store — latch AERO FIFO from evidence buy 0x53b9844c", () => {
+  /** Live AERO buy n6058 — WETH from wallet → Uni V3 0x3d5D1433. */
+  const AERO_N6058_ETH_WEI = 1445335529590520n;
+  const AERO_N6058_TOK_WEI = 5787298288314954720n;
+  /** Live AERO FIFO-red partial n6059 — auto-append, not EVIDENCE_SELL_TXS. */
+  const AERO_N6059_SELL_HASH = "0x15ac4a7315e6b7086921cd1c01953b6655a9f8232e29ba431a651d7ff4dd70c5";
+  const AERO_N6059_SOLD_TOK_WEI = 5497933373899207680n;
+  const AERO_N6059_SOLD_WETH_WEI = 1364842731712176n;
+  const BUY_TOK = Number(AERO_N6058_TOK_WEI) / 1e18;
+  const BUY_ETH = Number(AERO_N6058_ETH_WEI) / 1e18;
+  const SOLD_TOK = Number(AERO_N6059_SOLD_TOK_WEI) / 1e18;
+  const SOLD_WETH = Number(AERO_N6059_SOLD_WETH_WEI) / 1e18;
+  const KNOWN_REM = BUY_TOK - SOLD_TOK;
+  /** Live rem ≈0.28936 after n6059. */
+  const LIVE_REM = Number(289364914415747040n) / 1e18;
+  const REM_COST = BUY_ETH * KNOWN_REM / BUY_TOK;
+
+  function aeroN6058Receipt() {
+    return {
+      receipt: {
+        status: "0x1",
+        transactionHash: EVIDENCE_BUY_TXS.AERO,
+        logs: [
+          transferLog(AERO, "0x3d5D143381916280ff91407FeBEB52f2b60f33Cf", WALLET, AERO_N6058_TOK_WEI),
+          transferLog(WETH_BASE, WALLET, "0x3d5D143381916280ff91407FeBEB52f2b60f33Cf", AERO_N6058_ETH_WEI),
+        ],
+      },
+      tx: { hash: EVIDENCE_BUY_TXS.AERO, value: "0x0" },
+      tokenAddress: AERO,
+      symbol: "AERO",
+      wallet: WALLET,
+    };
+  }
+
+  function aeroN6059SellReceipt() {
+    return {
+      receipt: {
+        status: "0x1",
+        transactionHash: AERO_N6059_SELL_HASH,
+        logs: [
+          transferLog(WETH_BASE, "0x3d5D143381916280ff91407FeBEB52f2b60f33Cf", WALLET, AERO_N6059_SOLD_WETH_WEI),
+          transferLog(AERO, WALLET, "0x3d5D143381916280ff91407FeBEB52f2b60f33Cf", AERO_N6059_SOLD_TOK_WEI),
+        ],
+      },
+      tx: { hash: AERO_N6059_SELL_HASH, value: "0x0" },
+      tokenAddress: AERO,
+      symbol: "AERO",
+      wallet: WALLET,
+    };
+  }
+
+  function latchBuy() {
+    const row = aeroN6058Receipt();
+    const lot = lotFromBuyReceipt({
+      symbol: "AERO",
+      tokenAddress: AERO,
+      wallet: WALLET,
+      txHash: EVIDENCE_BUY_TXS.AERO,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+    const lots = {};
+    mergeBuyReceiptIntoLots(lots, lot, { remainingTokens: BUY_TOK });
+    return { lot, lots };
+  }
+
+  it("parses live wallet-WETH SwapRouter02 buy (receipt amounts, not invented)", () => {
+    const { lot, lots } = latchBuy();
+    assert.equal(isUsableLot(lot), true);
+    assert.ok(Math.abs(lot.tokensIn - BUY_TOK) < 1e-12);
+    assert.ok(Math.abs(lot.ethIn - BUY_ETH) < 1e-15, "ethIn from wallet-WETH Transfer, not invented");
+    assert.equal(lotHasBuyTx(lots.AERO, EVIDENCE_BUY_TXS.AERO), true);
+    assert.equal(lots.AERO.source, "onchain-receipt");
+  });
+
+  it("empty persist + evidence hash → rem cost latches so always-plus can HOLD red", () => {
+    assert.equal(
+      shouldLatchBuyReceipt(undefined, EVIDENCE_BUY_TXS.AERO, { remainingTokens: LIVE_REM }),
+      true,
+    );
+    const { lots } = latchBuy();
+    const token = { symbol: "AERO", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.AERO, { remainingTokens: LIVE_REM });
+    assert.equal(fifo.unknown, false, "remain < bought is leftover, not unknown-lots");
+    assert.equal(token.unknownEntry, false);
+    assert.ok(token.totalInvestedEth > 0);
+    assert.equal(lotAppliedOk(token, fifo), true);
+    const entrySold = sellEntryEthWithLotFloor(token.totalInvestedEth, token);
+    assert.ok(entrySold > 0, "entrySold must be known — LOSE_ZERO cannot HOLD unknown");
+    assert.ok(Math.abs(entrySold - REM_COST) < 1e-12, "rem cost is proportional of receipt ethIn");
+
+    const red = plusGate({ symbol: "AERO", entryEth: entrySold, proceeds: entrySold * 0.7 });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+
+    const green = plusGate({
+      symbol: "AERO",
+      entryEth: entrySold,
+      proceeds: entrySold + 9.60e-6,
+    });
+    assert.equal(green.allow, true, "Quoter green vs receipt rem cost must not HOLD unknown");
+    assert.ok(green.verdict === "PLUS" || green.verdict === "SKIP_HITCH");
+    assert.ok(green.leftover > 0);
+
+    const kind = classifyRecycleBag({
+      unknownEntry: token.unknownEntry,
+      totalInvestedEth: token.totalInvestedEth,
+      entryPrice: token.entryPrice,
+      hasUsdBasis: false,
+      fifoLotKnown: isUsableLot(lots.AERO),
+    });
+    assert.equal(kind.unknownBag, false);
+    assert.ok(!/unknown cost basis/.test(
+      kind.hasKnownPos
+        ? "🌙 INJECT FUEL — recycle known bag for cascade"
+        : "🌙 DUST RECYCLE — unknown cost basis",
+    ));
+  });
+
+  it("rebuilds sell 0x15ac4a73 even when first-slice buy lot is already usable", () => {
+    const { lots } = latchBuy();
+    assert.equal(isUsableLot(lots.AERO), true, "first-slice buy is usable");
+    assert.equal(lotHasSellTx(lots.AERO, AERO_N6059_SELL_HASH), false);
+
+    const sells = collectRebuildSellTxs({
+      persistedLots: lots,
+      ledgerTrades: [{ type: "SELL", symbol: "AERO", tx: AERO_N6059_SELL_HASH }],
+    });
+    assert.ok(sells.AERO.includes(AERO_N6059_SELL_HASH), "ledger auto-appends sealed sell");
+    assert.equal(EVIDENCE_SELL_TXS.AERO, undefined, "do not hardcode-invent the sell hash");
+
+    const row = aeroN6059SellReceipt();
+    const sold = lotFromSellReceipt({
+      symbol: "AERO",
+      tokenAddress: AERO,
+      wallet: WALLET,
+      txHash: AERO_N6059_SELL_HASH,
+      receipt: row.receipt,
+      tx: row.tx,
+    });
+    assert.ok(sold);
+    assert.ok(Math.abs(sold.tokensSold - SOLD_TOK) < 1e-12);
+    assert.ok(Math.abs(sold.ethOut - SOLD_WETH) < 1e-15);
+    mergeSellReceiptIntoLots(lots, sold, { remainingTokens: LIVE_REM });
+    assert.equal(lotHasSellTx(lots.AERO, AERO_N6059_SELL_HASH), true);
+    assert.ok(Math.abs(lots.AERO.tokensIn - KNOWN_REM) < 1e-12);
+    assert.ok(Math.abs(lots.AERO.remainingCostEth - REM_COST) < 1e-12);
+
+    const token = { symbol: "AERO", unknownEntry: true, entryPrice: null, totalInvestedEth: 0 };
+    const fifo = applyLotToToken(token, lots.AERO, { remainingTokens: LIVE_REM });
+    assert.equal(fifo.unknown, false);
+    assert.ok(Math.abs(token.totalInvestedEth - REM_COST) < 1e-12);
+  });
+
+  it("agent.js hydrates AERO FIFO before unknown stamp and sell entrySold", () => {
+    const src = readFileSync(join(root, "agent.js"), "utf8");
+    assert.ok(src.includes("EVIDENCE_BUY_TXS"), "evidence map stays imported");
+    assert.ok(src.includes("tryRebuildLotFromReceipts"));
+    assert.ok(src.includes("consumeAllowLossyOperatorSell"), "one-shot ALLOW_LOSSY consume");
+    const processFn = src.indexOf("async function processToken(");
+    const processEnd = src.indexOf("\nasync function ", processFn + 1);
+    const processBody = src.slice(processFn, processEnd > 0 ? processEnd : processFn + 12000);
+    const rebuild = processBody.indexOf("tryRebuildLotFromReceipts");
+    const unknown = processBody.indexOf("applyUnknownChainHolding");
+    assert.ok(rebuild >= 0 && unknown > rebuild, "cycle must latch evidence FIFO before unknown stamp");
+    assert.ok(processBody.includes("AERO 0x53b9844c"), "cycle comment names the evidence buy");
+
+    const sellFn = src.indexOf("async function executeSell(");
+    const sellEnd = src.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = src.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 9000);
+    assert.ok(sellBody.includes("tryRebuildLotFromReceipts"), "executeSell must rebuild even if first-slice usable");
+    const remainIdx = sellBody.indexOf("seededRebuildRemaining");
+    const applyIdx = sellBody.indexOf("applyLotToToken");
+    assert.ok(remainIdx >= 0 && applyIdx > remainIdx, "executeSell must rebuild evidence before apply/entrySold");
+    assert.ok(sellBody.includes("0x53b9844c"), "AERO evidence rebuild before unknown stamp");
+    assert.ok(src.includes("dustRecycleMustHoldFifoRed"), "DUST RECYCLE HOLDs FIFO-red without ALLOW_LOSSY");
+    assert.ok(src.includes("recycleSellCopy"), "never label unknown when FIFO lots exist");
     assert.ok(!src.includes('VITAFEED_PAID: "yes"'));
     assert.ok(!src.includes('WAVE_MIRROR_PAID: "yes"'));
   });
