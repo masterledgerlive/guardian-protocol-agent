@@ -1,0 +1,48 @@
+MEMORY-INJECTOR — LLM architecture dump #1 (filed in GRAFT, not VITA)
+
+Primary goal: Build an agentic AI memory injector that ingests LLM outputs and
+browser/tab content, stores everything without data loss, and continuously
+refines a hierarchical knowledge tree while anchoring immutable references on
+a blockchain-based library/filer.
+
+Key constraints:
+- Lossless ingestion: raw artifacts preserved (original text, metadata, provenance).
+- Refinement without deletion: refinements create new nodes/versions; originals remain.
+- Verifiability: artifacts and tree mutations anchored on-chain (hashes, Merkle roots, timestamps).
+- Scalability: high-volume LLM outputs and web content.
+- Agentic automation with human-in-the-loop.
+- Privacy: on-chain pointers only (no private data on-chain).
+- Interoperability: modular connectors.
+
+High-level layers: Ingestion, Raw Archive (CAS), Index & Embedding, Knowledge
+Graph & Hierarchical Tree, Refinement Engine (agents), On-chain Anchoring,
+Access & Governance, Application Layer.
+
+Core artifact: content-addressed hash, raw_blob_uri, mime_type, source,
+timestamp, provenance, metadata, optional signature. Derived artifacts link
+to inputs and are themselves immutable.
+
+Node: concept/topic/folder with children, artifacts, version_history, tags,
+embeddings, confidence, anchors. Node snapshots hashed for versioning.
+Graph links: references, citations, contradictions, derivations. DAG of
+node versions. Originals never deleted.
+
+Agents: summarizer, classifier, deduplicator, merger, conflict resolver.
+Human approval for high-impact merges. Incremental embeddings with decay.
+CAS dedup by hash; near-dup by embedding + fuzzy hash. Chunked Merkle DAG.
+
+On-chain minimalism: store only compact cryptographic anchors (hashes, Merkle
+roots, snapshot IDs), never raw content. Periodic batch anchoring. L2
+(Base / Polygon / Arbitrum). IPFS/Filecoin/Arweave for public snapshots;
+encrypted CAS for private. Proof-of-inclusion API.
+
+Operator note (from the insert): keep content off-chain to control costs but
+have last root of information so we can log snapshots of location and if able
+a directory with link of each on the blockchain as a short-hand tag anchor;
+anchor only compact cryptographic proofs when the code is long and might need
+time to fully inject, keeping the inject proofs short and easily provable
+on-chain.
+
+This dump is filed in GRAFT. It does not infect VITA HTML and does not send
+swaps. Activate with /graft activate, fund with /graft fund, think with
+/graft think.
