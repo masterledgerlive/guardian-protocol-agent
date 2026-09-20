@@ -17,7 +17,7 @@ HALT_NEW_ENTRIES=yes
 
 - Catalog HOME at fee 3000 (Aerodrome Slipstream HOME/WETH 0.3% liquid book). Uni V3 1% is ghost.
 - Rotate sells every non-HOME ERC20 (USDG skip-hold), keeps ≥0.0005 ETH gas, sweeps excess WETH→HOME via exactInputSingle. Does not sell HOME. Skips vault `0xcea0e27b…`.
-- ALLOW_LOSSY stays armed for the whole batch (#140 one-shot must not consume mid-bag), then auto-clears with OPERATOR_ROTATE_TO.
+- ALLOW_LOSSY stays armed for the whole batch (#140 one-shot must not consume mid-bag), then auto-clears with OPERATOR_ROTATE_TO. Live RISK list (AERO/MORPHO/VIRTUAL/TOSHI/BASECAT/KEYCAT/REI/STONKEX/AIXBT) sells FIFO-red under one rotate flag; USDG skip-hold; excess WETH 0.001545 spendable at 0.000680 native.
 
 After bags are HOME, set Railway `OPERATOR_ROTATE_TO` empty and `ALLOW_LOSSY_OPERATOR_SELL=no`. Leave `HALT_NEW_ENTRIES=yes` until Game re-opens entries.
 
