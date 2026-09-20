@@ -12452,7 +12452,22 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
 
       // ── /vitamothergenesis — wrap MGPLAIN 0-ETH self-txs (bank unless CONFIRM+env)
       } else if (text && (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis")) {
-        const parsed = parseMotherGenesisOperatorIntent(raw.slice("/vitamothergenesis".length).trim());
+        const genesisRest = raw.slice("/vitamothergenesis".length).trim();
+        if (/^(?:FORCE\s+)?recall$/i.test(genesisRest)) {
+          try {
+            const { forceInjectMotherGenesisRecall, formatRecallPullCard } =
+              await import("./vita/mg-recall-bank.js");
+            const result = await forceInjectMotherGenesisRecall();
+            await tg(
+              "🧬 <b>MOTHER GENESIS RECALL</b>\n<pre>" +
+              formatRecallPullCard(result).slice(0, 3500) +
+              "</pre>\n<i>Force-banked. No invented hashes. Mother brain untouched.</i>"
+            );
+          } catch (e) {
+            await tg("❌ mother genesis recall failed: " + (e.message || e));
+          }
+        } else {
+        const parsed = parseMotherGenesisOperatorIntent(genesisRest);
         const body = parsed.body;
         if (!body) {
           await tg(
@@ -12518,6 +12533,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) {
             await tg("❌ vitamothergenesis failed: " + (e.message || e));
           }
+        }
         }
 
       // ── /vitamotherGenesisencoded — AES + loc commitment, two-part key
@@ -13708,10 +13724,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
           `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
+          `/vitafeed dir — DOS master VITA:\\ ; /vitafeed dir MEMORY ; unlock CODEX\\file (open-source, no private key)\n` +
+          `/vitafeed unlock <path|n|name> — instant ZK-short unwrap → English + machine (html/song/movie/code)\n` +
           `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
           `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B; WAVE_PROOF_LIVE=yes; desk POST /vita/waveproof)\n` +
           `/wavefull — full 28-shard Heraclitus quote (WAVE_FULL_LIVE=yes; desk POST /vita/wavefull; /waveproof stays 3)\n` +
           `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
+          `/vitamothergenesis FORCE recall — force-bank recall stack; last layer = refined queries\n` +
           `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
           `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
           `/vitamemory — show all VITA memory sessions\n` +
