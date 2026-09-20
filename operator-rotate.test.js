@@ -168,4 +168,56 @@ describe("OPERATOR_ROTATE_TO=HOME gate", () => {
     assert.equal(env.OPERATOR_ROTATE_TO, "");
     assert.equal(shouldHoldAllowLossyForRotate(env, state), false);
   });
+
+  it("queues the live RISK bags and does not consume ALLOW_LOSSY mid-list", () => {
+    // Desk addendum bags (Base RISK). USDG skip-hold. HOME never sold.
+    const live = ["AERO", "MORPHO", "VIRTUAL", "TOSHI", "BASECAT", "USDG", "KEYCAT", "REI", "STONKEX", "AIXBT", "HOME"];
+    const env = { OPERATOR_ROTATE_TO: "HOME", ALLOW_LOSSY_OPERATOR_SELL: "yes" };
+    const commands = [];
+    const state = { done: false };
+    const r = queueOperatorRotateOnce(
+      commands,
+      "HOME",
+      new Set(live),
+      state,
+      { wallet: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915", env },
+    );
+    assert.equal(r.queued, true);
+    const sells = commands.filter((c) => c.action === "sell").map((c) => c.symbol);
+    assert.deepEqual(sells.sort(), ["AERO", "AIXBT", "BASECAT", "KEYCAT", "MORPHO", "REI", "STONKEX", "TOSHI", "VIRTUAL"]);
+    assert.equal(sells.includes("HOME"), false);
+    assert.equal(sells.includes("USDG"), false);
+    for (const symbol of sells) {
+      const gate = evaluateSellGate({
+        symbol,
+        reason: "MANUAL SELL (operator) ROTATE",
+        sellPct: 1,
+        entryEth: 0.001,
+        lotCostEth: 0.001,
+        operatorLot: true,
+        freshLot: true,
+        projectedProceedsEth: 0.0007,
+        usdMarkProceedsEth: 0.0007,
+        feePct: 0.01,
+        gasCostEth: 0.00002,
+        impactPct: 0.003,
+        gwei: 0.05,
+        env,
+      });
+      assert.equal(gate.allow, true, `${symbol} FIFO-red must sell during rotate`);
+      assert.equal(consumeAllowLossyOperatorSell(env), false, `${symbol} must not consume mid-bag`);
+      assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "yes");
+      markOperatorRotateSellExecuted(state, symbol);
+    }
+    assert.equal(excessWethToSell({ nativeEth: 0.000680, wethEth: 0.001545 }), 0.001545);
+    const buy = maybeQueueRotateHomeBuy(commands, state, {
+      env,
+      wallet: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+    });
+    assert.equal(buy.queued, true);
+    assert.equal(buy.symbol, "HOME");
+    const done = finishOperatorRotate(env, state);
+    assert.equal(done.consumed, true);
+    assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "no");
+  });
 });

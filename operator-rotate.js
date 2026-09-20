@@ -172,9 +172,12 @@ function pendingRotateSells(commands = []) {
 }
 
 export function rotateSellsOutstanding(commands = [], state = {}) {
-  const queued = pendingRotateSells(commands).map((c) => normSym(c.symbol));
+  const done = state.doneBySymbol && typeof state.doneBySymbol === "object" ? state.doneBySymbol : {};
+  const queued = pendingRotateSells(commands)
+    .map((c) => normSym(c.symbol))
+    .filter((s) => s && !done[s]);
   const pending = Array.isArray(state.pendingSells)
-    ? state.pendingSells.map(normSym).filter((s) => s && !state.doneBySymbol?.[s])
+    ? state.pendingSells.map(normSym).filter((s) => s && !done[s])
     : [];
   return [...new Set([...queued, ...pending])];
 }
