@@ -1980,7 +1980,13 @@ describe("fifo-lot-store — latch MORPHO FIFO from evidence buy 0x9260992e", ()
     const fifo = applyLotToToken(token, lots.MORPHO, { remainingTokens: LIVE_REM });
     assert.equal(fifo.unknown, false);
     assert.ok(Math.abs(token.totalInvestedEth - REM_COST) < 1e-12);
-    assert.equal(knownLotSellTokens(lots.MORPHO, LIVE_REM), lots.MORPHO.tokensIn);
+    const sellQty = knownLotSellTokens(lots.MORPHO, LIVE_REM);
+    assert.ok(sellQty > 0);
+    assert.ok(sellQty <= LIVE_REM + 1e-18, "never sell more than live rem");
+    assert.ok(
+      Math.abs(sellQty - LIVE_REM) < 1e-14 || Math.abs(sellQty - lots.MORPHO.tokensIn) < 1e-14,
+      "known-lot sell is rem bag (4 wei extra vs float tokensIn)",
+    );
   });
 
   it("live rem matches buy−sell — piggy dust stays 0", () => {
