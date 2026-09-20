@@ -618,6 +618,22 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^(?:restart|restartmoney|exitfuel)(?:\s|$)/i.test(trimmed)) {
     return { ok: true, action: "restart", body: "", source: "restart" };
   }
+  // Curated knowledge loader → backlog + did-you-know / capability recall.
+  if (/^(?:load|loader|preload|feedload)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:load|loader|preload|feedload)\s*/i, "").trim();
+    return { ok: true, action: "load", body: rest, source: "load" };
+  }
+  if (/^(?:know|didyouknow|hey|funfact)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:know|didyouknow|hey|funfact)\s*/i, "").trim();
+    return { ok: true, action: "know", body: rest, source: "know" };
+  }
+  if (/^(?:recall|capability|canido|skills)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:recall|capability|canido|skills)\s*/i, "").trim();
+    return { ok: true, action: "recall", body: rest, source: "recall" };
+  }
+  if (/^(?:cipher|ciphers|encoding)\b/i.test(trimmed)) {
+    return { ok: true, action: "cipher", body: "", source: "cipher" };
+  }
   // Reference memory search — calculator true-name + translator codex (ask|self).
   if (/^(?:ref|ask|recallref)\b/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:ref|ask|recallref)\s*/i, "").trim();
@@ -714,6 +730,12 @@ export function vitaFeedUsageText() {
     "  /vitafeed dual [text]      — stage both lanes; confirm seals HUMAN then MACHINE",
     "  Receipt lists spaced Basescan locs + Input Data → UTF-8 read receipt (chat).",
     "  /vitafeed restart          — bags ≥ $0.50 → exit to refill RISK for inject tests",
+    "LOADER (curated knowledge → backlog; rides existing queue):",
+    "  /vitafeed load [pack|all]  — preload cipher/prog/LLM packs + dual cost mirror",
+    "  /vitafeed know [n|id]      — Hey did you know… + on-chain library recall",
+    "  /vitafeed recall           — proof of new things chains-of-data can do",
+    "  /vitafeed cipher           — CIPHER:\\ encode↔decode hierarchy",
+    "  Animate: /vita/feed-loader — file stack preload (batch now or later)",
     "REF MEMORY (proven recursive search from packaged ledger):",
     "  /vitafeed ref <q>   — search true-name (calculator/calc/calculadora/電卓/…)",
     "  /vitafeed ask <q>   — same as ref (ask|self label from query)",
@@ -1503,6 +1525,84 @@ export async function handleVitaFeedAction({
       reply:
         restart.card +
         "\n\nMoney is for proof — exit ≥$0.50 bags to refill RISK, then /vitafeed dual [knowledge]",
+    };
+  }
+  if (action === "load") {
+    const {
+      preloadKnowledgePacks,
+      ensureLoaderMemorySeeds,
+      listKnowledgePacks,
+      getKnowledgePack,
+      LOADER_THOUGHT_NOTE,
+    } = await import("./vita-feed-loader.js");
+    ensureLoaderMemorySeeds();
+    const arg = String(body || "").trim().toLowerCase();
+    let packIds = null;
+    let includeAll = true;
+    if (arg && arg !== "all" && arg !== "seed") {
+      const one = getKnowledgePack(arg);
+      if (!one) {
+        const list = listKnowledgePacks();
+        return {
+          ok: false,
+          phase: "load",
+          reply:
+            "VITALOAD: unknown pack " +
+            arg +
+            "\npacks: " +
+            list.map((p) => p.id).join(", ") +
+            "\nTry: /vitafeed load   or /vitafeed load cipher-aes-gcm",
+        };
+      }
+      packIds = [one.id];
+      includeAll = false;
+    }
+    const result = preloadKnowledgePacks({ packIds, includeAll, quotes });
+    return {
+      ok: true,
+      phase: "load",
+      result,
+      reply:
+        (result.animation?.card || "") +
+        "\n\n" +
+        result.card +
+        "\n\nTHOUGHT: " +
+        LOADER_THOUGHT_NOTE.thought +
+        "\n\nNext: /vitafeed next · /vitafeed know · /vitafeed recall · /vita/feed-loader",
+    };
+  }
+  if (action === "know") {
+    const { formatDidYouKnowCard, ensureLoaderMemorySeeds, getKnowledgePack } =
+      await import("./vita-feed-loader.js");
+    ensureLoaderMemorySeeds();
+    const arg = String(body || "").trim();
+    const asNum = Number(arg);
+    const pack = getKnowledgePack(arg);
+    const card = formatDidYouKnowCard({
+      packId: pack?.id || null,
+      rotate: Number.isFinite(asNum) ? asNum : 0,
+    });
+    return { ok: true, phase: "know", reply: card };
+  }
+  if (action === "recall") {
+    const { formatCapabilityRecallCard, ensureLoaderMemorySeeds, getKnowledgePack } =
+      await import("./vita-feed-loader.js");
+    ensureLoaderMemorySeeds();
+    const pack = getKnowledgePack(String(body || "").trim());
+    return {
+      ok: true,
+      phase: "recall",
+      reply: formatCapabilityRecallCard({ packId: pack?.id || null }),
+    };
+  }
+  if (action === "cipher") {
+    const { formatCipherHierarchyCard, ensureLoaderMemorySeeds } =
+      await import("./vita-feed-loader.js");
+    ensureLoaderMemorySeeds();
+    return {
+      ok: true,
+      phase: "cipher",
+      reply: formatCipherHierarchyCard(),
     };
   }
   if (action === "ref") {

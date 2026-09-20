@@ -21,6 +21,7 @@ findable.
 | `vita/strands/message-cascade.json` | `MESSAGE_CASCADE` | Agentic cascade knowledge (knowledge half — useful for time to come) |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
 | `vita/vita-feed-dual.js` | `VITADUAL` | Human plain ↔ machine ZK-short dual lane; side-by-side cost/size; Basescan Input Data UTF-8 read receipt; restart exit ≥$0.50 |
+| `vita/vita-feed-loader.js` | `FEED_LOADER` | Curated knowledge packs → backlog preload + dual cost mirror; Telegram know/recall; cipher hierarchy; animated `/vita/feed-loader` |
 | `vita/vita-feed-backlog.js` | `FEED_BACKLOG` | Append-only queue of memory/files for `/vitafeed` drain without agentic AI |
 | `vita/memory/vitafeed-backlog.json` | `FEED_BACKLOG` | Pending→sealed feed queue + growth roots |
 | `vita/brain-seed.js` | `BRAIN` / `BRAIN_SEED` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
@@ -68,6 +69,8 @@ findable.
 | `TRANSLATOR_CODEX` | Free multilingual alias map (`§VITATRANS§`) — read once, never forget |
 | `VITA_SAVE_LEARN` | Bankable §TOKEN§ learn packet for `/vitasave` retrieval |
 | `VITADUAL` | Dual-lane human plain + machine ZK-short (`§VITADUAL§`) — side-by-side cost/size + Basescan read receipt |
+| `FEED_LOADER` | Curated pack preload into backlog (`§VITALOAD§`) — cipher/prog hierarchy + did-you-know recall |
+| `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
 (`#vita-mainframe`). Hitch trailers only carry squashed `§LOC§`.

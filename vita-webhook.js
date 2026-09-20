@@ -106,6 +106,11 @@ import {
   seedFeedBacklogFromMemory,
 } from "./vita/vita-feed-backlog.js";
 import {
+  loaderPublicState,
+  preloadKnowledgePacks,
+  ensureLoaderMemorySeeds,
+} from "./vita/vita-feed-loader.js";
+import {
   handleVitaFeedAction,
   maybeAutofireVitaFeed,
   vitaFeedAutofireEnabled,
@@ -144,6 +149,7 @@ const BOARD_HTML = join(ROOT, "public", "board.html");
 const V4_HTML = join(ROOT, "public", "v4.html");
 const VITA_HTML = join(ROOT, "public", "vita.html");
 const VITA_FEED_PLAYER_HTML = join(ROOT, "public", "vita-feed-player.html");
+const VITA_FEED_LOADER_HTML = join(ROOT, "public", "vita-feed-loader.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -605,6 +611,29 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/feed-player" || path === "/vita/feed-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_FEED_PLAYER_HTML, "vita feed player");
+    }
+    if ((path === "/vita/feed-loader" || path === "/vita/feed-loader/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      if (accept.includes("text/html") && !accept.includes("application/json")) {
+        return servePublicHtml(res, VITA_FEED_LOADER_HTML, "vita feed loader");
+      }
+      // Default JSON for agents / fetch() from the animated page.
+      const state = loaderPublicState({});
+      return json(res, { ok: true, ...state, html: "/vita/feed-loader" });
+    }
+    if ((path === "/vita/feed-loader.html" || path === "/vita/feed-loader/ui") && req.method === "GET") {
+      return servePublicHtml(res, VITA_FEED_LOADER_HTML, "vita feed loader");
+    }
+    if ((path === "/vita/feed-loader/preload" || path === "/vita/feed-loader/preload/") && req.method === "POST") {
+      if (!isAuthorized(req)) return err(res, "unauthorized", 401);
+      ensureLoaderMemorySeeds();
+      const body = (await readBody(req).catch(() => ({}))) || {};
+      const packIds = Array.isArray(body?.packIds) ? body.packIds : null;
+      const result = preloadKnowledgePacks({
+        packIds,
+        includeAll: !packIds?.length,
+      });
+      return json(res, { ok: true, ...result });
     }
     if ((path === "/vita/feed-library" || path === "/vita/feed-library/") && req.method === "GET") {
       return json(res, {

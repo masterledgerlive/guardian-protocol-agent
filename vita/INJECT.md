@@ -25,6 +25,13 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    HUMAN plain vs MACHINE ZK-short sizes + ETH/$. `/vitafeed dual [text]` stages both;
    confirm|override seals HUMAN then MACHINE and prints both location sets as proof.
    `/vitafeed restart` lists bags ≥ $0.50 to exit if RISK needs fuel for more inject tests.
+7c. **Loader (curated knowledge):** `/vitafeed load` preloads cipher/programming/LLM
+   packs into the **existing** backlog with dual cost mirrors + text animation.
+   `/vitafeed know` = Hey did you know… + on-chain library recall.
+   `/vitafeed recall` = proof of new chain-of-data capabilities.
+   `/vitafeed cipher` = CIPHER:\\ encode↔decode hierarchy.
+   Animate: `/vita/feed-loader`. Thought note: backlog/library/dir already covered
+   most of this — loader is the curated diet layer, not a second queue.
 8. **LIBRARY (quick pull from Telegram):** each sealed file auto-saves its
    **name + reader key + locations** into the keys library. Then:
    - `/vitafeed files` — numbered list of what you saved
