@@ -22,11 +22,13 @@
     "VITALIB": "Named library name→key→locs",
     "MEMORY": "Append-only learned notes",
     "STRAND": "Sparse inject chunk plans",
-    "VITADIR": "DOS-style master directory — open-source unlock by file name"
+    "VITADIR": "DOS-style master directory — open-source unlock by file name",
+    "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust"
   },
   "lastAdded": [
+    "MESSAGE_CASCADE",
     "MG_RECALL",
     "VITADIR"
   ],
-  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. DOS-style VITADIR proves filing + open-source unlock (no private key) when selected in Telegram."
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. DOS-style VITADIR proves filing + open-source unlock (no private key) when selected in Telegram. MESSAGE_CASCADE alternates operator love brief with agentic cascade knowledge for time-to-come retrieval."
 }
