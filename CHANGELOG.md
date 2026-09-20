@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_ROTATE NO-QUOTE rem must not block WETH→HOME
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. Do not invent hashes.
+
+Follow-up on #144: Quoter-miss skip was not enough. Unquoted catalog names
+(KITE/CRASH/BRIUN/NORMIE/OGGY/FREN ± ROOST) early-return `NO QUOTE` without
+marking rotate done, so `rotateSellsOutstanding` never clears and WETH→HOME
+never queues (WETH ~0.00194, gas ETH ~0.000664 ≥ 0.0005). Vault never.
+
+When `OPERATOR_ROTATE_TO=HOME` is armed:
+
+- rem bag NO-QUOTE / missing DexScreener-or-Quoter mark drops that symbol
+  (same class as Quoter-miss skip)
+- zero on-chain balance drops immediately (done-skipped)
+- leftover stays on-chain — no invented fill / no invented hash
+- once outstanding is empty (sold or quoter-skipped or no-quote or zero-bal),
+  queue WETH→HOME immediately; keep ≥0.0005 ETH gas
+
 ### Fixed — OPERATOR_ROTATE Quoter-miss rem must not block WETH→HOME
 
 HARD STOP: mother brain untouched. Vault never. Verified HOME still

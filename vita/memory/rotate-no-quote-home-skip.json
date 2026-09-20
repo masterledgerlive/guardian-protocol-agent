@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-20T06:53:00.000Z",
+  "topic": "operator-rotate-no-quote-zero-bal-home",
+  "text": "HARD STOP: mother brain untouched. Vault never. Verified HOME still 0x4BfAa776991E85e5f8b1255461cbbd216cFc714f. Do not invent hashes. After #144 Quoter-miss skip, live OPERATOR_ROTATE_TO=HOME still stalled: unquoted catalog names KITE/CRASH/BRIUN/NORMIE/OGGY/FREN ± ROOST early-return NO QUOTE (disabled/frozen/noBasePool/brokenQuote) without marking rotate done, so rotateSellsOutstanding never cleared and WETH→HOME never queued. Facts: WETH 0.001940 ready on RISK 0x50e1…; nonce 6093; ETH 0.000664 ≥ 0.0005 gas; HOME bal=0. Durable: when rotate is armed, NO-QUOTE / missing DexScreener-or-Quoter mark / zero on-chain balance is done-skipped for that rem symbol (same class as Quoter-miss). Leftover may stay on-chain. Once outstanding is empty (sold OR quoter-miss OR no-quote OR zero-bal), queue WETH→HOME immediately; keep ≥0.0005 ETH gas.",
+  "locations": [],
+  "hypothesis": {
+    "id": "rotate-no-quote-zero-bal-skip-home-gate",
+    "status": "operating-rule",
+    "discarded": [
+      "invent fill / hash for unquoted leftover",
+      "wait forever on KITE/CRASH/BRIUN/NORMIE/OGGY/FREN/ROOST NO QUOTE",
+      "touch mother brain",
+      "spend vault 0xcea0e27b42d025B8097f5b467F14549e71D4c5Fc",
+      "mute hitch for micro extract"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

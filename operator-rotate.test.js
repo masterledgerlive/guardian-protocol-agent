@@ -27,7 +27,9 @@ import {
   isRotateRemBag,
   rotateSellsOutstanding,
   applyRotateQuoterMiss,
+  applyRotateUnquotedSkip,
   isRotateSellSkipped,
+  isRotateNoQuote,
   ROTATE_QUOTER_MISS_SKIP,
   verifiedHomeCatalogRow,
 } from "./operator-rotate.js";
@@ -453,5 +455,106 @@ describe("OPERATOR_ROTATE Quoter-miss rem does not block HOME", () => {
     assert.ok(body.includes("applyRotateQuoterMiss"), "executeSell must drop rotate Quoter-miss rem");
     assert.ok(body.includes("HOME must not wait"));
     assert.ok(agentSrc.includes("isRotateSellSkipped(operatorRotateState, token.symbol)"));
+  });
+});
+
+describe("OPERATOR_ROTATE NO-QUOTE / zero-bal rem does not block HOME", () => {
+  const UNQUOTED = ["KITE", "CRASH", "BRIUN", "NORMIE", "OGGY", "FREN", "ROOST"];
+  const wallet = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+
+  it("drops NO-QUOTE rem from outstanding and opens the HOME buy gate", () => {
+    assert.equal(isRotateNoQuote("NO QUOTE", "NO_QUOTE"), true);
+    assert.equal(isRotateNoQuote("missing DexScreener mark", ""), true);
+    const env = { OPERATOR_ROTATE_TO: "HOME" };
+    const commands = [];
+    const state = { done: false, pendingSells: ["TYBG", ...UNQUOTED] };
+    markOperatorRotateSellExecuted(state, "TYBG");
+    for (const symbol of UNQUOTED) commands.push(rotateSellCommand(symbol));
+    assert.deepEqual(rotateSellsOutstanding(commands, state).sort(), [...UNQUOTED].sort());
+
+    for (const symbol of UNQUOTED) {
+      const r = applyRotateUnquotedSkip({
+        commands,
+        state,
+        symbol,
+        remBag: true,
+        kind: "NO QUOTE",
+        code: "NO_QUOTE",
+      });
+      assert.equal(r.dropped, true, `${symbol} NO-QUOTE rem must drop`);
+      assert.equal(r.reason, "no-quote");
+      assert.equal(isRotateSellSkipped(state, symbol), true);
+    }
+    assert.deepEqual(rotateSellsOutstanding(commands, state), []);
+    const buy = maybeQueueRotateHomeBuy(commands, state, { env, wallet });
+    assert.equal(buy.queued, true);
+    assert.equal(buy.symbol, "HOME");
+    assert.equal(commands.some((c) => c.symbol === "HOME" && c.action === "buy"), true);
+
+    const again = queueOperatorRotateOnce(
+      commands,
+      "HOME",
+      new Set([...UNQUOTED, "HOME", "TYBG"]),
+      state,
+      { wallet, env, balances: Object.fromEntries(UNQUOTED.map((s) => [s, 12])) },
+    );
+    for (const symbol of UNQUOTED) {
+      assert.equal(commands.some((c) => c.symbol === symbol && c.action === "sell"), false);
+    }
+    assert.ok(again.reason === "already-queued" || again.homeBuy || !again.queued);
+  });
+
+  it("drops zero-bal leftovers from outstanding and opens the HOME buy gate", () => {
+    const env = { OPERATOR_ROTATE_TO: "HOME" };
+    const commands = [rotateSellCommand("KITE"), rotateSellCommand("CRASH")];
+    const state = { done: false, pendingSells: ["KITE", "CRASH"] };
+    assert.deepEqual(rotateSellsOutstanding(commands, state).sort(), ["CRASH", "KITE"]);
+
+    const kite = applyRotateUnquotedSkip({
+      commands,
+      state,
+      symbol: "KITE",
+      remBag: false,
+      kind: "NO QUOTE",
+      code: "NO_QUOTE",
+      balance: 0,
+    });
+    assert.equal(kite.dropped, true);
+    assert.equal(kite.reason, "zero-bal");
+    assert.equal(rotateSellsOutstanding(commands, state).includes("KITE"), false);
+
+    const stillBlocked = maybeQueueRotateHomeBuy(commands, state, { env, wallet });
+    assert.equal(stillBlocked.queued, false);
+    assert.equal(stillBlocked.reason, "sells-pending");
+
+    const crash = applyRotateUnquotedSkip({
+      commands,
+      state,
+      symbol: "CRASH",
+      remBag: false,
+      kind: "missing DexScreener-or-Quoter mark",
+      balance: 0,
+    });
+    assert.equal(crash.dropped, true);
+    assert.equal(crash.reason, "zero-bal");
+    assert.deepEqual(rotateSellsOutstanding(commands, state), []);
+
+    const buy = maybeQueueRotateHomeBuy(commands, state, { env, wallet });
+    assert.equal(buy.queued, true);
+    assert.equal(buy.symbol, "HOME");
+  });
+
+  it("processToken NO QUOTE / disabled rotate path marks skip so HOME can queue", () => {
+    assert.ok(agentSrc.includes("applyRotateUnquotedSkip"));
+    assert.ok(agentSrc.includes("noteRotateUnquotedSkip"));
+    const procFn = agentSrc.indexOf("async function processToken(");
+    const procEnd = agentSrc.indexOf("\nasync function ", procFn + 1);
+    const body = agentSrc.slice(procFn, procEnd > 0 ? procEnd : procFn + 8000);
+    assert.ok(body.includes("noteRotateUnquotedSkip"), "processToken must drop rotate NO-QUOTE rem");
+    assert.ok(body.includes("NO QUOTE"));
+    const sellFn = agentSrc.indexOf("async function executeSell(");
+    const sellEnd = agentSrc.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = agentSrc.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 14000);
+    assert.ok(sellBody.includes("applyRotateUnquotedSkip"), "executeSell must drop rotate NO-QUOTE / zero-bal");
   });
 });
