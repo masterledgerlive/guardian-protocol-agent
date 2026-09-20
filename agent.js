@@ -177,6 +177,7 @@ import {
   HOME_POOL_FEE_PCT,
   OPERATOR_ROTATE_SELL_REASON,
   OPERATOR_ROTATE_BUY_REASON,
+  ROTATE_MIN_BALANCE,
   isOperatorRotateArmed,
   isOperatorRotateCommand,
   isRotateTarget,
@@ -188,6 +189,7 @@ import {
   maybeQueueRotateHomeBuy,
   finishOperatorRotate,
   rotateWalletAllowed,
+  rotateBypassesPiggyDustHold,
 } from "./operator-rotate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -6842,7 +6844,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // cleared a real $ bag without selling. Dust is USD-based.
     // Piggy-only dust stays on-chain — keep the reserve high-water mark and
     // clear invented cost basis only (never wipe the pile while units remain).
-    if (isDustBagUsd(totalBal, price, BAG_DUST_USD) && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)) {
+    if (
+      !rotateBypassesPiggyDustHold(reason)
+      && isDustBagUsd(totalBal, price, BAG_DUST_USD)
+      && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)
+    ) {
       const row0 = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
       const saved0 = effectiveSavedEarningsUsd({
         savedEarningsUsd: row0.savedEarningsUsd || token.savedEarningsUsd || 0,
@@ -6922,6 +6928,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const targetSaved = priorSaved + projectedBank;
 
     const overrideSell = canBypassSellLossGate(reason, process.env, token.symbol);
+    const rotateUnlock = rotateBypassesPiggyDustHold(reason);
     const piggy = applyPiggyToSell({
       balance: sellUnits,
       sellPct,
@@ -6930,7 +6937,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       reason,
       token,
       savedEarningsUsd: targetSaved,
-      forceUnlock: overrideSell,
+      forceUnlock: overrideSell || rotateUnlock,
     });
     token.piggyReserve = piggy.reserve;
     if (piggy.blocked) {
@@ -6962,7 +6969,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       amountInWei: amtToSell,
       liveBalanceWei: liveBalWei,
       piggyReserveWei: toWei(piggy.reserve, tokenDecimals),
-      unlockPiggy: !!(piggy.unlock || overrideSell),
+      unlockPiggy: !!(piggy.unlock || overrideSell || rotateUnlock),
     });
     if (sized.blocked) {
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountIn 0 after live-balance clamp (bal=${sized.liveBalanceWei} reserved=${sized.piggyReserveWei})`);
@@ -8811,7 +8818,7 @@ async function processToken(cdp, token, bal) {
           if (!rotateWalletAllowed(WALLET_ADDRESS) || !isRotateTarget(token.symbol)) {
             console.log(`⚠️  OPERATOR_ROTATE: skip buy ${token.symbol} (vault or not HOME)`);
             if (!rotateWalletAllowed(WALLET_ADDRESS)) {
-              finishOperatorRotate(process.env, operatorRotateState);
+              finishOperatorRotate(process.env, operatorRotateState, { force: true });
             }
           } else {
             const liveBal = await getFullBalance().catch(() => bal);
@@ -8824,12 +8831,12 @@ async function processToken(cdp, token, bal) {
               if (spend <= 0) {
                 console.log(`🏠 OPERATOR_ROTATE: no excess WETH above gas floor — HOME buy skipped`);
                 markOperatorRotateHomeBuyExecuted(operatorRotateState);
-                finishOperatorRotate(process.env, operatorRotateState);
+                finishOperatorRotate(process.env, operatorRotateState, { homeBuyAttempted: true });
               } else {
                 spent = await executeBuy(cdp, token, liveBal || bal, OPERATOR_ROTATE_BUY_REASON, price, spend);
                 if (spent) {
                   markOperatorRotateHomeBuyExecuted(operatorRotateState);
-                  finishOperatorRotate(process.env, operatorRotateState);
+                  finishOperatorRotate(process.env, operatorRotateState, { homeBuyAttempted: true });
                 }
               }
             } catch (e) {
@@ -8888,7 +8895,7 @@ async function processToken(cdp, token, bal) {
             }
           } else if (isRotate) {
             const remain = getCachedBalance(token.symbol) || 0;
-            if (remain <= 1) {
+            if (remain <= ROTATE_MIN_BALANCE) {
               markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
             } else {
               settleFlushedOperatorBuy(manualCommands, { ...cmd, action: "buy" }, true);
@@ -13775,7 +13782,7 @@ function applyOperatorRotateEnv() {
     process.env.OPERATOR_ROTATE_TO,
     known,
     operatorRotateState,
-    { wallet: WALLET_ADDRESS, env: process.env },
+    { wallet: WALLET_ADDRESS, env: process.env, balances: tokenBalanceCache },
   );
   if (result.queued) {
     const sells = (result.items || []).map((it) => it.symbol);

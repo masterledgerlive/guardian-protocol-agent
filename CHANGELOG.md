@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_ROTATE rem bags must unlock piggy dust and sell under $0.15
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`.
+
+Partial rotate sold AERO/VIRTUAL/MORPHO/BASECAT then stalled. Rem TOSHI /
+KEYCAT / REI / STONKEX / AIXBT logged `piggy-only dust — keeping locked`
+because USD mark < `SELLABLE_MIN_USD` (~$0.15). FORCE_EXIT also skips them
+on the same floor.
+
+When `OPERATOR_ROTATE_TO=HOME` is armed:
+
+- every rem non-HOME catalog bag with bal > 1e-9 queues sell with
+  `unlockPiggy: true` (ignore piggy floor + SELLABLE_MIN)
+- executeSell bypasses the piggy-only dust early return
+- rem latch is 1e-9 (AIXBT 0.044 no longer marks done unsold)
+- excess WETH → HOME after sells; keep ≥0.0005 ETH gas
+- do not clear `OPERATOR_ROTATE_TO` until HOME buy attempted or leftover
+  WETH is below dust
+
 ### Added — OPERATOR_ROTATE_TO=HOME empty-to-verified Defi App $HOME
 
 HARD STOP: mother brain untouched. Vault never. Not Robinhood. Not Phantom save.
