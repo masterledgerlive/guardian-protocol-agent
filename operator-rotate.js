@@ -21,6 +21,8 @@ export const HOME_UNI_V3_WETH_POOL = "0xd4d6870f76A28463d6d99caCe2Ff3C1cf997DA5A
 export const VAULT_NEVER_ADDRESS = "0xcea0e27b42d025B8097f5b467F14549e71D4c5Fc";
 export const RISK_WALLET = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
 export const ROTATE_GAS_FLOOR_ETH = 0.0005;
+/** Rem bag floor — lottery wei stays, anything above must unlock+sell. */
+export const ROTATE_MIN_BALANCE = 1e-9;
 export const OPERATOR_ROTATE_SOURCE = "OPERATOR_ROTATE";
 export const OPERATOR_ROTATE_SELL_REASON = "MANUAL SELL (operator) ROTATE";
 export const OPERATOR_ROTATE_BUY_REASON = "MANUAL BUY (operator) ROTATE HOME";
@@ -148,11 +150,22 @@ export function isOperatorRotateCommand(cmd) {
   return String(cmd?.source || "") === OPERATOR_ROTATE_SOURCE;
 }
 
+export function isRotateRemBag(balance) {
+  return Number(balance) > ROTATE_MIN_BALANCE;
+}
+
+/** Game empty→HOME: ignore piggy floor + SELLABLE_MIN_USD (~$0.15). */
+export function rotateBypassesPiggyDustHold(reason = "", env = process.env) {
+  return isOperatorRotateArmed(env) || isOperatorRotateReason(reason);
+}
+
 export function rotateSellCommand(symbol) {
   return {
     symbol: normSym(symbol),
     action: "sell",
     source: OPERATOR_ROTATE_SOURCE,
+    unlockPiggy: true,
+    pct: 1,
   };
 }
 
@@ -219,7 +232,14 @@ export function queueOperatorRotateOnce(
     const symbol = normSym(raw);
     if (!symbol || seen.has(symbol)) continue;
     if (shouldSkipRotateSell({ symbol, wallet, env })) continue;
-    if (state.doneBySymbol[symbol]) continue;
+    const units = opts.balances && typeof opts.balances === "object"
+      ? Number(opts.balances[symbol])
+      : undefined;
+    if (Number.isFinite(units) && !isRotateRemBag(units)) continue;
+    if (state.doneBySymbol[symbol]) {
+      if (!Number.isFinite(units) || !isRotateRemBag(units)) continue;
+      delete state.doneBySymbol[symbol];
+    }
     seen.add(symbol);
     list.push(symbol);
   }
@@ -302,12 +322,21 @@ export function maybeQueueRotateHomeBuy(commands, state = {}, opts = {}) {
   return { queued: true, reason: "queued", symbol: VERIFIED_HOME_SYMBOL };
 }
 
+/** Clear rotate only after HOME buy attempted (including no-excess-WETH skip). */
+export function canFinishOperatorRotate({ homeBuyAttempted = false } = {}) {
+  return !!homeBuyAttempted;
+}
+
 /**
  * Consume ALLOW_LOSSY + clear rotate after all sells and the HOME buy finish.
  * Railway dashboard should also drop OPERATOR_ROTATE_TO / ALLOW_LOSSY after.
+ * Does not clear until HOME buy attempted.
  */
-export function finishOperatorRotate(env = process.env, state = {}) {
-  if (!env || typeof env !== "object") return { consumed: false };
+export function finishOperatorRotate(env = process.env, state = {}, opts = {}) {
+  if (!env || typeof env !== "object") return { consumed: false, finished: false };
+  if (!opts.force && !canFinishOperatorRotate(opts)) {
+    return { consumed: false, finished: false, reason: "home-buy-pending" };
+  }
   const wasLossy = envYes("ALLOW_LOSSY_OPERATOR_SELL", env);
   env.ALLOW_LOSSY_OPERATOR_SELL = "no";
   env.OPERATOR_ROTATE_TO = "";

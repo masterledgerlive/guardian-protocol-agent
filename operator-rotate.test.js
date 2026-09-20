@@ -14,12 +14,17 @@ import {
   rotateWalletAllowed,
   shouldSkipRotateSell,
   excessWethToSell,
+  ROTATE_MIN_BALANCE,
   queueOperatorRotateOnce,
   markOperatorRotateSellExecuted,
   maybeQueueRotateHomeBuy,
   finishOperatorRotate,
+  canFinishOperatorRotate,
   shouldHoldAllowLossyForRotate,
   rotateAllowsLossySell,
+  rotateBypassesPiggyDustHold,
+  rotateSellCommand,
+  isRotateRemBag,
   verifiedHomeCatalogRow,
 } from "./operator-rotate.js";
 import {
@@ -27,6 +32,8 @@ import {
   consumeAllowLossyOperatorSell,
   evaluateSellGate,
 } from "./lose-zero-gate.js";
+import { applyPiggyToSell } from "./piggy-bank.js";
+import { hasSellableUsd, SELLABLE_MIN_USD } from "./cost-edge-gate.js";
 
 const agentSrc = readFileSync(new URL("./agent.js", import.meta.url), "utf8");
 
@@ -94,8 +101,8 @@ describe("OPERATOR_ROTATE_TO=HOME gate", () => {
     assert.equal(r.queued, true);
     assert.equal(commands.some((c) => c.symbol === "HOME" && c.action === "sell"), false);
     assert.equal(commands.some((c) => c.symbol === "USDG"), false);
-    assert.ok(commands.some((c) => c.symbol === "AERO" && c.action === "sell"));
-    assert.ok(commands.some((c) => c.symbol === "TOSHI" && c.action === "sell"));
+    assert.ok(commands.some((c) => c.symbol === "AERO" && c.action === "sell" && c.unlockPiggy === true));
+    assert.ok(commands.some((c) => c.symbol === "TOSHI" && c.action === "sell" && c.unlockPiggy === true));
     assert.equal(env2.HALT_NEW_ENTRIES, "yes");
     assert.equal(env2.ALLOW_LOSSY_OPERATOR_SELL, "yes");
   });
@@ -162,7 +169,7 @@ describe("OPERATOR_ROTATE_TO=HOME gate", () => {
     assert.equal(commands[0].symbol, VERIFIED_HOME_SYMBOL);
     assert.equal(commands[0].action, "buy");
 
-    const done = finishOperatorRotate(env, state);
+    const done = finishOperatorRotate(env, state, { homeBuyAttempted: true });
     assert.equal(done.consumed, true);
     assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "no");
     assert.equal(env.OPERATOR_ROTATE_TO, "");
@@ -216,8 +223,129 @@ describe("OPERATOR_ROTATE_TO=HOME gate", () => {
     });
     assert.equal(buy.queued, true);
     assert.equal(buy.symbol, "HOME");
-    const done = finishOperatorRotate(env, state);
+    const done = finishOperatorRotate(env, state, { homeBuyAttempted: true });
     assert.equal(done.consumed, true);
     assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "no");
+  });
+});
+
+describe("OPERATOR_ROTATE rem piggy-dust unlock", () => {
+  it("queues every rem bag above 1e-9 with unlockPiggy even when USD < SELLABLE_MIN", () => {
+    assert.equal(ROTATE_MIN_BALANCE, 1e-9);
+    assert.equal(isRotateRemBag(1e-9), false);
+    assert.equal(isRotateRemBag(1.000000001e-9), true);
+    assert.equal(isRotateRemBag(81.19), true);
+    assert.equal(isRotateRemBag(0.044), true);
+
+    const env = { OPERATOR_ROTATE_TO: "HOME" };
+    assert.equal(rotateBypassesPiggyDustHold("MANUAL SELL (operator) ROTATE", env), true);
+    assert.equal(rotateBypassesPiggyDustHold("", { OPERATOR_ROTATE_TO: "" }), false);
+
+    // Live rem: TOSHI 81.19 / KEYCAT 77.48 / AIXBT 0.044 mark under ~$0.15.
+    const rem = {
+      TOSHI: { bal: 81.19, px: 0.0003 },
+      KEYCAT: { bal: 77.48, px: 0.0004 },
+      AIXBT: { bal: 0.044, px: 0.05 },
+      REI: { bal: 3.11, px: 0.02 },
+      STONKEX: { bal: 1.41, px: 0.04 },
+    };
+    for (const [symbol, { bal, px }] of Object.entries(rem)) {
+      const usd = bal * px;
+      assert.ok(usd < SELLABLE_MIN_USD, `${symbol} $${usd} must be under SELLABLE_MIN`);
+      assert.equal(hasSellableUsd(bal, px, SELLABLE_MIN_USD), false);
+      const cmd = rotateSellCommand(symbol);
+      assert.equal(cmd.unlockPiggy, true);
+      assert.equal(cmd.action, "sell");
+      const piggy = applyPiggyToSell({
+        balance: bal,
+        sellPct: 1,
+        piggyReserve: bal,
+        priceUsd: px,
+        reason: "MANUAL SELL (operator) ROTATE",
+        forceUnlock: rotateBypassesPiggyDustHold("MANUAL SELL (operator) ROTATE", env),
+      });
+      assert.equal(piggy.unlock, true, `${symbol} rotate must unlock piggy`);
+      assert.ok(piggy.tokensToSell > 0, `${symbol} must sell rem units`);
+      assert.ok(Math.abs(piggy.tokensToSell - bal) < 1e-9, `${symbol} sells the full rem bag`);
+    }
+
+    const commands = [];
+    const state = { done: false, doneBySymbol: { TOSHI: true, AERO: true } };
+    const r = queueOperatorRotateOnce(
+      commands,
+      "HOME",
+      new Set(["TOSHI", "KEYCAT", "AIXBT", "REI", "STONKEX", "AERO", "HOME", "USDG"]),
+      state,
+      {
+        wallet: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+        env,
+        balances: {
+          TOSHI: 81.19,
+          KEYCAT: 77.48,
+          AIXBT: 0.044,
+          REI: 3.11,
+          STONKEX: 1.41,
+          AERO: 0,
+          HOME: 0,
+          USDG: 15,
+        },
+      },
+    );
+    assert.equal(r.queued, true);
+    const sells = commands.filter((c) => c.action === "sell");
+    assert.deepEqual(sells.map((c) => c.symbol).sort(), ["AIXBT", "KEYCAT", "REI", "STONKEX", "TOSHI"]);
+    for (const c of sells) {
+      assert.equal(c.unlockPiggy, true, `${c.symbol} must unlock piggy`);
+      assert.equal(c.source, "OPERATOR_ROTATE");
+    }
+    assert.equal(commands.some((c) => c.symbol === "AERO"), false, "sold AERO rem=0 stays done");
+    assert.equal(state.doneBySymbol.TOSHI, undefined, "TOSHI rem >1e-9 re-queues after false done latch");
+  });
+
+  it("does not clear OPERATOR_ROTATE_TO until HOME buy attempted", () => {
+    const env = { OPERATOR_ROTATE_TO: "HOME", ALLOW_LOSSY_OPERATOR_SELL: "yes" };
+    const state = { done: false };
+    assert.equal(canFinishOperatorRotate({
+      homeBuyAttempted: false,
+      nativeEth: 0.000680,
+      wethEth: 0.001545,
+    }), false);
+    assert.equal(canFinishOperatorRotate({
+      homeBuyAttempted: false,
+      nativeEth: 0.000680,
+      wethEth: 0,
+    }), false);
+    const held = finishOperatorRotate(env, state, {
+      homeBuyAttempted: false,
+      nativeEth: 0.000680,
+      wethEth: 0,
+    });
+    assert.equal(held.finished, false);
+    assert.equal(held.reason, "home-buy-pending");
+    assert.equal(env.OPERATOR_ROTATE_TO, "HOME");
+    assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "yes");
+
+    assert.equal(canFinishOperatorRotate({ homeBuyAttempted: true }), true);
+
+    const done = finishOperatorRotate(env, state, { homeBuyAttempted: true });
+    assert.equal(done.finished, true);
+    assert.equal(env.OPERATOR_ROTATE_TO, "");
+    assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "no");
+  });
+
+  it("executeSell skips piggy-only dust hold and latches rem at 1e-9 during rotate", () => {
+    assert.ok(agentSrc.includes("rotateBypassesPiggyDustHold"));
+    assert.ok(agentSrc.includes("ROTATE_MIN_BALANCE"));
+    const sellFn = agentSrc.indexOf("async function executeSell(");
+    const sellEnd = agentSrc.indexOf("\nasync function ", sellFn + 1);
+    const body = agentSrc.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 12000);
+    const bypass = body.indexOf("rotateBypassesPiggyDustHold(reason)");
+    const dustHold = body.indexOf("piggy-only dust");
+    assert.ok(bypass >= 0, "executeSell must consult rotate dust bypass");
+    assert.ok(dustHold > bypass, "rotate bypass must sit before piggy-only dust return");
+    assert.ok(body.includes("forceUnlock: overrideSell || rotateUnlock"));
+    assert.match(agentSrc, /remain <= ROTATE_MIN_BALANCE/);
+    assert.ok(agentSrc.includes("balances: tokenBalanceCache"));
+    assert.ok(agentSrc.includes("homeBuyAttempted: true"));
   });
 });
