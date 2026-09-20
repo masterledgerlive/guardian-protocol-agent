@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-20T07:35:00.000Z",
+  "topic": "rotate-home-slipstream-buy",
+  "text": "HARD STOP: mother brain untouched. Vault never. Verified HOME 0x4BfAa776991E85e5f8b1255461cbbd216cFc714f. Do not invent hashes. After #146 THIN_V3 bypass, live OPERATOR_ROTATE_TO=HOME still skipped WETH→HOME: Uni QuoterV2 miss×3 @ fees 3000/10000/500/100 then cooldown ~27m BUY SKIPPED. Liquid book is Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE96305baFAEA0c0ce07CF6456e2c64982a (on-chain tickSpacing=200, fee()=2700). Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost. Rotate HOME buy must quote+swap via Slipstream QuoterV2 0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0 and SwapRouter 0xBE6D8f0d05cC4be24d5167a3eF062215bE6D18a5, clear Uni QuoterV2 miss cooldown, keep ≥0.0005 ETH gas. Live facts: nonce 6093, ETH 0.000664, WETH 0.001940, HOME=0.",
+  "locations": [],
+  "hypothesis": {
+    "id": "rotate-home-buy-slipstream-not-uni-quoterv2",
+    "status": "operating-rule",
+    "discarded": [
+      "probe Uni QuoterV2 fees 3000/10000/500/100 for HOME",
+      "bind SwapRouter02 exactInputSingle to Uni V3 ghost 0xd4d6870f",
+      "arm 27m cooldown after Uni quote miss on rotate HOME",
+      "invent a fill hash",
+      "touch mother brain",
+      "spend vault"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -5,8 +5,9 @@
  * → HOME buy under one flag so #140 one-shot ALLOW_LOSSY cannot consume
  * mid-bag. Vault never. HOME stays in wallet.
  *
- * Liquid book: Aerodrome Slipstream HOME/WETH 0.3% (fee 3000).
- * Uni V3 HOME/WETH 1% is a ghost (~$18) — Quoter still probes V3 tiers.
+ * Liquid book: Aerodrome Slipstream HOME/WETH 0.3% (tickSpacing 200).
+ * Uni V3 HOME/WETH 1% is a ghost (~$18). Rotate HOME buy uses Slipstream
+ * quoter + router — not Uni QuoterV2 fee probe 3000/10000/500/100.
  * Official address from docs.defi.app + Coinbase (same on BNB).
  */
 
@@ -168,6 +169,34 @@ export function rotateHomeBuyBypassesV3Freeze(reason, symbol) {
 
 export function rotateHomeBuyAllowsRouteCode(code) {
   return ROTATE_HOME_THIN_V3_CODES.includes(String(code || ""));
+}
+
+/**
+ * Rotate HOME buy fills Aero Slipstream, not Uni QuoterV2.
+ * Same gate as the THIN_V3 freeze bypass — HOME + OPERATOR_ROTATE buy only.
+ */
+export function rotateHomeBuyUsesSlipstream(reason, symbol) {
+  return rotateHomeBuyBypassesV3Freeze(reason, symbol);
+}
+
+/** Existing QuoterV2 miss cooldown must not block this rotate HOME buy. */
+export function rotateHomeBuyBypassesQuoterCooldown(reason, symbol) {
+  return rotateHomeBuyUsesSlipstream(reason, symbol);
+}
+
+/**
+ * Clear HOME quote/swap fail cooldown for rotate HOME send.
+ * Keeps buyFrozen so normal /buy still honors the Uni ghost freeze.
+ */
+export function clearRotateHomeQuoterCooldown(symbol, clearFn) {
+  if (normSym(symbol) !== VERIFIED_HOME_SYMBOL) return false;
+  if (typeof clearFn === "function") clearFn(VERIFIED_HOME_SYMBOL);
+  return true;
+}
+
+/** Uni QuoterV2 miss on rotate HOME must not increment the N=3 cooldown. */
+export function rotateHomeBuyIgnoresUniQuoterMiss(reason, symbol) {
+  return rotateHomeBuyUsesSlipstream(reason, symbol);
 }
 
 export function isOperatorRotateCommand(cmd) {

@@ -33,6 +33,7 @@ import {
   UNISWAP_SWAP_ROUTER02_BASE,
   UNISWAP_PERMIT2_BASE,
 } from "./swap-minout.js";
+import { encodeSlipstreamExactInputSingle } from "./aero-slipstream.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
 const WETH = "0x4200000000000000000000000000000000000006";
@@ -181,6 +182,21 @@ describe("hitchPreservesSwapPrefix", () => {
     assert.equal(r.ok, true);
     assert.equal(decodeExactInputSingle(hitch).amountOutMinimum, 2n);
     assert.equal(decodeExactInputSingle(hitch).trailingBytes, 4);
+  });
+
+  it("allows hitch appended after Aerodrome Slipstream exactInputSingle", () => {
+    const slip = encodeSlipstreamExactInputSingle({
+      tokenIn: WETH,
+      tokenOut: TOSHI,
+      tickSpacing: 200,
+      recipient: RISK,
+      deadline: 1_700_000_000n,
+      amountIn: 1n,
+      amountOutMinimum: 2n,
+    });
+    const hitch = slip + Buffer.from("LIBM", "utf8").toString("hex");
+    const r = hitchPreservesSwapPrefix(slip, hitch);
+    assert.equal(r.ok, true);
   });
 
   it("refuses hitch that overwrites amountOutMinimum", () => {

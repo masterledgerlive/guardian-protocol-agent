@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_ROTATE HOME buy uses Aerodrome Slipstream, not Uni QuoterV2
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. Do not invent hashes.
+
+After #146 THIN_V3 bypass, live `OPERATOR_ROTATE_TO=HOME` still skipped the
+WETH→HOME buy: Uni QuoterV2 miss ×3 @ fees 3000/10000/500/100, then ~27m
+cooldown (`BUY SKIPPED`). Liquid book is Aerodrome Slipstream HOME/WETH 0.3%
+`0x098A4dE96305baFAEA0c0ce07CF6456e2c64982a` (tickSpacing 200), not Uni V3.
+
+For `OPERATOR_ROTATE` HOME buy only:
+
+- quote + swap via Slipstream quoter `0x254cF9E1…15b0` and router `0xBE6D8f0d…18a5`
+- do not probe Uni QuoterV2 fee tiers
+- clear / bypass the QuoterV2 miss cooldown so the buy can fire immediately
+- keep ≥0.0005 ETH gas; vault never
+
 ### Added — message cascade: Eureka love into each token (anti-stagnant)
 
 HARD STOP: mother brain untouched. Message-first. Never invent hashes.
@@ -18,7 +35,7 @@ New method (`vita/message-cascade.js`):
 - Cadence target **≥8 tokens / 15 minutes** (`CASCADE_TARGET_HOPS` /
   `CASCADE_WINDOW_MS` on `cascade-rollover.js`)
 - HOME `0x4BfAa776…c714f` fee 3000 cascade-available (wave/hold); rotate
-  path still never sells HOME (#142–#146)
+  path still never sells HOME (#142–#148 Slipstream buy)
 - Append-only alternation: operator message → agentic knowledge
   (`vita/memory/message-cascade-operator.json` ↔
   `vita/strands/message-cascade.json`)

@@ -13,6 +13,9 @@
 
 export const EXACT_INPUT_SINGLE_SELECTOR = "04e45aaf";
 export const EXACT_INPUT_SINGLE_BYTES = 228; // 4 + 7*32
+/** Aerodrome Slipstream SwapRouter exactInputSingle (int24 tickSpacing). */
+export const SLIPSTREAM_EXACT_INPUT_SINGLE_SELECTOR = "a026383e";
+export const SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES = 260; // 4 + 8*32
 export const SLIPPAGE_GUARD_DEFAULT = 0.85;
 export const FALLBACK_SLIPPAGE = 0.75;
 
@@ -206,7 +209,7 @@ export function decodeExactInputSingle(data) {
   };
 }
 
-/** Hitch/BTP must APPEND after the 228-byte swap. Overwriting amountOutMinimum is a refuse. */
+/** Hitch/BTP must APPEND after the swap prefix. Overwriting amountOutMinimum is a refuse. */
 export function hitchPreservesSwapPrefix(originalData, injectedData) {
   const norm = (d) => {
     const s = String(d || "").toLowerCase();
@@ -214,15 +217,19 @@ export function hitchPreservesSwapPrefix(originalData, injectedData) {
   };
   const orig = norm(originalData);
   const inj = norm(injectedData);
-  if (orig.length < 2 + EXACT_INPUT_SINGLE_BYTES * 2) {
+  const sel = orig.slice(2, 10);
+  const isUni02 = sel === EXACT_INPUT_SINGLE_SELECTOR;
+  const isSlipstream = sel === SLIPSTREAM_EXACT_INPUT_SINGLE_SELECTOR;
+  const minBytes = isSlipstream ? SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES : EXACT_INPUT_SINGLE_BYTES;
+  if (orig.length < 2 + minBytes * 2) {
     return { ok: false, log: "MINOUT: hitch check — original swap calldata too short" };
   }
-  if (!orig.startsWith("0x" + EXACT_INPUT_SINGLE_SELECTOR)) {
+  if (!isUni02 && !isSlipstream) {
     return { ok: false, log: "MINOUT: hitch check — original is not exactInputSingle" };
   }
   if (!inj.startsWith(orig)) {
-    const decO = decodeExactInputSingle(orig);
-    const decI = decodeExactInputSingle(inj);
+    const decO = isUni02 ? decodeExactInputSingle(orig) : null;
+    const decI = isUni02 ? decodeExactInputSingle(inj) : null;
     const minChanged = decO && decI && decO.amountOutMinimum !== decI.amountOutMinimum;
     const detail = minChanged
       ? ` (amountOutMinimum ${formatWei18(decO.amountOutMinimum)} → ${formatWei18(decI.amountOutMinimum)})`

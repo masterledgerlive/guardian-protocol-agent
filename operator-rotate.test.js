@@ -36,10 +36,14 @@ import {
   isOperatorRotateBuyReason,
   rotateHomeBuyBypassesV3Freeze,
   rotateHomeBuyAllowsRouteCode,
+  rotateHomeBuyUsesSlipstream,
+  rotateHomeBuyBypassesQuoterCooldown,
+  rotateHomeBuyIgnoresUniQuoterMiss,
+  clearRotateHomeQuoterCooldown,
   ROTATE_QUOTER_MISS_SKIP,
   verifiedHomeCatalogRow,
 } from "./operator-rotate.js";
-import { isBuyFrozen, freezeNewBuys } from "./price-insane.js";
+import { isBuyFrozen, freezeNewBuys, recordSlippageFail, isSlippageCooledDown, clearSlippageFails, BASE_QUOTER_V2 } from "./price-insane.js";
 import { evaluateSwapRouterRoute, MIN_SWAP_POOL_LIQ_USD } from "./quote-swap-guard.js";
 import {
   canBypassSellLossGate,
@@ -48,6 +52,14 @@ import {
 } from "./lose-zero-gate.js";
 import { applyPiggyToSell } from "./piggy-bank.js";
 import { hasSellableUsd, SELLABLE_MIN_USD } from "./cost-edge-gate.js";
+import {
+  rotateHomeSlipstreamBuyPath,
+  isSlipstreamHomeBuyPath,
+  HOME_SLIPSTREAM_TICK_SPACING,
+  SLIPSTREAM_QUOTER_V2,
+  SLIPSTREAM_SWAP_ROUTER,
+} from "./aero-slipstream.js";
+import { UNISWAP_SWAP_ROUTER02_BASE } from "./swap-minout.js";
 
 const agentSrc = readFileSync(new URL("./agent.js", import.meta.url), "utf8");
 
@@ -646,11 +658,58 @@ describe("OPERATOR_ROTATE HOME buy vs THIN_V3_WETH freeze", () => {
     assert.ok(buyFn >= 0 && buyEnd > buyFn, "executeBuy must exist");
     assert.ok(buyBody.includes("rotateHomeBuyBypassesV3Freeze"), "rotate HOME must bypass isBuyFrozen");
     assert.ok(buyBody.includes("isBuyFrozen(token.symbol) && !rotateHomeBuy"), "normal HOME buy still freezes");
-    assert.ok(buyBody.includes("rotateHomeBuyAllowsRouteCode"), "THIN_V3_WETH must not skipBuy on rotate HOME");
-    assert.ok(buyBody.includes("HOME_FEE_TIER"), "rotate HOME prefers catalog fee 3000");
-    assert.ok(buyBody.includes("HOME_UNI_V3_WETH_POOL"), "must skip Uni V3 ghost 0xd4d6870f");
-    assert.ok(buyBody.includes("skipPools: rotateHomeBuy ? [HOME_UNI_V3_WETH_POOL] : []"));
+    assert.ok(buyBody.includes("rotateHomeBuyUsesSlipstream") || buyBody.includes("getSlipstreamHomeBuyQuote"), "THIN_V3 must not bind Uni quote on rotate HOME");
+    assert.ok(buyBody.includes("HOME_SLIPSTREAM_TICK_SPACING") || buyBody.includes("encodeSlipstreamExactInputSingle"), "rotate HOME prefers Slipstream tickSpacing 200");
+    assert.ok(buyBody.includes("getSlipstreamHomeBuyQuote"), "rotate HOME must quote Slipstream, not Uni QuoterV2");
+    assert.ok(buyBody.includes("clearRotateHomeQuoterCooldown"), "must clear QuoterV2 miss cooldown");
+    assert.ok(buyBody.includes("rotateHomeBuyBypassesQuoterCooldown"), "cooldown must not skipBuy rotate HOME");
+    assert.ok(!buyBody.includes("skipPools: rotateHomeBuy ? [HOME_UNI_V3_WETH_POOL] : []"));
     assert.ok(buyBody.includes("OPERATOR_ROTATE_BUY_REASON") || agentSrc.includes("OPERATOR_ROTATE_BUY_REASON"));
     assert.equal(ROTATE_GAS_FLOOR_ETH, 0.0005);
   });
 });
+
+describe("OPERATOR_ROTATE HOME buy uses Slipstream, not Uni QuoterV2", () => {
+  it("selects Slipstream path without Uni QuoterV2 success", () => {
+    const path = rotateHomeSlipstreamBuyPath();
+    assert.equal(rotateHomeBuyUsesSlipstream(OPERATOR_ROTATE_BUY_REASON, "HOME"), true);
+    assert.equal(rotateHomeBuyUsesSlipstream("MANUAL BUY (operator) $3", "HOME"), false);
+    assert.equal(isSlipstreamHomeBuyPath(path), true);
+    assert.equal(path.tickSpacing, 200);
+    assert.equal(path.tickSpacing, HOME_SLIPSTREAM_TICK_SPACING);
+    assert.equal(path.pool.toLowerCase(), HOME_AERO_SLIPSTREAM_POOL.toLowerCase());
+    assert.equal(path.tokenOut, VERIFIED_HOME_ADDRESS);
+    assert.equal(path.quoter.toLowerCase(), SLIPSTREAM_QUOTER_V2.toLowerCase());
+    assert.equal(path.router.toLowerCase(), SLIPSTREAM_SWAP_ROUTER.toLowerCase());
+    assert.notEqual(path.quoter.toLowerCase(), BASE_QUOTER_V2.toLowerCase());
+    assert.notEqual(path.router.toLowerCase(), UNISWAP_SWAP_ROUTER02_BASE.toLowerCase());
+    assert.equal(path.uniQuoterV2, null);
+
+    const uniMiss = { amountOut: 0n };
+    const slipOk = { amountOut: 123n };
+    const chosen = rotateHomeBuyUsesSlipstream(OPERATOR_ROTATE_BUY_REASON, "HOME")
+      ? slipOk
+      : uniMiss;
+    assert.equal(chosen.amountOut, 123n, "rotate HOME buy must not depend on QuoterV2 success");
+  });
+
+  it("QuoterV2 miss cooldown does not block rotate HOME", () => {
+    const store = Object.create(null);
+    const t0 = 1_700_000_000_000;
+    recordSlippageFail("HOME", t0, { max: 3, cooldownMs: 27 * 60 * 1000, store });
+    recordSlippageFail("HOME", t0 + 1, { max: 3, cooldownMs: 27 * 60 * 1000, store });
+    const rec = recordSlippageFail("HOME", t0 + 2, { max: 3, cooldownMs: 27 * 60 * 1000, store });
+    assert.equal(rec.cooled, true);
+    assert.equal(isSlippageCooledDown("HOME", t0 + 3, store), true);
+
+    assert.equal(rotateHomeBuyBypassesQuoterCooldown(OPERATOR_ROTATE_BUY_REASON, "HOME"), true);
+    assert.equal(rotateHomeBuyBypassesQuoterCooldown("MANUAL BUY (operator) $3", "HOME"), false);
+    assert.equal(rotateHomeBuyIgnoresUniQuoterMiss(OPERATOR_ROTATE_BUY_REASON, "HOME"), true);
+    assert.equal(rotateHomeBuyIgnoresUniQuoterMiss("🎯 MIN TROUGH", "HOME"), false);
+
+    clearRotateHomeQuoterCooldown("HOME", (sym) => clearSlippageFails(sym, store));
+    assert.equal(isSlippageCooledDown("HOME", t0 + 3, store), false, "cooldown cleared so rotate can fire immediately");
+    assert.equal(isBuyFrozen("HOME", store), true, "HOME freeze row stays; rotate only bypasses");
+  });
+});
+
