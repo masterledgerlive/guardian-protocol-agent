@@ -74,10 +74,29 @@ export function shouldRetryGithubRead(status) {
   return Number(status) >= 500 || Number(status) === 0;
 }
 
-export function decodeGithubContentsJson(data) {
+/** Decode GitHub Contents API blob as UTF-8 (js/md/json/html). Never invents. */
+export function decodeGithubContentsUtf8(data) {
   if (!data || typeof data.content !== "string") return null;
-  const decoded = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8");
+  try {
+    return Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
+export function decodeGithubContentsJson(data) {
+  const decoded = decodeGithubContentsUtf8(data);
+  if (decoded == null) return null;
   return JSON.parse(decoded);
+}
+
+/** GitHub blob page — code lane (main) or state lane (bot-state). */
+export function githubBlobHtmlUrl({ repo, filename, branch } = {}) {
+  const r = String(repo || "").trim();
+  const file = String(filename || "").replace(/^\/+/, "");
+  const ref = String(branch || "").trim() || "main";
+  if (!r || !file) return null;
+  return `https://github.com/${r}/blob/${encodeURIComponent(ref)}/${file}`;
 }
 
 export function localStatePath(filename, { cwd = process.cwd() } = {}) {

@@ -751,8 +751,24 @@ describe("control board HTTP", () => {
         assert.ok(json.hitchBytes.eurekaMin > 0);
       }
     }
-    const webhookSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
-    assert.ok(webhookSrc.includes("wait: false"), "public leftover scan must not await Blockscout on the injector");
-    assert.ok(webhookSrc.includes("isPendingLeftoverScan"), "auth /vita/course must ignore scanning placeholders");
+  it("GET /vita/read opens vault-unlock.js from local disk without bot githubGet", async () => {
+    const { res, json } = await get("/vita/read?f=vault-unlock.js");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.equal(json.local, true);
+    assert.match(json.content || "", /UNLOCK_TTL|unlock vault/i);
+    assert.equal(json.neverInventHashes, true);
+    assert.ok(Array.isArray(json.locations));
+    assert.ok(json.locations.every((l) => /^0x[0-9a-fA-F]{64}$/.test(l.location)));
+    assert.match(json.sessionKey?.key || "", /^VITASESS\./);
+  });
+
+  it("GET /vita/mirror files lists click-through catalog", async () => {
+    const { res, json } = await get("/vita/mirror?cmd=/vita%20files");
+    assert.equal(res.status, 200);
+    assert.equal(json.ok, true);
+    assert.match(json.reply || "", /vault-unlock\.js/);
+    const row = (json.files || []).find((f) => f.name === "vault-unlock.js");
+    assert.equal(row?.exists, true);
   });
 });

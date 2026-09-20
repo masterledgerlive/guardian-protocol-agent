@@ -241,6 +241,8 @@ function helpText() {
     "/xmem [query]     search pulled hitch UTF-8 (XMEM / STORE KEY / tags)",
     "/reader           show reconstructed packet from locations",
     "/vita [question]  answer from KEY / LOC / LEARN",
+    "/vita read FILE   open file + SNARK + IDM locs (no Anthropic)",
+    "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
     "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",
     "/vitafeed [text|file|brain|learn|proof|load|know|recall|cipher|backlog|enqueue|next|dir|unlock|dual|translate] exact/VITAFILE/mind; DOS dir; dual lanes; loader packs; open-source unlock; files|play|keys; confirm|override; /vita/feed-player · /vita/feed-loader",
@@ -531,7 +533,26 @@ export async function handleCommand(state, raw) {
     persist(state);
     return say("INJECT\n" + lines.join("\n") + "\n\n" + (state.reveal === "locations" ? locToken(state.nodes) : packed));
   }
-  if (low.startsWith("/vita ")) return say(answer(state, input.slice(6)));
+  if (low.startsWith("/vita ")) {
+    const rest = input.slice(6).trim();
+    const lowRest = rest.toLowerCase();
+    if (
+      /^(read|files|proof|unwrap|chain|session|keys|plugins|open|exist)\b/.test(lowRest) ||
+      lowRest === "files" ||
+      lowRest === "chain" ||
+      lowRest === "session" ||
+      lowRest === "keys"
+    ) {
+      try {
+        const res = await fetch("/vita/mirror?cmd=" + encodeURIComponent(input.trim()));
+        const data = await res.json();
+        return say(data.reply || data.error || "mirror miss");
+      } catch (e) {
+        return say("mirror fetch failed: " + (e.message || e));
+      }
+    }
+    return say(answer(state, rest));
+  }
   if (low.startsWith("/")) return say("unknown — /help");
   return say(answer(state, input));
 }

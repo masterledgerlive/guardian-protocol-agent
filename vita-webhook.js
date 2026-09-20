@@ -43,7 +43,8 @@
 //   GET  /vita/brain        — six-lobe brain + finetune hypothesis graph (auth)
 //   GET  /vita/hypotheses   — hypothesis graph query (?q=&status=&symbol=) (auth)
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
-//   GET  /vita/read?f=FILE  — read any GitHub file VITA has access to
+//   GET  /vita/read?f=FILE  — open file (local + GitHub CODE/STATE) + SNARK + IDM
+//   GET  /vita/mirror       — GitHub-as-chain catalog / proof / unwrap / session keys
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
 //
@@ -119,6 +120,16 @@ import {
   VITAFEED_AUTOFIRE_CHAT_ID,
 } from "./vita/vita-feed.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
+import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
+import {
+  liveGithubRepo,
+  liveGithubBranch,
+  liveStateBranch,
+  liveGithubToken,
+  githubAuthHeaders,
+  githubContentsUrl,
+  decodeGithubContentsUtf8,
+} from "./github-contents.js";
 import {
   formatWaveProofHttpResult,
   handleWaveProofAction,
@@ -171,6 +182,27 @@ function json(res, data, status = 200) {
 
 function err(res, msg, status = 400) {
   json(res, { error: msg }, status);
+}
+
+/** GitHub UTF-8 fetch for mirror reads — local disk still works without bot. */
+async function webhookGithubUtf8(filename, branch) {
+  if (botState?.githubGetUtf8FromBranch) {
+    return botState.githubGetUtf8FromBranch(filename, branch);
+  }
+  const repo = liveGithubRepo();
+  if (!repo) return { text: null, status: 0, miss: true };
+  try {
+    const res = await fetch(
+      githubContentsUrl({ repo, filename, branch, cacheBust: true }),
+      { headers: githubAuthHeaders(liveGithubToken()) },
+    );
+    if (!res.ok) return { text: null, status: res.status, miss: true };
+    const data = await res.json();
+    const text = decodeGithubContentsUtf8(data);
+    return { text, sha: data.sha, status: res.status, miss: text == null };
+  } catch {
+    return { text: null, status: 0, miss: true };
+  }
 }
 
 /** Public POST /board/api/sim shares this process with the live injector — cap bodies. */
@@ -1052,30 +1084,77 @@ async function handleVitaRequest(req, res) {
       const rf = await botState.githubGet("vita-registry.json");
       json(res, { ok: true, registry: rf?.content || {} });
 
-    // ── GET /vita/read — read any GitHub file ────────────────────────────────
+    // ── GET /vita/read — local disk + GitHub CODE/STATE (no Anthropic) ────────
     } else if (path === "/vita/read" && req.method === "GET") {
-      if (!botState?.githubGet) return err(res, "bot not ready");
-      const filename = url.searchParams.get("f");
+      const filename = url.searchParams.get("f") || url.searchParams.get("file");
       if (!filename) return err(res, "missing ?f=filename");
+      const out = await handleVitaMirrorAction({
+        action: "read",
+        filename,
+        cwd: ROOT,
+        githubFetch: webhookGithubUtf8,
+        codeBranch: liveGithubBranch(),
+        stateBranch: liveStateBranch(),
+        repo: liveGithubRepo(),
+        chatId: "http-read",
+      });
+      json(res, {
+        ok: out.ok,
+        filename: out.filename || filename,
+        content: String(out.text || "").slice(0, 50000),
+        preview: out.preview || null,
+        snark: out.snark || null,
+        locations: out.locations || [],
+        sessionKey: out.sessionKey
+          ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
+          : null,
+        local: out.local || false,
+        github: out.github || false,
+        reply: out.reply,
+        neverInventHashes: true,
+      }, out.ok ? 200 : 404);
 
-      const allowed = [
-        "agent.js","vault-loader.js","vault-unlock.js","keystore.js",
-        "memory-engine.js","vita-memory.js","log-formatter.js","encryptkey.js",
-        "vita-registry.json","memory-registry.json",
-        "ledger.json","positions.json","tokens.json","vita-registry.json",
-        "engine-board.js","peak-ride.js","second-inject.js","piggy-bank.js",
-        "board-control.js","BOARD.md",
-        "vita-parse.js","vita-locations.js","vita-router.js","vita-course.js",
-        "vita-router-state.json","xmem.js","XMEM.md",
-      ];
-      if (!allowed.includes(filename)) return err(res, "file not in allowed list");
-
-      const file = await botState.githubGet(filename);
-      const content = typeof file?.content === "string"
-        ? file.content
-        : JSON.stringify(file?.content || {}, null, 2);
-
-      json(res, { ok: true, filename, content: content.slice(0, 50000) });
+    // ── GET /vita/mirror — GitHub-as-chain catalog / proof / unwrap / session ─
+    } else if ((path === "/vita/mirror" || path === "/vita/mirror/") && req.method === "GET") {
+      const cmd = String(url.searchParams.get("cmd") || "").trim();
+      let parsed = cmd
+        ? parseVitaMirrorCommand(cmd.startsWith("/") ? cmd : "/vita " + cmd)
+        : {
+          action: url.searchParams.get("action") || "chain",
+          filename: url.searchParams.get("f") || url.searchParams.get("file") || null,
+          key: url.searchParams.get("key") || null,
+          kind: url.searchParams.get("kind") || null,
+        };
+      const action = parsed.action && parsed.action !== "ask" ? parsed.action : "chain";
+      const out = await handleVitaMirrorAction({
+        action,
+        filename: parsed.filename || null,
+        key: parsed.key || null,
+        kind: parsed.kind || null,
+        cwd: ROOT,
+        githubFetch: webhookGithubUtf8,
+        codeBranch: liveGithubBranch(),
+        stateBranch: liveStateBranch(),
+        repo: liveGithubRepo(),
+        chatId: "http-mirror",
+      });
+      json(res, {
+        ok: out.ok,
+        action,
+        filename: out.filename || parsed.filename || null,
+        reply: out.reply,
+        preview: out.preview || null,
+        snark: out.snark || null,
+        locations: out.locations || [],
+        sessionKey: out.sessionKey
+          ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
+          : null,
+        files: out.files || undefined,
+        exists: out.exists,
+        local: out.local,
+        github: out.github,
+        neverInventHashes: true,
+      }, out.ok ? 200 : 404);
 
     // ── GET /vita/status — live bot status ───────────────────────────────────
     } else if (path === "/vita/status" && req.method === "GET") {
@@ -1180,7 +1259,8 @@ export function startVitaWebhook() {
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/brain    — six-lobe brain + finetune hypothesis graph");
     console.log("   /vita/hypotheses — query hypothesis graph");
-    console.log("   /vita/read     — read GitHub files");
+    console.log("   /vita/read     — open files (local + GitHub CODE/STATE, SNARK + IDM)");
+    console.log("   /vita/mirror   — GitHub-as-chain catalog / proof / unwrap / session keys");
     console.log("   /vita/status   — live bot status");
     console.log("   /vita/save     — programmatic vitasave (auth; banks unpaired STORE)");
   });

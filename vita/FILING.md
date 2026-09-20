@@ -16,6 +16,8 @@ findable.
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
+| `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
+| `vita/memory/mirror-chain-github.json` | `MIRROR_CHAIN` | Research note: GitHub contents ≈ availability ledger; Base hitch = settlement |
 | `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up |
 | `vita/memory/message-cascade-operator.json` | `MESSAGE_CASCADE` | Operator love/eureka cascade brief (message half of alternation) |
 | `vita/strands/message-cascade.json` | `MESSAGE_CASCADE` | Agentic cascade knowledge (knowledge half — useful for time to come) |
@@ -62,6 +64,7 @@ findable.
 | `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
 | `MG_RECALL` | Force-banked recall stack (`§MGRECALL§`) — pull one location; last layer is refined queries |
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
+| `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
@@ -87,8 +90,8 @@ Full tx hashes live in `vita/anchors.json` and inside infected HTML
    infect via `infectVitaHtmlDocument`.
 3. **Code refine** → keep `ORIGINAL_FORMULA.md` invariants; grow strands in
    `vita/strands/`; point PRs at this folder as the continuing base.
-4. **Reads** → prefer `GET /vita/inject`, `/vita/locations`, `/vita/leftover`,
-   and Basescan UTF-8 over invented summaries.
+4. **Reads** → prefer `GET /vita/read`, `/vita/mirror`, `/vita/inject`, `/vita/locations`, `/vita/leftover`,
+   and Basescan UTF-8 over invented summaries. `/vita read FILE` is local disk first (no Anthropic).
 5. **Writes on-chain** → leftover KEY+LOC when covered; `/prove` for Eureka;
    never invent a hash.
 6. **Env** → `VITA_MESSAGE_FIRST` default `yes` (1× cover → hitch). Set `no`
