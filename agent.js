@@ -172,6 +172,24 @@ import {
   isSkipHoldDeadRoute,
 } from "./lose-zero-gate.js";
 import {
+  VERIFIED_HOME_ADDRESS,
+  HOME_FEE_TIER,
+  HOME_POOL_FEE_PCT,
+  OPERATOR_ROTATE_SELL_REASON,
+  OPERATOR_ROTATE_BUY_REASON,
+  isOperatorRotateArmed,
+  isOperatorRotateCommand,
+  isRotateTarget,
+  shouldSkipRotateSell,
+  excessWethToSell,
+  queueOperatorRotateOnce,
+  markOperatorRotateSellExecuted,
+  markOperatorRotateHomeBuyExecuted,
+  maybeQueueRotateHomeBuy,
+  finishOperatorRotate,
+  rotateWalletAllowed,
+} from "./operator-rotate.js";
+import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
   EVIDENCE_ADDON_BUY_TXS,
@@ -2149,6 +2167,10 @@ const DEFAULT_TOKENS = [
     score: { liquidity:8, waveQuality:7, fundamentals:8, coinbaseFit:8, community:8, total:39 },
     notes: "BankrCoin — inject main. Uni v3 BNKR/WETH 1% ~$1.83M / ~$252k — deep hitch book." },
 
+  { symbol: "HOME",    address: VERIFIED_HOME_ADDRESS, feeTier: HOME_FEE_TIER, poolFeePct: HOME_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
+    score: { liquidity:8, waveQuality:6, fundamentals:8, coinbaseFit:10, community:7, total:39 },
+    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… (~$12.5k). Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). Catalog fee 3000 matches liquid 0.3%; Quoter probes Uni V3 tiers. OPERATOR_ROTATE_TO target — do not sell HOME. Vault never." },
+
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
     score: { liquidity:6, waveQuality:7, fundamentals:5, coinbaseFit:7, community:8, total:33 },
@@ -3289,6 +3311,7 @@ let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
 const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
 const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
+const operatorRotateState = { done: false, executed: false, doneBySymbol: {}, pendingSells: [] }; // OPERATOR_ROTATE_TO batch
 const operatorUnwrapState = { done: false, executed: false }; // OPERATOR_UNWRAP one-shot
 /** Last QuoterV2 executable flag per symbol — green SELLING only when true. */
 const lastQuoterExecutable = Object.create(null);
@@ -7700,6 +7723,10 @@ async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
 
 async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
   try {
+    if (isOperatorRotateArmed()) {
+      console.log(`  🌊 CASCADE skipped — OPERATOR_ROTATE_TO=${process.env.OPERATOR_ROTATE_TO} (no new entries)`);
+      return;
+    }
     // Never start a cascade hop without native gas for this buy + the next exit.
     const gasOk = await ensureCascadeNativeGas(cdp, `cascade-${soldSymbol}`);
     if (!gasOk) {
@@ -8780,28 +8807,100 @@ async function processToken(cdp, token, bal) {
 
       if (cmd.action === "buy") {
         lastTradeTime[token.symbol] = 0; // operator override — fire now
-        const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
-        let spent = false;
-        try {
-          spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
-        } catch (e) {
-          console.log(`⚠️  MANUAL BUY ${token.symbol}: ${e.message} — re-queued`);
+        if (isOperatorRotateCommand(cmd)) {
+          if (!rotateWalletAllowed(WALLET_ADDRESS) || !isRotateTarget(token.symbol)) {
+            console.log(`⚠️  OPERATOR_ROTATE: skip buy ${token.symbol} (vault or not HOME)`);
+            if (!rotateWalletAllowed(WALLET_ADDRESS)) {
+              finishOperatorRotate(process.env, operatorRotateState);
+            }
+          } else {
+            const liveBal = await getFullBalance().catch(() => bal);
+            const spend = excessWethToSell({
+              nativeEth: liveBal?.eth ?? bal.eth,
+              wethEth: liveBal?.weth ?? bal.weth,
+            });
+            let spent = false;
+            try {
+              if (spend <= 0) {
+                console.log(`🏠 OPERATOR_ROTATE: no excess WETH above gas floor — HOME buy skipped`);
+                markOperatorRotateHomeBuyExecuted(operatorRotateState);
+                finishOperatorRotate(process.env, operatorRotateState);
+              } else {
+                spent = await executeBuy(cdp, token, liveBal || bal, OPERATOR_ROTATE_BUY_REASON, price, spend);
+                if (spent) {
+                  markOperatorRotateHomeBuyExecuted(operatorRotateState);
+                  finishOperatorRotate(process.env, operatorRotateState);
+                }
+              }
+            } catch (e) {
+              console.log(`⚠️  OPERATOR_ROTATE HOME buy: ${e.message} — re-queued`);
+            }
+            if (!spent && !operatorRotateState.finished) {
+              settleFlushedOperatorBuy(manualCommands, cmd, false);
+            }
+          }
+        } else {
+          const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+          let spent = false;
+          try {
+            spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+          } catch (e) {
+            console.log(`⚠️  MANUAL BUY ${token.symbol}: ${e.message} — re-queued`);
+          }
+          if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+          else settleFlushedOperatorBuy(manualCommands, cmd, spent);
         }
-        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
-        else settleFlushedOperatorBuy(manualCommands, cmd, spent);
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
-        const reason = cmd.source === "OPERATOR_SELL"
-          ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
-          : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL");
-        const sellPct = resolveManualSellPct(cmd, {
-          fullUnwind: canBypassSellLossGate(reason, process.env, token.symbol),
-        });
-        const p = await executeSell(cdp, token, sellPct, reason, price, true);
-        if (p > 0) {
-          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
-          const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+        const isRotate = isOperatorRotateCommand(cmd);
+        if (isRotate && shouldSkipRotateSell({
+          symbol: token.symbol,
+          address: token.address,
+          wallet: WALLET_ADDRESS,
+        })) {
+          console.log(`🏠 OPERATOR_ROTATE: skip sell ${token.symbol} (HOME / vault / dead route)`);
+          markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+          maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+            env: process.env,
+            wallet: WALLET_ADDRESS,
+          });
+        } else {
+          const reason = isRotate
+            ? OPERATOR_ROTATE_SELL_REASON
+            : (cmd.source === "OPERATOR_SELL"
+              ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
+              : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL"));
+          const sellPct = resolveManualSellPct(cmd, {
+            fullUnwind: isRotate || canBypassSellLossGate(reason, process.env, token.symbol),
+          });
+          const p = await executeSell(cdp, token, sellPct, reason, price, true);
+          if (p > 0) {
+            if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
+            if (isRotate) markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+            if (!isRotate) {
+              const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+            } else {
+              maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+                env: process.env,
+                wallet: WALLET_ADDRESS,
+              });
+            }
+          } else if (isRotate) {
+            const remain = getCachedBalance(token.symbol) || 0;
+            if (remain <= 1) {
+              markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+            } else {
+              settleFlushedOperatorBuy(manualCommands, { ...cmd, action: "buy" }, true);
+              if (!manualCommands.some((c) => isOperatorRotateCommand(c) && c.symbol === token.symbol && c.action === "sell")) {
+                manualCommands.push(cmd);
+              }
+            }
+            maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+              env: process.env,
+              wallet: WALLET_ADDRESS,
+            });
+          }
         }
       } else if (cmd.action === "sellhalf") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
@@ -13666,6 +13765,37 @@ async function flushPendingOperatorBuys(cdp) {
   }
 }
 
+function applyOperatorRotateEnv() {
+  const known = new Set([
+    ...DEFAULT_TOKENS.map(t => t.symbol),
+    ...tokens.map(t => t.symbol),
+  ]);
+  const result = queueOperatorRotateOnce(
+    manualCommands,
+    process.env.OPERATOR_ROTATE_TO,
+    known,
+    operatorRotateState,
+    { wallet: WALLET_ADDRESS, env: process.env },
+  );
+  if (result.queued) {
+    const sells = (result.items || []).map((it) => it.symbol);
+    const homeNote = result.homeBuy ? " + HOME WETH sweep" : "";
+    console.log(`🏠 OPERATOR_ROTATE_TO=HOME queued: ${sells.join(", ") || "(no bags)"}${homeNote} — HALT_NEW_ENTRIES, ALLOW_LOSSY held until HOME buy`);
+    tg(`🏠 <b>OPERATOR_ROTATE queued</b>\nEmpty non-HOME bags → verified HOME\n${sells.join(", ") || "WETH sweep only"}\nVault never. Gas floor 0.0005 ETH. ALLOW_LOSSY held until done.`).catch(() => {});
+  } else if (result.reason === "vault-never") {
+    console.log(`⚠️  OPERATOR_ROTATE: vault wallet ${WALLET_ADDRESS} — skip entirely`);
+  } else if (result.reason === "invalid") {
+    console.log(`⚠️  OPERATOR_ROTATE_TO: invalid "${process.env.OPERATOR_ROTATE_TO}" — only HOME (verified 0x4BfA…714f)`);
+  }
+  if (isOperatorRotateArmed() && !operatorRotateState.finished) {
+    maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+      env: process.env,
+      wallet: WALLET_ADDRESS,
+    });
+  }
+  return result;
+}
+
 function applyOperatorSellEnv() {
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
@@ -13935,6 +14065,7 @@ async function main() {
   await loadFromGitHub();
   applyOperatorBuyEnv();
   applyOperatorSellEnv();
+  applyOperatorRotateEnv();
   applyOperatorUnwrapEnv();
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.
@@ -14944,6 +15075,7 @@ async function main() {
 
       // Free stranded CBBTC/AAVE → ETH (no cascade). Names stay FROZEN.
       applyForcedLockedExits();
+      applyOperatorRotateEnv();
 
       // ── v18: BTP AUTO-SUSPEND at low capital ────────────────────────────────
       const tradeableUsd = bal.tradeableWithWeth * ethUsd;

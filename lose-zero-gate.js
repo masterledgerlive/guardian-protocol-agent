@@ -1,5 +1,11 @@
 import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
 import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
+import {
+  isOperatorRotateArmed,
+  isOperatorRotateReason,
+  rotateAllowsLossySell,
+  shouldHoldAllowLossyForRotate,
+} from "./operator-rotate.js";
 
 /**
  * LOSE-ZERO / inject-cover gate for speculative buys AND lose-zero sells.
@@ -39,8 +45,10 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
  * listed names. ALLOW_LOSSY is **one-shot**: the first sell that uses it
  * consumes the in-process flag (`no`). Further red sells HOLD until Game
  * re-arms. Railway env must be set back to `no` (or clear OPERATOR_SELL) —
- * a restart reloads the dashboard value. DUST RECYCLE / piggy 95% HOLDs
- * FIFO-red unless that one-shot is currently armed. Green FORCE EXIT / lossy
+ * a restart reloads the dashboard value. OPERATOR_ROTATE_TO=HOME holds
+ * ALLOW_LOSSY until every non-HOME sell + HOME buy finish, then consumes.
+ * DUST RECYCLE / piggy 95% HOLDs FIFO-red unless that one-shot is currently
+ * armed. Green FORCE EXIT / lossy
  * plus still hitch when message-first leftover covers 1× KEY+LOC — do not
  * mute the chain on a recovery unwind. Auto sells stay HOLD when those
  * flags are off.
@@ -1146,6 +1154,8 @@ export function isAllowLossyOperatorSell(env = process.env) {
  */
 export function consumeAllowLossyOperatorSell(env = process.env) {
   if (!env || typeof env !== "object") return false;
+  // Empty-to-HOME rotate must not consume mid-bag (#140 one-shot).
+  if (shouldHoldAllowLossyForRotate(env)) return false;
   const was = envFlagYes("ALLOW_LOSSY_OPERATOR_SELL", env);
   env.ALLOW_LOSSY_OPERATOR_SELL = "no";
   return was;
@@ -1156,6 +1166,9 @@ export function usedAllowLossyOperatorSellBypass(reason = "", env = process.env,
   if (!isAllowLossyOperatorSell(env)) return false;
   if (isForceExitLockedReason(reason)) return false;
   if (isListedForceExitSymbol(symbol, env)) return false;
+  if (rotateAllowsLossySell(symbol, env) && (isManualOperatorSell(reason) || isOperatorRotateReason(reason))) {
+    return true;
+  }
   return isGameForceExitPriority(symbol);
 }
 
@@ -1165,6 +1178,9 @@ export function isForceExitLockedReason(reason = "") {
 
 export function canBypassSellLossGate(reason = "", env = process.env, symbol = "") {
   if (isForceExitLockedReason(reason)) return true;
+  if (rotateAllowsLossySell(symbol, env) && (isManualOperatorSell(reason) || isOperatorRotateReason(reason))) {
+    return true;
+  }
   if (!isGameForceExitPriority(symbol)) return false;
   if (isListedForceExitSymbol(symbol, env)) return true;
   return isAllowLossyOperatorSell(env);

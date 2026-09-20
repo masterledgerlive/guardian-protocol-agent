@@ -244,6 +244,7 @@ SKIP_OHLC_SEED            ← yes / true / 1 / on = skip the 90-day candle seed 
 UNFREEZE_SYMBOLS          ← TIBBIR or TIBBIR,VVV = clear catalog freeze at runtime for those names (comma / semicolon / whitespace). Does not rewrite DEFAULT_TOKENS. Telegram `/unfreeze` is in-memory only + runtime slippage buy-freeze clear — it does not persist across restart. Frozen catalog still blocks OPERATOR_BUY until this env or a catalog `frozen: false`.
 OPERATOR_BUY              ← TOSHI:3 = queue one operator manual buy of $3 TOSHI at each fresh process boot (after CDP ready) and flush it before OHLC seed / after recon. Same as /buy TOSHI $3. Latch is set only after the swap executes so a fatal main() restart re-queues. Leftover+edge and COST_EDGE near-term do not block; hitch if leftover covers, else plain. Frozen catalog names are never queued. AERO fills Uni V3 WETH 0x3d5D1433…, not Aerodrome-primary.
 OPERATOR_SELL             ← AERO:all / DRB:100 / TOSHI:50 = queue those operator sells after CDP ready. Bare `AERO,DRB,BNKR` = 100% each. Latch is per-symbol after the swap executes. Bypasses wave gates as MANUAL SELL (operator). With ALLOW_LOSSY_OPERATOR_SELL=yes, FIFO-red operator/fresh lots unwind (hitch SKIP; piggy unlock). Auto stays gated when the flag is off.
+OPERATOR_ROTATE_TO        ← HOME = one-shot empty all non-HOME Base RISK ERC20 bags → verified defi.app $HOME `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. Sets HALT_NEW_ENTRIES, holds ALLOW_LOSSY for the whole batch (does not consume mid-bag), keeps ≥0.0005 ETH gas, sweeps excess WETH→HOME. Never sells HOME. Never touches vault `0xcea0e27b42d025B8097f5b467F14549e71D4c5Fc`. After done, in-process clears ALLOW_LOSSY + OPERATOR_ROTATE_TO — also set Railway back to empty/`no`.
 PRICE_INSANE_MIN_RATIO    ← mark / DexScreener-Gecko (or last sane) floor (default 0.01)
 PRICE_INSANE_MAX_RATIO    ← mark / DexScreener-Gecko (or last sane) ceiling (default 100)
 PRICE_INSANE_RETRY_COOLDOWN_MS ← after a PRICE_INSANE refuse, skip re-fetch / re-attempt (default 600000 = 10m). Still refuse.
@@ -267,6 +268,7 @@ After bags were flattened to ETH for the V3 vs V4 race. Vault untouched. USDG ~$
 | `HALT_NEW_ENTRIES` | unset / `no` | `yes` is the same *gate* as LOSE_ZERO. **Redeploy** after clearing Railway env — in-process `yes` survives an env-store edit. |
 | `REQUIRE_INJECT_COVER` | unset (or `yes` with LOSE_ZERO) | Optional; LOSE_ZERO already requires cover. |
 | `OPERATOR_SELL` | **empty** | Do not re-arm AERO/DRB/BNKR/USDG sells. |
+| `OPERATOR_ROTATE_TO` | **empty** after HOME rotate | Arm `HOME` + `ALLOW_LOSSY_OPERATOR_SELL=yes` + `HALT_NEW_ENTRIES=yes` for one empty-to-HOME. In-process clear after HOME buy; also set Railway back. |
 | `FORCE_EXIT_SYMBOLS` | **empty** | Do not re-arm Game unwind. USDG is stripped if listed. |
 | `FORCE_EXIT_LOCKED_MAJORS` | `no` after flatten (or leave default for CBBTC/AAVE dust only) | Empty bags should not loop FORCE EXIT. |
 | `ALLOW_LOSSY_OPERATOR_SELL` | unset / `no` | One-shot only when Game arms `yes`. After the unwind, set back to `no` (in-process consume already does). |

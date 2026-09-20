@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added — OPERATOR_ROTATE_TO=HOME empty-to-verified Defi App $HOME
+
+HARD STOP: mother brain untouched. Vault never. Not Robinhood. Not Phantom save.
+Verified HOME `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f` (docs.defi.app + Coinbase; same on BNB).
+
+One Railway env set to empty Base RISK bags into $HOME:
+
+```
+OPERATOR_ROTATE_TO=HOME
+ALLOW_LOSSY_OPERATOR_SELL=yes
+HALT_NEW_ENTRIES=yes
+```
+
+- Catalog HOME at fee 3000 (Aerodrome Slipstream HOME/WETH 0.3% liquid book). Uni V3 1% is ghost.
+- Rotate sells every non-HOME ERC20 (USDG skip-hold), keeps ≥0.0005 ETH gas, sweeps excess WETH→HOME via exactInputSingle. Does not sell HOME. Skips vault `0xcea0e27b…`.
+- ALLOW_LOSSY stays armed for the whole batch (#140 one-shot must not consume mid-bag), then auto-clears with OPERATOR_ROTATE_TO.
+
+After bags are HOME, set Railway `OPERATOR_ROTATE_TO` empty and `ALLOW_LOSSY_OPERATOR_SELL=no`. Leave `HALT_NEW_ENTRIES=yes` until Game re-opens entries.
+
 ### Fixed — one-shot ALLOW_LOSSY + DUST RECYCLE must not sell AERO FIFO-red
 
 HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
