@@ -1,0 +1,29 @@
+{
+  "strandId": "message-cascade-v1",
+  "at": "2026-09-20T07:36:00.000Z",
+  "topic": "message-cascade-knowledge",
+  "role": "agent",
+  "alternation": "knowledge",
+  "label": "MESSAGE_CASCADE",
+  "sparse": true,
+  "formula": "original-message-first",
+  "neverForget": true,
+  "usefulForTimeToCome": true,
+  "text": "Message-cascade v1: every test/hop carries Eureka love into a token SYM. Wave high/low load instantly from token-embedded peaks/troughs — no cold scan when not in own injection. Cadence ≥8 tokens / 15 min; leave $0.05 dust each exit. Rank top→bottom by revenue + lowered waiting-to-rise; pre-arm sell when moving up. Buy all character spot cost so message always triggers; cascade into cheap lowered seats. HOME 0x4BfAa776991E85e5f8b1255461cbbd216cFc714f fee 3000: cascade-available wave/hold; OPERATOR_ROTATE never sells HOME; THIN_V3 / Quoter-miss / NO-QUOTE rem skips unlock WETH→HOME (#142–#146). Message-first: do not mute hitch for micro extract; Storage Token can charge delta. Never invent hashes. Never sell red to place code. Mother brain untouched.",
+  "module": "vita/message-cascade.js",
+  "pairMemory": "vita/memory/message-cascade-operator.json",
+  "home": {
+    "symbol": "HOME",
+    "address": "0x4BfAa776991E85e5f8b1255461cbbd216cFc714f",
+    "feeTier": 3000,
+    "cascadeAvailable": true,
+    "rotateNeverSells": true
+  },
+  "cadence": {
+    "targetHops": 8,
+    "windowMs": 900000,
+    "leaveDustUsd": 0.05
+  },
+  "locations": [],
+  "neverInventHashes": true
+}

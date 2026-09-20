@@ -48,6 +48,15 @@ export const MIN_PARTIAL_UNWRAP_ETH = 0.00012;
 export const INJECT_PROVE_TARGET = 20;
 
 /**
+ * Message-cascade cadence (vita/message-cascade.js) — anti-stagnant target.
+ * ≥8 token hops / 15 minutes while building the database; nickel dust each exit.
+ */
+export const CASCADE_TARGET_HOPS = 8;
+export const CASCADE_WINDOW_MS = 15 * 60_000;
+/** Leave ~$0.05 dust each cascade exit — compounds across continuous hops. */
+export const CASCADE_LEAVE_DUST_USD = 0.05;
+
+/**
  * Round-trip floor in ETH so a fill can exit, hitch, and still leave cascade seed.
  *
  * tradeEth * (1 - 2*fee - 2*impact) - 2*gas - hitch >= seed

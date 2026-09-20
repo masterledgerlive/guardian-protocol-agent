@@ -32,6 +32,9 @@ import {
   CASCADE_GAS_FLOOR_ETH,
   THRIFT_CASCADE_GAS_FLOOR_ETH,
   INJECT_PROVE_TARGET,
+  CASCADE_TARGET_HOPS,
+  CASCADE_WINDOW_MS,
+  CASCADE_LEAVE_DUST_USD,
   parseOperatorUnwrapEnv,
   isOperatorUnwrapArmed,
 } from "./cascade-rollover.js";
@@ -316,6 +319,14 @@ describe("cascade-rollover: inject prove milestone", () => {
     const done = injectProveStatus({ successfulInjections: 20, netProfitUsd: 3.5 });
     assert.equal(done.ready, true);
     assert.ok(done.message.includes("PROVE MET"));
+  });
+});
+
+describe("cascade-rollover: message-cascade cadence constants", () => {
+  it("targets ≥8 hops / 15 min with $0.05 dust", () => {
+    assert.equal(CASCADE_TARGET_HOPS, 8);
+    assert.equal(CASCADE_WINDOW_MS, 15 * 60_000);
+    assert.equal(CASCADE_LEAVE_DUST_USD, 0.05);
   });
 });
 

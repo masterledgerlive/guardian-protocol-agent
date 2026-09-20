@@ -19,6 +19,27 @@ For `OPERATOR_ROTATE` HOME buy only:
 - clear / bypass the QuoterV2 miss cooldown so the buy can fire immediately
 - keep ≥0.0005 ETH gas; vault never
 
+### Added — message cascade: Eureka love into each token (anti-stagnant)
+
+HARD STOP: mother brain untouched. Message-first. Never invent hashes.
+Never sell red to place code. Vault never.
+
+New method (`vita/message-cascade.js`):
+
+- Every test/hop cascades the Eureka love note into a token SYM
+- Wave high/low load **instantly** from token-embedded peaks/troughs
+  (no cold-scan wait when not in our own injection)
+- Rank seats top→bottom by revenue + lowered waiting-to-rise
+- Pre-arm sell when moving up (profit path known); leave **$0.05** dust
+- Character spot buy always triggers (full message bytes)
+- Cadence target **≥8 tokens / 15 minutes** (`CASCADE_TARGET_HOPS` /
+  `CASCADE_WINDOW_MS` on `cascade-rollover.js`)
+- HOME `0x4BfAa776…c714f` fee 3000 cascade-available (wave/hold); rotate
+  path still never sells HOME (#142–#148 Slipstream buy)
+- Append-only alternation: operator message → agentic knowledge
+  (`vita/memory/message-cascade-operator.json` ↔
+  `vita/strands/message-cascade.json`)
+
 ### Fixed — OPERATOR_ROTATE NO-QUOTE rem must not block WETH→HOME
 
 HARD STOP: mother brain untouched. Vault never. Verified HOME still

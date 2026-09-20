@@ -53,6 +53,12 @@ you can see what agentic AI filed and recover html/song/movie/code.
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
 
+**Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
+carries Eureka love into a token; instant wave HL from token data; rank
+revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
+15 min. HOME cascade-available (rotate never sells). File operator
+message then agentic knowledge under `vita/memory/` + `vita/strands/`.
+
 ## Merge stance
 
 This `vita/` tree is the **continuing GitHub base** for this avenue until

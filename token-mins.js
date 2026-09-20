@@ -41,6 +41,9 @@ export const TOKEN_MIN_BUY_USD = Object.freeze({
   ZORA: 0.75,
   BNKR: 0.50,
   AIXBT: 0.75,
+  // Defi App $HOME — Aerodrome Slipstream 0.3% liquid; Uni V3 1% ghost.
+  // Cascade-available wave/hold; OPERATOR_ROTATE never sells HOME.
+  HOME: 0.50,
   // Thin / exotic — raise floor so accidental $1 probes die early
   XCN: 25, // WETH book dead; never smoke-test until USDC route or deeper WETH
   SEAM: 25,
