@@ -18,6 +18,13 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
 6. When every location seals → **PLAY PROOF**: Tailwind reader peaces spaced
    locations together and plays the blob (`/vita/feed-player`).
 7. Receipt (after) repeats the cost math plus Basescan links, tx hashes, and the reader key.
+   Every receipt includes a **BASESCAN READ RECEIPT** — open each link → Input Data →
+   View as UTF-8 to read the on-chain chat of the data. Spaced locations are bunched
+   on the Telegram card.
+7b. **Dual lane (human ↔ machine):** `/vitafeed translate [text]` shows side-by-side
+   HUMAN plain vs MACHINE ZK-short sizes + ETH/$. `/vitafeed dual [text]` stages both;
+   confirm|override seals HUMAN then MACHINE and prints both location sets as proof.
+   `/vitafeed restart` lists bags ≥ $0.50 to exit if RISK needs fuel for more inject tests.
 8. **LIBRARY (quick pull from Telegram):** each sealed file auto-saves its
    **name + reader key + locations** into the keys library. Then:
    - `/vitafeed files` — numbered list of what you saved

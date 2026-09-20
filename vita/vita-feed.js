@@ -183,6 +183,23 @@ export function hexToUtf8(hex) {
   }
 }
 
+/**
+ * Map buy-in seats / token bags → restart-money exit list (≥ $0.50).
+ * Accepts seats with {symbol,price,balance|tokens|usd|bagUsd}.
+ */
+export function seatsToBags(seats = []) {
+  return (seats || []).map((s) => {
+    const symbol = String(s?.symbol || s?.sym || "").toUpperCase();
+    const price = Number(s?.price ?? s?.px ?? 0);
+    const tokens = Number(s?.balance ?? s?.tokens ?? s?.qty ?? 0);
+    let usd = Number(s?.usd ?? s?.bagUsd ?? s?.valueUsd);
+    if (!Number.isFinite(usd) || usd <= 0) {
+      usd = Number.isFinite(price) && Number.isFinite(tokens) ? price * tokens : 0;
+    }
+    return { symbol, usd, tokens, price };
+  }).filter((b) => b.symbol);
+}
+
 export function measurePlainText(text) {
   const raw = String(text ?? "");
   const bytes = utf8ByteLength(raw);
@@ -517,11 +534,17 @@ export function formatVitaFeedReceipt(result, cost) {
       ") · " + cost.label,
     );
   }
+  if (cost?.dualCombinedUsd != null && Number.isFinite(Number(cost.dualCombinedUsd))) {
+    lines.push(
+      "dual both lanes $≈" + Number(cost.dualCombinedUsd).toFixed(4) +
+      " ETH≈" + Number(cost.dualCombinedEth || 0).toFixed(8),
+    );
+  }
   lines.push("payer=" + VITAFEED_PAYER + "  vault=never  save-bucket=never");
   if (locs.length) {
-    lines.push("locations:");
+    lines.push("locations (spaced / bunched):");
     locs.forEach((tx, i) => {
-      lines.push("  " + (i + 1) + ". " + tx);
+      lines.push("  " + (i + 1) + "/" + locs.length + "  " + tx);
       lines.push("     " + VITAFEED_BASESCAN_TX + tx);
     });
   }
@@ -529,6 +552,15 @@ export function formatVitaFeedReceipt(result, cost) {
   if (s.file && !s.file.error) lines.push(summarizeFileLine(s.file));
   if (result?.banked) {
     lines.push("banked " + (result.sealedCount || 0) + "/" + result.needed + " — never invent hashes");
+  }
+  // Basescan read receipt — Input Data → UTF-8 is the on-chain chat of the data.
+  lines.push("");
+  lines.push("BASESCAN READ RECEIPT");
+  lines.push("read: Basescan → Input Data → View as UTF-8  (on-chain chat)");
+  if (locs.length) {
+    lines.push("open each link above to read the sealed chat of this inject");
+  } else {
+    lines.push("(no sealed locations yet — never invent hashes)");
   }
   if (result?.playProof?.card) {
     lines.push("");
@@ -572,6 +604,19 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   }
   if (/^(?:proof|zeroproof|zero-proof)(?:\s|$)/i.test(trimmed)) {
     return { ok: true, action: "proof", body: "", source: "proof" };
+  }
+  // Dual-lane human ↔ machine translate / side-by-side cost proof.
+  if (/^(?:translate|xlat|humanmachine|hm)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:translate|xlat|humanmachine|hm)\s*/i, "").trim();
+    return { ok: true, action: "translate", body: rest, source: "translate" };
+  }
+  if (/^(?:dual|bothlanes|lanes)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:dual|bothlanes|lanes)\s*/i, "").trim();
+    return { ok: true, action: "dual", body: rest, source: "dual" };
+  }
+  // Exit bags ≥ $0.50 to restart RISK for more inject tests.
+  if (/^(?:restart|restartmoney|exitfuel)(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "restart", body: "", source: "restart" };
   }
   // Reference memory search — calculator true-name + translator codex (ask|self).
   if (/^(?:ref|ask|recallref)\b/i.test(trimmed)) {
@@ -664,6 +709,11 @@ export function vitaFeedUsageText() {
     "  zero-proof growth + library + vita-save packet) then stage for override.",
     "  /vitafeed learn  — last cycle old→new card (no restage).",
     "  /vitafeed proof  — squashed zero-proof retrieval growth + backlog growth.",
+    "DUAL LANE (human text ↔ machine language — same knowledge, both costs):",
+    "  /vitafeed translate [text] — side-by-side HUMAN vs MACHINE sizes + ETH/$",
+    "  /vitafeed dual [text]      — stage both lanes; confirm seals HUMAN then MACHINE",
+    "  Receipt lists spaced Basescan locs + Input Data → UTF-8 read receipt (chat).",
+    "  /vitafeed restart          — bags ≥ $0.50 → exit to refill RISK for inject tests",
     "REF MEMORY (proven recursive search from packaged ledger):",
     "  /vitafeed ref <q>   — search true-name (calculator/calc/calculadora/電卓/…)",
     "  /vitafeed ask <q>   — same as ref (ask|self label from query)",
@@ -1319,19 +1369,140 @@ export async function handleVitaFeedAction({
     const { formatLibraryListCard } = await import("./vita-feed-library.js");
     const { formatFeedBacklogGrowthProof, formatFeedBacklogCard } =
       await import("./vita-feed-backlog.js");
+    const {
+      formatDualLaneSideBySideCard,
+      prepareDualLaneCompare,
+      formatRestartMoneyExitHint,
+    } = await import("./vita-feed-dual.js");
     const log = loadBrainLearnLog();
+    // Demo dual compare of a short proof note so Telegram always shows both lanes.
+    const dualNote =
+      "VITAFEED dual-lane proof: human plain vs machine ZK-short of the same knowledge. " +
+      "Basescan Input Data → UTF-8 is the on-chain chat.";
+    const dual = prepareDualLaneCompare(dualNote, quotes);
+    const restart = formatRestartMoneyExitHint({ bags: seatsToBags(seats) });
     return {
       ok: true,
       phase: "proof",
       cycles: log.cycles?.length || 0,
       roots: log.zeroProof?.roots || [],
+      dual,
       reply:
         formatZeroProofGrowthCard() +
         "\n\n" + formatFeedBacklogGrowthProof() +
         "\n\n" + formatFeedBacklogCard() +
         "\n\n" + formatLibraryListCard() +
         "\n\n" + researchNotesForFiling() +
-        "\n\nActivate/grow: /vitafeed brain · /vitafeed enqueue seed · /vitafeed next",
+        (dual.ok ? "\n\n" + formatDualLaneSideBySideCard(dual, { phase: "proof" }) : "") +
+        "\n\n" + restart.card +
+        "\n\nActivate/grow: /vitafeed brain · /vitafeed dual [text] · /vitafeed enqueue seed · /vitafeed next",
+    };
+  }
+  if (action === "translate") {
+    const {
+      prepareDualLaneCompare,
+      formatDualLaneSideBySideCard,
+    } = await import("./vita-feed-dual.js");
+    let text = String(body || "").trim();
+    if (!text) {
+      const staged = peekVitaFeed(chatId);
+      text = staged?.body || "";
+    }
+    if (!text) {
+      return {
+        ok: false,
+        phase: "translate",
+        reply:
+          "VITADUAL TRANSLATE: need text.\n" +
+          "usage: /vitafeed translate [exact plain]\n" +
+          "or stage with /vitafeed [text] then /vitafeed translate",
+      };
+    }
+    const dual = prepareDualLaneCompare(text, quotes);
+    return {
+      ok: dual.ok,
+      phase: "translate",
+      dual,
+      reply: dual.ok
+        ? formatDualLaneSideBySideCard(dual, { phase: "translate" }) +
+          "\n\nStage both for seal: /vitafeed dual " +
+          (text.length > 80 ? "(re-paste body)" : text)
+        : "VITADUAL: " + (dual.reason || "translate failed"),
+    };
+  }
+  if (action === "dual") {
+    const {
+      buildDualStagePayload,
+      formatRestartMoneyExitHint,
+    } = await import("./vita-feed-dual.js");
+    let text = String(body || "").trim();
+    if (!text) {
+      const staged = peekVitaFeed(chatId);
+      text = staged?.body || "";
+    }
+    if (!text) {
+      return {
+        ok: false,
+        phase: "dual",
+        reply:
+          "VITADUAL: need human text.\n" +
+          "usage: /vitafeed dual [exact plain knowledge]\n" +
+          "Then /vitafeed confirm — seals HUMAN then MACHINE with Basescan receipts.",
+      };
+    }
+    const dualStage = buildDualStagePayload(text, quotes);
+    if (!dualStage.ok) {
+      return {
+        ok: false,
+        phase: "dual",
+        reply: "VITADUAL: " + (dualStage.reason || "prepare failed"),
+      };
+    }
+    const buyIn = planVitaFeedBuyIns({
+      prepared: dualStage.prepared,
+      cost: dualStage.cost,
+      seats,
+      quotes,
+    });
+    stageVitaFeed(chatId, {
+      prepared: dualStage.prepared,
+      cost: dualStage.cost,
+      body: dualStage.body,
+      quotes: dualStage.quotes,
+      buyIn,
+      seats,
+      dual: true,
+      dualCompare: dualStage.compare,
+      machineBody: dualStage.machineBody,
+      machinePrepared: dualStage.machinePrepared,
+    });
+    const restart = formatRestartMoneyExitHint({ bags: seatsToBags(seats) });
+    return {
+      ok: true,
+      phase: "before",
+      staged: true,
+      dual: true,
+      prepared: dualStage.prepared,
+      cost: dualStage.cost,
+      buyIn,
+      compare: dualStage.compare,
+      reply:
+        dualStage.card +
+        "\n\n" + formatVitaFeedBuyInCard(buyIn) +
+        "\n\n" + restart.card +
+        "\n\nNext: /vitafeed confirm (or override) — HUMAN then MACHINE · Basescan read receipts",
+    };
+  }
+  if (action === "restart") {
+    const { formatRestartMoneyExitHint } = await import("./vita-feed-dual.js");
+    const restart = formatRestartMoneyExitHint({ bags: seatsToBags(seats) });
+    return {
+      ok: true,
+      phase: "restart",
+      hits: restart.hits,
+      reply:
+        restart.card +
+        "\n\nMoney is for proof — exit ≥$0.50 bags to refill RISK, then /vitafeed dual [knowledge]",
     };
   }
   if (action === "ref") {
@@ -1743,6 +1914,21 @@ export async function handleVitaFeedAction({
     }
     noteVitaFeedPaidSend({ chatId, chunks: chunkCount, now });
     const result = await runVitaFeedInscribe(row.prepared, sendTx);
+    // Dual lane: after HUMAN seals (or partial), also seal MACHINE when staged.
+    let machineResult = null;
+    let dualReceiptExtra = "";
+    if (row.dual && row.machinePrepared?.ok && typeof sendTx === "function") {
+      const humanSealed = Number(result?.sealedCount || 0) > 0;
+      if (humanSealed && !result?.banked) {
+        // Full human seal — continue with machine lane.
+        machineResult = await runVitaFeedInscribe(row.machinePrepared, sendTx);
+      } else if (humanSealed && result?.banked) {
+        // Partial human — do not start machine until human completes.
+        dualReceiptExtra =
+          "\n\nVITADUAL: HUMAN partial — MACHINE held until HUMAN finishes" +
+          " (/vitafeed override again).";
+      }
+    }
     // Partial seal: restage remainder so override can continue when funded.
     // Full seal or zero progress with no remainder: clear / keep as appropriate.
     let restaged = false;
@@ -1765,6 +1951,10 @@ export async function handleVitaFeedAction({
           seats: seatsNow,
           backlogId: row.backlogId || null,
           backlogItem: row.backlogItem || null,
+          dual: Boolean(row.dual),
+          dualCompare: row.dualCompare || null,
+          machineBody: row.machineBody || null,
+          machinePrepared: row.machinePrepared || null,
           resume: {
             priorVinId: row.prepared.vinId,
             priorLocations: result.priorLocations || [],
@@ -1807,6 +1997,19 @@ export async function handleVitaFeedAction({
           result.library = librarySave;
         }
       }
+      if (
+        machineResult?.strand &&
+        Number(machineResult.sealedCount || 0) > 0
+      ) {
+        const machineLib = saveLibraryFromSeal({
+          strand: machineResult.strand,
+          body: row.machineBody || null,
+          chatId,
+        });
+        if (machineLib?.ok && machineResult && typeof machineResult === "object") {
+          machineResult.library = machineLib;
+        }
+      }
     } catch { /* library is best-effort — never block seal receipt */ }
     // Backlog growth proof — record real sealed locs when this stage came from queue/brain.
     let backlogSeal = null;
@@ -1834,6 +2037,24 @@ export async function handleVitaFeedAction({
     const card = formatVitaFeedCostCard(cost, row.prepared, { phase: "after" });
     const receipt = formatVitaFeedReceipt(result, cost);
     const buyCard = formatVitaFeedBuyInCard(buyIn);
+    let dualExtra = dualReceiptExtra || "";
+    if (row.dual && row.dualCompare) {
+      try {
+        const { formatDualLaneReceipt, formatDualLaneSideBySideCard } =
+          await import("./vita-feed-dual.js");
+        dualExtra +=
+          "\n\n" +
+          formatDualLaneSideBySideCard(row.dualCompare, { phase: "after" }) +
+          "\n\n" +
+          formatDualLaneReceipt({
+            compare: row.dualCompare,
+            humanResult: result,
+            machineResult,
+            humanLocs: result?.strand?.locations || [],
+            machineLocs: machineResult?.strand?.locations || [],
+          });
+      } catch { /* dual card best-effort */ }
+    }
     const playExtra = playProof?.card
       ? "\n\n" + playProof.card +
         (playProof.complete && playProof.play
@@ -1861,6 +2082,8 @@ export async function handleVitaFeedAction({
       cost,
       buyIn,
       result,
+      machineResult,
+      dual: Boolean(row.dual),
       playProof,
       library: librarySave,
       backlog: backlogSeal,
@@ -1868,8 +2091,8 @@ export async function handleVitaFeedAction({
       restaged,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
-        card + "\n\n" + buyCard + "\n\n" + receipt + playExtra + libExtra +
-        backlogExtra + resumeExtra,
+        card + "\n\n" + buyCard + "\n\n" + receipt + dualExtra + playExtra +
+        libExtra + backlogExtra + resumeExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

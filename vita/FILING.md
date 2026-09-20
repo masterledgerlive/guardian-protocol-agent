@@ -20,6 +20,7 @@ findable.
 | `vita/memory/message-cascade-operator.json` | `MESSAGE_CASCADE` | Operator love/eureka cascade brief (message half of alternation) |
 | `vita/strands/message-cascade.json` | `MESSAGE_CASCADE` | Agentic cascade knowledge (knowledge half — useful for time to come) |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
+| `vita/vita-feed-dual.js` | `VITADUAL` | Human plain ↔ machine ZK-short dual lane; side-by-side cost/size; Basescan Input Data UTF-8 read receipt; restart exit ≥$0.50 |
 | `vita/vita-feed-backlog.js` | `FEED_BACKLOG` | Append-only queue of memory/files for `/vitafeed` drain without agentic AI |
 | `vita/memory/vitafeed-backlog.json` | `FEED_BACKLOG` | Pending→sealed feed queue + growth roots |
 | `vita/brain-seed.js` | `BRAIN` / `BRAIN_SEED` | Recursive-AI mind seed (formula+anchors+recall) for `/vitafeed brain` |
@@ -66,6 +67,7 @@ findable.
 | `PROVEN_TEST` | Proven test series (`§PROVENTEST§`) — recursive memory must answer from packaged locs |
 | `TRANSLATOR_CODEX` | Free multilingual alias map (`§VITATRANS§`) — read once, never forget |
 | `VITA_SAVE_LEARN` | Bankable §TOKEN§ learn packet for `/vitasave` retrieval |
+| `VITADUAL` | Dual-lane human plain + machine ZK-short (`§VITADUAL§`) — side-by-side cost/size + Basescan read receipt |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
 (`#vita-mainframe`). Hitch trailers only carry squashed `§LOC§`.
