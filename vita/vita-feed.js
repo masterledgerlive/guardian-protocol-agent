@@ -1396,6 +1396,7 @@ export async function handleVitaFeedAction({
       prepareDualLaneCompare,
       formatRestartMoneyExitHint,
     } = await import("./vita-feed-dual.js");
+    const { formatFeedFlowProofCard } = await import("./feed-flow.js");
     const log = loadBrainLearnLog();
     // Demo dual compare of a short proof note so Telegram always shows both lanes.
     const dualNote =
@@ -1411,6 +1412,7 @@ export async function handleVitaFeedAction({
       dual,
       reply:
         formatZeroProofGrowthCard() +
+        "\n\n" + formatFeedFlowProofCard() +
         "\n\n" + formatFeedBacklogGrowthProof() +
         "\n\n" + formatFeedBacklogCard() +
         "\n\n" + formatLibraryListCard() +

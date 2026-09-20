@@ -5,7 +5,7 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-19T06:49:19.509Z",
-  "updatedAt": "2026-09-19T06:49:19.667Z",
+  "updatedAt": "2026-09-20T19:52:53.293Z",
   "items": [
     {
       "id": "BL-7CCA36DE",
@@ -519,14 +519,52 @@
       "at": "2026-09-19T06:49:19.667Z",
       "sealedAt": null,
       "note": "over prefer-max 4 chunks — drain when funded"
+    },
+    {
+      "id": "BL-DC34C517",
+      "topic": "feed-flow-memory-proof",
+      "name": "feed-flow-memory-proof.txt",
+      "mime": "text/plain",
+      "kind": "plain",
+      "source": "agent-proof",
+      "status": "pending",
+      "body": "§VITAFLOW§v1|proof-feed§\nVITA MEMORY FEED PROOF\nformula=original-message-first\nneverInvent=true\nDirectory growth under vita/memory + vita/strands is append-only.\nIDM chat = Basescan Input Data → View as UTF-8 for each loc below.\nANCHORS:\n  keycat-plain|none|0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf\n  eureka-prove|eureka|0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73\n  vita-strand|vita|0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db\nAgentic note: feed-flow ledger records every brain/enqueue/seal so operators can see data flowing.",
+      "bytes": 603,
+      "chunks": 1,
+      "contentCommit": "9a23f852ba3787e8e30f9d511c64513d0f66d0c95e881ccad5828ee8cc9d25e8",
+      "locations": [],
+      "vinId": null,
+      "readerKey": null,
+      "at": "2026-09-20T19:52:44.054Z",
+      "sealedAt": null,
+      "note": null
+    },
+    {
+      "id": "BL-F009B2BF",
+      "topic": "brain-learn-cycle-011",
+      "name": "brain-stage-11.txt",
+      "mime": "text/plain",
+      "kind": "brain",
+      "source": "vitafeed-brain",
+      "status": "pending",
+      "body": "§VITABRAIN§v1|kind=recursive-ai-mind|formula=original-message-first§\nVITA BLOCKCHAIN BRAIN SEED\nformula=original-message-first\nmessageFirst=true\nneverInvent=true\nwallet=0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915\nchain=base:8453\nANCHORS (hardcoded Base — pull first on /inject):\n  keycat-plain|none|0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf — never claim UTF-8 hitch without trailer bytes\n  eureka-prove|eureka|0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73 — dedicated 0-ETH self-tx is the love-note genesis\n  vita-strand|vita|0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db — sparse strand inject — reader reconstructs from sealed locations\nRECALL:\n  keyLoc=dense KEY+LOC on leftover hitch when covered\n  prove=Eureka love note on 0-ETH self-tx (/prove)\n  html=public/vita.html#vita-mainframe until /inject\n  feed=/vitafeed VIN packets → sealed locs → /vita/feed-player\nAGENT:\n  - Read sealed UTF-8 from Basescan Input Data — never invent hashes\n  - Sparse inject from anchors + leftover locs; reconstruct §TOKEN§\n  - Append learn to vita/memory/ + vita/strands/; refine branches\n  - Message-first: hitch when KEY+LOC covered; Storage Token charges delta\n  - /vitafeed override: bypass money REFUSE + liquid floor; seal what gas allows\nsparse strands=3 @ chunk 3\nSeal via /vitafeed confirm|override. Partial OK — keep sealed locs.\n\n§VITALEARN§v1|filing=BRAIN_LEARN|cycle=11§\nVITA BRAIN LEARN · old → new\nformula=original-message-first\nOLD→NEW mem+2 strands+1 lib+0 locs+0\naddedTopics=brain-learn-cycle-011,peer-review-cycle-011\naddedLib=none\naddedLocs=none\nNOW mem=102 strands=37 lib=0 sealedLocs=7\npeer=PASS filing=PEER_REVIEW\nzeroProofRoot=7ebfc4f291aa filing=ZERO_PROOF\nsquash=cb1183445042\n\n§PEERREVIEW§v1|verdict=PASS|formula=original-message-first§\nPEER REVIEW · one pass · filing=PEER_REVIEW\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zero-proof-chained\nfail=none\nanchors=keycat-plain,eureka-prove,vita-strand\nsealedLocs=7\nlibrary=0\nmemory=102\naddedTopics=brain-learn-cycle-011,peer-review-cycle-011\nresearch=append-only content-addressed ledger + proof-carrying retrieval\n\n§ZEROPROOF§v1|cycle=11|root=7ebfc4f291aa§\nZERO PROOF · filing=ZERO_PROOF · zero invented hashes\ncycle=11\nprev=30817d5ad617\nroot=7ebfc4f291aa80b8c3db46bb2b2163ea121909f5f721a6e23608cbc2e18ab526\nsquash=cb11834450422f899ba832e0101c8362ae3e0f9c502d8d6a1be0569836b07db8\nKEY8_topics=0218cd6c,024411af,02b91dc9,05200067,068279f9,090b5e1c,0cbe7c00,0fd03122,106dd693,10f70907,12470f3f,13823c6f,15d21ac2,16ebc09a,1a700f8f,25487ef8,26d61f94,2c446cb5,2c834fed,2e2779aa,316c6bea,34aacadd,355ce347,38109f95,3f5ccfd2,40a252a5,4104d579,449799d2,44c877d7,45339f42,4aa01602,51e6d2be,54c5e37f,56428599,56a17c5f,56a58ca7,584374b1,589b2ce3,60867ccb,6112f75f,635cdc16,65119d0a,65d36fbf,67330829,68745967,6c89a8e1,6cb2e07f,6cd8489d,6eae878f,759e9024,7b32b4b5,82eb5473,83f914d9,850ea3ff,861bac1e,8b64b2c8,8f05d6ad,90ad565a,974bae2e,9d7c721c,9d97605a,9dc1817f,9e0176a7,a27be75e,a5b0f6d0,ad1db544,b09cb34e,b2a7c1b9,b93302a0,ba94d17b,bad2cd17,bb5ae9cf,bd41adca,bed66d5d,c0e45195,c894ee07,c93045cc,ce4eeae7,ce639955,d27ed312,d66e6985,d9578fa2,db6e3bc0,dbae9ac1,dc88cbb9,dde52b62,de4711cb,e7154fda,e822aed9,edae6648,edc8e9a7,ede38011,eff12d2a,f2e2aba9,f6cda0c9,f771cdd2,fbdc315b,fc015573,fcec4837,fd0f1243,fdbc0cc0,ff3214ce\nLOC8_sealed=26abb9d4,573ab090,5c0a93e4,640ed7b8,931d8411,d9827a9c,fee4d502\ncounts mem=102 strands=37 lib=0 locs=7\nretrieval=sparse KEY+LOC hitch · VIN feed · library keys · /inject anchors\n\n§VITASAVLEARN§v1|filing=VITA_SAVE_LEARN§\n§SESS§2026-09-20|brain-learn|cycle-11§WHO§VITA|recursive-ai|peer-reviewer§STACK§base|vitafeed|brain-learn|zero-proof|vitalib§BUILT§brain-learn.js|filing-labels-learned|zero-proof-root|7ebfc4f2§PROVED§peer=PASS|neverInvent|appendOnly|growth=yes§ARCH§content-addressed-append-only|distinct-filing-labels|KEY+LOC-squash|library-keys-chain§VISION§blockchain-brain-grows-via-sealed-locs+learn-diff;Storage-Token-charges-delta§NEXT§/vitafeed override when funded|/vitasave absorb learn|/vitafeed files§KEY§formula=original-message-first|wallet=50e1c460|anchors=keycat-plain,eureka-prove,vita-strand§LEARN§old→new mem2 lib0 locs0|addedTopics=brain-learn-cycle-011,peer-review-cycle-011|peer=PASS§LOC§5c0a93e4,d9827a9c,931d8411,573ab090,640ed7b8,fee4d502\n# bank via /vitanote then /vitasave — or stage /vitafeed override",
+      "bytes": 4529,
+      "chunks": 7,
+      "contentCommit": "40c1ac70db800ddeaf4090ffeeff103ff45aa7136eb6890c94e2799760f509a2",
+      "locations": [],
+      "vinId": null,
+      "readerKey": null,
+      "at": "2026-09-20T19:52:53.293Z",
+      "sealedAt": null,
+      "note": "over prefer-max 4 chunks — drain when funded"
     }
   ],
   "growth": {
-    "enqueued": 27,
+    "enqueued": 29,
     "sealed": 0,
     "partial": 0,
     "skipped": 0,
-    "pending": 27,
+    "pending": 29,
     "sealedLocCount": 0,
     "roots": [
       "fe63758a1e4a057c4570800b585d44a5506fd63e7d841d7d5760bc646241a4b2",
@@ -555,7 +593,9 @@
       "101bd3e177e09633953758c36b79bdef3022e94e43f308f4805bc84ae13181a9",
       "40eba7a56aeb035f35ca7126fc22983ebab15202fbf43a533756df6a433aacbc",
       "31f591d6552d2ac840b289c84ea33c8623363edd59274aa8ab735d956edb2aef",
-      "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c"
+      "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c",
+      "bf844484532cabdbe523a9b9c1d9764e661b2ee74d40dbbedff39a86782ebe33",
+      "49190e892affd1b5b63bad10740bb5f68ffbc34cc99855c48b34e024ef25e555"
     ]
   }
 }

@@ -33,6 +33,7 @@ import {
   formatBrainSeedCard,
   proveBrainSeedLocal,
 } from "./brain-seed.js";
+import { recordBrainLearnFeedFlow } from "./feed-flow.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -59,6 +60,7 @@ export const FILING_LABELS_CORE = Object.freeze({
   PEER_REVIEW: "One peer review of learn delta (separate label)",
   ZERO_PROOF: "Squashed content-addressed retrieval growth proof",
   FEED_BACKLOG: "Offline /vitafeed inject queue — pending→sealed without agent AI",
+  FEED_FLOW: "Append-only feed ledger + Basescan IDM chat of locs being fed",
   MG_RECALL: "Force-banked mother-genesis recall stack — last layer is refined queries",
   VITADIR: "DOS-style master directory — open-source unlock by file name",
   REF_LIB: "Reference library search — trueName + ask|self; calculator first domain",
@@ -785,12 +787,25 @@ export function activateBrainLearnCycle({
   log.updatedAt = learnAt;
   persistBrainLearnLog(log);
 
+  // Append-only feed-flow ledger: prove memory was fed + IDM chat of locs.
+  let feedFlow = null;
+  try {
+    feedFlow = recordBrainLearnFeedFlow(cycle);
+  } catch {
+    feedFlow = null;
+  }
+
   return {
     ok: true,
     ...cycle,
+    feedFlow,
     logPath: LEARN_LOG_PATH,
     localSeed: proveBrainSeedLocal(),
-    card: formatBrainLearnCard(cycle) + "\n\n" + formatBrainSeedCard(mind),
+    card:
+      formatBrainLearnCard(cycle) +
+      "\n\n" +
+      formatBrainSeedCard(mind) +
+      (feedFlow?.idmCard ? "\n\n" + feedFlow.idmCard : ""),
   };
 }
 

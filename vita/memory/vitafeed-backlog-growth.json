@@ -1,14 +1,14 @@
 {
-  "at": "2026-09-19T06:49:19.667Z",
+  "at": "2026-09-20T19:52:53.293Z",
   "topic": "vitafeed-backlog-growth",
   "filingLabel": "FEED_BACKLOG",
-  "text": "§VITABACKLOG§v1|growth§\npending=27 sealed=0 partial=0 locs=0 enqueued=27\nformula=original-message-first\nneverInvent=true\nagentAi=not-required\ndrain=/vitafeed next → confirm|override\n",
+  "text": "§VITABACKLOG§v1|growth§\npending=29 sealed=0 partial=0 locs=0 enqueued=29\nformula=original-message-first\nneverInvent=true\nagentAi=not-required\ndrain=/vitafeed next → confirm|override\n",
   "growth": {
-    "enqueued": 27,
+    "enqueued": 29,
     "sealed": 0,
     "partial": 0,
     "skipped": 0,
-    "pending": 27,
+    "pending": 29,
     "sealedLocCount": 0,
     "roots": [
       "fe63758a1e4a057c4570800b585d44a5506fd63e7d841d7d5760bc646241a4b2",
@@ -37,7 +37,9 @@
       "101bd3e177e09633953758c36b79bdef3022e94e43f308f4805bc84ae13181a9",
       "40eba7a56aeb035f35ca7126fc22983ebab15202fbf43a533756df6a433aacbc",
       "31f591d6552d2ac840b289c84ea33c8623363edd59274aa8ab735d956edb2aef",
-      "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c"
+      "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c",
+      "bf844484532cabdbe523a9b9c1d9764e661b2ee74d40dbbedff39a86782ebe33",
+      "49190e892affd1b5b63bad10740bb5f68ffbc34cc99855c48b34e024ef25e555"
     ]
   },
   "formula": "original-message-first",

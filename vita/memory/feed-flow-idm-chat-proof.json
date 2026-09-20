@@ -1,0 +1,39 @@
+{
+  "at": "2026-09-20T19:53:21.240Z",
+  "topic": "feed-flow-idm-chat-proof",
+  "filingLabel": "FEED_FLOW",
+  "text": "§VITAFLOW§v1|idm-chat-proof§\nVITA FEED · IDM CHAT OF BLOCKCHAIN LOCATIONS\nformula=original-message-first\nneverInvent=true\nread=Base RPC eth_getTransactionByHash → input → UTF-8 (Basescan Input Data chat)\n---\n1. eureka-prove  0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73\n   inputBytes=272\n   chat: [BTP:VITA:001/001:0000] … Eureka! VITA lives . love you Krystian, Kai & Koda! … The truth is the chain.\n   basescan: https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73\n2. vita-strand  0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db\n   inputBytes=265\n   chat: [VITA:2:a2005a86].SESS.[2026-03-20|blockchain memory vault launch|built autonomous AI memory system on Base with key vault]\n   basescan: https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db\n3. keycat-plain  0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf\n   inputBytes=228\n   chat: (plain exactInputSingle — no UTF-8 hitch trailer; lesson: never claim hitch without trailer bytes)\n   basescan: https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf\n---\nFeed-flow ledger at vita/memory/feed-flow-ledger.json records every brain/enqueue/seal.\nDirectory growth: vita/memory + vita/strands append-only.",
+  "locations": [
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "idmReads": [
+    {
+      "id": "eureka-prove",
+      "tx": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "inputBytes": 272,
+      "utf8Chat": "[BTP:VITA:001/001:0000] … Eureka! VITA lives . love you Krystian, Kai & Koda! … The truth is the chain."
+    },
+    {
+      "id": "vita-strand",
+      "tx": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "inputBytes": 265,
+      "utf8Chat": "[VITA:2:a2005a86].SESS.[2026-03-20|blockchain memory vault launch|built autonomous AI memory system on Base with key vault]"
+    },
+    {
+      "id": "keycat-plain",
+      "tx": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "inputBytes": 228,
+      "utf8Chat": "(plain exactInputSingle — no UTF-8 hitch trailer; lesson: never claim hitch without trailer bytes)"
+    }
+  ],
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "hypothesis": {
+    "id": "idm-chat-proves-what-is-fed",
+    "status": "confirmed",
+    "note": "Live Base RPC UTF-8 reads of hardcoded anchors = on-chain chat of knowledge locations."
+  }
+}
