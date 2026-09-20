@@ -154,6 +154,11 @@ import {
   applySellPlusFloorMinOut,
   isForceExitLockedReason,
   canBypassSellLossGate,
+  isAllowLossyOperatorSell,
+  consumeAllowLossyOperatorSell,
+  usedAllowLossyOperatorSellBypass,
+  isFifoRedLot,
+  dustRecycleMustHoldFifoRed,
   isDisableDowBias,
   applyDowBiasDisable,
   isFridayCloseWindow,
@@ -166,6 +171,31 @@ import {
   addOnRemainingFifoEth,
   isSkipHoldDeadRoute,
 } from "./lose-zero-gate.js";
+import {
+  VERIFIED_HOME_ADDRESS,
+  HOME_FEE_TIER,
+  HOME_POOL_FEE_PCT,
+  OPERATOR_ROTATE_SELL_REASON,
+  OPERATOR_ROTATE_BUY_REASON,
+  ROTATE_MIN_BALANCE,
+  isOperatorRotateArmed,
+  isOperatorRotateCommand,
+  isOperatorRotateReason,
+  isRotateTarget,
+  shouldSkipRotateSell,
+  excessWethToSell,
+  queueOperatorRotateOnce,
+  markOperatorRotateSellExecuted,
+  markOperatorRotateHomeBuyExecuted,
+  maybeQueueRotateHomeBuy,
+  finishOperatorRotate,
+  rotateWalletAllowed,
+  rotateBypassesPiggyDustHold,
+  isRotateRemBag,
+  isRotateSellSkipped,
+  applyRotateQuoterMiss,
+  applyRotateUnquotedSkip,
+} from "./operator-rotate.js";
 import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
@@ -229,6 +259,7 @@ import {
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
   classifyRecycleBag,
+  recycleSellCopy,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
@@ -2143,6 +2174,10 @@ const DEFAULT_TOKENS = [
     score: { liquidity:8, waveQuality:7, fundamentals:8, coinbaseFit:8, community:8, total:39 },
     notes: "BankrCoin — inject main. Uni v3 BNKR/WETH 1% ~$1.83M / ~$252k — deep hitch book." },
 
+  { symbol: "HOME",    address: VERIFIED_HOME_ADDRESS, feeTier: HOME_FEE_TIER, poolFeePct: HOME_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
+    score: { liquidity:8, waveQuality:6, fundamentals:8, coinbaseFit:10, community:7, total:39 },
+    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… (~$12.5k). Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). Catalog fee 3000 matches liquid 0.3%; Quoter probes Uni V3 tiers. OPERATOR_ROTATE_TO target — do not sell HOME. Vault never." },
+
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
     score: { liquidity:6, waveQuality:7, fundamentals:5, coinbaseFit:7, community:8, total:33 },
@@ -3283,6 +3318,7 @@ let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
 const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
 const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
+const operatorRotateState = { done: false, executed: false, doneBySymbol: {}, pendingSells: [] }; // OPERATOR_ROTATE_TO batch
 const operatorUnwrapState = { done: false, executed: false }; // OPERATOR_UNWRAP one-shot
 /** Last QuoterV2 executable flag per symbol — green SELLING only when true. */
 const lastQuoterExecutable = Object.create(null);
@@ -6773,6 +6809,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     if (!isValidUsdPrice(price)) {
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: no live USD quote — refusing to size from $0`);
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const cached = getCachedBalance(token.symbol) || 0;
+        const skip = applyRotateUnquotedSkip({
+          state: operatorRotateState,
+          commands: manualCommands,
+          symbol: token.symbol,
+          remBag: isRotateRemBag(cached),
+          kind: "NO QUOTE",
+          code: "NO_QUOTE",
+          balance: cached,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} NO QUOTE — drop from outstanding (HOME must not wait)`);
+        }
+      }
       return null;
     }
 
@@ -6781,14 +6832,31 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   ⚠️  ${token.symbol}: zero balance — clearing ledger`);
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
       token.piggyReserve = 0;
+      tokenBalanceCache[token.symbol] = 0;
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const skip = applyRotateUnquotedSkip({
+          state: operatorRotateState,
+          commands: manualCommands,
+          symbol: token.symbol,
+          remBag: false,
+          kind: "NO QUOTE",
+          code: "NO_QUOTE",
+          balance: 0,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} zero-bal — drop from outstanding (HOME must not wait)`);
+        }
+      }
       return null;
     }
     // Latch FIFO from persist / evidence buy receipts before entrySold.
     // Desk book / ledger fills alone do not seed Railway (no fifo-lots.json on
     // bot-state). CLANKER array 0x23d8a0c5+0xcb7dd5a6 + add-on sibling (and
-    // VIRTUAL) rebuild even when a first-slice lot is already usable —
-    // otherwise rem ~0.289 vs first 0.176 stays unknown-lots / entrySold=0.
-    // LOT_REBUILD_TXS env-only cannot merge the second hash.
+    // VIRTUAL / MORPHO 0x9260992e / AERO 0x53b9844c) rebuild even when a
+    // first-slice lot is already usable — otherwise rem ~0.289 vs first 0.176
+    // stays unknown-lots / entrySold=0. LOT_REBUILD_TXS env-only cannot merge
+    // the second hash. MORPHO rem ~0.1469 after plain sell 0xd6cd2fa2 and
+    // AERO rem ~0.289 after FIFO-red partial 0x15ac4a73 auto-append via ledger.
     const remain = seededRebuildRemaining(totalBal);
     if (remain != null) {
       try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
@@ -6811,7 +6879,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // cleared a real $ bag without selling. Dust is USD-based.
     // Piggy-only dust stays on-chain — keep the reserve high-water mark and
     // clear invented cost basis only (never wipe the pile while units remain).
-    if (isDustBagUsd(totalBal, price, BAG_DUST_USD) && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)) {
+    if (
+      !rotateBypassesPiggyDustHold(reason)
+      && isDustBagUsd(totalBal, price, BAG_DUST_USD)
+      && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)
+    ) {
       const row0 = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
       const saved0 = effectiveSavedEarningsUsd({
         savedEarningsUsd: row0.savedEarningsUsd || token.savedEarningsUsd || 0,
@@ -6891,6 +6963,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const targetSaved = priorSaved + projectedBank;
 
     const overrideSell = canBypassSellLossGate(reason, process.env, token.symbol);
+    const rotateUnlock = rotateBypassesPiggyDustHold(reason);
     const piggy = applyPiggyToSell({
       balance: sellUnits,
       sellPct,
@@ -6899,7 +6972,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       reason,
       token,
       savedEarningsUsd: targetSaved,
-      forceUnlock: overrideSell,
+      forceUnlock: overrideSell || rotateUnlock,
     });
     token.piggyReserve = piggy.reserve;
     if (piggy.blocked) {
@@ -6931,7 +7004,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       amountInWei: amtToSell,
       liveBalanceWei: liveBalWei,
       piggyReserveWei: toWei(piggy.reserve, tokenDecimals),
-      unlockPiggy: !!(piggy.unlock || overrideSell),
+      unlockPiggy: !!(piggy.unlock || overrideSell || rotateUnlock),
     });
     if (sized.blocked) {
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountIn 0 after live-balance clamp (bal=${sized.liveBalanceWei} reserved=${sized.piggyReserveWei})`);
@@ -6986,7 +7059,20 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     if (!quoteGate.allow) {
       lastQuoterExecutable[token.symbol] = false;
-      noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
+      const missKind = quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss";
+      noteSwapPathFail(token.symbol, { kind: missKind });
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const skip = applyRotateQuoterMiss({
+          state: operatorRotateState,
+          symbol: token.symbol,
+          remBag: isRotateRemBag(totalBal),
+          kind: missKind,
+          code: quoteGate.code,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} Quoter miss — drop from outstanding (HOME must not wait)`);
+        }
+      }
       console.log(`   ${quoteGate.log}`);
       return null;
     }
@@ -7064,6 +7150,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (sellGate.log) console.log(`   ${sellGate.log}`);
     if (sellGate.alwaysPlusLog) console.log(`   ${sellGate.alwaysPlusLog}`);
     if (!sellGate.allow) return null;
+    // One-shot ALLOW_LOSSY: consume as soon as this sell used it so a later
+    // DUST RECYCLE / piggy 95% in the same process cannot keep selling red.
+    // Railway env must be set back to `no` (or clear OPERATOR_SELL).
+    if (sellGate.usedAllowLossy || usedAllowLossyOperatorSellBypass(reason, process.env, token.symbol)) {
+      if (consumeAllowLossyOperatorSell(process.env)) {
+        console.log(`   LOSE_ZERO: consumed ALLOW_LOSSY_OPERATOR_SELL (one-shot) — set Railway env back to no (or clear OPERATOR_SELL)`);
+      }
+    }
 
     const sellFeeCost = liveFeeWithinGatedCost(token.poolFeePct || 0.006, swapFee);
     if (swapFee !== token.feeTier) {
@@ -7684,6 +7778,10 @@ async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
 
 async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
   try {
+    if (isOperatorRotateArmed()) {
+      console.log(`  🌊 CASCADE skipped — OPERATOR_ROTATE_TO=${process.env.OPERATOR_ROTATE_TO} (no new entries)`);
+      return;
+    }
     // Never start a cascade hop without native gas for this buy + the next exit.
     const gasOk = await ensureCascadeNativeGas(cdp, `cascade-${soldSymbol}`);
     if (!gasOk) {
@@ -8053,6 +8151,28 @@ ${modeLabel}: [${sourceNames}] → [${targetNames}] | ~$${totalSellUsd.toFixed(2
 }
 
 
+function noteRotateUnquotedSkip(token, { kind = "NO QUOTE", code = "NO_QUOTE", balance } = {}) {
+  if (!isOperatorRotateArmed() || operatorRotateState.finished) return false;
+  const units = Number.isFinite(Number(balance)) ? Number(balance) : (getCachedBalance(token.symbol) || 0);
+  const skip = applyRotateUnquotedSkip({
+    commands: manualCommands,
+    state: operatorRotateState,
+    symbol: token.symbol,
+    remBag: isRotateRemBag(units),
+    kind,
+    code,
+    balance: units,
+  });
+  if (skip.dropped) {
+    console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} ${skip.reason || kind} — drop from outstanding (HOME must not wait)`);
+    maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+      env: process.env,
+      wallet: WALLET_ADDRESS,
+    });
+  }
+  return !!skip.dropped;
+}
+
 async function processToken(cdp, token, bal) {
   try {
     // Skip disabled tokens — they have no viable Uniswap pool
@@ -8060,6 +8180,8 @@ async function processToken(cdp, token, bal) {
       // Still track price for signal purposes, just never trade
       const price = await getTokenPrice(token.address, false);
       if (price) { recordPrice(token.symbol, price); updateWaves(token.symbol, price); }
+      // KITE-class: disabled early-return must still drop rotate outstanding.
+      noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE" });
       return;
     }
     // ── ❄️ FROZEN TOKENS — collect wave data, NEVER open a NEW buy ────────────
@@ -8077,7 +8199,11 @@ async function processToken(cdp, token, bal) {
       // USD-aware: CBBTC 0.00006 units is a real bag — never skip exits on unit count
       const px = history[token.symbol]?.lastPrice || 0;
       const held = balUnits > 0 && (hasSellableUsd(balUnits, px, BAG_DUST_USD) || balUnits > 0.001);
-      if (!pending && !held) return; // no buys, no logs, no capital
+      if (!pending && !held) {
+        // Frozen idle names can still sit in rotate pendingSells from boot queue.
+        noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE", balance: balUnits });
+        return; // no buys, no logs, no capital
+      }
     }
     // FIX: Skip dead-wave tokens that will never clear fees — stops them burning
     // 0.8s + RPC calls per loop on tokens mathematically impossible to trade.
@@ -8092,6 +8218,8 @@ async function processToken(cdp, token, bal) {
     if (!isValidUsdPrice(price)) {
       noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
       console.log(`   ⏳ ${token.symbol}: NO QUOTE — skip trade (pool dry or unindexed) ${token.address}`);
+      // CRASH/BRIUN/NORMIE/OGGY/FREN/ROOST-class: do not leave rotate sells outstanding.
+      noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE" });
       if (pendingManual) await flushPendingOperatorBuys(cdp);
       return false;
     }
@@ -8099,8 +8227,9 @@ async function processToken(cdp, token, bal) {
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
     // Evidence hashes (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5+0xcb7dd5a6 /
-    // DRB trough class) must rebuild FIFO *before* the unknown stamp —
-    // boot-only latch and desk-book fills left entrySold=0.
+    // MORPHO 0x9260992e / AERO 0x53b9844c / DRB trough class) must rebuild
+    // FIFO *before* the unknown stamp — boot-only latch and desk-book fills
+    // left entrySold=0.
     const heldBal = getCachedBalance(token.symbol);
     if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
         (heldBal > 0.001 || token.unknownEntry)) {
@@ -8763,28 +8892,102 @@ async function processToken(cdp, token, bal) {
 
       if (cmd.action === "buy") {
         lastTradeTime[token.symbol] = 0; // operator override — fire now
-        const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
-        let spent = false;
-        try {
-          spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
-        } catch (e) {
-          console.log(`⚠️  MANUAL BUY ${token.symbol}: ${e.message} — re-queued`);
+        if (isOperatorRotateCommand(cmd)) {
+          if (!rotateWalletAllowed(WALLET_ADDRESS) || !isRotateTarget(token.symbol)) {
+            console.log(`⚠️  OPERATOR_ROTATE: skip buy ${token.symbol} (vault or not HOME)`);
+            if (!rotateWalletAllowed(WALLET_ADDRESS)) {
+              finishOperatorRotate(process.env, operatorRotateState, { force: true });
+            }
+          } else {
+            const liveBal = await getFullBalance().catch(() => bal);
+            const spend = excessWethToSell({
+              nativeEth: liveBal?.eth ?? bal.eth,
+              wethEth: liveBal?.weth ?? bal.weth,
+            });
+            let spent = false;
+            try {
+              if (spend <= 0) {
+                console.log(`🏠 OPERATOR_ROTATE: no excess WETH above gas floor — HOME buy skipped`);
+                markOperatorRotateHomeBuyExecuted(operatorRotateState);
+                finishOperatorRotate(process.env, operatorRotateState, { homeBuyAttempted: true });
+              } else {
+                spent = await executeBuy(cdp, token, liveBal || bal, OPERATOR_ROTATE_BUY_REASON, price, spend);
+                if (spent) {
+                  markOperatorRotateHomeBuyExecuted(operatorRotateState);
+                  finishOperatorRotate(process.env, operatorRotateState, { homeBuyAttempted: true });
+                }
+              }
+            } catch (e) {
+              console.log(`⚠️  OPERATOR_ROTATE HOME buy: ${e.message} — re-queued`);
+            }
+            if (!spent && !operatorRotateState.finished) {
+              settleFlushedOperatorBuy(manualCommands, cmd, false);
+            }
+          }
+        } else {
+          const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+          let spent = false;
+          try {
+            spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+          } catch (e) {
+            console.log(`⚠️  MANUAL BUY ${token.symbol}: ${e.message} — re-queued`);
+          }
+          if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+          else settleFlushedOperatorBuy(manualCommands, cmd, spent);
         }
-        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
-        else settleFlushedOperatorBuy(manualCommands, cmd, spent);
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
-        const reason = cmd.source === "OPERATOR_SELL"
-          ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
-          : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL");
-        const sellPct = resolveManualSellPct(cmd, {
-          fullUnwind: canBypassSellLossGate(reason, process.env, token.symbol),
-        });
-        const p = await executeSell(cdp, token, sellPct, reason, price, true);
-        if (p > 0) {
-          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
-          const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+        const isRotate = isOperatorRotateCommand(cmd);
+        if (isRotate && shouldSkipRotateSell({
+          symbol: token.symbol,
+          address: token.address,
+          wallet: WALLET_ADDRESS,
+        })) {
+          console.log(`🏠 OPERATOR_ROTATE: skip sell ${token.symbol} (HOME / vault / dead route)`);
+          markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+          maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+            env: process.env,
+            wallet: WALLET_ADDRESS,
+          });
+        } else {
+          const reason = isRotate
+            ? OPERATOR_ROTATE_SELL_REASON
+            : (cmd.source === "OPERATOR_SELL"
+              ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
+              : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL"));
+          const sellPct = resolveManualSellPct(cmd, {
+            fullUnwind: isRotate || canBypassSellLossGate(reason, process.env, token.symbol),
+          });
+          const p = await executeSell(cdp, token, sellPct, reason, price, true);
+          if (p > 0) {
+            if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
+            if (isRotate) markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+            if (!isRotate) {
+              const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+            } else {
+              maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+                env: process.env,
+                wallet: WALLET_ADDRESS,
+              });
+            }
+          } else if (isRotate) {
+            const remain = getCachedBalance(token.symbol) || 0;
+            if (isRotateSellSkipped(operatorRotateState, token.symbol)) {
+              // Quoter-miss rem / N misses — leftover stays; do not re-queue.
+            } else if (remain <= ROTATE_MIN_BALANCE) {
+              markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+            } else {
+              settleFlushedOperatorBuy(manualCommands, { ...cmd, action: "buy" }, true);
+              if (!manualCommands.some((c) => isOperatorRotateCommand(c) && c.symbol === token.symbol && c.action === "sell")) {
+                manualCommands.push(cmd);
+              }
+            }
+            maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+              env: process.env,
+              wallet: WALLET_ADDRESS,
+            });
+          }
         }
       } else if (cmd.action === "sellhalf") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
@@ -13521,6 +13724,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitalearn einstein — inject Einstein knowledge base\n` +
           `/vitalearn [text] — inject any custom knowledge\n` +
           `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
+          `/vitafeed dir — DOS master VITA:\\ ; /vitafeed dir MEMORY ; unlock CODEX\\file (open-source, no private key)\n` +
+          `/vitafeed unlock <path|n|name> — instant ZK-short unwrap → English + machine (html/song/movie/code)\n` +
           `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
           `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B; WAVE_PROOF_LIVE=yes; desk POST /vita/waveproof)\n` +
           `/wavefull — full 28-shard Heraclitus quote (WAVE_FULL_LIVE=yes; desk POST /vita/wavefull; /waveproof stays 3)\n` +
@@ -13664,6 +13869,37 @@ async function flushPendingOperatorBuys(cdp) {
   } finally {
     flushingOperatorBuys = false;
   }
+}
+
+function applyOperatorRotateEnv() {
+  const known = new Set([
+    ...DEFAULT_TOKENS.map(t => t.symbol),
+    ...tokens.map(t => t.symbol),
+  ]);
+  const result = queueOperatorRotateOnce(
+    manualCommands,
+    process.env.OPERATOR_ROTATE_TO,
+    known,
+    operatorRotateState,
+    { wallet: WALLET_ADDRESS, env: process.env, balances: tokenBalanceCache },
+  );
+  if (result.queued) {
+    const sells = (result.items || []).map((it) => it.symbol);
+    const homeNote = result.homeBuy ? " + HOME WETH sweep" : "";
+    console.log(`🏠 OPERATOR_ROTATE_TO=HOME queued: ${sells.join(", ") || "(no bags)"}${homeNote} — HALT_NEW_ENTRIES, ALLOW_LOSSY held until HOME buy`);
+    tg(`🏠 <b>OPERATOR_ROTATE queued</b>\nEmpty non-HOME bags → verified HOME\n${sells.join(", ") || "WETH sweep only"}\nVault never. Gas floor 0.0005 ETH. ALLOW_LOSSY held until done.`).catch(() => {});
+  } else if (result.reason === "vault-never") {
+    console.log(`⚠️  OPERATOR_ROTATE: vault wallet ${WALLET_ADDRESS} — skip entirely`);
+  } else if (result.reason === "invalid") {
+    console.log(`⚠️  OPERATOR_ROTATE_TO: invalid "${process.env.OPERATOR_ROTATE_TO}" — only HOME (verified 0x4BfA…714f)`);
+  }
+  if (isOperatorRotateArmed() && !operatorRotateState.finished) {
+    maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+      env: process.env,
+      wallet: WALLET_ADDRESS,
+    });
+  }
+  return result;
 }
 
 function applyOperatorSellEnv() {
@@ -13935,6 +14171,7 @@ async function main() {
   await loadFromGitHub();
   applyOperatorBuyEnv();
   applyOperatorSellEnv();
+  applyOperatorRotateEnv();
   applyOperatorUnwrapEnv();
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.
@@ -14944,6 +15181,7 @@ async function main() {
 
       // Free stranded CBBTC/AAVE → ETH (no cascade). Names stay FROZEN.
       applyForcedLockedExits();
+      applyOperatorRotateEnv();
 
       // ── v18: BTP AUTO-SUSPEND at low capital ────────────────────────────────
       const tradeableUsd = bal.tradeableWithWeth * ethUsd;
@@ -15135,6 +15373,7 @@ async function main() {
             entryPrice: token.entryPrice,
             hasUsdBasis: hasUsableCostBasis(token),
             operatorLotEth: token.operatorLot?.fillCostEth,
+            fifoLotKnown: isUsableLot(fifoLots[token.symbol]),
           });
           const unknownBag = recycleKind.unknownBag;
           const hasKnownPos = recycleKind.hasKnownPos;
@@ -15186,11 +15425,12 @@ async function main() {
         const starveSellPct = (recycleFuel && liquidStarved)
           ? Math.max(sellPct, Math.min(0.95, computeSellable(balance, token.piggyReserve) / Math.max(balance, 1e-12)))
           : sellPct;
-        const moonReason = recycleKnown
-          ? `🌙 INJECT FUEL — recycle known bag for cascade`
-          : recycleUnknown
-            ? `🌙 DUST RECYCLE — unknown cost basis`
-            : `🌙 MOONSHOT TRIM — not in active tiers`;
+        const recycleCopy = recycleSellCopy({
+          recycleKnown,
+          recycleUnknown,
+          fifoKnown: !!(recycleKind.fifoKnown || recycleKind.hasKnownPos),
+        });
+        const moonReason = recycleCopy.reason;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
@@ -15251,8 +15491,20 @@ async function main() {
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
         if (moonGate.alwaysPlusLog) console.log(`   ${moonGate.alwaysPlusLog}`);
+        const fifoRed = moonEntryEth > 0 && (
+          isFifoRedLot({ markProceedsEth: moonMarkEth, remainingFifoEth: moonEntryEth })
+          || Number(moonGate.leftover) <= 0
+        );
+        const dustOrPiggy = /DUST RECYCLE|MOONSHOT TRIM/i.test(moonReason) || recycleUnknown;
+        if (dustOrPiggy && dustRecycleMustHoldFifoRed({
+          fifoRed,
+          allowLossyArmed: isAllowLossyOperatorSell(process.env),
+        })) {
+          console.log(`🌙 ${recycleCopy.label} ${token.symbol}: HOLD — FIFO red (always-plus; ALLOW_LOSSY not armed)`);
+          continue;
+        }
         if (!moonGate.allow) {
-          const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+          const label = recycleCopy.label;
           // Game force-exit priority + ALLOW_LOSSY: re-gate as operator unwind so
           // stale FIFO-red inject fuel (CLANKER class) frees ETH → cascade + hitch.
           const forceReason = manualSellReason(starveSellPct);
@@ -15329,7 +15581,7 @@ async function main() {
         const moonHitchNote = moonGate.skipHitch
           ? `plain sale (hitch skipped + banked ${Number(moonGate.hitchBankedEth || 0).toExponential(2)} ETH)`
           : "PLUS (hitch floor cleared)";
-        const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+        const label = recycleCopy.label;
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
           const p = await executeSell(cdpClient, token, starveSellPct, moonReason, price, false);

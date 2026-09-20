@@ -343,7 +343,7 @@ describe("recall payload + /bag /recall parse", () => {
     assert.match(html, /DRB: FIFO unknown/);
     assert.match(html, /BNKR:.*mark unknown/);
     assert.doesNotMatch(html, /Grok/i);
-    assert.deepEqual(RECALL_SLEEVES, ["AERO", "DRB", "BNKR", "VIRTUAL", "CLANKER"]);
+    assert.deepEqual(RECALL_SLEEVES, ["AERO", "DRB", "BNKR", "VIRTUAL", "CLANKER", "MORPHO"]);
   });
 
   it("persists fills + hitch events to disk without inventing dollars", () => {
@@ -599,21 +599,25 @@ describe("agent wires turn cards + /bag without weakening gates", () => {
   });
 });
 
-describe("hourly balance catalog — VIRTUAL + CLANKER bag inventory", () => {
+describe("hourly balance catalog — VIRTUAL + CLANKER + MORPHO bag inventory", () => {
   const VIRTUAL_ADDR = "0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b";
   const CLANKER_ADDR = "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb";
+  const MORPHO_ADDR = "0xbaa5cc21fd487b8fcc2f632f3f4e8d37262a0842";
 
-  it("maps VIRTUAL and CLANKER to the Base contracts and keeps them on the sleeve list", () => {
+  it("maps VIRTUAL, CLANKER, and MORPHO to the Base contracts and keeps them on the sleeve list", () => {
     assert.equal(String(HOURLY_BALANCE_CATALOG.VIRTUAL).toLowerCase(), VIRTUAL_ADDR);
     assert.equal(catalogAddress("virtual").toLowerCase(), VIRTUAL_ADDR);
     assert.equal(String(HOURLY_BALANCE_CATALOG.CLANKER).toLowerCase(), CLANKER_ADDR);
     assert.equal(catalogAddress("clanker").toLowerCase(), CLANKER_ADDR);
+    assert.equal(String(HOURLY_BALANCE_CATALOG.MORPHO).toLowerCase(), MORPHO_ADDR);
+    assert.equal(catalogAddress("morpho").toLowerCase(), MORPHO_ADDR);
     assert.ok(RECALL_SLEEVES.includes("VIRTUAL"));
     assert.ok(RECALL_SLEEVES.includes("CLANKER"));
-    assert.deepEqual([...RECALL_SLEEVES], ["AERO", "DRB", "BNKR", "VIRTUAL", "CLANKER"]);
+    assert.ok(RECALL_SLEEVES.includes("MORPHO"));
+    assert.deepEqual([...RECALL_SLEEVES], ["AERO", "DRB", "BNKR", "VIRTUAL", "CLANKER", "MORPHO"]);
   });
 
-  it("polls VIRTUAL and CLANKER even when the injector token list omitted them", () => {
+  it("polls VIRTUAL, CLANKER, and MORPHO even when the injector token list omitted them", () => {
     const rows = hourlyBalancePollRows([
       { symbol: "AERO", address: HOURLY_BALANCE_CATALOG.AERO },
     ]);
@@ -623,11 +627,15 @@ describe("hourly balance catalog — VIRTUAL + CLANKER bag inventory", () => {
     const clank = rows.find((r) => r.symbol === "CLANKER");
     assert.ok(clank, "CLANKER must be on the hourly poll list");
     assert.equal(String(clank.address).toLowerCase(), CLANKER_ADDR);
+    const morph = rows.find((r) => r.symbol === "MORPHO");
+    assert.ok(morph, "MORPHO must be on the hourly poll list");
+    assert.equal(String(morph.address).toLowerCase(), MORPHO_ADDR);
     const report = hourlyReportTokens([
       { symbol: "AERO", address: HOURLY_BALANCE_CATALOG.AERO },
     ]);
     assert.ok(report.some((t) => t.symbol === "VIRTUAL"));
     assert.ok(report.some((t) => t.symbol === "CLANKER"));
+    assert.ok(report.some((t) => t.symbol === "MORPHO"));
   });
 
   it("does not duplicate VIRTUAL when DEFAULT_TOKENS already has it", () => {
@@ -638,7 +646,7 @@ describe("hourly balance catalog — VIRTUAL + CLANKER bag inventory", () => {
     assert.equal(rows.filter((r) => r.symbol === "VIRTUAL").length, 1);
   });
 
-  it("agent hourly/boot path unions the catalog; VIRTUAL and CLANKER stay tradeable", () => {
+  it("agent hourly/boot path unions the catalog; VIRTUAL, CLANKER, and MORPHO stay tradeable", () => {
     assert.ok(body.includes("hourlyBalancePollRows(tokens)"));
     assert.ok(body.includes("hourlyReportTokens(tokens)"));
     const virt = body.indexOf('symbol: "VIRTUAL"');
@@ -653,6 +661,12 @@ describe("hourly balance catalog — VIRTUAL + CLANKER bag inventory", () => {
     const clankRow = body.slice(clank, clankNext > 0 ? clankNext : clank + 500);
     assert.equal(clankRow.includes("frozen: true"), false, "do not freeze CLANKER");
     assert.ok(clankRow.toLowerCase().includes(CLANKER_ADDR));
+    const morpho = body.indexOf('symbol: "MORPHO"');
+    assert.ok(morpho >= 0, "MORPHO remains in DEFAULT_TOKENS");
+    const morphoNext = body.indexOf("{ symbol:", morpho + 1);
+    const morphoRow = body.slice(morpho, morphoNext > 0 ? morphoNext : morpho + 500);
+    assert.equal(morphoRow.includes("frozen: true"), false, "do not freeze MORPHO");
+    assert.ok(morphoRow.toLowerCase().includes(MORPHO_ADDR));
     const refresh = body.indexOf("async function refreshTokenBalances");
     const refreshEnd = body.indexOf("\nasync function ", refresh + 1);
     const refreshBody = body.slice(refresh, refreshEnd > 0 ? refreshEnd : refresh + 800);

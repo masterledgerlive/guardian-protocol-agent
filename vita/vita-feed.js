@@ -581,6 +581,15 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
   if (/^(?:proven|tests|proventest|proven-tests)(?:\s|$)/i.test(trimmed)) {
     return { ok: true, action: "proven", body: "", source: "proven" };
   }
+  // DOS-style master directory — browse + open-source unlock (no private key).
+  if (/^(?:dir|directory|tree|ls|cd)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:dir|directory|tree|ls|cd)\s*/i, "").trim();
+    return { ok: true, action: "dir", body: rest, source: "dir" };
+  }
+  if (/^(?:unlock|openfile|reveal)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:unlock|openfile|reveal)\s*/i, "").trim();
+    return { ok: true, action: "unlock", body: rest, source: "unlock" };
+  }
   // Named library: list sealed files, open one into the player, seal keys catalog.
   if (/^(?:files|list)$/i.test(trimmed)) {
     return { ok: true, action: "files", body: "", source: "files" };
@@ -659,6 +668,11 @@ export function vitaFeedUsageText() {
     "  /vitafeed ref <q>   — search true-name (calculator/calc/calculadora/電卓/…)",
     "  /vitafeed ask <q>   — same as ref (ask|self label from query)",
     "  /vitafeed proven    — run calculator proven-test series (never invent)",
+    "DIRECTORY (DOS-style filing — prove what AI stored on-chain):",
+    "  /vitafeed dir              — master VITA:\\ subdirs",
+    "  /vitafeed dir MEMORY       — list a subdir",
+    "  /vitafeed unlock CODEX\\math-euler.txt — open-source unlock (no private key)",
+    "  Instant ZK-short unwrap → English + machine blocks (html/song/movie/code)",
     "BACKLOG (feed brain without agentic AI):",
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
@@ -1354,6 +1368,47 @@ export async function handleVitaFeedAction({
       reply:
         formatProvenTestCard(report) +
         "\n\nTry: /vitafeed ref calculadora  ·  /vitafeed ask I built a calc for payroll",
+    };
+  }
+  if (action === "dir") {
+    const {
+      listMasterDirectory,
+      listSubDirectory,
+      formatMasterDirCard,
+      formatSubDirCard,
+      formatDirStatsCard,
+      directoryStats,
+    } = await import("./vita-dir.js");
+    const arg = String(body || "").trim();
+    if (!arg) {
+      const master = listMasterDirectory();
+      return {
+        ok: true,
+        phase: "dir",
+        master,
+        reply:
+          formatMasterDirCard(master) +
+          "\n\n" +
+          formatDirStatsCard(directoryStats()),
+      };
+    }
+    const listed = listSubDirectory(arg);
+    return {
+      ok: listed.ok !== false,
+      phase: "dir",
+      listed,
+      reply: formatSubDirCard(listed),
+    };
+  }
+  if (action === "unlock") {
+    const { unlockDirectoryEntry, formatUnlockCard } = await import("./vita-dir.js");
+    const sel = String(body || "").trim();
+    const unlocked = unlockDirectoryEntry(sel);
+    return {
+      ok: unlocked.ok,
+      phase: "unlock",
+      unlocked,
+      reply: formatUnlockCard(unlocked),
     };
   }
   if (action === "backlog") {

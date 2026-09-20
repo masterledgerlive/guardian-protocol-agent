@@ -1,0 +1,9 @@
+{
+  "strandId": "morpho-fifo-latch",
+  "sparse": true,
+  "source": "fifo-lot-store",
+  "learn": "EVIDENCE_BUY_TXS.MORPHO = 0x9260992e6061d9c05f78c29826d0bc6cb5c83a1c93a32c7792169dfe0cadc09e. Wallet-WETH SwapRouter02 buy (n6054, hitch §$STORE§ ~457B). Cycle processToken and executeSell rebuild+apply the lot before unknown stamp / entrySold even when first-slice lot is usable (#130). Plain sell 0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86 auto-appends from persist/ledger — do not hardcode invent in EVIDENCE_SELL_TXS. Live rem ≈0.146857 matches buy−sell. HOURLY_BALANCE_CATALOG.MORPHO. VITAFEED_PAID / WAVE_MIRROR_PAID / ALLOW_LOSSY_OPERATOR_SELL stay default off. Mother brain untouched. Vault never. Do not invent P&L.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "tryRebuildLotFromReceipts"
+}

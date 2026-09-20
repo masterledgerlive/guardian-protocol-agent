@@ -2,6 +2,145 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_ROTATE NO-QUOTE rem must not block WETH→HOME
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. Do not invent hashes.
+
+Follow-up on #144: Quoter-miss skip was not enough. Unquoted catalog names
+(KITE/CRASH/BRIUN/NORMIE/OGGY/FREN ± ROOST) early-return `NO QUOTE` without
+marking rotate done, so `rotateSellsOutstanding` never clears and WETH→HOME
+never queues (WETH ~0.00194, gas ETH ~0.000664 ≥ 0.0005). Vault never.
+
+When `OPERATOR_ROTATE_TO=HOME` is armed:
+
+- rem bag NO-QUOTE / missing DexScreener-or-Quoter mark drops that symbol
+  (same class as Quoter-miss skip)
+- zero on-chain balance drops immediately (done-skipped)
+- leftover stays on-chain — no invented fill / no invented hash
+- once outstanding is empty (sold or quoter-skipped or no-quote or zero-bal),
+  queue WETH→HOME immediately; keep ≥0.0005 ETH gas
+
+### Fixed — OPERATOR_ROTATE Quoter-miss rem must not block WETH→HOME
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. Do not invent hashes.
+
+Live rotate sold rem dust through TYBG then stalled. MIGGLES + TOBY
+QuoterV2 miss ×3 so `rotateSellsOutstanding` never cleared and the
+WETH→HOME buy never queued (WETH ~0.00194, gas ETH ~0.000664 ≥ 0.0005).
+
+When `OPERATOR_ROTATE_TO=HOME` is armed:
+
+- rem bag QuoterV2 miss drops that symbol from outstanding (done-skipped)
+- any bag drops after 3 QuoterV2 misses
+- leftover stays on-chain — no invented fill
+- once outstanding is empty (sold or quoter-skipped), queue WETH→HOME
+  immediately; keep ≥0.0005 ETH gas
+- rem rematch does not re-queue a quoter-skipped leftover
+
+### Fixed — OPERATOR_ROTATE rem bags must unlock piggy dust and sell under $0.15
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`.
+
+Partial rotate sold AERO/VIRTUAL/MORPHO/BASECAT then stalled. Rem TOSHI /
+KEYCAT / REI / STONKEX / AIXBT logged `piggy-only dust — keeping locked`
+because USD mark < `SELLABLE_MIN_USD` (~$0.15). FORCE_EXIT also skips them
+on the same floor.
+
+When `OPERATOR_ROTATE_TO=HOME` is armed:
+
+- every rem non-HOME catalog bag with bal > 1e-9 queues sell with
+  `unlockPiggy: true` (ignore piggy floor + SELLABLE_MIN)
+- executeSell bypasses the piggy-only dust early return
+- rem latch is 1e-9 (AIXBT 0.044 no longer marks done unsold)
+- excess WETH → HOME after sells; keep ≥0.0005 ETH gas
+- do not clear `OPERATOR_ROTATE_TO` until HOME buy attempted
+
+### Added — OPERATOR_ROTATE_TO=HOME empty-to-verified Defi App $HOME
+
+HARD STOP: mother brain untouched. Vault never. Not Robinhood. Not Phantom save.
+Verified HOME `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f` (docs.defi.app + Coinbase; same on BNB).
+
+One Railway env set to empty Base RISK bags into $HOME:
+
+```
+OPERATOR_ROTATE_TO=HOME
+ALLOW_LOSSY_OPERATOR_SELL=yes
+HALT_NEW_ENTRIES=yes
+```
+
+- Catalog HOME at fee 3000 (Aerodrome Slipstream HOME/WETH 0.3% liquid book). Uni V3 1% is ghost.
+- Rotate sells every non-HOME ERC20 (USDG skip-hold), keeps ≥0.0005 ETH gas, sweeps excess WETH→HOME via exactInputSingle. Does not sell HOME. Skips vault `0xcea0e27b…`.
+- ALLOW_LOSSY stays armed for the whole batch (#140 one-shot must not consume mid-bag), then auto-clears with OPERATOR_ROTATE_TO. Live RISK list (AERO/MORPHO/VIRTUAL/TOSHI/BASECAT/KEYCAT/REI/STONKEX/AIXBT) sells FIFO-red under one rotate flag; USDG skip-hold; excess WETH 0.001545 spendable at 0.000680 native.
+
+After bags are HOME, set Railway `OPERATOR_ROTATE_TO` empty and `ALLOW_LOSSY_OPERATOR_SELL=no`. Leave `HALT_NEW_ENTRIES=yes` until Game re-opens entries.
+
+### Fixed — one-shot ALLOW_LOSSY + DUST RECYCLE must not sell AERO FIFO-red
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF. After the unwind,
+set Railway `ALLOW_LOSSY_OPERATOR_SELL` back to `no` (or clear
+`OPERATOR_SELL`).
+
+Live RISK wallet bought AERO on Base (SwapRouter02 exactInputSingle, WETH
+from wallet, Uni V3 0x3d5D1433, nonce 6058) then a FIFO-red partial sold
+under stale `ALLOW_LOSSY_OPERATOR_SELL=yes` (left from CLANKER #134):
+
+- Buy `0x53b9844ca04d920cb9e02e45bb2770610932dac098ec067ba2e8148bb090eb6e`
+  0.001445335529590520 WETH → 5.787298288314955 AERO
+- Partial sell `0x15ac4a7315e6b7086921cd1c01953b6655a9f8232e29ba431a651d7ff4dd70c5`
+  (nonce 6059) 5.497933373899208 AERO → 0.001364842731712176 WETH
+- Rem ≈0.28936491441574704 still held. Hitch SKIP was correct. ADD_ON_FIFO_RED
+  skipped add-ons after. DUST RECYCLE then sold 95% and labeled unknown-cost.
+
+Amounts from receipts only; do not invent P&L.
+
+- **One-shot ALLOW_LOSSY:** first sell that uses `ALLOW_LOSSY_OPERATOR_SELL`
+  / `canBypassSellLossGate` via that flag consumes the in-process env to
+  `no`. A second red sell HOLDs until Game re-arms. Railway must be set
+  back to `no` — restart reloads the dashboard value.
+- **DUST RECYCLE / piggy 95% HOLDs FIFO-red** unless the one-shot is
+  currently armed. Never label a sell "unknown cost basis" when FIFO lots
+  exist (`classifyRecycleBag` + `recycleSellCopy`).
+- Durable seed: `EVIDENCE_BUY_TXS.AERO` = `0x53b9844c…`. Cycle
+  `processToken` and `executeSell` rebuild from evidence **before** the
+  unknown stamp / `entrySold` (same class as VIRTUAL / CLANKER / MORPHO).
+  Sealed sell `0x15ac4a73…` auto-appends from persist/ledger. After Online,
+  AERO rem is known-cost so always-plus HOLDs until Quoter ≥ prop cost.
+
+### Fixed — latch MORPHO FIFO from evidence buy so always-plus can sell rem
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF. Do **not** use
+`ALLOW_LOSSY_OPERATOR_SELL`. #119–#122 hitch/catalog/FIFO/dust, #127/#128
+FIFO rem / thrift unwrap, and #129/#130 CLANKER latch stay.
+
+Live RISK wallet `0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915` bought
+MORPHO on Base (SwapRouter02 exactInputSingle, WETH from wallet, leftover
+hitch `§$STORE§`, ~457B, nonce 6054):
+
+- Buy `0x9260992e6061d9c05f78c29826d0bc6cb5c83a1c93a32c7792169dfe0cadc09e`
+  0.001549217606946090 WETH → 1.500852629446225758 MORPHO
+- Plain sell `0xd6cd2fa24927a152e01297915c49bbf92c2f0a8f50796c12a2deec3ecc305c86`
+  (nonce 6056) 1.353995353938468608 MORPHO → 0.001421365052369950 WETH
+- Rem ≈0.14685727550775715 still in wallet. GPA logged UNKNOWN ENTRY /
+  unknown cost — LOSE_ZERO HOLDs rem.
+
+Amounts from receipts only; do not invent P&L.
+
+- Durable seed: `EVIDENCE_BUY_TXS.MORPHO` = `0x9260992e…`. Receipt rebuild
+  supplies tokensIn/ethIn. Same class as VIRTUAL #121 / CLANKER #129/#130.
+- Cycle `processToken` and `executeSell` rebuild from evidence **before**
+  the unknown stamp / `entrySold`, even when a first-slice lot is already
+  usable (#130). After Online, MORPHO rem is known-cost so always-plus can
+  arm when Quoter is green.
+- Sealed sell `0xd6cd2fa2…` auto-appends from persist/ledger receipt rebuild.
+  Do not hardcode-invent amounts or a guessed hash in `EVIDENCE_SELL_TXS`.
+- Wallet rem matches buy − sell (4 wei extra). Dust piggy stays 0.
+- `HOURLY_BALANCE_CATALOG.MORPHO` so hourly /bag polls the rem bag.
+
 ### Added — `/vitafeed` backlog feeds brain without agentic AI
 
 HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF.

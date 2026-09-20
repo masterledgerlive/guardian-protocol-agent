@@ -21,10 +21,12 @@
     "VITA_SAVE_LEARN": "Bankable §TOKEN§ learn packet for /vitasave retrieval",
     "VITALIB": "Named library name→key→locs",
     "MEMORY": "Append-only learned notes",
-    "STRAND": "Sparse inject chunk plans"
+    "STRAND": "Sparse inject chunk plans",
+    "VITADIR": "DOS-style master directory — open-source unlock by file name"
   },
   "lastAdded": [
-    "MG_RECALL"
+    "MG_RECALL",
+    "VITADIR"
   ],
-  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. DOS-style VITADIR proves filing + open-source unlock (no private key) when selected in Telegram."
 }

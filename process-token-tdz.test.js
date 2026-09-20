@@ -67,6 +67,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("fifoRemainingCostEth"), "boot must recover FIFO remaining, not cash-flow leftover");
     assert.ok(src.includes("applySellPlusFloorMinOut"), "executeSell must raise minOut to FIFO plus floor");
     assert.ok(src.includes("canBypassSellLossGate"), "lossy / FORCE_EXIT must bypass plus floor");
+    assert.ok(src.includes("consumeAllowLossyOperatorSell"), "ALLOW_LOSSY is one-shot after the sell");
+    assert.ok(src.includes("dustRecycleMustHoldFifoRed"), "DUST RECYCLE HOLDs FIFO-red without ALLOW_LOSSY");
     assert.ok(src.includes("clampAmountInToLiveBalance"), "amountIn must clamp to live ERC20 wei");
     assert.ok(src.includes("getTokenBalanceWei"), "sell size must read live balanceOf wei");
     assert.ok(src.includes("needsSpenderApprove"), "approve must compare live allowance to amountIn");
@@ -76,6 +78,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("latchFreshLot"), "operator fill must latch remaining cost");
     assert.ok(src.includes("persistFifoLotsNow"), "operator fill must persist FIFO lots before restart");
     assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
+    assert.ok(src.includes("recycleSellCopy"), "never label unknown when FIFO lots exist");
     assert.ok(src.includes("blendUsdEntryOnAddOnBuy"), "add-on buy must not blend missing USD as 0");
     assert.ok(src.includes("lotFromBuyReceipt") || src.includes("tryRebuildLotFromReceipts"), "boot must rebuild lots from buy hash");
     assert.ok(src.includes("mergeBuyReceiptIntoLots"), "DRB trough add-on must merge onto first FIFO lot");
