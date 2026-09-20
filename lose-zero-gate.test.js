@@ -57,6 +57,10 @@ import {
   isAllowLossyOperatorBuy,
   canBypassBuyLossGate,
   isAllowLossyOperatorSell,
+  consumeAllowLossyOperatorSell,
+  usedAllowLossyOperatorSellBypass,
+  isDustRecycleReason,
+  dustRecycleMustHoldFifoRed,
   canBypassSellLossGate,
   isDisableDowBias,
   applyDowBiasDisable,
@@ -1216,6 +1220,71 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     });
     assert.equal(toshiStillHeld.allow, false);
     assert.equal(toshiStillHeld.verdict, "HOLD");
+  });
+
+  it("ALLOW_LOSSY allows one red sell then blocks the second until re-armed", () => {
+    const aeroRed = {
+      symbol: "AERO",
+      reason: "MANUAL SELL (operator) 95%",
+      sellPct: 0.95,
+      entryEth: 0.001,
+      lotCostEth: 0.001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00070,
+      usdMarkProceedsEth: 0.00070,
+      feePct: 0.003,
+      gasCostEth: 0.00002,
+      impactPct: 0.003,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+    };
+    const env = { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" };
+    const first = evaluateSellGate({ ...aeroRed, env });
+    assert.equal(first.allow, true);
+    assert.equal(first.verdict, "LOSSY_OPERATOR");
+    assert.equal(first.usedAllowLossy, true);
+    assert.equal(usedAllowLossyOperatorSellBypass(aeroRed.reason, env, "AERO"), true);
+    assert.equal(consumeAllowLossyOperatorSell(env), true);
+    assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "no");
+    assert.equal(isAllowLossyOperatorSell(env), false);
+    const second = evaluateSellGate({ ...aeroRed, env });
+    assert.equal(second.allow, false);
+    assert.equal(second.verdict, "HOLD");
+    assert.equal(second.usedAllowLossy, false);
+    env.ALLOW_LOSSY_OPERATOR_SELL = "yes";
+    const rearmed = evaluateSellGate({ ...aeroRed, env });
+    assert.equal(rearmed.allow, true);
+    assert.equal(rearmed.usedAllowLossy, true);
+  });
+
+  it("DUST RECYCLE holds on FIFO red without ALLOW_LOSSY", () => {
+    const env = { ALLOW_LOSSY_OPERATOR_SELL: "no", FORCE_EXIT_LOCKED_MAJORS: "no" };
+    const d = evaluateSellGate({
+      symbol: "AERO",
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+      sellPct: 0.95,
+      entryEth: 0.001,
+      lotCostEth: 0.001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00070,
+      usdMarkProceedsEth: 0.00070,
+      feePct: 0.003,
+      gasCostEth: 0.00002,
+      impactPct: 0.003,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      unknownEntry: false,
+      env,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover <= 0);
+    assert.equal(isDustRecycleReason("🌙 DUST RECYCLE — unknown cost basis"), true);
+    assert.equal(dustRecycleMustHoldFifoRed({ fifoRed: true, allowLossyArmed: false }), true);
+    assert.equal(dustRecycleMustHoldFifoRed({ fifoRed: true, allowLossyArmed: true }), false);
+    assert.equal(dustRecycleMustHoldFifoRed({ fifoRed: false, allowLossyArmed: false }), false);
   });
 
   it("FORCE EXIT LOCKED recovers stranded majors even when underwater", () => {

@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-20T03:03:00.000Z",
+  "topic": "aero-lose-zero-oneshot-fifo-red",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. After the unwind, set Railway ALLOW_LOSSY_OPERATOR_SELL back to no (or clear OPERATOR_SELL). Live 2026-09-20T03:02–03:03Z: RISK bought AERO n6058 0x53b9844ca04d920cb9e02e45bb2770610932dac098ec067ba2e8148bb090eb6e (5.787298288314955 AERO / 0.001445335529590520 WETH) then FIFO-red partial n6059 0x15ac4a7315e6b7086921cd1c01953b6655a9f8232e29ba431a651d7ff4dd70c5 under stale ALLOW_LOSSY (left from CLANKER #134). Log: LOSE_ZERO allow sell AERO ALLOW_LOSSY FIFO red operator unwind (hitch SKIP) then PLUS leftover=-2.20e-5 then DUST RECYCLE 95% unknown cost basis. Rem ≈0.28936 still held. ADD_ON_FIFO_RED skipped add-ons. Hitch SKIP was correct. Root: stale ALLOW_LOSSY + DUST RECYCLE sold red / labeled unknown while FIFO lots existed. Durable: consume ALLOW_LOSSY after the sell that used it (one-shot); DUST RECYCLE HOLDs FIFO-red unless the one-shot is armed; never label unknown when FIFO lots exist; EVIDENCE_BUY_TXS.AERO = the n6058 hash so rem cost latches after restart. Sealed sell 0x15ac4a73 auto-appends. Do not invent P&L.",
+  "locations": [],
+  "hypothesis": {
+    "id": "aero-allow-lossy-oneshot-dust-recycle-hold",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "leave ALLOW_LOSSY armed across sells",
+      "DUST RECYCLE sell FIFO-red without one-shot arm",
+      "label unknown cost when FIFO lots exist",
+      "WAVE_MIRROR_PAID / VITAFEED_PAID",
+      "invent AERO P&L instead of receipt rebuild",
+      "hardcode-invent EVIDENCE_SELL_TXS.AERO"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

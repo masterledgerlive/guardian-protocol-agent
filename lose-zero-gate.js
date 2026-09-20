@@ -26,7 +26,8 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
  *
  * If hitch would push net ≤ 0: SKIP_HITCH and sell plain only when plain is
  * still plus; else HOLD. Never sell red to place code. Unknown-cost bags
- * cannot prove plus vs entry → HOLD (no fake-green recycle). Piggy dust is
+ * cannot prove plus vs entry → HOLD (no fake-green recycle). Never label a
+ * sell "unknown cost basis" when FIFO lots exist. Piggy dust is
  * never sold; soldFrac must match tokens actually sold.
  * Remaining cost is FIFO/average of lots still on chain
  * (`ethIn × remainingTokens / tokensIn`), never cash-flow `ethIn − ethOut`.
@@ -35,9 +36,14 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
  * frozen names still obey this gate. Underwater exceptions (hitch SKIP on red):
  * FORCE EXIT LOCKED, FORCE_EXIT_SYMBOLS (when force-exit is on), and
  * ALLOW_LOSSY_OPERATOR_SELL=yes for MANUAL SELL (operator) / OPERATOR_SELL
- * listed names. Green FORCE EXIT / lossy plus still hitch when message-first
- * leftover covers 1× KEY+LOC — do not mute the chain on a recovery unwind.
- * Auto sells stay HOLD when those flags are off.
+ * listed names. ALLOW_LOSSY is **one-shot**: the first sell that uses it
+ * consumes the in-process flag (`no`). Further red sells HOLD until Game
+ * re-arms. Railway env must be set back to `no` (or clear OPERATOR_SELL) —
+ * a restart reloads the dashboard value. DUST RECYCLE / piggy 95% HOLDs
+ * FIFO-red unless that one-shot is currently armed. Green FORCE EXIT / lossy
+ * plus still hitch when message-first leftover covers 1× KEY+LOC — do not
+ * mute the chain on a recovery unwind. Auto sells stay HOLD when those
+ * flags are off.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
@@ -1131,6 +1137,28 @@ export function isAllowLossyOperatorSell(env = process.env) {
   return envFlagYes("ALLOW_LOSSY_OPERATOR_SELL", env);
 }
 
+/**
+ * Consume the Game one-shot. After any sell that used ALLOW_LOSSY, set the
+ * in-process env to `no` so a later DUST RECYCLE / piggy 95% cannot keep
+ * selling red. Railway dashboard must also be set back to `no` (or clear
+ * OPERATOR_SELL) — restart reloads the stored value.
+ * @returns {boolean} true if the flag was armed before consume
+ */
+export function consumeAllowLossyOperatorSell(env = process.env) {
+  if (!env || typeof env !== "object") return false;
+  const was = envFlagYes("ALLOW_LOSSY_OPERATOR_SELL", env);
+  env.ALLOW_LOSSY_OPERATOR_SELL = "no";
+  return was;
+}
+
+/** True when the bypass is ALLOW_LOSSY (not FORCE EXIT LOCKED / listed symbols). */
+export function usedAllowLossyOperatorSellBypass(reason = "", env = process.env, symbol = "") {
+  if (!isAllowLossyOperatorSell(env)) return false;
+  if (isForceExitLockedReason(reason)) return false;
+  if (isListedForceExitSymbol(symbol, env)) return false;
+  return isGameForceExitPriority(symbol);
+}
+
 export function isForceExitLockedReason(reason = "") {
   return /FORCE EXIT LOCKED/i.test(String(reason || ""));
 }
@@ -1140,6 +1168,18 @@ export function canBypassSellLossGate(reason = "", env = process.env, symbol = "
   if (!isGameForceExitPriority(symbol)) return false;
   if (isListedForceExitSymbol(symbol, env)) return true;
   return isAllowLossyOperatorSell(env);
+}
+
+export function isDustRecycleReason(reason = "") {
+  return /DUST RECYCLE/i.test(String(reason || ""));
+}
+
+/** DUST RECYCLE / piggy 95% HOLDs FIFO-red unless one-shot ALLOW_LOSSY is armed. */
+export function dustRecycleMustHoldFifoRed({
+  fifoRed = false,
+  allowLossyArmed = false,
+} = {}) {
+  return !!fifoRed && !allowLossyArmed;
 }
 
 export function isStopLossReason(reason = "") {
@@ -1766,8 +1806,10 @@ export function sizeHitchForSell({
  * VITA_MESSAGE_FIRST=no to SKIP_HITCH + bank instead. Never HOLD a green
  * leftover waiting for hitch. STOP LOSS is NOT a loss bypass. Unknown-cost
  * is HOLD. Auto cannot sell red. Game unwind (hitch SKIP): FORCE EXIT LOCKED,
- * FORCE_EXIT_SYMBOLS, or ALLOW_LOSSY_OPERATOR_SELL=yes on operator /
- * OPERATOR_SELL names. Flags off → always-plus HOLD stays.
+ * FORCE_EXIT_SYMBOLS, or one-shot ALLOW_LOSSY_OPERATOR_SELL=yes on operator /
+ * OPERATOR_SELL names. First sell that uses ALLOW_LOSSY consumes it
+ * in-process (`no`); further red sells HOLD until re-armed. Railway env
+ * must be set back to `no`. Flags off → always-plus HOLD stays.
  */
 export function evaluateSellGate({
   projectedProceedsEth = 0,
@@ -1836,6 +1878,8 @@ export function evaluateSellGate({
   const hitchBudget = leftover - earningsBuf;
   const forceExit = isForceExitLockedReason(reason);
   const overrideSell = canBypassSellLossGate(reason, env, symbol);
+  const viaForceListed = forceExit || isListedForceExitSymbol(symbol, env);
+  const viaAllowLossy = overrideSell && !viaForceListed && isAllowLossyOperatorSell(env);
   const treatUnknown = !!unknownEntry || !(Number(entryEth) > 0);
 
   const wanted = Math.max(0, Number(wantedHitchBytes) || 0);
@@ -1976,16 +2020,18 @@ export function evaluateSellGate({
       }),
       log: extra.log ?? `LOSE_ZERO: ${allow ? "allow" : "hold"} sell ${symbol} ${why}`,
       reason: why,
+      usedAllowLossy: extra.usedAllowLossy === true,
     };
   };
 
   // FORCE EXIT / lossy operator / listed unwind. Never HOLD red when Game
   // armed ALLOW_LOSSY_OPERATOR_SELL or FORCE_EXIT_SYMBOLS. Red → hitch SKIP
   // (recovery). Green + message-first KEY+LOC cover → hitch so code goes
-  // down-range; otherwise plain PLUS (skip hitch).
+  // down-range; otherwise plain PLUS (skip hitch). ALLOW_LOSSY is one-shot:
+  // caller (executeSell) consumes after this path is used.
   if (overrideSell) {
     const red = leftover <= 0;
-    const viaForce = forceExit || isListedForceExitSymbol(symbol, env);
+    const viaForce = viaForceListed;
     if (red) {
       const why = viaForce ? "FORCE EXIT LOCKED" : "lossy operator unwind";
       return pack(true, why, {
@@ -1999,6 +2045,7 @@ export function evaluateSellGate({
         minSellProceedsEth: reservedCover.minSellProceedsEth,
         verdict: viaForce ? "FORCE_EXIT" : "LOSSY_OPERATOR",
         netEth: leftover,
+        usedAllowLossy: viaAllowLossy,
         log: viaForce
           ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
           : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL — FIFO red operator unwind (hitch SKIP)`,
@@ -2023,6 +2070,7 @@ export function evaluateSellGate({
         hitchCoverEth: reservedCover.hitchCoverEth,
         edge: leftover,
         minSellProceedsEth: reservedCover.minSellProceedsEth,
+        usedAllowLossy: viaAllowLossy,
         log: viaForce
           ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — message-first hitch ${sized.hitchBytes || 0}B`
           : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — message-first hitch ${sized.hitchBytes || 0}B`,
@@ -2042,6 +2090,7 @@ export function evaluateSellGate({
       verdict: "PLUS",
       netEth: leftover,
       hitchWouldEth: hitchWould || hitchThis || sized.injectCostEth || reservedHitch,
+      usedAllowLossy: viaAllowLossy,
       log: viaForce
         ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — plain (hitch not covered / L1 unknown)`
         : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — plain (hitch not covered / L1 unknown)`,

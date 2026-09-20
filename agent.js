@@ -154,6 +154,11 @@ import {
   applySellPlusFloorMinOut,
   isForceExitLockedReason,
   canBypassSellLossGate,
+  isAllowLossyOperatorSell,
+  consumeAllowLossyOperatorSell,
+  usedAllowLossyOperatorSellBypass,
+  isFifoRedLot,
+  dustRecycleMustHoldFifoRed,
   isDisableDowBias,
   applyDowBiasDisable,
   isFridayCloseWindow,
@@ -229,6 +234,7 @@ import {
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
   classifyRecycleBag,
+  recycleSellCopy,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
@@ -6786,10 +6792,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // Latch FIFO from persist / evidence buy receipts before entrySold.
     // Desk book / ledger fills alone do not seed Railway (no fifo-lots.json on
     // bot-state). CLANKER array 0x23d8a0c5+0xcb7dd5a6 + add-on sibling (and
-    // VIRTUAL / MORPHO 0x9260992e) rebuild even when a first-slice lot is
-    // already usable — otherwise rem ~0.289 vs first 0.176 stays unknown-lots
-    // / entrySold=0. LOT_REBUILD_TXS env-only cannot merge the second hash.
-    // MORPHO rem ~0.1469 after plain sell 0xd6cd2fa2 auto-appends via ledger.
+    // VIRTUAL / MORPHO 0x9260992e / AERO 0x53b9844c) rebuild even when a
+    // first-slice lot is already usable — otherwise rem ~0.289 vs first 0.176
+    // stays unknown-lots / entrySold=0. LOT_REBUILD_TXS env-only cannot merge
+    // the second hash. MORPHO rem ~0.1469 after plain sell 0xd6cd2fa2 and
+    // AERO rem ~0.289 after FIFO-red partial 0x15ac4a73 auto-append via ledger.
     const remain = seededRebuildRemaining(totalBal);
     if (remain != null) {
       try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
@@ -7065,6 +7072,14 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (sellGate.log) console.log(`   ${sellGate.log}`);
     if (sellGate.alwaysPlusLog) console.log(`   ${sellGate.alwaysPlusLog}`);
     if (!sellGate.allow) return null;
+    // One-shot ALLOW_LOSSY: consume as soon as this sell used it so a later
+    // DUST RECYCLE / piggy 95% in the same process cannot keep selling red.
+    // Railway env must be set back to `no` (or clear OPERATOR_SELL).
+    if (sellGate.usedAllowLossy || usedAllowLossyOperatorSellBypass(reason, process.env, token.symbol)) {
+      if (consumeAllowLossyOperatorSell(process.env)) {
+        console.log(`   LOSE_ZERO: consumed ALLOW_LOSSY_OPERATOR_SELL (one-shot) — set Railway env back to no (or clear OPERATOR_SELL)`);
+      }
+    }
 
     const sellFeeCost = liveFeeWithinGatedCost(token.poolFeePct || 0.006, swapFee);
     if (swapFee !== token.feeTier) {
@@ -8100,8 +8115,9 @@ async function processToken(cdp, token, bal) {
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
     // Evidence hashes (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5+0xcb7dd5a6 /
-    // MORPHO 0x9260992e / DRB trough class) must rebuild FIFO *before* the
-    // unknown stamp — boot-only latch and desk-book fills left entrySold=0.
+    // MORPHO 0x9260992e / AERO 0x53b9844c / DRB trough class) must rebuild
+    // FIFO *before* the unknown stamp — boot-only latch and desk-book fills
+    // left entrySold=0.
     const heldBal = getCachedBalance(token.symbol);
     if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
         (heldBal > 0.001 || token.unknownEntry)) {
@@ -15119,6 +15135,7 @@ async function main() {
             entryPrice: token.entryPrice,
             hasUsdBasis: hasUsableCostBasis(token),
             operatorLotEth: token.operatorLot?.fillCostEth,
+            fifoLotKnown: isUsableLot(fifoLots[token.symbol]),
           });
           const unknownBag = recycleKind.unknownBag;
           const hasKnownPos = recycleKind.hasKnownPos;
@@ -15170,11 +15187,12 @@ async function main() {
         const starveSellPct = (recycleFuel && liquidStarved)
           ? Math.max(sellPct, Math.min(0.95, computeSellable(balance, token.piggyReserve) / Math.max(balance, 1e-12)))
           : sellPct;
-        const moonReason = recycleKnown
-          ? `🌙 INJECT FUEL — recycle known bag for cascade`
-          : recycleUnknown
-            ? `🌙 DUST RECYCLE — unknown cost basis`
-            : `🌙 MOONSHOT TRIM — not in active tiers`;
+        const recycleCopy = recycleSellCopy({
+          recycleKnown,
+          recycleUnknown,
+          fifoKnown: !!(recycleKind.fifoKnown || recycleKind.hasKnownPos),
+        });
+        const moonReason = recycleCopy.reason;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
         const moonWantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
@@ -15235,8 +15253,20 @@ async function main() {
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
         if (moonGate.alwaysPlusLog) console.log(`   ${moonGate.alwaysPlusLog}`);
+        const fifoRed = moonEntryEth > 0 && (
+          isFifoRedLot({ markProceedsEth: moonMarkEth, remainingFifoEth: moonEntryEth })
+          || Number(moonGate.leftover) <= 0
+        );
+        const dustOrPiggy = /DUST RECYCLE|MOONSHOT TRIM/i.test(moonReason) || recycleUnknown;
+        if (dustOrPiggy && dustRecycleMustHoldFifoRed({
+          fifoRed,
+          allowLossyArmed: isAllowLossyOperatorSell(process.env),
+        })) {
+          console.log(`🌙 ${recycleCopy.label} ${token.symbol}: HOLD — FIFO red (always-plus; ALLOW_LOSSY not armed)`);
+          continue;
+        }
         if (!moonGate.allow) {
-          const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+          const label = recycleCopy.label;
           // Game force-exit priority + ALLOW_LOSSY: re-gate as operator unwind so
           // stale FIFO-red inject fuel (CLANKER class) frees ETH → cascade + hitch.
           const forceReason = manualSellReason(starveSellPct);
@@ -15313,7 +15343,7 @@ async function main() {
         const moonHitchNote = moonGate.skipHitch
           ? `plain sale (hitch skipped + banked ${Number(moonGate.hitchBankedEth || 0).toExponential(2)} ETH)`
           : "PLUS (hitch floor cleared)";
-        const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+        const label = recycleCopy.label;
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
           const p = await executeSell(cdpClient, token, starveSellPct, moonReason, price, false);

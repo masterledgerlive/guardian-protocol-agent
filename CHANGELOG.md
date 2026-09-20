@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Fixed — one-shot ALLOW_LOSSY + DUST RECYCLE must not sell AERO FIFO-red
+
+HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
+`VITAFEED_PAID` / `WAVE_MIRROR_PAID` stay default OFF. After the unwind,
+set Railway `ALLOW_LOSSY_OPERATOR_SELL` back to `no` (or clear
+`OPERATOR_SELL`).
+
+Live RISK wallet bought AERO on Base (SwapRouter02 exactInputSingle, WETH
+from wallet, Uni V3 0x3d5D1433, nonce 6058) then a FIFO-red partial sold
+under stale `ALLOW_LOSSY_OPERATOR_SELL=yes` (left from CLANKER #134):
+
+- Buy `0x53b9844ca04d920cb9e02e45bb2770610932dac098ec067ba2e8148bb090eb6e`
+  0.001445335529590520 WETH → 5.787298288314955 AERO
+- Partial sell `0x15ac4a7315e6b7086921cd1c01953b6655a9f8232e29ba431a651d7ff4dd70c5`
+  (nonce 6059) 5.497933373899208 AERO → 0.001364842731712176 WETH
+- Rem ≈0.28936491441574704 still held. Hitch SKIP was correct. ADD_ON_FIFO_RED
+  skipped add-ons after. DUST RECYCLE then sold 95% and labeled unknown-cost.
+
+Amounts from receipts only; do not invent P&L.
+
+- **One-shot ALLOW_LOSSY:** first sell that uses `ALLOW_LOSSY_OPERATOR_SELL`
+  / `canBypassSellLossGate` via that flag consumes the in-process env to
+  `no`. A second red sell HOLDs until Game re-arms. Railway must be set
+  back to `no` — restart reloads the dashboard value.
+- **DUST RECYCLE / piggy 95% HOLDs FIFO-red** unless the one-shot is
+  currently armed. Never label a sell "unknown cost basis" when FIFO lots
+  exist (`classifyRecycleBag` + `recycleSellCopy`).
+- Durable seed: `EVIDENCE_BUY_TXS.AERO` = `0x53b9844c…`. Cycle
+  `processToken` and `executeSell` rebuild from evidence **before** the
+  unknown stamp / `entrySold` (same class as VIRTUAL / CLANKER / MORPHO).
+  Sealed sell `0x15ac4a73…` auto-appends from persist/ledger. After Online,
+  AERO rem is known-cost so always-plus HOLDs until Quoter ≥ prop cost.
+
 ### Fixed — latch MORPHO FIFO from evidence buy so always-plus can sell rem
 
 HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never.
