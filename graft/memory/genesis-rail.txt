@@ -1,0 +1,57 @@
+RAIL — Recursive AI Ledger of Ledgers (LLM dump #3)
+
+The VITA L0–L5 Recursive AI Ledger of Ledgers (RAIL) is a zero-dependency,
+self-sustaining cryptographic framework that unifies heterogeneous blockchain
+state, agentic compute logs, and swarm-distributed observations into a single,
+recursively compressed knowledge graph. By decoupling high-frequency proof
+generation from expensive inter-domain messaging (IDM), RAIL enables edge
+mobile devices to validate state injections, earn storage credits, and
+continuously refine a global, immutable memory library.
+
+Layer 0: Edge Swarm & Mobile NPU Proof Engine
+Physical prover network on consumer hardware. Nodes generate zk-SNARKs
+verifying local telemetry, data availability, or storage commitments.
+Storage Token Minting: valid L0 proofs mint V_CREDIT into programmatic PDAs.
+Earned credits bypass queue latency for personal state injections.
+
+Layer 1: High-Throughput Aggregation & ZK Compression
+Ingests raw L0 proofs using ZK compression. Aggregates N shard proofs into
+one succinct proof. Claimed cost ~$0.00025 per batch vs cross-chain messaging.
+
+Layer 2: Settlement Rollup & Transient Blob Anchoring
+OP-Stack EVM (op-geth / op-node). Periodically posts commitments to EIP-4844
+blobs (~$0.001 per state root) without permanent L1 state bloat.
+
+Layer 3: Autonomous Agentic Economy & x402 Micropayments
+Self-funding agent wallets (TEE AgentKit or smart accounts) execute x402 HTTP
+payments. ACP: agents issue micro-bounties; services purchased per-query with
+V_CREDIT or native tokens.
+
+Layer 4: Quantum-Resistant Archival & Immutable Provenance
+Dual-sign ECDSA + NIST PQC (CRYSTALS-Dilithium or XMSS). Canonical bytes,
+model weights, and logs committed to Arweave.
+
+Layer 5: Meta-Ledger Knowledge Library & Recursive Memory Fusion
+Ingests state roots from Ethereum, Solana, Bitcoin, sidechains; snark-compress
+into knowledge frames. Agentic voting matrix. Proven memory enters G_n.
+
+Recursive proof folding: Nova/Plonky2 IVC. Mother root:
+G_{n+1} = Poseidon2(G_n || MerkleRoot(K_refined) || H(pi_fold))
+
+Dump Python adapter simulates Poseidon2 with SHA-256:
+hasher.update(mother_root); hasher.update(payload_hash); hasher.update(zk_proof_hash)
+
+Storage economics: R(C_prov, t) = alpha * integral C_prov * Q_score.
+Inject priority P_inject = gamma * V_burn + (1-gamma) * lambda * K_priority.
+If K_priority >= threshold, V_burn -> 0 (sponsored).
+
+Agent roles: Critic, Reproducer, Optimizer. W_ag weighted votes. Verified if
+W_ag > 0.67. Follow-the-leader spatial topology on a hypersphere. Dual-ring
+classical + post-quantum ingestion.
+
+Universal adapter: ingest raw logs -> local SNARK -> L1 aggregator -> fold
+into L5 graph.
+
+This dump is filed in GRAFT as RAIL. It does not mint V_CREDIT, does not post
+EIP-4844 blobs, and does not touch VITA. Activate with /graft activate RAIL,
+run /graft rail, compact-inject with /graft inject.

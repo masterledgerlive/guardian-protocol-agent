@@ -30,6 +30,10 @@ harvested by a human — never auto-merged.
 9. **Dedicated Telegram poller.** Poll `getUpdates` only with
    `GRAFT_TELEGRAM_BOT_TOKEN`. Never steal the live bot's updates.
 
+10. **Compact inject avenue.** `/graft inject` stages KEY+LOC-short packets on
+    `graft-compact-inject`. Data log is append-only. No invented tx. Paper
+    credits are not tokens.
+
 ## Proof classes
 
 | Class | Where | Payload |
@@ -37,4 +41,6 @@ harvested by a human — never auto-merged.
 | Last-root | `graft/state/ledger.json` | Merkle root of artifacts + snapshots |
 | Short tag | Telegram `/graft proof` | `§GRAFT§` + short id + root prefix |
 | Thought trace | `graft/state/thoughts/` | Append-only agent steps |
-| Harvest mark | ledger status | `harvest-candidate` — not a VITA write |
+| Compact inject | `graft/state/inject-queue.json` | `§GRAFT§` KEY+LOC packet, TX=none |
+| Data log | `graft/state/data-log.jsonl` | avenue `graft-compact-inject` |
+| RAIL G_n | `graft/state/rail.json` | sha256 mother-root (Poseidon2 stand-in) |

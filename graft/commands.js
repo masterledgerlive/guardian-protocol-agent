@@ -22,6 +22,10 @@ import {
   treeView,
 } from "./store.js";
 import { think } from "./think.js";
+import { MODELS, findModelSpec, INJECT_AVENUE } from "./models.js";
+import { listReceipts, readDataLog, stageInject } from "./datalog.js";
+import { readRail, runRailCycle } from "./rail.js";
+import { SETTLEMENT, formatTokenLine } from "./tokens.js";
 
 export function parseGraftCommand(text) {
   const raw = String(text || "").trim();
@@ -47,6 +51,10 @@ export function parseGraftCommand(text) {
     ideas: "list",
     ls: "list",
     directory: "dir",
+    catalog: "models",
+    model: "models",
+    receipt: "receipts",
+    cycle: "rail",
   };
   return { ok: true, cmd: aliases[cmd] || cmd, arg, raw };
 }
@@ -92,7 +100,11 @@ export function formatHelp(ledger = readLedger()) {
     `<code>/graft sleep [id]</code> — turn it OFF (still stored)`,
     `<code>/graft fund &lt;eth&gt;</code> — throw money at GRAFT piggy`,
     `<code>/graft think [id|last]</code> — one visible thought cycle (costs piggy)`,
-    `<code>/graft log [id]</code> · <code>/graft tree</code> · <code>/graft dir</code>`,
+    `<code>/graft log [id]</code> · <code>/graft tree</code> · <code>/graft dir [MODELS]</code>`,
+    `<code>/graft models</code> — activate-ready catalog`,
+    `<code>/graft rail</code> — run RAIL L0–L5 cycle (must be ON)`,
+    `<code>/graft inject [id|all]</code> — compact old-way KEY+LOC packet (no broadcast)`,
+    `<code>/graft receipts</code> · <code>/graft dlog</code> — inject avenue log`,
     `<code>/graft proof</code> · <code>/graft bag</code>`,
     `<code>/graft survive [id]</code> · <code>/graft die [id]</code> · <code>/graft harvest [id]</code>`,
     FUND_TO ? `fund-to (you send): <code>${esc(FUND_TO)}</code> then /graft fund` : `paper piggy default — GRAFT does not sweep V3`,
@@ -173,13 +185,85 @@ export function formatLog(ref, ledger = readLedger()) {
   return clip(lines.join("\n"));
 }
 
-export function formatDir(ledger = readLedger()) {
-  const lines = ["<b>GRAFT:\\</b> directory (loc slots empty until harvest)"];
+export function formatDir(ledger = readLedger(), which = "") {
+  const want = String(which || "").trim().toUpperCase();
+  if (want === "MODELS" || want === "MODEL") return formatModels(ledger);
+  const lines = [
+    `<b>GRAFT:\\</b> ${INJECT_AVENUE}`,
+    `MODELS\\  LOG\\  RECEIPTS\\  INJECT\\  ARCHIVE\\`,
+  ];
   for (const [short, d] of Object.entries(ledger.directory || {})) {
     lines.push(`${short}\\ ${esc(d.title)} [${d.active ? "ON" : "filed"}] loc=${d.loc || "—"}`);
   }
   lines.push(`last-root <code>${shortId(ledger.lastRoot, 12)}</code>`);
+  lines.push(`tx — (none invented)`);
   return clip(lines.join("\n"));
+}
+
+export function formatModels(ledger = readLedger()) {
+  const lines = [`<b>GRAFT:\\MODELS\\</b> activate-ready · avenue ${INJECT_AVENUE}`];
+  for (const spec of MODELS) {
+    const art = findArtifact(spec.match, ledger);
+    if (!art) {
+      lines.push(`${spec.id}\\ (not seeded)`);
+      continue;
+    }
+    lines.push(
+      `${spec.id}\\ <code>${art.shortId}</code> [${art.active ? "ON" : "filed"}] ${spec.layers} loc=${art.loc || "—"}`,
+    );
+    lines.push(`  ${esc(spec.activate)}`);
+  }
+  lines.push(`last-root <code>${shortId(ledger.lastRoot, 12)}</code> · tx none invented`);
+  return clip(lines.join("\n"));
+}
+
+export function formatReceipts() {
+  const r = listReceipts();
+  const lines = [
+    `<b>GRAFT receipts</b> avenue <code>${r.avenue}</code>`,
+    `packets ${r.packets.length} · data-log ${r.logCount}`,
+    `tx hashes: ${r.txHashes.length ? r.txHashes.map(esc).join(", ") : "(none — never invented)"}`,
+  ];
+  for (const p of r.packets.slice(-8)) {
+    lines.push(`<code>${p.shortId}</code> ${esc(p.model)} ${p.bytes}B KEY+LOC loc=${shortId(p.lastRoot, 16)} tx=none`);
+  }
+  return clip(lines.join("\n"));
+}
+
+export function formatDlog(limit = 12) {
+  const rows = readDataLog().slice(-limit);
+  if (!rows.length) return "GRAFT data-log empty. File / think / rail / inject first.";
+  const lines = [`<b>GRAFT data-log</b> ${INJECT_AVENUE} (last ${rows.length})`];
+  for (const row of rows) {
+    lines.push(
+      `${esc(row.ts)} ${esc(row.kind)} ${esc(row.model || "")} ${esc(row.artifactId || "")} root=${shortId(row.lastRoot || "", 8)} tx=none`,
+    );
+  }
+  return clip(lines.join("\n"));
+}
+
+function formatRailCard(result) {
+  if (!result.ok) {
+    if (result.error === "not-active") {
+      return `REFUSE rail — not ON. <code>/graft activate RAIL</code>`;
+    }
+    if (result.error === "insufficient") {
+      return `REFUSE rail — piggy ${result.have} ETH, need ${result.need}. <code>/graft fund ${result.need}</code>`;
+    }
+    if (result.error === "not-found") return "REFUSE rail — seed missing. /graft models";
+    return `REFUSE rail — ${esc(result.error)}`;
+  }
+  return [
+    `<b>GRAFT RAIL cycle</b> <code>${result.artifact.shortId}</code>`,
+    `L0 ${result.proof.bytes}B hash <code>${shortId(result.proof.payloadHash, 12)}</code> (not a SNARK)`,
+    `L1 agg WETH piggy · L2 blob stand-in (not EIP-4844)`,
+    `L3 W_ag <code>${result.arena.wag}</code> threshold ${result.arena.threshold} → ${result.verified ? "FOLD" : "HOLD"}`,
+    `L4 dual-hash (not Dilithium) · L5 G_n <code>${shortId(result.motherRoot, 12)}</code>`,
+    `paperCredit <code>${result.wethCredit ?? result.paperCredit}</code> ${esc(formatTokenLine(result.settlement || SETTLEMENT))} · piggy <code>${result.piggyEth}</code> ETH`,
+    `last-root <code>${shortId(result.lastRoot, 12)}</code>`,
+    `tx — (not broadcast; never invented)`,
+    `next: <code>/graft inject RAIL</code>`,
+  ].join("\n");
 }
 
 function formatThinkCard(result) {
@@ -217,9 +301,12 @@ export function dispatchGraftCommand(text, extra = {}) {
   if (cmd === "list") return { ok: true, cmd, html: formatList(ledger) };
   if (cmd === "tree") return { ok: true, cmd, html: formatTree(ledger) };
   if (cmd === "bag") return { ok: true, cmd, html: formatBag(ledger) };
-  if (cmd === "dir") return { ok: true, cmd, html: formatDir(ledger) };
+  if (cmd === "dir") return { ok: true, cmd, html: formatDir(ledger, arg) };
+  if (cmd === "models") return { ok: true, cmd, html: formatModels(ledger) };
   if (cmd === "proof") return { ok: true, cmd, html: formatProof(arg || "last", ledger) };
   if (cmd === "log") return { ok: true, cmd, html: formatLog(arg || "last", ledger) };
+  if (cmd === "receipts") return { ok: true, cmd, html: formatReceipts() };
+  if (cmd === "dlog") return { ok: true, cmd, html: formatDlog() };
 
   if (cmd === "insert") {
     const body = String(arg || extra.replyText || "").trim();
@@ -265,8 +352,10 @@ export function dispatchGraftCommand(text, extra = {}) {
         `status ${r.artifact.status} · ON`,
         `think cost <code>${THINK_COST_ETH}</code> ETH · piggy <code>${r.ledger.piggyEth}</code>`,
         r.ledger.piggyEth >= THINK_COST_ETH || THINK_FREE
-          ? `next: <code>/graft think ${r.artifact.shortId}</code>`
-          : `next: <code>/graft fund ${THINK_COST_ETH}</code> then think`,
+          ? (String(r.artifact.title).includes("RAIL")
+            ? `next: <code>/graft rail</code> then <code>/graft inject RAIL</code>`
+            : `next: <code>/graft think ${r.artifact.shortId}</code>`)
+          : `next: <code>/graft fund ${THINK_COST_ETH}</code> then think|rail`,
       ].join("\n"),
       artifact: r.artifact,
     };
@@ -303,6 +392,49 @@ export function dispatchGraftCommand(text, extra = {}) {
   if (cmd === "think") {
     const result = think(arg || "last");
     return { ok: true, cmd, html: formatThinkCard(result), result };
+  }
+
+  if (cmd === "rail") {
+    const result = runRailCycle(arg || "RAIL");
+    return { ok: true, cmd, html: formatRailCard(result), result };
+  }
+
+  if (cmd === "inject") {
+    const which = String(arg || "all").trim() || "all";
+    const staged = [];
+    const targets = [];
+    if (which.toLowerCase() === "all") {
+      for (const spec of MODELS) {
+        const art = findArtifact(spec.match, ledger);
+        if (art) targets.push({ spec, art });
+      }
+    } else {
+      const spec = findModelSpec(which);
+      const art = findArtifact(spec?.match || which, ledger);
+      if (art) targets.push({ spec: spec || { id: art.shortId }, art });
+    }
+    if (!targets.length) {
+      return { ok: true, cmd, html: "REFUSE inject — nothing to stage. /graft models" };
+    }
+    const railState = readRail();
+    const mother = railState?.motherRoot || "";
+    for (const t of targets) {
+      const r = stageInject(t.art, {
+        model: t.spec.id,
+        motherRoot: t.spec.id === "RAIL" ? mother : "",
+        note: "compact-old-way KEY+LOC",
+      });
+      if (r.ok) staged.push(r.packet);
+    }
+    const lines = [
+      `<b>GRAFT inject</b> ${staged.length} compact packet(s) · ${INJECT_AVENUE}`,
+      `old-way KEY+LOC spirit — not the raw dump. not broadcast.`,
+    ];
+    for (const p of staged) {
+      lines.push(`<code>${p.shortId}</code> ${esc(p.model)} ${p.bytes}B loc=${shortId(p.lastRoot, 16)} tx=none`);
+    }
+    lines.push(`receipts: <code>/graft receipts</code> · log: <code>/graft dlog</code>`);
+    return { ok: true, cmd, html: clip(lines.join("\n")), staged };
   }
 
   if (cmd === "survive" || cmd === "die" || cmd === "harvest") {

@@ -26,6 +26,16 @@ export const DEFAULT_NODES = [
   { nodeId: "daisy-l4", title: "L4-SENSES", description: "Telegram / CLI inlet", parentId: "daisy", tags: ["l4", "telegram"] },
   { nodeId: "archive", title: "ARCHIVE", description: "Raw CAS blobs — never deleted", parentId: "graft-root", tags: ["lossless"] },
   { nodeId: "survival", title: "SURVIVAL", description: "Human survive / die / harvest marks", parentId: "graft-root", tags: ["survive"] },
+  { nodeId: "models", title: "MODELS", description: "Activate-ready architecture offshoots", parentId: "graft-root", tags: ["catalog"] },
+  { nodeId: "rail", title: "RAIL", description: "Recursive AI Ledger offshoot (L0–L5 map)", parentId: "models", tags: ["rail", "ledger"] },
+  { nodeId: "rail-l0", title: "RAIL-L0", description: "Local CAS storage proof (not a SNARK)", parentId: "rail", tags: ["l0"] },
+  { nodeId: "rail-l1", title: "RAIL-L1", description: "Merkle batch — paper piggy, not $0.00025 gas", parentId: "rail", tags: ["l1"] },
+  { nodeId: "rail-l2", title: "RAIL-L2", description: "CAS blob stand-in (not EIP-4844)", parentId: "rail", tags: ["l2"] },
+  { nodeId: "rail-l3", title: "RAIL-L3", description: "Critic / Reproducer / Optimizer votes", parentId: "rail", tags: ["l3"] },
+  { nodeId: "rail-l4", title: "RAIL-L4", description: "Dual hash rings (not Dilithium)", parentId: "rail", tags: ["l4"] },
+  { nodeId: "rail-l5", title: "RAIL-L5", description: "Mother root G_n sha256 fold", parentId: "rail", tags: ["l5"] },
+  { nodeId: "inject", title: "INJECT", description: "Compact old-way packets (graft-compact-inject)", parentId: "graft-root", tags: ["inject"] },
+  { nodeId: "receipts", title: "RECEIPTS", description: "Last-root receipts — tx only if real", parentId: "graft-root", tags: ["receipt"] },
 ];
 
 function emptyLedger() {
@@ -64,10 +74,8 @@ export function ensureStore() {
   fs.mkdirSync(thoughtsDir(), { recursive: true });
   if (!fs.existsSync(ledgerPath())) writeJsonAtomic(ledgerPath(), emptyLedger());
   const ledger = readLedger();
-  if (!Object.keys(ledger.nodes || {}).length) {
-    for (const spec of DEFAULT_NODES) upsertNode(ledger, spec);
-    persistLedger(ledger);
-  }
+  for (const spec of DEFAULT_NODES) upsertNode(ledger, spec);
+  persistLedger(ledger);
   return ledger;
 }
 

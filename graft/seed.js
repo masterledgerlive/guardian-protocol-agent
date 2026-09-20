@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { MEMORY_DIR } from "./config.js";
 import { ensureStore, ingestRaw, persistLedger, readLedger, setActive } from "./store.js";
+import { appendDataLog } from "./datalog.js";
 
 export const SEED_FILES = [
   {
@@ -28,6 +29,16 @@ export const SEED_FILES = [
     title: "DAISY offshoot brief — GRAFT-local 5-layer map",
     nodeIds: ["daisy", "daisy-l0", "daisy-l1", "daisy-l2", "daisy-l3", "daisy-l4"],
   },
+  {
+    file: "genesis-rail.txt",
+    title: "RAIL — Recursive AI Ledger of Ledgers (LLM dump #3)",
+    nodeIds: ["prompts", "models", "rail", "rail-l0", "rail-l1", "rail-l2", "rail-l3", "rail-l4", "rail-l5", "archive"],
+  },
+  {
+    file: "offshoot-rail-brief.md",
+    title: "RAIL offshoot brief — GRAFT-local L0–L5 ledger",
+    nodeIds: ["models", "rail", "rail-l0", "rail-l1", "rail-l2", "rail-l3", "rail-l4", "rail-l5"],
+  },
 ];
 
 export function seedGraft({ activate = [] } = {}) {
@@ -45,6 +56,13 @@ export function seedGraft({ activate = [] } = {}) {
       provenance: { origin: "graft-memory", file: spec.file },
     }, ledger);
     ingested.push({ file: spec.file, artifact: r.artifact, duplicate: r.duplicate });
+    appendDataLog({
+      kind: "seed",
+      model: spec.title.split("—")[0].trim(),
+      artifactId: r.artifact.shortId,
+      lastRoot: ledger.lastRoot,
+      duplicate: r.duplicate,
+    });
   }
   ledger.seeded = true;
   persistLedger(ledger);

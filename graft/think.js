@@ -6,6 +6,7 @@
 
 import { THINK_COST_ETH, THINK_FREE } from "./config.js";
 import { sha256hex } from "./hash.js";
+import { appendDataLog } from "./datalog.js";
 import {
   ARTIFACT_ACTIVE,
   ARTIFACT_THOUGHT,
@@ -24,6 +25,12 @@ const LAYER_HINTS = [
   { nodeId: "daisy-l2", keys: ["acp", "swarm", "escrow", "rfc", "hire", "commerce", "upwork", "bid"] },
   { nodeId: "daisy-l3", keys: ["memory", "g.a.m.e", "game", "recursive", "vector", "squash", "mind", "lossless"] },
   { nodeId: "daisy-l4", keys: ["telegram", "twitter", "github", "agentkit", "sensory", "interface", "api"] },
+  { nodeId: "rail-l0", keys: ["npu", "prover", "snark", "telemetry", "smartphone", "edge"] },
+  { nodeId: "rail-l1", keys: ["compression", "aggregate", "shard", "batch"] },
+  { nodeId: "rail-l2", keys: ["rollup", "blob", "eip-4844", "op-stack", "op-geth"] },
+  { nodeId: "rail-l3", keys: ["x402", "micropayment", "bounty", "agentkit"] },
+  { nodeId: "rail-l4", keys: ["dilithium", "xmss", "post-quantum", "arweave", "pqc"] },
+  { nodeId: "rail-l5", keys: ["mother", "poseidon", "knowledge", "folding", "ledger"] },
 ];
 
 const KEEP_HINTS = ["last-root", "merkle", "lossless", "telegram", "human", "harvest", "compact", "hash", "directory", "piggy"];
@@ -198,6 +205,15 @@ export function think(ref = "last", { costEth = THINK_COST_ETH, free = THINK_FRE
     tx: null,
     note: "tx — (not broadcast; never invented)",
   }, ledger);
+
+  appendDataLog({
+    kind: "think",
+    model: artifact.title.split("—")[0].trim(),
+    artifactId: artifact.shortId,
+    lastRoot: ledger.lastRoot,
+    survival: cls.survival,
+    costEth: free ? 0 : cost,
+  });
 
   return {
     ok: true,

@@ -27,9 +27,14 @@ GRAFT is that place. Seeds already filed (not ON until you activate):
 |---|---|---|
 | **MEMORY-INJECTOR** | lossless knowledge tree / on-chain filer | `memory/offshoot-graft-brief.md` |
 | **DAISY** | Unified Agentic Stack L0–L4 (Base + Virtuals ACP/G.A.M.E. + JAM) | `memory/offshoot-daisy-brief.md` |
+| **RAIL** | L0–L5 Recursive AI Ledger of Ledgers (Nova/blobs/PQC dump) | `memory/offshoot-rail-brief.md` |
+
+Browse: `/graft dir MODELS`. Compact old-way inject (KEY+LOC spirit, no broadcast): `/graft inject all`. Data log: `/graft dlog` on avenue `graft-compact-inject`.
 
 DAISY does **not** stand up Polkadot, mint an IAO, or hire Render. It maps
 those five layers onto GRAFT so you can activate and fund the *filing loop*.
+RAIL settles tests in **real Base WETH** (`0x4200…0006`) plus catalog AERO /
+VIRTUAL / TOSHI quotes — never a made-up V_CREDIT ticker.
 
 ## Run separately
 
@@ -41,11 +46,12 @@ npm run start:graft
 npm run start:graft -- --once
 
 # file / activate / fund / think (Cursor inlet)
-npm run start:graft -- --cmd "/graft list"
-npm run start:graft -- --cmd "/graft activate DAISY"
+npm run start:graft -- --cmd "/graft dir MODELS"
+npm run start:graft -- --cmd "/graft activate RAIL"
 npm run start:graft -- --cmd "/graft fund 0.001"
-npm run start:graft -- --cmd "/graft think last"
-npm run start:graft -- --cmd "/graft insert paste the next architecture prompt here"
+npm run start:graft -- --cmd "/graft rail"
+npm run start:graft -- --cmd "/graft inject all"
+npm run start:graft -- --cmd "/graft receipts"
 
 # tests (GRAFT only)
 npm run test:graft
@@ -85,6 +91,12 @@ dedicated bot token + chat id are set.
 | `/graft tree` | Hierarchical knowledge tree |
 | `/graft log [id\|last]` | Thought-process steps |
 | `/graft dir` | `GRAFT:\` directory of artifact → loc slots |
+| `/graft dir MODELS` | Activate-ready catalog (MEMORY-INJECTOR, DAISY, RAIL) |
+| `/graft models` | Same catalog |
+| `/graft rail` | Run working RAIL L0–L5 cycle (must be ON; paper credits, not a token) |
+| `/graft inject [id\|all]` | Stage compact old-way KEY+LOC packets (no broadcast, no invented tx) |
+| `/graft receipts` | Inject-queue receipts (tx empty until a real Base loc exists) |
+| `/graft dlog` | Append-only data log on avenue `graft-compact-inject` |
 | `/graft proof` | Last-root + short tags (hashes only, no invented txs) |
 | `/graft survive [id]` | Human mark: this idea survived |
 | `/graft die [id]` | Human mark: this idea died |
@@ -101,13 +113,16 @@ dedicated bot token + chat id are set.
 | `graft/think.js` | Deterministic refinement + survival score + thought log |
 | `graft/commands.js` | Telegram/CLI command parser |
 | `graft/telegram.js` | `[GRAFT]` cards + dedicated poller |
-| `graft/agent.js` | Isolated process |
+| `graft/rail.js` | Working RAIL L0–L5 engine (sha256 mother-root fold) |
+| `graft/datalog.js` | Avenue log + compact inject queue |
+| `graft/models.js` | Catalog |
 
 Live V3 webhook, VITA HTML, leftover hitch, and piggy-bank are **untouched**.
 
 ## Hitch honesty
 
-GRAFT does **not** send swaps or leftover hitches. Short tags are off-chain
-proofs of the last-root. If a tag is later harvested into VITA, that is a
-human step on the VITA avenue — not this process. No invented P&L, no fake
-tx hashes.
+GRAFT does **not** send swaps or leftover hitches. `/graft inject` stages a
+short `§GRAFT§` KEY+LOC packet (the old hitch spirit) so a human can later
+ride leftover / `/prove`. Receipt is last-root + inclusion proof until a real
+tx exists. **Never invented.** Paper `paperCredit` is not $V_{CREDIT}$ and not
+a tradable token. Tests never spend live bags.

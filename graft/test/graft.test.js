@@ -27,6 +27,16 @@ const { parseGraftCommand, dispatchGraftCommand } = await import(pathToFileURL(p
 const { seedGraft } = await import(pathToFileURL(path.join(GRAFT_DIR, "seed.js")).href);
 const telegram = await import(pathToFileURL(path.join(GRAFT_DIR, "telegram.js")).href);
 const config = await import(pathToFileURL(path.join(GRAFT_DIR, "config.js")).href);
+const { foldMotherRoot, l0Proof, readRail, runRailCycle, RAIL_CONSENSUS } = await import(pathToFileURL(path.join(GRAFT_DIR, "rail.js")).href);
+const { formatCompactPacket, listReceipts, readDataLog } = await import(pathToFileURL(path.join(GRAFT_DIR, "datalog.js")).href);
+const { INJECT_AVENUE, MODELS } = await import(pathToFileURL(path.join(GRAFT_DIR, "models.js")).href);
+const tokens = await import(pathToFileURL(path.join(GRAFT_DIR, "tokens.js")).href);
+const {
+  fetchTokenUsdQuote,
+  isValidUsdPrice,
+  BASE_WETH,
+  BASE_USDC,
+} = await import(pathToFileURL(path.join(GRAFT_DIR, "..", "price-oracle.js")).href);
 
 before(() => {
   store.ensureStore();
@@ -73,10 +83,11 @@ describe("hash / last-root", () => {
 describe("file then activate then think", () => {
   it("seeds both LLM dumps losslessly without activating", () => {
     const seeded = seedGraft();
-    assert.equal(seeded.ingested.length, 4);
+    assert.equal(seeded.ingested.length, 6);
     const titles = seeded.ingested.map((x) => x.artifact.title).join("\n");
     assert.match(titles, /MEMORY-INJECTOR/);
     assert.match(titles, /DAISY/);
+    assert.match(titles, /RAIL/);
     const daisy = store.findArtifact("DAISY");
     assert.ok(daisy);
     assert.equal(daisy.active, false);
@@ -190,4 +201,112 @@ describe("CAS integrity", () => {
     const hash = createHash("sha256").update(buf).digest("hex");
     assert.equal(hash, daisy.id);
   });
+});
+
+describe("RAIL working engine", () => {
+  it("python-adapter mother-root fold is real sha256 concat", () => {
+    const g = foldMotherRoot("aa", "bb", "cc");
+    assert.equal(g, sha256hex("aabbcc"));
+  });
+
+  it("L0 proof is a CAS hash, not a SNARK and not a token", () => {
+    const p = l0Proof("hello rail");
+    assert.equal(p.snark, false);
+    assert.equal(p.payloadHash, sha256hex("hello rail"));
+  });
+
+  it("refuses until activate + piggy; then folds G_n, keeps original, logs avenue", () => {
+    const have = Number(store.readLedger().piggyEth) || 0;
+    if (have > 0) store.debitPiggy(have, "drain-before-rail");
+    const blocked = runRailCycle("RAIL");
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.error, "not-active");
+    store.setActive("RAIL — Recursive", true);
+    const broke = runRailCycle("RAIL");
+    assert.equal(broke.ok, false);
+    assert.equal(broke.error, "insufficient");
+    store.fundPiggy(0.001, "rail-test");
+    const before = readRail().motherRoot;
+    const raw = store.rawBlob(store.findArtifact("RAIL — Recursive"));
+    const result = runRailCycle("RAIL");
+    assert.equal(result.ok, true);
+    assert.equal(result.tx, null);
+    assert.equal(result.proof.snark, false);
+    assert.equal(result.blob.eip4844, false);
+    assert.equal(result.rings.dilithium, false);
+    assert.ok(result.arena.wag >= RAIL_CONSENSUS);
+    assert.equal(result.verified, true);
+    assert.notEqual(result.motherRoot, before);
+    assert.ok(result.wethCredit > 0);
+    assert.equal(result.settlement.symbol, "WETH");
+    assert.equal(result.settlement.address.toLowerCase(), tokens.BASE_WETH.toLowerCase());
+    assert.equal(result.settlement.address.toLowerCase(), BASE_WETH.toLowerCase());
+    assert.equal(store.rawBlob(store.findArtifact("RAIL — Recursive")), raw);
+    const logs = readDataLog().filter((r) => r.kind === "rail-cycle");
+    assert.ok(logs.length >= 1);
+    assert.equal(logs.at(-1).avenue, INJECT_AVENUE);
+    assert.equal(logs.at(-1).tx, null);
+  });
+});
+
+describe("model directory + compact inject", () => {
+  it("GRAFT:\\MODELS lists MEMORY-INJECTOR, DAISY, RAIL", () => {
+    const card = dispatchGraftCommand("/graft dir MODELS");
+    assert.match(card.html, /MEMORY-INJECTOR/);
+    assert.match(card.html, /DAISY/);
+    assert.match(card.html, /RAIL/);
+    assert.equal(MODELS.length, 3);
+  });
+
+  it("inject all stages KEY+LOC packets smaller than raw dumps, no invented txs", () => {
+    const r = dispatchGraftCommand("/graft inject all");
+    assert.match(r.html, /graft-compact-inject/);
+    assert.equal(r.staged.length, 3);
+    const receipts = listReceipts();
+    assert.equal(receipts.txHashes.length, 0);
+    for (const p of r.staged) {
+      assert.equal(p.tx, null);
+      assert.ok(p.bytes < p.rawBytes, `${p.model} compact ${p.bytes} vs raw ${p.rawBytes}`);
+      assert.match(p.utf8, /§GRAFT§/);
+      assert.match(p.utf8, /TOKEN=WETH/);
+      assert.match(p.utf8, new RegExp(tokens.BASE_WETH, "i"));
+    }
+    assert.equal(/0x[a-fA-F0-9]{64}/.test(JSON.stringify(receipts.packets.map((p) => p.tx))), false);
+    const rec = dispatchGraftCommand("/graft receipts");
+    assert.match(rec.html, /never invented/);
+  });
+
+  it("compact packet is hitch-short, not the whitepaper", () => {
+    const art = store.findArtifact("RAIL — Recursive");
+    const utf8 = formatCompactPacket({
+      model: "RAIL",
+      artifact: art,
+      lastRoot: store.readLedger().lastRoot,
+      motherRoot: readRail().motherRoot,
+      snap: 1,
+    });
+    assert.ok(utf8.length < 500);
+    assert.match(utf8, /TOKEN=WETH/);
+    assert.match(utf8, new RegExp(tokens.BASE_WETH, "i"));
+    assert.equal(utf8.includes("9.9B"), false);
+    assert.equal(utf8.includes("Dilithium"), false);
+  });
+});
+
+describe("real Base tokens (live quotes, no invented tickers)", () => {
+  it("tokens.json catalog matches canonical AERO/VIRTUAL/TOSHI/BRETT/DEGEN", () => {
+    const check = tokens.assertCatalogMatchesCanonical();
+    assert.equal(check.ok, true, check.mismatches.join("; "));
+  });
+
+  it("quotes live USD for WETH, USDC, AERO, VIRTUAL, TOSHI", async () => {
+    const universe = tokens.TEST_UNIVERSE;
+    assert.equal(universe.find((t) => t.symbol === "WETH").address.toLowerCase(), BASE_WETH.toLowerCase());
+    assert.equal(universe.find((t) => t.symbol === "USDC").address.toLowerCase(), BASE_USDC.toLowerCase());
+    for (const t of universe) {
+      const q = await fetchTokenUsdQuote(t.address);
+      assert.ok(q && isValidUsdPrice(q.priceUsd), `${t.symbol} ${t.address} must have a live USD quote, got ${JSON.stringify(q)}`);
+      assert.ok(q.priceUsd > 0, `${t.symbol} price`);
+    }
+  }, { timeout: 60000 });
 });
