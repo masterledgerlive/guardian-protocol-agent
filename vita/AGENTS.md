@@ -34,6 +34,10 @@ growth + library) then stages for override. `/vitafeed learn` · `/vitafeed proo
 then confirm — side-by-side costs/sizes + Basescan Input Data → UTF-8 read
 receipts for spaced locs. `/vitafeed restart` lists bags ≥ $0.50 to exit for
 RISK fuel (`vita/vita-feed-dual.js`).
+**Loader (curated diet → backlog):** `/vitafeed load` · `/vitafeed know` ·
+`/vitafeed recall` · `/vitafeed cipher` — cipher/prog packs + did-you-know +
+capability proofs; animated UI `/vita/feed-loader`. Rides existing backlog
+(not a twin queue) — see thought note in `vita/vita-feed-loader.js`.
 **Ref memory (proven recursive search):** `/vitafeed ref <q>` · `/vitafeed ask <q>`
 · `/vitafeed proven` — calculator true-name + translator codex (ask|self); cites
 Base anchors only (`vita/ref-memory.js`).

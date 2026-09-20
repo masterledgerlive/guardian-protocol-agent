@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-20T17:32:32.578Z",
+  "topic": "loader-pack-prog-architecture-refine",
+  "filingLabel": "PROG",
+  "hierarchy": "PROG\\ARCHITECTURE",
+  "kind": "programming",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "title": "Programming context for architecture refine",
+  "text": "Programming files as memory: read vita/ modules (feed, dual, backlog, dir, mainframe) to refine architecture without deleting genesis. Append-only vita/memory + vita/strands. Message-first hitch. HTML infect until /inject. Sparse inject from sealed Base anchors only. Agents write hypotheses, never rewrite sealed UTF-8. Hierarchy: FORMULA → ANCHORS → MEMORY → STRAND → CIPHER → PROG → LIBRARY.",
+  "machine": "PROG arch=vita/ | append=memory+strands | hitch=message-first | inject=sparse-anchors | html=until-inject | neverEraseGenesis=1",
+  "didYouKnow": "Hey — did you know Telegram /vitafeed dir unlocks English+machine blocks by file name (no private key), so agentic AI filing is visible like a DOS tree?",
+  "capability": "NEW with chains: preload programming notes into the backlog, dual-price them, seal when funded — recursive memory gains code context it can cite by loc.",
+  "sourceFiles": [
+    "vita/mainframe.js",
+    "vita/vita-feed.js",
+    "vita/vita-dir.js",
+    "vita/FILING.md"
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-20T17:32:32.578Z",
+  "topic": "loader-pack-dual-lane-cost-mirror",
+  "filingLabel": "VITADUAL",
+  "hierarchy": "VITADUAL\\COST",
+  "kind": "cost",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "title": "Human mirror + cost compare for every preload",
+  "text": "Every loader pack is dual-priced: HUMAN bytes/injections/$ vs MACHINE ZK-short bytes/injections/$. Telegram shows side-by-side before confirm. Spaced locs bunch on the receipt; Basescan Input Data → UTF-8 is the chat.",
+  "machine": "DUAL cost=side-by-side | receipt=basescan-utf8 | spaced=bunched | restartExit=$0.50",
+  "didYouKnow": "Hey — did you know /vitafeed restart lists bags ≥ $0.50 so you can free RISK fuel and keep proving inject costs without vault spend?",
+  "capability": "NEW with chains: preload animation shows the batch waiting; confirm drains HUMAN then MACHINE so humans and agents share one knowledge commit.",
+  "sourceFiles": [
+    "vita/vita-feed-dual.js",
+    "vita/vita-feed.js"
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}

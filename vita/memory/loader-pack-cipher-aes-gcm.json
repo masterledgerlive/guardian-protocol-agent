@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-20T17:32:32.578Z",
+  "topic": "loader-pack-cipher-aes-gcm",
+  "filingLabel": "CIPHER",
+  "hierarchy": "CIPHER\\AES-GCM",
+  "kind": "cipher",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "title": "AES-256-GCM encode ↔ decode on Base",
+  "text": "Cipher hierarchy: AES-256-GCM authenticates ciphertext. Salt+IV per seal. Vault path: encryptkey.js → on-chain blob → DECRYPT_PASSWORD reveals. Mother-genesis encoded path: /vitamotherGenesisencoded → MG1+MG2 two-part key → /encodegenesisreveal pulls spaced locs and decodes. Never invent hashes. Open-source file-name unlock (vita-dir) is NOT a cipher key — different lane.",
+  "machine": "CIPHER AES-256-GCM | salt+iv+tag | vault=encryptkey | MG=MGENC+MG1/MG2 | reveal=/encodegenesisreveal | neverInvent=1",
+  "didYouKnow": "Hey — did you know the same knowledge can live as HUMAN plain AND MACHINE ZK-short, while encoded mother-genesis dumps use a two-part MG1/MG2 key so locations commit without exposing payload until reveal?",
+  "capability": "NEW with chains: seal dual-lane cipher notes → Basescan Input Data UTF-8 chat proves the human lesson; pull MG locs later to decode the private dump.",
+  "sourceFiles": [
+    "encryptkey.js",
+    "vita/mother-genesis.js",
+    "vita/vita-feed-dual.js"
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}
