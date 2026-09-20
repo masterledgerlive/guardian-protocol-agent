@@ -25,6 +25,10 @@ import {
   rotateBypassesPiggyDustHold,
   rotateSellCommand,
   isRotateRemBag,
+  rotateSellsOutstanding,
+  applyRotateQuoterMiss,
+  isRotateSellSkipped,
+  ROTATE_QUOTER_MISS_SKIP,
   verifiedHomeCatalogRow,
 } from "./operator-rotate.js";
 import {
@@ -347,5 +351,107 @@ describe("OPERATOR_ROTATE rem piggy-dust unlock", () => {
     assert.match(agentSrc, /remain <= ROTATE_MIN_BALANCE/);
     assert.ok(agentSrc.includes("balances: tokenBalanceCache"));
     assert.ok(agentSrc.includes("homeBuyAttempted: true"));
+  });
+});
+
+describe("OPERATOR_ROTATE Quoter-miss rem does not block HOME", () => {
+  it("drops Quoter-miss rem from outstanding and opens the HOME buy gate", () => {
+    assert.equal(ROTATE_QUOTER_MISS_SKIP, 3);
+    const env = { OPERATOR_ROTATE_TO: "HOME" };
+    const wallet = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+    const commands = [];
+    const state = { done: false, pendingSells: ["TYBG", "MIGGLES", "TOBY"] };
+    markOperatorRotateSellExecuted(state, "TYBG");
+    commands.push(rotateSellCommand("MIGGLES"));
+    commands.push(rotateSellCommand("TOBY"));
+    assert.deepEqual(rotateSellsOutstanding(commands, state).sort(), ["MIGGLES", "TOBY"]);
+
+    // Live rem leftovers: first QuoterV2 miss drops the bag.
+    const miggles = applyRotateQuoterMiss({
+      commands,
+      state,
+      symbol: "MIGGLES",
+      remBag: true,
+      kind: "QuoterV2 miss",
+      code: "QUOTE_MISS",
+    });
+    assert.equal(miggles.dropped, true);
+    assert.equal(isRotateSellSkipped(state, "MIGGLES"), true);
+    assert.equal(rotateSellsOutstanding(commands, state).includes("MIGGLES"), false);
+    assert.equal(commands.some((c) => c.symbol === "MIGGLES"), false);
+
+    const stillBlocked = maybeQueueRotateHomeBuy(commands, state, { env, wallet });
+    assert.equal(stillBlocked.queued, false);
+    assert.equal(stillBlocked.reason, "sells-pending");
+
+    const toby = applyRotateQuoterMiss({
+      commands,
+      state,
+      symbol: "TOBY",
+      remBag: true,
+      kind: "QuoterV2 miss",
+    });
+    assert.equal(toby.dropped, true);
+    assert.deepEqual(rotateSellsOutstanding(commands, state), []);
+
+    const buy = maybeQueueRotateHomeBuy(commands, state, { env, wallet });
+    assert.equal(buy.queued, true);
+    assert.equal(buy.symbol, "HOME");
+    assert.equal(commands.some((c) => c.symbol === "HOME" && c.action === "buy"), true);
+
+    // Rem rematch must not re-queue a Quoter-skipped leftover.
+    const again = queueOperatorRotateOnce(
+      commands,
+      "HOME",
+      new Set(["MIGGLES", "TOBY", "HOME", "TYBG"]),
+      state,
+      { wallet, env, balances: { MIGGLES: 12, TOBY: 4, TYBG: 0, HOME: 0 } },
+    );
+    assert.equal(commands.some((c) => c.symbol === "MIGGLES" && c.action === "sell"), false);
+    assert.equal(commands.some((c) => c.symbol === "TOBY" && c.action === "sell"), false);
+    assert.ok(again.reason === "already-queued" || again.homeBuy || !again.queued);
+  });
+
+  it("drops a non-rem bag only after 3 QuoterV2 misses", () => {
+    const env = { OPERATOR_ROTATE_TO: "HOME" };
+    const wallet = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+    const commands = [rotateSellCommand("AERO")];
+    const state = { done: false, pendingSells: ["AERO"] };
+    for (let i = 1; i <= 2; i++) {
+      const r = applyRotateQuoterMiss({
+        commands,
+        state,
+        symbol: "AERO",
+        remBag: false,
+        kind: "QuoterV2 miss",
+      });
+      assert.equal(r.dropped, false, `miss ${i} must keep outstanding`);
+      assert.deepEqual(rotateSellsOutstanding(commands, state), ["AERO"]);
+      assert.equal(maybeQueueRotateHomeBuy(commands, state, { env, wallet }).reason, "sells-pending");
+    }
+    const third = applyRotateQuoterMiss({
+      commands,
+      state,
+      symbol: "AERO",
+      remBag: false,
+      kind: "QuoterV2 miss",
+    });
+    assert.equal(third.dropped, true);
+    assert.equal(third.misses, 3);
+    assert.deepEqual(rotateSellsOutstanding(commands, state), []);
+    const buy = maybeQueueRotateHomeBuy(commands, state, { env, wallet });
+    assert.equal(buy.queued, true);
+    assert.equal(buy.symbol, "HOME");
+  });
+
+  it("executeSell rotate path notes Quoter miss and will not re-queue skipped rem", () => {
+    assert.ok(agentSrc.includes("applyRotateQuoterMiss"));
+    assert.ok(agentSrc.includes("isRotateSellSkipped"));
+    const sellFn = agentSrc.indexOf("async function executeSell(");
+    const sellEnd = agentSrc.indexOf("\nasync function ", sellFn + 1);
+    const body = agentSrc.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 14000);
+    assert.ok(body.includes("applyRotateQuoterMiss"), "executeSell must drop rotate Quoter-miss rem");
+    assert.ok(body.includes("HOME must not wait"));
+    assert.ok(agentSrc.includes("isRotateSellSkipped(operatorRotateState, token.symbol)"));
   });
 });

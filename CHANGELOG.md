@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Fixed — OPERATOR_ROTATE Quoter-miss rem must not block WETH→HOME
+
+HARD STOP: mother brain untouched. Vault never. Verified HOME still
+`0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. Do not invent hashes.
+
+Live rotate sold rem dust through TYBG then stalled. MIGGLES + TOBY
+QuoterV2 miss ×3 so `rotateSellsOutstanding` never cleared and the
+WETH→HOME buy never queued (WETH ~0.00194, gas ETH ~0.000664 ≥ 0.0005).
+
+When `OPERATOR_ROTATE_TO=HOME` is armed:
+
+- rem bag QuoterV2 miss drops that symbol from outstanding (done-skipped)
+- any bag drops after 3 QuoterV2 misses
+- leftover stays on-chain — no invented fill
+- once outstanding is empty (sold or quoter-skipped), queue WETH→HOME
+  immediately; keep ≥0.0005 ETH gas
+- rem rematch does not re-queue a quoter-skipped leftover
+
 ### Fixed — OPERATOR_ROTATE rem bags must unlock piggy dust and sell under $0.15
 
 HARD STOP: mother brain untouched. Vault never. Verified HOME still

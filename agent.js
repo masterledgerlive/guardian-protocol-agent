@@ -180,6 +180,7 @@ import {
   ROTATE_MIN_BALANCE,
   isOperatorRotateArmed,
   isOperatorRotateCommand,
+  isOperatorRotateReason,
   isRotateTarget,
   shouldSkipRotateSell,
   excessWethToSell,
@@ -190,6 +191,9 @@ import {
   finishOperatorRotate,
   rotateWalletAllowed,
   rotateBypassesPiggyDustHold,
+  isRotateRemBag,
+  isRotateSellSkipped,
+  applyRotateQuoterMiss,
 } from "./operator-rotate.js";
 import {
   FIFO_LOTS_FILENAME,
@@ -7024,7 +7028,20 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     if (!quoteGate.allow) {
       lastQuoterExecutable[token.symbol] = false;
-      noteSwapPathFail(token.symbol, { kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss" });
+      const missKind = quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss";
+      noteSwapPathFail(token.symbol, { kind: missKind });
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const skip = applyRotateQuoterMiss({
+          state: operatorRotateState,
+          symbol: token.symbol,
+          remBag: isRotateRemBag(totalBal),
+          kind: missKind,
+          code: quoteGate.code,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} Quoter miss — drop from outstanding (HOME must not wait)`);
+        }
+      }
       console.log(`   ${quoteGate.log}`);
       return null;
     }
@@ -8895,7 +8912,9 @@ async function processToken(cdp, token, bal) {
             }
           } else if (isRotate) {
             const remain = getCachedBalance(token.symbol) || 0;
-            if (remain <= ROTATE_MIN_BALANCE) {
+            if (isRotateSellSkipped(operatorRotateState, token.symbol)) {
+              // Quoter-miss rem / N misses — leftover stays; do not re-queue.
+            } else if (remain <= ROTATE_MIN_BALANCE) {
               markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
             } else {
               settleFlushedOperatorBuy(manualCommands, { ...cmd, action: "buy" }, true);
