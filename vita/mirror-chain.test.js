@@ -82,7 +82,7 @@ describe("vita mirror-chain GitHub-as-ledger", () => {
     assert.equal(out.ok, true);
     assert.match(out.reply, /vault-unlock\.js/);
     assert.match(out.reply, /local=YES/);
-    assert.match(out.reply, /VITASESS\.destroy\./);
+    assert.match(out.reply, /VITASESS\.destroyable\./);
     assert.match(out.reply, /Basescan|IDM/);
     assert.ok(out.keyboard?.inline_keyboard?.length >= 1);
     assert.ok(out.locations.every((l) => isTxHash(l.location)));

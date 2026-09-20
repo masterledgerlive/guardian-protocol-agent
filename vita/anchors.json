@@ -37,7 +37,6 @@
     "vita/README.md",
     "vita/mainframe.js",
     "vita/anchors.json",
-    "vita/mirror-chain.js",
     "vita/memory/",
     "vita/strands/",
     "public/vita.html",

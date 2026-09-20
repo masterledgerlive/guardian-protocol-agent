@@ -49,7 +49,7 @@
 //   POST /vita/save           — trigger vitasave programmatically
 //
 // Auth: VITA_WEBHOOK_SECRET header must match env var
-// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover + XMEM spec/decode do not require the secret.
+// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover + GET /vita/read + GET /vita/mirror + XMEM spec/decode do not require the secret.
 // Live queue / vita/* still require the secret. No unauthenticated mutate of env.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -790,6 +790,77 @@ async function handleVitaRequest(req, res) {
         return err(res, "leftover scan failed: " + (e.message || e), 502);
       }
     }
+    // Public file open — HTML console click-through (local disk first, no Anthropic)
+    if (path === "/vita/read" && req.method === "GET") {
+      const filename = url.searchParams.get("f") || url.searchParams.get("file");
+      if (!filename) return err(res, "missing ?f=filename");
+      const out = await handleVitaMirrorAction({
+        action: "read",
+        filename,
+        cwd: ROOT,
+        githubFetch: webhookGithubUtf8,
+        codeBranch: liveGithubBranch(),
+        stateBranch: liveStateBranch(),
+        repo: liveGithubRepo(),
+        chatId: "http-read",
+      });
+      return json(res, {
+        ok: out.ok,
+        filename: out.filename || filename,
+        content: String(out.text || "").slice(0, 50000),
+        preview: out.preview || null,
+        snark: out.snark || null,
+        locations: out.locations || [],
+        sessionKey: out.sessionKey
+          ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
+          : null,
+        local: out.local || false,
+        github: out.github || false,
+        reply: out.reply,
+        neverInventHashes: true,
+      }, out.ok ? 200 : 404);
+    }
+    if ((path === "/vita/mirror" || path === "/vita/mirror/") && req.method === "GET") {
+      const cmd = String(url.searchParams.get("cmd") || "").trim();
+      const parsed = cmd
+        ? parseVitaMirrorCommand(cmd.startsWith("/") ? cmd : "/vita " + cmd)
+        : {
+          action: url.searchParams.get("action") || "chain",
+          filename: url.searchParams.get("f") || url.searchParams.get("file") || null,
+          key: url.searchParams.get("key") || null,
+          kind: url.searchParams.get("kind") || null,
+        };
+      const action = parsed.action && parsed.action !== "ask" ? parsed.action : "chain";
+      const out = await handleVitaMirrorAction({
+        action,
+        filename: parsed.filename || null,
+        key: parsed.key || null,
+        kind: parsed.kind || null,
+        cwd: ROOT,
+        githubFetch: webhookGithubUtf8,
+        codeBranch: liveGithubBranch(),
+        stateBranch: liveStateBranch(),
+        repo: liveGithubRepo(),
+        chatId: "http-mirror",
+      });
+      return json(res, {
+        ok: out.ok,
+        action,
+        filename: out.filename || parsed.filename || null,
+        reply: out.reply,
+        preview: out.preview || null,
+        snark: out.snark || null,
+        locations: out.locations || [],
+        sessionKey: out.sessionKey
+          ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
+          : null,
+        files: out.files || undefined,
+        exists: out.exists,
+        local: out.local,
+        github: out.github,
+        neverInventHashes: true,
+      }, out.ok ? 200 : 404);
+    }
     if ((path === "/vita/wavetest" || path === "/vita/wavetest/") && req.method === "GET") {
       const hitch = String(url.searchParams.get("hitch") || "") === "1"
         || String(url.searchParams.get("action") || "") === "hitch";
@@ -1084,78 +1155,6 @@ async function handleVitaRequest(req, res) {
       const rf = await botState.githubGet("vita-registry.json");
       json(res, { ok: true, registry: rf?.content || {} });
 
-    // ── GET /vita/read — local disk + GitHub CODE/STATE (no Anthropic) ────────
-    } else if (path === "/vita/read" && req.method === "GET") {
-      const filename = url.searchParams.get("f") || url.searchParams.get("file");
-      if (!filename) return err(res, "missing ?f=filename");
-      const out = await handleVitaMirrorAction({
-        action: "read",
-        filename,
-        cwd: ROOT,
-        githubFetch: webhookGithubUtf8,
-        codeBranch: liveGithubBranch(),
-        stateBranch: liveStateBranch(),
-        repo: liveGithubRepo(),
-        chatId: "http-read",
-      });
-      json(res, {
-        ok: out.ok,
-        filename: out.filename || filename,
-        content: String(out.text || "").slice(0, 50000),
-        preview: out.preview || null,
-        snark: out.snark || null,
-        locations: out.locations || [],
-        sessionKey: out.sessionKey
-          ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
-          : null,
-        local: out.local || false,
-        github: out.github || false,
-        reply: out.reply,
-        neverInventHashes: true,
-      }, out.ok ? 200 : 404);
-
-    // ── GET /vita/mirror — GitHub-as-chain catalog / proof / unwrap / session ─
-    } else if ((path === "/vita/mirror" || path === "/vita/mirror/") && req.method === "GET") {
-      const cmd = String(url.searchParams.get("cmd") || "").trim();
-      let parsed = cmd
-        ? parseVitaMirrorCommand(cmd.startsWith("/") ? cmd : "/vita " + cmd)
-        : {
-          action: url.searchParams.get("action") || "chain",
-          filename: url.searchParams.get("f") || url.searchParams.get("file") || null,
-          key: url.searchParams.get("key") || null,
-          kind: url.searchParams.get("kind") || null,
-        };
-      const action = parsed.action && parsed.action !== "ask" ? parsed.action : "chain";
-      const out = await handleVitaMirrorAction({
-        action,
-        filename: parsed.filename || null,
-        key: parsed.key || null,
-        kind: parsed.kind || null,
-        cwd: ROOT,
-        githubFetch: webhookGithubUtf8,
-        codeBranch: liveGithubBranch(),
-        stateBranch: liveStateBranch(),
-        repo: liveGithubRepo(),
-        chatId: "http-mirror",
-      });
-      json(res, {
-        ok: out.ok,
-        action,
-        filename: out.filename || parsed.filename || null,
-        reply: out.reply,
-        preview: out.preview || null,
-        snark: out.snark || null,
-        locations: out.locations || [],
-        sessionKey: out.sessionKey
-          ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
-          : null,
-        files: out.files || undefined,
-        exists: out.exists,
-        local: out.local,
-        github: out.github,
-        neverInventHashes: true,
-      }, out.ok ? 200 : 404);
-
     // ── GET /vita/status — live bot status ───────────────────────────────────
     } else if (path === "/vita/status" && req.method === "GET") {
       if (!botState) return err(res, "bot not ready");
@@ -1259,8 +1258,8 @@ export function startVitaWebhook() {
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/brain    — six-lobe brain + finetune hypothesis graph");
     console.log("   /vita/hypotheses — query hypothesis graph");
-    console.log("   /vita/read     — open files (local + GitHub CODE/STATE, SNARK + IDM)");
-    console.log("   /vita/mirror   — GitHub-as-chain catalog / proof / unwrap / session keys");
+    console.log("   /vita/read     — public open files (local + GitHub CODE/STATE, SNARK + IDM)");
+    console.log("   /vita/mirror   — public GitHub-as-chain catalog / proof / unwrap / session keys");
     console.log("   /vita/status   — live bot status");
     console.log("   /vita/save     — programmatic vitasave (auth; banks unpaired STORE)");
   });

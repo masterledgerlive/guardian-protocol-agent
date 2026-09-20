@@ -751,6 +751,11 @@ describe("control board HTTP", () => {
         assert.ok(json.hitchBytes.eurekaMin > 0);
       }
     }
+    const webhookSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "vita-webhook.js"), "utf8");
+    assert.ok(webhookSrc.includes("wait: false"), "public leftover scan must not await Blockscout on the injector");
+    assert.ok(webhookSrc.includes("isPendingLeftoverScan"), "auth /vita/course must ignore scanning placeholders");
+  });
+
   it("GET /vita/read opens vault-unlock.js from local disk without bot githubGet", async () => {
     const { res, json } = await get("/vita/read?f=vault-unlock.js");
     assert.equal(res.status, 200);
