@@ -15,8 +15,11 @@ or `guardian-v4/` from GRAFT work.
 ## Mission
 
 - Keep taking architecture prompts (`/graft insert` or `--cmd`).
-- Never delete raw artifacts. Think in the open. Charge the GRAFT piggy.
-- Last-root + short `§GRAFT§` tags only — never invent tx hashes.
+- Never delete raw artifacts. Show them with `/graft raw` + cas:// loc.
+- Inject rooted libraries (`/graft inject local|github`), snark-compress
+  (`/graft snark code`), activate without GitHub from local CAS.
+- Think in the open. Prefer the most rooted. Charge the GRAFT piggy.
+- Last-root + short `§GRAFT§` / `§GRAFTSNARK§` tags only — never invent tx hashes.
 - Harvest is a mark, not a VITA write.
 
 ## Merge stance

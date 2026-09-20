@@ -26,7 +26,7 @@ const LAYER_HINTS = [
   { nodeId: "daisy-l4", keys: ["telegram", "twitter", "github", "agentkit", "sensory", "interface", "api"] },
 ];
 
-const KEEP_HINTS = ["last-root", "merkle", "lossless", "telegram", "human", "harvest", "compact", "hash", "directory", "piggy"];
+  const KEEP_HINTS = ["last-root", "merkle", "lossless", "telegram", "human", "harvest", "compact", "hash", "directory", "piggy", "snark", "cas", "rooted"];
 const DROP_HINTS = ["neo4j", "pinecone", "aws", "kms", "hsm", "s3", "28 week", "iao", "jam network", "render", "akash"];
 
 function words(text) {
@@ -56,6 +56,20 @@ function scoreOverlap(pool, hints) {
     if (set.has(h) || pool.some((w) => w.includes(h))) hits += 1;
   }
   return hits;
+}
+
+/** Agentic AI prefers the most rooted (survived / harvest / rooted lib) when refining. */
+export function rootedPreferScore(artifact, ledger) {
+  if (!artifact) return 0;
+  let s = 0;
+  if (artifact.rooted) s += 0.25;
+  if (artifact.status === "survived" || artifact.status === "harvest-candidate") s += 0.35;
+  if (artifact.status === "thought" || artifact.status === "active") s += 0.1;
+  if (String(artifact.loc || "").startsWith("cas://")) s += 0.1;
+  if ((artifact.nodeIds || []).includes("libraries")) s += 0.15;
+  const thoughts = (ledger?.thoughts || []).filter((t) => t.artifactId === artifact.id).length;
+  s += Math.min(0.15, thoughts * 0.03);
+  return Number(Math.min(0.99, s).toFixed(3));
 }
 
 export function classifyText(text) {
@@ -88,7 +102,7 @@ export function classifyText(text) {
   };
 }
 
-function derivedBrief(artifact, cls) {
+function derivedBrief(artifact, cls, rootedScore = 0) {
   const layerList = cls.layers.length
     ? cls.layers.map((l) => `${l.nodeId} (hits ${l.hits})`).join(", ")
     : "none matched — stays on PROMPTS until a human maps it";
@@ -96,13 +110,17 @@ function derivedBrief(artifact, cls) {
     `# GRAFT thought — ${artifact.title}`,
     ``,
     `Source artifact: ${artifact.shortId}`,
+    `Location: ${artifact.loc || "cas://(pending)"}`,
+    `Snark: ${artifact.snark || "(none)"}`,
     `Survival score: ${cls.survival} (heuristic, not P&L, not a chain proof)`,
+    `Rooted prefer score: ${rootedScore} — agentic edits orbit the most rooted code`,
     ``,
     `## Keep in GRAFT (offshoot)`,
-    `- Lossless raw blob in CAS (never delete).`,
-    `- Visible thought steps.`,
-    `- Last-root Merkle + short §GRAFT§ tag. No invented tx hashes.`,
-    `- Money-gated think on the GRAFT piggy.`,
+    `- Lossless raw blob in CAS (never delete). /graft raw shows it.`,
+    `- Local cas:// location always; chain loc empty until harvest.`,
+    `- Snark-compress whole code with /graft snark code.`,
+    `- Inject libraries once (/graft inject local|github) then activate without GitHub.`,
+    `- Visible thought steps. Money-gated think on the GRAFT piggy.`,
     `- Human activate / sleep / survive / die / harvest.`,
     ``,
     `## Do not build from this dump (yet)`,
@@ -154,10 +172,15 @@ export function think(ref = "last", { costEth = THINK_COST_ETH, free = THINK_FRE
 
   const blob = rawBlob(artifact);
   const cls = classifyText(blob);
+  const rootedScore = rootedPreferScore(artifact, ledger);
+  // Blend: agentic AI uses the most rooted when refining survival.
+  cls.survival = Number(Math.min(0.99, cls.survival + rootedScore * 0.2).toFixed(3));
+  cls.rootedPrefer = rootedScore;
   const steps = [
-    { agent: "ingestor", action: "read-cas", note: `${artifact.bytes} bytes · sha256 ${artifact.shortId}` },
+    { agent: "ingestor", action: "read-cas", note: `${artifact.bytes} bytes · sha256 ${artifact.shortId} · loc ${artifact.loc || "—"}` },
     { agent: "classifier", action: "layer-map", note: cls.layers.map((l) => l.nodeId).join(",") || "prompts-only" },
     { agent: "refiner", action: "keep-vs-drop", note: `keepHits=${cls.keepHits} dropHits=${cls.dropHits} lossless=${cls.lossless} compact=${cls.compact}` },
+    { agent: "rooted", action: "prefer-rooted", note: `rootedScore=${rootedScore} — edits orbit most rooted code` },
     { agent: "scorer", action: "survival", note: `score=${cls.survival} (study later; not a proof)` },
     { agent: "filer", action: "derived-brief", note: "new artifact; original untouched" },
     { agent: "anchor", action: "last-root", note: "recompute Merkle; tag only — tx not broadcast" },
@@ -175,14 +198,14 @@ export function think(ref = "last", { costEth = THINK_COST_ETH, free = THINK_FRE
   if (artifact.status === ARTIFACT_ACTIVE) artifact.status = ARTIFACT_THOUGHT;
   persistLedger(ledger);
 
-  const derivedText = derivedBrief(artifact, cls);
+  const derivedText = derivedBrief(artifact, cls, rootedScore);
   const derived = ingestRaw(derivedText, {
     title: `thought:${artifact.shortId}`,
     source: "think",
     mimeType: "text/markdown",
     nodeIds: ["archive", "daisy-l3", ...cls.layers.map((l) => l.nodeId)],
     derivedFrom: [artifact.id],
-    provenance: { origin: "graft-think", parent: artifact.shortId },
+    provenance: { origin: "graft-think", parent: artifact.shortId, rootedPrefer: rootedScore },
     status: ARTIFACT_THOUGHT,
   }, ledger);
 
@@ -193,6 +216,7 @@ export function think(ref = "last", { costEth = THINK_COST_ETH, free = THINK_FRE
     ts: new Date().toISOString(),
     costEth: free ? 0 : cost,
     survival: cls.survival,
+    rootedPrefer: rootedScore,
     classify: cls,
     steps,
     tx: null,
@@ -205,6 +229,7 @@ export function think(ref = "last", { costEth = THINK_COST_ETH, free = THINK_FRE
     derived: derived.artifact,
     thought,
     classify: cls,
+    rootedPrefer: rootedScore,
     costEth: free ? 0 : cost,
     piggyEth: ledger.piggyEth,
     lastRoot: ledger.lastRoot,

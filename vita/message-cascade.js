@@ -12,9 +12,9 @@
  * When moving up, pre-arm the sell (profit already known). Buy character
  * spot cost regardless of later use so the message always triggers.
  *
- * HOME is cascade-available (wave + hold). Never invent tx hashes.
- * Never sell red to place code. Mother brain untouched.
- * Storage Token may charge hitch transmission delta.
+ * HOME is the main cascade + piggy-bank holder (wave + hold + dust seat).
+ * Rotate never sells HOME. Never invent tx hashes. Never sell red to place
+ * code. Mother brain untouched. Storage Token may charge hitch transmission.
  */
 
 import { createHash } from "node:crypto";
@@ -55,6 +55,25 @@ export const CASCADE_CHEAP_RANGE_MAX = 0.12;
 export const CASCADE_MOVE_UP_RANGE_POS = 0.55;
 /** USD per UTF-8 character for spot character buy (transmission class). */
 export const CASCADE_CHAR_USD = 0.00008;
+
+/** $HOME is the primary cascade hub + piggy-bank holder (never rotate-sell). */
+export const HOME_CASCADE_PIGGY_HOLDER = Object.freeze({
+  symbol: VERIFIED_HOME_SYMBOL,
+  address: VERIFIED_HOME_ADDRESS,
+  feeTier: HOME_FEE_TIER,
+  role: "cascade-piggy-holder",
+  rotateNeverSells: true,
+  cascadeAvailable: true,
+  capabilitiesWhileHolding: Object.freeze([
+    "wave-hold — instant peak/trough envelope without cold scan",
+    "piggy-dust-seat — park $0.05 cascade dust + saved earnings on HOME bag",
+    "rotate-target — OPERATOR_ROTATE sweeps other bags → HOME (never sells HOME)",
+    "slipstream-book — Aero HOME/WETH 0.3% liquid path (ghost Uni 1% avoided)",
+    "message-hop — Eureka love may hitch into HOME when leftover covers KEY+LOC",
+    "storage-token-charge — hitch transmission delta billable to Storage Token / piggy",
+    "anti-stagnant-hub — HOME stays ranked even when other seats freeze",
+  ]),
+});
 
 export const DEFAULT_CASCADE_MESSAGE = VITA_PROOF_FULL;
 
@@ -206,8 +225,8 @@ export function scoreCascadeSeat(seat = {}) {
   if (stagnant) score -= 4;
   if (frozen) score -= 100;
   if (normSym(seat.symbol) === VERIFIED_HOME_SYMBOL) {
-    // HOME: available for cascade wave data / hold; never force-sell HOME.
-    score += 0.5;
+    // HOME: main cascade + piggy holder — boost rank; never force-sell HOME.
+    score += 3.5;
   }
   return {
     symbol: normSym(seat.symbol),
@@ -221,6 +240,7 @@ export function scoreCascadeSeat(seat = {}) {
     predictedUp,
     waveReady: wave.ready,
     home: normSym(seat.symbol) === VERIFIED_HOME_SYMBOL,
+    piggyHolder: normSym(seat.symbol) === VERIFIED_HOME_SYMBOL,
   };
 }
 
@@ -250,9 +270,15 @@ export function rankCascadeTokens(tokens = []) {
         sellArm: sell,
         cascadeAvailable: scored.frozen !== true,
         home: scored.home,
+        piggyHolder: scored.piggyHolder === true,
       };
     })
-    .sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
+    .sort((a, b) => {
+      // HOME piggy holder floats toward top when scores close; still revenue-first.
+      if (a.piggyHolder && !b.piggyHolder && Math.abs(a.score - b.score) < 5) return -1;
+      if (b.piggyHolder && !a.piggyHolder && Math.abs(a.score - b.score) < 5) return 1;
+      return b.score - a.score || a.symbol.localeCompare(b.symbol);
+    });
 
   const available = rows.filter((r) => r.cascadeAvailable);
   const blocked = rows.filter((r) => !r.cascadeAvailable);
@@ -263,6 +289,7 @@ export function rankCascadeTokens(tokens = []) {
     stagnant: available.filter((r) => r.stagnant),
     waitingUp: available.filter((r) => r.waitingUp),
     home: available.find((r) => r.home) || rows.find((r) => r.home) || null,
+    piggyHolder: available.find((r) => r.piggyHolder) || rows.find((r) => r.piggyHolder) || null,
   };
 }
 
@@ -387,16 +414,19 @@ export function planMessageCascade({
       waitingUp: seat.waitingUp,
       stagnant: seat.stagnant,
       home: seat.home,
+      piggyHolder: seat.piggyHolder === true,
       wave: seat.wave,
       sellArm: sell,
       shard,
       spotBuyUsd: chars.spotBuyUsd / total,
       leaveDustUsd: Math.max(0, num(leaveDustUsd, CASCADE_LEAVE_DUST_USD)),
-      action: seat.waitingUp || seat.cheap
-        ? "cascade-buy-cheap-waiting-up"
-        : sell.armed
-          ? "cascade-hold-sell-armed"
-          : "cascade-message-hop",
+      action: seat.home || seat.piggyHolder
+        ? "cascade-home-piggy-hold"
+        : seat.waitingUp || seat.cheap
+          ? "cascade-buy-cheap-waiting-up"
+          : sell.armed
+            ? "cascade-hold-sell-armed"
+            : "cascade-message-hop",
     };
   });
 
@@ -420,6 +450,7 @@ export function planMessageCascade({
       stagnant: r.stagnant,
       cascadeAvailable: r.cascadeAvailable,
       home: r.home,
+      piggyHolder: r.piggyHolder,
       rangePos: r.rangePos,
     })),
     hops,
@@ -427,23 +458,19 @@ export function planMessageCascade({
     availableCount: ranked.available.length,
     stagnantCount: ranked.stagnant.length,
     waitingUpCount: ranked.waitingUp.length,
-    home: ranked.home
-      ? {
-          symbol: VERIFIED_HOME_SYMBOL,
-          address: VERIFIED_HOME_ADDRESS,
-          feeTier: HOME_FEE_TIER,
-          cascadeAvailable: ranked.home.cascadeAvailable !== false,
-          waveReady: ranked.home.wave?.ready === true,
-          note: "verified Defi App $HOME — cascade wave/hold; rotate never sells HOME",
-        }
-      : {
-          symbol: VERIFIED_HOME_SYMBOL,
-          address: VERIFIED_HOME_ADDRESS,
-          feeTier: HOME_FEE_TIER,
-          cascadeAvailable: true,
-          waveReady: false,
-          note: "HOME catalog seat missing from input — still cascade-available when listed",
-        },
+    home: {
+      ...HOME_CASCADE_PIGGY_HOLDER,
+      cascadeAvailable: ranked.home?.cascadeAvailable !== false,
+      waveReady: ranked.home?.wave?.ready === true,
+      inPlan: hops.some((h) => h.home),
+      note: "verified Defi App $HOME — main cascade + piggy-bank holder; rotate never sells HOME",
+    },
+    piggyHolder: {
+      ...HOME_CASCADE_PIGGY_HOLDER,
+      leaveDustUsd: Math.max(0, num(leaveDustUsd, CASCADE_LEAVE_DUST_USD)),
+      parkDustOnHome: true,
+      waveReady: ranked.home?.wave?.ready === true,
+    },
     wallet: MAINFRAME_ANCHORS.wallet,
     neverInventHashes: true,
     neverSellRedToInject: true,
@@ -500,7 +527,8 @@ export function defaultCascadeKnowledge() {
     `Cadence ≥${CASCADE_TARGET_HOPS} tokens / ${CASCADE_WINDOW_MS / 60_000} min; leave $${CASCADE_LEAVE_DUST_USD} dust each exit.`,
     "Rank top→bottom by revenue + lowered waiting-to-rise; pre-arm sell when moving up.",
     "Buy all character spot cost so message always triggers; cascade into cheap lowered seats.",
-    `HOME ${VERIFIED_HOME_ADDRESS} fee ${HOME_FEE_TIER}: cascade-available wave/hold; OPERATOR_ROTATE never sells HOME; THIN_V3 bypass is rotate-buy only.`,
+    `$HOME ${VERIFIED_HOME_ADDRESS} fee ${HOME_FEE_TIER}: MAIN cascade + piggy-bank holder — wave/hold, park dust, rotate never sells HOME; Slipstream book; Storage Token can charge hitch delta.`,
+    "Holding HOME enables: " + HOME_CASCADE_PIGGY_HOLDER.capabilitiesWhileHolding.join("; ") + ".",
     "Message-first: do not mute hitch for micro extract; Storage Token can charge delta. Never invent hashes. Never sell red to place code.",
   ].join(" ");
 }
@@ -512,12 +540,13 @@ export function formatMessageCascadeCard(plan) {
     `Cadence: ${plan.cadence.hops}/${plan.cadence.target} in ${plan.cadence.windowMs / 60_000}m ${plan.cadence.onPace ? "✅" : "⚡ need " + plan.cadence.shortfall}`,
     `Chars spot: $${plan.characterBuy.spotBuyUsd.toFixed(4)} (${plan.characterBuy.chars} chars)`,
     `Waiting-up: ${plan.waitingUpCount} · Stagnant: ${plan.stagnantCount} · Available: ${plan.availableCount}`,
-    `HOME: ${plan.home.address.slice(0, 10)}… wave=${plan.home.waveReady ? "ready" : "pending"}`,
+    `$HOME piggy holder: ${plan.home.address.slice(0, 10)}… wave=${plan.home.waveReady ? "ready" : "pending"} · park dust $${Number(plan.leaveDustUsd).toFixed(2)}`,
   ];
   for (const h of plan.hops.slice(0, 12)) {
     const arm = h.sellArm?.armed ? ` sell@${Number(h.sellArm.exitAt).toFixed(6)}` : "";
+    const homeMark = h.piggyHolder || h.home ? " 🏠" : "";
     lines.push(
-      `${String(h.order).padStart(2, "0")}. ${h.symbol} score=${h.score.toFixed(2)} ${h.action}${arm}`,
+      `${String(h.order).padStart(2, "0")}. ${h.symbol}${homeMark} score=${h.score.toFixed(2)} ${h.action}${arm}`,
     );
   }
   return lines.join("\n");

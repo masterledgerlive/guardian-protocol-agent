@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { casDir, ledgerPath, stateDir, thoughtsDir } from "./config.js";
 import { formatShortTag, merkleProof, merkleRoot, sha256bytes, sha256hex, shortId } from "./hash.js";
+import { casLocation, snarkCompressBlob } from "./snark.js";
 
 export const ARTIFACT_FILED = "filed";
 export const ARTIFACT_ACTIVE = "active";
@@ -25,6 +26,7 @@ export const DEFAULT_NODES = [
   { nodeId: "daisy-l3", title: "L3-MIND", description: "Thought traces + lossless CAS memory", parentId: "daisy", tags: ["l3", "memory"] },
   { nodeId: "daisy-l4", title: "L4-SENSES", description: "Telegram / CLI inlet", parentId: "daisy", tags: ["l4", "telegram"] },
   { nodeId: "archive", title: "ARCHIVE", description: "Raw CAS blobs — never deleted", parentId: "graft-root", tags: ["lossless"] },
+  { nodeId: "libraries", title: "LIBRARIES", description: "Injected code libs — local CAS; activate without GitHub", parentId: "graft-root", tags: ["library", "rooted", "snark"] },
   { nodeId: "survival", title: "SURVIVAL", description: "Human survive / die / harvest marks", parentId: "graft-root", tags: ["survive"] },
 ];
 
@@ -67,8 +69,40 @@ export function ensureStore() {
   if (!Object.keys(ledger.nodes || {}).length) {
     for (const spec of DEFAULT_NODES) upsertNode(ledger, spec);
     persistLedger(ledger);
+  } else {
+    // Ensure libraries node exists on older ledgers.
+    for (const spec of DEFAULT_NODES) {
+      if (!ledger.nodes[spec.nodeId]) upsertNode(ledger, spec);
+    }
+    backfillLocalLocs(ledger);
+    persistLedger(ledger);
   }
   return ledger;
+}
+
+/** Stamp cas:// + snark on artifacts that still have empty loc (pre-raw era). */
+export function backfillLocalLocs(ledger = readLedger()) {
+  let n = 0;
+  for (const a of Object.values(ledger.artifacts || {})) {
+    if (!a.loc) {
+      a.loc = casLocation(a.id);
+      n += 1;
+    }
+    if (!a.snark) {
+      const blob = rawBlob(a);
+      const packed = snarkCompressBlob(blob || a.title || a.id, { title: a.title, name: a.shortId });
+      a.snark = packed.short;
+      a.snarkCommit = packed.commit;
+    }
+    if (a.chainLoc === undefined) a.chainLoc = null;
+    if (ledger.directory[a.shortId]) {
+      ledger.directory[a.shortId].loc = a.loc;
+      ledger.directory[a.shortId].snark = a.snark;
+      ledger.directory[a.shortId].chainLoc = a.chainLoc || null;
+      ledger.directory[a.shortId].bytes = a.bytes;
+    }
+  }
+  return n;
 }
 
 export function readLedger() {
@@ -150,6 +184,11 @@ export function ingestRaw(text, {
   }
   fs.writeFileSync(casPathFor(id), buf);
   const short = shortId(id);
+  const loc = casLocation(id);
+  const snark = snarkCompressBlob(buf.toString("utf8"), {
+    title: String(title || "untitled").slice(0, 80),
+    name: String(title || short),
+  });
   const artifact = {
     id,
     shortId: short,
@@ -165,7 +204,13 @@ export function ingestRaw(text, {
     provenance: { origin: source, ...provenance },
     duplicateCount: 1,
     tag: null,
-    loc: null,
+    // Local cas:// location is ALWAYS visible after file. Chain loc stays empty
+    // until a human harvests into VITA (never invent a Base tx hash).
+    loc,
+    chainLoc: null,
+    snark: snark.short,
+    snarkCommit: snark.commit,
+    rooted: provenance?.rooted === true || source === "local-disk" || source === "github-raw",
   };
   ledger.artifacts[id] = artifact;
   for (const nid of artifact.nodeIds) {
@@ -181,11 +226,15 @@ export function ingestRaw(text, {
   ledger.directory[short] = {
     artifactId: id,
     nodeIds: artifact.nodeIds,
-    loc: null,
+    loc,
+    chainLoc: null,
+    snark: snark.short,
     tag: artifact.tag,
     lastRoot: computeLastRoot(ledger),
     active: false,
     title: artifact.title,
+    bytes: buf.length,
+    rooted: artifact.rooted,
   };
   if (source !== "think") ledger.lastArtifactId = id;
   persistLedger(ledger);

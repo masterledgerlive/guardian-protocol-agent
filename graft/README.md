@@ -77,15 +77,19 @@ dedicated bot token + chat id are set.
 |---|---|
 | `/graft` | Help + bag + last-root |
 | `/graft insert …` | **File** a prompt losslessly (alias: `file`) |
-| `/graft list` | Filed vs activated ideas |
+| `/graft list` | Filed vs activated + loc short |
+| `/graft raw [id\|last]` | **RAW DATA + cas:// location** (what was missing) |
 | `/graft activate [id\|last]` | Turn an idea **ON** (alias: `start`) |
 | `/graft sleep [id]` | Turn it OFF; still stored (alias: `stop`) |
+| `/graft inject [local\|github]` | Inject rooted `graft/*` libs into CAS |
+| `/graft snark [id\|code]` | Snark-compress artifact or whole code library |
+| `/graft libraries` | List injected libs (activate without GitHub) |
 | `/graft fund <eth>` | Throw money into the GRAFT piggy (paper by default) |
-| `/graft think [id\|last]` | Run a visible thought cycle (costs piggy) |
+| `/graft think [id\|last]` | Run a visible thought cycle (costs piggy; prefers rooted) |
 | `/graft tree` | Hierarchical knowledge tree |
 | `/graft log [id\|last]` | Thought-process steps |
-| `/graft dir` | `GRAFT:\` directory of artifact → loc slots |
-| `/graft proof` | Last-root + short tags (hashes only, no invented txs) |
+| `/graft dir` | `GRAFT:\` directory with cas:// locs + snark |
+| `/graft proof` | Last-root + short tags + loc (hashes only, no invented txs) |
 | `/graft survive [id]` | Human mark: this idea survived |
 | `/graft die [id]` | Human mark: this idea died |
 | `/graft harvest [id]` | Mark harvest-candidate for later VITA study (does not write VITA) |
@@ -98,7 +102,9 @@ dedicated bot token + chat id are set.
 | `graft/memory/` | Committed seed prompts (append-only) |
 | `graft/state/` | Runtime CAS, ledger, thoughts, piggy (gitignored) |
 | `graft/store.js` | Content-addressed artifacts, snapshots, Merkle last-root |
-| `graft/think.js` | Deterministic refinement + survival score + thought log |
+| `graft/snark.js` | Content-commitment snark-short + cas:// locations |
+| `graft/libraries.js` | Inject rooted code from local disk or GitHub raw → CAS |
+| `graft/think.js` | Deterministic refinement + rootedPrefer + thought log |
 | `graft/commands.js` | Telegram/CLI command parser |
 | `graft/telegram.js` | `[GRAFT]` cards + dedicated poller |
 | `graft/agent.js` | Isolated process |
