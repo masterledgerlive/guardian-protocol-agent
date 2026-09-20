@@ -1,0 +1,336 @@
+/**
+ * One-shot Game empty → verified defi.app $HOME on Base RISK.
+ *
+ * OPERATOR_ROTATE_TO=HOME batches every non-HOME ERC20 sell + excess WETH
+ * → HOME buy under one flag so #140 one-shot ALLOW_LOSSY cannot consume
+ * mid-bag. Vault never. HOME stays in wallet.
+ *
+ * Liquid book: Aerodrome Slipstream HOME/WETH 0.3% (fee 3000).
+ * Uni V3 HOME/WETH 1% is a ghost (~$18) — Quoter still probes V3 tiers.
+ * Official address from docs.defi.app + Coinbase (same on BNB).
+ */
+
+export const VERIFIED_HOME_ADDRESS = "0x4BfAa776991E85e5f8b1255461cbbd216cFc714f";
+export const VERIFIED_HOME_SYMBOL = "HOME";
+/** Aerodrome Slipstream HOME/WETH 0.3% — deepest liquid V3-class book on Base. */
+export const HOME_FEE_TIER = 3000;
+export const HOME_POOL_FEE_PCT = 0.006;
+export const HOME_AERO_SLIPSTREAM_POOL = "0x098A4dE96305baFAEA0c0ce07CF6456e2c64982a";
+/** Uni V3 HOME/WETH 1% — ghost book; do not bind SwapRouter02 here. */
+export const HOME_UNI_V3_WETH_POOL = "0xd4d6870f76A28463d6d99caCe2Ff3C1cf997DA5A";
+export const VAULT_NEVER_ADDRESS = "0xcea0e27b42d025B8097f5b467F14549e71D4c5Fc";
+export const RISK_WALLET = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+export const ROTATE_GAS_FLOOR_ETH = 0.0005;
+export const OPERATOR_ROTATE_SOURCE = "OPERATOR_ROTATE";
+export const OPERATOR_ROTATE_SELL_REASON = "MANUAL SELL (operator) ROTATE";
+export const OPERATOR_ROTATE_BUY_REASON = "MANUAL BUY (operator) ROTATE HOME";
+
+const SKIP_HOLD = Object.freeze(["USDG"]);
+
+function normAddr(addr) {
+  return String(addr || "").trim().toLowerCase();
+}
+
+function normSym(symbol) {
+  return String(symbol || "").trim().toUpperCase();
+}
+
+function envYes(name, env = {}) {
+  return String(env?.[name] ?? "").trim().toLowerCase() === "yes";
+}
+
+/** Catalog row for DEFAULT_TOKENS / tests — verified HOME only. */
+export function verifiedHomeCatalogRow(extra = {}) {
+  return {
+    symbol: VERIFIED_HOME_SYMBOL,
+    address: VERIFIED_HOME_ADDRESS,
+    feeTier: HOME_FEE_TIER,
+    poolFeePct: HOME_POOL_FEE_PCT,
+    ...extra,
+  };
+}
+
+export function parseOperatorRotateTo(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const symbol = s.split(/[:\s,;]+/)[0].trim().toUpperCase();
+  if (symbol !== VERIFIED_HOME_SYMBOL) return null;
+  return { symbol: VERIFIED_HOME_SYMBOL, address: VERIFIED_HOME_ADDRESS };
+}
+
+export function isOperatorRotateArmed(env = process.env) {
+  return parseOperatorRotateTo(env?.OPERATOR_ROTATE_TO) != null;
+}
+
+export function rotateTargetSymbol(env = process.env) {
+  return parseOperatorRotateTo(env?.OPERATOR_ROTATE_TO)?.symbol || "";
+}
+
+export function isRotateTarget(symbol, env = process.env) {
+  const want = rotateTargetSymbol(env) || VERIFIED_HOME_SYMBOL;
+  return normSym(symbol) === want;
+}
+
+export function isVaultNeverAddress(addr) {
+  return normAddr(addr) === normAddr(VAULT_NEVER_ADDRESS);
+}
+
+export function rotateWalletAllowed(wallet) {
+  if (!wallet) return true;
+  return !isVaultNeverAddress(wallet);
+}
+
+export function isSkipHoldRotateSymbol(symbol) {
+  return SKIP_HOLD.includes(normSym(symbol));
+}
+
+/**
+ * Skip HOME (leave in wallet), vault, USDG (no V3 route), native/WETH
+ * (WETH is swept via HOME buy, not sold as an ERC20 bag).
+ */
+export function shouldSkipRotateSell({
+  symbol,
+  address,
+  wallet,
+  env = process.env,
+} = {}) {
+  if (!rotateWalletAllowed(wallet)) return true;
+  if (isVaultNeverAddress(address)) return true;
+  const sym = normSym(symbol);
+  if (!sym) return true;
+  if (sym === "WETH" || sym === "ETH") return true;
+  if (isSkipHoldRotateSymbol(sym)) return true;
+  if (isRotateTarget(sym, env) || sym === VERIFIED_HOME_SYMBOL) return true;
+  return false;
+}
+
+/**
+ * WETH that may go into HOME. Native ETH stays ≥ gas floor.
+ * If native is already ≥ floor, all WETH is spendable.
+ */
+export function excessWethToSell({
+  nativeEth = 0,
+  wethEth = 0,
+  gasFloorEth = ROTATE_GAS_FLOOR_ETH,
+} = {}) {
+  const native = Math.max(0, Number(nativeEth) || 0);
+  const weth = Math.max(0, Number(wethEth) || 0);
+  const floor = Number(gasFloorEth);
+  const gasFloor = Number.isFinite(floor) && floor >= 0 ? floor : ROTATE_GAS_FLOOR_ETH;
+  const nativeGap = Math.max(0, gasFloor - native);
+  return Math.max(0, weth - nativeGap);
+}
+
+export function applyRotateHalt(env = process.env) {
+  if (!env || typeof env !== "object") return env;
+  env.HALT_NEW_ENTRIES = "yes";
+  return env;
+}
+
+/** Rotate is Game explicit empty — arm FIFO-red for the whole batch. */
+export function armRotateAllowLossy(env = process.env) {
+  if (!env || typeof env !== "object") return env;
+  env.ALLOW_LOSSY_OPERATOR_SELL = "yes";
+  return env;
+}
+
+export function isOperatorRotateReason(reason = "") {
+  return /ROTATE/i.test(String(reason || ""))
+    && String(reason || "").startsWith("MANUAL SELL (operator)");
+}
+
+export function isOperatorRotateBuyReason(reason = "") {
+  return String(reason || "").startsWith(OPERATOR_ROTATE_BUY_REASON)
+    || (/ROTATE/i.test(String(reason || "")) && String(reason || "").startsWith("MANUAL BUY (operator)"));
+}
+
+export function isOperatorRotateCommand(cmd) {
+  return String(cmd?.source || "") === OPERATOR_ROTATE_SOURCE;
+}
+
+export function rotateSellCommand(symbol) {
+  return {
+    symbol: normSym(symbol),
+    action: "sell",
+    source: OPERATOR_ROTATE_SOURCE,
+  };
+}
+
+export function rotateHomeBuyCommand() {
+  return {
+    symbol: VERIFIED_HOME_SYMBOL,
+    action: "buy",
+    source: OPERATOR_ROTATE_SOURCE,
+    sweepWeth: true,
+  };
+}
+
+function pendingRotateSells(commands = []) {
+  return (Array.isArray(commands) ? commands : []).filter(
+    (c) => isOperatorRotateCommand(c) && (c.action === "sell" || c.action === "sellhalf"),
+  );
+}
+
+export function rotateSellsOutstanding(commands = [], state = {}) {
+  const done = state.doneBySymbol && typeof state.doneBySymbol === "object" ? state.doneBySymbol : {};
+  const queued = pendingRotateSells(commands)
+    .map((c) => normSym(c.symbol))
+    .filter((s) => s && !done[s]);
+  const pending = Array.isArray(state.pendingSells)
+    ? state.pendingSells.map(normSym).filter((s) => s && !done[s])
+    : [];
+  return [...new Set([...queued, ...pending])];
+}
+
+/**
+ * Queue one-shot empty-to-HOME. Does not latch until sells + HOME buy finish.
+ * @returns {{ queued: boolean, reason: string, items?: object[], homeBuy?: boolean }}
+ */
+export function queueOperatorRotateOnce(
+  commands,
+  rawEnv,
+  knownSymbols,
+  state = { done: false },
+  opts = {},
+) {
+  const env = opts.env || process.env;
+  const wallet = opts.wallet;
+  if (state.done === true && state.finished === true) {
+    return { queued: false, reason: "already-applied" };
+  }
+  if (!rotateWalletAllowed(wallet)) {
+    return { queued: false, reason: "vault-never" };
+  }
+  const parsed = parseOperatorRotateTo(rawEnv ?? env?.OPERATOR_ROTATE_TO);
+  if (!parsed) {
+    return { queued: false, reason: String(rawEnv ?? env?.OPERATOR_ROTATE_TO ?? "").trim() ? "invalid" : "unset" };
+  }
+
+  applyRotateHalt(env);
+  armRotateAllowLossy(env);
+
+  if (!state.doneBySymbol || typeof state.doneBySymbol !== "object") state.doneBySymbol = {};
+  if (!Array.isArray(state.pendingSells)) state.pendingSells = [];
+
+  const list = [];
+  const seen = new Set();
+  const known = knownSymbols instanceof Set ? knownSymbols : new Set(knownSymbols || []);
+  for (const raw of known) {
+    const symbol = normSym(raw);
+    if (!symbol || seen.has(symbol)) continue;
+    if (shouldSkipRotateSell({ symbol, wallet, env })) continue;
+    if (state.doneBySymbol[symbol]) continue;
+    seen.add(symbol);
+    list.push(symbol);
+  }
+
+  const queuedItems = [];
+  for (const symbol of list) {
+    const already = (Array.isArray(commands) ? commands : []).some(
+      (c) => isOperatorRotateCommand(c) && normSym(c.symbol) === symbol && c.action === "sell",
+    );
+    if (already) continue;
+    commands.push(rotateSellCommand(symbol));
+    if (!state.pendingSells.includes(symbol)) state.pendingSells.push(symbol);
+    queuedItems.push({ symbol, pct: 1 });
+  }
+
+  let homeBuy = false;
+  if (!state.homeBuyQueued && rotateSellsOutstanding(commands, state).length === 0) {
+    const haveBuy = (Array.isArray(commands) ? commands : []).some(
+      (c) => isOperatorRotateCommand(c) && c.action === "buy" && isRotateTarget(c.symbol, env),
+    );
+    if (!haveBuy) {
+      commands.push(rotateHomeBuyCommand());
+      state.homeBuyQueued = true;
+      homeBuy = true;
+    }
+  }
+
+  if (queuedItems.length || homeBuy) {
+    return {
+      queued: true,
+      reason: "queued",
+      symbol: queuedItems[0]?.symbol || VERIFIED_HOME_SYMBOL,
+      items: queuedItems,
+      homeBuy,
+    };
+  }
+  if (list.length && list.every((s) => state.doneBySymbol[s]) && state.homeBuyDone) {
+    return { queued: false, reason: "already-applied" };
+  }
+  return { queued: false, reason: "already-queued" };
+}
+
+export function markOperatorRotateSellExecuted(state, symbol) {
+  if (!state) return state;
+  const sym = normSym(symbol);
+  if (!state.doneBySymbol || typeof state.doneBySymbol !== "object") state.doneBySymbol = {};
+  if (sym) state.doneBySymbol[sym] = true;
+  if (Array.isArray(state.pendingSells)) {
+    state.pendingSells = state.pendingSells.filter((s) => normSym(s) !== sym);
+  }
+  state.executed = true;
+  return state;
+}
+
+export function markOperatorRotateHomeBuyExecuted(state) {
+  if (!state) return state;
+  state.homeBuyDone = true;
+  state.homeBuyQueued = true;
+  state.executed = true;
+  return state;
+}
+
+/**
+ * After the last non-HOME sell, queue WETH→HOME. Call from the cycle.
+ */
+export function maybeQueueRotateHomeBuy(commands, state = {}, opts = {}) {
+  const env = opts.env || process.env;
+  if (!isOperatorRotateArmed(env)) return { queued: false, reason: "unset" };
+  if (!rotateWalletAllowed(opts.wallet)) return { queued: false, reason: "vault-never" };
+  if (state.homeBuyDone) return { queued: false, reason: "already-applied" };
+  if (rotateSellsOutstanding(commands, state).length > 0) {
+    return { queued: false, reason: "sells-pending" };
+  }
+  const haveBuy = (Array.isArray(commands) ? commands : []).some(
+    (c) => isOperatorRotateCommand(c) && c.action === "buy" && isRotateTarget(c.symbol, env),
+  );
+  if (haveBuy || state.homeBuyQueued) return { queued: false, reason: "already-queued" };
+  commands.push(rotateHomeBuyCommand());
+  state.homeBuyQueued = true;
+  return { queued: true, reason: "queued", symbol: VERIFIED_HOME_SYMBOL };
+}
+
+/**
+ * Consume ALLOW_LOSSY + clear rotate after all sells and the HOME buy finish.
+ * Railway dashboard should also drop OPERATOR_ROTATE_TO / ALLOW_LOSSY after.
+ */
+export function finishOperatorRotate(env = process.env, state = {}) {
+  if (!env || typeof env !== "object") return { consumed: false };
+  const wasLossy = envYes("ALLOW_LOSSY_OPERATOR_SELL", env);
+  env.ALLOW_LOSSY_OPERATOR_SELL = "no";
+  env.OPERATOR_ROTATE_TO = "";
+  if (state) {
+    state.done = true;
+    state.finished = true;
+    state.executed = true;
+  }
+  return { consumed: wasLossy, finished: true };
+}
+
+/**
+ * True while rotate is emptying bags — executeSell must not consume ALLOW_LOSSY.
+ */
+export function shouldHoldAllowLossyForRotate(env = process.env, state = {}) {
+  if (state?.finished) return false;
+  return isOperatorRotateArmed(env);
+}
+
+/** Rotate sells any non-HOME bag (not just GAME_FORCE_EXIT_PRIORITY). */
+export function rotateAllowsLossySell(symbol, env = process.env) {
+  if (!isOperatorRotateArmed(env)) return false;
+  if (isRotateTarget(symbol, env)) return false;
+  if (isSkipHoldRotateSymbol(symbol)) return false;
+  return true;
+}
