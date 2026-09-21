@@ -586,6 +586,11 @@ import {
   handleVitaMirrorAction,
   parseVitaMirrorCommand,
 } from "./vita/mirror-chain.js";
+import {
+  handleHomeAction,
+  parseHomeCommand,
+  withHomeButton,
+} from "./vita/telegram-home.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -10481,6 +10486,33 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: pct / 100 });
         await tg(`🚪 <b>CLEAN EXIT ${sym} ${pct}% queued</b>\nWill sell to ETH — NO cascade will fire`);
+      // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
+      } else if (
+        text === "/home" ||
+        text === "/menu" ||
+        text === "/start" ||
+        text === "/homesim" ||
+        text === "/engines" ||
+        (text && text.startsWith("/home "))
+      ) {
+        try {
+          const parsed = parseHomeCommand(raw);
+          const out = handleHomeAction({
+            action: parsed.action || "home",
+            section: parsed.section || "all",
+            quotes: { ethUsd: ethUsd || 0 },
+          });
+          await tg(
+            "🏠 <b>VITA HOME</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ home failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (text === "/status") {
         await sendFullReport(bal, ethUsd, "📊 STATUS");
       } else if (text === "/cycles" || text === "/succession") {
@@ -13331,7 +13363,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             });
             await tg(
               "🌟 <b>VITA " + esc(parsedMirror.action) + "</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
-              { reply_markup: out.keyboard || undefined, disable_web_page_preview: true },
+              {
+                reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }),
+                disable_web_page_preview: true,
+              },
             );
           } catch (e) {
             await tg("❌ VITA " + parsedMirror.action + " failed: " + (e.message || e) + "\nNothing invented.");
@@ -13796,6 +13831,11 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `🏄 <b>GUARDIAN PROTOCOL — COMMAND REFERENCE</b>\n` +
           `Control Board (waves + learn + V4): https://guardian-protocol-agent-production.up.railway.app/board\n` +
           `SIM default — live buttons need VITA_WEBHOOK_SECRET. Tune params in sim or Railway env, not an open POST.\n\n` +
+          `<b>🏠 Interactive HOME:</b>\n` +
+          `/home · /menu · /start — sectioned clickable buttons for every route\n` +
+          `/home search · /home feed · /home mirror — open one section\n` +
+          `/home sim · /home sim search — run many route sims (search connected)\n` +
+          `/home engines — mirror MAIN exact UTF-8 vs NEW snark-short + IDM proof\n\n` +
           `<b>📊 Status & Info:</b>\n` +
           `/status — full portfolio status\n` +
           `/bag [n] — last N real fills (FIFO / hitch / liquid / distance-to-PLUS)\n` +

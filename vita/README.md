@@ -30,6 +30,11 @@ Hex shards `[W:v1:SYM]|…|KEY8|LOC8]` + VIN/tailwind like `/vitafeed`. Answer k
 `vita/memory/wave-heraclitus-key.json`. Reconstruct-from-chain-only tests.
 `VITAFEED_PAID` stays default OFF. Hitch on covered leftover; do not solo-send.
 
+**Telegram HOME:** `/home` · `/menu` · `/start` — sectioned inline buttons for
+every route (Memory / Feed / Search / WAVE / Mirror / Dual / Mother / Status).
+`/home sim` runs many offline route + search sims. `/home engines` dual-mirrors
+MAIN exact UTF-8 vs NEW snark-short with Basescan IDM anchors (`vita/telegram-home.js`).
+
 **WAVE 3-token proof:** Telegram `/waveproof` + public `GET /vita/waveproof` (SIM).
 Desk live: `POST /vita/waveproof` or `GET /vita/waveproof?live=1` with
 `VITA_WEBHOOK_SECRET` when `WAVE_PROOF_LIVE=yes`. Optional `WAVE_PROOF_AUTOFIRE=yes`

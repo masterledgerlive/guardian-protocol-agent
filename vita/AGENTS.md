@@ -71,6 +71,14 @@ Never invent tx hashes. Anthropic not required to open a file.
 growth + SNARK proven libs (skip whole mainframe) + EVM recover ms + last-agreed
 / multi-model ring + LLM-on-chain spin manifest. Each pass creates files under
 `vita/memory/` + `vita/strands/` (`vita/chain-layer.js`).
+**Telegram HOME (sectioned buttons):** `/home` · `/menu` · `/start` — every
+route is an inline button (Memory / Feed / Search / WAVE / Mirror / Dual /
+Mother / Status). `/home search` opens search routes (ref/ask/proven/xmem/
+dir/unlock). `/home sim` · `/home sim search` run many offline route sims.
+`/home engines` mirrors the same seed into **MAIN** exact UTF-8 VITAFEED and
+**NEW** snark-short, attaches Basescan IDM anchors as static proof, and seeds
+which engine is cheaper/faster (`vita/telegram-home.js`). Paid paths stay
+SIM / confirm|override — buttons never auto-spend.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
