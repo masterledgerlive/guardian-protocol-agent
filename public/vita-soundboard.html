@@ -243,6 +243,21 @@
       color: var(--mute);
     }
     .upload input[type="file"] { color: var(--foam); }
+    .inject {
+      margin: 0 0 0.75rem;
+      padding: 0.55rem 0.65rem;
+      border-left: 3px solid var(--warn);
+      background: rgba(255,107,53,0.1);
+      font-size: 0.72rem;
+      line-height: 1.4;
+      color: var(--mute);
+    }
+    .inject.proven {
+      border-left-color: var(--ok);
+      background: rgba(128,237,153,0.12);
+      color: var(--foam);
+    }
+    .inject a { color: var(--neon); }
   </style>
 </head>
 <body>
@@ -279,9 +294,11 @@
 
     <aside class="rail" aria-label="location rail">
       <h2>Loc rail</h2>
+      <div class="inject" id="inject" aria-live="polite">Inject proof: pending until sealed…</div>
       <p id="rail-note">
         LOCAL_OK = availability reconstruct. MATCH = sealed Input Data equals VIN commit.
         CLASS_PROOF = formula hitch class (identical forever — not pad body).
+        Inject CTA only after real /vitafeed confirm|override (VITAFEED_PAID=yes).
       </p>
       <div id="locs"></div>
       <a class="ghost" id="inspect-link" href="#" style="display:inline-block;margin-top:0.5rem;text-decoration:none;">Inspect exact VIN UTF-8 →</a>
@@ -355,12 +372,39 @@
         .replace(/"/g, "&quot;");
     }
 
+    function renderInject(inject) {
+      const box = el("inject");
+      if (!box) return;
+      if (inject && inject.proven && inject.href) {
+        box.className = "inject proven";
+        box.innerHTML =
+          "<strong>INJECT PROOF</strong> — sealed pad body<br/>" +
+          '<a href="' + escapeHtml(inject.href) + '" target="_blank" rel="noopener">' +
+          escapeHtml(inject.location) + "</a>";
+        const a = box.querySelector("a");
+        if (a) {
+          a.addEventListener("click", (ev) => {
+            if (tg && tg.initData && typeof tg.openLink === "function") {
+              ev.preventDefault();
+              tg.openLink(inject.href);
+            }
+          });
+        }
+      } else {
+        box.className = "inject";
+        box.textContent =
+          (inject && inject.note) ||
+          "NO sealed Basescan tx yet — /vitafeed enqueue pad <id> then confirm|override with VITAFEED_PAID=yes. Class-proof is not inject proof.";
+      }
+    }
+
     function renderLocs(proof) {
       const box = el("locs");
       box.innerHTML = "";
+      if (proof && proof.inject) renderInject(proof.inject);
       const rows = (proof && proof.rows) || [];
       for (const r of rows) {
-        const a = document.createElement(r.basescan && r.clickThrough ? "a" : "div");
+        const a = document.createElement(r.basescan && r.clickThrough && r.match === "MATCH" ? "a" : "div");
         a.className = "loc " + (
           r.match === "MATCH" ? "match" :
           r.match === "CLASS_PROOF" ? "class" :

@@ -1,0 +1,187 @@
+{
+  "id": "spatial-sound-learn-v1",
+  "filingLabel": "SPATIAL_SOUND",
+  "events": [
+    {
+      "at": "2026-09-21T19:31:07.926Z",
+      "kind": "ensure-seed",
+      "grew": 8,
+      "count": 8
+    },
+    {
+      "at": "2026-09-21T19:40:00.000Z",
+      "kind": "industry-research",
+      "sources": [
+        "SonicMotion / FOA spatial generation — position + motion as first-class condition",
+        "MRSAudio score→spatial — symbolic prints drive placement",
+        "Multi-species bird DSP — chirp patterning + 3D trajectories (no copyrighted recordings)",
+        "Syrinx dual-oscillator model — fine-tuned vocal print agents can mimic",
+        "Z-SNARK short open key — name+contentCommit machine lane for microbites"
+      ],
+      "filingGoal": "one-block §VITASPATIAL§ ≤720B per bite; space only if oversized",
+      "agentic": "soundtrack-from-voxel neighborhood mimic of sealed prints"
+    },
+    {
+      "at": "2026-09-21T19:40:00.000Z",
+      "kind": "inject-cta-fix",
+      "note": "Basescan click-through only after confirm|override seals real tx; class-proof ≠ inject; cleared demo 0xabab seal drift"
+    },
+    {
+      "at": "2026-09-21T19:40:53.898Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:40:53.900Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:40:53.920Z",
+      "kind": "create-spatial",
+      "id": "wren-test-bite",
+      "oneBlock": true,
+      "contentCommit": "1abc2c304484656a2baa78c132244209c4d869de644f91dcd072b389fdc6e13e"
+    },
+    {
+      "at": "2026-09-21T19:40:53.922Z",
+      "kind": "enqueue-spatial",
+      "id": "sparrow-nest",
+      "oneBlock": true,
+      "itemId": "BL-TEST"
+    },
+    {
+      "at": "2026-09-21T19:40:58.991Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:40:58.992Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:40:59.011Z",
+      "kind": "create-spatial",
+      "id": "wren-test-bite",
+      "oneBlock": true,
+      "contentCommit": "1abc2c304484656a2baa78c132244209c4d869de644f91dcd072b389fdc6e13e"
+    },
+    {
+      "at": "2026-09-21T19:40:59.013Z",
+      "kind": "enqueue-spatial",
+      "id": "sparrow-nest",
+      "oneBlock": true,
+      "itemId": "BL-TEST"
+    },
+    {
+      "at": "2026-09-21T19:41:05.297Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:05.298Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:05.318Z",
+      "kind": "create-spatial",
+      "id": "wren-test-bite",
+      "oneBlock": true,
+      "contentCommit": "1abc2c304484656a2baa78c132244209c4d869de644f91dcd072b389fdc6e13e"
+    },
+    {
+      "at": "2026-09-21T19:41:05.320Z",
+      "kind": "enqueue-spatial",
+      "id": "sparrow-nest",
+      "oneBlock": true,
+      "itemId": "BL-TEST"
+    },
+    {
+      "at": "2026-09-21T19:41:09.095Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:09.096Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:09.118Z",
+      "kind": "create-spatial",
+      "id": "wren-test-bite",
+      "oneBlock": true,
+      "contentCommit": "1abc2c304484656a2baa78c132244209c4d869de644f91dcd072b389fdc6e13e"
+    },
+    {
+      "at": "2026-09-21T19:41:09.120Z",
+      "kind": "enqueue-spatial",
+      "id": "sparrow-nest",
+      "oneBlock": true,
+      "itemId": "BL-TEST"
+    },
+    {
+      "at": "2026-09-21T19:41:16.806Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:16.806Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:16.827Z",
+      "kind": "create-spatial",
+      "id": "wren-test-bite",
+      "oneBlock": true,
+      "contentCommit": "1abc2c304484656a2baa78c132244209c4d869de644f91dcd072b389fdc6e13e"
+    },
+    {
+      "at": "2026-09-21T19:41:16.829Z",
+      "kind": "enqueue-spatial",
+      "id": "sparrow-nest",
+      "oneBlock": true,
+      "itemId": "BL-TEST"
+    },
+    {
+      "at": "2026-09-21T19:41:27.562Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:27.563Z",
+      "kind": "seal-spatial",
+      "id": "sparrow-nest",
+      "locs": 1
+    },
+    {
+      "at": "2026-09-21T19:41:27.583Z",
+      "kind": "create-spatial",
+      "id": "wren-test-bite",
+      "oneBlock": true,
+      "contentCommit": "1abc2c304484656a2baa78c132244209c4d869de644f91dcd072b389fdc6e13e"
+    },
+    {
+      "at": "2026-09-21T19:41:27.584Z",
+      "kind": "enqueue-spatial",
+      "id": "sparrow-nest",
+      "oneBlock": true,
+      "itemId": "BL-TEST"
+    }
+  ],
+  "updatedAt": "2026-09-21T19:41:27.584Z"
+}

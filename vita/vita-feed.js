@@ -679,6 +679,19 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:prompt|bite|synth)\s*/i, "").trim();
     return { ok: true, action: "prompt", body: rest, source: "prompt" };
   }
+  // Voxel spatial soundbites — bird prints + xyz + one-block goal.
+  if (/^(?:spatial|voxel|voxels|birds?)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:spatial|voxel|voxels|birds?)\s*/i, "").trim();
+    return { ok: true, action: "spatial", body: rest, source: "spatial" };
+  }
+  if (/^(?:soundtrack|score|chorus)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:soundtrack|score|chorus)\s*/i, "").trim();
+    return { ok: true, action: "soundtrack", body: rest || "0,0,0", source: "soundtrack" };
+  }
+  if (/^(?:bird)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:bird)\s*/i, "").trim();
+    return { ok: true, action: "spatial", body: rest ? "bird " + rest : "", source: "bird" };
+  }
   if (/^(?:chaindir|chain-dir|chdir)(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:chaindir|chain-dir|chdir)\s*/i, "").trim();
     return { ok: true, action: "chaindir", body: rest, source: "chaindir" };
@@ -808,6 +821,13 @@ export function vitaFeedUsageText() {
     "  /vitafeed dir BOARD        — DOS list of pads",
     "  /vitafeed enqueue pad <id> — queue pad §VITAFILE§ groups for confirm|override",
     "  /vitafeed enqueue board    — bank every built-in pad",
+    "  /vitafeed spatial          — voxel spatial bird-print microbites (ONE-BLOCK goal)",
+    "  /vitafeed spatial <id>     — play bite · inject proof CTA (sealed only)",
+    "  /vitafeed spatial new <print> <x> <y> <z> — place a print in xyz",
+    "  /vitafeed soundtrack <vx,vy,vz> — agentic soundtrack from nearby voxels",
+    "  /vitafeed enqueue spatial  — bank every one-block spatial bite",
+    "  /vitafeed enqueue spatial <id> — queue one §VITASPATIAL§ (≤720B when possible)",
+    "  /vitafeed dir VOXEL        — DOS list of spatial bites",
     "  /vitafeed dir MUSIC        — DOS list of VIN groups",
     "  /vitafeed enqueue <id>     — queue grouped §VITAFILE§ slices (≤24 VIN/group)",
     "  /vitafeed enqueue library  — bank every catalog song (not memory seed; enqueue all stays seed)",
@@ -817,7 +837,9 @@ export function vitaFeedUsageText() {
     "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
     "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
     "  Board: /vita/soundboard · locs /vita/soundboard/locs?id=<id> · inspect ?i=1&g=1",
-    "  CLASS_PROOF anchors ≠ pad body — new Inputs only after seal MATCH",
+    "  Spatial: /vita/spatial · locs /vita/spatial/locs?id=<id> · soundtrack ?voxel=0,0,0",
+    "  CLASS_PROOF anchors ≠ pad/spatial body — new Inputs only after seal MATCH",
+    "  Inject click-through appears ONLY after confirm|override seals real tx (VITAFEED_PAID=yes)",
     "  Loc proof: /vita/free-music/locs?id=<id> — click-through Basescan · data-field MATCH",
     "  Inspect: /vita/free-music/loc?id=<id>&g=1&i=1 — exact VIN UTF-8 fed into the player",
     "  Kids player: /vita/feed-player?music=<id>&kids=1 — proof chrome default OFF (Show blockchain toggle)",
@@ -842,6 +864,7 @@ export function vitaFeedUsageText() {
     "  or /vita/feed-player?music=<id> — PD library · click-through loc MATCH.",
     "  or /vita/feed-player?music=<id>&kids=1 — clean play UI; Proof toggle shows blockchain.",
     "  or /vita/soundboard?pad=<id> — DJ soundboard · waveform · zero-open-key loc rail.",
+    "  or /vita/spatial?id=<id> — voxel spatial bird prints · one-block SNARK filing goal.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
   ].join("\n");
 }
@@ -1986,6 +2009,107 @@ export async function handleVitaFeedAction({
       }),
     };
   }
+  if (action === "spatial" || action === "soundtrack") {
+    const {
+      formatSpatialCard,
+      playSpatial,
+      resolveSpatialId,
+      createSpatialBite,
+      BIRD_PRINTS,
+      planSoundtrackFromVoxel,
+      playSoundtrack,
+      buildSpatialKeyboard,
+      SPATIAL_PLAYER_PATH,
+      listSpatialBites,
+      ensureSpatialSeedBites,
+    } = await import("./spatial-sound.js");
+    const { vitaPlayerHref } = await import("./url-dir.js");
+    ensureSpatialSeedBites();
+    const rest = String(body || "").trim();
+    if (action === "soundtrack") {
+      const plan = playSoundtrack(rest || "0,0,0");
+      return {
+        ok: plan.ok !== false,
+        phase: "soundtrack",
+        spatial: true,
+        plan,
+        playerPath: plan.player || SPATIAL_PLAYER_PATH + "?soundtrack=1&voxel=" + encodeURIComponent(rest || "0,0,0"),
+        playerHref: vitaPlayerHref(
+          plan.player || SPATIAL_PLAYER_PATH + "?soundtrack=1&voxel=" + encodeURIComponent(rest || "0,0,0"),
+        ),
+        reply:
+          formatSpatialCard() +
+          "\n\nSOUNDTRACK voxel=" +
+          (rest || "0,0,0") +
+          " · bites=" +
+          (plan.count || 0) +
+          "\n" +
+          (plan.note || "") +
+          "\nOpen /vita/spatial?soundtrack=1&voxel=" +
+          (rest || "0,0,0"),
+        keyboard: buildSpatialKeyboard(),
+      };
+    }
+    if (/^new\b/i.test(rest)) {
+      const parts = rest.replace(/^new\s*/i, "").trim().split(/\s+/);
+      const printId = parts[0] && BIRD_PRINTS[parts[0]] ? parts[0] : "bird.sparrow.a";
+      const x = Number(parts[1] ?? 0) || 0;
+      const y = Number(parts[2] ?? 0) || 0;
+      const z = Number(parts[3] ?? 0) || 0;
+      const made = createSpatialBite({ printId, x, y, z });
+      if (!made.ok) {
+        return { ok: false, phase: "spatial", reply: made.reason || "create failed" };
+      }
+      const opened = playSpatial(made.packed?.id || made.meta?.id);
+      return {
+        ok: true,
+        phase: "spatial",
+        spatial: true,
+        id: made.meta?.id,
+        oneBlock: made.packed?.oneBlock,
+        zeroOpenKey: made.packed?.zeroOpenKey,
+        playerPath: opened.playerPath,
+        playerHref: opened.playerHref,
+        inject: opened.inject,
+        reply:
+          formatSpatialCard(made.meta?.id) +
+          "\n\nFiled · oneBlock=" +
+          (made.packed?.oneBlock ? "YES" : "NO") +
+          " · Enqueue: /vitafeed enqueue spatial " +
+          made.meta?.id,
+        keyboard: buildSpatialKeyboard({ highlight: made.meta?.id }),
+      };
+    }
+    if (rest) {
+      const id = resolveSpatialId(rest.replace(/^(?:play|open|hit|bird)\s*/i, "").trim()) || rest;
+      const opened = playSpatial(id);
+      return {
+        ok: opened.ok !== false,
+        phase: "play",
+        spatial: true,
+        id: opened.id,
+        proven: opened.proven,
+        inject: opened.inject,
+        play: opened.play,
+        playerPath: opened.playerPath,
+        playerHref: opened.playerHref,
+        zeroOpenKey: opened.zeroOpenKey,
+        reply: opened.reply || opened.reason || "spatial miss",
+        keyboard: buildSpatialKeyboard({ highlight: opened.id }),
+      };
+    }
+    const playerPath = SPATIAL_PLAYER_PATH;
+    return {
+      ok: true,
+      phase: "spatial",
+      spatial: true,
+      bites: Object.keys(listSpatialBites()),
+      playerPath,
+      playerHref: vitaPlayerHref(playerPath),
+      reply: formatSpatialCard(),
+      keyboard: buildSpatialKeyboard(),
+    };
+  }
   if (action === "kids") {
     const {
       formatKidsDirCard,
@@ -2269,6 +2393,64 @@ export async function handleVitaFeedAction({
             "\n" +
             (queued.note || "") +
             "\nNext: /vitafeed next → confirm|override",
+        };
+      }
+    }
+    {
+      const {
+        resolveSpatialEnqueueTarget,
+        enqueueSpatial,
+        enqueueSpatialLibrary,
+        packetizeSpatial,
+        formatSpatialCard,
+      } = await import("./spatial-sound.js");
+      const spatialTarget = resolveSpatialEnqueueTarget(arg);
+      if (spatialTarget?.kind === "library") {
+        const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+        const queued = enqueueSpatialLibrary({ enqueueFn: enqueueFeedBacklogItem });
+        return {
+          ok: queued.ok !== false,
+          phase: "enqueue",
+          spatial: true,
+          library: true,
+          added: queued.added || 0,
+          ids: queued.ids,
+          reply:
+            formatFeedBacklogCard() +
+            "\n\nSPATIAL library enqueue +" +
+            (queued.added || 0) +
+            " one-block bites\nNext: /vitafeed next → confirm|override — Basescan inject proof only after seal",
+        };
+      }
+      if (spatialTarget?.kind === "spatial") {
+        const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+        const queued = enqueueSpatial({
+          enqueueFn: enqueueFeedBacklogItem,
+          id: spatialTarget.id,
+          printId: spatialTarget.printId || null,
+        });
+        return {
+          ok: queued.ok !== false,
+          phase: "enqueue",
+          spatial: true,
+          id: spatialTarget.id,
+          oneBlock: queued.packed?.oneBlock,
+          zeroOpenKey: queued.packed?.zeroOpenKey,
+          added: 1,
+          reply:
+            formatFeedBacklogCard() +
+            "\n\n" +
+            formatSpatialCard(spatialTarget.id) +
+            "\n\nenqueue " +
+            (queued.note || "") +
+            "\nNext: /vitafeed next → confirm|override (VITAFEED_PAID=yes for real Basescan tx)",
+        };
+      }
+      if (spatialTarget?.kind === "miss") {
+        return {
+          ok: false,
+          phase: "enqueue",
+          reply: spatialTarget.reason || "unknown spatial",
         };
       }
     }
@@ -2838,6 +3020,26 @@ export async function handleVitaFeedAction({
         }
       }
     } catch { /* backlog seal is best-effort */ }
+    // Pad / spatial inject click-through — record real sealed locs only.
+    let soundSeal = null;
+    try {
+      if (result?.sealedCount > 0) {
+        const { maybeRecordSoundSeals } = await import("./spatial-sound.js");
+        const locs = (result.strand?.locations || result.priorLocations || [])
+          .map(String)
+          .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+        soundSeal = maybeRecordSoundSeals({
+          body: row.body || "",
+          backlogItem: row.backlogItem || null,
+          locations: locs,
+          vinId: result.strand?.vinId || row.prepared?.vinId || null,
+          contentCommit: row.prepared?.contentCommit || row.backlogItem?.contentCommit || null,
+        });
+        if (soundSeal?.ok && result && typeof result === "object") {
+          result.soundSeal = soundSeal;
+        }
+      }
+    } catch { /* sound seal is best-effort — never invent hashes */ }
     let chainDirSeal = null;
     try {
       const {
@@ -2912,6 +3114,13 @@ export async function handleVitaFeedAction({
       ? "\n\n" + backlogSeal.card +
         (restaged ? "" : "\nDrain more: /vitafeed next")
       : "";
+    const soundExtra = soundSeal?.ok
+      ? "\n\nINJECT PROOF sealed · Basescan click-through live" +
+        (soundSeal.locations?.[0]
+          ? "\n" + VITAFEED_BASESCAN_TX + soundSeal.locations[0]
+          : "") +
+        "\n" + (soundSeal.note || "")
+      : "";
     const chainDirExtra = chainDirSeal?.card
       ? "\n\n" + chainDirSeal.card
       : "";
@@ -2931,13 +3140,14 @@ export async function handleVitaFeedAction({
       playProof,
       library: librarySave,
       backlog: backlogSeal,
+      soundSeal,
       chainDir: chainDirSeal,
       forcedOverride: override,
       restaged,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
         card + "\n\n" + buyCard + "\n\n" + receipt + dualExtra + playExtra +
-        libExtra + backlogExtra + chainDirExtra + resumeExtra,
+        libExtra + backlogExtra + soundExtra + chainDirExtra + resumeExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

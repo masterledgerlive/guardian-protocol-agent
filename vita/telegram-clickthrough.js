@@ -78,7 +78,7 @@ export function buildPlayerPopupKeyboard({
   if (includeDemo && !/demo=1/.test(String(playerPath))) {
     rows.push([webAppBtn("▶ Demo player", demoHref), urlBtn("↗ Demo", demoHref)]);
   }
-  if (!/music=/.test(String(playerPath)) && !/soundboard/.test(String(playerPath))) {
+  if (!/music=/.test(String(playerPath)) && !/soundboard/.test(String(playerPath)) && !/spatial/.test(String(playerPath))) {
     const musicHref = vitaPlayerHref("/vita/feed-player?music=judy");
     rows.push([webAppBtn("▶ MUSIC library", musicHref), urlBtn("↗ MUSIC", musicHref)]);
   }
@@ -86,10 +86,14 @@ export function buildPlayerPopupKeyboard({
     const boardHref = vitaPlayerHref("/vita/soundboard");
     rows.push([webAppBtn("▶ Soundboard", boardHref), urlBtn("↗ Board", boardHref)]);
   }
+  if (!/spatial/.test(String(playerPath))) {
+    const spatialHref = vitaPlayerHref("/vita/spatial");
+    rows.push([webAppBtn("▶ Spatial", spatialHref), urlBtn("↗ Voxel", spatialHref)]);
+  }
   rows.push([
     btn("🎵 Music", "/vitafeed music"),
     btn("🔊 Board", "/vitafeed board"),
-    btn("📦 Enqueue lib", "/vitafeed enqueue library"),
+    btn("🕊 Spatial", "/vitafeed spatial"),
   ]);
   rows.push([
     btn("📋 KIDS list", "/vitafeed dir KIDS"),
@@ -118,6 +122,7 @@ export function buildVitaFeedRootKeyboard() {
         btn("🧒 KIDS", "/vitafeed play kids"),
         btn("🎵 MUSIC", "/vitafeed music"),
         btn("🔊 Board", "/vitafeed board"),
+        btn("🕊 Spatial", "/vitafeed spatial"),
         btn("🌈 Judy", "/vitafeed play judy"),
         btn("🎹 Maple", "/vitafeed play maple"),
         btn("⛓ Chain dir", "/vitafeed chaindir"),
@@ -129,6 +134,7 @@ export function buildVitaFeedRootKeyboard() {
         webAppBtn("▶ Proven", vitaPlayerHref("/vita/players/proven")),
         webAppBtn("▶ Judy player", vitaPlayerHref("/vita/feed-player?music=judy")),
         webAppBtn("▶ Soundboard", vitaPlayerHref("/vita/soundboard")),
+        webAppBtn("▶ Spatial", vitaPlayerHref("/vita/spatial")),
         webAppBtn("▶ Demo player", vitaPlayerHref("/vita/feed-player?demo=1")),
         urlBtn("↗ Player", vitaPlayerHref("/vita/kids-player?dir=kids")),
       ],
@@ -424,7 +430,10 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
     act === "board" ||
     act === "pad" ||
     act === "prompt" ||
-    out.soundboard === true
+    act === "spatial" ||
+    act === "soundtrack" ||
+    out.soundboard === true ||
+    out.spatial === true
   ) {
     return out.keyboard || null;
   }
@@ -436,15 +445,16 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
       out.demo === true ||
       out.music === true ||
       out.soundboard === true ||
+      out.spatial === true ||
       out.play?.kind === "youtube" ||
       out.play?.kind === "audio" ||
       out.play?.demo === true ||
-      /kids-player|feed-player|soundboard/.test(String(out.reply || out.playerPath || out.playerHref || ""))
+      /kids-player|feed-player|soundboard|spatial/.test(String(out.reply || out.playerPath || out.playerHref || ""))
     ))
   ) {
-    if (out.soundboard && out.keyboard) return out.keyboard;
+    if ((out.soundboard || out.spatial) && out.keyboard) return out.keyboard;
     return buildPlayerPopupKeyboard({
-      playerPath: out.playerPath || (out.demo ? "/vita/feed-player?demo=1" : out.music ? (String(out.playerPath || "").includes("judy") || /judy|garland|rainbow/i.test(String(out.reply || "")) ? "/vita/feed-player?music=judy" : "/vita/feed-player?music=maple") : out.soundboard ? "/vita/soundboard" : "/vita/kids-player?dir=kids"),
+      playerPath: out.playerPath || (out.demo ? "/vita/feed-player?demo=1" : out.music ? (String(out.playerPath || "").includes("judy") || /judy|garland|rainbow/i.test(String(out.reply || "")) ? "/vita/feed-player?music=judy" : "/vita/feed-player?music=maple") : out.spatial ? "/vita/spatial" : out.soundboard ? "/vita/soundboard" : "/vita/kids-player?dir=kids"),
       includeDemo: true,
     });
   }
