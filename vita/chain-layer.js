@@ -32,6 +32,14 @@ import {
   vitaModelStatus,
   nextVitaModel,
 } from "../vita-models.js";
+import {
+  buildAndMatchInjectPlan,
+  buildSpacedIdmKeyboard,
+  formulaAnchorLocations,
+  formatInjectPlanCard,
+  sealedInjectIdmLocations,
+  SPACED_CHUNK_BYTES,
+} from "./chain-inject.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..");
@@ -61,6 +69,7 @@ export const PROVEN_LIBRARY_ROOTS = Object.freeze([
   "vita/mainframe.js",
   "vita/mirror-chain.js",
   "vita/chain-layer.js",
+  "vita/chain-inject.js",
   "vita/brain-learn.js",
   "vita/feed-flow.js",
   "vita/vita-dir.js",
@@ -86,6 +95,16 @@ export const SYSTEMS_CHECKLIST = Object.freeze([
     id: "snark-compress",
     title: "SNARK compress proven libraries",
     why: "Recover from short commitment — skip whole mainframe body",
+  },
+  {
+    id: "spaced-inject",
+    title: "Spaced inject batch (code > calldata)",
+    why: "Every chunk needs its own sealed Base loc — never fake IDM with formula anchors",
+  },
+  {
+    id: "chain-match",
+    title: "On-chain UTF-8 match",
+    why: "Pull sealed locs and verify Input Data matches planned chunk commits",
   },
   {
     id: "model-ring",
@@ -172,11 +191,13 @@ function anchorLocations() {
 
 /**
  * SNARK-compress a proven library set into one short — no full mainframe dump.
+ * |L= only carries SEALED inject locs that hold matching body — never formula anchors alone.
  */
 export function snarkCompressProvenLibrary({
   roots = PROVEN_LIBRARY_ROOTS,
   cwd = REPO_ROOT,
   title = "VITA-PROVEN-LIB",
+  sealedLocs = [],
 } = {}) {
   const files = [];
   for (const rel of roots) {
@@ -208,17 +229,20 @@ export function snarkCompressProvenLibrary({
     layer = next;
   }
   const root = layer[0];
-  const locs = anchorLocations().map((l) => l.location);
+  // Only sealed inject locs that actually hold library chunks — never pretend anchors are body.
+  const injectLocs = (sealedLocs || [])
+    .map((l) => (typeof l === "string" ? l : l?.location))
+    .filter(isTxHash);
   const english =
     `Proven library snark "${title}": ${files.length} files, ${totalBytes} bytes, ` +
-    `merkle ${shortHex(root, 12)}…. Recover via short — skip whole mainframe body.`;
+    `merkle ${shortHex(root, 12)}…. Local short until spaced inject seals matching locs.`;
   const machine =
     `SNARK kind=proven-lib title=${clip(title, 28)} files=${files.length} ` +
-    `bytes=${totalBytes} root=${shortHex(root, 8)} formula=${FORMULA_ID}`;
+    `bytes=${totalBytes} root=${shortHex(root, 8)} sealedLocs=${injectLocs.length} formula=${FORMULA_ID}`;
   const packed = packMachineShort({
     english,
     machine,
-    locs,
+    locs: injectLocs,
     trueName: title,
   });
   return {
@@ -227,11 +251,17 @@ export function snarkCompressProvenLibrary({
     files,
     bytes: totalBytes,
     fileCount: files.length,
+    sealedLocCount: injectLocs.length,
     snarkReady: true,
     instantUnwrap: true,
+    localOnly: injectLocs.length === 0,
     neverInventHashes: true,
     magic: SYSTEMS_CHECK_MAGIC,
     label: SYSTEMS_CHECK_LABEL,
+    note:
+      injectLocs.length === 0
+        ? "LOCAL snark only — no sealed inject locs yet. Formula anchors are not library body."
+        : "Snark cites sealed inject locs that hold chunk UTF-8.",
   };
 }
 
@@ -243,16 +273,18 @@ export function measureEvmRecover({
   cwd = REPO_ROOT,
   rpcPingMs = null,
   now = Date.now(),
+  sealedLocs = [],
 } = {}) {
   const t0 = typeof performance !== "undefined" && performance.now
     ? performance.now()
     : Date.now();
-  const snark = snarkCompressProvenLibrary({ cwd });
+  const snark = snarkCompressProvenLibrary({ cwd, sealedLocs });
   const reveal = unwrapMachineShort(snark, {
     english: snark.english || "",
     machine: snark.machine || "",
   });
-  const locs = anchorLocations();
+  const formulaAnchors = formulaAnchorLocations();
+  const injectIdm = (sealedLocs || []).filter((l) => isTxHash(l.location || l));
   const t1 = typeof performance !== "undefined" && performance.now
     ? performance.now()
     : Date.now();
@@ -268,16 +300,27 @@ export function measureEvmRecover({
     snarkShort: snark.short,
     snarkRoot: snark.root,
     fileCount: snark.fileCount,
-    locCount: locs.length,
+    formulaAnchorCount: formulaAnchors.length,
+    sealedInjectCount: injectIdm.length,
+    locCount: injectIdm.length,
     unwrapInstant: reveal.instant === true,
     privateKeyRequired: false,
     evmClass: "base-calldata-utf8-v1",
     chainId: MAINFRAME_ANCHORS.chainId,
     chain: MAINFRAME_ANCHORS.chain,
+    localOnly: injectIdm.length === 0,
     note:
-      "Local snark unwrap = brand-new spin. RPC ping is optional Basescan/RPC RTT — " +
-      "never invents tx hashes.",
-    locations: locs,
+      injectIdm.length === 0
+        ? "Local snark unwrap only — library body not yet sealed on Base. Formula anchors are class proof, not body."
+        : "Recover cites sealed inject locs. Pull Input Data → UTF-8 to verify chunk commits.",
+    locations: injectIdm.length
+      ? injectIdm.map((l) =>
+          typeof l === "string"
+            ? { location: l, basescan: (MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/") + l }
+            : l,
+        )
+      : [],
+    formulaAnchors,
     neverInventHashes: true,
   };
 }
@@ -335,10 +378,12 @@ export function registerLlmOnchainSpin({
   const agreed = agreeModelRing({ env, write: false, now });
   const id = String(modelId || agreed.agreed || peekVitaModel(env));
   const snark = snarkCompressProvenLibrary({ title: "LLM-SPIN-" + clip(id, 24) });
-  const locs = anchorLocations().map((l) => ({
+  const locs = formulaAnchorLocations().map((l) => ({
     id: l.id,
     location: l.location,
     basescan: l.basescan,
+    role: "formula-anchor",
+    holdsLibraryBody: false,
   }));
   const manifest = {
     magic: LLM_SPIN_MAGIC,
@@ -353,18 +398,21 @@ export function registerLlmOnchainSpin({
     spin: {
       read: "/vita llm",
       check: "/vita check",
+      locs: "/vita check locs",
+      pull: "/vita check pull",
       recover: "/vita recover",
       models: "/vita models",
       change: "Set Railway VITA_MODELS or /vita models next",
       grow: "Append vita/memory + vita/strands — never erase genesis",
     },
     locations: locs,
+    formulaAnchorsOnly: true,
     formula: FORMULA_ID,
     opensource: true,
     neverInventHashes: true,
     note:
-      "Manifest is the on-chain *route* (commitment + Base locs). Weight blobs stay " +
-      "off settlement until sealed — spin reads short + grows library at will.",
+      "Manifest is the on-chain *route* (commitment). Formula anchors are class proof only — " +
+      "library body needs spaced sealed inject locs. Never invent hashes.",
     ...extra,
   };
   if (write) {
@@ -406,27 +454,39 @@ function appendCheckLedger(entry) {
   return next;
 }
 
-function writeGrowthAndStrand({ growth, snark, recover, models, llm }) {
+function writeGrowthAndStrand({ growth, snark, recover, models, llm, inject }) {
   ensureDirs();
   writeFileSync(GROWTH_PATH, JSON.stringify(growth, null, 2) + "\n");
+  const sealed = sealedInjectIdmLocations(inject);
   const strand = {
     strandId: "chain-layer",
     sparse: true,
     source: "chain-layer",
     filingLabel: CHAIN_LAYER_LABEL,
     learn:
-      "Always /vita check before inventing a route. SNARK proven libs so agents " +
-      "skip whole mainframe. EVM recover ms = brand-new spin. Model ring + LLM " +
-      "manifest are open-source change-at-will. Never invent hashes.",
+      "Always /vita check. SNARK is local until spaced inject seals matching locs. " +
+      "Telegram IDM only for sealed inject txs — formula anchors are class proof only. " +
+      "Pull Input Data → UTF-8 to verify. Never invent hashes.",
     formula: FORMULA_ID,
     snarkRoot: snark?.root || null,
     recoverMs: recover?.localRecoverMs ?? null,
     agreedModel: models?.agreed || null,
     llmCommit: llm?.contentCommit || null,
-    locations: MAINFRAME_ANCHORS.known.map((a) => ({
+    spacedChunks: inject?.totalChunks || 0,
+    sealedInject: sealed.length,
+    pendingInject: inject?.pendingCount || 0,
+    locations: sealed.map((l) => ({
+      id: l.id,
+      location: l.location,
+      kind: "vita",
+      role: "sealed-inject",
+      contentCommit: l.contentCommit,
+    })),
+    formulaAnchors: formulaAnchorLocations().map((a) => ({
       id: a.id,
-      location: a.tx,
+      location: a.location,
       kind: a.kind,
+      role: "formula-anchor",
     })),
   };
   writeFileSync(STRAND_PATH, JSON.stringify(strand, null, 2) + "\n");
@@ -435,22 +495,41 @@ function writeGrowthAndStrand({ growth, snark, recover, models, llm }) {
 
 /**
  * Run the full systems checklist — files land in memory/strands every pass.
+ * Builds spaced inject plan and optionally pulls sealed locs from Base.
  */
-export function runSystemsCheck({
+export async function runSystemsCheck({
   cwd = REPO_ROOT,
   env = process.env,
   write = true,
   rpcPingMs = null,
   now = Date.now(),
   rotateModel = false,
+  fetchCalldata = null,
+  readUtf8FromCalldata = null,
+  pull = true,
 } = {}) {
   const started = now;
   const memBefore = dirStats(MEMORY_DIR);
   const strandBefore = dirStats(STRANDS_DIR);
 
+  const inject = await buildAndMatchInjectPlan({
+    cwd,
+    write,
+    fetchCalldata: pull ? fetchCalldata : null,
+    readUtf8FromCalldata,
+    now,
+    pull: pull && typeof fetchCalldata === "function",
+  });
+  const sealedIdm = sealedInjectIdmLocations(inject);
+
   const anchorsOk = (MAINFRAME_ANCHORS.known || []).every((a) => isTxHash(a.tx));
-  const snark = snarkCompressProvenLibrary({ cwd });
-  const recover = measureEvmRecover({ cwd, rpcPingMs, now });
+  const snark = snarkCompressProvenLibrary({ cwd, sealedLocs: sealedIdm });
+  const recover = measureEvmRecover({
+    cwd,
+    rpcPingMs,
+    now,
+    sealedLocs: sealedIdm,
+  });
   if (rotateModel) nextVitaModel(env);
   const models = agreeModelRing({ env, write, now });
   const llm = registerLlmOnchainSpin({
@@ -466,7 +545,7 @@ export function runSystemsCheck({
     switch (item.id) {
       case "anchors":
         ok = anchorsOk && (MAINFRAME_ANCHORS.known || []).length >= 3;
-        detail = `${(MAINFRAME_ANCHORS.known || []).length} hardcoded Base txs`;
+        detail = `${(MAINFRAME_ANCHORS.known || []).length} formula-class anchors (not library body)`;
         break;
       case "library-growth":
         ok = memBefore.count >= 1 && strandBefore.count >= 1;
@@ -474,7 +553,28 @@ export function runSystemsCheck({
         break;
       case "snark-compress":
         ok = Boolean(snark.short && snark.root && snark.fileCount > 0);
-        detail = `${snark.fileCount} files · ${snark.bytes}B · ${shortHex(snark.root, 10)}…`;
+        detail =
+          `${snark.fileCount} files · ${snark.bytes}B · ${shortHex(snark.root, 10)}…` +
+          (snark.localOnly ? " · LOCAL_ONLY" : ` · sealedLocs=${snark.sealedLocCount}`);
+        break;
+      case "spaced-inject":
+        ok = inject.totalChunks > 0 && inject.maxBytes === SPACED_CHUNK_BYTES;
+        detail =
+          `${inject.totalChunks} spaced locs × ${inject.maxBytes}B · sealed=${inject.sealedCount} · pending=${inject.pendingCount}`;
+        break;
+      case "chain-match":
+        if (typeof fetchCalldata !== "function" || !pull) {
+          ok = true;
+          detail = `bind-only sealed=${inject.sealedCount} (pass fetchCalldata to pull/verify)`;
+        } else if (inject.sealedCount === 0) {
+          ok = true;
+          detail = "no sealed inject locs yet — nothing to pull (honest)";
+        } else {
+          ok = (inject.verifiedCount || 0) > 0 || inject.pull?.verified > 0;
+          detail =
+            `verified=${inject.verifiedCount || 0}/${inject.sealedCount}` +
+            (inject.pull?.mismatched ? ` mismatch=${inject.pull.mismatched}` : "");
+        }
         break;
       case "model-ring":
         ok = Boolean(models.agreed && models.cycle?.length);
@@ -483,7 +583,8 @@ export function runSystemsCheck({
       case "evm-recover":
         ok = recover.ok === true && recover.unwrapInstant === true;
         detail = `${recover.localRecoverMs}ms local` +
-          (recover.rpcPingMs != null ? ` + ${recover.rpcPingMs}ms rpc` : "");
+          (recover.rpcPingMs != null ? ` + ${recover.rpcPingMs}ms rpc` : "") +
+          (recover.localOnly ? " · LOCAL_ONLY" : "");
         break;
       case "llm-spin":
         ok = Boolean(llm.contentCommit && llm.snarkShort);
@@ -491,7 +592,8 @@ export function runSystemsCheck({
         break;
       case "telegram-pointer":
         ok = true;
-        detail = "/vita check · recover · models · llm · spin";
+        detail =
+          `/vita check · check locs · check pull · ${sealedIdm.length} sealed IDM buttons`;
         break;
       default:
         ok = false;
@@ -510,15 +612,20 @@ export function runSystemsCheck({
           formula: FORMULA_ID,
           before: { memory: memBefore, strands: strandBefore },
           snarkRoot: snark.root,
+          snarkLocalOnly: snark.localOnly === true,
           recoverMs: recover.localRecoverMs,
           agreedModel: models.agreed,
           llmCommit: llm.contentCommit,
+          spacedChunks: inject.totalChunks,
+          sealedInject: inject.sealedCount,
+          pendingInject: inject.pendingCount,
+          verifiedInject: inject.verifiedCount || 0,
           checklistPassed: passed,
           checklistTotal: checks.length,
           neverInventHashes: true,
           messageFirst: ORIGINAL_FORMULA.messageFirstWhenKeyLocCovered,
         };
-        writeGrowthAndStrand({ growth, snark, recover, models, llm });
+        writeGrowthAndStrand({ growth, snark, recover, models, llm, inject });
         const entry = {
           at: new Date(now).toISOString(),
           passed,
@@ -527,9 +634,11 @@ export function runSystemsCheck({
           snarkRoot: snark.root,
           agreedModel: models.agreed,
           llmCommit: llm.contentCommit,
+          spacedChunks: inject.totalChunks,
+          sealedInject: inject.sealedCount,
+          pendingInject: inject.pendingCount,
         };
         appendCheckLedger(entry);
-        // Cycle note — visible file creation each check
         const cyclePath = join(
           MEMORY_DIR,
           "systems-check-" + String(Date.now()) + ".json",
@@ -548,6 +657,19 @@ export function runSystemsCheck({
               root: snark.root,
               fileCount: snark.fileCount,
               bytes: snark.bytes,
+              localOnly: snark.localOnly,
+              sealedLocCount: snark.sealedLocCount,
+              note: snark.note,
+            },
+            inject: {
+              totalChunks: inject.totalChunks,
+              maxBytes: inject.maxBytes,
+              sealedCount: inject.sealedCount,
+              pendingCount: inject.pendingCount,
+              verifiedCount: inject.verifiedCount || 0,
+              spacedBlockchainLocationsRequired: inject.spacedBlockchainLocationsRequired,
+              sealedLocations: sealedIdm.map((l) => l.location),
+              pull: inject.pull || null,
             },
             recover,
             models: {
@@ -561,11 +683,13 @@ export function runSystemsCheck({
               snarkShort: llm.snarkShort,
               spin: llm.spin,
             },
-            locations: anchorLocations().map((l) => l.location),
+            formulaAnchors: formulaAnchorLocations().map((l) => l.location),
+            sealedInjectLocations: sealedIdm.map((l) => l.location),
             neverInventHashes: true,
             neverForget: true,
             route:
-              "Always /vita check → recover → models → llm. SNARK short skips mainframe. Never invent hashes.",
+              "Always /vita check → check locs → check pull. Spaced inject for code > calldata. " +
+              "IDM only for sealed matching locs. Formula anchors ≠ library body.",
           },
           null,
           2,
@@ -586,6 +710,7 @@ export function runSystemsCheck({
     passed,
     total: checks.length,
     snark,
+    inject,
     recover,
     models,
     llm,
@@ -593,15 +718,18 @@ export function runSystemsCheck({
       before: { memory: memBefore, strands: strandBefore },
       after: memAfterWrite,
     },
-    locations: anchorLocations(),
+    locations: sealedIdm,
+    formulaAnchors: formulaAnchorLocations(),
     neverInventHashes: true,
   };
 }
 
 export function formatSystemsCheckCard(result) {
   const lines = [];
+  const inject = result.inject || {};
+  const sealed = result.locations || sealedInjectIdmLocations(inject);
   lines.push(SYSTEMS_CHECK_MAGIC + "v1|check§");
-  lines.push("⛓️ VITA SYSTEMS CHECK — always walk the chain");
+  lines.push("⛓️ VITA SYSTEMS CHECK — chain memory must match files");
   lines.push("━━━━━━━━━━━━━━━━━━━━");
   lines.push(
     `pass ${result.passed}/${result.total}  formula=${result.formula}  inventHashes=NO`,
@@ -610,14 +738,41 @@ export function formatSystemsCheckCard(result) {
     lines.push(`${c.ok ? "✅" : "❌"} ${c.title} — ${c.detail}`);
   }
   lines.push("");
-  lines.push("— SNARK (skip whole mainframe) —");
+  lines.push("— SNARK (local until sealed inject) —");
   lines.push(result.snark?.short || "—");
-  lines.push(`files=${result.snark?.fileCount || 0} · bytes=${result.snark?.bytes || 0}`);
+  lines.push(
+    `files=${result.snark?.fileCount || 0} · bytes=${result.snark?.bytes || 0}` +
+      (result.snark?.localOnly ? " · LOCAL_ONLY (not on-chain body)" : ""),
+  );
+  lines.push("");
+  lines.push("— SPACED INJECT (code > " + SPACED_CHUNK_BYTES + "B field) —");
+  lines.push(
+    `required=${inject.spacedBlockchainLocationsRequired || inject.totalChunks || 0} locs · sealed=${inject.sealedCount || 0} · pending=${inject.pendingCount || 0} · verified=${inject.verifiedCount || 0}`,
+  );
+  lines.push("");
+  lines.push("— SEALED IDM CHAT (Input Data → UTF-8) — library body only —");
+  if (!sealed.length) {
+    lines.push("(none sealed — do not click formula anchors as library proof)");
+  } else {
+    for (const loc of sealed.slice(0, 24)) {
+      const mark = loc.verified ? "✅" : "🔗";
+      lines.push(
+        `${mark} ${loc.id || "sealed"}  ${shortHex(loc.location, 10)}…  ${loc.basescan}`,
+      );
+    }
+    if (sealed.length > 24) lines.push(`… +${sealed.length - 24} more — /vita check locs`);
+  }
+  lines.push("");
+  lines.push("— FORMULA ANCHORS (class proof ONLY — not library inject) —");
+  for (const loc of (result.formulaAnchors || formulaAnchorLocations()).slice(0, 4)) {
+    lines.push(`🏷 ${loc.id}  ${shortHex(loc.location, 8)}…  ${loc.basescan}`);
+  }
   lines.push("");
   lines.push("— EVM RECOVER —");
   lines.push(
     `${result.recover?.localRecoverMs ?? "?"}ms local · unwrap=${result.recover?.unwrapInstant ? "instant" : "?"} · ` +
-      `evmClass=${result.recover?.evmClass || "—"}`,
+      `evmClass=${result.recover?.evmClass || "—"}` +
+      (result.recover?.localOnly ? " · LOCAL_ONLY" : ""),
   );
   lines.push("");
   lines.push("— MODELS —");
@@ -629,12 +784,7 @@ export function formatSystemsCheckCard(result) {
   lines.push(
     `${LLM_SPIN_MAGIC} ${result.llm?.modelId || "?"} · commit ${shortHex(result.llm?.contentCommit, 12)}…`,
   );
-  lines.push("Tap Recover / Models / LLM / Basescan IDM. Spun like brand-new.");
-  lines.push("");
-  lines.push("— IDM CHAT (Basescan Input Data → UTF-8) —");
-  for (const loc of (result.locations || []).slice(0, 4)) {
-    lines.push(`🔗 ${loc.id}  ${shortHex(loc.location, 8)}…  ${loc.basescan}`);
-  }
+  lines.push("Tap sealed IDM / check locs / check pull. Never invent hashes.");
   const after = result.growth?.after;
   if (after?.memory) {
     lines.push("");
@@ -698,28 +848,42 @@ export function formatChainLayerTelegramHtml(text) {
   return "<pre>" + esc(text).slice(0, 3800) + "</pre>";
 }
 
-export function buildSystemsCheckKeyboard({ locations = [] } = {}) {
+export function buildSystemsCheckKeyboard({
+  locations = [],
+  plan = null,
+  includeFormulaAnchors = false,
+} = {}) {
+  // Prefer spaced sealed inject IDM — never pretend formula anchors are library body.
+  if (plan || (locations || []).some((l) => l.role === "sealed-inject" || l.holdsLibraryBody)) {
+    return buildSpacedIdmKeyboard({
+      plan: plan || { chunks: (locations || []).map((l) => ({
+        id: l.id,
+        sealed: true,
+        location: l.location,
+        basescan: l.basescan,
+        verified: l.verified,
+        match: l.match,
+        file: l.label,
+        index: 1,
+        fileTotal: 1,
+        contentCommit: l.contentCommit,
+      })) },
+      includeFormulaAnchors,
+      includeNav: true,
+    });
+  }
   const rows = [
     [
       { text: "✅ Check", callback_data: "/vita check" },
-      { text: "⚡ Recover", callback_data: "/vita recover" },
-      { text: "🧠 Models", callback_data: "/vita models" },
+      { text: "📦 Inject locs", callback_data: "/vita check locs" },
+      { text: "⬇️ Pull", callback_data: "/vita check pull" },
     ],
     [
+      { text: "⚡ Recover", callback_data: "/vita recover" },
+      { text: "🧠 Models", callback_data: "/vita models" },
       { text: "🧬 LLM spin", callback_data: "/vita llm" },
-      { text: "🪞 Chain", callback_data: "/vita chain" },
-      { text: "📂 Files", callback_data: "/vita files" },
     ],
   ];
-  const linkRow = [];
-  for (const loc of (locations || []).slice(0, 2)) {
-    if (!loc?.basescan) continue;
-    linkRow.push({
-      text: "IDM " + shortHex(loc.location, 6) + " ↗",
-      url: loc.basescan,
-    });
-  }
-  if (linkRow.length) rows.push(linkRow);
   return { inline_keyboard: rows };
 }
 
@@ -737,6 +901,17 @@ export function parseChainLayerCommand(raw) {
     low === "/vitacheck"
   ) {
     return { action: "check" };
+  }
+  if (
+    low === "/vita check locs" ||
+    low === "/vita check loc" ||
+    low === "/vita check inject" ||
+    low === "/vita inject locs"
+  ) {
+    return { action: "locs" };
+  }
+  if (low === "/vita check pull" || low === "/vita pull inject" || low === "/vita check verify") {
+    return { action: "pull" };
   }
   if (low === "/vita recover" || low === "/vita evm" || low === "/vita speed") {
     return { action: "recover" };
@@ -772,14 +947,19 @@ export async function handleChainLayerAction({
   rpcPingMs = null,
   write = true,
   now = Date.now(),
+  fetchCalldata = null,
+  readUtf8FromCalldata = null,
 } = {}) {
   if (action === "check" || action === "systems" || action === "syscheck") {
-    const result = runSystemsCheck({
+    const result = await runSystemsCheck({
       cwd,
       env,
       write,
       rpcPingMs,
       now,
+      fetchCalldata,
+      readUtf8FromCalldata,
+      pull: typeof fetchCalldata === "function",
     });
     const reply = formatSystemsCheckCard(result);
     return {
@@ -787,15 +967,80 @@ export async function handleChainLayerAction({
       action: "check",
       reply,
       html: formatChainLayerTelegramHtml(reply),
-      keyboard: buildSystemsCheckKeyboard({ locations: result.locations }),
+      keyboard: buildSystemsCheckKeyboard({
+        locations: result.locations,
+        plan: result.inject,
+        includeFormulaAnchors: false,
+      }),
       result,
       locations: result.locations,
+      inject: result.inject,
       snark: result.snark,
     };
   }
 
+  if (action === "locs" || action === "inject") {
+    const inject = await buildAndMatchInjectPlan({
+      cwd,
+      write,
+      fetchCalldata: null,
+      now,
+      pull: false,
+    });
+    const reply = formatInjectPlanCard(inject);
+    return {
+      ok: true,
+      action: "locs",
+      reply,
+      html: formatChainLayerTelegramHtml(reply),
+      keyboard: buildSpacedIdmKeyboard({
+        plan: inject,
+        includeFormulaAnchors: true,
+        includeNav: true,
+      }),
+      inject,
+      locations: sealedInjectIdmLocations(inject),
+    };
+  }
+
+  if (action === "pull" || action === "verify") {
+    const inject = await buildAndMatchInjectPlan({
+      cwd,
+      write,
+      fetchCalldata,
+      readUtf8FromCalldata,
+      now,
+      pull: typeof fetchCalldata === "function",
+    });
+    const reply = formatInjectPlanCard(inject);
+    return {
+      ok: true,
+      action: "pull",
+      reply,
+      html: formatChainLayerTelegramHtml(reply),
+      keyboard: buildSpacedIdmKeyboard({
+        plan: inject,
+        includeFormulaAnchors: false,
+        includeNav: true,
+      }),
+      inject,
+      locations: sealedInjectIdmLocations(inject),
+    };
+  }
+
   if (action === "recover" || action === "evm" || action === "speed") {
-    const recover = measureEvmRecover({ cwd, rpcPingMs, now });
+    const inject = await buildAndMatchInjectPlan({
+      cwd,
+      write: false,
+      pull: false,
+      now,
+    });
+    const recover = measureEvmRecover({
+      cwd,
+      rpcPingMs,
+      now,
+      sealedLocs: sealedInjectIdmLocations(inject),
+    });
     if (write) {
       ensureDirs();
       writeFileSync(
@@ -819,7 +1064,10 @@ export async function handleChainLayerAction({
       action: "recover",
       reply,
       html: formatChainLayerTelegramHtml(reply),
-      keyboard: buildSystemsCheckKeyboard({ locations: recover.locations }),
+      keyboard: buildSystemsCheckKeyboard({
+        locations: recover.locations,
+        plan: inject,
+      }),
       recover,
       locations: recover.locations,
     };
@@ -835,7 +1083,7 @@ export async function handleChainLayerAction({
       action: "models",
       reply,
       html: formatChainLayerTelegramHtml(reply),
-      keyboard: buildSystemsCheckKeyboard({ locations: anchorLocations() }),
+      keyboard: buildSystemsCheckKeyboard({}),
       models,
     };
   }
@@ -853,9 +1101,9 @@ export async function handleChainLayerAction({
       action: "llm",
       reply,
       html: formatChainLayerTelegramHtml(reply),
-      keyboard: buildSystemsCheckKeyboard({ locations: llm.locations }),
+      keyboard: buildSystemsCheckKeyboard({}),
       llm,
-      locations: llm.locations,
+      locations: [],
     };
   }
 

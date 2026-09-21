@@ -18,6 +18,8 @@ findable.
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
 | `vita/chain-layer.js` | `CHAIN_LAYER` / `SYSTEMS_CHECK` / `LLM_ONCHAIN` | Always-on systems check · SNARK proven libs · EVM recover ms · model agreement · LLM spin manifests · Telegram `/vita check` |
+| `vita/chain-inject.js` | `CHAIN_INJECT` | Spaced batch plan (720B) · bind sealed locs by contentCommit · pull/verify UTF-8 · IDM buttons only for matching body |
+| `vita/memory/chain-layer-inject.json` | `CHAIN_INJECT` | Full spaced chunk plan + sealed/pending/verified status |
 | `vita/memory/chain-layer-checks.json` | `CHAIN_LAYER` | Append-only systems-check ledger |
 | `vita/memory/model-agreement.json` | `CHAIN_LAYER` | Last-agreed / multi-model ring |
 | `vita/memory/llm-onchain-spin.json` | `LLM_ONCHAIN` | Open-source LLM spin manifest (commitment + Base locs) |
@@ -76,6 +78,7 @@ findable.
 | `CHAIN_LAYER` | Blockchain systems layer (`§VITACHAIN§`) — always `/vita check`; SNARK proven libs; EVM recover timing; model ring |
 | `SYSTEMS_CHECK` | Systems checklist proof (`§SYSCHECK§`) — each pass grows `vita/memory/` + `vita/strands/` |
 | `LLM_ONCHAIN` | LLM-on-chain spin manifest (`§VITALLM§`) — content commitment + Base locs; change model at will |
+| `CHAIN_INJECT` | Spaced inject plan (`§VITAINJECT§`) — N×720B chunks; sealed IDM only when UTF-8 matches; formula anchors ≠ body |
 | `TELEGRAM_HOME` | Sectioned Telegram HOME (`§VITAHOME§`) — inline buttons for every route; MAIN↔NEW engine mirror; search sims; IDM static proof |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |

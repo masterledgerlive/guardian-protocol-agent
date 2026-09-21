@@ -13360,6 +13360,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               codeBranch: liveGithubBranch(),
               stateBranch: liveStateBranch(),
               repo: liveGithubRepo(),
+              fetchCalldata: fetchTxCalldataHex,
             });
             await tg(
               "🌟 <b>VITA " + esc(parsedMirror.action) + "</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),

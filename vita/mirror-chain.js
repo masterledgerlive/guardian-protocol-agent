@@ -954,6 +954,8 @@ export async function handleVitaMirrorAction({
   env = process.env,
   rpcPingMs = null,
   write = true,
+  fetchCalldata = null,
+  readUtf8FromCalldata = null,
 } = {}) {
   expireSessionKeys(chatId, now);
   const bucket = sessionBucket(chatId);
@@ -969,7 +971,11 @@ export async function handleVitaMirrorAction({
     action === "systems" ||
     action === "evm" ||
     action === "speed" ||
-    action === "llmspin"
+    action === "llmspin" ||
+    action === "locs" ||
+    action === "inject" ||
+    action === "pull" ||
+    action === "verify"
   ) {
     return handleChainLayerAction({
       action,
@@ -980,6 +986,8 @@ export async function handleVitaMirrorAction({
       rpcPingMs,
       write,
       now,
+      fetchCalldata,
+      readUtf8FromCalldata,
     });
   }
 

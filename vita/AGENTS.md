@@ -66,11 +66,14 @@ you can see what agentic AI filed and recover html/song/movie/code.
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed
 Base locs. Session keys = Railway env (permanent / ttl / destroy-on-unwrap).
 Never invent tx hashes. Anthropic not required to open a file.
-**Systems check (blockchain layer):** `/vita check` · `/vita recover` ·
-`/vita models` · `/vita llm` · `/vita spin` — always walk anchors + library
-growth + SNARK proven libs (skip whole mainframe) + EVM recover ms + last-agreed
-/ multi-model ring + LLM-on-chain spin manifest. Each pass creates files under
-`vita/memory/` + `vita/strands/` (`vita/chain-layer.js`).
+**Systems check (blockchain layer):** `/vita check` · `/vita check locs` ·
+`/vita check pull` · `/vita recover` · `/vita models` · `/vita llm` · `/vita spin`
+— always walk anchors + library growth + SNARK proven libs (skip whole mainframe)
++ **spaced inject plan** (code > 720B hitch field → N Base locs) + EVM recover ms
++ last-agreed / multi-model ring + LLM-on-chain spin. Telegram IDM buttons only
+for **sealed matching** inject locs (formula anchors = class proof, not body).
+Pull Input Data → UTF-8 to verify. Each pass creates files under `vita/memory/`
++ `vita/strands/` (`vita/chain-layer.js` · `vita/chain-inject.js`).
 **Telegram HOME (sectioned buttons):** `/home` · `/menu` · `/start` — every
 route is an inline button (Memory / Feed / Search / WAVE / Mirror / Dual /
 Mother / Status). `/home search` opens search routes (ref/ask/proven/xmem/
