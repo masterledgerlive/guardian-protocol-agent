@@ -975,7 +975,9 @@ export async function handleVitaMirrorAction({
     action === "locs" ||
     action === "inject" ||
     action === "pull" ||
-    action === "verify"
+    action === "verify" ||
+    action === "routes" ||
+    action === "route"
   ) {
     return handleChainLayerAction({
       action,

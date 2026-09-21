@@ -156,6 +156,22 @@ export const HOME_SECTIONS = Object.freeze([
     ],
   },
   {
+    id: "trade",
+    title: "Trade",
+    emoji: "📱",
+    blurb: "Verb → token box (buy/sell/exit/piggy) — tap to run",
+    buttons: [
+      { label: "Buy…", cmd: "/pick buy" },
+      { label: "Sell…", cmd: "/pick sell" },
+      { label: "Sell half…", cmd: "/pick sellhalf" },
+      { label: "Exit…", cmd: "/pick exit" },
+      { label: "Piggy…", cmd: "/pick piggyunlock" },
+      { label: "Tokens", cmd: "/tokens" },
+      { label: "Waves…", cmd: "/pick waves" },
+      { label: "Cycles", cmd: "/cycles" },
+    ],
+  },
+  {
     id: "dual",
     title: "Dual",
     emoji: "⚖️",
@@ -176,6 +192,22 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "MG plain", cmd: "/vitamothergenesis" },
       { label: "MG encoded", cmd: "/vitamotherGenesisencoded" },
       { label: "FORCE recall", cmd: "/vitamothergenesis FORCE recall" },
+    ],
+  },
+  {
+    id: "syscheck",
+    title: "Syscheck",
+    emoji: "✅",
+    blurb: "Merkle folders + route domino · force §SYSCHECK§ seal stage",
+    buttons: [
+      { label: "Full check", cmd: "/vita check" },
+      { label: "Route domino", cmd: "/vita check routes" },
+      { label: "Inject locs", cmd: "/vita check locs" },
+      { label: "Pull", cmd: "/vita check pull" },
+      { label: "Recover", cmd: "/vita recover" },
+      { label: "Help check", cmd: "/help check" },
+      { label: "Track seal", cmd: "/vitafeed track SYSCHECK" },
+      { label: "HOME sim", cmd: "/home sim" },
     ],
   },
   {
@@ -241,7 +273,7 @@ export function buildHomeNavKeyboard() {
   rows.push([
     { text: "⚖️ Engines", callback_data: "/home engines" },
     { text: "🪞 Chain", callback_data: "/vita chain" },
-    { text: "📡 Feed proof", callback_data: "/vitafeed proof" },
+    { text: "✅ Routes", callback_data: "/vita check routes" },
   ]);
   return { inline_keyboard: rows };
 }
