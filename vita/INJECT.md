@@ -32,6 +32,9 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    Completing both lanes is the absolute moment; `/vitafeed cycle` self-checks
    loc proofs and routes the next dual inject. `/vitafeed dir CHAIN`. UI:
    `/vita/chain-dir`. KIDS player is availability until dual kids is sealed.
+   Maple Leaf Rag is availability until grouped VIN injects (`/vitafeed enqueue maple`)
+   seal every slice; `/vitafeed dual maple` logs the catalog line. Original
+   playback: `/vita/feed-player?music=maple` reconstructs the OGG from groups.
 7c. **Loader (curated knowledge):** `/vitafeed load` preloads cipher/programming/LLM
    packs into the **existing** backlog with dual cost mirrors + text animation.
    `/vitafeed know` = Hey did you know… + on-chain library recall.
@@ -55,7 +58,9 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    - `/vitafeed next` — stage next pending → confirm|override
    - `/vitafeed proof` includes backlog growth proof
    Desk: `GET /vita/feed-backlog` · auth `POST /vita/feed-backlog/seed`
-   Prefer ≤4 chunks/item (hard max 24 = hourly thrift). Never invents hashes.
+   Prefer ≤4 chunks/item (hard max 24 = hourly thrift). A full song uses
+   **grouped** items (one group = ≤24 VIN). `/vitafeed enqueue maple` queues
+   Maple Leaf Rag slices. Never invents hashes.
    Does **not** turn `VITAFEED_PAID` on.
 10. **FORCE / AUTOFIRE (desk):** `VITAFEED_FORCE=yes` + override (or
     `VITAFEED_AUTOFIRE=yes` + `VITAFEED_AUTOFIRE_BODY=…` one-shot on boot) seals

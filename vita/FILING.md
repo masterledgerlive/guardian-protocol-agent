@@ -25,6 +25,11 @@ findable.
 | `vita/memory/telegram-player-popup.json` | `URLDIR` | Learn: Telegram HTTPS popup player (web_app + url fallback) |
 | `vita/strands/telegram-player-popup.json` | `URLDIR` | Sparse strand: Telegram Watch popup → compact player → system playlists |
 | `vita/strands/kids-url-dir.json` | `URLDIR` | Sparse strand: KIDS url dir → player → dual HUMAN/MACHINE |
+| `vita/free-music.js` | `FREEMUSIC` | Public-domain song catalog · grouped §VITAFILE§ VIN inject · original OGG playback |
+| `vita/memory/free-music/Maple_Leaf_Rag.ogg` | `FREEMUSIC` | Scott Joplin Maple Leaf Rag (1899, PD) — full Ogg Vorbis, not a demo WAV |
+| `vita/memory/free-music-catalog.json` | `FREEMUSIC` | Source, license, sha256, grouped inject plan |
+| `vita/memory/free-music-learn.json` | `FREEMUSIC` | Append-only learn: grouped VIN → concat → original playback |
+| `vita/strands/free-music.json` | `FREEMUSIC` | Sparse strand: free catalog → grouped inject → feed-player |
 | `vita/telegram-clickthrough.js` | `VITACLICK` | Telegram inline keyboards — every category + subcategory clickable (dir→file→unlock, tokens→actions, track inject) |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
 | `vita/mirror-dual.js` | `MIRROR_DUAL` / `ZERO_PROOF` | Navigable GitHub duplicate tree + dual availability\|proven reader + open-source zero-proof key + SNARK boot from filing CAS follow-leader |
@@ -92,6 +97,7 @@ findable.
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
 | `CHAINDIR` | Line-for-line completion directory (`§VITACHAINDIR§`) — HUMAN+MACHINE loc proofs in Input Data; routing until both sealed |
 | `URLDIR` | Curated URL playlist directory (`§VITAURLDIR§`) — closed-garden YouTube urls for `/vita/kids-player`; dual HUMAN list + MACHINE ids |
+| `FREEMUSIC` | Free-catalog PD song (`§VITAMUSIC§`) — grouped §VITAFILE§ VIN slices; original audio/ogg playback from Input Data concat |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MIRROR_DUAL` | Dual-path mirror (`§VITADUALPATH§` / `§VITABOOT§`) — same file name on GitHub + filing; availability\|proven reader; zero-proof name+contentCommit; SNARK boot from CAS follow-leader |

@@ -247,7 +247,7 @@ function helpText() {
     "/vita check · /vita recover · /vita models · /vita llm — systems check + EVM ms + model ring + LLM spin (library grows files)",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
     "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",
-    "/vitafeed [text|file|brain|learn|proof|load|know|recall|cipher|backlog|enqueue|next|dir|unlock|dual|translate|kids] exact/VITAFILE/mind; DOS dir; KIDS url directory; dual lanes; loader packs; open-source unlock; files|play|keys; confirm|override; /vita/feed-player · /vita/kids-player?dir=kids · /vita/feed-loader",
+    "/vitafeed [text|file|brain|learn|proof|load|know|recall|cipher|backlog|enqueue|next|dir|unlock|dual|translate|kids|music] exact/VITAFILE/mind; DOS dir; KIDS url directory; Maple Leaf Rag grouped VIN; dual lanes; loader packs; open-source unlock; files|play|keys; confirm|override; /vita/feed-player · /vita/kids-player?dir=kids · /vita/feed-player?music=maple · /vita/feed-loader",
     "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO 8B; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",

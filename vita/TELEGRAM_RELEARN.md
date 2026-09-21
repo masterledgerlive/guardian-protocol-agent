@@ -138,11 +138,14 @@ Hardcoded anchors (never invent others):
 DOS master `VITA:\` (`vita-dir.js` `VITADIR_SUBDIRS`):
 
 `FORMULA` `ANCHORS` `FILING` `MEMORY` `STRANDS` `LEARN` `REF_LIB` `CODEX`
-`MG_RECALL` `LIBRARY` `PROVEN` **`KIDS`** **`X404`** **`AGENTS`**
+`MG_RECALL` `LIBRARY` `PROVEN` **`KIDS`** **`MUSIC`** **`X404`** **`AGENTS`**
 
 - **Kids dir (#161):** closed-garden YouTube URL playlist. `/vitafeed dir KIDS`
   · `/vitafeed play kids` · `/vitafeed dual kids` · `/vita/kids-player`. Child UI
   lists only those urls — no YouTube search or other channels.
+- **Free catalog song:** `/vitafeed play maple` · `/vitafeed dir MUSIC` ·
+  `/vitafeed enqueue maple` — Maple Leaf Rag (PD) grouped VIN original OGG
+  playback (`/vita/feed-player?music=maple`). Not a demo WAV.
 - **Dir tags (x404):** same display name → many plotted locations (Telegram path,
   filing path, strand, sealed Base). Directories = **answer-key routes** = the
   path the chain took. Proven Base loc is optional; plots wait for a

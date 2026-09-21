@@ -140,10 +140,10 @@ export function isKidsPlaySelector(sel) {
   return /^(?:kids|k|urldir|url-dir)(?:\b|[/?#]|$)/i.test(s);
 }
 
-/** Empty / demo / song → Tailwind demo player (WAV), not the KIDS list. */
+/** Empty / demo / wav → Tailwind demo player (synthetic WAV), not the PD song. */
 export function isDemoPlaySelector(sel) {
   const s = String(sel || "").trim();
-  return !s || /^(?:demo|song|wav|feed-player|player)$/i.test(s);
+  return !s || /^(?:demo|wav|feed-player|player)$/i.test(s);
 }
 
 export function demoPlayerOpen() {
@@ -159,7 +159,7 @@ export function demoPlayerOpen() {
       "VITAFEED DEMO PLAYER",
       "Tap Watch popup — small window while you work.",
       "href=" + playerHref,
-      "Playlists: /vitafeed play kids",
+      "Playlists: /vitafeed play kids  ·  /vitafeed play maple",
     ].join("\n"),
   };
 }
@@ -268,11 +268,21 @@ export function listUrlDirectories() {
 /** Playlists already loaded in the system — picker + Telegram popup. */
 export function systemPlaylists() {
   const demoPath = KIDS_FEED_PLAYER_PATH + "?demo=1";
+  const maplePath = KIDS_FEED_PLAYER_PATH + "?music=maple";
   const out = [
+    {
+      id: "maple",
+      label: "MUSIC",
+      title: "Maple Leaf Rag (Scott Joplin)",
+      kind: "audio",
+      count: 1,
+      player: maplePath,
+      playerHref: vitaPlayerHref(maplePath),
+    },
     {
       id: "demo",
       label: "DEMO",
-      title: "Demo song (WAV)",
+      title: "Demo beep (WAV)",
       kind: "audio",
       count: 1,
       player: demoPath,

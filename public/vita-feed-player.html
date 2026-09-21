@@ -245,7 +245,8 @@
           <p class="hint">Bytes → §VITAFILE§ base64 text → VIN packets (720 B payload). Telegram: reply with a file + <code>/vitafeed</code> then <code>/vitafeed override</code>.</p>
           <div class="cta">
             <label class="filebtn">Choose file<input id="fileIn" type="file" /></label>
-            <button type="button" id="btnDemo" class="ghost">Demo song (WAV)</button>
+            <button type="button" id="btnDemo" class="ghost">Demo beep (WAV)</button>
+            <button type="button" id="btnMaple" class="ghost">Maple Leaf Rag (PD)</button>
             <button type="button" id="btnPacketize" disabled>Packetize</button>
           </div>
           <pre class="card" id="costCard">Drop a file or load the demo song to see spaced packet plan.</pre>
@@ -330,13 +331,14 @@
       const sel = el("playlistPick");
       if (!sel) return;
       const opts = [
-        { id: "demo", title: "Demo song (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
+        { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&popup=1" },
+        { id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
       ];
       try {
         const data = await fetch("/vita/url-dir").then((r) => r.json());
         const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
         for (const d of lists) {
-          if (!d || d.id === "demo") continue;
+          if (!d || d.id === "demo" || d.id === "maple") continue;
           opts.push({
             id: String(d.id),
             title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
@@ -354,7 +356,7 @@
           });
         }
       } catch (_) {}
-      const current = q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : "demo"));
+      const current = q.get("music") ? "maple" : q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : "maple"));
       sel.innerHTML = opts.map((o) => {
         const href = String(o.href || "").replace(/'/g, "");
         const selected = o.id === current ? " selected" : "";
@@ -652,7 +654,10 @@
       fileName = "demo-song.wav";
       fileMime = "audio/wav";
       el("btnPacketize").disabled = false;
-      el("costCard").textContent = "Demo song loaded (short WAV). Click Packetize.";
+      el("costCard").textContent = "Demo beep loaded (synthetic WAV). Click Packetize.";
+    });
+    el("btnMaple")?.addEventListener("click", () => {
+      location.href = "/vita/feed-player?music=maple" + (q.get("popup") === "1" ? "&popup=1" : "");
     });
 
     el("btnPacketize").addEventListener("click", () => packetize());
@@ -711,7 +716,42 @@
         }
         return;
       }
-      if (q.get("demo") === "1" || q.get("song") === "1") {
+      if (q.get("music") || q.get("song") === "1") {
+        el("costCard").textContent = "Free catalog — reconstructing Maple Leaf Rag from grouped VIN packets…";
+        try {
+          const data = await fetch("/vita/free-music/play?id=maple").then((r) => r.json());
+          if (!data?.ok || !data.play?.dataUrl) {
+            el("costCard").textContent = "Maple play failed: " + (data?.error || "no audio");
+            return;
+          }
+          proof = {
+            complete: true,
+            play: data.play,
+            card: data.card || "Maple Leaf Rag — grouped VIN original playback",
+            chunks: (data.groups || []).map((g) => ({
+              location: null,
+              blockNumber: null,
+              demo: false,
+              label: "g" + String(g.n).padStart(2, "0") + "/" + (data.groups.length),
+            })),
+          };
+          el("playCard").textContent = proof.card;
+          el("costCard").textContent =
+            (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
+            (data.play.name || "Maple_Leaf_Rag.ogg") +
+            " · groups " + (data.groups?.length || 0) +
+            " · original OGG (not a demo WAV)";
+          renderPieces(data.groups?.length || 1, data.groups?.length || 0);
+          renderLocs(proof.chunks);
+          el("okPill").classList.add("show");
+          el("btnPlay").disabled = false;
+          showPlay(proof);
+        } catch (e) {
+          el("costCard").textContent = "Maple fetch error: " + (e.message || e);
+        }
+        return;
+      }
+      if (q.get("demo") === "1") {
         el("costCard").textContent = "Telegram demo — loading WAV, packetize, seal, play…";
         fileBytes = makeDemoWav();
         fileName = "demo-song.wav";

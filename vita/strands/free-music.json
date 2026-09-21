@@ -1,0 +1,18 @@
+{
+  "strandId": "free-music-maple",
+  "sparse": true,
+  "source": "vita-free-music",
+  "filingLabel": "FREEMUSIC",
+  "header": "§VITAMUSIC§v1|id=maple§",
+  "learn": "Free catalog song (Maple Leaf Rag, PD) packetizes as grouped §VITAFILE§ VIN injections. Each group ≤24 packets so hourly thrift can drain. Concatenate sealed slices → original OGG playback at /vita/feed-player?music=maple. Dual maple stages HUMAN catalog + MACHINE group shas into CHAINDIR. Availability until every group loc seals. Never invent hashes. Never a demo beep.",
+  "commands": [
+    "/vitafeed play maple",
+    "/vitafeed music",
+    "/vitafeed dir MUSIC",
+    "/vitafeed enqueue maple",
+    "/vitafeed dual maple"
+  ],
+  "player": "/vita/feed-player?music=maple",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

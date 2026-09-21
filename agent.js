@@ -594,6 +594,10 @@ import {
   vitaPlayerHref,
 } from "./vita/url-dir.js";
 import {
+  isMusicPlaySelector,
+  playFreeMusic,
+} from "./vita/free-music.js";
+import {
   closeVitaFeedTicket,
   dueVitaFeedExit,
   hasOpenVitaFeedTicket,
@@ -13082,6 +13086,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed keys</code> — stage §VITALIB§ keys catalog (name→key→locs)\n" +
             "<code>/vitafeed dir</code> · <code>/vitafeed unlock</code> — DOS click-through\n" +
             "<code>/vitafeed kids</code> · <code>/vitafeed play kids</code> · <code>/vitafeed dual kids</code> — closed-garden KIDS url directory\n" +
+            "<code>/vitafeed play maple</code> · <code>/vitafeed music</code> · <code>/vitafeed enqueue maple</code> — PD Maple Leaf Rag grouped VIN original playback\n" +
             "<code>/vitafeed track</code> — stage inject/message proof · <code>/tokens</code> — token actions\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
             "Player: tap <b>Watch popup</b> or <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/kids-player?dir=kids&amp;popup=1\">KIDS player</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/feed-player?demo=1&amp;popup=1\">Demo player</a>\n" +
@@ -13096,7 +13101,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             if (parsed.action === "play") {
               const sel = parsed.selector || parsed.body;
               let opened;
-              if (isDemoPlaySelector(sel)) {
+              if (isMusicPlaySelector(sel)) {
+                opened = playFreeMusic(sel);
+              } else if (isDemoPlaySelector(sel)) {
                 opened = demoPlayerOpen();
               } else if (isKidsPlaySelector(sel)) {
                 opened = playKidsDirectory(sel);

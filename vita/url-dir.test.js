@@ -214,6 +214,7 @@ describe("HTTP url-dir + kids player", () => {
       assert.match(page, /playlistPick/);
       assert.ok(cat.playlists.some((p) => p.id === "kids"));
       assert.ok(cat.playlists.some((p) => p.id === "demo"));
+      assert.ok(cat.playlists.some((p) => p.id === "maple"));
     } finally {
       await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
     }
@@ -237,6 +238,7 @@ describe("player surfaces exist", () => {
     assert.match(feed, /dir=kids|loadUrlDirectory|closed garden/i);
     assert.match(feed, /telegram-web-app\.js/);
     assert.match(feed, /demo=1/);
+    assert.match(feed, /music=maple/);
     assert.match(feed, /btnPopout/);
     assert.match(feed, /playlistPick/);
   });
@@ -253,6 +255,7 @@ describe("player surfaces exist", () => {
     const lists = systemPlaylists();
     assert.ok(lists.some((p) => p.id === "demo"));
     assert.ok(lists.some((p) => p.id === "kids"));
+    assert.ok(lists.some((p) => p.id === "maple"));
   });
 
   it("public state lists only directory urls", () => {
