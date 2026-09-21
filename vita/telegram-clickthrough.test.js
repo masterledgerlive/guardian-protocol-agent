@@ -191,6 +191,8 @@ describe("telegram click-through keyboards", () => {
     assert.ok(allCallbacks(root).includes("/vitafeed music"));
     const flatRoot = root.inline_keyboard.flat();
     assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("kids-player")));
+    assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("/vita/players/garden")));
+    assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("/vita/players/proven")));
     assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("demo=1")));
     assert.ok(flatRoot.some((b) => b.url?.includes("kids-player")));
   });

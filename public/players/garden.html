@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Garden Player — VITA VIN closed garden</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="/vita/players/chain-box.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1b2a4a; --sky: #7ec8e3; --sun: #ffd166; --leaf: #2a9d8f;
+      --paper: #fff8ef; --display: "Nunito", sans-serif; --mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      color: var(--ink); font-family: var(--mono);
+      background:
+        radial-gradient(900px 420px at 90% -10%, rgba(255, 209, 102, .45), transparent 55%),
+        linear-gradient(165deg, #fff8ef 0%, #e8f6fb 55%, #d9efe8 100%);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+    h1 { font-family: var(--display); font-size: clamp(1.8rem, 5vw, 2.8rem); margin: 0 .6rem 0 0; letter-spacing: -.03em; display: inline-block; vertical-align: middle; }
+    .lede { color: #3d5566; font-size: .82rem; max-width: 42rem; margin: .4rem 0 1rem; }
+    .chrome { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin: 0 0 .75rem; }
+    .chrome select, button {
+      font-family: var(--display); font-weight: 800; border: 2px solid var(--ink);
+      border-radius: 999px; padding: .35rem .7rem; background: var(--sun); color: var(--ink); cursor: pointer;
+    }
+    button.ghost { background: transparent; }
+    #chainMount { display: inline-flex; vertical-align: middle; margin: 0 0 .55rem; pointer-events: auto; z-index: 35; position: relative; }
+    .screen { background: #0b1220; border-radius: 18px; overflow: hidden; border: 3px solid var(--ink); min-height: 200px; position: relative; }
+    .screen iframe, .screen video, .screen audio { width: 100%; display: block; }
+    .screen iframe { aspect-ratio: 16/9; border: 0; background: #000; }
+    .screen audio { padding: 1rem; background: #0b1220; }
+    .now { font-family: var(--display); font-weight: 800; margin: .6rem 0 .2rem; }
+    .list { background: rgba(255,255,255,.72); border: 2px solid rgba(27,42,74,.16); border-radius: 16px; max-height: min(70vh, 520px); overflow: auto; padding: .4rem; }
+    .row { display: grid; grid-template-columns: 2.2rem 1fr; gap: .4rem; padding: .45rem .5rem; border-radius: 10px; cursor: pointer; font-size: .78rem; }
+    .row.on { background: var(--leaf); color: #fff; }
+    .grid { display: grid; gap: 1rem; }
+    @media (min-width: 900px) { .grid { grid-template-columns: minmax(0, 1.45fr) minmax(240px, .8fr); } }
+    .source { font-size: .68rem; color: #3d5566; margin-top: .8rem; }
+    a { color: #1a6b8a; }
+    html.kids-locked .lock-hide { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Garden Player</h1>
+    <div id="chainMount" data-player="garden" aria-label="Chain box — click through to Base"></div>
+    <p class="lede lock-hide">
+      Named VIN / closed-garden engine for kids. Original
+      <a href="/vita/kids-player?dir=kids">kids-player</a> and
+      <a href="/vita/feed-player">feed-player</a> stay SOURCE.
+      The chain box always opens a real Basescan address (class proof until a body seal).
+      Sister engine: <a href="/vita/players/proven">Proven Player</a>.
+    </p>
+    <div class="chrome lock-hide">
+      <label>Playlist <select id="playlistPick"></select></label>
+      <button type="button" id="btnKids" class="ghost">Kids garden</button>
+      <button type="button" id="btnMusic" class="ghost">PD music</button>
+      <a class="ghost" href="/vita/players/proven" style="display:inline-flex;align-items:center;text-decoration:none;border:2px solid var(--ink);border-radius:999px;padding:.35rem .7rem;font-family:var(--display);font-weight:800;color:var(--ink)">Proven Player</a>
+    </div>
+    <div class="grid">
+      <div>
+        <div class="screen" id="screen"></div>
+        <div class="now" id="nowTitle">Loading Garden…</div>
+        <div class="count" id="nowCount"></div>
+        <div class="chrome">
+          <button type="button" id="btnPrev">◀ Prev</button>
+          <button type="button" id="btnPlay">Play</button>
+          <button type="button" id="btnPause">Pause</button>
+          <button type="button" id="btnNext">Next ▶</button>
+        </div>
+      </div>
+      <aside><div class="list" id="list"></div></aside>
+    </div>
+    <p class="source lock-hide" id="sourceLine">SOURCE stays at public/vita-kids-player.html · public/vita-feed-player.html</p>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const el = (id) => document.getElementById(id);
+    let mode = q.get("music") ? "music" : "kids";
+    let items = [];
+    let index = 0;
+    let catalog = [];
+    let ytPlayer = null;
+    let mediaEl = null;
+
+    function bootTg() {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) { try { tg.ready(); } catch (_) {} }
+    }
+
+    function clip(s, n) {
+      const t = String(s || "");
+      return t.length <= n ? t : t.slice(0, n - 1) + "…";
+    }
+
+    function renderList() {
+      const box = el("list");
+      box.innerHTML = items.map((it, i) =>
+        "<div class='row" + (i === index ? " on" : "") + "' data-i='" + i + "'>" +
+        "<span>" + String(i + 1).padStart(2, "0") + "</span><span>" +
+        clip(it.title || it.id, 72) + "</span></div>"
+      ).join("");
+      box.querySelectorAll(".row").forEach((row) => {
+        row.addEventListener("click", () => playAt(Number(row.dataset.i)));
+      });
+    }
+
+    function playAt(i) {
+      if (!items.length) return;
+      index = Math.max(0, Math.min(items.length - 1, i));
+      const it = items[index];
+      el("nowTitle").textContent = it.title || it.id;
+      el("nowCount").textContent = "#" + (index + 1) + " / " + items.length + " · Garden";
+      renderList();
+      if (mode === "music" && !it.dataUrl) {
+        if (it.loading) return;
+        it.loading = true;
+        ensureMusicData(index).then(() => {
+          it.loading = false;
+          playAt(index);
+        }).catch(() => { it.loading = false; });
+        return;
+      }
+      const screen = el("screen");
+      screen.innerHTML = "";
+      mediaEl = null;
+      if (mode === "kids" && it.videoId) {
+        const iframe = document.createElement("iframe");
+        iframe.src = "https://www.youtube-nocookie.com/embed/" + it.videoId + "?rel=0&modestbranding=1&playsinline=1&autoplay=1";
+        iframe.allow = "autoplay; encrypted-media";
+        iframe.title = it.title || "kids";
+        screen.appendChild(iframe);
+        return;
+      }
+      if (it.dataUrl) {
+        const a = document.createElement("audio");
+        a.controls = true;
+        a.autoplay = true;
+        a.src = it.dataUrl;
+        a.addEventListener("ended", () => playAt(index + 1));
+        screen.appendChild(a);
+        mediaEl = a;
+      }
+    }
+
+    async function loadKids() {
+      mode = "kids";
+      const data = await fetch("/vita/url-dir/kids").then((r) => r.json());
+      items = (data.dir && data.dir.items) || data.items || [];
+      index = Math.max(0, Number(q.get("i") || 1) - 1);
+      playAt(index);
+      if (window.VitaChainBox) window.VitaChainBox.mount("#chainMount", { player: "garden" });
+    }
+
+    async function loadMusic(id) {
+      mode = "music";
+      const cat = await fetch("/vita/free-music").then((r) => r.json());
+      const songs = cat.playlists || [];
+      const playId = id || songs[0]?.id || "maple";
+      items = songs.length
+        ? songs.map((s) => ({ id: s.id, title: s.title || s.id, dataUrl: null }))
+        : [{ id: playId, title: playId, dataUrl: null }];
+      index = Math.max(0, items.findIndex((x) => x.id === playId));
+      if (index < 0) index = 0;
+      await ensureMusicData(index);
+      playAt(index);
+      if (window.VitaChainBox) window.VitaChainBox.mount("#chainMount", { player: "garden", music: playId });
+    }
+
+    async function ensureMusicData(i) {
+      const it = items[i];
+      if (!it || it.dataUrl) return;
+      const p = await fetch("/vita/free-music/play?id=" + encodeURIComponent(it.id)).then((r) => r.json());
+      it.dataUrl = p.play?.dataUrl || null;
+      it.title = p.play?.name || it.title;
+    }
+
+    async function fillPlaylists() {
+      const sel = el("playlistPick");
+      const opts = [
+        { id: "kids", title: "KIDS garden", href: "/vita/players/garden?dir=kids" },
+      ];
+      try {
+        const cat = await fetch("/vita/free-music").then((r) => r.json());
+        for (const p of cat.playlists || []) {
+          opts.push({
+            id: p.id,
+            title: p.title || p.id,
+            href: "/vita/players/garden?music=" + encodeURIComponent(p.id),
+          });
+        }
+      } catch (_) {}
+      sel.innerHTML = opts.map((o) =>
+        "<option value='" + o.href + "'" + (o.id === (q.get("music") || "kids") ? " selected" : "") + ">" +
+        String(o.title).replace(/</g, "") + "</option>"
+      ).join("");
+      sel.addEventListener("change", () => { location.href = sel.value; });
+    }
+
+    el("btnKids").addEventListener("click", () => { location.href = "/vita/players/garden?dir=kids"; });
+    el("btnMusic").addEventListener("click", () => { location.href = "/vita/players/garden?music=maple"; });
+    el("btnNext").addEventListener("click", () => playAt(index + 1));
+    el("btnPrev").addEventListener("click", () => playAt(index - 1));
+    el("btnPlay").addEventListener("click", () => {
+      if (mediaEl) mediaEl.play().catch(() => {});
+      else playAt(index);
+    });
+    el("btnPause").addEventListener("click", () => { if (mediaEl) mediaEl.pause(); });
+
+    bootTg();
+    fillPlaylists();
+    if (window.VitaChainBox) window.VitaChainBox.mount("#chainMount", { player: "garden", music: q.get("music") || "" });
+    (q.get("music") ? loadMusic(q.get("music")) : loadKids()).catch((e) => {
+      el("nowTitle").textContent = "Load failed";
+      el("nowCount").textContent = String(e && e.message || e);
+    });
+  </script>
+</body>
+</html>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>VITAFEED Tailwind Reader — upload · space · play</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="/vita/players/chain-box.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -373,8 +374,13 @@
       font-size: .68rem;
       letter-spacing: .04em;
     }
-    .loc-card-body { font-size: .72rem; }
-    .loc-card-meta { font-size: .64rem; color: #5a7182; }
+    .loc-card .vita-chain-box {
+      margin-top: .25rem;
+      font-size: .62rem;
+      padding: .2rem .4rem;
+      pointer-events: auto !important;
+      z-index: 6;
+    }
     .loc-tuck-list {
       max-height: 9.5rem;
       overflow: auto;
@@ -479,6 +485,7 @@
     html.kids-mode .lede { display: none; }
     html.kids-mode .brand { font-size: clamp(1.7rem, 6vw, 2.4rem); }
     html.proof-off .row { grid-template-columns: 1fr; }
+    #chainMount { display: inline-flex; pointer-events: auto !important; z-index: 35; position: relative; }
   </style>
 </head>
 <body>
@@ -495,6 +502,7 @@
       </label>
       <button type="button" id="btnPopout" class="ghost">Pop out</button>
       <button type="button" id="btnProof" class="ghost proof-toggle" aria-pressed="false" title="Show loc MATCH · Basescan Input Data">Show blockchain</button>
+      <span id="chainMount" data-player="garden" aria-label="Chain box — click through to Base"></span>
     </div>
     <h2 class="now-title" id="nowTitle">Free-catalog library</h2>
     <div class="music-nav" id="musicNav">
@@ -607,6 +615,7 @@
     let liveIndex = -1;
     let liveMedia = null;
     let locBlocks = [];
+    let gardenChainHref = "";
     const PROOF_KEY = "vitaMusicProof";
     let catalogSongs = [];
     let musicIndex = 0;
@@ -734,6 +743,8 @@
         if (kicker) kicker.textContent = roleName;
         if (body) body.textContent = "—";
         if (meta) meta.textContent = "";
+        const old = node.querySelector("a.vita-chain-box");
+        if (old) old.style.display = "none";
         return;
       }
       const match = String(c.match || "LOCAL_OK").toUpperCase();
@@ -745,11 +756,25 @@
       if (meta) {
         const loc = c.location
           ? ("loc " + shortHex(c.location, 12))
-          : "pending seal — no invented loc";
+          : "pending seal — class-proof click";
         const commit = c.dataFieldCommit8 || shortHex(c.dataFieldCommit, 8) || shortHex(c.hash, 8) || "—";
         const vins = c.vinCount ? (" · " + c.vinCount + " VIN") : "";
         meta.textContent = "commit " + commit + vins + " · " + loc;
       }
+      let chip = node.querySelector("a.vita-chain-box");
+      if (!chip) {
+        chip = document.createElement("a");
+        chip.className = "vita-chain-box";
+        chip.target = "_blank";
+        chip.rel = "noopener";
+        node.appendChild(chip);
+      }
+      chip.dataset.i = String(i);
+      chip.textContent = "CHAIN " + locLabel(c, i);
+      chip.title = "Open Basescan — real loc or class proof";
+      chip.style.display = "inline-flex";
+      chip.href = (!c.demo && c.basescan) || gardenChainHref || chip.href || "#";
+      if (window.VitaChainBox && window.VitaChainBox.bind) window.VitaChainBox.bind(chip);
     }
 
     function renderLocTuck() {
@@ -1054,6 +1079,10 @@
     bootTelegramPopup();
     applyProofUi(readProofPref());
     fillPlaylists();
+    if (window.VitaChainBox) {
+      window.VitaChainBox.mount("#chainMount", { player: "garden", music: currentMusicId || q.get("music") || "" })
+        .then((a) => { if (a && a.href) gardenChainHref = a.href; });
+    }
     el("btnProof")?.addEventListener("click", () => setProof(!readProofPref()));
     el("btnPausePlay")?.addEventListener("click", () => toggleMedia());
     el("btnNextSong")?.addEventListener("click", () => stepMusic(1));
@@ -1157,6 +1186,10 @@
         el("okPill")?.classList.add("show");
         if (el("btnPlay")) el("btnPlay").disabled = false;
         showPlay(proof);
+        if (window.VitaChainBox) {
+          window.VitaChainBox.mount("#chainMount", { player: "garden", music: id })
+            .then((a) => { if (a && a.href) gardenChainHref = a.href; });
+        }
       } catch (e) {
         if (el("costCard")) el("costCard").textContent = "Music fetch error: " + (e.message || e);
       }
@@ -1462,7 +1495,8 @@
     el("btnMaple")?.addEventListener("click", () => loadCatalogMusic("maple", true));
     el("btnJudy")?.addEventListener("click", () => loadCatalogMusic("judy", true));
     ["locCard0", "locCard1", "locCard2"].forEach((id) => {
-      el(id)?.addEventListener("click", () => {
+      el(id)?.addEventListener("click", (ev) => {
+        if (ev.target.closest && ev.target.closest("a.vita-chain-box")) return;
         const i = Number(el(id).dataset.i);
         if (Number.isFinite(i) && i >= 0) inspectLocBlock(i);
       });

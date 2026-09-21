@@ -29,9 +29,21 @@
     "CHAIN_LAYER": "Always-on blockchain systems check — SNARK libs + EVM recover + model ring",
     "SYSTEMS_CHECK": "Checklist proof each pass — grows memory/strands files",
     "LLM_ONCHAIN": "LLM spin manifest — content commitment + Base locs; change at will",
-    "TELEGRAM_HOME": "Sectioned Telegram HOME buttons + MAIN↔NEW engine mirror sims + IDM proof"
+    "TELEGRAM_HOME": "Sectioned Telegram HOME buttons + MAIN↔NEW engine mirror sims + IDM proof",
+    "PLAYERS": "Named Garden + Proven player hub — filer SOURCE|REFERENCE",
+    "GARDEN_PLAYER": "Named VIN/kids Garden Player holder",
+    "PROVEN_PLAYER": "ZK-Streaming Engine / Proven Player",
+    "FILER": "Filer search registry — static names; SOURCE or REFERENCE only on ref blocks",
+    "REFERENCE": "Refined front·mid·back block; data field of touched paths",
+    "SOURCE": "Original file location kept after reroute"
   },
   "lastAdded": [
+    "PLAYERS",
+    "GARDEN_PLAYER",
+    "PROVEN_PLAYER",
+    "FILER",
+    "REFERENCE",
+    "SOURCE",
     "CHAIN_LAYER",
     "SYSTEMS_CHECK",
     "LLM_ONCHAIN",

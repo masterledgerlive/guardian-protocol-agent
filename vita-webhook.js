@@ -46,6 +46,10 @@
 //   GET  /vita/read?f=FILE  — open file (local + GitHub CODE/STATE) + SNARK + IDM
 //   GET  /vita/mirror       — dual-path GitHub duplicate · tree · boot · zero-proof (+ HTML UI)
 //   GET  /vita/kids-player  — closed-garden KIDS YouTube URL directory player
+//   GET  /vita/players      — named players hub (Garden + Proven) + filer SOURCE|REFERENCE
+//   GET  /vita/players/garden — Garden Player (named VIN/kids holder)
+//   GET  /vita/players/proven — Proven Player / ZK-Streaming Engine
+//   GET  /vita/players/chain-box — clickable Basescan loc (never invented)
 //   GET  /vita/token-player — token pulldown player (DEX reader + 32-chain + $0.05 seed)
 //   GET  /vita/token-player/api — JSON catalog + portfolio snapshot
 //   GET  /vita/dex-reader?sym=  — live DexScreener + Gecko dual (miss ≠ $0)
@@ -149,6 +153,16 @@ import {
   publicFreeMusicLocs,
   publicFreeMusicLoc,
 } from "./vita/free-music.js";
+import {
+  publicPlayersIndex,
+  publicGardenState,
+  publicProvenState,
+  publicProvenVerify,
+  publicFilerState,
+  buildReferenceBlocks,
+  buildChainBox,
+  chainBoxCss,
+} from "./vita/players/index.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -196,6 +210,9 @@ const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
 const VITA_KIDS_PLAYER_HTML = join(ROOT, "public", "vita-kids-player.html");
 const VITA_TOKEN_PLAYER_HTML = join(ROOT, "public", "vita-token-player.html");
 const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
+const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
+const VITA_PROVEN_PLAYER_HTML = join(ROOT, "public", "players", "proven.html");
+const VITA_CHAIN_BOX_JS = join(ROOT, "public", "players", "chain-box.js");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -681,6 +698,49 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/kids-player" || path === "/vita/kids-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_KIDS_PLAYER_HTML, "vita kids player");
+    }
+    if ((path === "/vita/players" || path === "/vita/players/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      if (accept.includes("text/html") && !accept.includes("application/json")) {
+        return servePublicHtml(res, VITA_GARDEN_PLAYER_HTML, "vita garden player");
+      }
+      return json(res, publicPlayersIndex());
+    }
+    if ((path === "/vita/players/garden" || path === "/vita/players/garden/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_GARDEN_PLAYER_HTML, "vita garden player");
+    }
+    if ((path === "/vita/players/proven" || path === "/vita/players/proven/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_PROVEN_PLAYER_HTML, "vita proven player");
+    }
+    if ((path === "/vita/players/chain-box.js" || path === "/vita/players/chain-box.js/") && req.method === "GET") {
+      return servePublicFile(res, VITA_CHAIN_BOX_JS, "text/javascript; charset=utf-8", "chain-box js");
+    }
+    if ((path === "/vita/players/chain-box" || path === "/vita/players/chain-box/") && req.method === "GET") {
+      const player = String(url.searchParams.get("player") || "garden");
+      const music = String(url.searchParams.get("music") || url.searchParams.get("song") || "").trim() || null;
+      const box = buildChainBox({ player, songId: music });
+      return json(res, { ...box, css: chainBoxCss() });
+    }
+    if ((path === "/vita/players/filer" || path === "/vita/players/filer/") && req.method === "GET") {
+      return json(res, publicFilerState(String(url.searchParams.get("q") || "")));
+    }
+    if ((path === "/vita/players/reference" || path === "/vita/players/reference/") && req.method === "GET") {
+      return json(res, buildReferenceBlocks());
+    }
+    if ((path === "/vita/players/garden/api" || path === "/vita/players/garden/api/") && req.method === "GET") {
+      return json(res, publicGardenState({
+        dir: String(url.searchParams.get("dir") || "kids"),
+        music: String(url.searchParams.get("music") || "").trim() || null,
+      }));
+    }
+    if ((path === "/vita/players/proven/api" || path === "/vita/players/proven/api/") && req.method === "GET") {
+      return json(res, publicProvenState({
+        id: String(url.searchParams.get("id") || url.searchParams.get("music") || "maple"),
+      }));
+    }
+    if ((path === "/vita/players/proven/verify" || path === "/vita/players/proven/verify/") && req.method === "POST") {
+      const body = (await readBody(req).catch(() => ({}))) || {};
+      return json(res, publicProvenVerify(body));
     }
     if ((path === "/vita/token-player" || path === "/vita/token-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_TOKEN_PLAYER_HTML, "vita token player");

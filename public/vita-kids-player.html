@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <title>KIDS — VITA closed-garden player</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="/vita/players/chain-box.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -195,6 +196,7 @@
     html.tg-popup .now { font-size: .92rem; }
     .proof { font-size: .72rem; color: #3d5566; margin: 0 0 .55rem; max-width: 42rem; }
     .proof a { color: #1a6b8a; }
+    #chainMount { display: inline-flex; margin: 0 0 .55rem; pointer-events: auto !important; z-index: 35; position: relative; }
     html.tg-popup .proof { font-size: .65rem; }
 
     /* Kids lock — out-of-the-way control + trap chrome */
@@ -325,6 +327,7 @@
   <div class="wrap">
     <span class="pill lock-hide">closed garden · KIDS directory only</span>
     <h1>KIDS player</h1>
+    <div id="chainMount" data-player="garden" aria-label="Chain box — click through to Base"></div>
     <p class="lede lock-hide">
       Only the URLs in our KIDS directory play here. No YouTube search, no other
       channels, no recommended videos. Next and previous stay inside this list.
@@ -614,6 +617,7 @@
 
     bootTelegramPopup();
     fillPlaylists();
+    if (window.VitaChainBox) window.VitaChainBox.mount("#chainMount", { player: "garden" });
     (async function chainProof() {
       const box = el("chainProof");
       if (!box) return;
@@ -622,12 +626,13 @@
         const k = data.kids || {};
         if (k.proven) {
           const links = (k.proofs || []).slice(0, 4).map((p) =>
-            "<a href='" + p.basescan + "' target='_blank' rel='noopener'>" + p.lane + " Input Data</a>"
+            "<a class='loc-link' href='" + p.basescan + "' target='_blank' rel='noopener'>" + p.lane + " Input Data</a>"
           ).join(" · ");
           box.innerHTML = "PROVEN on-chain @" + (k.completedAt || "") + " — " + links;
+          if (window.VitaChainBox) window.VitaChainBox.bindAll(box);
         } else {
           box.innerHTML = (k.note || "availability (local catalog) — not in Input Data yet.") +
-            " <a href='/vita/chain-dir.html'>chain directory</a>";
+            " <a class='loc-link' href='/vita/chain-dir.html'>chain directory</a>";
         }
       } catch (_) {
         box.textContent = "availability — chain directory unreachable";

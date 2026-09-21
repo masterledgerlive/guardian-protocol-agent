@@ -1,0 +1,19 @@
+{
+  "id": "players-garden-proven-learn",
+  "filingLabel": "PLAYERS",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "at": "2026-09-21T16:55:00.000Z",
+  "learn": "Named the VIN/kids engine Garden Player and placed it under vita/players/ as the name+block holder. Original public/vita-kids-player.html and public/vita-feed-player.html stay SOURCE. Proven Player is the ZK-Streaming Engine beside it (448-byte cell keys, follow-the-leader registry, libVLC access). Chain box is always an <a> to a real Basescan loc (Telegram WebApp.openLink); it is not proof-chrome so kids/proof-off no longer hide the click-through. Filer search labels reference blocks SOURCE or REFERENCE only — static names do not hold the true place.",
+  "names": {
+    "garden": "Garden Player",
+    "proven": "Proven Player"
+  },
+  "routes": {
+    "garden": "/vita/players/garden",
+    "proven": "/vita/players/proven",
+    "sourceKids": "/vita/kids-player",
+    "sourceFeed": "/vita/feed-player"
+  },
+  "chainBox": "/vita/players/chain-box?player=garden"
+}
