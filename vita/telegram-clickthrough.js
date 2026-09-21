@@ -119,6 +119,8 @@ export function buildVitaFeedRootKeyboard() {
       ],
       [
         webAppBtn("▶ Watch popup", vitaPlayerHref("/vita/kids-player?dir=kids")),
+        webAppBtn("▶ Garden", vitaPlayerHref("/vita/players/garden")),
+        webAppBtn("▶ Proven", vitaPlayerHref("/vita/players/proven")),
         webAppBtn("▶ Judy player", vitaPlayerHref("/vita/feed-player?music=judy")),
         webAppBtn("▶ Demo player", vitaPlayerHref("/vita/feed-player?demo=1")),
         urlBtn("↗ Player", vitaPlayerHref("/vita/kids-player?dir=kids")),
@@ -219,6 +221,12 @@ export function buildDirSubKeyboard(listed) {
     rows.unshift([
       btn("▶️ Play KIDS", "/vitafeed play kids"),
       btn("🔤 Dual KIDS", "/vitafeed dual kids"),
+    ]);
+  }
+  if (sub === "PLAYERS") {
+    rows.unshift([
+      webAppBtn("▶ Garden", vitaPlayerHref("/vita/players/garden")),
+      webAppBtn("▶ Proven", vitaPlayerHref("/vita/players/proven")),
     ]);
   }
   rows.push([
