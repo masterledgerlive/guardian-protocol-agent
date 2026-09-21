@@ -243,6 +243,7 @@ function helpText() {
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/vita read FILE   open file + SNARK + IDM locs (no Anthropic)",
     "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
+    "/vita check · /vita recover · /vita models · /vita llm — systems check + EVM ms + model ring + LLM spin (library grows files)",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
     "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",
     "/vitafeed [text|file|brain|learn|proof|load|know|recall|cipher|backlog|enqueue|next|dir|unlock|dual|translate] exact/VITAFILE/mind; DOS dir; dual lanes; loader packs; open-source unlock; files|play|keys; confirm|override; /vita/feed-player · /vita/feed-loader",
@@ -539,9 +540,14 @@ export async function handleCommand(state, raw) {
     const rest = input.slice(6).trim();
     const lowRest = rest.toLowerCase();
     if (
-      /^(read|files|proof|unwrap|chain|session|keys|plugins|open|exist)\b/.test(lowRest) ||
+      /^(read|files|proof|unwrap|chain|session|keys|plugins|open|exist|check|recover|models|model|llm|spin|syscheck|systems|evm|speed)\b/.test(lowRest) ||
       lowRest === "files" ||
       lowRest === "chain" ||
+      lowRest === "check" ||
+      lowRest === "recover" ||
+      lowRest === "models" ||
+      lowRest === "llm" ||
+      lowRest === "spin" ||
       lowRest === "session" ||
       lowRest === "keys"
     ) {

@@ -17,6 +17,10 @@ findable.
 | `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
+| `vita/chain-layer.js` | `CHAIN_LAYER` / `SYSTEMS_CHECK` / `LLM_ONCHAIN` | Always-on systems check · SNARK proven libs · EVM recover ms · model agreement · LLM spin manifests · Telegram `/vita check` |
+| `vita/memory/chain-layer-checks.json` | `CHAIN_LAYER` | Append-only systems-check ledger |
+| `vita/memory/model-agreement.json` | `CHAIN_LAYER` | Last-agreed / multi-model ring |
+| `vita/memory/llm-onchain-spin.json` | `LLM_ONCHAIN` | Open-source LLM spin manifest (commitment + Base locs) |
 | `vita/memory/mirror-chain-github.json` | `MIRROR_CHAIN` | Research note: GitHub contents ≈ availability ledger; Base hitch = settlement |
 | `vita/telegram-home.js` | `TELEGRAM_HOME` | Sectioned Telegram inline keyboards for every route + HOME; dual MAIN↔NEW engine mirror sims; search route sims; IDM static proof |
 | `vita/memory/telegram-home-learn.json` | `TELEGRAM_HOME` | Append-only learn: cheaper/faster engine + route sim seeds |
@@ -69,6 +73,9 @@ findable.
 | `MG_RECALL` | Force-banked recall stack (`§MGRECALL§`) — pull one location; last layer is refined queries |
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
+| `CHAIN_LAYER` | Blockchain systems layer (`§VITACHAIN§`) — always `/vita check`; SNARK proven libs; EVM recover timing; model ring |
+| `SYSTEMS_CHECK` | Systems checklist proof (`§SYSCHECK§`) — each pass grows `vita/memory/` + `vita/strands/` |
+| `LLM_ONCHAIN` | LLM-on-chain spin manifest (`§VITALLM§`) — content commitment + Base locs; change model at will |
 | `TELEGRAM_HOME` | Sectioned Telegram HOME (`§VITAHOME§`) — inline buttons for every route; MAIN↔NEW engine mirror; search sims; IDM static proof |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |

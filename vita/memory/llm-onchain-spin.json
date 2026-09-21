@@ -1,0 +1,108 @@
+{
+  "magic": "§VITALLM§",
+  "filingLabel": "LLM_ONCHAIN",
+  "at": "2026-09-21T00:33:44.135Z",
+  "modelId": "claude-sonnet-4-20250514",
+  "multi": [
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-20250514"
+  ],
+  "cycle": [
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-20250514"
+  ],
+  "snarkShort": "ZK§4feef6eca8|T=LLM-SPIN-claude-sonnet-4-20250514|L=5c0a93e4,d9827a9c,931d8411|M=SNARK kind=proven-lib title=LLM-SPIN-claude-son…",
+  "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+  "contentCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20",
+  "spin": {
+    "read": "/vita llm",
+    "check": "/vita check",
+    "recover": "/vita recover",
+    "models": "/vita models",
+    "change": "Set Railway VITA_MODELS or /vita models next",
+    "grow": "Append vita/memory + vita/strands — never erase genesis"
+  },
+  "locations": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+    }
+  ],
+  "formula": "original-message-first",
+  "opensource": true,
+  "neverInventHashes": true,
+  "note": "Manifest is the on-chain *route* (commitment + Base locs). Weight blobs stay off settlement until sealed — spin reads short + grows library at will.",
+  "history": [
+    {
+      "at": "2026-09-21T00:32:56.322Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:32:56.326Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:32:56.334Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:04.681Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:04.683Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:04.690Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:11.534Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:11.536Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:11.542Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:44.135Z",
+      "modelId": "claude-sonnet-4-20250514",
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "commit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    }
+  ]
+}

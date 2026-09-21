@@ -13353,6 +13353,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               filename: parsedMirror.filename || null,
               key: parsedMirror.key || null,
               kind: parsedMirror.kind || null,
+              modelId: parsedMirror.modelId || null,
               chatId: msgChatId || "telegram",
               cwd: process.cwd(),
               githubFetch: githubGetUtf8FromBranch,
@@ -13377,7 +13378,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         if (!vitaKey) {
           await tg(
             "🌟 VITA needs VITA_ANTHROPIC_KEY in Railway to answer questions.\n" +
-            "File click-through still works: <code>/vita read vault-unlock.js</code> · <code>/vita files</code> · <code>/vita chain</code>",
+            "File click-through still works: <code>/vita read vault-unlock.js</code> · <code>/vita files</code> · <code>/vita chain</code> · <code>/vita check</code>",
           );
 
         // ── /vita [question] — answer from memory registry ──────────────────
@@ -13918,6 +13919,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vita proof FILE — does the file exist? merkle SNARK + Basescan Input Data → UTF-8\n` +
           `/vita unwrap [KEY] — instant SNARK unwrap with the session key\n` +
           `/vita chain — GitHub-as-blockchain map + plugins (Railway-style keys)\n` +
+          `/vita check — systems checklist (anchors · library growth · SNARK · EVM ms · models · LLM spin)\n` +
+          `/vita recover — EVM recover timing (brand-new spin from snark short)\n` +
+          `/vita models [next] — last-agreed / multi-model ring (Railway VITA_MODELS)\n` +
+          `/vita llm · /vita spin — LLM-on-chain spin manifest (change at will)\n` +
           `/vita session — mint permanent / ttl / destroyable keys (new set each session)\n` +
           `/vitasave — compress session + live trading data on Base\n` +
           `/vitadata — snapshot full token/wave/trade dataset\n` +

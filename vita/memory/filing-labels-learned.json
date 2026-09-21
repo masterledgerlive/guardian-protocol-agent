@@ -26,8 +26,17 @@
     "STRAND": "Sparse inject chunk plans",
     "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust",
     "MIRROR_CHAIN": "GitHub-as-chain file read + SNARK unwrap + Basescan IDM",
+    "CHAIN_LAYER": "Always-on blockchain systems check — SNARK libs + EVM recover + model ring",
+    "SYSTEMS_CHECK": "Checklist proof each pass — grows memory/strands files",
+    "LLM_ONCHAIN": "LLM spin manifest — content commitment + Base locs; change at will",
     "TELEGRAM_HOME": "Sectioned Telegram HOME buttons + MAIN↔NEW engine mirror sims + IDM proof"
   },
-  "lastAdded": ["TELEGRAM_HOME", "MIRROR_CHAIN"],
-  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. TELEGRAM_HOME dual-mirrors MAIN exact UTF-8 vs NEW snark-short while learning cheaper/faster."
+  "lastAdded": [
+    "CHAIN_LAYER",
+    "SYSTEMS_CHECK",
+    "LLM_ONCHAIN",
+    "TELEGRAM_HOME",
+    "MIRROR_CHAIN"
+  ],
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. Systems-check layer proves recover speed without inventing hashes. TELEGRAM_HOME dual-mirrors MAIN exact UTF-8 vs NEW snark-short while learning cheaper/faster."
 }

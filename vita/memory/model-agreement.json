@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-21T00:33:44.135Z",
+  "topic": "model-agreement",
+  "filingLabel": "CHAIN_LAYER",
+  "formula": "original-message-first",
+  "agreed": "claude-sonnet-4-20250514",
+  "cycle": [
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-20250514"
+  ],
+  "multi": [
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-20250514"
+  ],
+  "index": 0,
+  "opensource": true,
+  "neverForget": true,
+  "note": "Last agreed model wins until operator rotates. Multi-model stack lets agents cross-check without muting hitch. Railway VITA_MODELS=id1,id2."
+}
