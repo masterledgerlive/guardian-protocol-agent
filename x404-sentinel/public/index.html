@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>x404 Sentinel — Apollo 11</title>
+<style>
+  :root {
+    --bg: #16130f;
+    --panel: #241e18;
+    --ink: #f4ecdf;
+    --dim: #b5a48f;
+    --line: #3a3128;
+    --copper: #e0a15a;
+    --alert: #ff5d4a;
+    --good: #8fd18a;
+    --chip: #3b2a1c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 500px at 10% -10%, #3a2a1c 0%, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font: 16px/1.45 "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+  }
+  header, main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+  header { padding: 28px 0 8px; display: flex; justify-content: space-between; gap: 16px; align-items: end; }
+  h1 { font-size: 32px; letter-spacing: 0.08em; margin: 0; font-weight: 600; }
+  h1 span { color: var(--copper); }
+  .sub { color: var(--dim); margin: 6px 0 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; letter-spacing: 0.04em; }
+  .chip {
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--copper);
+    padding: 8px 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  .layout { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 16px; padding-bottom: 40px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); padding: 16px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+  .step {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 10px;
+    color: var(--dim);
+    border: 1px solid var(--line);
+    padding: 3px 5px;
+  }
+  .step.is-now { color: var(--bg); background: var(--copper); border-color: var(--copper); }
+  .agents { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .agent {
+    border: 1px solid var(--line);
+    min-height: 132px;
+    padding: 8px;
+    background: #1c1814;
+  }
+  .agent h2 {
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-weight: 500;
+    color: var(--dim);
+  }
+  .agent.is-live { border-color: var(--copper); }
+  .agent.is-live h2 { color: var(--ink); }
+  .agent.is-fail { border-color: var(--alert); }
+  .stage { height: 72px; display: grid; place-items: center; }
+  .beacon, .rings, .latch, .grid, .packets { width: 54px; height: 54px; position: relative; }
+  .beacon { border-radius: 50%; background: var(--alert); }
+  .rings { border-radius: 50%; border: 2px solid var(--copper); }
+  .rings::before, .rings::after {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border: 2px solid var(--copper);
+    border-radius: 50%;
+    border-left-color: transparent;
+  }
+  .rings::after { inset: 16px; }
+  .grid {
+    background-image:
+      linear-gradient(var(--copper) 1px, transparent 1px),
+      linear-gradient(90deg, var(--copper) 1px, transparent 1px);
+    background-size: 18px 18px;
+    opacity: 0.7;
+  }
+  .latch {
+    width: 28px; height: 22px; margin-top: 18px;
+    border: 3px solid var(--ink);
+    border-radius: 3px;
+  }
+  .latch::before {
+    content: "";
+    position: absolute;
+    left: 3px; right: 3px; top: -16px; height: 16px;
+    border: 3px solid var(--ink);
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+  }
+  .latch::after {
+    content: "";
+    position: absolute;
+    width: 6px; height: 6px;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--ink);
+  }
+  .packets i {
+    position: absolute;
+    width: 10px; height: 10px;
+    background: var(--good);
+    left: 0; top: 22px;
+  }
+  .packets i:nth-child(2) { top: 8px; }
+  .packets i:nth-child(3) { top: 36px; }
+  .agent.is-live .beacon { animation: agent-intercept 1s ease-out infinite; }
+  .agent.is-live .rings { animation: agent-verify 1.4s linear infinite; }
+  .agent.is-live .grid { animation: agent-registry 0.8s linear infinite; }
+  .agent.is-live .latch { animation: agent-unlock 0.8s ease forwards; }
+  .agent.is-live .packets i { animation: agent-inject 1.1s ease-in-out infinite; }
+  .agent.is-live .packets i:nth-child(2) { animation-delay: 0.15s; }
+  .agent.is-live .packets i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes agent-intercept {
+    0% { transform: scale(0.7); box-shadow: 0 0 0 0 rgba(255, 93, 74, 0.7); }
+    100% { transform: scale(1.15); box-shadow: 0 0 0 16px rgba(255, 93, 74, 0); }
+  }
+  @keyframes agent-verify { to { transform: rotate(360deg); } }
+  @keyframes agent-registry { to { background-position: 18px 0; } }
+  @keyframes agent-unlock {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(-24deg); }
+  }
+  @keyframes agent-inject {
+    0% { transform: translateX(0); opacity: 0; }
+    30% { opacity: 1; }
+    100% { transform: translateX(40px); opacity: 0; }
+  }
+  .screen {
+    margin-top: 14px;
+    background: #0c0b09;
+    border: 1px solid var(--line);
+    min-height: 240px;
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+  .plate { text-align: center; }
+  .plate .code {
+    display: block;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 72px;
+    color: var(--alert);
+    letter-spacing: 0.08em;
+  }
+  .plate .label { color: var(--dim); letter-spacing: 0.2em; font-size: 12px; }
+  video { width: min(480px, 100%); background: black; }
+  .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: var(--copper);
+    color: #1a120c;
+    border: 0;
+    padding: 12px 22px;
+    font: 600 16px/1 ui-monospace, Menlo, Consolas, monospace;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  .facts, .log {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .log {
+    height: 420px;
+    overflow: auto;
+    background: #120f0c;
+    border: 1px solid var(--line);
+    padding: 8px;
+  }
+  .log div { padding: 3px 0; border-bottom: 1px solid #2a241c; }
+  .log .ok { color: var(--good); }
+  .log .pending { color: var(--copper); }
+  .log .bad { color: var(--alert); }
+  h3 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.14em; color: var(--copper); }
+  footer { width: min(1120px, calc(100% - 32px)); margin: 0 auto 28px; color: var(--dim); font-size: 13px; }
+  @media (max-width: 800px) {
+    .layout, .agents { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: start; }
+    .plate .code { font-size: 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .agent.is-live .beacon,
+    .agent.is-live .rings,
+    .agent.is-live .grid,
+    .agent.is-live .latch,
+    .agent.is-live .packets i { animation: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>X404 <span>SENTINEL</span></h1>
+    <p class="sub">LOCAL SHA256 COMMITS · CHAIN NONE · NOT-PHI</p>
+  </div>
+  <div class="chip" id="container-id">apollo11-sstv</div>
+</header>
+<main class="layout">
+  <section class="panel">
+    <div class="steps" id="steps">
+      <span class="step" data-state="HIDDEN">HIDDEN</span>
+      <span class="step" data-state="INTERCEPTED">INTERCEPTED</span>
+      <span class="step" data-state="CONSENT_PENDING">CONSENT_PENDING</span>
+      <span class="step" data-state="CONSENT_OK">CONSENT_OK</span>
+      <span class="step" data-state="REGISTRY_HIT">REGISTRY_HIT</span>
+      <span class="step" data-state="HASH_OK">HASH_OK</span>
+      <span class="step" data-state="X402_INJECT">X402_INJECT</span>
+      <span class="step" data-state="STREAMING">STREAMING</span>
+    </div>
+    <div class="agents">
+      <article class="agent" data-hook="agent-intercept">
+        <div class="stage"><div class="beacon"></div></div>
+        <h2>agent-intercept</h2>
+      </article>
+      <article class="agent" data-hook="agent-verify">
+        <div class="stage"><div class="rings"></div></div>
+        <h2>agent-verify</h2>
+      </article>
+      <article class="agent" data-hook="agent-registry">
+        <div class="stage"><div class="grid"></div></div>
+        <h2>agent-registry</h2>
+      </article>
+      <article class="agent" data-hook="agent-unlock">
+        <div class="stage"><div class="latch"></div></div>
+        <h2>agent-unlock</h2>
+      </article>
+      <article class="agent" data-hook="agent-inject">
+        <div class="stage"><div class="packets"><i></i><i></i><i></i></div></div>
+        <h2>agent-inject</h2>
+      </article>
+    </div>
+    <div class="screen" id="screen">
+      <div class="plate" id="plate">
+        <span class="code" id="code">404</span>
+        <span class="label" id="plate-label">SEALED</span>
+      </div>
+      <!-- Resting state is HTTP 404. This element has no src until Solve. -->
+      <video id="video" controls playsinline preload="none" hidden></video>
+    </div>
+    <div class="row">
+      <button type="button" id="solve">Solve</button>
+      <span class="facts" id="status-line">Video stays empty until Solve.</span>
+    </div>
+    <p class="facts" id="facts">Registry metadata loads on this page. The container bytes do not.</p>
+  </section>
+  <aside class="panel">
+    <h3>TELEMETRY</h3>
+    <div class="log" id="log" aria-live="polite"></div>
+  </aside>
+</main>
+<footer>
+  NASA public-domain Apollo 11 television, SSTV-style 160×120 at 10 fps.
+  The medical note in the docs is a synthetic blueprint. This page does not play it.
+</footer>
+<script>
+(function () {
+  const containerId = "apollo11-sstv";
+  const logEl = document.getElementById("log");
+  const video = document.getElementById("video");
+  const plate = document.getElementById("plate");
+  const codeEl = document.getElementById("code");
+  const plateLabel = document.getElementById("plate-label");
+  const statusLine = document.getElementById("status-line");
+  const facts = document.getElementById("facts");
+  const solveBtn = document.getElementById("solve");
+  let seen = 0;
+  let armed = false;
+  let chain = Promise.resolve();
+
+  function paint(ev) {
+    document.querySelectorAll(".agent").forEach(function (el) {
+      const on = el.dataset.hook === ev.visual_hook;
+      el.classList.toggle("is-live", on);
+      const failed = ev.state.endsWith("FAIL") || ev.state === "REGISTRY_MISS" || ev.state === "HIDDEN";
+      el.classList.toggle("is-fail", on && failed);
+    });
+    document.querySelectorAll(".step").forEach(function (el) {
+      el.classList.toggle("is-now", el.dataset.state === ev.state);
+    });
+  }
+
+  function tone(ev) {
+    if (ev.state.endsWith("FAIL") || ev.state === "REGISTRY_MISS" || ev.state === "HIDDEN") return "bad";
+    if (ev.ok) return "ok";
+    return "pending";
+  }
+
+  function append(ev) {
+    const row = document.createElement("div");
+    row.className = tone(ev);
+    row.textContent = ev.seq + "  " + ev.state + "  " + ev.visual_hook + "  " + (ev.detail || "");
+    logEl.appendChild(row);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function play(ev) {
+    paint(ev);
+    return new Promise(function (resolve) { setTimeout(resolve, 140); });
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch("/telemetry");
+      if (!res.ok) return;
+      const data = await res.json();
+      const fresh = (data.events || []).filter(function (ev) { return ev.seq > seen; });
+      fresh.forEach(function (ev) {
+        seen = Math.max(seen, ev.seq);
+        append(ev);
+        if (armed) chain = chain.then(function () { return play(ev); });
+      });
+    } catch (err) {
+      statusLine.textContent = "Telemetry poll failed.";
+    }
+  }
+
+  async function loadFacts() {
+    const res = await fetch("/registry/" + containerId);
+    if (!res.ok) {
+      facts.textContent = "Registry miss for " + containerId;
+      return;
+    }
+    const meta = await res.json();
+    facts.textContent = meta.id + "  " + meta.mime + "  " + meta.size + " bytes  sha256 " + meta.sha256 + "  cells " + meta.cell_count + "  " + meta.classification;
+  }
+
+  async function solve() {
+    armed = true;
+    solveBtn.disabled = true;
+    statusLine.textContent = "Reading consent key…";
+    video.removeAttribute("src");
+    video.hidden = true;
+    plate.hidden = false;
+    codeEl.textContent = "404";
+    plateLabel.textContent = "SEALED";
+    try {
+      const proofRes = await fetch("/media/apollo11-sstv.proof.hex");
+      if (!proofRes.ok) throw new Error("proof file missing");
+      const proof = (await proofRes.text()).trim();
+      statusLine.textContent = "POST /consent";
+      const consentRes = await fetch("/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: containerId, proofHex: proof })
+      });
+      const consentBody = await consentRes.json();
+      if (!consentRes.ok || !consentBody.ok) {
+        codeEl.textContent = "404";
+        plateLabel.textContent = consentBody.state || "FAIL";
+        statusLine.textContent = consentBody.detail || "Consent rejected.";
+        return;
+      }
+      statusLine.textContent = "GET container with seal";
+      const res = await fetch("/container/" + containerId, {
+        headers: { "X-Sentinel-Proof": proof }
+      });
+      if (!res.ok) {
+        let fail = { state: "HIDDEN", detail: "container stayed sealed" };
+        try { fail = await res.json(); } catch (e) {}
+        codeEl.textContent = "404";
+        plateLabel.textContent = fail.state || "FAIL";
+        statusLine.textContent = fail.detail || "Retrieve failed.";
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      plate.hidden = true;
+      video.hidden = false;
+      video.src = url;
+      codeEl.textContent = "200";
+      statusLine.textContent = "200 stream  " + (res.headers.get("X-Content-SHA256") || "");
+      video.play().catch(function () {});
+    } catch (err) {
+      statusLine.textContent = err.message || "Solve failed.";
+    } finally {
+      solveBtn.disabled = false;
+    }
+  }
+
+  solveBtn.addEventListener("click", solve);
+  loadFacts();
+  poll();
+  setInterval(poll, 700);
+})();
+</script>
+</body>
+</html>
