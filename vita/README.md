@@ -31,9 +31,18 @@ Hex shards `[W:v1:SYM]|…|KEY8|LOC8]` + VIN/tailwind like `/vitafeed`. Answer k
 `VITAFEED_PAID` stays default OFF. Hitch on covered leftover; do not solo-send.
 
 **Telegram HOME:** `/home` · `/menu` · `/start` — sectioned inline buttons for
-every route (Memory / Feed / Search / WAVE / Mirror / Dual / Mother / Status).
+every route (Memory / Feed / Search / WAVE / Mirror / Dual / Agents / Mother / Status).
 `/home sim` runs many offline route + search sims. `/home engines` dual-mirrors
 MAIN exact UTF-8 vs NEW snark-short with Basescan IDM anchors (`vita/telegram-home.js`).
+
+**Agent chat (storage-token first):** Game opens `/home` → **Agents** → **Chat**
+and sees proven locations land in the x404 directory waiting for a
+master-location tag. Commands: `/agents chat` · `/agents dir` · `/agents dual`
+· `/agents proven` · `/agents path`. Hex-only `§KEY§`…`§LOC§` dual; public open
+key; bank when gas thin; hitch when leftover covers. Does **not** enable
+`VITAFEED_PAID`. Optional `AGENT_CHAT_WALLET` / `AGENT_CHAT_X402_ENDPOINT` are
+stubs only (no spend). Map: [`TELEGRAM_RELEARN.md`](./TELEGRAM_RELEARN.md).
+Schema: [`x404-dir.json`](./x404-dir.json).
 
 **WAVE 3-token proof:** Telegram `/waveproof` + public `GET /vita/waveproof` (SIM).
 Desk live: `POST /vita/waveproof` or `GET /vita/waveproof?live=1` with

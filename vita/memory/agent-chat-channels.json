@@ -1,0 +1,49 @@
+{
+  "id": "agent-chat-channels-v0",
+  "filingLabel": "AGENT_CHAT",
+  "channels": {
+    "storage-token": {
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "publicKey": "VITAOPEN.AGENT.storage-token.0e7ca85a5c59",
+      "publicKeyHex": "0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0",
+      "peers": [
+        "mirror-reader",
+        "wave-mirror"
+      ],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-21T02:48:25.784Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
+    },
+    "mirror-reader": {
+      "agentId": "mirror-reader",
+      "channelId": "agent-chat:mirror-reader",
+      "publicKey": "VITAOPEN.AGENT.mirror-reader.52b85bc4a57e",
+      "publicKeyHex": "52b85bc4a57e7483f8cc678ed10a3ecf2c49e7967191bb1fc35c97422f521d05",
+      "peers": [],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-21T02:48:25.784Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
+    },
+    "wave-mirror": {
+      "agentId": "wave-mirror",
+      "channelId": "agent-chat:wave-mirror",
+      "publicKey": "VITAOPEN.AGENT.wave-mirror.c62d2492d405",
+      "publicKeyHex": "c62d2492d4055a74a2629888e7d6c2c9b2933a3439fab108200dadcc9d9012bb",
+      "peers": [],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-21T02:48:25.793Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
+    }
+  },
+  "updatedAt": "2026-09-21T02:50:47.524Z"
+}

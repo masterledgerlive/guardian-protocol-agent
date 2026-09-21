@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-21T00:52:29.523Z",
+  "at": "2026-09-21T02:50:47.606Z",
   "topic": "systems-check",
   "filingLabel": "SYSTEMS_CHECK",
   "magic": "§SYSCHECK§",
@@ -17,21 +17,21 @@
       "title": "Library growth (memory + strands)",
       "why": "Visible file creation proves learn-and-never-forget",
       "ok": true,
-      "detail": "memory=120f/612377B strands=42f/35036B"
+      "detail": "memory=138f/724117B strands=47f/39358B"
     },
     {
       "id": "snark-compress",
       "title": "SNARK compress proven libraries",
       "why": "Recover from short commitment — skip whole mainframe body",
       "ok": true,
-      "detail": "15 files · 238057B · 28af210e49… · LOCAL_ONLY"
+      "detail": "16 files · 288044B · b9f5af5466… · LOCAL_ONLY"
     },
     {
       "id": "spaced-inject",
       "title": "Spaced inject batch (code > calldata)",
       "why": "Every chunk needs its own sealed Base loc — never fake IDM with formula anchors",
       "ok": true,
-      "detail": "338 spaced locs × 720B · sealed=0 · pending=338"
+      "detail": "408 spaced locs × 720B · sealed=0 · pending=408"
     },
     {
       "id": "chain-match",
@@ -45,21 +45,21 @@
       "title": "Last-agreed / multi-model ring",
       "why": "Open-source: swap or stack models without rewriting settlement",
       "ok": true,
-      "detail": "agreed=claude-sonnet-4-20250514 · multi=1"
+      "detail": "agreed=claude-sonnet-4-20250514 · multi=2"
     },
     {
       "id": "evm-recover",
       "title": "EVM recover timing",
       "why": "How fast calldata → UTF-8 / snark unwrap spins a brand-new session",
       "ok": true,
-      "detail": "1.989ms local + 0ms rpc · LOCAL_ONLY"
+      "detail": "1.341ms local + 0ms rpc · LOCAL_ONLY"
     },
     {
       "id": "llm-spin",
       "title": "LLM-on-chain spin registry",
       "why": "Manifest to read / grow / change an LLM route at will",
       "ok": true,
-      "detail": "model=claude-sonnet-4-20250514 · commit=812e6aaf52…"
+      "detail": "model=claude-sonnet-4-20250514 · commit=0840df06e1…"
     },
     {
       "id": "telegram-pointer",
@@ -70,33 +70,33 @@
     }
   ],
   "snark": {
-    "short": "ZK§6a19809852|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
-    "root": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
-    "fileCount": 15,
-    "bytes": 238057,
+    "short": "ZK§9bfd95ec1a|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
+    "root": "b9f5af5466a9b65012d114e9cd2a2d200047d40045f6f5b72a8e40483dc6dcf0",
+    "fileCount": 16,
+    "bytes": 288044,
     "localOnly": true,
     "sealedLocCount": 0,
     "note": "LOCAL snark only — no sealed inject locs yet. Formula anchors are not library body."
   },
   "inject": {
-    "totalChunks": 338,
+    "totalChunks": 408,
     "maxBytes": 720,
     "sealedCount": 0,
-    "pendingCount": 338,
+    "pendingCount": 408,
     "verifiedCount": 0,
-    "spacedBlockchainLocationsRequired": 338,
+    "spacedBlockchainLocationsRequired": 408,
     "sealedLocations": [],
     "pull": null
   },
   "recover": {
     "ok": true,
-    "at": "2026-09-21T00:52:29.523Z",
-    "localRecoverMs": 1.989,
+    "at": "2026-09-21T02:50:47.606Z",
+    "localRecoverMs": 1.341,
     "rpcPingMs": 0,
-    "totalMs": 1.989,
-    "snarkShort": "ZK§6a19809852|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
-    "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
-    "fileCount": 15,
+    "totalMs": 1.341,
+    "snarkShort": "ZK§9bfd95ec1a|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
+    "snarkRoot": "b9f5af5466a9b65012d114e9cd2a2d200047d40045f6f5b72a8e40483dc6dcf0",
+    "fileCount": 16,
     "formulaAnchorCount": 3,
     "sealedInjectCount": 0,
     "locCount": 0,
@@ -148,16 +148,18 @@
   "models": {
     "agreed": "claude-sonnet-4-20250514",
     "multi": [
-      "claude-sonnet-4-20250514"
+      "claude-sonnet-4-20250514",
+      "claude-opus-4-20250514"
     ],
     "cycle": [
-      "claude-sonnet-4-20250514"
+      "claude-sonnet-4-20250514",
+      "claude-opus-4-20250514"
     ]
   },
   "llm": {
     "modelId": "claude-sonnet-4-20250514",
-    "contentCommit": "812e6aaf521048f8f5e3fb35ffee2b7b55b1de84d0a7073f2d6bfdeb9627dafe",
-    "snarkShort": "ZK§812e6aaf52|T=LLM-SPIN-claude-sonnet-4-20250514|M=SNARK kind=proven-lib title=LLM-SPIN-claude-son…",
+    "contentCommit": "0840df06e14de79e39d412f1bf061a4d427108ee087fcd6a8e62cd4beed3babf",
+    "snarkShort": "ZK§0840df06e1|T=LLM-SPIN-claude-sonnet-4-20250514|M=SNARK kind=proven-lib title=LLM-SPIN-claude-son…",
     "spin": {
       "read": "/vita llm",
       "check": "/vita check",

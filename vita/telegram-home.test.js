@@ -50,6 +50,7 @@ describe("telegram-home sectioned keyboard", () => {
     assert.ok(ids.includes("status"));
     assert.ok(ids.includes("trade"));
     assert.ok(ids.includes("syscheck"));
+    assert.ok(ids.includes("agents"));
     const routes = allHomeRouteCommands();
     assert.ok(routes.length >= 40, "enough interactive routes");
     assert.ok(routes.some((r) => r.cmd === "/vitafeed ref calculator"));
@@ -97,6 +98,8 @@ describe("telegram-home sectioned keyboard", () => {
     assert.equal(parseHomeCommand("/home sim").action, "sim");
     assert.equal(parseHomeCommand("/home sim search").section, "search");
     assert.equal(parseHomeCommand("/home engines").action, "engines");
+    assert.equal(parseHomeCommand("/home agents").action, "section");
+    assert.equal(parseHomeCommand("/home agents").section, "agents");
     assert.equal(parseHomeCommand("/vitafeed brain").ok, false);
   });
 });

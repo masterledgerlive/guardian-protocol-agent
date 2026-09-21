@@ -602,6 +602,10 @@ import {
   withHomeButton,
 } from "./vita/telegram-home.js";
 import {
+  handleAgentChatAction,
+  parseAgentChatCommand,
+} from "./vita/agent-chat.js";
+import {
   handleHelpAction,
   parseHelpCommand,
   parsePickCommand,
@@ -10618,6 +10622,30 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           );
         } catch (e) {
           await tg("❌ home failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/agents" ||
+        text === "/agentchat" ||
+        text === "/agent" ||
+        (text && (text.startsWith("/agents ") || text.startsWith("/agentchat ") || text.startsWith("/agent ")))
+      ) {
+        try {
+          const parsed = parseAgentChatCommand(raw);
+          const out = handleAgentChatAction({
+            action: parsed.action || "chat",
+            agentId: parsed.agentId || "storage-token",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🤖 <b>AGENT CHAT</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ agents failed: " + (e.message || e) + "\nNothing invented.");
         }
 
       } else if (text === "/status") {

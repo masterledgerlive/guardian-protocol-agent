@@ -64,6 +64,7 @@ describe("telegram help click-through", () => {
     const ids = HOME_SECTIONS.map((s) => s.id);
     assert.ok(ids.includes("trade"));
     assert.ok(ids.includes("syscheck"));
+    assert.ok(ids.includes("agents"));
   });
 });
 

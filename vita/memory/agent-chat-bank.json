@@ -1,0 +1,144 @@
+{
+  "id": "agent-chat-bank-v0",
+  "events": [
+    {
+      "at": "2026-09-21T02:48:25.787Z",
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "human": "bank me when thin",
+      "machine": "§KEY§0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0§LOC§agent=storage-token|t=d57bc9f5|n=17",
+      "hex": "0xc2a74b4559c2a730653763613835613563353938386532356363623965656635663962353834653932386134616439646661343536666533333030396261613838363437336530c2a74c4f43c2a76167656e743d73746f726167652d746f6b656e7c743d64353762633966357c6e3d3137",
+      "locToken": "agent=storage-token|t=d57bc9f5|n=17",
+      "contentCommit": "878dea66fbc66c9674ff71ca08159afe9caa8cdfbfef367ec47c5c80e2d00bc7",
+      "hitch": false,
+      "banked": true,
+      "send": false,
+      "txHash": null,
+      "unpaired": false,
+      "vitafeedPaid": false,
+      "chainBackup": {
+        "configured": false,
+        "enabled": false,
+        "spendsRisk": false
+      },
+      "reason": "unpaid queue self-call — bank hex; wait for free ride (never drop the brain)",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:48:25.788Z",
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "human": "hitch when covered",
+      "machine": "§KEY§0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0§LOC§agent=storage-token|t=590099da|n=18",
+      "hex": "0xc2a74b4559c2a730653763613835613563353938386532356363623965656635663962353834653932386134616439646661343536666533333030396261613838363437336530c2a74c4f43c2a76167656e743d73746f726167652d746f6b656e7c743d35393030393964617c6e3d3138",
+      "locToken": "agent=storage-token|t=590099da|n=18",
+      "contentCommit": "c13ab1982970037df36f285a37c1864fd5292fc77e520d67827e999e481d2340",
+      "hitch": true,
+      "banked": false,
+      "send": false,
+      "txHash": null,
+      "unpaired": false,
+      "vitafeedPaid": false,
+      "chainBackup": {
+        "configured": false,
+        "enabled": false,
+        "spendsRisk": false
+      },
+      "reason": "hitch hex on covered leftover / paired data tx — do not solo-send",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:49:26.638Z",
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "human": "bank me when thin",
+      "machine": "§KEY§0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0§LOC§agent=storage-token|t=d57bc9f5|n=17",
+      "hex": "0xc2a74b4559c2a730653763613835613563353938386532356363623965656635663962353834653932386134616439646661343536666533333030396261613838363437336530c2a74c4f43c2a76167656e743d73746f726167652d746f6b656e7c743d64353762633966357c6e3d3137",
+      "locToken": "agent=storage-token|t=d57bc9f5|n=17",
+      "contentCommit": "878dea66fbc66c9674ff71ca08159afe9caa8cdfbfef367ec47c5c80e2d00bc7",
+      "hitch": false,
+      "banked": true,
+      "send": false,
+      "txHash": null,
+      "unpaired": false,
+      "vitafeedPaid": false,
+      "chainBackup": {
+        "configured": false,
+        "enabled": false,
+        "spendsRisk": false
+      },
+      "reason": "unpaid queue self-call — bank hex; wait for free ride (never drop the brain)",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:49:26.640Z",
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "human": "hitch when covered",
+      "machine": "§KEY§0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0§LOC§agent=storage-token|t=590099da|n=18",
+      "hex": "0xc2a74b4559c2a730653763613835613563353938386532356363623965656635663962353834653932386134616439646661343536666533333030396261613838363437336530c2a74c4f43c2a76167656e743d73746f726167652d746f6b656e7c743d35393030393964617c6e3d3138",
+      "locToken": "agent=storage-token|t=590099da|n=18",
+      "contentCommit": "c13ab1982970037df36f285a37c1864fd5292fc77e520d67827e999e481d2340",
+      "hitch": true,
+      "banked": false,
+      "send": false,
+      "txHash": null,
+      "unpaired": false,
+      "vitafeedPaid": false,
+      "chainBackup": {
+        "configured": false,
+        "enabled": false,
+        "spendsRisk": false
+      },
+      "reason": "hitch hex on covered leftover / paired data tx — do not solo-send",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:50:47.518Z",
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "human": "bank me when thin",
+      "machine": "§KEY§0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0§LOC§agent=storage-token|t=d57bc9f5|n=17",
+      "hex": "0xc2a74b4559c2a730653763613835613563353938386532356363623965656635663962353834653932386134616439646661343536666533333030396261613838363437336530c2a74c4f43c2a76167656e743d73746f726167652d746f6b656e7c743d64353762633966357c6e3d3137",
+      "locToken": "agent=storage-token|t=d57bc9f5|n=17",
+      "contentCommit": "878dea66fbc66c9674ff71ca08159afe9caa8cdfbfef367ec47c5c80e2d00bc7",
+      "hitch": false,
+      "banked": true,
+      "send": false,
+      "txHash": null,
+      "unpaired": false,
+      "vitafeedPaid": false,
+      "chainBackup": {
+        "configured": false,
+        "enabled": false,
+        "spendsRisk": false
+      },
+      "reason": "unpaid queue self-call — bank hex; wait for free ride (never drop the brain)",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:50:47.518Z",
+      "agentId": "storage-token",
+      "channelId": "agent-chat:storage-token",
+      "human": "hitch when covered",
+      "machine": "§KEY§0e7ca85a5c5988e25ccb9eef5f9b584e928a4ad9dfa456fe33009baa886473e0§LOC§agent=storage-token|t=590099da|n=18",
+      "hex": "0xc2a74b4559c2a730653763613835613563353938386532356363623965656635663962353834653932386134616439646661343536666533333030396261613838363437336530c2a74c4f43c2a76167656e743d73746f726167652d746f6b656e7c743d35393030393964617c6e3d3138",
+      "locToken": "agent=storage-token|t=590099da|n=18",
+      "contentCommit": "c13ab1982970037df36f285a37c1864fd5292fc77e520d67827e999e481d2340",
+      "hitch": true,
+      "banked": false,
+      "send": false,
+      "txHash": null,
+      "unpaired": false,
+      "vitafeedPaid": false,
+      "chainBackup": {
+        "configured": false,
+        "enabled": false,
+        "spendsRisk": false
+      },
+      "reason": "hitch hex on covered leftover / paired data tx — do not solo-send",
+      "neverInventHashes": true
+    }
+  ],
+  "updatedAt": "2026-09-21T02:50:47.518Z"
+}
