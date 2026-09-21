@@ -54,6 +54,7 @@
 //   GET  /vita/free-music   — public-domain song catalog + grouped VIN plan
 //   GET  /vita/free-music/play — original OGG reconstructed from grouped packets
 //   GET  /vita/free-music/locs — daisy-chain loc proof · click-through Basescan MATCH
+//   GET  /vita/free-music/loc  — exact VIN UTF-8 packet for one block (inspect; no invented hash)
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -146,6 +147,7 @@ import {
   publicFreeMusicState,
   publicFreeMusicPlay,
   publicFreeMusicLocs,
+  publicFreeMusicLoc,
 } from "./vita/free-music.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
@@ -723,6 +725,12 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/free-music/play" || path === "/vita/free-music/play/") && req.method === "GET") {
       return json(res, publicFreeMusicPlay(String(url.searchParams.get("id") || url.searchParams.get("music") || "maple")));
+    }
+    if ((path === "/vita/free-music/loc" || path === "/vita/free-music/loc/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || url.searchParams.get("music") || "judy");
+      const g = url.searchParams.get("g") || url.searchParams.get("group") || "1";
+      const i = url.searchParams.get("i") || url.searchParams.get("index") || "1";
+      return json(res, publicFreeMusicLoc(id, g, i));
     }
     if ((path === "/vita/free-music/locs" || path === "/vita/free-music/locs/") && req.method === "GET") {
       const id = String(url.searchParams.get("id") || url.searchParams.get("music") || "judy");

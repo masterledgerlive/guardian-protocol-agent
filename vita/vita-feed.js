@@ -656,7 +656,7 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:kids|urldir|url-dir|kplaylist)\s*/i, "").trim();
     return { ok: true, action: "kids", body: rest, source: "kids" };
   }
-  if (/^(?:music|maple|freemusic|joplin|judy|garland|rainbow|chasing|grace|amazing|daisy|bicycle|ballgame|ball|auld|syne|susanna|foster|lining|silver)(?:\s|$)/i.test(trimmed)) {
+  if (/^(?:music|maple|freemusic|joplin|judy|garland|rainbow|chasing|grace|amazing|daisy|bicycle|ballgame|ball|auld|syne|susanna|foster|lining|silver|entertainer|stripes|sousa|sweetheart|afterball|gaskin)(?:\s|$)/i.test(trimmed)) {
     const first = trimmed.split(/\s+/)[0];
     const rest = trimmed.replace(/^\S+\s*/, "").trim();
     return {
@@ -786,7 +786,7 @@ export function vitaFeedUsageText() {
     "  /vitafeed dir KIDS         — DOS list of curated urls",
     "  /vitafeed play kids [n]    — load directory in closed-garden player",
     "  /vitafeed play demo        — Tailwind demo WAV player (Telegram popup)",
-    "  /vitafeed play maple|judy|grace|daisy|ballgame|auld|lining|susanna",
+    "  /vitafeed play maple|judy|grace|daisy|ballgame|auld|lining|susanna|entertainer|stripes|sweetheart|afterball",
     "  /vitafeed music            — growing PD library card (Maple, Judy rainbow lane, …)",
     "  /vitafeed music <id>       — one-song grouped inject plan + loc proof",
     "  /vitafeed dir MUSIC        — DOS list of VIN groups",
@@ -797,6 +797,7 @@ export function vitaFeedUsageText() {
     "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
     "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
     "  Loc proof: /vita/free-music/locs?id=<id> — click-through Basescan · data-field MATCH",
+    "  Inspect: /vita/free-music/loc?id=<id>&g=1&i=1 — exact VIN UTF-8 fed into the player",
     "  Kids player: /vita/feed-player?music=<id>&kids=1 — proof chrome default OFF (Show blockchain toggle)",
     "CHAIN DIRECTORY (Input Data loc proofs · HUMAN + MACHINE · order of completion):",
     "  /vitafeed chaindir         — top=routing/waiting · bottom=complete clickable proofs",
