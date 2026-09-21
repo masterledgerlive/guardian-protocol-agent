@@ -515,6 +515,7 @@ export async function buildFreeMusicLocProof(opts = {}) {
       }
       let match = "pending";
       let pulledCommit = null;
+      let highlight = false;
       if (pulledUtf8 != null) {
         pulledCommit = sha256Hex(pulledUtf8);
         // Exact line match OR body contains the VITAFILE/VIN packet commit
@@ -525,8 +526,12 @@ export async function buildFreeMusicLocProof(opts = {}) {
             pulledUtf8.includes(g.name) ||
             sha256Hex(pulledUtf8.trim()) === g.contentCommit);
         match = lineHit || containsHit ? "MATCH" : "MISMATCH";
-        if (match === "MATCH") matched += 1;
+        if (match === "MATCH") {
+          matched += 1;
+          highlight = true;
+        }
       } else {
+        match = "LOCAL_OK";
         pending += 1;
       }
 
@@ -543,7 +548,7 @@ export async function buildFreeMusicLocProof(opts = {}) {
         basescan: bind?.basescan || null,
         pulledUtf8Commit: pulledCommit,
         match,
-        highlight: match === "MATCH",
+        highlight,
         clickThrough: Boolean(bind?.basescan),
         idmChat: bind?.basescan
           ? "Basescan → Input Data → View as UTF-8"

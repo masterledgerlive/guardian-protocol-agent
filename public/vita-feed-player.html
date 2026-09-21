@@ -213,10 +213,12 @@
     }
     table .match-pending { background: #c9a227; }
     .daisy {
-      font-size: .72rem;
+      font-size: .68rem;
       color: #3d5566;
       white-space: pre-wrap;
-      margin: .5rem 0 0;
+      margin: 0 0 .45rem;
+      max-height: 4.8rem;
+      overflow: auto;
     }
     /* Dual readers — HUMAN English + MACHINE/SNARK — like TV captions over the play */
     .live-readers {
@@ -399,7 +401,7 @@
       font-size: .95rem;
       margin: 0 0 .35rem;
     }
-    #locInspectBody { max-height: 220px; min-height: 140px; }
+    #locInspectBody { max-height: 180px; min-height: 110px; }
     .chrome {
       display: flex;
       flex-wrap: wrap;
@@ -537,29 +539,8 @@
           <div class="player-shell" id="playerShell">
             <p class="hint" style="margin:0">Player waits until every spaced packet is peaced together.</p>
           </div>
-          <div class="live-readers proof-chrome" id="liveReaders" hidden aria-live="polite">
-            <div class="reader-lane human" data-lane="HUMAN" id="readerHuman">
-              <span class="pull-file" id="humanFile">—</span>
-              <span class="pull-body" id="humanBody">Waiting for play…</span>
-            </div>
-            <div class="reader-lane machine" data-lane="MACHINE · SNARK" id="readerMachine">
-              <span class="pull-file" id="machineFile">—</span>
-              <span class="pull-body" id="machineBody">Waiting for loc pull…</span>
-            </div>
-            <div class="loc-ticker" id="locTicker">
-              <span class="dot" aria-hidden="true"></span>
-              <span id="locTickerText">Locations idle — press play to pull SNARK locs in order</span>
-            </div>
-          </div>
-          <pre class="card proof-chrome" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
-          <div class="music-list" id="musicList" aria-label="Free-catalog library"></div>
-        </section>
-
-        <section class="block proof-chrome">
-          <h2>Locations · blockchain pull</h2>
-          <p class="hint">Loaded block stays put. Loading bar + next 1–2 Input Data packets wait in line; the rest tucks behind a button. Click a block to read the exact VIN UTF-8 the player feeds — sha256(line) = dataFieldCommit, not a summary.</p>
-          <pre class="daisy" id="daisyBox"></pre>
-          <div class="loc-rail" id="locRail">
+          <div class="loc-rail proof-chrome" id="locRail" style="margin-top:.75rem">
+            <pre class="daisy" id="daisyBox"></pre>
             <div class="loc-progress">
               <div class="loc-bar" aria-hidden="true"><i id="locBarFill"></i></div>
               <div class="loc-progress-label" id="locProgressLabel">0 / 0 blockchain blocks loaded</div>
@@ -587,10 +568,26 @@
               <div class="loc-tuck-list" id="locTuckList" hidden></div>
             </div>
           </div>
-          <div class="loc-inspect" id="locInspect">
+          <div class="loc-inspect proof-chrome" id="locInspect">
             <div class="loc-inspect-head">Exact packet fed into player</div>
             <pre class="card" id="locInspectBody">Click a blockchain block to read the VIN data field (UTF-8). sha256(line) must equal dataFieldCommit — true to that block, no invented loc.</pre>
           </div>
+          <div class="live-readers proof-chrome" id="liveReaders" hidden aria-live="polite">
+            <div class="reader-lane human" data-lane="HUMAN" id="readerHuman">
+              <span class="pull-file" id="humanFile">—</span>
+              <span class="pull-body" id="humanBody">Waiting for play…</span>
+            </div>
+            <div class="reader-lane machine" data-lane="MACHINE · SNARK" id="readerMachine">
+              <span class="pull-file" id="machineFile">—</span>
+              <span class="pull-body" id="machineBody">Waiting for loc pull…</span>
+            </div>
+            <div class="loc-ticker" id="locTicker">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="locTickerText">Locations idle — press play to pull SNARK locs in order</span>
+            </div>
+          </div>
+          <pre class="card proof-chrome" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
+          <div class="music-list" id="musicList" aria-label="Free-catalog library"></div>
         </section>
       </div>
     </div>
@@ -750,7 +747,8 @@
           ? ("loc " + shortHex(c.location, 12))
           : "pending seal — no invented loc";
         const commit = c.dataFieldCommit8 || shortHex(c.dataFieldCommit, 8) || shortHex(c.hash, 8) || "—";
-        meta.textContent = "commit " + commit + " · " + loc;
+        const vins = c.vinCount ? (" · " + c.vinCount + " VIN") : "";
+        meta.textContent = "commit " + commit + vins + " · " + loc;
       }
     }
 
@@ -775,7 +773,7 @@
         list.innerHTML = "<p class='hint' style='margin:0'>No tucked blocks.</p>";
         return;
       }
-      list.innerHTML = hidden.map(({ c, i }) => {
+        list.innerHTML = hidden.map(({ c, i }) => {
         const match = String(c.match || "").toUpperCase();
         return "<button type='button' class='loc-tuck-item" +
           (c.highlight ? " loc-match" : "") +
@@ -1129,7 +1127,16 @@
             }
           }
         } catch (_) {}
-        const locChunks = locRows.length ? locRows : [];
+        const byGroup = new Map();
+        for (const r of locRows) {
+          const g = r.groupN != null ? r.groupN : byGroup.size + 1;
+          if (!byGroup.has(g)) {
+            byGroup.set(g, { ...r, groupN: g, index: r.index || 1, vinCount: 1 });
+          } else {
+            byGroup.get(g).vinCount += 1;
+          }
+        }
+        const locChunks = byGroup.size ? [...byGroup.values()] : locRows;
         proof = {
           complete: true,
           play: data.play,
