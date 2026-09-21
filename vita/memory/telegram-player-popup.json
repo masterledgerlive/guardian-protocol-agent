@@ -1,0 +1,18 @@
+{
+  "id": "telegram-player-popup",
+  "filingLabel": "URLDIR",
+  "at": "2026-09-21T02:50:00.000Z",
+  "learn": "Telegram could not open the demo player because replies used a relative /vita/kids-player path inside unclickable <code> and keyboards were callbacks only. Fix: absolute HTTPS vitaPlayerHref(..., popup=1), Watch popup Mini App (web_app) plus ↗ Open player url fallback, stripWebAppButtons retry when BotFather domain is missing, compact player (Telegram.WebApp.ready without expand) + Pop out window.open, playlist picker loads system catalogs (demo WAV, KIDS url dir, feed-library). /vitafeed play and /vitafeed play demo open the demo WAV; /vitafeed play kids opens the closed garden. Never invent tx hashes.",
+  "commands": [
+    "/vitafeed play",
+    "/vitafeed play demo",
+    "/vitafeed play kids",
+    "/vitafeed demo",
+    "/vitafeed kids"
+  ],
+  "player": {
+    "kids": "/vita/kids-player?dir=kids&popup=1",
+    "demo": "/vita/feed-player?demo=1&popup=1"
+  },
+  "neverInventHashes": true
+}

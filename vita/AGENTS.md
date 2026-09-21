@@ -65,13 +65,16 @@ recover html/song/movie/code. **Every step is an inline button** — see
 `vita/telegram-clickthrough.js`. `/vitafeed track` stages inject/message
 proof. `/tokens` · `/tok SYMBOL` → buy/sell/exit/dual/track.
 **KIDS URL directory (closed garden):** `/vitafeed kids` · `/vitafeed dir KIDS`
-· `/vitafeed play kids` · `/vitafeed dual kids` — pull a YouTube playlist into
-our own URL directory and play it in `/vita/kids-player` (also
-`/vita/feed-player?dir=kids`). Child sees only that list — no YouTube
-recommendations or other channels. Dual paths: Telegram HUMAN url list +
-MACHINE ZK-short (`/vitafeed dual kids` then confirm|override); GitHub
-availability vs proven (`/vita dual vita/memory/kids-url-directory.json`).
-URLs only — never invent hashes. See `vita/url-dir.js`.
+· `/vitafeed play kids` · `/vitafeed play demo` · `/vitafeed dual kids` — pull a
+YouTube playlist into our own URL directory and play it in `/vita/kids-player`
+(also `/vita/feed-player?dir=kids` / `?demo=1`). Telegram **Watch popup** is a
+Mini App + HTTPS url button (`popup=1`) so the player opens in a small window
+while you work; playlists already in the system (KIDS dir, demo WAV, library)
+load from the picker. Child sees only that list — no YouTube recommendations or
+other channels. Dual paths: Telegram HUMAN url list + MACHINE ZK-short
+(`/vitafeed dual kids` then confirm|override); GitHub availability vs proven
+(`/vita dual vita/memory/kids-url-directory.json`). URLs only — never invent
+hashes. See `vita/url-dir.js`.
 **GitHub mirror chain:** `/vita read FILE` · `/vita files` · `/vita proof FILE`
 · `/vita unwrap [KEY]` · `/vita chain` · `/vita session` — local Railway disk
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed

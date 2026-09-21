@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>VITAFEED Tailwind Reader — upload · space · play</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -190,6 +191,36 @@
     th, td { border-bottom: 1px solid rgba(15,31,46,.12); padding: .4rem .3rem; text-align: left; vertical-align: top; }
     th { font-family: var(--display); }
     a { color: var(--tide); }
+    .chrome {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      align-items: center;
+      margin: 0 0 1rem;
+    }
+    .chrome label {
+      display: flex;
+      gap: .35rem;
+      align-items: center;
+      font-size: .75rem;
+      color: #3d5566;
+    }
+    .chrome select {
+      font-family: var(--mono);
+      font-size: .75rem;
+      border: 1.5px solid var(--ink);
+      padding: .35rem .55rem;
+      background: #fff;
+      max-width: min(100%, 280px);
+    }
+    html.tg-popup, html.tg-popup body {
+      min-height: var(--tg-viewport-stable-height, 100%);
+    }
+    html.tg-popup .lede { display: none; }
+    html.tg-popup .brand { font-size: 1.35rem; }
+    html.tg-popup .stage { padding: .55rem .7rem 1rem; }
+    html.tg-popup .hide-in-popup { display: none !important; }
+    html.tg-popup .row { grid-template-columns: 1fr; }
   </style>
 </head>
 <body>
@@ -200,10 +231,16 @@
       (code-ready). Tailwind reader peaces sealed locations together and plays the proof.
       No local hold after seal — chain field is the source.
     </p>
+    <div class="chrome">
+      <label>Playlist
+        <select id="playlistPick" aria-label="System playlists"></select>
+      </label>
+      <button type="button" id="btnPopout" class="ghost">Pop out</button>
+    </div>
 
     <div class="row">
       <div>
-        <section class="block">
+        <section class="block hide-in-popup">
           <h2>1 · Upload</h2>
           <p class="hint">Bytes → §VITAFILE§ base64 text → VIN packets (720 B payload). Telegram: reply with a file + <code>/vitafeed</code> then <code>/vitafeed override</code>.</p>
           <div class="cta">
@@ -214,7 +251,7 @@
           <pre class="card" id="costCard">Drop a file or load the demo song to see spaced packet plan.</pre>
         </section>
 
-        <section class="block">
+        <section class="block hide-in-popup">
           <h2>2 · Override seal → piece locations</h2>
           <p class="hint">DEMO seals spaced synthetic locations (labeled — never LIVE Basescan). LIVE uses Telegram <code>/vitafeed override</code>.</p>
           <div class="cta">
@@ -237,7 +274,7 @@
           <pre class="card" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
         </section>
 
-        <section class="block">
+        <section class="block hide-in-popup">
           <h2>Locations</h2>
           <div style="overflow:auto">
             <table>
@@ -253,6 +290,7 @@
   <script type="module">
     const MAX_CHUNK = 720;
     const MAGIC = "§VITAFILE§";
+    const q = new URLSearchParams(location.search);
 
     let prepared = null;
     let proof = null;
@@ -261,6 +299,78 @@
     let fileMime = "application/octet-stream";
 
     const el = (id) => document.getElementById(id);
+
+    function bootTelegramPopup() {
+      const popup = q.get("popup") === "1" || q.get("popout") === "1";
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) {
+        try { tg.ready(); } catch (_) {}
+        document.documentElement.classList.add("tg-popup");
+      }
+      if (popup) document.documentElement.classList.add("tg-popup");
+      const btn = el("btnPopout");
+      if (btn) {
+        if (q.get("popout") === "1") btn.style.display = "none";
+        btn.addEventListener("click", () => {
+          const u = new URL(location.href);
+          u.searchParams.set("popup", "1");
+          u.searchParams.set("popout", "1");
+          const w = 480, h = 380;
+          const left = Math.max(0, (screen.availWidth || 900) - w - 16);
+          window.open(
+            u.toString(),
+            "vita-player",
+            "popup=yes,width=" + w + ",height=" + h + ",left=" + left + ",top=24,resizable=yes,scrollbars=yes",
+          );
+        });
+      }
+    }
+
+    async function fillPlaylists() {
+      const sel = el("playlistPick");
+      if (!sel) return;
+      const opts = [
+        { id: "demo", title: "Demo song (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
+      ];
+      try {
+        const data = await fetch("/vita/url-dir").then((r) => r.json());
+        const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
+        for (const d of lists) {
+          if (!d || d.id === "demo") continue;
+          opts.push({
+            id: String(d.id),
+            title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
+            href: d.player || ("/vita/kids-player?dir=" + encodeURIComponent(d.id)),
+          });
+        }
+      } catch (_) {}
+      try {
+        const lib = await fetch("/vita/feed-library").then((r) => r.json());
+        for (const e of lib.entries || []) {
+          opts.push({
+            id: "lib-" + e.n,
+            title: "LIB #" + e.n + " " + (e.name || ""),
+            href: "/vita/feed-player?lib=" + encodeURIComponent(String(e.n)),
+          });
+        }
+      } catch (_) {}
+      const current = q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : "demo"));
+      sel.innerHTML = opts.map((o) => {
+        const href = String(o.href || "").replace(/'/g, "");
+        const selected = o.id === current ? " selected" : "";
+        return "<option value='" + href + "'" + selected + ">" + String(o.title).replace(/</g, "") + "</option>";
+      }).join("");
+      sel.addEventListener("change", () => {
+        const href = sel.value;
+        if (!href) return;
+        const u = new URL(href, location.origin);
+        if (document.documentElement.classList.contains("tg-popup")) u.searchParams.set("popup", "1");
+        location.href = u.pathname + u.search;
+      });
+    }
+
+    bootTelegramPopup();
+    fillPlaylists();
 
     function guessMime(name, hint) {
       if (hint && hint.includes("/")) return hint;
@@ -553,50 +663,63 @@
 
     // Telegram library deep-link: /vita/feed-player?lib=N
     // KIDS closed-garden URL directory: /vita/feed-player?dir=kids
+    // Demo WAV autoplay: /vita/feed-player?demo=1 (Telegram popup)
     (async function loadLibraryFromQuery() {
-      const q = new URLSearchParams(location.search);
       const dirSel = q.get("dir") || q.get("playlist");
       if (dirSel) {
         const i = q.get("i") || q.get("n") || "1";
         el("costCard").textContent =
           "Closed garden — loading KIDS URL directory into the player (no YouTube recommendations)…";
-        location.replace("/vita/kids-player?dir=" + encodeURIComponent(dirSel) + "&i=" + encodeURIComponent(i));
+        const extra = q.get("popup") === "1" ? "&popup=1" : "";
+        location.replace("/vita/kids-player?dir=" + encodeURIComponent(dirSel) + "&i=" + encodeURIComponent(i) + extra);
         return;
       }
       const sel = q.get("lib") || q.get("n") || q.get("name") || q.get("key");
-      if (!sel) return;
-      el("costCard").textContent = "Loading library #" + sel + " from keys chain…";
-      try {
-        const res = await fetch("/vita/feed-library/play?lib=" + encodeURIComponent(sel));
-        const data = await res.json();
-        if (!data?.ok || !data.play) {
-          el("costCard").textContent = "Library open failed: " + (data?.error || res.status);
-          return;
+      if (sel) {
+        el("costCard").textContent = "Loading library #" + sel + " from keys chain…";
+        try {
+          const res = await fetch("/vita/feed-library/play?lib=" + encodeURIComponent(sel));
+          const data = await res.json();
+          if (!data?.ok || !data.play) {
+            el("costCard").textContent = "Library open failed: " + (data?.error || res.status);
+            return;
+          }
+          proof = {
+            complete: data.complete === true,
+            play: data.play,
+            card: data.card || ("LIBRARY #" + data.n + " · " + (data.entry?.name || "")),
+            chunks: (data.locations || []).map((l, i) => ({
+              location: l.location || l,
+              blockNumber: l.blockNumber ?? null,
+              demo: false,
+            })),
+          };
+          el("playCard").textContent = proof.card;
+          el("costCard").textContent =
+            "LIBRARY #" + data.n + " · " + (data.entry?.name || "?") +
+            "\nreader " + (data.entry?.readerKey || "—") +
+            "\nOpen from Telegram /vitafeed play " + data.n;
+          renderPieces(proof.chunks.length || data.entry?.totalChunks || 1, proof.chunks.length || 0);
+          renderLocs(proof.chunks);
+          if (data.complete) {
+            el("okPill").classList.add("show");
+            el("btnPlay").disabled = false;
+            showPlay(proof);
+          }
+        } catch (e) {
+          el("costCard").textContent = "Library fetch error: " + (e.message || e);
         }
-        proof = {
-          complete: data.complete === true,
-          play: data.play,
-          card: data.card || ("LIBRARY #" + data.n + " · " + (data.entry?.name || "")),
-          chunks: (data.locations || []).map((l, i) => ({
-            location: l.location || l,
-            blockNumber: l.blockNumber ?? null,
-            demo: false,
-          })),
-        };
-        el("playCard").textContent = proof.card;
-        el("costCard").textContent =
-          "LIBRARY #" + data.n + " · " + (data.entry?.name || "?") +
-          "\nreader " + (data.entry?.readerKey || "—") +
-          "\nOpen from Telegram /vitafeed play " + data.n;
-        renderPieces(proof.chunks.length || data.entry?.totalChunks || 1, proof.chunks.length || 0);
-        renderLocs(proof.chunks);
-        if (data.complete) {
-          el("okPill").classList.add("show");
-          el("btnPlay").disabled = false;
-          showPlay(proof);
-        }
-      } catch (e) {
-        el("costCard").textContent = "Library fetch error: " + (e.message || e);
+        return;
+      }
+      if (q.get("demo") === "1" || q.get("song") === "1") {
+        el("costCard").textContent = "Telegram demo — loading WAV, packetize, seal, play…";
+        fileBytes = makeDemoWav();
+        fileName = "demo-song.wav";
+        fileMime = "audio/wav";
+        el("btnPacketize").disabled = false;
+        await packetize();
+        await demoSeal();
+        if (proof) showPlay(proof);
       }
     })();
   </script>

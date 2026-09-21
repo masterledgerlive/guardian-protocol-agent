@@ -544,6 +544,7 @@ import {
   peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
+  buildPlayerPopupKeyboard,
   buildTokenActionKeyboard,
   buildTokenCatalogKeyboard,
   buildVitaFeedRootKeyboard,
@@ -551,6 +552,7 @@ import {
   formatTokenClickCard,
   keyboardForVitaFeedResult,
   parseTokenClickCommand,
+  stripWebAppButtons,
 } from "./vita/telegram-clickthrough.js";
 import {
   attachWaveOnCoveredLeftover,
@@ -584,7 +586,13 @@ import {
 import {
   playFromLibrary,
 } from "./vita/vita-feed-library.js";
-import { isKidsPlaySelector, playKidsDirectory } from "./vita/url-dir.js";
+import {
+  isDemoPlaySelector,
+  isKidsPlaySelector,
+  playKidsDirectory,
+  demoPlayerOpen,
+  vitaPlayerHref,
+} from "./vita/url-dir.js";
 import {
   closeVitaFeedTicket,
   dueVitaFeedExit,
@@ -10099,12 +10107,13 @@ async function tg(msg, extra = {}) {
     if (!tok || !cid) { console.log("⚠️  Telegram: no token/chat_id set"); return; }
     // Telegram messages >4096 chars get rejected — split them
     const chunks = splitTelegramHtmlChunks(sanitizeTelegramHtml(msg), 4000);
+    let markup = extra.reply_markup;
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const last = i === chunks.length - 1;
       const payload = { chat_id: cid.trim(), text: chunk, parse_mode: "HTML" };
       if (extra.disable_web_page_preview) payload.disable_web_page_preview = true;
-      if (last && extra.reply_markup) payload.reply_markup = extra.reply_markup;
+      if (last && markup) payload.reply_markup = markup;
       const res = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -10112,6 +10121,25 @@ async function tg(msg, extra = {}) {
       const data = await res.json();
       if (!data.ok) {
         console.log(`⚠️  Telegram send failed: ${data.description}`);
+        const desc = String(data.description || "");
+        const webAppBad = /web_app|BUTTON_TYPE_INVALID|Web_app|webapp|Web App URL/i.test(desc);
+        if (webAppBad && last && markup) {
+          markup = stripWebAppButtons(markup);
+          extra.reply_markup = markup;
+          try {
+            const retryWeb = { chat_id: cid.trim(), text: chunk, parse_mode: "HTML" };
+            if (extra.disable_web_page_preview) retryWeb.disable_web_page_preview = true;
+            if (markup) retryWeb.reply_markup = markup;
+            const retryRes = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(retryWeb),
+            });
+            const retryData = await retryRes.json();
+            if (retryData.ok) continue;
+          } catch (re) {
+            console.log(`⚠️  Telegram web_app strip retry failed: ${re.message}`);
+          }
+        }
         // Retry as plain text — strip ALL html tags and decode entities
         try {
           const plain = chunk
@@ -10121,7 +10149,7 @@ async function tg(msg, extra = {}) {
             .replace(/&amp;/g, "&")
             .replace(/&quot;/g, '"');
           const retry = { chat_id: cid.trim(), text: plain };
-          if (last && extra.reply_markup) retry.reply_markup = extra.reply_markup;
+          if (last && markup) retry.reply_markup = markup;
           await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(retry),
@@ -10328,7 +10356,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           let msg = "📡 <b>VITAFEED FILE READY</b>\n━━━━━━━━━━━━━━━━━━━━\n";
           msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
           msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override</code>\n";
-          msg += "Player: <code>/vita/feed-player</code> after seal (PLAY PROOF peaces locations).";
+          msg += "Player: " +
+            "<a href=\"" + vitaPlayerHref("/vita/feed-player").replace(/&/g, "&amp;") +
+            "\">Watch popup</a> after seal (PLAY PROOF peaces locations).";
           await tg(msg, {
             reply_markup: out.keyboard || buildVitaFeedStagedKeyboard(),
           });
@@ -13054,7 +13084,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed kids</code> · <code>/vitafeed play kids</code> · <code>/vitafeed dual kids</code> — closed-garden KIDS url directory\n" +
             "<code>/vitafeed track</code> — stage inject/message proof · <code>/tokens</code> — token actions\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
-            "Player: <code>/vita/feed-player</code> · <code>/vita/kids-player?dir=kids</code> · <code>/vita/feed-player?lib=N</code>\n" +
+            "Player: tap <b>Watch popup</b> or <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/kids-player?dir=kids&amp;popup=1\">KIDS player</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/feed-player?demo=1&amp;popup=1\">Demo player</a>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
             "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
@@ -13065,32 +13095,40 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           try {
             if (parsed.action === "play") {
               const sel = parsed.selector || parsed.body;
-              const opened = isKidsPlaySelector(sel)
-                ? playKidsDirectory(sel)
-                : await playFromLibrary(sel, {
-                fetchUtf8: async (txHash) => {
-                  try {
-                    const pulled = await pullLocationFromChain(txHash);
-                    return pulled?.utf8 || pulled?.text || null;
-                  } catch {
-                    return null;
-                  }
-                },
-                label: "LIBRARY",
-              });
+              let opened;
+              if (isDemoPlaySelector(sel)) {
+                opened = demoPlayerOpen();
+              } else if (isKidsPlaySelector(sel)) {
+                opened = playKidsDirectory(sel);
+              } else {
+                opened = await playFromLibrary(sel, {
+                  fetchUtf8: async (txHash) => {
+                    try {
+                      const pulled = await pullLocationFromChain(txHash);
+                      return pulled?.utf8 || pulled?.text || null;
+                    } catch {
+                      return null;
+                    }
+                  },
+                  label: "LIBRARY",
+                });
+              }
+              const playerPath = opened.playerPath || (opened.demo ? "/vita/feed-player?demo=1" : null);
+              const playerHref = opened.playerHref || (playerPath ? vitaPlayerHref(playerPath) : null);
               let msg = "📡 <b>VITAFEED OPEN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
               msg += "<pre>" + String(opened.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
-              if (opened.playerPath) {
-                msg += "\n▶️ <code>" + opened.playerPath + "</code>";
+              if (playerHref) {
+                const safeHref = String(playerHref).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+                msg += "\n▶️ <a href=\"" + safeHref + "\">Watch popup</a> — small window while you work";
               }
               if (opened.playProof?.complete && opened.playProof?.play?.name) {
                 msg += "\nReady: <b>" + String(opened.playProof.play.name).replace(/</g, "") + "</b>";
               }
               await tg(msg, {
-                reply_markup: keyboardForVitaFeedResult({
-                  action: "play",
-                  out: opened,
-                }) || buildVitaFeedStagedKeyboard(),
+                reply_markup: buildPlayerPopupKeyboard({
+                  playerPath: playerPath || "/vita/feed-player?demo=1",
+                  includeDemo: !opened.demo,
+                }),
               });
             } else {
               const out = await handleVitaFeedAction({
@@ -13396,11 +13434,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 " locs. Remainder restaged — <code>/vitafeed override</code> again when funded.\n";
             }
             if (out.playProof?.complete) {
+              const playPath = out.library?.n
+                ? "/vita/feed-player?lib=" + encodeURIComponent(String(out.library.n))
+                : "/vita/feed-player";
+              const playHref = vitaPlayerHref(playPath).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
               msg +=
                 "\n▶️ <b>PLAY PROOF</b> — " +
                 (out.playProof.spacedProof?.spacedBlockchainLocations || locs.length) +
                 " spaced locations peaced together\n" +
-                "Open <code>/vita/feed-player</code> to play " +
+                "Open <a href=\"" + playHref + "\">Watch popup</a> to play " +
                 (out.playProof.play?.name || out.playProof.file?.name || "blob");
             }
             if (out.library?.ok) {
@@ -13413,6 +13455,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             await tg(msg, {
               reply_markup:
                 out.keyboard ||
+                (out.playProof?.complete
+                  ? buildPlayerPopupKeyboard({
+                      playerPath: out.library?.n
+                        ? "/vita/feed-player?lib=" + encodeURIComponent(String(out.library.n))
+                        : "/vita/feed-player",
+                    })
+                  : null) ||
                 keyboardForVitaFeedResult({ action: parsed.action, out }) ||
                 buildVitaFeedRootKeyboard(),
             });

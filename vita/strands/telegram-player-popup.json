@@ -1,0 +1,16 @@
+{
+  "strandId": "telegram-player-popup",
+  "sparse": true,
+  "source": "vita-url-dir",
+  "filingLabel": "URLDIR",
+  "header": "§VITAURLDIR§v1|popup=1|telegram=web_app+url§",
+  "learn": "Telegram Watch popup is the operator path into the player while working. Mini App sheet stays compact (ready, no expand). HTTPS url button still opens if web_app domain is unset. Player loads playlists already in the system: demo WAV, KIDS closed-garden URL directory, sealed library entries. Infect HTML; do not erase. Message-first. Never invent hashes.",
+  "commands": [
+    "/vitafeed play demo",
+    "/vitafeed play kids",
+    "/vitafeed demo"
+  ],
+  "player": "/vita/feed-player?demo=1&popup=1",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

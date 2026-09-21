@@ -661,6 +661,9 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:track|trackinject|clicktrack)\s*/i, "").trim();
     return { ok: true, action: "track", body: rest, source: "track" };
   }
+  if (/^(?:demo|playerpopup|popup)(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "play", body: "demo", selector: "demo", source: "demo" };
+  }
   // Named library: list sealed files, open one into the player, seal keys catalog.
   if (/^(?:files|list)$/i.test(trimmed)) {
     return { ok: true, action: "files", body: "", source: "files" };
@@ -761,8 +764,10 @@ export function vitaFeedUsageText() {
     "  /vitafeed kids             — KIDS url dir card + player link",
     "  /vitafeed dir KIDS         — DOS list of curated urls",
     "  /vitafeed play kids [n]    — load directory in closed-garden player",
+    "  /vitafeed play demo        — Tailwind demo WAV player (Telegram popup)",
     "  /vitafeed dual kids        — HUMAN url list + MACHINE ids (Telegram dual path)",
-    "  Player: /vita/kids-player?dir=kids  ·  also /vita/feed-player?dir=kids",
+    "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
+    "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
     "BACKLOG (feed brain without agentic AI):",
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
@@ -1684,6 +1689,7 @@ export async function handleVitaFeedAction({
     } = await import("./url-dir.js");
     const rest = String(body || "").trim();
     if (/^\d+$/.test(rest)) {
+      const { buildPlayerPopupKeyboard } = await import("./telegram-clickthrough.js");
       const opened = playKidsDirectory("kids " + rest);
       return {
         ok: opened.ok !== false,
@@ -1694,15 +1700,24 @@ export async function handleVitaFeedAction({
           ? { play: opened.play, complete: true, card: opened.reply }
           : null,
         playerPath: opened.playerPath || null,
+        playerHref: opened.playerHref || null,
         reply: opened.reply || opened.reason || "open failed",
+        keyboard: opened.ok
+          ? buildPlayerPopupKeyboard({ playerPath: opened.playerPath })
+          : undefined,
       };
     }
     const dir = loadUrlDirectory("kids");
+    const playerPath = "/vita/kids-player?dir=kids";
+    const { buildPlayerPopupKeyboard } = await import("./telegram-clickthrough.js");
     return {
       ok: dir.ok !== false,
       phase: "kids",
       directory: dir.ok ? { id: dir.id, count: dir.count, player: dir.player } : null,
+      playerPath,
+      playerHref: (await import("./url-dir.js")).vitaPlayerHref(playerPath),
       reply: formatKidsDirCard(dir),
+      keyboard: buildPlayerPopupKeyboard({ playerPath }),
     };
   }
   if (action === "dir") {
@@ -1972,7 +1987,26 @@ export async function handleVitaFeedAction({
     };
   }
   if (action === "play") {
-    const { isKidsPlaySelector, playKidsDirectory } = await import("./url-dir.js");
+    const {
+      isKidsPlaySelector,
+      isDemoPlaySelector,
+      playKidsDirectory,
+      demoPlayerOpen,
+    } = await import("./url-dir.js");
+    const { buildPlayerPopupKeyboard } = await import("./telegram-clickthrough.js");
+    if (isDemoPlaySelector(body)) {
+      const opened = demoPlayerOpen();
+      return {
+        ok: true,
+        phase: "play",
+        demo: true,
+        play: opened.play,
+        playerPath: opened.playerPath,
+        playerHref: opened.playerHref,
+        reply: opened.reply,
+        keyboard: buildPlayerPopupKeyboard({ playerPath: opened.playerPath, includeDemo: false }),
+      };
+    }
     if (isKidsPlaySelector(body)) {
       const opened = playKidsDirectory(body);
       return {
@@ -1984,11 +2018,17 @@ export async function handleVitaFeedAction({
           ? { play: opened.play, complete: true, card: opened.reply }
           : null,
         playerPath: opened.playerPath || null,
+        playerHref: opened.playerHref || null,
         reply: opened.reply || opened.reason || "open failed",
+        keyboard: opened.ok
+          ? buildPlayerPopupKeyboard({ playerPath: opened.playerPath })
+          : undefined,
       };
     }
     const { playFromLibrary } = await import("./vita-feed-library.js");
+    const { vitaPlayerHref } = await import("./url-dir.js");
     const opened = await playFromLibrary(body, { label: "LIBRARY" });
+    const playerHref = opened.playerPath ? vitaPlayerHref(opened.playerPath) : null;
     return {
       ok: opened.ok !== false,
       phase: "play",
@@ -1996,7 +2036,11 @@ export async function handleVitaFeedAction({
       entry: opened.entry || null,
       playProof: opened.playProof || null,
       playerPath: opened.playerPath || null,
+      playerHref,
       reply: opened.reply || opened.reason || "open failed",
+      keyboard: opened.playerPath
+        ? buildPlayerPopupKeyboard({ playerPath: opened.playerPath })
+        : undefined,
     };
   }
   if (action === "keys") {

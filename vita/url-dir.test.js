@@ -12,8 +12,11 @@ import {
   URLDIR_LABEL,
   URLDIR_MAGIC,
   URLDIR_SUBDIR,
+  VITA_PRODUCTION_ORIGIN,
   closedGardenEmbedUrl,
+  demoPlayerOpen,
   formatKidsDirCard,
+  isDemoPlaySelector,
   isKidsPlaySelector,
   kidsDualHumanBody,
   kidsMachineIdsLine,
@@ -22,7 +25,10 @@ import {
   parseKidsPlayIndex,
   playKidsDirectory,
   publicUrlDirState,
+  systemPlaylists,
   urlDirEntriesFor,
+  vitaPlayerHref,
+  vitaPublicOrigin,
 } from "./url-dir.js";
 import { MAINFRAME_ANCHORS } from "./mainframe.js";
 import { listMasterDirectory, listSubDirectory, unlockDirectoryEntry } from "./vita-dir.js";
@@ -74,6 +80,9 @@ describe("kids play selector + payload", () => {
     assert.equal(isKidsPlaySelector("kids 3"), true);
     assert.equal(isKidsPlaySelector("KIDS?i=4"), true);
     assert.equal(isKidsPlaySelector("song.wav"), false);
+    assert.equal(isDemoPlaySelector(""), true);
+    assert.equal(isDemoPlaySelector("demo"), true);
+    assert.equal(isDemoPlaySelector("kids"), false);
     assert.equal(parseKidsPlayIndex("kids 7"), 7);
     assert.equal(parseKidsPlayIndex("kids?i=12"), 12);
     assert.equal(parseKidsPlayIndex("kids"), 1);
@@ -86,6 +95,8 @@ describe("kids play selector + payload", () => {
     assert.equal(opened.play.closedGarden, true);
     assert.equal(opened.n, 2);
     assert.match(opened.playerPath, /\/vita\/kids-player\?dir=kids&i=2/);
+    assert.match(opened.playerHref, /^https:\/\//);
+    assert.match(opened.playerHref, /popup=1/);
     assert.equal(opened.play.playlist.length, opened.count);
     assert.ok(!opened.play.embedUrl.includes("list=PL"), "must not load the YouTube playlist chrome");
   });
@@ -137,6 +148,19 @@ describe("DOS KIDS subdir + Telegram wire", () => {
     assert.equal(play.ok, true);
     assert.equal(play.playProof?.play?.kind || play.play?.kind, "youtube");
     assert.match(play.reply, /kids-player/);
+    assert.match(play.playerHref, /^https:\/\//);
+    assert.ok(play.keyboard?.inline_keyboard?.flat().some((b) => b.web_app?.url || b.url));
+
+    const demo = await handleVitaFeedAction({
+      action: "play",
+      body: "demo",
+      chatId: "kids-wire",
+    });
+    assert.equal(demo.ok, true);
+    assert.equal(demo.demo, true);
+    assert.match(demo.playerHref, /feed-player\?demo=1/);
+    assert.match(demo.playerHref, /popup=1/);
+    assert.ok(demo.keyboard?.inline_keyboard?.flat().some((b) => b.web_app?.url || b.url));
 
     const dual = await handleVitaFeedAction({
       action: "dual",
@@ -186,6 +210,10 @@ describe("HTTP url-dir + kids player", () => {
       assert.match(page, /closed garden/i);
       assert.match(page, /youtube-nocookie/);
       assert.match(page, /\/vita\/url-dir\//);
+      assert.match(page, /telegram-web-app\.js/);
+      assert.match(page, /playlistPick/);
+      assert.ok(cat.playlists.some((p) => p.id === "kids"));
+      assert.ok(cat.playlists.some((p) => p.id === "demo"));
     } finally {
       await new Promise((resolve, reject) => server.close((e) => (e ? reject(e) : resolve())));
     }
@@ -199,11 +227,32 @@ describe("player surfaces exist", () => {
     assert.match(html, /youtube-nocookie/);
     assert.match(html, /\/vita\/url-dir\//);
     assert.match(html, /PlayerState\.ENDED/);
+    assert.match(html, /telegram-web-app\.js/);
+    assert.match(html, /btnPopout/);
+    assert.match(html, /playlistPick/);
     const hook = readFileSync(join(root, "vita-webhook.js"), "utf8");
     assert.match(hook, /\/vita\/kids-player/);
     assert.match(hook, /\/vita\/url-dir/);
     const feed = readFileSync(join(root, "public", "vita-feed-player.html"), "utf8");
     assert.match(feed, /dir=kids|loadUrlDirectory|closed garden/i);
+    assert.match(feed, /telegram-web-app\.js/);
+    assert.match(feed, /demo=1/);
+    assert.match(feed, /btnPopout/);
+    assert.match(feed, /playlistPick/);
+  });
+
+  it("public HTTPS popup href + system playlists", () => {
+    assert.equal(vitaPublicOrigin({}), VITA_PRODUCTION_ORIGIN);
+    const href = vitaPlayerHref("/vita/feed-player?demo=1");
+    assert.match(href, /^https:\/\//);
+    assert.match(href, /popup=1/);
+    const demo = demoPlayerOpen();
+    assert.equal(demo.ok, true);
+    assert.equal(demo.demo, true);
+    assert.equal(demo.playerHref, href);
+    const lists = systemPlaylists();
+    assert.ok(lists.some((p) => p.id === "demo"));
+    assert.ok(lists.some((p) => p.id === "kids"));
   });
 
   it("public state lists only directory urls", () => {
