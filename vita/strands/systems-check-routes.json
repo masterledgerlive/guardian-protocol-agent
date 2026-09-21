@@ -1,9 +1,9 @@
 {
   "strandId": "systems-check-routes",
   "filingLabel": "SYSTEMS_CHECK_ROUTES",
-  "at": "2026-09-21T01:36:06.081Z",
+  "at": "2026-09-21T01:37:13.357Z",
   "verdict": "PASS",
-  "containerRoot": "53d46fa5d67cd372",
+  "containerRoot": "a37cf97ccd57645f",
   "note": "Route domino + folder merkle. Force-stage §SYSCHECK§ for chain seal. Never invent hashes. Read container good vs corrupted via errorLocations.",
   "locations": []
 }
