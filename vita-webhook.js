@@ -59,6 +59,12 @@
 //   GET  /vita/free-music/play — original OGG reconstructed from grouped packets
 //   GET  /vita/free-music/locs — daisy-chain loc proof · click-through Basescan MATCH
 //   GET  /vita/free-music/loc  — exact VIN UTF-8 packet for one block (inspect; no invented hash)
+//   GET  /vita/soundboard   — DJ pad board HTML + catalog JSON
+//   GET  /vita/soundboard/play — pad WAV reconstruct
+//   GET  /vita/soundboard/locs — LOCAL_OK vs MATCH vs CLASS_PROOF (not pad body)
+//   GET  /vita/soundboard/loc  — exact pad VIN UTF-8
+//   POST /vita/soundboard/prompt — prompted music bite → catalog
+//   POST /vita/soundboard/upload — upload bytes → catalog
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -154,6 +160,14 @@ import {
   publicFreeMusicLoc,
 } from "./vita/free-music.js";
 import {
+  publicSoundboardState,
+  publicSoundboardPlay,
+  publicSoundboardLocs,
+  publicSoundboardLoc,
+  createPromptPad,
+  addUploadedPad,
+} from "./vita/soundboard.js";
+import {
   publicPlayersIndex,
   publicGardenState,
   publicProvenState,
@@ -210,6 +224,7 @@ const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
 const VITA_KIDS_PLAYER_HTML = join(ROOT, "public", "vita-kids-player.html");
 const VITA_TOKEN_PLAYER_HTML = join(ROOT, "public", "vita-token-player.html");
 const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
+const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
 const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
 const VITA_PROVEN_PLAYER_HTML = join(ROOT, "public", "players", "proven.html");
 const VITA_CHAIN_BOX_JS = join(ROOT, "public", "players", "chain-box.js");
@@ -795,6 +810,56 @@ async function handleVitaRequest(req, res) {
     if ((path === "/vita/free-music/locs" || path === "/vita/free-music/locs/") && req.method === "GET") {
       const id = String(url.searchParams.get("id") || url.searchParams.get("music") || "judy");
       return json(res, await publicFreeMusicLocs(id));
+    }
+    if ((path === "/vita/soundboard" || path === "/vita/soundboard/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      const pad = String(url.searchParams.get("pad") || url.searchParams.get("id") || "").trim();
+      if (pad) return json(res, publicSoundboardState(pad));
+      if (accept.includes("text/html") && !accept.includes("application/json")) {
+        return servePublicHtml(res, VITA_SOUNDBOARD_HTML, "vita soundboard");
+      }
+      // Default HTML for browsers; ?json=1 or accept json for agents.
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, publicSoundboardState());
+      }
+      return servePublicHtml(res, VITA_SOUNDBOARD_HTML, "vita soundboard");
+    }
+    if ((path === "/vita/soundboard/play" || path === "/vita/soundboard/play/") && req.method === "GET") {
+      return json(res, publicSoundboardPlay(String(url.searchParams.get("id") || url.searchParams.get("pad") || "airhorn")));
+    }
+    if ((path === "/vita/soundboard/loc" || path === "/vita/soundboard/loc/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || url.searchParams.get("pad") || "airhorn");
+      const g = url.searchParams.get("g") || url.searchParams.get("group") || "1";
+      const i = url.searchParams.get("i") || url.searchParams.get("index") || "1";
+      return json(res, publicSoundboardLoc(id, i, g));
+    }
+    if ((path === "/vita/soundboard/locs" || path === "/vita/soundboard/locs/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || url.searchParams.get("pad") || "airhorn");
+      return json(res, await publicSoundboardLocs(id));
+    }
+    if ((path === "/vita/soundboard/prompt" || path === "/vita/soundboard/prompt/") && req.method === "POST") {
+      const body = (await readBody(req)) || {};
+      const made = createPromptPad(String(body.prompt || body.recipe || ""), {
+        id: body.id || null,
+      });
+      return json(res, made);
+    }
+    if ((path === "/vita/soundboard/upload" || path === "/vita/soundboard/upload/") && req.method === "POST") {
+      const body = (await readBody(req)) || {};
+      const b64 = String(body.bytesBase64 || body.b64 || "");
+      if (!b64) return json(res, { ok: false, reason: "bytesBase64 required" }, 400);
+      let bytes;
+      try {
+        bytes = Buffer.from(b64, "base64");
+      } catch {
+        return json(res, { ok: false, reason: "bad base64" }, 400);
+      }
+      return json(res, addUploadedPad({
+        name: body.name || "upload.wav",
+        mime: body.mime || "audio/wav",
+        bytes,
+        aliases: body.aliases || [],
+      }));
     }
     if ((path === "/vita/chain-dir" || path === "/vita/chain-dir/") && req.method === "GET") {
       const accept = String(req.headers.accept || "");

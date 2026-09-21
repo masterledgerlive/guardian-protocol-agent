@@ -48,6 +48,7 @@ describe("vita-dir DOS master directory", () => {
     assert.ok(names.includes("AGENTS"));
     assert.ok(names.includes("KIDS"));
     assert.ok(names.includes("PLAYERS"));
+    assert.ok(names.includes("BOARD"));
     const kids = listSubDirectory("KIDS");
     assert.equal(kids.ok, true);
     assert.ok(kids.entries.some((e) => e.name === "kids-url-dir.json"));

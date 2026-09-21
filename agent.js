@@ -601,6 +601,9 @@ import {
   playFreeMusic,
 } from "./vita/free-music.js";
 import {
+  isSoundboardPlaySelector,
+} from "./vita/soundboard.js";
+import {
   closeVitaFeedTicket,
   dueVitaFeedExit,
   hasOpenVitaFeedTicket,
@@ -13104,9 +13107,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed dir</code> · <code>/vitafeed unlock</code> — DOS click-through\n" +
             "<code>/vitafeed kids</code> · <code>/vitafeed play kids</code> · <code>/vitafeed dual kids</code> — closed-garden KIDS url directory\n" +
             "<code>/vitafeed play maple</code> · <code>/vitafeed music</code> · <code>/vitafeed enqueue library</code> — growing PD library grouped VIN original playback\n" +
+            "<code>/vitafeed board</code> · <code>/vitafeed pad airhorn</code> · <code>/vitafeed prompt …</code> · <code>/vitafeed enqueue pad &lt;id&gt;</code> — DJ soundboard · zero-open-key · loc MATCH\n" +
             "<code>/vitafeed track</code> — stage inject/message proof · <code>/tokens</code> — token actions\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
-            "Player: tap <b>Watch popup</b> or <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/kids-player?dir=kids&amp;popup=1\">KIDS player</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/feed-player?demo=1&amp;popup=1\">Demo player</a>\n" +
+            "Player: tap <b>Watch popup</b> or <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/kids-player?dir=kids&amp;popup=1\">KIDS player</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/soundboard\">Soundboard</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/feed-player?demo=1&amp;popup=1\">Demo player</a>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
             "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
@@ -13120,6 +13124,20 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               let opened;
               if (isMusicPlaySelector(sel)) {
                 opened = playFreeMusic(sel);
+              } else if (isSoundboardPlaySelector(sel)) {
+                const { playPad, resolvePadId, formatSoundboardCard, buildSoundboardKeyboard, SOUNDBOARD_PLAYER_PATH } = await import("./vita/soundboard.js");
+                if (/^(?:board|soundboard|pads|dj)$/i.test(String(sel || "").trim())) {
+                  opened = {
+                    ok: true,
+                    reply: formatSoundboardCard(),
+                    playerPath: SOUNDBOARD_PLAYER_PATH,
+                    playerHref: vitaPlayerHref(SOUNDBOARD_PLAYER_PATH),
+                    keyboard: buildSoundboardKeyboard(),
+                  };
+                } else {
+                  const id = resolvePadId(String(sel || "").replace(/^pad\s+/i, "")) || "airhorn";
+                  opened = playPad(id);
+                }
               } else if (isDemoPlaySelector(sel)) {
                 opened = demoPlayerOpen();
               } else if (isKidsPlaySelector(sel)) {
@@ -13149,7 +13167,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 msg += "\nReady: <b>" + String(opened.playProof.play.name).replace(/</g, "") + "</b>";
               }
               await tg(msg, {
-                reply_markup: buildPlayerPopupKeyboard({
+                reply_markup: opened.keyboard || buildPlayerPopupKeyboard({
                   playerPath: playerPath || "/vita/feed-player?demo=1",
                   includeDemo: !opened.demo,
                 }),

@@ -108,6 +108,15 @@ block + loading bar + next 1–2 packets; rest tucked). Click a block to read th
 exact packet fed into the player. Proven only when every group loc is a real Input Data hash —
 never invent. Never Over the Rainbow Decca. VITAFEED_PAID stays default OFF.
 See `vita/free-music.js`.
+**DJ soundboard (blockchain pads):** `/vitafeed board` · `/vitafeed pad airhorn` ·
+`/vitafeed prompt saw rise 220→880 0.32s` · `/vitafeed enqueue pad <id>` ·
+`/vitafeed enqueue board` · `/vitafeed dual pad airhorn` · `/vitafeed dir BOARD` —
+procedural meme pads + prompted bites + uploads → grouped `§VITAFILE§` VIN →
+inject. Zero-snark open key = name+contentCommit (`VITAOPEN…`). Loc rail at
+`/vita/soundboard` · `/vita/soundboard/locs?id=<id>` labels **LOCAL_OK**
+(availability), **MATCH** (sealed Input Data = VIN commit), **CLASS_PROOF**
+(formula anchors — same forever, NOT pad body / no new inputs). Never invent
+hashes. See `vita/soundboard.js`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
 song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to
