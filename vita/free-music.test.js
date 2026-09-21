@@ -372,6 +372,8 @@ describe("HTTP free-music catalog + play + locs", () => {
       assert.match(page, /free-music\/locs/);
       assert.match(page, /loc-match/);
       assert.match(page, /playlistPick/);
+      assert.match(page, /liveReaders|readerHuman|MACHINE · SNARK/);
+      assert.match(page, /timeupdate|paintLiveLoc|loc-active/);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }

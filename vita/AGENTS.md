@@ -86,11 +86,15 @@ are class proof, not this body.
 Full OGG (not demo WAV, not URL blob) → grouped `§VITAFILE§` VIN (≤24/group).
 Loc proof daisy-chains filing → VIN dataFieldCommit → Basescan Input Data
 **MATCH** (highlighted click-through at `/vita/free-music/locs?id=judy` · player
-`?music=judy`). Proven only when every group loc is a real Input Data hash —
+`?music=judy`). Live play advances HUMAN English + MACHINE/SNARK caption layers
+in order as each loc is “pulled” into the player (TV-style dual readers). Proven
+only when every group loc is a real Input Data hash —
 never invent. See `vita/free-music.js`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
-song bytes are VIN. Never invent hashes. See `vita/url-dir.js`.
+song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to
+YouTube/phone — only play/pause/next/prev + list picks. Never invent hashes.
+See `vita/url-dir.js`.
 **GitHub mirror chain:** `/vita read FILE` · `/vita files` · `/vita proof FILE`
 · `/vita unwrap [KEY]` · `/vita chain` · `/vita session` — local Railway disk
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed

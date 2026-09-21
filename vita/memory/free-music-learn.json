@@ -3,8 +3,8 @@
   "filingLabel": "FREEMUSIC",
   "formula": "original-message-first",
   "neverInventHashes": true,
-  "at": "2026-09-21T05:50:00.000Z",
-  "learn": "Popular public-domain songs file as grouped VIN injections. Maple Leaf Rag (263304 B) and I'm Always Chasing Rainbows PD 1918 singing / Judy lane (1053294 B) both split into ≤24-VIN groups. Loc proof daisy-chains filing → group sha → VIN dataFieldCommit → Basescan Input Data UTF-8; MATCH rows are click-through highlighted. Player concatenates slices for original audio/ogg. Proven only when every group loc is a real Base hash. Never invent. Never file rights-restricted Decca Over the Rainbow.",
+  "at": "2026-09-21T06:20:00.000Z",
+  "learn": "Popular public-domain songs file as grouped VIN injections. Maple Leaf Rag (263304 B) and I'm Always Chasing Rainbows PD 1918 singing / Judy lane (1053294 B) both split into ≤24-VIN groups. Loc proof daisy-chains filing → group sha → VIN dataFieldCommit → Basescan Input Data UTF-8; MATCH rows are click-through highlighted. Player concatenates slices for original audio/ogg and advances HUMAN+MACHINE SNARK caption layers in realtime as each loc is pulled. Proven only when every group loc is a real Base hash. Never invent. Never file rights-restricted Decca Over the Rainbow.",
   "commands": [
     "/vitafeed play maple",
     "/vitafeed play judy",
