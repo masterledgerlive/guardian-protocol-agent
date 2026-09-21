@@ -18,6 +18,11 @@ findable.
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
 | `vita/telegram-clickthrough.js` | `VITACLICK` | Telegram inline keyboards — every category + subcategory clickable (dir→file→unlock, tokens→actions, track inject) |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
+| `vita/mirror-dual.js` | `MIRROR_DUAL` / `ZERO_PROOF` | Navigable GitHub duplicate tree + dual availability\|proven reader + open-source zero-proof key + SNARK boot from filing CAS follow-leader |
+| `public/vita-mirror.html` | `MIRROR_DUAL` | Dual-path HTML navigator — tree + avail\|proven\|dual + boot |
+| `vita/memory/mirror-dual-ledger.json` | `MIRROR_DUAL` | Append-only dual-path / zero-proof / boot events |
+| `vita/memory/mirror-cas/` | `MIRROR_DUAL` | Content-addressed boot section bodies (filing leader until Base seal) |
+| `vita/strands/mirror-dual.json` | `MIRROR_DUAL` | Sparse strand: dual paths → zero-proof → SNARK boot |
 | `vita/chain-layer.js` | `CHAIN_LAYER` / `SYSTEMS_CHECK` / `LLM_ONCHAIN` | Always-on systems check · SNARK proven libs · EVM recover ms · model agreement · LLM spin manifests · Telegram `/vita check` |
 | `vita/chain-inject.js` | `CHAIN_INJECT` | Spaced batch plan (720B) · bind sealed locs by contentCommit · pull/verify UTF-8 · IDM buttons only for matching body |
 | `vita/memory/chain-layer-inject.json` | `CHAIN_INJECT` | Full spaced chunk plan + sealed/pending/verified status |
@@ -78,6 +83,7 @@ findable.
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
+| `MIRROR_DUAL` | Dual-path mirror (`§VITADUALPATH§` / `§VITABOOT§`) — same file name on GitHub + filing; availability\|proven reader; zero-proof name+contentCommit; SNARK boot from CAS follow-leader |
 | `CHAIN_LAYER` | Blockchain systems layer (`§VITACHAIN§`) — always `/vita check`; SNARK proven libs; EVM recover timing; model ring |
 | `SYSTEMS_CHECK` | Systems checklist proof (`§SYSCHECK§`) — each pass grows `vita/memory/` + `vita/strands/` |
 | `LLM_ONCHAIN` | LLM-on-chain spin manifest (`§VITALLM§`) — content commitment + Base locs; change model at will |
@@ -110,8 +116,9 @@ Full tx hashes live in `vita/anchors.json` and inside infected HTML
    infect via `infectVitaHtmlDocument`.
 3. **Code refine** → keep `ORIGINAL_FORMULA.md` invariants; grow strands in
    `vita/strands/`; point PRs at this folder as the continuing base.
-4. **Reads** → prefer `GET /vita/read`, `/vita/mirror`, `/vita/inject`, `/vita/locations`, `/vita/leftover`,
+4. **Reads** → prefer `GET /vita/read`, `/vita/mirror`, `/vita/mirror.html`, `/vita/inject`, `/vita/locations`, `/vita/leftover`,
    and Basescan UTF-8 over invented summaries. `/vita read FILE` is local disk first (no Anthropic).
+   Dual: `/vita dual FILE` · `/vita path proven FILE` · `/vita tree` · `/vita boot` · `/vita zero FILE`.
 5. **Writes on-chain** → leftover KEY+LOC when covered; `/prove` for Eureka;
    never invent a hash.
 6. **Env** → `VITA_MESSAGE_FIRST` default `yes` (1× cover → hitch). Set `no`

@@ -243,6 +243,7 @@ function helpText() {
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/vita read FILE   open file + SNARK + IDM locs (no Anthropic)",
     "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
+    "/vita tree · /vita dual FILE · /vita path proven FILE · /vita zero FILE · /vita boot — dual avail|proven + zero-proof + SNARK boot (/vita/mirror)",
     "/vita check · /vita recover · /vita models · /vita llm — systems check + EVM ms + model ring + LLM spin (library grows files)",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
     "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",

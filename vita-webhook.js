@@ -44,7 +44,7 @@
 //   GET  /vita/hypotheses   — hypothesis graph query (?q=&status=&symbol=) (auth)
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
 //   GET  /vita/read?f=FILE  — open file (local + GitHub CODE/STATE) + SNARK + IDM
-//   GET  /vita/mirror       — GitHub-as-chain catalog / proof / unwrap / session keys
+//   GET  /vita/mirror       — dual-path GitHub duplicate · tree · boot · zero-proof (+ HTML UI)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
@@ -163,6 +163,7 @@ const V4_HTML = join(ROOT, "public", "v4.html");
 const VITA_HTML = join(ROOT, "public", "vita.html");
 const VITA_FEED_PLAYER_HTML = join(ROOT, "public", "vita-feed-player.html");
 const VITA_FEED_LOADER_HTML = join(ROOT, "public", "vita-feed-loader.html");
+const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -646,6 +647,9 @@ async function handleVitaRequest(req, res) {
     if ((path === "/vita/feed-player" || path === "/vita/feed-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_FEED_PLAYER_HTML, "vita feed player");
     }
+    if ((path === "/vita/mirror.html" || path === "/vita/mirror/ui") && req.method === "GET") {
+      return servePublicHtml(res, VITA_MIRROR_HTML, "vita mirror dual");
+    }
     if ((path === "/vita/feed-loader" || path === "/vita/feed-loader/") && req.method === "GET") {
       const accept = String(req.headers.accept || "");
       if (accept.includes("text/html") && !accept.includes("application/json")) {
@@ -816,6 +820,14 @@ async function handleVitaRequest(req, res) {
         sessionKey: out.sessionKey
           ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
           : null,
+        zeroProof: out.zeroProof
+          ? {
+              key: out.zeroProof.key,
+              contentCommit: out.zeroProof.contentCommit,
+              privateKey: false,
+              openSource: true,
+            }
+          : null,
         local: out.local || false,
         github: out.github || false,
         reply: out.reply,
@@ -824,6 +836,10 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/mirror" || path === "/vita/mirror/") && req.method === "GET") {
       const cmd = String(url.searchParams.get("cmd") || "").trim();
+      const accept = String(req.headers.accept || "");
+      if (!cmd && !url.searchParams.get("action") && accept.includes("text/html") && !accept.includes("application/json")) {
+        return servePublicHtml(res, VITA_MIRROR_HTML, "vita mirror dual");
+      }
       const parsed = cmd
         ? parseVitaMirrorCommand(cmd.startsWith("/") ? cmd : "/vita " + cmd)
         : {
@@ -831,6 +847,10 @@ async function handleVitaRequest(req, res) {
           filename: url.searchParams.get("f") || url.searchParams.get("file") || null,
           key: url.searchParams.get("key") || null,
           kind: url.searchParams.get("kind") || null,
+          pathMode: url.searchParams.get("path") || url.searchParams.get("pathMode") || null,
+          prefix: url.searchParams.get("prefix") || null,
+          sectionId: url.searchParams.get("section") || null,
+          exportName: url.searchParams.get("export") || null,
         };
       const action = parsed.action && parsed.action !== "ask" ? parsed.action : "chain";
       const out = await handleVitaMirrorAction({
@@ -839,6 +859,10 @@ async function handleVitaRequest(req, res) {
         key: parsed.key || null,
         kind: parsed.kind || null,
         modelId: parsed.modelId || null,
+        pathMode: parsed.pathMode || null,
+        prefix: parsed.prefix || null,
+        sectionId: parsed.sectionId || null,
+        exportName: parsed.exportName || null,
         cwd: ROOT,
         githubFetch: webhookGithubUtf8,
         codeBranch: liveGithubBranch(),
@@ -858,6 +882,19 @@ async function handleVitaRequest(req, res) {
         sessionKey: out.sessionKey
           ? { key: out.sessionKey.key, kind: out.sessionKey.kind, privateKey: false }
           : null,
+        zeroProof: out.zeroProof
+          ? {
+              key: out.zeroProof.key,
+              contentCommit: out.zeroProof.contentCommit,
+              privateKey: false,
+              openSource: true,
+            }
+          : null,
+        followLeader: out.followLeader || null,
+        availability: out.availability || undefined,
+        proven: out.proven || undefined,
+        tree: out.tree || undefined,
+        pathMode: out.pathMode || parsed.pathMode || null,
         files: out.files || undefined,
         exists: out.exists,
         local: out.local,
@@ -1309,7 +1346,7 @@ export function startVitaWebhook() {
     console.log("   /vita/brain    — six-lobe brain + finetune hypothesis graph");
     console.log("   /vita/hypotheses — query hypothesis graph");
     console.log("   /vita/read     — public open files (local + GitHub CODE/STATE, SNARK + IDM)");
-    console.log("   /vita/mirror   — public GitHub-as-chain catalog / proof / unwrap / session keys");
+    console.log("   /vita/mirror   — dual-path tree/read/boot + HTML UI (/vita/mirror.html)");
     console.log("   /vita/check    — blockchain systems check (SNARK + EVM recover + models + LLM spin)");
     console.log("   /vita/status   — live bot status");
     console.log("   /vita/save     — programmatic vitasave (auth; banks unpaired STORE)");

@@ -68,6 +68,7 @@ export const PROVEN_LIBRARY_ROOTS = Object.freeze([
   "vita/anchors.json",
   "vita/mainframe.js",
   "vita/mirror-chain.js",
+  "vita/mirror-dual.js",
   "vita/chain-layer.js",
   "vita/chain-inject.js",
   "vita/brain-learn.js",

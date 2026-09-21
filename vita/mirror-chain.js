@@ -26,6 +26,11 @@ import {
   handleChainLayerAction,
   parseChainLayerCommand,
 } from "./chain-layer.js";
+import {
+  parseMirrorDualCommand,
+  handleMirrorDualAction,
+  attachZeroProofKey,
+} from "./mirror-dual.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..");
@@ -633,6 +638,18 @@ function parseExportsHint(text) {
 export function parseVitaMirrorCommand(raw) {
   const src = String(raw || "").trim();
   const low = src.toLowerCase();
+  const dual = parseMirrorDualCommand(src);
+  if (dual?.action) {
+    return {
+      action: dual.action,
+      filename: dual.filename || null,
+      pathMode: dual.pathMode || null,
+      prefix: dual.prefix || null,
+      sectionId: dual.sectionId || null,
+      exportName: dual.exportName || null,
+      kind: null,
+    };
+  }
   const chainLayer = parseChainLayerCommand(src);
   if (chainLayer?.action) {
     return {
@@ -707,10 +724,16 @@ export function buildMirrorKeyboard({
     const read = telegramCallbackData("/vita read " + filename);
     const proof = telegramCallbackData("/vita proof " + filename);
     const unwrap = telegramCallbackData("/vita unwrap");
+    const dual = telegramCallbackData("/vita dual " + filename);
     rows.push([
       { text: "📖 Open", callback_data: read },
       { text: "🔓 Unwrap", callback_data: unwrap },
       { text: "⛓️ Proof", callback_data: proof },
+    ]);
+    rows.push([
+      { text: "Dual paths", callback_data: dual },
+      { text: "Zero🔑", callback_data: telegramCallbackData("/vita zero " + filename) },
+      { text: "Boot", callback_data: "/vita boot hitch-gate" },
     ]);
   }
   const linkRow = [];
@@ -722,9 +745,9 @@ export function buildMirrorKeyboard({
   if (linkRow.length) rows.push(linkRow.slice(0, 3));
   const nav = [];
   if (includeFiles) nav.push({ text: "📂 Files", callback_data: "/vita files" });
+  nav.push({ text: "🌳 Tree", callback_data: "/vita tree vita" });
   nav.push({ text: "🪞 Chain", callback_data: "/vita chain" });
-  nav.push({ text: "✅ Check", callback_data: "/vita check" });
-  nav.push({ text: "🔑 Session keys", callback_data: "/vita session" });
+  nav.push({ text: "🔑 Session", callback_data: "/vita session" });
   rows.push(nav);
   return { inline_keyboard: rows };
 }
@@ -782,6 +805,10 @@ export function formatMirrorReadCard(result) {
     lines.push(MIRROR_KEY_MAGIC + " " + result.sessionKey.key + "  kind=" + result.sessionKey.kind);
     lines.push("unwrap: /vita unwrap " + result.sessionKey.key);
   }
+  if (result.zeroProof?.key) {
+    lines.push("§VITAZERO§ " + result.zeroProof.key + "  privateKey=false");
+    lines.push("zero-proof = name+contentCommit — dual: /vita dual " + result.filename);
+  }
   if (result.snark?.short) lines.push("snark " + result.snark.short);
   lines.push("");
   lines.push(...locLines(result.locations || []));
@@ -816,7 +843,7 @@ export function formatMirrorFilesCard(listed) {
     );
   }
   lines.push("");
-  lines.push("Also: /vita chain · /vita session · /vita proof NAME");
+  lines.push("Also: /vita chain · /vita tree · /vita dual NAME · /vita boot · /vita session");
   return lines.join("\n");
 }
 
@@ -872,9 +899,11 @@ export function formatMirrorChainCard() {
   }
   lines.push("");
   lines.push("Session keys = Railway env: /vita session  (permanent|ttl|destroy)");
+  lines.push("Dual paths: /vita tree · /vita dual FILE · /vita path proven FILE · /vita boot");
+  lines.push("Zero-proof lock+key (name+contentCommit): /vita zero FILE — not a wallet secret");
   lines.push("Systems: /vita check · /vita recover · /vita models · /vita llm");
   lines.push("Proof: /vita proof FILE  ·  IDM: Basescan Input Data → UTF-8");
-  lines.push("Never invent tx hashes. Blob SHA is GitHub, not Base.");
+  lines.push("Never invent tx hashes. Blob SHA is GitHub, not Base. Formula anchors ≠ file body.");
   return lines.join("\n");
 }
 
@@ -956,9 +985,37 @@ export async function handleVitaMirrorAction({
   write = true,
   fetchCalldata = null,
   readUtf8FromCalldata = null,
+  pathMode = null,
+  prefix = null,
+  sectionId = null,
+  exportName = null,
 } = {}) {
   expireSessionKeys(chatId, now);
   const bucket = sessionBucket(chatId);
+
+  if (
+    action === "tree" ||
+    action === "dual" ||
+    action === "path" ||
+    action === "boot" ||
+    action === "zero"
+  ) {
+    return handleMirrorDualAction({
+      action,
+      filename,
+      pathMode: pathMode || "dual",
+      prefix: prefix || "",
+      sectionId,
+      exportName,
+      cwd,
+      githubFetch,
+      codeBranch,
+      stateBranch,
+      fetchCalldata,
+      readUtf8FromCalldata,
+      write,
+    });
+  }
 
   if (
     action === "check" ||
@@ -1162,6 +1219,11 @@ export async function handleVitaMirrorAction({
 
     bucket.lastFile = resolved.filename;
     const snark = snarkCompressBlob(resolved.text, { filename: resolved.filename, locs: locations });
+    const zeroProof = attachZeroProofKey({
+      name: resolved.filename,
+      content: resolved.text,
+      contentCommit: snark.contentCommit,
+    });
     const sessionKey = mintSessionKey({
       kind: "destroyable",
       chatId,
@@ -1192,6 +1254,7 @@ export async function handleVitaMirrorAction({
         snark,
         batch,
         locations,
+        zeroProof,
       };
       const reply = formatMirrorProofCard(card);
       return {
@@ -1204,6 +1267,7 @@ export async function handleVitaMirrorAction({
         snark,
         locations,
         sessionKey,
+        zeroProof,
         githubUrl,
       };
     }
@@ -1212,6 +1276,7 @@ export async function handleVitaMirrorAction({
       ...resolved,
       snark,
       sessionKey,
+      zeroProof,
       locations,
       preview: previewText(resolved.text, resolved.filename),
       exports: parseExportsHint(resolved.text),
@@ -1228,6 +1293,7 @@ export async function handleVitaMirrorAction({
       preview: card.preview,
       snark,
       sessionKey,
+      zeroProof,
       locations,
       githubUrl,
       local: resolved.local,

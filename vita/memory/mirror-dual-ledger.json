@@ -1,0 +1,335 @@
+{
+  "id": "vita-mirror-dual-v1",
+  "filingLabel": "MIRROR_DUAL",
+  "events": [
+    {
+      "at": "2026-09-21T02:09:11.861Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": false,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "781d092b1a3e471ca049f5fab6380900027c19fd4ea051f95538600de4b5af77",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": false,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:09:11.870Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "open-unlock",
+        "file": "vita/vita-dir.js",
+        "exportName": "openSourceUnlockKey"
+      },
+      "filename": "vita/vita-dir.js",
+      "pathMode": null,
+      "ok": false,
+      "zeroProofKey": "VITAOPEN.vita_vita-dir.js_openSourceUnlockKey.377e285bafcf",
+      "contentCommit": "377e285bafcf45af774599b5aceac21f84444bd9720b28e232e44417b27bfcaf",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": false,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:09:11.882Z",
+      "kind": "§VITADUALPATH§",
+      "section": null,
+      "filename": "vita/anchors.json",
+      "pathMode": "dual",
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_anchors.json.ed29e454f0f4",
+      "contentCommit": "ed29e454f0f494cb76ec0eab354b2eb810f3a989b06cff57a49a56017754dfa4",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": null,
+      "note": "Filing contentCommit leads (pre-seal CAS). Base locs pending — formula anchors are class proof only."
+    },
+    {
+      "at": "2026-09-21T02:09:11.884Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": false,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "781d092b1a3e471ca049f5fab6380900027c19fd4ea051f95538600de4b5af77",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": false,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:11:15.020Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:11:15.030Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "open-unlock",
+        "file": "vita/vita-dir.js",
+        "exportName": "openSourceUnlockKey"
+      },
+      "filename": "vita/vita-dir.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_vita-dir.js_openSourceUnlockKey.377e285bafcf",
+      "contentCommit": "4103a5ebd90e5d9e73c31dd9af41eb02367f8af921a30462283f81d13fe01594",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:11:15.040Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "path-sanitize",
+        "file": "vita/mirror-chain.js",
+        "exportName": "sanitizeMirrorPath"
+      },
+      "filename": "vita/mirror-chain.js",
+      "pathMode": null,
+      "ok": false,
+      "zeroProofKey": "VITAOPEN.vita_mirror-chain.js_sanitizeMirrorPath.c3aca1f75f20",
+      "contentCommit": "b3d9edded2a0a3b12a699ec08f89df8f03776c61ed0132d09902d9f1f85ab91b",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": false,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:12.020Z",
+      "kind": "§VITADUALPATH§",
+      "section": null,
+      "filename": "vita/anchors.json",
+      "pathMode": "dual",
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_anchors.json.ed29e454f0f4",
+      "contentCommit": "ed29e454f0f494cb76ec0eab354b2eb810f3a989b06cff57a49a56017754dfa4",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": null,
+      "note": "Filing contentCommit leads (pre-seal CAS). Base locs pending — formula anchors are class proof only."
+    },
+    {
+      "at": "2026-09-21T02:12:34.976Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:43.767Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:43.778Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "open-unlock",
+        "file": "vita/vita-dir.js",
+        "exportName": "openSourceUnlockKey"
+      },
+      "filename": "vita/vita-dir.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_vita-dir.js_openSourceUnlockKey.377e285bafcf",
+      "contentCommit": "4103a5ebd90e5d9e73c31dd9af41eb02367f8af921a30462283f81d13fe01594",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:43.786Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "path-sanitize",
+        "file": "vita/mirror-chain.js",
+        "exportName": "sanitizeMirrorPath"
+      },
+      "filename": "vita/mirror-chain.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mirror-chain.js_sanitizeMirrorPath.c3aca1f75f20",
+      "contentCommit": "b3d9edded2a0a3b12a699ec08f89df8f03776c61ed0132d09902d9f1f85ab91b",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:43.798Z",
+      "kind": "§VITADUALPATH§",
+      "section": null,
+      "filename": "vita/anchors.json",
+      "pathMode": "dual",
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_anchors.json.ed29e454f0f4",
+      "contentCommit": "ed29e454f0f494cb76ec0eab354b2eb810f3a989b06cff57a49a56017754dfa4",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": null,
+      "note": "Filing contentCommit leads (pre-seal CAS). Base locs pending — formula anchors are class proof only."
+    },
+    {
+      "at": "2026-09-21T02:12:43.802Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:50.428Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:50.439Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "open-unlock",
+        "file": "vita/vita-dir.js",
+        "exportName": "openSourceUnlockKey"
+      },
+      "filename": "vita/vita-dir.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_vita-dir.js_openSourceUnlockKey.377e285bafcf",
+      "contentCommit": "4103a5ebd90e5d9e73c31dd9af41eb02367f8af921a30462283f81d13fe01594",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:50.449Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "path-sanitize",
+        "file": "vita/mirror-chain.js",
+        "exportName": "sanitizeMirrorPath"
+      },
+      "filename": "vita/mirror-chain.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mirror-chain.js_sanitizeMirrorPath.c3aca1f75f20",
+      "contentCommit": "b3d9edded2a0a3b12a699ec08f89df8f03776c61ed0132d09902d9f1f85ab91b",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:12:50.461Z",
+      "kind": "§VITADUALPATH§",
+      "section": null,
+      "filename": "vita/anchors.json",
+      "pathMode": "dual",
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_anchors.json.ed29e454f0f4",
+      "contentCommit": "ed29e454f0f494cb76ec0eab354b2eb810f3a989b06cff57a49a56017754dfa4",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": null,
+      "note": "Filing contentCommit leads (pre-seal CAS). Base locs pending — formula anchors are class proof only."
+    },
+    {
+      "at": "2026-09-21T02:12:50.464Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    }
+  ],
+  "neverInventHashes": true,
+  "at": "2026-09-21T02:12:50.464Z",
+  "formula": "original-message-first"
+}
