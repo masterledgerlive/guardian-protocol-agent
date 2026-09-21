@@ -512,9 +512,17 @@
       const body = el("locBody");
       if (body) {
         const rows = body.querySelectorAll("tr");
+        const gActive = c?.groupN;
         rows.forEach((tr, ri) => {
-          tr.classList.toggle("loc-active", ri === idx);
-          tr.classList.toggle("loc-next", ri === idx + 1);
+          const label = tr.querySelector("td")?.textContent || "";
+          const isGroup = gActive != null && label.indexOf("g" + gActive + ".") === 0;
+          const isIdx = gActive == null && ri === idx;
+          tr.classList.toggle("loc-active", isGroup || isIdx);
+          const nextG = liveChunks[idx + 1]?.groupN;
+          const isNext = nextG != null
+            ? label.indexOf("g" + nextG + ".") === 0
+            : ri === idx + 1;
+          tr.classList.toggle("loc-next", !tr.classList.contains("loc-active") && isNext);
         });
         const active = body.querySelector("tr.loc-active");
         if (active && changed) active.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -1050,21 +1058,27 @@
               }
             }
           } catch (_) {}
+          const byGroup = new Map();
+          for (const r of locRows) {
+            const g = r.groupN != null ? r.groupN : byGroup.size + 1;
+            if (!byGroup.has(g)) byGroup.set(g, { ...r, index: 1 });
+          }
+          const groupChunks = [...byGroup.values()];
           proof = {
             complete: true,
             play: data.play,
             card: data.card || (musicId + " — grouped VIN original playback"),
-            chunks: locRows,
+            chunks: groupChunks.length ? groupChunks : locRows,
           };
-          liveChunks = locRows;
+          liveChunks = proof.chunks;
           el("playCard").textContent = proof.card;
           el("costCard").textContent =
             (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
             (data.play.name || musicId) +
-            " · groups " + (data.groups?.length || 0) +
+            " · groups " + (data.groups?.length || groupChunks.length || 0) +
             " · original OGG (not a demo WAV) · loc MATCH highlighted · live SNARK pull";
-          renderPieces(data.groups?.length || locRows.length || 1, 0);
-          renderLocs(proof.chunks);
+          renderPieces(groupChunks.length || data.groups?.length || 1, 0);
+          renderLocs(locRows);
           el("okPill").classList.add("show");
           el("btnPlay").disabled = false;
           showPlay(proof);
