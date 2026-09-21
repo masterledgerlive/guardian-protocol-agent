@@ -538,10 +538,11 @@ export function formatMasterDirCard(master = listMasterDirectory()) {
     );
   }
   lines.push("");
+  lines.push("TAP the <DIR> buttons below — every subdir is click-through.");
   lines.push("cd:   /vitafeed dir MEMORY");
   lines.push("open: /vitafeed unlock CODEX\\math-euler.txt");
   lines.push("also: /vitafeed unlock 1   (after dir)");
-  lines.push("proof: selecting a name unlocks English + machine blocks");
+  lines.push("proof: tap a name → SNARK first · Human plain · Machine key");
   return lines.join("\n");
 }
 
@@ -572,30 +573,51 @@ export function formatSubDirCard(listed) {
     lines.push("  … +" + ((listed.entries || []).length - 40) + " more");
   }
   lines.push("");
+  lines.push("TAP a file below — SNARK path first, then Human + Machine.");
   lines.push("unlock: /vitafeed unlock " + listed.subdir + "\\<name|n>");
   lines.push("up:     /vitafeed dir");
   return lines.join("\n");
 }
 
-export function formatUnlockCard(result) {
+export function formatUnlockCard(result, { timing = null } = {}) {
   if (!result?.ok) {
     return VITADIR_UNLOCK_MAGIC + " REFUSE\n" + (result?.reason || "miss");
   }
   const lines = [];
+  // Static / SNARK-compressed identity first — player sees path + short before body.
+  const staticName = sanitizeDosName(result.entry?.name || result.path || "FILE");
   lines.push(VITADIR_UNLOCK_MAGIC + "v1|openSource=1§");
-  lines.push("UNLOCKED  " + result.path);
+  lines.push("FILE  " + staticName);
+  lines.push("PATH  " + result.path);
+  lines.push("SNARK " + result.packed.short);
   lines.push("key=" + result.unlock.key);
   lines.push("privateKey=NO · openSource=YES · instantUnwrap=YES");
-  lines.push("zk=" + result.packed.short);
+  if (timing) {
+    lines.push(
+      "timing human=" +
+        timing.humanMs +
+        "ms machine=" +
+        timing.machineMs +
+        "ms total=" +
+        timing.totalMs +
+        "ms · plainProof=" +
+        (timing.plainTextProof ? "YES" : "no") +
+        " · snarkDenser=" +
+        (timing.snarkUnlocksDenser ? "YES" : "no"),
+    );
+  }
   lines.push("");
-  lines.push("— ENGLISH —");
+  lines.push("— HUMAN (plain text — proof enough) —");
   lines.push(result.reveal.english);
   lines.push("");
-  lines.push("— MACHINE —");
+  lines.push("— MACHINE (key exposed — denser lane) —");
   lines.push(result.reveal.machine);
+  if (result.packed?.commit) {
+    lines.push("commit=" + shortHex(result.packed.commit, 16));
+  }
   if ((result.entry?.locations || []).length) {
     lines.push("");
-    lines.push("— LOCS (never invented) —");
+    lines.push("— LOCS (assemble → picture/song/movie/code · never invented) —");
     for (const tx of result.entry.locations.slice(0, 6)) {
       if (!isTxHash(tx)) continue;
       lines.push("  " + shortHex(tx, 8) + "…  " + MAINFRAME_ANCHORS.basescanTx + tx);
@@ -606,7 +628,8 @@ export function formatUnlockCard(result) {
   }
   lines.push("");
   lines.push("goal: " + (result.goalHint || "reveal + recover"));
-  lines.push("prove: directory works — agentic AI filing is visible in Telegram");
+  lines.push("click: Human · Machine · Play · Dual · Track inject");
+  lines.push("prove: both routes timed; plain text proves; SNARK unlocks denser data");
   return lines.join("\n");
 }
 

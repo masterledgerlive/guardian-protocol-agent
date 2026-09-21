@@ -544,6 +544,15 @@ import {
   peekVitaFeed,
 } from "./vita/vita-feed.js";
 import {
+  buildTokenActionKeyboard,
+  buildTokenCatalogKeyboard,
+  buildVitaFeedRootKeyboard,
+  buildVitaFeedStagedKeyboard,
+  formatTokenClickCard,
+  keyboardForVitaFeedResult,
+  parseTokenClickCommand,
+} from "./vita/telegram-clickthrough.js";
+import {
   attachWaveOnCoveredLeftover,
   commitWaveHitchShard,
   handleWaveTestAction,
@@ -10307,7 +10316,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
           msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override</code>\n";
           msg += "Player: <code>/vita/feed-player</code> after seal (PLAY PROOF peaces locations).";
-          await tg(msg);
+          await tg(msg, {
+            reply_markup: out.keyboard || buildVitaFeedStagedKeyboard(),
+          });
         } catch (e) {
           await tg("❌ vitafeed file await failed: " + (e.message || e));
         }
@@ -10486,6 +10497,32 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: pct / 100 });
         await tg(`🚪 <b>CLEAN EXIT ${sym} ${pct}% queued</b>\nWill sell to ETH — NO cascade will fire`);
+      } else if (text === "/tokens" || text === "/tok" || text === "/token" || (text && text.startsWith("/tok ")) || (text && text.startsWith("/token "))) {
+        const parsedTok = parseTokenClickCommand(raw);
+        const symbols = tokens.map((t) => t.symbol);
+        if (parsedTok.action === "token" && parsedTok.symbol) {
+          const sym = parsedTok.symbol;
+          if (!tokens.find((t) => t.symbol === sym)) {
+            await tg(
+              `❓ Unknown token: <code>${esc(sym)}</code>\nTap a known symbol:`,
+              { reply_markup: buildTokenCatalogKeyboard(symbols) },
+            );
+            continue;
+          }
+          await tg(
+            "🪙 <b>" + esc(sym) + "</b>\n<pre>" +
+            esc(formatTokenClickCard(sym, { symbols })) +
+            "</pre>",
+            { reply_markup: buildTokenActionKeyboard(sym) },
+          );
+        } else {
+          await tg(
+            "🪙 <b>TOKENS</b> — tap a symbol for buy / sell / exit / dual / track\n<pre>" +
+            esc(formatTokenClickCard("", { symbols })) +
+            "</pre>",
+            { reply_markup: buildTokenCatalogKeyboard(symbols) },
+          );
+        }
       // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
       } else if (
         text === "/home" ||
@@ -12896,6 +12933,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         if (!parsed.ok || (parsed.action === "usage" && !mediaHint.ok)) {
           await tg(
             "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8 / VITAFILE)\n" +
+            "Tap a category below — every subcategory is click-through.\n" +
             "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
             "<b>File (either way):</b>\n" +
             "1. <code>/vitafeed file</code> → bot says <i>please insert file</i> → send song/video/doc\n" +
@@ -12914,12 +12952,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
             "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
             "<code>/vitafeed keys</code> — stage §VITALIB§ keys catalog (name→key→locs)\n" +
+            "<code>/vitafeed dir</code> · <code>/vitafeed unlock</code> — DOS click-through\n" +
+            "<code>/vitafeed track</code> — stage inject/message proof · <code>/tokens</code> — token actions\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
             "Player: <code>/vita/feed-player</code> or <code>/vita/feed-player?lib=N</code>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
             "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
-            "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>"
+            "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>",
+            { reply_markup: buildVitaFeedRootKeyboard() },
           );
         } else if (parsed.action === "files" || parsed.action === "play" || parsed.action === "keys") {
           try {
@@ -12943,7 +12984,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               if (opened.playProof?.complete && opened.playProof?.play?.name) {
                 msg += "\nReady: <b>" + String(opened.playProof.play.name).replace(/</g, "") + "</b>";
               }
-              await tg(msg);
+              await tg(msg, {
+                reply_markup: keyboardForVitaFeedResult({
+                  action: "play",
+                  out: opened,
+                }) || buildVitaFeedStagedKeyboard(),
+              });
             } else {
               const out = await handleVitaFeedAction({
                 action: parsed.action,
@@ -12953,7 +12999,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               });
               let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
               msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
-              await tg(msg);
+              await tg(msg, {
+                reply_markup:
+                  out.keyboard ||
+                  keyboardForVitaFeedResult({ action: parsed.action, out }) ||
+                  buildVitaFeedRootKeyboard(),
+              });
             }
           } catch (e) {
             await tg("❌ vitafeed library failed: " + (e.message || e));
@@ -13257,7 +13308,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 "</code> — <code>/vitafeed files</code> · <code>/vitafeed play " +
                 out.library.n + "</code>";
             }
-            await tg(msg);
+            await tg(msg, {
+              reply_markup:
+                out.keyboard ||
+                keyboardForVitaFeedResult({ action: parsed.action, out }) ||
+                buildVitaFeedRootKeyboard(),
+            });
           } catch (e) {
             await tg("❌ vitafeed failed: " + (e.message || e) + "\nNothing invented. RISK unspent if no hashes.");
           }
@@ -13936,6 +13992,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
           `/vitafeed dir — DOS master VITA:\\ ; /vitafeed dir MEMORY ; unlock CODEX\\file (open-source, no private key)\n` +
           `/vitafeed unlock <path|n|name> — instant ZK-short unwrap → English + machine (html/song/movie/code)\n` +
+          `/vitafeed track — stage inject/message tracking proof (tap Confirm)\n` +
+          `/tokens · /tok SYMBOL — click-through token catalog → buy/sell/exit/dual/track\n` +
           `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
           `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B; WAVE_PROOF_LIVE=yes; desk POST /vita/waveproof)\n` +
           `/wavefull — full 28-shard Heraclitus quote (WAVE_FULL_LIVE=yes; desk POST /vita/wavefull; /waveproof stays 3)\n` +

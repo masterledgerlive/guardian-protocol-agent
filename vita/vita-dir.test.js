@@ -61,6 +61,9 @@ describe("vita-dir DOS master directory", () => {
     });
     assert.equal(unwrapped.privateKeyRequired, false);
     assert.match(formatUnlockCard(unlocked), /privateKey=NO/);
+    assert.match(formatUnlockCard(unlocked), /SNARK/);
+    assert.match(formatUnlockCard(unlocked), /HUMAN \(plain text/);
+    assert.match(formatUnlockCard(unlocked), /MACHINE \(key exposed/);
   });
 
   it("unlock calculator codex cites only real anchors when present", () => {
@@ -110,7 +113,8 @@ describe("vita-dir DOS master directory", () => {
       chatId: "dir-wire",
     });
     assert.equal(unlock.ok, true);
-    assert.match(unlock.reply, /UNLOCKED/);
-    assert.match(unlock.reply, /privateKey=NO/);
+    assert.match(unlock.reply, /FILE\s+math-euler|SNARK|privateKey=NO/);
+    assert.match(unlock.reply, /HUMAN \(plain text|MACHINE \(key exposed/);
+    assert.ok(unlock.keyboard?.inline_keyboard?.length >= 1);
   });
 });

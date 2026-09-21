@@ -651,6 +651,11 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:unlock|openfile|reveal)\s*/i, "").trim();
     return { ok: true, action: "unlock", body: rest, source: "unlock" };
   }
+  // Inject / message-sent tracking — prove click-through + running code path.
+  if (/^(?:track|trackinject|clicktrack)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:track|trackinject|clicktrack)\s*/i, "").trim();
+    return { ok: true, action: "track", body: rest, source: "track" };
+  }
   // Named library: list sealed files, open one into the player, seal keys catalog.
   if (/^(?:files|list)$/i.test(trimmed)) {
     return { ok: true, action: "files", body: "", source: "files" };
@@ -741,10 +746,12 @@ export function vitaFeedUsageText() {
     "  /vitafeed ask <q>   — same as ref (ask|self label from query)",
     "  /vitafeed proven    — run calculator proven-test series (never invent)",
     "DIRECTORY (DOS-style filing — prove what AI stored on-chain):",
-    "  /vitafeed dir              — master VITA:\\ subdirs",
-    "  /vitafeed dir MEMORY       — list a subdir",
+    "  /vitafeed dir              — master VITA:\\ subdirs (TAP buttons)",
+    "  /vitafeed dir MEMORY       — list a subdir (TAP each file)",
     "  /vitafeed unlock CODEX\\math-euler.txt — open-source unlock (no private key)",
-    "  Instant ZK-short unwrap → English + machine blocks (html/song/movie/code)",
+    "  Instant ZK-short unwrap → SNARK first · Human plain · Machine key (+ timing)",
+    "  /vitafeed track [sym]      — stage inject/message proof for Confirm|Override",
+    "  /tokens · /tok SYMBOL      — token catalog → buy/sell/exit/dual/track",
     "BACKLOG (feed brain without agentic AI):",
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
@@ -1257,7 +1264,13 @@ export async function handleVitaFeedAction({
 } = {}) {
   if (action === "usage" || action === "file") {
     // "file" without Telegram attachment bytes → usage (agent encodes attachment first).
-    return { ok: true, phase: "usage", reply: vitaFeedUsageText() };
+    const { buildVitaFeedRootKeyboard } = await import("./telegram-clickthrough.js");
+    return {
+      ok: true,
+      phase: "usage",
+      reply: vitaFeedUsageText(),
+      keyboard: buildVitaFeedRootKeyboard(),
+    };
   }
   if (action === "cancel") {
     const had = clearVitaFeed(chatId);
@@ -1652,6 +1665,10 @@ export async function handleVitaFeedAction({
       formatDirStatsCard,
       directoryStats,
     } = await import("./vita-dir.js");
+    const {
+      buildDirMasterKeyboard,
+      buildDirSubKeyboard,
+    } = await import("./telegram-clickthrough.js");
     const arg = String(body || "").trim();
     if (!arg) {
       const master = listMasterDirectory();
@@ -1663,6 +1680,7 @@ export async function handleVitaFeedAction({
           formatMasterDirCard(master) +
           "\n\n" +
           formatDirStatsCard(directoryStats()),
+        keyboard: buildDirMasterKeyboard(master),
       };
     }
     const listed = listSubDirectory(arg);
@@ -1671,17 +1689,83 @@ export async function handleVitaFeedAction({
       phase: "dir",
       listed,
       reply: formatSubDirCard(listed),
+      keyboard: listed.ok !== false ? buildDirSubKeyboard(listed) : buildDirMasterKeyboard(),
     };
   }
   if (action === "unlock") {
     const { unlockDirectoryEntry, formatUnlockCard } = await import("./vita-dir.js");
+    const {
+      buildUnlockKeyboard,
+      buildDirMasterKeyboard,
+      timeDualRoutes,
+    } = await import("./telegram-clickthrough.js");
     const sel = String(body || "").trim();
     const unlocked = unlockDirectoryEntry(sel);
+    const timing = unlocked.ok
+      ? timeDualRoutes({
+          english: unlocked.reveal?.english,
+          machine: unlocked.reveal?.machine,
+          packed: unlocked.packed,
+        })
+      : null;
     return {
       ok: unlocked.ok,
       phase: "unlock",
       unlocked,
-      reply: formatUnlockCard(unlocked),
+      timing,
+      reply: formatUnlockCard(unlocked, { timing }),
+      keyboard: unlocked.ok ? buildUnlockKeyboard(unlocked) : buildDirMasterKeyboard(),
+    };
+  }
+  if (action === "track") {
+    const {
+      buildTrackInjectBody,
+      buildVitaFeedStagedKeyboard,
+      timeDualRoutes,
+      CLICKTHROUGH_MAGIC,
+    } = await import("./telegram-clickthrough.js");
+    const { buildMachineLaneBody } = await import("./vita-feed-dual.js");
+    const trackBody = buildTrackInjectBody({
+      symbol: String(body || "").split(/\s+/)[0] || "",
+      note: String(body || "").trim() || undefined,
+    });
+    const machine = buildMachineLaneBody(trackBody);
+    const timing = timeDualRoutes({
+      english: trackBody,
+      machine: machine.machine || machine.body,
+      packed: machine.packed,
+    });
+    const prepared = prepareVitaFeed(trackBody, quotes);
+    const staged = stageVitaFeed(chatId, {
+      body: trackBody,
+      prepared,
+      quotes: resolveVitaFeedQuotes(quotes),
+      source: "track",
+      dual: machine.ok ? machine : null,
+      timing,
+    });
+    const cost = estimateVitaFeedCost(prepared, resolveVitaFeedQuotes(quotes));
+    const lines = [
+      CLICKTHROUGH_MAGIC + " TRACK INJECT",
+      "Staged click-through proof body (message + running code path).",
+      "timing human=" + timing.humanMs + "ms machine=" + timing.machineMs + "ms",
+      "plainProof=YES · snarkDenser=" + (timing.snarkUnlocksDenser ? "YES" : "no"),
+      "HUMAN bytes=" + timing.humanBytes + " · MACHINE bytes=" + timing.machineBytes,
+      "",
+      formatVitaFeedCostCard(cost, prepared),
+      "",
+      "Next: tap Confirm or Override — never invents tx hashes.",
+      "After seal: Basescan Input Data → UTF-8 is the chat proof.",
+    ];
+    return {
+      ok: true,
+      phase: "track",
+      staged: true,
+      pending: staged,
+      prepared,
+      timing,
+      reply: lines.join("\n"),
+      keyboard: buildVitaFeedStagedKeyboard(),
     };
   }
   if (action === "backlog") {
@@ -1828,11 +1912,14 @@ export async function handleVitaFeedAction({
   // Named library — list / open / stage keys catalog (lazy import avoids cycle).
   if (action === "files") {
     const { formatLibraryListCard, listLibraryEntries } = await import("./vita-feed-library.js");
+    const { buildLibraryFilesKeyboard } = await import("./telegram-clickthrough.js");
+    const entries = listLibraryEntries();
     return {
       ok: true,
       phase: "files",
-      entries: listLibraryEntries(),
+      entries,
       reply: formatLibraryListCard(),
+      keyboard: buildLibraryFilesKeyboard(entries),
     };
   }
   if (action === "play") {

@@ -59,8 +59,11 @@ index. Pull that reader key after seal; until then the bank holds every note.
 No invented hashes.
 **Directory (DOS-style Telegram filing):** `/vitafeed dir` · `/vitafeed dir MEMORY`
 · `/vitafeed unlock CODEX\math-euler.txt` — open-source unlock by file name
-(never a private key). Instant ZK-short unwrap → English + machine blocks so
-you can see what agentic AI filed and recover html/song/movie/code.
+(never a private key). Instant ZK-short unwrap → SNARK-first + English +
+machine blocks (timed dual routes) so you can see what agentic AI filed and
+recover html/song/movie/code. **Every step is an inline button** — see
+`vita/telegram-clickthrough.js`. `/vitafeed track` stages inject/message
+proof. `/tokens` · `/tok SYMBOL` → buy/sell/exit/dual/track.
 **GitHub mirror chain:** `/vita read FILE` · `/vita files` · `/vita proof FILE`
 · `/vita unwrap [KEY]` · `/vita chain` · `/vita session` — local Railway disk
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed
