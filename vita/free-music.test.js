@@ -32,11 +32,13 @@ import {
   packetizeFreeMusic,
   playFreeMusic,
   publicFreeMusicLocs,
+  publicFreeMusicLoc,
   publicFreeMusicPlay,
   publicFreeMusicState,
   reconstructFreeMusicFromGroups,
   resolveSongId,
   sliceBytesForVinCap,
+  inspectFreeMusicLoc,
 } from "./free-music.js";
 import { parseVitaFileBody } from "./vita-feed-file.js";
 import { parseVitaFeedLine } from "./vita-feed.js";
@@ -343,6 +345,15 @@ describe("HTTP free-music catalog + play + locs", () => {
         res.end(JSON.stringify(publicFreeMusicPlay(u.searchParams.get("id") || "maple")));
         return;
       }
+      if (u.pathname === "/vita/free-music/loc") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(publicFreeMusicLoc(
+          u.searchParams.get("id") || "judy",
+          u.searchParams.get("g") || "1",
+          u.searchParams.get("i") || "1",
+        )));
+        return;
+      }
       if (u.pathname === "/vita/free-music/locs") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(await publicFreeMusicLocs(u.searchParams.get("id") || "judy")));
@@ -370,9 +381,11 @@ describe("HTTP free-music catalog + play + locs", () => {
       assert.equal(cat.song.sha256, JUDY_SHA);
       assert.ok(cat.song.groupCount >= 2);
       assert.ok(cat.playlists.some((p) => p.id === "judy"));
-      assert.ok(cat.playlists.length >= 6);
+      assert.ok(cat.playlists.length >= 10);
       assert.ok(cat.playlists.some((p) => p.id === "grace"));
       assert.ok(cat.playlists.some((p) => p.id === "daisy"));
+      assert.ok(cat.playlists.some((p) => p.id === "entertainer"));
+      assert.ok(cat.playlists.some((p) => p.id === "afterball"));
       const play = await fetch("http://127.0.0.1:" + port + "/vita/free-music/play?id=judy").then((r) => r.json());
       assert.equal(play.ok, true);
       assert.equal(play.play.mime, "audio/ogg");
@@ -381,10 +394,20 @@ describe("HTTP free-music catalog + play + locs", () => {
       assert.equal(locs.ok, true);
       assert.ok(locs.rows.length >= 10);
       assert.ok(locs.daisyChain?.length >= 2);
+      assert.match(locs.rows[0].inspect, /\/vita\/free-music\/loc\?id=judy/);
+      const one = await fetch("http://127.0.0.1:" + port + locs.rows[0].inspect).then((r) => r.json());
+      assert.equal(one.ok, true);
+      assert.equal(one.fedIntoPlayer, true);
+      assert.equal(one.trueToBlock, true);
+      assert.equal(one.location, null);
+      assert.equal(createHash("sha256").update(one.line, "utf8").digest("hex"), one.dataFieldCommit);
       const page = await fetch("http://127.0.0.1:" + port + "/vita/feed-player?music=judy").then((r) => r.text());
       assert.match(page, /music=judy/);
       assert.match(page, /free-music\/locs/);
+      assert.match(page, /free-music\/loc\?/);
       assert.match(page, /loc-match/);
+      assert.match(page, /loc-rail|locBarFill|btnLocTuck/);
+      assert.doesNotMatch(page, /scrollIntoView/);
       assert.match(page, /playlistPick/);
       assert.match(page, /liveReaders|readerHuman|MACHINE · SNARK/);
       assert.match(page, /timeupdate|paintLiveLoc|loc-active/);
@@ -408,7 +431,7 @@ describe("system playlists include judy + maple", () => {
 
   it("picker lists the expanded PD library", () => {
     const lists = systemPlaylists();
-    for (const id of ["grace", "daisy", "ballgame", "auld", "lining", "susanna"]) {
+    for (const id of ["grace", "daisy", "ballgame", "auld", "lining", "susanna", "entertainer", "stripes", "sweetheart", "afterball"]) {
       assert.ok(lists.some((p) => p.id === id), "missing playlist " + id);
     }
   });
@@ -562,5 +585,125 @@ describe("enqueue library banks songs without flipping VITAFEED_PAID", () => {
       setFeedBacklogPathForTests(null);
       try { rmSync(tmp, { recursive: true, force: true }); } catch { /* ignore */ }
     }
+  });
+});
+
+const V4_SONGS = [
+  {
+    id: "entertainer",
+    file: "The_Entertainer.ogg",
+    sha: "5d2d3353c991422c86d590ddb52e09820d641fabaa82a043bd606ac48d6e9cd0",
+    bytes: 1201443,
+    aliases: ["the-entertainer", "ragtime-two-step"],
+  },
+  {
+    id: "stripes",
+    file: "Stars_and_Stripes_Forever.ogg",
+    sha: "ba6296dc0875fddb2141510ee98120d05be4e4c12d7eb203364a41b187f11f14",
+    bytes: 1077142,
+    aliases: ["stars-and-stripes", "sousa"],
+  },
+  {
+    id: "sweetheart",
+    file: "Let_Me_Call_You_Sweetheart.ogg",
+    sha: "9559e20ceb661eb04ec01860db3c46029fbfbd888108b58a65f179b5e761f7ac",
+    bytes: 887184,
+    aliases: ["let-me-call", "friedman"],
+  },
+  {
+    id: "afterball",
+    file: "After_the_Ball.ogg",
+    sha: "44467cc6a2992e6e2dd3aae3321c2949143116922f76d82e500ff969ad61cfcb",
+    bytes: 726361,
+    aliases: ["after-the-ball", "gaskin"],
+  },
+];
+
+describe("catalog v4 PD songs + loc inspect", () => {
+  it("files four more real OGG bitstreams matching catalog sha256", () => {
+    const ids = listCatalogSongIds();
+    assert.ok(ids.length >= 12);
+    for (const s of V4_SONGS) {
+      const path = join(root, "vita/memory/free-music", s.file);
+      assert.equal(existsSync(path), true, s.file + " missing");
+      const bytes = readFileSync(path);
+      assert.equal(bytes.subarray(0, 4).toString("ascii"), "OggS");
+      assert.equal(bytes.length, s.bytes);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), s.sha);
+      assert.equal(resolveSongId(s.id), s.id);
+      for (const a of s.aliases) {
+        assert.equal(resolveSongId(a), s.id, a + " → " + s.id);
+      }
+    }
+    assert.equal(resolveSongId("joplin"), MAPLE_ID);
+    assert.equal(resolveSongId("entertainer"), "entertainer");
+    assert.equal(resolveSongId("ball"), "ballgame");
+    assert.equal(resolveSongId("afterball"), "afterball");
+    assert.equal(resolveSongId("after-the-ball"), "afterball");
+  });
+
+  it("inspect returns exact VIN UTF-8 whose sha equals dataFieldCommit", () => {
+    const packed = packetizeFreeMusic("afterball");
+    assert.equal(packed.ok, true);
+    const g = packed.groups[0];
+    const line = g.lines[0].line;
+    const inspected = inspectFreeMusicLoc({ packed, groupN: 1, index: 1 });
+    assert.equal(inspected.ok, true);
+    assert.equal(inspected.fedIntoPlayer, true);
+    assert.equal(inspected.trueToBlock, true);
+    assert.equal(inspected.line, line);
+    assert.equal(inspected.dataFieldCommit, g.lineCommits[0].contentCommit);
+    assert.equal(
+      createHash("sha256").update(inspected.line, "utf8").digest("hex"),
+      inspected.dataFieldCommit,
+    );
+    const again = inspectFreeMusicLoc({ id: "afterball", groupN: 1, index: 1 });
+    assert.equal(again.line, inspected.line);
+    assert.equal(again.dataFieldCommit, inspected.dataFieldCommit);
+    assert.equal(inspected.location, null);
+    assert.equal(inspected.match, "LOCAL_OK");
+    assert.equal(inspected.neverInventHashes, true);
+  });
+
+  it("blockchain loc MATCH uses the same inspect line (test fixture loc, not invented seal)", async () => {
+    const packed = packetizeFreeMusic("sweetheart");
+    assert.equal(packed.ok, true);
+    const line = packed.groups[0].lines[0].line;
+    const wantCommit = packed.groups[0].lineCommits[0].contentCommit;
+    const fakeTx = "0x" + "ab".repeat(32);
+    const proof = await buildFreeMusicLocProof({
+      id: "sweetheart",
+      packed,
+      sealedLocs: [{ groupN: 1, index: 1, location: fakeTx, utf8: line }],
+    });
+    assert.equal(proof.ok, true);
+    assert.equal(proof.rows[0].match, "MATCH");
+    assert.equal(proof.rows[0].dataFieldCommit, wantCommit);
+    assert.equal(proof.rows[0].pulledUtf8Commit, wantCommit);
+    assert.match(proof.rows[0].basescan, /basescan\.org\/tx\/0xab/);
+    const inspected = inspectFreeMusicLoc({ packed, groupN: 1, index: 1 });
+    assert.equal(inspected.line, line);
+    assert.equal(inspected.dataFieldCommit, wantCommit);
+    assert.equal(inspected.location, null);
+    const publicOne = publicFreeMusicLoc("sweetheart", 1, 1);
+    assert.equal(publicOne.ok, true);
+    assert.equal(publicOne.line, line);
+    const locLocal = buildFreeMusicLocProofLocal("stripes");
+    assert.equal(locLocal.ok, true);
+    assert.ok(locLocal.matched >= 1);
+    assert.equal(locLocal.rows[0].match, "LOCAL_OK");
+    assert.equal(provenMusicOnChain("stripes").chainDirName, "stars-and-stripes-forever");
+    assert.equal(provenMusicOnChain("stripes").proven, false);
+  });
+
+  it("packetizes entertainer and reconstructs original OGG", () => {
+    const packed = packetizeFreeMusic("entertainer");
+    assert.equal(packed.ok, true);
+    assert.equal(packed.sha256, V4_SONGS[0].sha);
+    for (const g of packed.groups) {
+      assert.ok(g.totalChunks <= MUSIC_GROUP_VIN_CAP);
+    }
+    const rebuilt = reconstructFreeMusicFromGroups(packed.groups);
+    assert.equal(rebuilt.sha256, packed.sha256);
   });
 });

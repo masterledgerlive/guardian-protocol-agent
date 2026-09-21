@@ -149,8 +149,10 @@ DOS master `VITA:\` (`vita-dir.js` `VITADIR_SUBDIRS`):
 - **Free catalog library:** `/vitafeed music` · `/vitafeed play <id>` ·
   `/vitafeed dir MUSIC` · `/vitafeed enqueue <id>` · `/vitafeed enqueue library`
   — growing PD OGG library (maple, judy rainbow lane, grace, daisy, ballgame,
-  auld, lining, susanna). Player `/vita/feed-player?music=<id>` shows loc MATCH +
-  Basescan Input Data click-through. Kids `?kids=1` hides hex/IDM until **Show
+  auld, lining, susanna, entertainer, stripes, sweetheart, afterball). Player
+  `/vita/feed-player?music=<id>` keeps a stable loc rail (loaded + loading bar +
+  next 1–2 blocks; rest tucked). Click a block → `/vita/free-music/loc` exact VIN
+  UTF-8 (sha256(line)=dataFieldCommit). Kids `?kids=1` hides hex/IDM until **Show
   blockchain** (localStorage `vitaMusicProof`). `/vitafeed enqueue all` is still
   memory seed — use `enqueue library` to bank songs. VITAFEED_PAID default OFF.
   Never Over the Rainbow Decca.

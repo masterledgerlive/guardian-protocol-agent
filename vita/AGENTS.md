@@ -80,19 +80,21 @@ and MACHINE lanes sealed into Basescan **Input Data** (clickable loc proofs).
 Until then the catalog is **availability** only (local/GitHub) — formula anchors
 are class proof, not this body.
 **Free-catalog songs (original blockchain playback):** `/vitafeed play maple` ·
-`/vitafeed play judy` · `/vitafeed play grace|daisy|ballgame|auld|lining|susanna` ·
+`/vitafeed play judy` · `/vitafeed play grace|daisy|ballgame|auld|lining|susanna|entertainer|stripes|sweetheart|afterball` ·
 `/vitafeed music` · `/vitafeed dir MUSIC` ·
 `/vitafeed enqueue <id>` · `/vitafeed enqueue library` · `/vitafeed dual judy` —
 growing US-PD library (Maple Leaf Rag, I'm Always Chasing Rainbows 1918 PD singing /
 Judy Garland free-catalog lane, Amazing Grace, Daisy Bell, Take Me Out to the Ball
-Game, Auld Lang Syne, Look for the Silver Lining, Oh! Susanna US Navy Band).
+Game, Auld Lang Syne, Look for the Silver Lining, Oh! Susanna US Navy Band,
+The Entertainer, Stars and Stripes Forever, Let Me Call You Sweetheart, After the Ball).
 Full OGG (not demo WAV, not URL blob) → grouped `§VITAFILE§` VIN (≤24/group).
 Loc proof daisy-chains filing → VIN dataFieldCommit → Basescan Input Data
-**MATCH** (highlighted click-through at `/vita/free-music/locs?id=<id>` · player
+**MATCH** (highlighted click-through at `/vita/free-music/locs?id=<id>` · inspect
+exact VIN UTF-8 at `/vita/free-music/loc?id=<id>&g=&i=` · player
 `?music=<id>`). Kids: `/vita/feed-player?music=<id>&kids=1` proof chrome default
-OFF (Show blockchain toggle). Live play advances HUMAN English + MACHINE/SNARK
-caption layers in order as each loc is “pulled” into the player (TV-style dual
-readers). Proven only when every group loc is a real Input Data hash —
+OFF (Show blockchain toggle). Live play keeps a **stable loc rail** (loaded
+block + loading bar + next 1–2 packets; rest tucked). Click a block to read the
+exact packet fed into the player. Proven only when every group loc is a real Input Data hash —
 never invent. Never Over the Rainbow Decca. VITAFEED_PAID stays default OFF.
 See `vita/free-music.js`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`

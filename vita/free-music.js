@@ -9,8 +9,12 @@
  *   daisy    — Daisy Bell / Bicycle Built for Two (1894 Edison cylinder)
  *   ballgame — Take Me Out to the Ball Game (1908 Meeker)
  *   auld     — Auld Lang Syne (1910 Frank C. Stanley)
- *   lining   — Look for the Silver Lining (1921 National Jukebox; rainbow-adjacent)
- *   susanna  — Oh! Susanna (US Navy Band PD-USGov; not the 1917 racist-verse cylinder)
+ *   lining      — Look for the Silver Lining (1921 National Jukebox; rainbow-adjacent)
+ *   susanna     — Oh! Susanna (US Navy Band PD-USGov; not the 1917 racist-verse cylinder)
+ *   entertainer — The Entertainer (Joplin 1902; Commons PD performance)
+ *   stripes     — The Stars and Stripes Forever (US Navy Band PD-USGov)
+ *   sweetheart  — Let Me Call You Sweetheart (1911 National Jukebox)
+ *   afterball   — After the Ball (1893 Edison / George J. Gaskin)
  *
  * Full OGG bytes (not a synthetic demo WAV, not a URL blob) split into
  * §VITAFILE§ groups that each fit the hourly VIN cap (24). Player concatenates
@@ -114,15 +118,23 @@ export function resolveSongId(sel = "") {
   if (/judy|garland|chasing|rainbow/.test(raw) && !/silver|lining/.test(raw)) {
     if (songs[JUDY_ID]) return JUDY_ID;
   }
-  if (/maple|joplin|rag/.test(raw)) {
-    if (songs[MAPLE_ID]) return MAPLE_ID;
+  if (/entertainer/.test(raw) && songs.entertainer) return "entertainer";
+  if (/maple|(?:maple-?leaf)|(?:^|\b)rag(?:\b|$)/.test(raw) && songs[MAPLE_ID]) {
+    return MAPLE_ID;
   }
+  if (raw === "joplin" && songs[MAPLE_ID]) return MAPLE_ID;
   if (/grace|amazing/.test(raw) && songs.grace) return "grace";
   if (/daisy|bicycle/.test(raw) && songs.daisy) return "daisy";
-  if (/ball|baseball|meeker/.test(raw) && songs.ballgame) return "ballgame";
+  if (/after-?the-?ball|afterball|gaskin/.test(raw) && songs.afterball) return "afterball";
+  if (/(?:ballgame|ball-game|baseball|take-me-out|meeker)/.test(raw) && songs.ballgame) {
+    return "ballgame";
+  }
+  if (raw === "ball" && songs.ballgame) return "ballgame";
   if (/auld|syne|new-?year|burns/.test(raw) && songs.auld) return "auld";
   if (/silver|lining|kern/.test(raw) && songs.lining) return "lining";
   if (/susanna|foster/.test(raw) && songs.susanna) return "susanna";
+  if (/stripes|sousa/.test(raw) && songs.stripes) return "stripes";
+  if (/sweetheart/.test(raw) && songs.sweetheart) return "sweetheart";
   return null;
 }
 
@@ -240,7 +252,10 @@ export function packetizeFreeMusic(id = MAPLE_ID) {
     if (!enc.ok) {
       return { ok: false, reason: "group " + n + " encode failed: " + enc.reason };
     }
-    const prepared = prepareVitaFeed(enc.body);
+    const vinId =
+      "VIN-" +
+      shortHex(sha256Hex(songId + "|g" + pad2(n) + "|" + enc.sha256), 10).toUpperCase();
+    const prepared = prepareVitaFeed(enc.body, { vinId });
     if (!prepared.ok) {
       return { ok: false, reason: "group " + n + " VIN prepare failed: " + prepared.reason };
     }
@@ -822,6 +837,7 @@ export function formatFreeMusicCard(dirOrId = MAPLE_ID) {
   lines.push("enqueue:  /vitafeed enqueue " + dir.id + "   (grouped VIN drain)");
   lines.push("dual:     /vitafeed dual " + dir.id + "      (HUMAN catalog + MACHINE group shas)");
   lines.push("locs:     /vita/free-music/locs?id=" + dir.id);
+  lines.push("inspect:  /vita/free-music/loc?id=" + dir.id + "&g=1&i=1  (exact VIN UTF-8)");
   lines.push("dir:      /vitafeed dir MUSIC");
   lines.push("href:     " + (dir.playerHref || vitaPlayerHref(dir.player)));
   lines.push("kids:     " + (dir.player || ("/vita/feed-player?music=" + dir.id)) + "&kids=1  (proof chrome default OFF)");
@@ -837,6 +853,7 @@ export function formatFreeMusicLibraryCard() {
   lines.push("original OGG · grouped §VITAFILE§ VIN ≤" + MUSIC_GROUP_VIN_CAP + "/group");
   lines.push("player=/vita/feed-player?music=<id>  ·  kids=?kids=1 (proof OFF)");
   lines.push("locs=/vita/free-music/locs?id=<id>  ·  Basescan Input Data → UTF-8 MATCH");
+  lines.push("inspect=/vita/free-music/loc?id=<id>&g=1&i=1  ·  exact VIN packet fed into player");
   lines.push("never invent hashes · never Over the Rainbow Decca · VITAFEED_PAID default OFF");
   lines.push("");
   for (const id of ids) {
@@ -1134,6 +1151,7 @@ export function publicFreeMusicPlay(id = MAPLE_ID) {
 export async function publicFreeMusicLocs(id = JUDY_ID, opts = {}) {
   const proof = await buildFreeMusicLocProof({ id, ...opts });
   if (!proof.ok) return { ok: false, error: proof.reason || "loc proof failed" };
+  const songId = proof.id || id;
   return {
     ok: true,
     ...proof,
@@ -1151,6 +1169,108 @@ export async function publicFreeMusicLocs(id = JUDY_ID, opts = {}) {
       highlight: r.highlight,
       clickThrough: r.clickThrough,
       idmChat: r.idmChat,
+      inspect:
+        "/vita/free-music/loc?id=" +
+        encodeURIComponent(songId) +
+        "&g=" +
+        r.groupN +
+        "&i=" +
+        r.index,
     })),
   };
+}
+
+/**
+ * Exact VIN UTF-8 packet the player feeds for one blockchain block.
+ * sha256(line) === dataFieldCommit. Never invents a tx hash — location is
+ * only a real sealed 0x loc from CHAINDIR when present.
+ */
+export function inspectFreeMusicLoc(opts = {}) {
+  const packed = opts.packed?.ok ? opts.packed : packetizeFreeMusic(opts.id || JUDY_ID);
+  if (!packed.ok) return packed;
+  const groupN = Number(opts.groupN ?? opts.g ?? 1);
+  const index = Number(opts.index ?? opts.i ?? 1);
+  if (!Number.isFinite(groupN) || groupN < 1) {
+    return { ok: false, reason: "need group g≥1" };
+  }
+  if (!Number.isFinite(index) || index < 1) {
+    return { ok: false, reason: "need loc index i≥1" };
+  }
+  const g = packed.groups.find((x) => x.n === groupN);
+  if (!g) {
+    return { ok: false, reason: "unknown group g" + groupN + " for " + packed.id };
+  }
+  const lineObj = (g.lines || []).find((l) => l.index === index);
+  if (!lineObj || !lineObj.line) {
+    return { ok: false, reason: "unknown loc g" + groupN + "." + index };
+  }
+  const lc = (g.lineCommits || []).find((c) => c.index === index);
+  const line = String(lineObj.line);
+  const dataFieldCommit = lc?.contentCommit || sha256Hex(line);
+  const pulledUtf8Commit = sha256Hex(line);
+  const trueToBlock = pulledUtf8Commit === dataFieldCommit;
+  const onChain = provenMusicOnChain(packed.id);
+  let location = null;
+  let basescan = null;
+  for (const p of onChain?.proofs || []) {
+    const tx = String(p.tx || p.location || "").toLowerCase();
+    if (isTxHash(tx)) {
+      location = tx;
+      basescan = p.basescan || basescanTx(tx);
+      break;
+    }
+  }
+  return {
+    ok: true,
+    id: packed.id,
+    title: packed.title,
+    songSha256: packed.sha256,
+    groupN,
+    index,
+    totalInGroup: g.totalChunks,
+    groupCount: packed.groupCount,
+    totalVin: packed.totalVin,
+    filingPath: g.filingPath,
+    vinId: g.vinId,
+    readerKey: g.readerKey,
+    groupSha: g.sha256,
+    groupOff: g.off,
+    groupLen: g.len,
+    lineHash: lineObj.hash,
+    dataFieldCommit,
+    pulledUtf8Commit,
+    match: trueToBlock ? (location ? "MATCH" : "LOCAL_OK") : "LOCAL_FAIL",
+    highlight: trueToBlock,
+    fedIntoPlayer: true,
+    trueToBlock,
+    line,
+    body: lineObj.body || "",
+    bytes: Buffer.byteLength(line, "utf8"),
+    bodyBytes: Buffer.byteLength(String(lineObj.body || ""), "utf8"),
+    location,
+    basescan,
+    clickThrough: Boolean(basescan),
+    idmChat: basescan
+      ? "Basescan → Input Data → View as UTF-8"
+      : "pending seal — never invent loc · this UTF-8 is the data field",
+    player: packed.player,
+    inspect:
+      "/vita/free-music/loc?id=" +
+      encodeURIComponent(packed.id) +
+      "&g=" +
+      groupN +
+      "&i=" +
+      index,
+    neverInventHashes: true,
+    note:
+      "Exact VIN UTF-8 data field fed into the player for this block. " +
+      "sha256(line) must equal dataFieldCommit. Concat of decoded §VITAFILE§ " +
+      "bodies reconstructs the original OGG. Formula anchors are class proof only.",
+  };
+}
+
+export function publicFreeMusicLoc(id = JUDY_ID, g = 1, i = 1) {
+  const inspected = inspectFreeMusicLoc({ id, groupN: Number(g) || 1, index: Number(i) || 1 });
+  if (!inspected.ok) return { ok: false, error: inspected.reason || "inspect failed" };
+  return inspected;
 }
