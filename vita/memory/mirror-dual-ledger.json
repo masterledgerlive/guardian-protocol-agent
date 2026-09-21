@@ -327,9 +327,27 @@
       "leader": "filing",
       "bootOk": true,
       "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
+    },
+    {
+      "at": "2026-09-21T02:16:18.210Z",
+      "kind": "§VITABOOT§",
+      "section": {
+        "id": "hitch-gate",
+        "file": "vita/mainframe.js",
+        "exportName": "originalFormulaHitchDecision"
+      },
+      "filename": "vita/mainframe.js",
+      "pathMode": null,
+      "ok": true,
+      "zeroProofKey": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+      "contentCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+      "provenOnChain": false,
+      "leader": "filing",
+      "bootOk": true,
+      "note": "Booted from filing SNARK CAS (follow-leader). Base seal still pending — no invented hashes."
     }
   ],
   "neverInventHashes": true,
-  "at": "2026-09-21T02:12:50.464Z",
+  "at": "2026-09-21T02:16:18.210Z",
   "formula": "original-message-first"
 }
