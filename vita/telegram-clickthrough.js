@@ -78,14 +78,14 @@ export function buildPlayerPopupKeyboard({
   if (includeDemo && !/demo=1/.test(String(playerPath))) {
     rows.push([webAppBtn("▶ Demo player", demoHref), urlBtn("↗ Demo", demoHref)]);
   }
-  if (!/music=judy/.test(String(playerPath))) {
-    const judyHref = vitaPlayerHref("/vita/feed-player?music=judy");
-    rows.push([webAppBtn("▶ Judy Rainbows", judyHref), urlBtn("↗ Judy", judyHref)]);
+  if (!/music=/.test(String(playerPath))) {
+    const musicHref = vitaPlayerHref("/vita/feed-player?music=judy");
+    rows.push([webAppBtn("▶ MUSIC library", musicHref), urlBtn("↗ MUSIC", musicHref)]);
   }
-  if (!/music=maple/.test(String(playerPath))) {
-    const mapleHref = vitaPlayerHref("/vita/feed-player?music=maple");
-    rows.push([webAppBtn("▶ Maple Leaf Rag", mapleHref), urlBtn("↗ Maple", mapleHref)]);
-  }
+  rows.push([
+    btn("🎵 Music", "/vitafeed music"),
+    btn("📦 Enqueue lib", "/vitafeed enqueue library"),
+  ]);
   rows.push([
     btn("📋 KIDS list", "/vitafeed dir KIDS"),
     btn("🔤 Dual", "/vitafeed dual kids"),
@@ -111,6 +111,7 @@ export function buildVitaFeedRootKeyboard() {
       [
         btn("📂 Dir", "/vitafeed dir"),
         btn("🧒 KIDS", "/vitafeed play kids"),
+        btn("🎵 MUSIC", "/vitafeed music"),
         btn("🌈 Judy", "/vitafeed play judy"),
         btn("🎹 Maple", "/vitafeed play maple"),
         btn("⛓ Chain dir", "/vitafeed chaindir"),

@@ -80,16 +80,21 @@ and MACHINE lanes sealed into Basescan **Input Data** (clickable loc proofs).
 Until then the catalog is **availability** only (local/GitHub) — formula anchors
 are class proof, not this body.
 **Free-catalog songs (original blockchain playback):** `/vitafeed play maple` ·
-`/vitafeed play judy` · `/vitafeed music` · `/vitafeed dir MUSIC` ·
-`/vitafeed enqueue maple|judy` · `/vitafeed dual judy` — Maple Leaf Rag (1899 PD)
-+ *I'm Always Chasing Rainbows* (1918 PD singing, Judy Garland free-catalog lane).
+`/vitafeed play judy` · `/vitafeed play grace|daisy|ballgame|auld|lining|susanna` ·
+`/vitafeed music` · `/vitafeed dir MUSIC` ·
+`/vitafeed enqueue <id>` · `/vitafeed enqueue library` · `/vitafeed dual judy` —
+growing US-PD library (Maple Leaf Rag, I'm Always Chasing Rainbows 1918 PD singing /
+Judy Garland free-catalog lane, Amazing Grace, Daisy Bell, Take Me Out to the Ball
+Game, Auld Lang Syne, Look for the Silver Lining, Oh! Susanna US Navy Band).
 Full OGG (not demo WAV, not URL blob) → grouped `§VITAFILE§` VIN (≤24/group).
 Loc proof daisy-chains filing → VIN dataFieldCommit → Basescan Input Data
-**MATCH** (highlighted click-through at `/vita/free-music/locs?id=judy` · player
-`?music=judy`). Live play advances HUMAN English + MACHINE/SNARK caption layers
-in order as each loc is “pulled” into the player (TV-style dual readers). Proven
-only when every group loc is a real Input Data hash —
-never invent. See `vita/free-music.js`.
+**MATCH** (highlighted click-through at `/vita/free-music/locs?id=<id>` · player
+`?music=<id>`). Kids: `/vita/feed-player?music=<id>&kids=1` proof chrome default
+OFF (Show blockchain toggle). Live play advances HUMAN English + MACHINE/SNARK
+caption layers in order as each loc is “pulled” into the player (TV-style dual
+readers). Proven only when every group loc is a real Input Data hash —
+never invent. Never Over the Rainbow Decca. VITAFEED_PAID stays default OFF.
+See `vita/free-music.js`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
 song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to

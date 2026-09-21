@@ -28,7 +28,13 @@ findable.
 | `vita/free-music.js` | `FREEMUSIC` | Public-domain song catalog · grouped §VITAFILE§ VIN inject · original OGG playback · loc MATCH click-through |
 | `vita/memory/free-music/Maple_Leaf_Rag.ogg` | `FREEMUSIC` | Scott Joplin Maple Leaf Rag (1899, PD) — full Ogg Vorbis, not a demo WAV |
 | `vita/memory/free-music/Im_Always_Chasing_Rainbows.ogg` | `FREEMUSIC` | 1918 PD singing (Harry Fox) — Judy Garland free-catalog rainbow lane |
-| `vita/memory/free-music-catalog.json` | `FREEMUSIC` | Multi-song source, license, sha256, grouped inject plans (maple + judy) |
+| `vita/memory/free-music/Amazing_Grace.ogg` | `FREEMUSIC` | 1922 Sacred Harp Amazing Grace (PD-US-record-expired) |
+| `vita/memory/free-music/Daisy_Bell.ogg` | `FREEMUSIC` | 1894 Edison cylinder Daisy Bell / Bicycle Built for Two |
+| `vita/memory/free-music/Take_Me_Out_to_the_Ball_Game.ogg` | `FREEMUSIC` | 1908 Edward Meeker Edison cylinder |
+| `vita/memory/free-music/Auld_Lang_Syne.ogg` | `FREEMUSIC` | 1910 Frank C. Stanley Indestructible Record |
+| `vita/memory/free-music/Look_for_the_Silver_Lining.ogg` | `FREEMUSIC` | 1921 National Jukebox rainbow-adjacent PD singing (not Over the Rainbow Decca) |
+| `vita/memory/free-music/Oh_Susanna.ogg` | `FREEMUSIC` | US Navy Band PD-USGov Oh! Susanna (not the 1917 racist-verse cylinder) |
+| `vita/memory/free-music-catalog.json` | `FREEMUSIC` | Multi-song source, license, sha256, grouped inject plans (growing PD library) |
 | `vita/memory/free-music-learn.json` | `FREEMUSIC` | Append-only learn: grouped VIN → concat → original playback |
 | `vita/memory/free-music-judy-learn.json` | `FREEMUSIC` | Judy lane learn + loc daisy-chain proof |
 | `vita/strands/free-music.json` | `FREEMUSIC` | Sparse strand: free catalog → grouped inject → feed-player |
@@ -107,7 +113,7 @@ findable.
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
 | `CHAINDIR` | Line-for-line completion directory (`§VITACHAINDIR§`) — HUMAN+MACHINE loc proofs in Input Data; routing until both sealed |
 | `URLDIR` | Curated URL playlist directory (`§VITAURLDIR§`) — closed-garden YouTube urls for `/vita/kids-player`; kids PIN lock (default 0000); dual HUMAN list + MACHINE ids |
-| `FREEMUSIC` | Free-catalog PD song (`§VITAMUSIC§`) — grouped §VITAFILE§ VIN slices; original audio/ogg playback; loc daisy-chain MATCH click-through (maple + judy) |
+| `FREEMUSIC` | Free-catalog PD song (`§VITAMUSIC§`) — grouped §VITAFILE§ VIN slices; original audio/ogg playback; loc daisy-chain MATCH click-through (growing library) |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MIRROR_DUAL` | Dual-path mirror (`§VITADUALPATH§` / `§VITABOOT§`) — same file name on GitHub + filing; availability\|proven reader; zero-proof name+contentCommit; SNARK boot from CAS follow-leader |

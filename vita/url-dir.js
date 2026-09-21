@@ -268,37 +268,60 @@ export function listUrlDirectories() {
 /** Playlists already loaded in the system — picker + Telegram popup. */
 export function systemPlaylists() {
   const demoPath = KIDS_FEED_PLAYER_PATH + "?demo=1";
-  const maplePath = KIDS_FEED_PLAYER_PATH + "?music=maple";
-  const judyPath = KIDS_FEED_PLAYER_PATH + "?music=judy";
-  const out = [
-    {
-      id: "judy",
-      label: "MUSIC",
-      title: "I'm Always Chasing Rainbows (Judy Garland lane · PD 1918)",
-      kind: "audio",
-      count: 1,
-      player: judyPath,
-      playerHref: vitaPlayerHref(judyPath),
-    },
-    {
-      id: "maple",
-      label: "MUSIC",
-      title: "Maple Leaf Rag (Scott Joplin)",
-      kind: "audio",
-      count: 1,
-      player: maplePath,
-      playerHref: vitaPlayerHref(maplePath),
-    },
-    {
-      id: "demo",
-      label: "DEMO",
-      title: "Demo beep (WAV)",
-      kind: "audio",
-      count: 1,
-      player: demoPath,
-      playerHref: vitaPlayerHref(demoPath),
-    },
-  ];
+  const out = [];
+  // Growing free-catalog library from catalog JSON (avoid circular import with free-music.js).
+  try {
+    const cat = JSON.parse(readFileSync(join(HERE, "memory/free-music-catalog.json"), "utf8"));
+    const songs = Object.values(cat.songs || {});
+    const ordered = [
+      ...songs.filter((s) => s.id === "judy"),
+      ...songs.filter((s) => s.id !== "judy"),
+    ];
+    for (const s of ordered) {
+      const path = s.player || (KIDS_FEED_PLAYER_PATH + "?music=" + s.id);
+      out.push({
+        id: s.id,
+        label: "MUSIC",
+        title: (s.title || s.id) + (s.performer ? " — " + s.performer : ""),
+        kind: "audio",
+        count: 1,
+        player: path,
+        playerHref: vitaPlayerHref(path),
+      });
+    }
+  } catch {
+    const maplePath = KIDS_FEED_PLAYER_PATH + "?music=maple";
+    const judyPath = KIDS_FEED_PLAYER_PATH + "?music=judy";
+    out.push(
+      {
+        id: "judy",
+        label: "MUSIC",
+        title: "I'm Always Chasing Rainbows (Judy Garland lane · PD 1918)",
+        kind: "audio",
+        count: 1,
+        player: judyPath,
+        playerHref: vitaPlayerHref(judyPath),
+      },
+      {
+        id: "maple",
+        label: "MUSIC",
+        title: "Maple Leaf Rag (Scott Joplin)",
+        kind: "audio",
+        count: 1,
+        player: maplePath,
+        playerHref: vitaPlayerHref(maplePath),
+      },
+    );
+  }
+  out.push({
+    id: "demo",
+    label: "DEMO",
+    title: "Demo beep (WAV)",
+    kind: "audio",
+    count: 1,
+    player: demoPath,
+    playerHref: vitaPlayerHref(demoPath),
+  });
   for (const d of listUrlDirectories().dirs) out.push(d);
   return out;
 }

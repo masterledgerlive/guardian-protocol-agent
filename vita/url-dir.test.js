@@ -235,6 +235,8 @@ describe("player surfaces exist", () => {
     assert.match(html, /yt-shield|ytShield/);
     assert.match(html, /DEFAULT_PIN|0000/);
     assert.match(html, /btnPause/);
+    assert.match(html, /kids=1/);
+    assert.match(html, /\/vita\/free-music/);
     const hook = readFileSync(join(root, "vita-webhook.js"), "utf8");
     assert.match(hook, /\/vita\/kids-player/);
     assert.match(hook, /\/vita\/url-dir/);
@@ -247,6 +249,8 @@ describe("player surfaces exist", () => {
     assert.match(feed, /playlistPick/);
     assert.match(feed, /liveReaders|readerHuman|MACHINE · SNARK|timeupdate|paintLiveLoc/);
     assert.match(feed, /loc-active|loc-ticker/);
+    assert.match(feed, /btnProof|Show blockchain|vitaMusicProof/);
+    assert.match(feed, /btnNextSong/);
   });
 
   it("public HTTPS popup href + system playlists", () => {

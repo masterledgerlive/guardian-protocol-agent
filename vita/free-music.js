@@ -1,21 +1,27 @@
 /**
  * Free-catalog songs → grouped VIN injections → original blockchain playback.
  *
- * Songs (Wikimedia / National Jukebox public-domain singing & performance):
- *   maple — Maple Leaf Rag (Scott Joplin, 1899)
- *   judy  — I'm Always Chasing Rainbows (1918 PD singing; Judy Garland free-catalog
- *           rainbow lane — her 1939 Over the Rainbow Decca is rights-restricted)
+ * Songs (Wikimedia / National Jukebox / US-gov public-domain singing & performance):
+ *   maple    — Maple Leaf Rag (Scott Joplin, 1899)
+ *   judy     — I'm Always Chasing Rainbows (1918 PD singing; Judy Garland free-catalog
+ *              rainbow lane — her 1939 Over the Rainbow Decca is rights-restricted)
+ *   grace    — Amazing Grace (1922 Sacred Harp)
+ *   daisy    — Daisy Bell / Bicycle Built for Two (1894 Edison cylinder)
+ *   ballgame — Take Me Out to the Ball Game (1908 Meeker)
+ *   auld     — Auld Lang Syne (1910 Frank C. Stanley)
+ *   lining   — Look for the Silver Lining (1921 National Jukebox; rainbow-adjacent)
+ *   susanna  — Oh! Susanna (US Navy Band PD-USGov; not the 1917 racist-verse cylinder)
  *
  * Full OGG bytes (not a synthetic demo WAV, not a URL blob) split into
  * §VITAFILE§ groups that each fit the hourly VIN cap (24). Player concatenates
  * sealed Input Data (or local packet reconstruction) and plays the original
  * audio/ogg. Location proof daisy-chains filing → group sha → VIN → Basescan
  * Input Data UTF-8 and highlights click-through matches. Never invent tx hashes.
- * Mother brain untouched.
+ * Mother brain untouched. VITAFEED_PAID stays default OFF.
  *
- * Telegram: /vitafeed play maple|judy · /vitafeed music · /vitafeed enqueue judy
- * · /vitafeed dual judy · /vitafeed dir MUSIC
- * Player: /vita/feed-player?music=judy · /vita/feed-player?music=maple
+ * Telegram: /vitafeed play <id> · /vitafeed music · /vitafeed enqueue <id>
+ * · /vitafeed enqueue library · /vitafeed dual judy · /vitafeed dir MUSIC
+ * Player: /vita/feed-player?music=<id> · kids: ?kids=1 (proof chrome default OFF)
  */
 
 import { createHash } from "node:crypto";
@@ -104,21 +110,46 @@ export function resolveSongId(sel = "") {
     const aliases = (meta.aliases || []).map((a) => String(a).toLowerCase());
     if (aliases.includes(raw)) return id;
   }
-  // loose judy / rainbow match
-  if (/judy|garland|chasing|rainbow/.test(raw)) {
+  // loose judy / rainbow match — lining is silver-lining, not Over the Rainbow
+  if (/judy|garland|chasing|rainbow/.test(raw) && !/silver|lining/.test(raw)) {
     if (songs[JUDY_ID]) return JUDY_ID;
   }
   if (/maple|joplin|rag/.test(raw)) {
     if (songs[MAPLE_ID]) return MAPLE_ID;
   }
+  if (/grace|amazing/.test(raw) && songs.grace) return "grace";
+  if (/daisy|bicycle/.test(raw) && songs.daisy) return "daisy";
+  if (/ball|baseball|meeker/.test(raw) && songs.ballgame) return "ballgame";
+  if (/auld|syne|new-?year|burns/.test(raw) && songs.auld) return "auld";
+  if (/silver|lining|kern/.test(raw) && songs.lining) return "lining";
+  if (/susanna|foster/.test(raw) && songs.susanna) return "susanna";
   return null;
+}
+
+export function listCatalogSongIds() {
+  return Object.keys(listCatalogSongs());
+}
+
+/** True when Telegram enqueue should bank the whole free-music library (not memory seed). */
+export function isMusicLibraryEnqueue(sel = "") {
+  const s = String(sel || "").trim().toLowerCase();
+  if (!s) return false;
+  return (
+    s === "library" ||
+    s === "playlist" ||
+    s === "songs" ||
+    s === "music-all" ||
+    s === "all-music" ||
+    s === "music library" ||
+    s === "music all"
+  );
 }
 
 export function loadSongMeta(id = MAPLE_ID) {
   const resolved = resolveSongId(id) || MAPLE_ID;
   const songs = listCatalogSongs();
   const meta = songs[resolved];
-  if (!meta) return { ok: false, reason: "unknown free-catalog song — try maple or judy" };
+  if (!meta) return { ok: false, reason: "unknown free-catalog song — try /vitafeed music" };
   return { ok: true, id: resolved, meta };
 }
 
@@ -720,7 +751,7 @@ export function freeMusicEntriesFor() {
       try { return statSync(CATALOG_PATH).size; } catch { return 0; }
     })(),
     unlockName: "free-music-catalog.json",
-    english: "Free-catalog metadata + grouped inject plans (maple + judy). Proven only after every group loc seals.",
+    english: "Free-catalog metadata + grouped inject plans (" + Object.keys(listCatalogSongs()).join(", ") + "). Proven only after every group loc seals.",
     machine: "CATALOG songs=" + Object.keys(listCatalogSongs()).join(","),
     locations: MAINFRAME_ANCHORS.known.map((a) => a.tx),
     trueName: "free-music-catalog",
@@ -793,6 +824,39 @@ export function formatFreeMusicCard(dirOrId = MAPLE_ID) {
   lines.push("locs:     /vita/free-music/locs?id=" + dir.id);
   lines.push("dir:      /vitafeed dir MUSIC");
   lines.push("href:     " + (dir.playerHref || vitaPlayerHref(dir.player)));
+  lines.push("kids:     " + (dir.player || ("/vita/feed-player?music=" + dir.id)) + "&kids=1  (proof chrome default OFF)");
+  return lines.join("\n");
+}
+
+export function formatFreeMusicLibraryCard() {
+  const songs = listCatalogSongs();
+  const ids = Object.keys(songs);
+  const lines = [];
+  lines.push(FREEMUSIC_MAGIC + "v1|library|n=" + ids.length + "§");
+  lines.push("FREE CATALOG LIBRARY · " + ids.length + " PD songs");
+  lines.push("original OGG · grouped §VITAFILE§ VIN ≤" + MUSIC_GROUP_VIN_CAP + "/group");
+  lines.push("player=/vita/feed-player?music=<id>  ·  kids=?kids=1 (proof OFF)");
+  lines.push("locs=/vita/free-music/locs?id=<id>  ·  Basescan Input Data → UTF-8 MATCH");
+  lines.push("never invent hashes · never Over the Rainbow Decca · VITAFEED_PAID default OFF");
+  lines.push("");
+  for (const id of ids) {
+    const s = songs[id];
+    lines.push(
+      id.padEnd(10) +
+        "  " +
+        (s.title || id) +
+        (s.performer ? " — " + s.performer : "") +
+        "  " +
+        (s.bytes || "?") +
+        "B",
+    );
+  }
+  lines.push("");
+  lines.push("play:     /vitafeed play <id>");
+  lines.push("enqueue:  /vitafeed enqueue <id>   (one song, grouped VIN drain)");
+  lines.push("library:  /vitafeed enqueue library  (bank every song · not memory seed)");
+  lines.push("dual:     /vitafeed dual <id>");
+  lines.push("dir:      /vitafeed dir MUSIC");
   return lines.join("\n");
 }
 
@@ -945,6 +1009,57 @@ export function enqueueFreeMusicGroups({
       "Grouped VIN drain: /vitafeed next then confirm|override. Hourly cap " +
       MUSIC_GROUP_VIN_CAP +
       " matches one group. Never invent hashes. VITAFEED_PAID stays default OFF.",
+  };
+}
+
+/**
+ * Bank every catalog song (or a subset) into the feed backlog — thrift grouped VIN.
+ * Does not enable VITAFEED_PAID / FORCE / AUTOFIRE. Drain via next → confirm|override.
+ */
+export function enqueueFreeMusicLibrary({
+  enqueueFn = null,
+  includeManifest = true,
+  ids = null,
+} = {}) {
+  const songIds = Array.isArray(ids) && ids.length ? ids : listCatalogSongIds();
+  const songs = [];
+  let added = 0;
+  let skipped = 0;
+  let groupCount = 0;
+  let totalVin = 0;
+  for (const id of songIds) {
+    const queued = enqueueFreeMusicGroups({ enqueueFn, includeManifest, id });
+    if (!queued.ok) {
+      songs.push({ id, ok: false, reason: queued.reason });
+      skipped += 1;
+      continue;
+    }
+    added += queued.added || 0;
+    skipped += queued.skipped || 0;
+    groupCount += queued.groupCount || 0;
+    totalVin += queued.totalVin || 0;
+    songs.push({
+      id,
+      ok: true,
+      added: queued.added,
+      skipped: queued.skipped,
+      groupCount: queued.groupCount,
+      totalVin: queued.totalVin,
+    });
+  }
+  return {
+    ok: true,
+    library: true,
+    ids: songIds,
+    songCount: songIds.length,
+    added,
+    skipped,
+    groupCount,
+    totalVin,
+    songs,
+    note:
+      "Library grouped VIN drain: /vitafeed next then confirm|override. " +
+      "Does not replace /vitafeed enqueue all (memory seed). VITAFEED_PAID stays default OFF.",
   };
 }
 

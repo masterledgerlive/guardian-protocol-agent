@@ -387,6 +387,15 @@
     const q = new URLSearchParams(location.search);
     const dirId = (q.get("dir") || q.get("playlist") || "kids").toLowerCase();
     const startN = Math.max(1, Number(q.get("i") || q.get("n") || 1) || 1);
+
+    // Music library lives on the feed-player (loc proof + kids proof toggle).
+    if (q.get("music") || q.get("song")) {
+      const extra = [];
+      extra.push("kids=1");
+      if (q.get("popup") === "1") extra.push("popup=1");
+      const id = q.get("music") || "maple";
+      location.replace("/vita/feed-player?music=" + encodeURIComponent(id) + "&" + extra.join("&"));
+    }
     const PIN_KEY = "vitaKidsPin";
     const LOCK_KEY = "vitaKidsLocked";
     const DEFAULT_PIN = "0000";
@@ -548,16 +557,28 @@
     async function fillPlaylists() {
       const sel = el("playlistPick");
       if (!sel) return;
-      const opts = [
-        { id: "judy", title: "I'm Always Chasing Rainbows (Judy lane)", href: "/vita/feed-player?music=judy&popup=1" },
-        { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&popup=1" },
-        { id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
-      ];
+      const opts = [];
+      try {
+        const cat = await fetch("/vita/free-music").then((r) => r.json());
+        for (const p of cat.playlists || []) {
+          opts.push({
+            id: p.id,
+            title: p.title || p.id,
+            href: "/vita/feed-player?music=" + encodeURIComponent(p.id) + "&kids=1&popup=1",
+          });
+        }
+      } catch (_) {
+        opts.push(
+          { id: "judy", title: "I'm Always Chasing Rainbows (Judy lane)", href: "/vita/feed-player?music=judy&kids=1&popup=1" },
+          { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&kids=1&popup=1" },
+        );
+      }
+      opts.push({ id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" });
       try {
         const data = await fetch("/vita/url-dir").then((r) => r.json());
         const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
         for (const d of lists) {
-          if (!d || d.id === "demo" || d.id === "maple" || d.id === "judy") continue;
+          if (!d || opts.some((o) => o.id === d.id)) continue;
           opts.push({
             id: String(d.id),
             title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
