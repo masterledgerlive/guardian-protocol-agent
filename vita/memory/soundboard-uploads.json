@@ -1,0 +1,6 @@
+{
+  "id": "soundboard-uploads-v1",
+  "filingLabel": "SOUNDBOARD",
+  "items": [],
+  "note": "Append-only upload ledger — each item gets zeroOpenKey name+contentCommit"
+}

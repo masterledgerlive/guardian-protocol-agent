@@ -341,7 +341,7 @@ function helpText() {
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
     "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
     "/vitamothergenesis FORCE recall — force-bank layered recall stack (queries last)",
-    "/vitafeed [text|file|brain|backlog|enqueue|next|dir|unlock|kids|music] — VITAFILE; DOS dir; KIDS url dir; MUSIC grouped song; PLAYERS Garden+Proven; open-source unlock; files|play|keys; confirm|override → /vita/players/garden · /vita/players/proven · /vita/feed-player · /vita/kids-player · ?music=maple",
+    "/vitafeed [text|file|brain|backlog|enqueue|next|dir|unlock|kids|music|board|pad|prompt] — VITAFILE; DOS dir; KIDS url dir; MUSIC grouped song; BOARD DJ pads; PLAYERS Garden+Proven; open-source unlock; files|play|keys; confirm|override → /vita/players/garden · /vita/players/proven · /vita/feed-player · /vita/kids-player · /vita/soundboard · ?music=maple",
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",

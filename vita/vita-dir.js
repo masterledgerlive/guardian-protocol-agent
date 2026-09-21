@@ -7,7 +7,7 @@
  *     MEMORY\    STRANDS\   LEARN\
  *     REF_LIB\   CODEX\     MG_RECALL\
  *     LIBRARY\   PROVEN\   KIDS\
- *     PLAYERS\   MUSIC\     CHAIN\    X404\
+ *     PLAYERS\   MUSIC\     BOARD\    CHAIN\    X404\
  *     AGENTS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
@@ -28,6 +28,7 @@ import { loadRecallBank } from "./mg-recall-bank.js";
 import { urlDirEntriesFor } from "./url-dir.js";
 import { chainDirEntriesFor } from "./chain-dir.js";
 import { freeMusicEntriesFor } from "./free-music.js";
+import { soundboardEntriesFor } from "./soundboard.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 import { playerDirEntriesFor } from "./players/index.js";
 
@@ -57,6 +58,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "KIDS", role: "closed-garden YouTube URL playlist", filing: "URLDIR" },
   { name: "PLAYERS", role: "named Garden + Proven players · SOURCE|REFERENCE filer", filing: "PLAYERS" },
   { name: "MUSIC", role: "free-catalog PD song · grouped VIN playback", filing: "FREEMUSIC" },
+  { name: "BOARD", role: "DJ soundboard pads · prompted bites · zero-open-key VIN", filing: "SOUNDBOARD" },
   { name: "CHAIN", role: "on-chain completion directory · loc proofs", filing: "CHAINDIR" },
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
@@ -371,6 +373,8 @@ function dirEntriesFor(subdir) {
     (playerDirEntriesFor().entries || []).forEach((e) => out.push(e));
   } else if (name === "MUSIC" || name === "FREEMUSIC") {
     freeMusicEntriesFor().forEach((e) => out.push(e));
+  } else if (name === "BOARD" || name === "SOUNDBOARD" || name === "PADS") {
+    soundboardEntriesFor().forEach((e) => out.push(e));
   } else if (name === "CHAIN" || name === "CHAINDIR") {
     chainDirEntriesFor().forEach((e) => out.push(e));
   } else if (name === "X404") {
@@ -574,7 +578,7 @@ function playGoalHint(mime, kind) {
   const m = String(mime || "");
   const k = String(kind || "");
   if (m.startsWith("audio/") || k === "audio" || k === "vitafile-group") {
-    return "song → /vitafeed play <id> · /vita/feed-player?music=<id> · locs /vita/free-music/locs?id=<id>";
+    return "song → /vitafeed play <id> · /vita/feed-player?music=<id> · board → /vitafeed pad <id> · /vita/soundboard?pad=<id>";
   }
   if (m.startsWith("video/") || k === "video") return "movie → /vitafeed play · feed-player";
   if (k === "youtube" || k === "url" || m.includes("uri-list") || m.includes("mpegurl")) {

@@ -40,6 +40,12 @@ findable.
 | `vita/strands/telegram-player-popup.json` | `URLDIR` | Sparse strand: Telegram Watch popup → compact player → system playlists |
 | `vita/strands/kids-url-dir.json` | `URLDIR` | Sparse strand: KIDS url dir → player → dual HUMAN/MACHINE |
 | `vita/free-music.js` | `FREEMUSIC` | Public-domain song catalog · grouped §VITAFILE§ VIN inject · original OGG playback · loc MATCH click-through |
+| `vita/soundboard.js` | `SOUNDBOARD` | DJ soundboard · procedural meme pads · prompted music bites · upload → §VITAFILE§ VIN · zero-snark open key · loc rail LOCAL_OK\|MATCH\|CLASS_PROOF |
+| `public/vita-soundboard.html` | `SOUNDBOARD` | Telegram Mini App / browser DJ pad board · waveform · click-through loc rail |
+| `vita/memory/soundboard/` | `SOUNDBOARD` | Pad WAV bytes (procedural + prompted + uploads) |
+| `vita/memory/soundboard-catalog.json` | `SOUNDBOARD` | Pad catalog · sha256 · zeroOpenKey · waveform peaks |
+| `vita/memory/soundboard-learn.json` | `SOUNDBOARD` | Append-only learn: ensure / prompt / upload / enqueue |
+| `vita/strands/soundboard.json` | `SOUNDBOARD` | Sparse strand: board → inject → reader MATCH |
 | `vita/memory/free-music/Maple_Leaf_Rag.ogg` | `FREEMUSIC` | Scott Joplin Maple Leaf Rag (1899, PD) — full Ogg Vorbis, not a demo WAV |
 | `vita/memory/free-music/Im_Always_Chasing_Rainbows.ogg` | `FREEMUSIC` | 1918 PD singing (Harry Fox) — Judy Garland free-catalog rainbow lane |
 | `vita/memory/free-music/Amazing_Grace.ogg` | `FREEMUSIC` | 1922 Sacred Harp Amazing Grace (PD-US-record-expired) |
@@ -152,6 +158,7 @@ findable.
 | `REFERENCE` | Reference block (`§VITAREFBLOCK§`) — front·mid·back identity; data field of touched paths |
 | `SOURCE` | Original file location kept after reroute (never deleted) |
 | `FREEMUSIC` | Free-catalog PD song (`§VITAMUSIC§`) — grouped §VITAFILE§ VIN slices; original audio/ogg playback; loc daisy-chain MATCH click-through (growing library) |
+| `SOUNDBOARD` | DJ soundboard (`§VITABOARD§`) — procedural pads + prompted bites + uploads; zero-snark open key (name+contentCommit); inject → Basescan Input Data; loc rail LOCAL_OK \| MATCH \| CLASS_PROOF (class ≠ pad body) |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MIRROR_DUAL` | Dual-path mirror (`§VITADUALPATH§` / `§VITABOOT§`) — same file name on GitHub + filing; availability\|proven reader; zero-proof name+contentCommit; SNARK boot from CAS follow-leader |

@@ -1,0 +1,28 @@
+{
+  "id": "soundboard-learn-v1",
+  "filingLabel": "SOUNDBOARD",
+  "events": [
+    {
+      "at": "2026-09-21T18:52:51.529Z",
+      "kind": "ensure-builtin",
+      "grew": 16,
+      "padCount": 16,
+      "note": "procedural DJ pads seeded"
+    },
+    {
+      "at": "2026-09-21T18:53:04.127Z",
+      "kind": "prompt-pad",
+      "id": "testbeep",
+      "prompt": "square beep 660hz 0.08s",
+      "sha256": "3d44f59bf867d6b020144d121a584d104a7dcb8233427a8640dd3b3eb31aca5b"
+    },
+    {
+      "at": "2026-09-21T18:53:04.155Z",
+      "kind": "upload-pad",
+      "id": "u23c900bc",
+      "name": "my-tick.wav",
+      "sha256": "23c900bc4de4f5b5f9b4626180bbee28c6d036ccd2e1db8c3e087e736fb64160"
+    }
+  ],
+  "updatedAt": "2026-09-21T18:53:04.155Z"
+}

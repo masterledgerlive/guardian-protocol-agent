@@ -666,6 +666,19 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
       source: "music",
     };
   }
+  // DJ soundboard — pads, prompted bites, uploads.
+  if (/^(?:board|soundboard|pads|dj)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:board|soundboard|pads|dj)\s*/i, "").trim();
+    return { ok: true, action: "board", body: rest, source: "board" };
+  }
+  if (/^(?:pad|hit|trigger)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:pad|hit|trigger)\s*/i, "").trim();
+    return { ok: true, action: "pad", body: rest, selector: rest, source: "pad" };
+  }
+  if (/^(?:prompt|bite|synth)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:prompt|bite|synth)\s*/i, "").trim();
+    return { ok: true, action: "prompt", body: rest, source: "prompt" };
+  }
   if (/^(?:chaindir|chain-dir|chdir)(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:chaindir|chain-dir|chdir)\s*/i, "").trim();
     return { ok: true, action: "chaindir", body: rest, source: "chaindir" };
@@ -789,13 +802,22 @@ export function vitaFeedUsageText() {
     "  /vitafeed play maple|judy|grace|daisy|ballgame|auld|lining|susanna|entertainer|stripes|sweetheart|afterball",
     "  /vitafeed music            — growing PD library card (Maple, Judy rainbow lane, …)",
     "  /vitafeed music <id>       — one-song grouped inject plan + loc proof",
+    "  /vitafeed board            — DJ soundboard pad grid (Telegram buttons)",
+    "  /vitafeed pad <id>         — hit a pad · play + zero-open-key + loc rail",
+    "  /vitafeed prompt <recipe>  — prompted music bite → catalog → inject",
+    "  /vitafeed dir BOARD        — DOS list of pads",
+    "  /vitafeed enqueue pad <id> — queue pad §VITAFILE§ groups for confirm|override",
+    "  /vitafeed enqueue board    — bank every built-in pad",
     "  /vitafeed dir MUSIC        — DOS list of VIN groups",
     "  /vitafeed enqueue <id>     — queue grouped §VITAFILE§ slices (≤24 VIN/group)",
     "  /vitafeed enqueue library  — bank every catalog song (not memory seed; enqueue all stays seed)",
+    "  /vitafeed dual pad <id>    — HUMAN pad card + MACHINE zero-open-key",
     "  /vitafeed dual <id>        — HUMAN catalog + MACHINE group shas (Telegram dual path)",
     "  /vitafeed dual kids        — HUMAN url list + MACHINE ids (Telegram dual path)",
     "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
     "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
+    "  Board: /vita/soundboard · locs /vita/soundboard/locs?id=<id> · inspect ?i=1&g=1",
+    "  CLASS_PROOF anchors ≠ pad body — new Inputs only after seal MATCH",
     "  Loc proof: /vita/free-music/locs?id=<id> — click-through Basescan · data-field MATCH",
     "  Inspect: /vita/free-music/loc?id=<id>&g=1&i=1 — exact VIN UTF-8 fed into the player",
     "  Kids player: /vita/feed-player?music=<id>&kids=1 — proof chrome default OFF (Show blockchain toggle)",
@@ -819,6 +841,7 @@ export function vitaFeedUsageText() {
     "  or /vita/feed-player?lib=<n> after /vitafeed files.",
     "  or /vita/feed-player?music=<id> — PD library · click-through loc MATCH.",
     "  or /vita/feed-player?music=<id>&kids=1 — clean play UI; Proof toggle shows blockchain.",
+    "  or /vita/soundboard?pad=<id> — DJ soundboard · waveform · zero-open-key loc rail.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
   ].join("\n");
 }
@@ -1503,7 +1526,8 @@ export async function handleVitaFeedAction({
       const { maybeKidsDualHumanBody } = await import("./url-dir.js");
       text = maybeKidsDualHumanBody(text);
       const { maybeMusicDualHumanBody } = await import("./free-music.js");
-      text = maybeMusicDualHumanBody(text);
+      const { maybePadDualHumanBody } = await import("./soundboard.js");
+      text = maybePadDualHumanBody(maybeMusicDualHumanBody(text));
     }
     if (!text) {
       return {
@@ -1541,7 +1565,8 @@ export async function handleVitaFeedAction({
       const { maybeKidsDualHumanBody } = await import("./url-dir.js");
       text = maybeKidsDualHumanBody(text);
       const { maybeMusicDualHumanBody } = await import("./free-music.js");
-      text = maybeMusicDualHumanBody(text);
+      const { maybePadDualHumanBody } = await import("./soundboard.js");
+      text = maybePadDualHumanBody(maybeMusicDualHumanBody(text));
     }
     if (!text) {
       return {
@@ -1870,6 +1895,97 @@ export async function handleVitaFeedAction({
       keyboard: buildPlayerPopupKeyboard({ playerPath }),
     };
   }
+  if (action === "board" || action === "pad" || action === "prompt") {
+    const {
+      formatSoundboardCard,
+      playPad,
+      resolvePadId,
+      createPromptPad,
+      addUploadedPad,
+      buildSoundboardKeyboard,
+      SOUNDBOARD_PLAYER_PATH,
+      listCatalogPadIds,
+    } = await import("./soundboard.js");
+    const { vitaPlayerHref } = await import("./url-dir.js");
+    const rest = String(body || "").trim();
+    if (action === "prompt") {
+      if (!rest) {
+        return {
+          ok: false,
+          phase: "prompt",
+          reply: "Usage: /vitafeed prompt saw rise 220→880 0.32s",
+        };
+      }
+      const made = createPromptPad(rest);
+      if (!made.ok) {
+        return { ok: false, phase: "prompt", reply: made.reason || "prompt failed" };
+      }
+      const opened = playPad(made.id);
+      return {
+        ok: true,
+        phase: "prompt",
+        soundboard: true,
+        id: made.id,
+        zeroOpenKey: made.zeroOpenKey,
+        playerPath: opened.playerPath || SOUNDBOARD_PLAYER_PATH + "?pad=" + made.id,
+        playerHref: opened.playerHref || vitaPlayerHref(SOUNDBOARD_PLAYER_PATH + "?pad=" + made.id),
+        reply:
+          formatSoundboardCard(made.id) +
+          "\n\nPROMPT filed · zeroOpenKey=" +
+          made.zeroOpenKey +
+          "\nEnqueue: /vitafeed enqueue pad " +
+          made.id +
+          " → confirm|override creates NEW Input Data (class-proof ≠ body)",
+        keyboard: buildSoundboardKeyboard({ highlight: made.id }),
+      };
+    }
+    if (action === "pad" || /^(?:play|open|hit)\b/i.test(rest)) {
+      const sel = action === "pad" ? rest : rest.replace(/^(?:play|open|hit)\s*/i, "").trim();
+      const id = resolvePadId(sel) || sel || "airhorn";
+      const opened = playPad(id);
+      return {
+        ok: opened.ok !== false,
+        phase: "play",
+        soundboard: true,
+        id: opened.id,
+        proven: false,
+        play: opened.play || null,
+        playProof: opened.playProof || null,
+        playerPath: opened.playerPath || null,
+        playerHref: opened.playerHref || null,
+        zeroOpenKey: opened.zeroOpenKey || null,
+        reply: opened.reply || opened.reason || "pad miss",
+        keyboard: opened.ok
+          ? buildSoundboardKeyboard({ highlight: opened.id })
+          : buildSoundboardKeyboard(),
+      };
+    }
+    if (/^add\b/i.test(rest)) {
+      return {
+        ok: true,
+        phase: "board",
+        soundboard: true,
+        reply:
+          "Reply to an audio file with /vitafeed board add — bytes → catalog → enqueue pad <id>.\n" +
+          "Or upload on /vita/soundboard. Zero-open-key = name+contentCommit.",
+        keyboard: buildSoundboardKeyboard(),
+        awaitUpload: true,
+      };
+    }
+    const playerPath = SOUNDBOARD_PLAYER_PATH;
+    return {
+      ok: true,
+      phase: "board",
+      soundboard: true,
+      pads: listCatalogPadIds(),
+      playerPath,
+      playerHref: vitaPlayerHref(playerPath),
+      reply: formatSoundboardCard(rest && resolvePadId(rest) ? resolvePadId(rest) : null),
+      keyboard: buildSoundboardKeyboard({
+        highlight: rest && resolvePadId(rest) ? resolvePadId(rest) : null,
+      }),
+    };
+  }
   if (action === "kids") {
     const {
       formatKidsDirCard,
@@ -2091,6 +2207,71 @@ export async function handleVitaFeedAction({
           "\nVITAFEED_PAID stays default OFF. /vitafeed enqueue all is still memory seed.",
       };
     }
+    {
+      const {
+        resolveBoardEnqueueTarget,
+        enqueuePad,
+        enqueueBoardLibrary,
+        padDualHumanBody,
+        padMachineLine,
+        packetizePad,
+      } = await import("./soundboard.js");
+      const boardTarget = resolveBoardEnqueueTarget(arg);
+      if (boardTarget?.kind === "library") {
+        const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+        const queued = enqueueBoardLibrary({ enqueueFn: enqueueFeedBacklogItem });
+        return {
+          ok: queued.ok !== false,
+          phase: "enqueue",
+          soundboard: true,
+          library: true,
+          added: queued.added || 0,
+          ids: queued.ids,
+          reply:
+            formatFeedBacklogCard() +
+            "\n\nSOUNDBOARD library enqueue +" +
+            (queued.added || 0) +
+            " pads\nNext: /vitafeed next → confirm|override — NEW pad Input Data (class-proof ≠ body)",
+        };
+      }
+      if (boardTarget?.kind === "pad") {
+        const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+        const queued = enqueuePad({
+          enqueueFn: enqueueFeedBacklogItem,
+          id: boardTarget.id,
+        });
+        try {
+          const { routeTransmission } = await import("./chain-dir.js");
+          const packed = packetizePad(boardTarget.id);
+          if (packed.ok) {
+            routeTransmission({
+              name: "board-" + packed.id,
+              humanBody: padDualHumanBody(packed, packed.id),
+              machineBody: padMachineLine(packed, packed.id),
+            });
+          }
+        } catch { /* best-effort */ }
+        return {
+          ok: queued.ok !== false,
+          phase: "enqueue",
+          soundboard: true,
+          id: boardTarget.id,
+          added: queued.added || 0,
+          zeroOpenKey: queued.packed?.zeroOpenKey,
+          reply:
+            formatFeedBacklogCard() +
+            "\n\nPAD " +
+            boardTarget.id +
+            " enqueue +" +
+            (queued.added || 0) +
+            " group(s) · key=" +
+            (queued.packed?.zeroOpenKey || "—") +
+            "\n" +
+            (queued.note || "") +
+            "\nNext: /vitafeed next → confirm|override",
+        };
+      }
+    }
     const songId = arg ? resolveSongId(arg) : null;
     if (songId && arg && arg !== "seed" && arg !== "memory" && arg !== "all" && arg !== "brain") {
       const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
@@ -2267,7 +2448,42 @@ export async function handleVitaFeedAction({
       demoPlayerOpen,
     } = await import("./url-dir.js");
     const { isMusicPlaySelector, playFreeMusic } = await import("./free-music.js");
+    const { isSoundboardPlaySelector, playPad, resolvePadId } = await import("./soundboard.js");
     const { buildPlayerPopupKeyboard } = await import("./telegram-clickthrough.js");
+    const { buildSoundboardKeyboard } = await import("./soundboard.js");
+    if (isSoundboardPlaySelector(body) && !isMusicPlaySelector(body)) {
+      const sel = String(body || "").replace(/^(?:board|soundboard|pads|dj|pad)\s*/i, "").trim() || "airhorn";
+      const id = resolvePadId(sel) || (sel === "" || /^(?:board|soundboard|pads|dj)$/i.test(String(body || "")) ? "airhorn" : sel);
+      if (/^(?:board|soundboard|pads|dj)$/i.test(String(body || "").trim())) {
+        const { formatSoundboardCard, SOUNDBOARD_PLAYER_PATH } = await import("./soundboard.js");
+        const { vitaPlayerHref } = await import("./url-dir.js");
+        return {
+          ok: true,
+          phase: "board",
+          soundboard: true,
+          playerPath: SOUNDBOARD_PLAYER_PATH,
+          playerHref: vitaPlayerHref(SOUNDBOARD_PLAYER_PATH),
+          reply: formatSoundboardCard(),
+          keyboard: buildSoundboardKeyboard(),
+        };
+      }
+      const opened = playPad(id);
+      return {
+        ok: opened.ok !== false,
+        phase: "play",
+        soundboard: true,
+        id: opened.id,
+        play: opened.play || null,
+        playProof: opened.playProof || null,
+        playerPath: opened.playerPath || null,
+        playerHref: opened.playerHref || null,
+        zeroOpenKey: opened.zeroOpenKey || null,
+        reply: opened.reply || opened.reason || "open failed",
+        keyboard: opened.ok
+          ? buildSoundboardKeyboard({ highlight: opened.id })
+          : undefined,
+      };
+    }
     if (isMusicPlaySelector(body)) {
       const opened = playFreeMusic(body);
       return {
