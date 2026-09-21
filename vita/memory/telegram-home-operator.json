@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-21T00:15:00.000Z",
+  "topic": "telegram-home-sectioned-routes",
+  "filingLabel": "TELEGRAM_HOME",
+  "text": "Telegram needs every route as a clickable button, sectioned under HOME, with search routes connected and many sims. Dual-mirror each seed into MAIN (exact UTF-8 VITAFEED) and NEW (snark-short ZK) to learn which engine is cheaper/faster. Attach Basescan Input Data → UTF-8 IDM of hardcoded anchors as static proof — readable no matter how many txs/blobs once snark-compressed. Paid gates stay confirm|override. Never invent hashes. Message-first formula.",
+  "locations": [
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "telegram-home-dual-engine-learn",
+    "status": "operating",
+    "note": "Sectioned inline keyboards + /home sim/engines seed learn while mirroring MAIN↔NEW; IDM anchors prove existence without inventing tx hashes."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

@@ -24,8 +24,10 @@
     "VITALIB": "Named library name→key→locs",
     "MEMORY": "Append-only learned notes",
     "STRAND": "Sparse inject chunk plans",
-    "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust"
+    "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust",
+    "MIRROR_CHAIN": "GitHub-as-chain file read + SNARK unwrap + Basescan IDM",
+    "TELEGRAM_HOME": "Sectioned Telegram HOME buttons + MAIN↔NEW engine mirror sims + IDM proof"
   },
-  "lastAdded": [],
-  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
+  "lastAdded": ["TELEGRAM_HOME", "MIRROR_CHAIN"],
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. TELEGRAM_HOME dual-mirrors MAIN exact UTF-8 vs NEW snark-short while learning cheaper/faster."
 }

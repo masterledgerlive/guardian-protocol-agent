@@ -249,6 +249,8 @@ function helpText() {
     "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO 8B; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",
+    "/home · /menu · /start — sectioned clickable Telegram routes (Search/Feed/WAVE/Mirror…)",
+    "/home sim · /home engines — many route sims + MAIN↔NEW snark cost/speed mirror + IDM",
     "/vitamotherGenesisencoded [code]  bank encoded hex; two-part key",
     "/encodegenesisreveal KEY  pull locs + decode",
     "/zk  locations-only preview (future ZK path)",
