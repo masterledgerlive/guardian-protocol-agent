@@ -1,0 +1,18 @@
+{
+  "strandId": "proven-player",
+  "sparse": true,
+  "source": "vita-proven-player",
+  "filingLabel": "PROVEN_PLAYER",
+  "header": "§VITAPROVENPLAY§v1|av1+svt+dav1d|binding=sha256|groth16=unwired|chain=availability§",
+  "learn": "Own player. SVT-AV1 chunks, 448-byte SHA-256 receipt, follow-the-leader registry, dav1d after unlock. Groth16 slot stays zero. No shared playback with feed, kids, or token players. Never invent tx hashes.",
+  "commands": [
+    "/provenplayer",
+    "/provenplayer manifest",
+    "/provenplayer verify",
+    "/home players"
+  ],
+  "player": "/vita/proven-player?popup=1",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "baseTx": null
+}

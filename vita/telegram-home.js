@@ -113,6 +113,17 @@ export const HOME_SECTIONS = Object.freeze([
     ],
   },
   {
+    id: "players",
+    title: "Players",
+    emoji: "🎬",
+    blurb: "Proven Player is its own AV1 surface — it does not share feed, kids, or token playback",
+    buttons: [
+      { label: "Proven", cmd: "/provenplayer" },
+      { label: "Manifest", cmd: "/provenplayer manifest" },
+      { label: "Verify", cmd: "/provenplayer verify" },
+    ],
+  },
+  {
     id: "search",
     title: "Search",
     emoji: "🔎",

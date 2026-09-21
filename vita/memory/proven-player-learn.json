@@ -1,0 +1,20 @@
+{
+  "topic": "proven-player",
+  "label": "PROVEN_PLAYER",
+  "magic": "§VITAPROVENPLAY§",
+  "at": "2026-09-21T17:41:00.000Z",
+  "formula": "original-message-first",
+  "proofClass": "chunk-binding-v1",
+  "refinement": [
+    "Full SVT-AV1 inside a 448-byte Groth16 is not a real circuit. The receipt binds hashes of the ingest, the AV1 container, and a 4096-byte slice Merkle root.",
+    "SVT-AV1 Encoder Lib v1.7.0 encoded three 1-second 160x90 AV1 MP4 chunks on CPU (preset 10, CRF 40). Demo chunks are shorter than the 5-second protocol target so the leader sequence is visible.",
+    "ffmpeg reported libdav1d 1.4.1 while probing the containers. The browser player hands unlocked MP4 bytes to the video element, which uses dav1d on Chromium and Firefox.",
+    "An RTX A4500 is Ampere. Its NVENC block does not encode AV1. SVT-AV1 ran on CPU. CUDA is not part of this player.",
+    "Registry address, Base tx, and IPFS CID stay null. Availability until a real loc is sealed.",
+    "This player does not route through feed-player, kids-player, or token-player."
+  ],
+  "neverInventHashes": true,
+  "baseTx": null,
+  "registryAddress": null,
+  "cid": null
+}

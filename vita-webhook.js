@@ -48,6 +48,7 @@
 //   GET  /vita/kids-player  — closed-garden KIDS YouTube URL directory player
 //   GET  /vita/token-player — token pulldown player (DEX reader + 32-chain + $0.05 seed)
 //   GET  /vita/token-player/api — JSON catalog + portfolio snapshot
+//   GET  /vita/proven-player — own AV1 Proven Player (receipt unlock, then dav1d)
 //   GET  /vita/dex-reader?sym=  — live DexScreener + Gecko dual (miss ≠ $0)
 //   GET  /vita/chains        — 32-chain portfolio (ETH L1 other-path ≠ Base RISK)
 //   GET  /vita/url-dir      — JSON catalog of curated playlist urls
@@ -140,6 +141,11 @@ import {
   loadTokenCatalog,
   tokenPlayerPublicState,
 } from "./vita/token-player.js";
+import {
+  publicProvenPlayerState,
+  readChunkBytes,
+  readChunkProof,
+} from "./vita/proven-player.js";
 import { readDexForToken } from "./vita/dex-reader.js";
 import { listMultichainPortfolio } from "./vita/multichain-portfolio.js";
 import { publicChainDirState, searchByLocation } from "./vita/chain-dir.js";
@@ -195,6 +201,8 @@ const VITA_FEED_LOADER_HTML = join(ROOT, "public", "vita-feed-loader.html");
 const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
 const VITA_KIDS_PLAYER_HTML = join(ROOT, "public", "vita-kids-player.html");
 const VITA_TOKEN_PLAYER_HTML = join(ROOT, "public", "vita-token-player.html");
+const VITA_PROVEN_PLAYER_HTML = join(ROOT, "public", "vita-proven-player.html");
+const VITA_PROVEN_PLAYER_VERIFY = join(ROOT, "vita", "proven-player-verify.js");
 const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
@@ -688,6 +696,33 @@ async function handleVitaRequest(req, res) {
     if ((path === "/vita/token-player/api" || path === "/vita/token-player/api/") && req.method === "GET") {
       const sym = String(url.searchParams.get("sym") || url.searchParams.get("token") || "").trim();
       return json(res, tokenPlayerPublicState({ symbol: sym }));
+    }
+    if ((path === "/vita/proven-player" || path === "/vita/proven-player/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_PROVEN_PLAYER_HTML, "vita proven player");
+    }
+    if (path === "/vita/proven-player/verify.js" && req.method === "GET") {
+      return servePublicFile(res, VITA_PROVEN_PLAYER_VERIFY, "text/javascript; charset=utf-8", "proven player verify");
+    }
+    if ((path === "/vita/proven-player/api" || path === "/vita/proven-player/api/") && req.method === "GET") {
+      return json(res, await publicProvenPlayerState());
+    }
+    if (path.startsWith("/vita/proven-player/chunk/") && req.method === "GET") {
+      const index = Number(path.split("/").pop());
+      const body = await readChunkBytes(index);
+      if (!body) return err(res, "unknown proven-player chunk", 404);
+      res.writeHead(200, {
+        "Content-Type": "video/mp4",
+        "Cache-Control": "no-store",
+        "Content-Length": body.length,
+      });
+      res.end(body);
+      return;
+    }
+    if (path.startsWith("/vita/proven-player/proof/") && req.method === "GET") {
+      const index = Number(path.split("/").pop());
+      const proof = await readChunkProof(index);
+      if (!proof) return err(res, "unknown proven-player proof", 404);
+      return json(res, proof);
     }
     if ((path === "/vita/chains" || path === "/vita/chains/") && req.method === "GET") {
       return json(res, listMultichainPortfolio());

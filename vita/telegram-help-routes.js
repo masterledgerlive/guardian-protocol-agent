@@ -177,6 +177,17 @@ export const HELP_SECTIONS = Object.freeze([
     ],
   },
   {
+    id: "players",
+    title: "Players",
+    emoji: "🎬",
+    blurb: "Proven Player — own AV1 route, receipt unlock, no shared playback",
+    buttons: [
+      { label: "Proven", cmd: "/provenplayer" },
+      { label: "Manifest", cmd: "/provenplayer manifest" },
+      { label: "Verify", cmd: "/provenplayer verify" },
+    ],
+  },
+  {
     id: "wave",
     title: "WAVE",
     emoji: "🌊",
@@ -478,6 +489,9 @@ export const ROUTE_CHECK_CORE_FILES = Object.freeze([
   "public/vita.html",
   "public/vita-token-player.html",
   "vita/token-player.js",
+  "public/vita-proven-player.html",
+  "vita/proven-player.js",
+  "vita/proven-player-verify.js",
   "vita/dex-reader.js",
   "vita/multichain-portfolio.js",
 ]);

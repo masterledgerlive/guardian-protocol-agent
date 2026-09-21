@@ -66,6 +66,12 @@ recover html/song/movie/code. **Every step is an inline button** — see
 proof. `/tokens` · `/tok SYMBOL` → DEX reader · legit · player popup · buy/sell/exit/dual/track.
 `/dex SYMBOL` · `/legit SYMBOL` · `/tokenplayer` · `/chains` — 32-chain display; Ethereum L1 ~$3
 (27%) is an **other-path** (never mixed into Base SwapRouter02). $0.05 log seed never sells.
+**Proven Player (own AV1 surface):** `/provenplayer` · `/provenplayer verify` ·
+`/provenplayer manifest` · `/home players` — SVT-AV1 chunks, 448-byte SHA-256
+receipt, follow-the-leader registry, dav1d after unlock. Groth16 slot stays
+unwired. No shared playback with feed, kids, or token players. Chain status
+stays availability until a real Base loc exists. Never invent hashes.
+See `vita/proven-player.js`.
 **KIDS URL directory (closed garden):** `/vitafeed kids` · `/vitafeed dir KIDS`
 · `/vitafeed play kids` · `/vitafeed play demo` · `/vitafeed dual kids` — pull a
 YouTube playlist into our own URL directory and play it in `/vita/kids-player`
