@@ -78,6 +78,10 @@ export function buildPlayerPopupKeyboard({
   if (includeDemo && !/demo=1/.test(String(playerPath))) {
     rows.push([webAppBtn("▶ Demo player", demoHref), urlBtn("↗ Demo", demoHref)]);
   }
+  if (!/music=maple/.test(String(playerPath))) {
+    const mapleHref = vitaPlayerHref("/vita/feed-player?music=maple");
+    rows.push([webAppBtn("▶ Maple Leaf Rag", mapleHref), urlBtn("↗ Maple", mapleHref)]);
+  }
   rows.push([
     btn("📋 KIDS list", "/vitafeed dir KIDS"),
     btn("🔤 Dual", "/vitafeed dual kids"),
@@ -103,6 +107,7 @@ export function buildVitaFeedRootKeyboard() {
       [
         btn("📂 Dir", "/vitafeed dir"),
         btn("🧒 KIDS", "/vitafeed play kids"),
+        btn("🎹 Maple", "/vitafeed play maple"),
         btn("⛓ Chain dir", "/vitafeed chaindir"),
         btn("📚 Files", "/vitafeed files"),
         btn("🔑 Keys", "/vitafeed keys"),
@@ -397,15 +402,18 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
   if (
     act === "kids" ||
     act === "demo" ||
+    act === "music" ||
     (act === "play" && (
       out.demo === true ||
+      out.music === true ||
       out.play?.kind === "youtube" ||
+      out.play?.kind === "audio" ||
       out.play?.demo === true ||
       /kids-player|feed-player/.test(String(out.reply || out.playerPath || out.playerHref || ""))
     ))
   ) {
     return buildPlayerPopupKeyboard({
-      playerPath: out.playerPath || (out.demo ? "/vita/feed-player?demo=1" : "/vita/kids-player?dir=kids"),
+      playerPath: out.playerPath || (out.demo ? "/vita/feed-player?demo=1" : out.music ? "/vita/feed-player?music=maple" : "/vita/kids-player?dir=kids"),
       includeDemo: true,
     });
   }

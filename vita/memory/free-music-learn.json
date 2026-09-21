@@ -1,0 +1,19 @@
+{
+  "id": "free-music-learn",
+  "filingLabel": "FREEMUSIC",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "at": "2026-09-21T04:20:00.000Z",
+  "learn": "A popular public-domain song can be filed as grouped VIN injections instead of one blob dump. Maple Leaf Rag (Scott Joplin, 1899) Wikimedia OGG is 263304 bytes / 53s. §VITAFILE§ base64 + 720 B VIN payload needs hundreds of packets — more than the hourly 24-chunk thrift cap. Split the original bitstream into slices whose encoded VIN count is ≤24, enqueue each group, drain with /vitafeed next → confirm|override. Player concatenates slices and plays audio/ogg. That is original blockchain playback — not a synthetic demo WAV and not a URL. Proven only when every group loc is a real Base Input Data hash. Formula anchors remain class proof. VITAFEED_PAID stays default OFF; never invent hashes; never sell red to place the song.",
+  "commands": [
+    "/vitafeed play maple",
+    "/vitafeed music",
+    "/vitafeed dir MUSIC",
+    "/vitafeed enqueue maple",
+    "/vitafeed dual maple",
+    "/vitafeed next"
+  ],
+  "player": "/vita/feed-player?music=maple",
+  "sha256": "a1142a1e51ebfa69f7f7752d2f6fc9dffce18efe0fe13a5e1a108f492e5a01f2",
+  "bytes": 263304
+}

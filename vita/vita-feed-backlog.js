@@ -45,6 +45,9 @@ const SKIP_TOPICS = new Set([
   "wave-heraclitus-key",
   "feed-flow-ledger",
   "mg-recall-bank",
+  "free-music-catalog",
+  "kids-url-directory",
+  "chain-dir-ledger",
 ]);
 
 function sha256Hex(text) {

@@ -51,6 +51,8 @@
 //   GET  /vita/dex-reader?sym=  — live DexScreener + Gecko dual (miss ≠ $0)
 //   GET  /vita/chains        — 32-chain portfolio (ETH L1 other-path ≠ Base RISK)
 //   GET  /vita/url-dir      — JSON catalog of curated playlist urls
+//   GET  /vita/free-music   — public-domain song catalog + grouped VIN plan
+//   GET  /vita/free-music/play — original OGG reconstructed from grouped packets
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -139,6 +141,10 @@ import {
 import { readDexForToken } from "./vita/dex-reader.js";
 import { listMultichainPortfolio } from "./vita/multichain-portfolio.js";
 import { publicChainDirState, searchByLocation } from "./vita/chain-dir.js";
+import {
+  publicFreeMusicState,
+  publicFreeMusicPlay,
+} from "./vita/free-music.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -709,6 +715,12 @@ async function handleVitaRequest(req, res) {
     if (path.startsWith("/vita/url-dir/") && req.method === "GET") {
       const id = decodeURIComponent(path.slice("/vita/url-dir/".length)).replace(/\/+$/, "") || "kids";
       return json(res, publicUrlDirState(id));
+    }
+    if ((path === "/vita/free-music" || path === "/vita/free-music/") && req.method === "GET") {
+      return json(res, publicFreeMusicState(String(url.searchParams.get("id") || "maple")));
+    }
+    if ((path === "/vita/free-music/play" || path === "/vita/free-music/play/") && req.method === "GET") {
+      return json(res, publicFreeMusicPlay(String(url.searchParams.get("id") || url.searchParams.get("music") || "maple")));
     }
     if ((path === "/vita/chain-dir" || path === "/vita/chain-dir/") && req.method === "GET") {
       const accept = String(req.headers.accept || "");

@@ -1,0 +1,31 @@
+{
+  "id": "maple",
+  "title": "Maple Leaf Rag",
+  "composer": "Scott Joplin",
+  "composed": 1899,
+  "popular": true,
+  "freeCatalog": true,
+  "license": "Public domain (US). Composition 1899. Wikimedia Commons recording filed as PD.",
+  "sourcePage": "https://commons.wikimedia.org/wiki/File:Maple_Leaf_Rag.ogg",
+  "sourceFile": "https://commons.wikimedia.org/wiki/Special:FilePath/Maple_Leaf_Rag.ogg",
+  "file": "vita/memory/free-music/Maple_Leaf_Rag.ogg",
+  "fileName": "Maple_Leaf_Rag.ogg",
+  "mime": "audio/ogg",
+  "durationSec": 53.07,
+  "bytes": 263304,
+  "sha256": "a1142a1e51ebfa69f7f7752d2f6fc9dffce18efe0fe13a5e1a108f492e5a01f2",
+  "sampleRate": 22050,
+  "channels": 1,
+  "codec": "Vorbis",
+  "note": "Full short public-domain performance — not a synthetic demo WAV. Bytes packetize as grouped §VITAFILE§ VIN injections (≤24 chunks/group = hourly thrift). Original playback = concat slices then audio/ogg. Proven only when every group loc is a real Base Input Data hash — never invent.",
+  "telegram": [
+    "/vitafeed play maple",
+    "/vitafeed music",
+    "/vitafeed dir MUSIC",
+    "/vitafeed enqueue maple",
+    "/vitafeed dual maple"
+  ],
+  "player": "/vita/feed-player?music=maple",
+  "filingLabel": "FREEMUSIC",
+  "neverInventHashes": true
+}

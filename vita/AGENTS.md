@@ -71,16 +71,25 @@ proof. `/tokens` · `/tok SYMBOL` → DEX reader · legit · player popup · buy
 YouTube playlist into our own URL directory and play it in `/vita/kids-player`
 (also `/vita/feed-player?dir=kids` / `?demo=1`). Telegram **Watch popup** is a
 Mini App + HTTPS url button (`popup=1`) so the player opens in a small window
-while you work; playlists already in the system (KIDS dir, demo WAV, library)
-load from the picker. Child sees only that list — no YouTube recommendations or
-other channels. Dual paths: Telegram HUMAN url list + MACHINE ZK-short
-(`/vitafeed dual kids` then confirm|override); GitHub availability vs proven
-(`/vita dual vita/memory/kids-url-directory.json`). Proven = both HUMAN and
-MACHINE lanes sealed into Basescan **Input Data** (clickable loc proofs). Until
-then the catalog is **availability** only (local/GitHub) — formula anchors are
-class proof, not this body. Completion directory: `/vitafeed chaindir` ·
-`/vitafeed cycle` · `/vitafeed loc 0x…` · `/vitafeed dir CHAIN` (`vita/chain-dir.js`).
-URLs only — never invent hashes. See `vita/url-dir.js`.
+while you work; playlists already in the system (KIDS dir, Maple Leaf Rag,
+demo WAV, library) load from the picker. Child sees only that list — no YouTube
+recommendations or other channels. Dual paths: Telegram HUMAN url list + MACHINE
+ZK-short (`/vitafeed dual kids` then confirm|override); GitHub availability vs
+proven (`/vita dual vita/memory/kids-url-directory.json`). Proven = both HUMAN
+and MACHINE lanes sealed into Basescan **Input Data** (clickable loc proofs).
+Until then the catalog is **availability** only (local/GitHub) — formula anchors
+are class proof, not this body.
+**Free-catalog song (original blockchain playback):** `/vitafeed play maple` ·
+`/vitafeed music` · `/vitafeed dir MUSIC` · `/vitafeed enqueue maple` ·
+`/vitafeed dual maple` — Scott Joplin *Maple Leaf Rag* (1899, public domain
+Wikimedia OGG). Full file (not a synthetic demo WAV, not a URL blob) packetizes
+as grouped `§VITAFILE§` VIN injections (≤24 packets/group = hourly thrift).
+Player concatenates slices and plays the original `audio/ogg`
+(`/vita/feed-player?music=maple`). Proven only when every group loc is a real
+Input Data hash — never invent. See `vita/free-music.js`.
+Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
+· `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
+song bytes are VIN. Never invent hashes. See `vita/url-dir.js`.
 **GitHub mirror chain:** `/vita read FILE` · `/vita files` · `/vita proof FILE`
 · `/vita unwrap [KEY]` · `/vita chain` · `/vita session` — local Railway disk
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed

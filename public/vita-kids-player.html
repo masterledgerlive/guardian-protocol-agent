@@ -260,13 +260,14 @@
       const sel = el("playlistPick");
       if (!sel) return;
       const opts = [
-        { id: "demo", title: "Demo song (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
+        { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&popup=1" },
+        { id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
       ];
       try {
         const data = await fetch("/vita/url-dir").then((r) => r.json());
         const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
         for (const d of lists) {
-          if (!d || d.id === "demo") continue;
+          if (!d || d.id === "demo" || d.id === "maple") continue;
           opts.push({
             id: String(d.id),
             title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),

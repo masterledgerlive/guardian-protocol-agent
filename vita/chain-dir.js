@@ -173,9 +173,12 @@ export function guessTransmissionName(humanBody, hint = "") {
   if (named) return clip(named.replace(/[^\w.\-]+/g, "-"), 40);
   const s = String(humanBody || "");
   if (/§VITAURLDIR§/i.test(s) || /KIDS URL DIRECTORY/i.test(s)) return "kids-url-dir";
+  if (/§VITAMUSIC§/i.test(s) || /MAPLE LEAF RAG/i.test(s)) return "maple-leaf-rag";
   if (/§VITAFILE§/i.test(s)) {
     const m = s.match(/name=([^|§]+)/i);
-    return clip(m ? m[1] : "vitafile", 40);
+    const name = m ? m[1] : "vitafile";
+    if (/Maple_Leaf_Rag/i.test(name) || /\.g\d{2}$/i.test(name)) return "maple-leaf-rag";
+    return clip(name, 40);
   }
   const first = s.split(/\n/)[0] || "line";
   return clip(first.replace(CHAINDIR_MAGIC, "").replace(/[^\w.\-]+/g, "-") || "line", 40);
@@ -612,8 +615,14 @@ export function chainDirEntriesFor() {
         pub.machine.locations.length,
       locations: pub.proofs.map((p) => p.tx),
       trueName: l.name,
-      playKind: l.name === "kids-url-dir" ? "youtube" : "file",
-      dirId: l.name === "kids-url-dir" ? "kids" : null,
+      playKind:
+        l.name === "kids-url-dir"
+          ? "youtube"
+          : l.name === "maple-leaf-rag"
+            ? "audio"
+            : "file",
+      dirId:
+        l.name === "kids-url-dir" ? "kids" : l.name === "maple-leaf-rag" ? "maple" : null,
     });
   }
   return out;
@@ -644,6 +653,31 @@ export function provenKidsOnChain() {
   };
 }
 
+export function provenMusicOnChain() {
+  const rows = loadChainDir().lines.filter((l) => l.name === "maple-leaf-rag");
+  const complete = rows.find((l) => l.status === STATUS_COMPLETE);
+  if (complete) {
+    return {
+      proven: true,
+      availability: false,
+      n: complete.n,
+      completedAt: complete.completedAt,
+      proofs: proofsFor(complete),
+      note: "Maple Leaf Rag catalog sealed in Input Data — HUMAN + MACHINE loc proofs. Song body is grouped §VITAFILE§ VIN slices.",
+    };
+  }
+  const routing = rows.find((l) => l.status !== STATUS_COMPLETE);
+  return {
+    proven: false,
+    availability: true,
+    n: routing?.n || null,
+    status: routing?.status || "unfiled",
+    proofs: routing ? proofsFor(routing) : [],
+    note:
+      "Maple Leaf Rag is local availability until grouped VIN injects seal every slice into Input Data. /vitafeed dual maple logs the catalog line; /vitafeed enqueue maple drains groups. Formula anchors are class proof only — they do not hold this body.",
+  };
+}
+
 export function publicChainDirState() {
   const ledger = loadChainDir();
   return {
@@ -655,6 +689,7 @@ export function publicChainDirState() {
     seq: ledger.seq,
     cycle: ledger.cycle,
     kids: provenKidsOnChain(),
+    music: provenMusicOnChain(),
     active: listActiveLines(),
     complete: listCompleteLines(),
     card: formatChainDirCard(ledger),
@@ -662,6 +697,7 @@ export function publicChainDirState() {
       "/vitafeed chaindir",
       "/vitafeed cycle",
       "/vitafeed dual kids",
+      "/vitafeed dual maple",
       "/vitafeed loc 0x…",
       "/vitafeed dir CHAIN",
     ],
