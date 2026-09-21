@@ -1,15 +1,21 @@
 /**
- * Free-catalog song → grouped VIN injections → original blockchain playback.
+ * Free-catalog songs → grouped VIN injections → original blockchain playback.
  *
- * Maple Leaf Rag (Scott Joplin, 1899) from Wikimedia Commons public-domain
- * catalog. Full OGG bytes (not a synthetic demo WAV, not a URL blob) split
- * into §VITAFILE§ groups that each fit the hourly VIN cap (24). Player
- * concatenates sealed Input Data (or local packet reconstruction) and plays
- * the original audio/ogg. Never invent tx hashes. Mother brain untouched.
+ * Songs (Wikimedia / National Jukebox public-domain singing & performance):
+ *   maple — Maple Leaf Rag (Scott Joplin, 1899)
+ *   judy  — I'm Always Chasing Rainbows (1918 PD singing; Judy Garland free-catalog
+ *           rainbow lane — her 1939 Over the Rainbow Decca is rights-restricted)
  *
- * Telegram: /vitafeed play maple · /vitafeed music · /vitafeed enqueue maple
- * · /vitafeed dual maple · /vitafeed dir MUSIC
- * Player: /vita/feed-player?music=maple
+ * Full OGG bytes (not a synthetic demo WAV, not a URL blob) split into
+ * §VITAFILE§ groups that each fit the hourly VIN cap (24). Player concatenates
+ * sealed Input Data (or local packet reconstruction) and plays the original
+ * audio/ogg. Location proof daisy-chains filing → group sha → VIN → Basescan
+ * Input Data UTF-8 and highlights click-through matches. Never invent tx hashes.
+ * Mother brain untouched.
+ *
+ * Telegram: /vitafeed play maple|judy · /vitafeed music · /vitafeed enqueue judy
+ * · /vitafeed dual judy · /vitafeed dir MUSIC
+ * Player: /vita/feed-player?music=judy · /vita/feed-player?music=maple
  */
 
 import { createHash } from "node:crypto";
@@ -33,14 +39,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
 const SONG_DIR = join(MEMORY_DIR, "free-music");
 const CATALOG_PATH = join(MEMORY_DIR, "free-music-catalog.json");
-const MAPLE_PATH = join(SONG_DIR, "Maple_Leaf_Rag.ogg");
 
 export const FREEMUSIC_ID = "vita-free-music-v1";
 export const FREEMUSIC_MAGIC = "§VITAMUSIC§";
 export const FREEMUSIC_LABEL = "FREEMUSIC";
 export const FREEMUSIC_SUBDIR = "MUSIC";
 export const MAPLE_ID = "maple";
+export const JUDY_ID = "judy";
 export const MUSIC_PLAYER_PATH = "/vita/feed-player?music=maple";
+export const JUDY_PLAYER_PATH = "/vita/feed-player?music=judy";
 /** Same as FEED_BACKLOG_HARD_MAX_CHUNKS / hourly thrift — one group per drain. */
 export const MUSIC_GROUP_VIN_CAP = 24;
 
@@ -74,26 +81,68 @@ function safeReadJson(path) {
   }
 }
 
-function loadCatalogMeta() {
+function loadCatalogRoot() {
   return safeReadJson(CATALOG_PATH) || {};
+}
+
+export function listCatalogSongs() {
+  const root = loadCatalogRoot();
+  const songs = root.songs || {};
+  // Back-compat: old single-song catalog shape
+  if (!Object.keys(songs).length && root.id === "maple") {
+    return { maple: root };
+  }
+  return songs;
+}
+
+export function resolveSongId(sel = "") {
+  const raw = String(sel || "").trim().toLowerCase();
+  if (!raw) return loadCatalogRoot().defaultId || MAPLE_ID;
+  const songs = listCatalogSongs();
+  if (songs[raw]) return raw;
+  for (const [id, meta] of Object.entries(songs)) {
+    const aliases = (meta.aliases || []).map((a) => String(a).toLowerCase());
+    if (aliases.includes(raw)) return id;
+  }
+  // loose judy / rainbow match
+  if (/judy|garland|chasing|rainbow/.test(raw)) {
+    if (songs[JUDY_ID]) return JUDY_ID;
+  }
+  if (/maple|joplin|rag/.test(raw)) {
+    if (songs[MAPLE_ID]) return MAPLE_ID;
+  }
+  return null;
+}
+
+export function loadSongMeta(id = MAPLE_ID) {
+  const resolved = resolveSongId(id) || MAPLE_ID;
+  const songs = listCatalogSongs();
+  const meta = songs[resolved];
+  if (!meta) return { ok: false, reason: "unknown free-catalog song — try maple or judy" };
+  return { ok: true, id: resolved, meta };
 }
 
 export function isMusicPlaySelector(sel) {
   const s = String(sel || "").trim();
   if (!s) return false;
-  return /^(?:maple|music|joplin|rag|song|maple-leaf|mapleleafrag)(?:\b|[/?#]|$)/i.test(s);
+  return resolveSongId(s) != null;
 }
 
 export function maybeMusicDualHumanBody(text) {
   const s = String(text || "").trim();
   if (!s) return s;
   if (s.includes("\n") || s.length >= 80) return s;
-  if (isMusicPlaySelector(s)) return musicDualHumanBody();
+  if (isMusicPlaySelector(s)) return musicDualHumanBody(null, s);
   return s;
 }
 
 function groupFileName(fileName, n) {
   return String(fileName || "song.bin").replace(/[^\w.\- ]+/g, "_") + ".g" + pad2(n);
+}
+
+function songFilePath(meta) {
+  const name = meta.fileName || (meta.file ? String(meta.file).split("/").pop() : null);
+  return join(SONG_DIR, name || "song.ogg");
 }
 
 /**
@@ -106,7 +155,7 @@ export function sliceBytesForVinCap(maxChunks = MUSIC_GROUP_VIN_CAP) {
   for (let i = 0; i < 12 && raw >= 192; i++) {
     const probe = Buffer.alloc(raw, 0x5a);
     const prep = prepareVitaFileFeed({
-      name: "Maple_Leaf_Rag.ogg.g99",
+      name: "probe.ogg.g99",
       mime: "application/octet-stream",
       bytes: probe,
     });
@@ -117,29 +166,28 @@ export function sliceBytesForVinCap(maxChunks = MUSIC_GROUP_VIN_CAP) {
   return 4095;
 }
 
-function readSongBytes() {
-  if (!existsSync(MAPLE_PATH)) {
-    return { ok: false, reason: "Maple Leaf Rag OGG missing — vita/memory/free-music/Maple_Leaf_Rag.ogg" };
+function readSongBytes(meta) {
+  const path = songFilePath(meta);
+  if (!existsSync(path)) {
+    return { ok: false, reason: "song OGG missing — " + path };
   }
-  const bytes = readFileSync(MAPLE_PATH);
+  const bytes = readFileSync(path);
   if (bytes.length < 4 || bytes.subarray(0, 4).toString("ascii") !== "OggS") {
-    return { ok: false, reason: "Maple Leaf Rag is not an Ogg bitstream" };
+    return { ok: false, reason: (meta.fileName || "song") + " is not an Ogg bitstream" };
   }
-  return { ok: true, bytes, sha256: sha256HexBuf(bytes), size: bytes.length };
+  return { ok: true, bytes, sha256: sha256HexBuf(bytes), size: bytes.length, path };
 }
 
 /**
- * Packetize the PD recording into grouped §VITAFILE§ VIN injections.
+ * Packetize a free-catalog recording into grouped §VITAFILE§ VIN injections.
  * Each group is independently drainable (≤24 VIN). Concat = original OGG.
  */
 export function packetizeFreeMusic(id = MAPLE_ID) {
-  const want = String(id || MAPLE_ID).trim().toLowerCase() || MAPLE_ID;
-  if (want !== MAPLE_ID && want !== "music" && want !== "song" && want !== "joplin" && want !== "rag") {
-    return { ok: false, reason: "unknown free-catalog song — try maple" };
-  }
-  const song = readSongBytes();
+  const loaded = loadSongMeta(id);
+  if (!loaded.ok) return loaded;
+  const { id: songId, meta } = loaded;
+  const song = readSongBytes(meta);
   if (!song.ok) return song;
-  const meta = loadCatalogMeta();
   if (meta.sha256 && meta.sha256 !== song.sha256) {
     return {
       ok: false,
@@ -150,7 +198,7 @@ export function packetizeFreeMusic(id = MAPLE_ID) {
   }
   const sliceBytes = sliceBytesForVinCap(MUSIC_GROUP_VIN_CAP);
   const groups = [];
-  const fileName = meta.fileName || "Maple_Leaf_Rag.ogg";
+  const fileName = meta.fileName || "song.ogg";
   for (let off = 0, n = 1; off < song.bytes.length; off += sliceBytes, n++) {
     const slice = song.bytes.subarray(off, Math.min(off + sliceBytes, song.bytes.length));
     const enc = encodeVitaFile({
@@ -173,6 +221,13 @@ export function packetizeFreeMusic(id = MAPLE_ID) {
           " VIN > cap " + MUSIC_GROUP_VIN_CAP,
       };
     }
+    const lineCommits = (prepared.lines || []).map((l) => ({
+      index: l.index,
+      hash: l.hash,
+      contentCommit: sha256Hex(l.line),
+      bodyPreview: String(l.body || "").slice(0, 48),
+      bytes: Buffer.byteLength(l.line || "", "utf8"),
+    }));
     groups.push({
       n,
       off,
@@ -188,6 +243,8 @@ export function packetizeFreeMusic(id = MAPLE_ID) {
       injections: prepared.injections,
       body: enc.body,
       lines: prepared.lines,
+      lineCommits,
+      filingPath: "vita/memory/free-music/" + fileName + "#g" + pad2(n),
     });
   }
 
@@ -203,16 +260,21 @@ export function packetizeFreeMusic(id = MAPLE_ID) {
   }
 
   const totalVin = groups.reduce((s, g) => s + g.totalChunks, 0);
+  const player = meta.player || ("/vita/feed-player?music=" + songId);
   return {
     ok: true,
-    id: MAPLE_ID,
+    id: songId,
     filingLabel: FREEMUSIC_LABEL,
     formula: FORMULA_ID,
     neverInventHashes: true,
-    title: meta.title || "Maple Leaf Rag",
-    composer: meta.composer || "Scott Joplin",
+    title: meta.title || songId,
+    composer: meta.composer || "",
+    performer: meta.performer || "",
     license: meta.license || "Public domain",
     sourcePage: meta.sourcePage || null,
+    credit: meta.credit || null,
+    judyGarlandLane: Boolean(meta.judyGarlandLane),
+    chainDirName: meta.chainDirName || songId,
     fileName,
     mime: "audio/ogg",
     playKind: "audio",
@@ -224,9 +286,9 @@ export function packetizeFreeMusic(id = MAPLE_ID) {
     groupCount: groups.length,
     totalVin,
     groups,
-    player: MUSIC_PLAYER_PATH,
+    player,
     note:
-      "Full PD performance → " + groups.length +
+      "Full free-catalog performance → " + groups.length +
       " grouped VIN injections (" + totalVin +
       " packets, ≤" + MUSIC_GROUP_VIN_CAP +
       "/group). Original playback concatenates slices. Proven = real Input Data locs for every group.",
@@ -254,8 +316,8 @@ export function reconstructFreeMusicFromGroups(groups = []) {
   };
 }
 
-export function musicDualHumanBody(plan = null) {
-  const packed = plan?.ok ? plan : packetizeFreeMusic();
+export function musicDualHumanBody(plan = null, id = MAPLE_ID) {
+  const packed = plan?.ok ? plan : packetizeFreeMusic(id);
   if (!packed.ok) return "";
   const lines = [
     FREEMUSIC_MAGIC +
@@ -270,10 +332,14 @@ export function musicDualHumanBody(plan = null) {
       "|mime=" +
       packed.mime +
       "§",
-    "FREE CATALOG SONG — Maple Leaf Rag (Scott Joplin, 1899)",
-    "public domain · Wikimedia Commons OGG · not a demo WAV · not a URL blob",
+    "FREE CATALOG SONG — " + packed.title +
+      (packed.performer ? " · " + packed.performer : "") +
+      (packed.composer ? " (" + packed.composer + ")" : ""),
+    packed.judyGarlandLane
+      ? "Judy Garland free-catalog rainbow lane · PD 1918 singing · not Over the Rainbow Decca"
+      : "public domain · Wikimedia Commons OGG · not a demo WAV · not a URL blob",
     "formula=" + FORMULA_ID,
-    "player=" + MUSIC_PLAYER_PATH,
+    "player=" + packed.player,
     "vinCap=" + packed.vinCap + "  groups=" + packed.groupCount + "  totalVin=" + packed.totalVin,
     "source=" + (packed.sourcePage || ""),
     "",
@@ -285,14 +351,15 @@ export function musicDualHumanBody(plan = null) {
         " len=" + g.len +
         " vin=" + g.totalChunks +
         " sha=" + g.sha256.slice(0, 16) +
-        " name=" + g.name,
+        " name=" + g.name +
+        " file=" + g.filingPath,
     );
   }
   return lines.join("\n");
 }
 
-export function musicMachineGroupsLine(plan = null) {
-  const packed = plan?.ok ? plan : packetizeFreeMusic();
+export function musicMachineGroupsLine(plan = null, id = MAPLE_ID) {
+  const packed = plan?.ok ? plan : packetizeFreeMusic(id);
   if (!packed.ok) return "";
   return (
     "MUSIC lane=MACHINE id=" +
@@ -321,23 +388,230 @@ function publicGroup(g) {
     totalChunks: g.totalChunks,
     injections: g.injections,
     bodyBytes: g.bodyBytes,
+    filingPath: g.filingPath || null,
+    lineCommits: (g.lineCommits || []).map((c) => ({
+      index: c.index,
+      hash: c.hash,
+      contentCommit: c.contentCommit,
+      bodyPreview: c.bodyPreview,
+      bytes: c.bytes,
+    })),
+  };
+}
+
+function basescanTx(tx) {
+  return (MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/") + tx;
+}
+
+function isTxHash(h) {
+  return /^0x[0-9a-fA-F]{64}$/.test(String(h || ""));
+}
+
+/**
+ * Daisy-chain location proof: filing → group sha → VIN line commits → sealed
+ * Basescan Input Data. Highlight rows whose pulled UTF-8 matches the packet
+ * data field (contentCommit). Never invents hashes — sealed locs only.
+ *
+ * @param {{ id?: string, sealedLocs?: Array<{groupN?:number,index?:number,location:string,utf8?:string}>, pullUtf8?: (tx:string)=>Promise<string|null> }} opts
+ */
+export async function buildFreeMusicLocProof(opts = {}) {
+  const packed = opts.packed?.ok ? opts.packed : packetizeFreeMusic(opts.id || JUDY_ID);
+  if (!packed.ok) return packed;
+  const onChain = provenMusicOnChain(packed.id);
+  const sealed = [];
+  for (const row of opts.sealedLocs || []) {
+    const tx = String(row.location || row.tx || "").toLowerCase();
+    if (!isTxHash(tx)) continue;
+    sealed.push({
+      groupN: row.groupN ?? row.n ?? null,
+      index: row.index ?? null,
+      location: tx,
+      utf8: row.utf8 || null,
+      basescan: basescanTx(tx),
+    });
+  }
+  // CHAINDIR complete proofs (when present) — still never invent
+  for (const p of onChain?.proofs || []) {
+    const tx = String(p.tx || p.location || "").toLowerCase();
+    if (!isTxHash(tx)) continue;
+    if (sealed.some((s) => s.location === tx)) continue;
+    sealed.push({
+      groupN: null,
+      index: null,
+      location: tx,
+      utf8: null,
+      basescan: p.basescan || basescanTx(tx),
+      lane: p.lane || null,
+    });
+  }
+
+  const pull = typeof opts.pullUtf8 === "function" ? opts.pullUtf8 : null;
+  const rows = [];
+  let matched = 0;
+  let pending = 0;
+
+  for (const g of packed.groups) {
+    for (const lc of g.lineCommits || []) {
+      const bind = sealed.find(
+        (s) =>
+          (s.groupN == null || s.groupN === g.n) &&
+          (s.index == null || s.index === lc.index) &&
+          isTxHash(s.location),
+      ) || sealed.find((s) => s.groupN === g.n && s.index == null) || null;
+
+      let pulledUtf8 = bind?.utf8 || null;
+      if (!pulledUtf8 && bind && pull) {
+        try {
+          pulledUtf8 = await pull(bind.location);
+        } catch {
+          pulledUtf8 = null;
+        }
+      }
+      let match = "pending";
+      let pulledCommit = null;
+      if (pulledUtf8 != null) {
+        pulledCommit = sha256Hex(pulledUtf8);
+        // Exact line match OR body contains the VITAFILE/VIN packet commit
+        const lineHit = pulledCommit === lc.contentCommit;
+        const containsHit =
+          typeof pulledUtf8 === "string" &&
+          (pulledUtf8.includes(lc.bodyPreview) ||
+            pulledUtf8.includes(g.name) ||
+            sha256Hex(pulledUtf8.trim()) === g.contentCommit);
+        match = lineHit || containsHit ? "MATCH" : "MISMATCH";
+        if (match === "MATCH") matched += 1;
+      } else {
+        pending += 1;
+      }
+
+      rows.push({
+        groupN: g.n,
+        index: lc.index,
+        filingPath: g.filingPath,
+        groupSha: g.sha256,
+        vinId: g.vinId,
+        lineHash: lc.hash,
+        dataFieldCommit: lc.contentCommit,
+        bodyPreview: lc.bodyPreview,
+        location: bind?.location || null,
+        basescan: bind?.basescan || null,
+        pulledUtf8Commit: pulledCommit,
+        match,
+        highlight: match === "MATCH",
+        clickThrough: Boolean(bind?.basescan),
+        idmChat: bind?.basescan
+          ? "Basescan → Input Data → View as UTF-8"
+          : "await seal — no invented loc",
+      });
+    }
+  }
+
+  const daisy = [
+    "filing: " + (packed.groups[0]?.filingPath || "").replace(/#g.*/, ""),
+    "catalog: vita/memory/free-music-catalog.json#" + packed.id,
+    "groups: " + packed.groupCount + " × ≤" + packed.vinCap + " VIN",
+    "strand: vita/strands/free-music.json",
+    "chaindir: " + packed.chainDirName,
+    onChain?.proven
+      ? "proven: CHAINDIR complete · Input Data locs sealed"
+      : "availability: local reconstruct until grouped confirm|override",
+  ];
+
+  return {
+    ok: true,
+    id: packed.id,
+    title: packed.title,
+    filingLabel: FREEMUSIC_LABEL,
+    formula: FORMULA_ID,
+    neverInventHashes: true,
+    judyGarlandLane: packed.judyGarlandLane,
+    sha256: packed.sha256,
+    groupCount: packed.groupCount,
+    totalVin: packed.totalVin,
+    daisyChain: daisy,
+    onChain,
+    sealedCount: sealed.length,
+    matched,
+    pending,
+    mismatched: rows.filter((r) => r.match === "MISMATCH").length,
+    rows,
+    clickThrough: rows.filter((r) => r.clickThrough),
+    highlighted: rows.filter((r) => r.highlight),
+    player: packed.player,
+    note:
+      "Location proof reads real Base Input Data UTF-8 and compares to VIN data-field commits. " +
+      "Highlight = MATCH. Formula anchors are class proof only — not song body.",
+  };
+}
+
+/**
+ * Synchronous local daisy-chain (no RPC) — verifies filing ↔ group ↔ VIN commits.
+ */
+export function buildFreeMusicLocProofLocal(id = JUDY_ID) {
+  const packed = packetizeFreeMusic(id);
+  if (!packed.ok) return packed;
+  const onChain = provenMusicOnChain(packed.id);
+  const rows = [];
+  for (const g of packed.groups) {
+    const rebuilt = parseVitaFileBody(g.body);
+    const groupOk = rebuilt.ok && rebuilt.sha256 === g.sha256;
+    for (const lc of g.lineCommits || []) {
+      rows.push({
+        groupN: g.n,
+        index: lc.index,
+        filingPath: g.filingPath,
+        groupSha: g.sha256,
+        dataFieldCommit: lc.contentCommit,
+        bodyPreview: lc.bodyPreview,
+        location: null,
+        basescan: null,
+        match: groupOk ? "LOCAL_OK" : "LOCAL_FAIL",
+        highlight: groupOk,
+        clickThrough: false,
+        idmChat: "seal then Basescan → Input Data → UTF-8",
+      });
+    }
+  }
+  return {
+    ok: true,
+    id: packed.id,
+    title: packed.title,
+    local: true,
+    neverInventHashes: true,
+    judyGarlandLane: packed.judyGarlandLane,
+    sha256: packed.sha256,
+    groupCount: packed.groupCount,
+    totalVin: packed.totalVin,
+    onChain,
+    matched: rows.filter((r) => r.match === "LOCAL_OK").length,
+    pending: rows.length,
+    rows,
+    highlighted: rows.filter((r) => r.highlight),
+    daisyChain: [
+      "filing → group sha → VIN dataFieldCommit (local)",
+      "after seal: bind real 0x locs · pull Input Data · highlight MATCH",
+    ],
+    player: packed.player,
   };
 }
 
 export function loadFreeMusic(id = MAPLE_ID) {
   const packed = packetizeFreeMusic(id);
   if (!packed.ok) return packed;
-  const onChain = provenMusicOnChain();
+  const onChain = provenMusicOnChain(packed.id);
+  const locLocal = buildFreeMusicLocProofLocal(packed.id);
   return {
     ok: true,
     id: packed.id,
     label: FREEMUSIC_SUBDIR,
     title: packed.title,
     composer: packed.composer,
+    performer: packed.performer,
     filingLabel: FREEMUSIC_LABEL,
     formula: packed.formula,
     neverInventHashes: true,
     freeCatalog: true,
+    judyGarlandLane: packed.judyGarlandLane,
     mime: packed.mime,
     playKind: packed.playKind,
     fileName: packed.fileName,
@@ -346,6 +620,8 @@ export function loadFreeMusic(id = MAPLE_ID) {
     durationSec: packed.durationSec,
     license: packed.license,
     sourcePage: packed.sourcePage,
+    credit: packed.credit,
+    chainDirName: packed.chainDirName,
     groupCount: packed.groupCount,
     totalVin: packed.totalVin,
     vinCap: packed.vinCap,
@@ -358,96 +634,122 @@ export function loadFreeMusic(id = MAPLE_ID) {
     contentCommit8: shortHex(packed.sha256, 8),
     locations: MAINFRAME_ANCHORS.known.map((a) => a.tx),
     onChain,
+    locProof: {
+      matched: locLocal.matched,
+      pending: locLocal.pending,
+      highlighted: (locLocal.highlighted || []).length,
+      daisyChain: locLocal.daisyChain,
+      sample: (locLocal.rows || []).slice(0, 6),
+    },
     telegram: [
-      "/vitafeed play maple",
+      "/vitafeed play " + packed.id,
       "/vitafeed music",
       "/vitafeed dir MUSIC",
-      "/vitafeed enqueue maple",
-      "/vitafeed dual maple",
+      "/vitafeed enqueue " + packed.id,
+      "/vitafeed dual " + packed.id,
     ],
     note: packed.note,
   };
 }
 
 export function freeMusicEntriesFor() {
-  const dir = loadFreeMusic();
   const out = [];
-  if (!dir.ok) return out;
+  let n = 1;
+  for (const id of Object.keys(listCatalogSongs())) {
+    const dir = loadFreeMusic(id);
+    if (!dir.ok) continue;
+    out.push({
+      n: n++,
+      name: dir.fileName,
+      kind: "audio",
+      bytes: dir.rawBytes,
+      unlockName: dir.fileName,
+      english:
+        dir.title +
+        (dir.performer ? " — " + dir.performer : "") +
+        " · free catalog · Full OGG (" +
+        dir.rawBytes +
+        " B, " +
+        (dir.durationSec || "?") +
+        "s) grouped into " +
+        dir.groupCount +
+        " VIN injections. Original blockchain playback concatenates sealed slices.",
+      machine:
+        "MUSIC id=" +
+        dir.id +
+        " groups=" +
+        dir.groupCount +
+        " vin=" +
+        dir.totalVin +
+        " mime=audio/ogg commit=" +
+        dir.contentCommit8,
+      locations: dir.locations,
+      trueName: dir.chainDirName || dir.id,
+      mime: "audio/ogg",
+      playKind: "audio",
+      dirId: dir.id,
+    });
+    for (const g of dir.groups) {
+      out.push({
+        n: n++,
+        name: g.name,
+        kind: "vitafile-group",
+        bytes: g.len,
+        unlockName: g.name,
+        english:
+          "VIN group " + g.n + "/" + dir.groupCount +
+          " · " + g.len + " B slice · " + g.totalChunks + " packets · off=" + g.off +
+          " · " + (g.filingPath || ""),
+        machine:
+          "GROUP id=" + dir.id + " n=" + g.n + " vin=" + g.totalChunks +
+          " sha=" + shortHex(g.sha256, 8),
+        locations: dir.locations,
+        trueName: dir.id + "-g" + pad2(g.n),
+        mime: "application/octet-stream",
+        playKind: "file",
+        dirId: dir.id,
+        groupN: g.n,
+      });
+    }
+  }
   out.push({
-    n: 1,
-    name: "Maple_Leaf_Rag.ogg",
-    kind: "audio",
-    bytes: dir.rawBytes,
-    unlockName: "Maple_Leaf_Rag.ogg",
-    english:
-      "Maple Leaf Rag (Scott Joplin, 1899) — popular public-domain ragtime. Full OGG (" +
-      dir.rawBytes +
-      " B, " +
-      (dir.durationSec || "?") +
-      "s) grouped into " +
-      dir.groupCount +
-      " VIN injections. Original blockchain playback concatenates sealed slices.",
-    machine:
-      "MUSIC id=maple groups=" +
-      dir.groupCount +
-      " vin=" +
-      dir.totalVin +
-      " mime=audio/ogg commit=" +
-      dir.contentCommit8,
-    locations: dir.locations,
-    trueName: "maple-leaf-rag",
-    mime: "audio/ogg",
-    playKind: "audio",
-    dirId: MAPLE_ID,
-  });
-  out.push({
-    n: 2,
+    n: n++,
     name: "free-music-catalog.json",
     kind: "catalog",
     bytes: (() => {
       try { return statSync(CATALOG_PATH).size; } catch { return 0; }
     })(),
     unlockName: "free-music-catalog.json",
-    english: "Free-catalog metadata + grouped inject plan. Proven only after every group loc seals.",
-    machine: "CATALOG id=maple groups=" + dir.groupCount + " vinCap=" + dir.vinCap,
-    locations: dir.locations,
+    english: "Free-catalog metadata + grouped inject plans (maple + judy). Proven only after every group loc seals.",
+    machine: "CATALOG songs=" + Object.keys(listCatalogSongs()).join(","),
+    locations: MAINFRAME_ANCHORS.known.map((a) => a.tx),
     trueName: "free-music-catalog",
     mime: "application/json",
     playKind: "text",
     dirId: MAPLE_ID,
   });
-  for (const g of dir.groups) {
-    out.push({
-      n: out.length + 1,
-      name: g.name,
-      kind: "vitafile-group",
-      bytes: g.len,
-      unlockName: g.name,
-      english:
-        "VIN group " + g.n + "/" + dir.groupCount +
-        " · " + g.len + " B slice · " + g.totalChunks + " packets · off=" + g.off,
-      machine:
-        "GROUP n=" + g.n + " vin=" + g.totalChunks + " sha=" + shortHex(g.sha256, 8),
-      locations: dir.locations,
-      trueName: "maple-g" + pad2(g.n),
-      mime: "application/octet-stream",
-      playKind: "file",
-      dirId: MAPLE_ID,
-      groupN: g.n,
-    });
-  }
   return out;
 }
 
-export function formatFreeMusicCard(dir = loadFreeMusic()) {
+export function formatFreeMusicCard(dirOrId = MAPLE_ID) {
+  const dir = typeof dirOrId === "string" || dirOrId == null
+    ? loadFreeMusic(dirOrId || MAPLE_ID)
+    : dirOrId?.ok
+      ? dirOrId
+      : loadFreeMusic(MAPLE_ID);
   if (!dir?.ok) {
     return FREEMUSIC_MAGIC + " MISS\n" + (dir?.reason || "missing");
   }
-  const onChain = dir.onChain || provenMusicOnChain();
+  const onChain = dir.onChain || provenMusicOnChain(dir.id);
   const lines = [];
   lines.push(FREEMUSIC_MAGIC + "v1|id=" + dir.id + "|n=" + dir.groupCount + "§");
-  lines.push("FREE CATALOG · " + dir.title + " — " + dir.composer);
-  lines.push("public domain · popular ragtime · original OGG (not demo WAV)");
+  lines.push("FREE CATALOG · " + dir.title + (dir.performer ? " — " + dir.performer : ""));
+  if (dir.composer) lines.push("composer " + dir.composer);
+  lines.push(
+    dir.judyGarlandLane
+      ? "Judy Garland rainbow lane · PD 1918 singing · original OGG (not demo WAV)"
+      : "public domain · original OGG (not demo WAV)",
+  );
   lines.push(
     "bytes=" + dir.rawBytes +
       "  ·  " + (dir.durationSec || "?") + "s" +
@@ -461,6 +763,12 @@ export function formatFreeMusicCard(dir = loadFreeMusic()) {
   );
   lines.push("player=" + dir.player);
   lines.push("commit=" + dir.contentCommit8 + "  ·  privateKey=NO");
+  if (dir.locProof) {
+    lines.push(
+      "LOC PROOF local " + dir.locProof.matched + "/" + dir.locProof.pending +
+        " data-field commits · click-through after seal",
+    );
+  }
   if (onChain?.proven) {
     lines.push("PROVEN — Input Data locs sealed · original blockchain playback");
   } else {
@@ -479,9 +787,10 @@ export function formatFreeMusicCard(dir = loadFreeMusic()) {
     lines.push("  … +" + (dir.groups.length - 8) + " more groups");
   }
   lines.push("");
-  lines.push("play:     /vitafeed play maple");
-  lines.push("enqueue:  /vitafeed enqueue maple   (grouped VIN drain)");
-  lines.push("dual:     /vitafeed dual maple      (HUMAN catalog + MACHINE group shas)");
+  lines.push("play:     /vitafeed play " + dir.id);
+  lines.push("enqueue:  /vitafeed enqueue " + dir.id + "   (grouped VIN drain)");
+  lines.push("dual:     /vitafeed dual " + dir.id + "      (HUMAN catalog + MACHINE group shas)");
+  lines.push("locs:     /vita/free-music/locs?id=" + dir.id);
   lines.push("dir:      /vitafeed dir MUSIC");
   lines.push("href:     " + (dir.playerHref || vitaPlayerHref(dir.player)));
   return lines.join("\n");
@@ -489,8 +798,6 @@ export function formatFreeMusicCard(dir = loadFreeMusic()) {
 
 /**
  * Original playback payload. Reconstructs from grouped VITAFILE packets.
- * Proven flag is true only when CHAINDIR maple line is complete AND we are
- * not falling back to local bytes. Local reconstruct is availability.
  */
 export function playFreeMusic(selector = "maple") {
   const packed = packetizeFreeMusic(selector);
@@ -499,19 +806,25 @@ export function playFreeMusic(selector = "maple") {
   }
   const rebuilt = reconstructFreeMusicFromGroups(packed.groups);
   if (!rebuilt.ok) return { ok: false, reason: rebuilt.reason };
-  const onChain = provenMusicOnChain();
-  const playerPath = MUSIC_PLAYER_PATH;
+  const onChain = provenMusicOnChain(packed.id);
+  const locLocal = buildFreeMusicLocProofLocal(packed.id);
+  const playerPath = packed.player;
   const playerHref = vitaPlayerHref(playerPath);
   const dataUrl = "data:audio/ogg;base64," + rebuilt.data.toString("base64");
   const proven = Boolean(onChain?.proven);
   const lines = [
     FREEMUSIC_MAGIC + " PLAY · ORIGINAL OGG",
-    packed.title + " — " + packed.composer + " (1899, public domain)",
+    packed.title +
+      (packed.performer ? " — " + packed.performer : "") +
+      (packed.composer ? " (" + packed.composer + ")" : ""),
     "bytes=" + rebuilt.rawBytes + " sha256=" + rebuilt.sha256,
     "groups=" + packed.groupCount + "  VIN packets=" + packed.totalVin,
     proven
       ? "PROVEN — play from sealed Input Data groups (CHAINDIR complete)"
-      : "availability — reconstructed from grouped VIN packets (local). Seal via /vitafeed enqueue maple then confirm|override. Formula anchors are class proof, not this body.",
+      : "availability — reconstructed from grouped VIN packets (local). Seal via /vitafeed enqueue " +
+        packed.id +
+        " then confirm|override. Formula anchors are class proof, not this body.",
+    "LOC daisy-chain " + locLocal.matched + " local data-field commits OK · click Basescan after seal",
     "player " + playerHref,
     "not a demo WAV · not a URL blob · original bitstream playback",
   ];
@@ -561,6 +874,7 @@ export function playFreeMusic(selector = "maple") {
       card: lines.join("\n"),
     },
     groups: packed.groups.map(publicGroup),
+    locProof: locLocal,
     onChain,
     reply: lines.join("\n"),
   };
@@ -569,8 +883,9 @@ export function playFreeMusic(selector = "maple") {
 export function enqueueFreeMusicGroups({
   enqueueFn = null,
   includeManifest = true,
+  id = MAPLE_ID,
 } = {}) {
-  const packed = packetizeFreeMusic();
+  const packed = packetizeFreeMusic(id);
   if (!packed.ok) return packed;
   if (typeof enqueueFn !== "function") {
     return {
@@ -582,11 +897,11 @@ export function enqueueFreeMusicGroups({
   const added = [];
   const skipped = [];
   if (includeManifest) {
-    const manifest = musicDualHumanBody(packed);
+    const manifest = musicDualHumanBody(packed, packed.id);
     const r = enqueueFn({
       body: manifest,
-      topic: "maple-leaf-rag-manifest",
-      name: "maple-leaf-rag.txt",
+      topic: packed.chainDirName + "-manifest",
+      name: packed.chainDirName + ".txt",
       kind: "plain",
       source: "free-music-manifest",
       mime: "text/plain",
@@ -598,7 +913,7 @@ export function enqueueFreeMusicGroups({
   for (const g of packed.groups) {
     const r = enqueueFn({
       body: g.body,
-      topic: "maple-g" + pad2(g.n),
+      topic: packed.id + "-g" + pad2(g.n),
       name: g.name,
       kind: "vitafile",
       source: "free-music-group",
@@ -634,8 +949,18 @@ export function enqueueFreeMusicGroups({
 }
 
 export function publicFreeMusicState(id = MAPLE_ID) {
-  const dir = loadFreeMusic(id);
+  const want = resolveSongId(id) || MAPLE_ID;
+  const dir = loadFreeMusic(want);
   if (!dir.ok) return { ok: false, error: dir.reason || "missing" };
+  const playlists = Object.values(listCatalogSongs()).map((s) => ({
+    id: s.id,
+    label: "MUSIC",
+    title: s.title + (s.performer ? " — " + s.performer : ""),
+    kind: "audio",
+    count: 1,
+    player: s.player,
+    playerHref: vitaPlayerHref(s.player),
+  }));
   return {
     ok: true,
     id: FREEMUSIC_ID,
@@ -643,22 +968,13 @@ export function publicFreeMusicState(id = MAPLE_ID) {
     formula: FORMULA_ID,
     neverInventHashes: true,
     freeCatalog: true,
-    playlists: [
-      {
-        id: MAPLE_ID,
-        label: "MUSIC",
-        title: dir.title + " — " + dir.composer,
-        kind: "audio",
-        count: 1,
-        player: dir.player,
-        playerHref: dir.playerHref,
-      },
-    ],
+    playlists,
     onChain: dir.onChain,
     song: {
       id: dir.id,
       title: dir.title,
       composer: dir.composer,
+      performer: dir.performer,
       mime: dir.mime,
       fileName: dir.fileName,
       rawBytes: dir.rawBytes,
@@ -666,6 +982,7 @@ export function publicFreeMusicState(id = MAPLE_ID) {
       durationSec: dir.durationSec,
       license: dir.license,
       sourcePage: dir.sourcePage,
+      judyGarlandLane: dir.judyGarlandLane,
       groupCount: dir.groupCount,
       totalVin: dir.totalVin,
       vinCap: dir.vinCap,
@@ -673,6 +990,7 @@ export function publicFreeMusicState(id = MAPLE_ID) {
       player: dir.player,
       playerHref: dir.playerHref,
       telegram: dir.telegram,
+      locProof: dir.locProof,
     },
     note: dir.note,
   };
@@ -691,8 +1009,33 @@ export function publicFreeMusicPlay(id = MAPLE_ID) {
     play: opened.play,
     card: opened.reply,
     groups: opened.groups,
+    locProof: opened.locProof,
     onChain: opened.onChain,
     player: opened.playerPath,
     neverInventHashes: true,
+  };
+}
+
+export async function publicFreeMusicLocs(id = JUDY_ID, opts = {}) {
+  const proof = await buildFreeMusicLocProof({ id, ...opts });
+  if (!proof.ok) return { ok: false, error: proof.reason || "loc proof failed" };
+  return {
+    ok: true,
+    ...proof,
+    // Strip huge previews for HTTP — keep highlight click-through rows
+    rows: (proof.rows || []).map((r) => ({
+      groupN: r.groupN,
+      index: r.index,
+      filingPath: r.filingPath,
+      groupSha8: shortHex(r.groupSha, 8),
+      dataFieldCommit8: shortHex(r.dataFieldCommit, 8),
+      bodyPreview: clip(r.bodyPreview, 40),
+      location: r.location,
+      basescan: r.basescan,
+      match: r.match,
+      highlight: r.highlight,
+      clickThrough: r.clickThrough,
+      idmChat: r.idmChat,
+    })),
   };
 }

@@ -1,18 +1,21 @@
 {
-  "strandId": "free-music-maple",
+  "strandId": "free-music",
   "sparse": true,
   "source": "vita-free-music",
   "filingLabel": "FREEMUSIC",
-  "header": "§VITAMUSIC§v1|id=maple§",
-  "learn": "Free catalog song (Maple Leaf Rag, PD) packetizes as grouped §VITAFILE§ VIN injections. Each group ≤24 packets so hourly thrift can drain. Concatenate sealed slices → original OGG playback at /vita/feed-player?music=maple. Dual maple stages HUMAN catalog + MACHINE group shas into CHAINDIR. Availability until every group loc seals. Never invent hashes. Never a demo beep.",
+  "header": "§VITAMUSIC§v1|id=maple|judy§",
+  "learn": "Free catalog songs (Maple Leaf Rag PD + I'm Always Chasing Rainbows PD 1918 Judy lane) packetize as grouped §VITAFILE§ VIN injections. Each group ≤24 packets so hourly thrift can drain. Concatenate sealed slices → original OGG playback. Loc proof daisy-chains filing → VIN dataFieldCommit → Basescan Input Data MATCH (click-through highlighted). Dual maple|judy stages HUMAN catalog + MACHINE group shas into CHAINDIR. Availability until every group loc seals. Never invent hashes.",
   "commands": [
     "/vitafeed play maple",
+    "/vitafeed play judy",
     "/vitafeed music",
     "/vitafeed dir MUSIC",
     "/vitafeed enqueue maple",
-    "/vitafeed dual maple"
+    "/vitafeed enqueue judy",
+    "/vitafeed dual judy"
   ],
-  "player": "/vita/feed-player?music=maple",
+  "player": "/vita/feed-player?music=judy",
+  "locs": "/vita/free-music/locs?id=judy",
   "formula": "original-message-first",
   "neverInventHashes": true
 }

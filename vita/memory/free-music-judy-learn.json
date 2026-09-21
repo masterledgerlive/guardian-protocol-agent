@@ -1,0 +1,22 @@
+{
+  "id": "free-music-judy-learn",
+  "filingLabel": "FREEMUSIC",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "at": "2026-09-21T05:50:00.000Z",
+  "learn": "Second free-catalog song: I'm Always Chasing Rainbows (Harry Fox / Arthur Fields / Peerless Quartette, 1918 PD singing from National Jukebox / Wikimedia). Judy Garland free-catalog rainbow lane — she later made this standard famous; her 1939 Over the Rainbow Decca is rights-restricted (Archive lawsuit/noindex) so we never file that master. Compact mono 22050 Vorbis = 1053294 B / ~206s → 83 grouped §VITAFILE§ VIN injections (≤24/group). Loc proof daisy-chains filing path → group sha → VIN dataFieldCommit → sealed Basescan Input Data UTF-8; MATCH rows highlight click-through. Player /vita/feed-player?music=judy loads audio + /vita/free-music/locs. Proven only when every group loc is a real Base hash. VITAFEED_PAID default OFF.",
+  "commands": [
+    "/vitafeed play judy",
+    "/vitafeed music judy",
+    "/vitafeed dir MUSIC",
+    "/vitafeed enqueue judy",
+    "/vitafeed dual judy",
+    "/vitafeed next"
+  ],
+  "player": "/vita/feed-player?music=judy",
+  "locs": "/vita/free-music/locs?id=judy",
+  "sha256": "ce6cf7bf94a93968beeb3bd5b1f854168341d9191414d4ccc2cb047becbdf115",
+  "bytes": 1053294,
+  "groupCount": 83,
+  "totalVin": 1981
+}

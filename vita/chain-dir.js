@@ -173,11 +173,21 @@ export function guessTransmissionName(humanBody, hint = "") {
   if (named) return clip(named.replace(/[^\w.\-]+/g, "-"), 40);
   const s = String(humanBody || "");
   if (/§VITAURLDIR§/i.test(s) || /KIDS URL DIRECTORY/i.test(s)) return "kids-url-dir";
-  if (/§VITAMUSIC§/i.test(s) || /MAPLE LEAF RAG/i.test(s)) return "maple-leaf-rag";
+  if (/§VITAMUSIC§/i.test(s) || /MAPLE LEAF RAG/i.test(s) || /ALWAYS CHASING RAINBOWS/i.test(s) || /Judy Garland free-catalog/i.test(s)) {
+    if (/id=judy\b/i.test(s) || /ALWAYS CHASING RAINBOWS/i.test(s) || /Judy Garland free-catalog/i.test(s) || /judy-chasing-rainbows/i.test(s)) {
+      return "judy-chasing-rainbows";
+    }
+    return "maple-leaf-rag";
+  }
   if (/§VITAFILE§/i.test(s)) {
     const m = s.match(/name=([^|§]+)/i);
     const name = m ? m[1] : "vitafile";
-    if (/Maple_Leaf_Rag/i.test(name) || /\.g\d{2}$/i.test(name)) return "maple-leaf-rag";
+    if (/Im_Always_Chasing_Rainbows/i.test(name)) return "judy-chasing-rainbows";
+    if (/Maple_Leaf_Rag/i.test(name)) return "maple-leaf-rag";
+    if (/\.g\d{2}$/i.test(name)) {
+      if (/Chasing_Rainbows|judy/i.test(name)) return "judy-chasing-rainbows";
+      if (/Maple_Leaf/i.test(name)) return "maple-leaf-rag";
+    }
     return clip(name, 40);
   }
   const first = s.split(/\n/)[0] || "line";
@@ -618,11 +628,17 @@ export function chainDirEntriesFor() {
       playKind:
         l.name === "kids-url-dir"
           ? "youtube"
-          : l.name === "maple-leaf-rag"
+          : l.name === "maple-leaf-rag" || l.name === "judy-chasing-rainbows"
             ? "audio"
             : "file",
       dirId:
-        l.name === "kids-url-dir" ? "kids" : l.name === "maple-leaf-rag" ? "maple" : null,
+        l.name === "kids-url-dir"
+          ? "kids"
+          : l.name === "maple-leaf-rag"
+            ? "maple"
+            : l.name === "judy-chasing-rainbows"
+              ? "judy"
+              : null,
     });
   }
   return out;
@@ -653,28 +669,49 @@ export function provenKidsOnChain() {
   };
 }
 
-export function provenMusicOnChain() {
-  const rows = loadChainDir().lines.filter((l) => l.name === "maple-leaf-rag");
+export function provenMusicOnChain(songId = "maple") {
+  const want =
+    String(songId || "maple").toLowerCase() === "judy" ||
+    /chasing|garland|rainbow/.test(String(songId || ""))
+      ? "judy-chasing-rainbows"
+      : "maple-leaf-rag";
+  const rows = loadChainDir().lines.filter((l) => l.name === want);
   const complete = rows.find((l) => l.status === STATUS_COMPLETE);
+  const label =
+    want === "judy-chasing-rainbows"
+      ? "I'm Always Chasing Rainbows (Judy Garland free-catalog lane)"
+      : "Maple Leaf Rag";
+  const cmd = want === "judy-chasing-rainbows" ? "judy" : "maple";
   if (complete) {
     return {
       proven: true,
       availability: false,
+      songId: cmd,
+      chainDirName: want,
       n: complete.n,
       completedAt: complete.completedAt,
       proofs: proofsFor(complete),
-      note: "Maple Leaf Rag catalog sealed in Input Data — HUMAN + MACHINE loc proofs. Song body is grouped §VITAFILE§ VIN slices.",
+      note:
+        label +
+        " catalog sealed in Input Data — HUMAN + MACHINE loc proofs. Song body is grouped §VITAFILE§ VIN slices. Click Basescan → UTF-8 to match data fields.",
     };
   }
   const routing = rows.find((l) => l.status !== STATUS_COMPLETE);
   return {
     proven: false,
     availability: true,
+    songId: cmd,
+    chainDirName: want,
     n: routing?.n || null,
     status: routing?.status || "unfiled",
     proofs: routing ? proofsFor(routing) : [],
     note:
-      "Maple Leaf Rag is local availability until grouped VIN injects seal every slice into Input Data. /vitafeed dual maple logs the catalog line; /vitafeed enqueue maple drains groups. Formula anchors are class proof only — they do not hold this body.",
+      label +
+      " is local availability until grouped VIN injects seal every slice into Input Data. /vitafeed dual " +
+      cmd +
+      " logs the catalog line; /vitafeed enqueue " +
+      cmd +
+      " drains groups. Formula anchors are class proof only — they do not hold this body.",
   };
 }
 
@@ -689,7 +726,8 @@ export function publicChainDirState() {
     seq: ledger.seq,
     cycle: ledger.cycle,
     kids: provenKidsOnChain(),
-    music: provenMusicOnChain(),
+    music: provenMusicOnChain("maple"),
+    judy: provenMusicOnChain("judy"),
     active: listActiveLines(),
     complete: listCompleteLines(),
     card: formatChainDirCard(ledger),
@@ -698,6 +736,7 @@ export function publicChainDirState() {
       "/vitafeed cycle",
       "/vitafeed dual kids",
       "/vitafeed dual maple",
+      "/vitafeed dual judy",
       "/vitafeed loc 0x…",
       "/vitafeed dir CHAIN",
     ],

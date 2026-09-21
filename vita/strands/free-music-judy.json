@@ -1,0 +1,26 @@
+{
+  "strandId": "free-music-judy",
+  "sparse": true,
+  "source": "vita-free-music",
+  "filingLabel": "FREEMUSIC",
+  "header": "§VITAMUSIC§v1|id=judy§",
+  "learn": "Judy Garland free-catalog lane: PD 1918 I'm Always Chasing Rainbows singing. Grouped VIN injects. Loc proof = filing → group sha → VIN dataFieldCommit → Basescan Input Data UTF-8 MATCH (highlighted click-through). Availability until seal. Never invent hashes. Never Over the Rainbow Decca.",
+  "commands": [
+    "/vitafeed play judy",
+    "/vitafeed music judy",
+    "/vitafeed dir MUSIC",
+    "/vitafeed enqueue judy",
+    "/vitafeed dual judy"
+  ],
+  "player": "/vita/feed-player?music=judy",
+  "locs": "/vita/free-music/locs?id=judy",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "daisyChain": [
+    "vita/memory/free-music/Im_Always_Chasing_Rainbows.ogg",
+    "vita/memory/free-music-catalog.json#judy",
+    "§VITAFILE§ groups g01…g83",
+    "VIN dataFieldCommit",
+    "Basescan Input Data → UTF-8 MATCH"
+  ]
+}

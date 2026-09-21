@@ -269,7 +269,17 @@ export function listUrlDirectories() {
 export function systemPlaylists() {
   const demoPath = KIDS_FEED_PLAYER_PATH + "?demo=1";
   const maplePath = KIDS_FEED_PLAYER_PATH + "?music=maple";
+  const judyPath = KIDS_FEED_PLAYER_PATH + "?music=judy";
   const out = [
+    {
+      id: "judy",
+      label: "MUSIC",
+      title: "I'm Always Chasing Rainbows (Judy Garland lane · PD 1918)",
+      kind: "audio",
+      count: 1,
+      player: judyPath,
+      playerHref: vitaPlayerHref(judyPath),
+    },
     {
       id: "maple",
       label: "MUSIC",
