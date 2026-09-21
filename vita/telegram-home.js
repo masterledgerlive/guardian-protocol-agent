@@ -191,6 +191,19 @@ export const HOME_SECTIONS = Object.freeze([
     ],
   },
   {
+    id: "agents",
+    title: "Agents",
+    emoji: "🤖",
+    blurb: "Agent-owned chat · x404 dir tags · proven locs wait master-tag",
+    buttons: [
+      { label: "Chat", cmd: "/agents chat" },
+      { label: "Dir", cmd: "/agents dir" },
+      { label: "Dual", cmd: "/agents dual" },
+      { label: "Proven locs", cmd: "/agents proven" },
+      { label: "Path map", cmd: "/agents path" },
+    ],
+  },
+  {
     id: "mother",
     title: "Mother",
     emoji: "🧬",
@@ -341,7 +354,7 @@ export function formatHomeCard() {
     lines.push("   routes: " + sec.buttons.map((b) => b.label).join(" · "));
   }
   lines.push("");
-  lines.push("Commands: /home · /home search · /home sim · /home engines · /menu");
+  lines.push("Commands: /home · /home search · /home agents · /home sim · /home engines · /menu");
   const locs = homeIdmLocations();
   lines.push("IDM anchors: " + locs.map((l) => shortHex(l.location, 8)).join(" · "));
   return lines.join("\n");

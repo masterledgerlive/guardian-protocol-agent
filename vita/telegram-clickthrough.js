@@ -83,6 +83,10 @@ export function buildVitaFeedRootKeyboard() {
         btn("🪞 /vita files", "/vita files"),
         btn("⛓ Chain", "/vita chain"),
       ],
+      [
+        btn("🤖 Agents", "/home agents"),
+        btn("🏠 HOME", "/home"),
+      ],
     ],
   };
 }

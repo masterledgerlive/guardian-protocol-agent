@@ -95,6 +95,7 @@ export const HELP_SECTIONS = Object.freeze([
       { label: "Feed menu", cmd: "/vitafeed" },
       { label: "Tokens", cmd: "/tokens" },
       { label: "Dir", cmd: "/vitafeed dir" },
+      { label: "Agents", cmd: "/home agents" },
       { label: "Check routes", cmd: "/vita check routes" },
     ],
   },
@@ -148,6 +149,7 @@ export const HELP_SECTIONS = Object.freeze([
       { label: "Prove", cmd: "/prove" },
       { label: "Reader", cmd: "/reader" },
       { label: "Inject", cmd: "/inject" },
+      { label: "Agents chat", cmd: "/agents chat" },
     ],
   },
   {
@@ -464,6 +466,8 @@ export const ROUTE_CHECK_CORE_FILES = Object.freeze([
   "vita/chain-layer.js",
   "vita/vita-dir.js",
   "vita/vita-feed.js",
+  "vita/x404-dir.js",
+  "vita/agent-chat.js",
   "public/vita.html",
 ]);
 

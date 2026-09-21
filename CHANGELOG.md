@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Added — agent-owned chat channel + x404 directory tags
+
+HARD STOP: mother brain untouched. `VITAFEED_PAID` stays default OFF
+(MIN_LIQUID / no unpaired paid self-calls). Never invent hashes. Vault never.
+
+Wrap on telegram-home + dual + vita-dir (no second Telegram stack):
+
+- Relearn map `vita/TELEGRAM_RELEARN.md` — HOME sections, `/vitafeed` click
+  tree, dual HUMAN/MACHINE, sealed-only IDM, dir/kids/x404, systems-check
+- **x404 dir tags** (`vita/x404-dir.json` + reader): same display name maps
+  to many plotted locations; directories = answer-key routes; optional sealed
+  Base loc only when proven; plots wait for a master-location tag
+- **Agent chat v0** (`vita/agent-chat.js`): dedicated channel
+  `agent-chat:storage-token` + factory for other agent ids. Hex-only
+  `§KEY§`…`§LOC§` dual; public/open key. Telegram `/home` → Agents → Chat ·
+  Dir · Dual · Proven locs · Path map. Offline/bank hex when gas thin; hitch
+  when leftover covers KEY+LOC (feed-wrap, never solo-send)
+- Env stubs `AGENT_CHAT_WALLET` / `AGENT_CHAT_X402_ENDPOINT` documented only
+  — this PR does not spend RISK or create paid txs
+- DOS kids: `VITA:\X404` · `VITA:\AGENTS` · `VITA:\KIDS`
+
 ### Fixed — OPERATOR_ROTATE HOME buy uses Aerodrome Slipstream, not Uni QuoterV2
 
 HARD STOP: mother brain untouched. Vault never. Verified HOME still

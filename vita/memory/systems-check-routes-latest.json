@@ -1,18 +1,18 @@
 {
-  "at": "2026-09-21T01:37:13.357Z",
+  "at": "2026-09-21T02:50:47.606Z",
   "topic": "systems-check-routes",
   "filingLabel": "SYSTEMS_CHECK_ROUTES",
   "magic": "§SYSCHECK§",
   "formula": "original-message-first",
   "verdict": "PASS",
   "containerGood": true,
-  "containerRoot": "a37cf97ccd57645f",
-  "elapsedMs": 37,
+  "containerRoot": "75478d79f9a4b729",
+  "elapsedMs": 41,
   "domino": {
-    "passed": 31,
+    "passed": 34,
     "questionable": 0,
     "failed": 0,
-    "total": 31,
+    "total": 34,
     "minTokensUsed": [
       "AERO",
       "VIRTUAL",
@@ -29,7 +29,7 @@
         "id": "vita",
         "path": "vita",
         "status": "PASS",
-        "root": "25a6f798cc347ed7",
+        "root": "adadc0038267ae0f",
         "leafCount": 120,
         "corruptJson": 0,
         "errors": []
@@ -38,7 +38,7 @@
         "id": "vita-memory",
         "path": "vita/memory",
         "status": "PASS",
-        "root": "0736374fd90b2729",
+        "root": "8d3c61a55524d50c",
         "leafCount": 120,
         "corruptJson": 0,
         "errors": []
@@ -47,8 +47,8 @@
         "id": "vita-strands",
         "path": "vita/strands",
         "status": "PASS",
-        "root": "8decf423616a3dc7",
-        "leafCount": 44,
+        "root": "5587e9654326ea91",
+        "leafCount": 47,
         "corruptJson": 0,
         "errors": []
       },
@@ -56,8 +56,8 @@
         "id": "public",
         "path": "public",
         "status": "PASS",
-        "root": "87811d8878c46c4a",
-        "leafCount": 9,
+        "root": "9cb695319e8492fc",
+        "leafCount": 10,
         "corruptJson": 0,
         "errors": []
       },
@@ -76,11 +76,11 @@
     "ok": true,
     "passed": 9,
     "total": 9,
-    "snarkRoot": "cc1a1f70888c7fee1d3d48b8a884a84f4c4be9a4536da7435211907834856390",
+    "snarkRoot": "b9f5af5466a9b65012d114e9cd2a2d200047d40045f6f5b72a8e40483dc6dcf0",
     "error": null
   },
   "errorLocations": [],
-  "forceInjectBody": "§SYSCHECK§v1|routes|verdict=PASS|root=a37cf97ccd57645f|at=2026-09-21T01:37:13.357Z§\nCONTAINER PASS root=a37cf97ccd57645f\nDOMINO pass=31 q=0 fail=0/31\nMIN_TOKENS AERO,VIRTUAL,BRETT\nERRORS none — container good\n\nProve: Basescan Input Data → UTF-8 after seal. Never invent tx hashes.\n§VITACLICK§v1|track|SYSCHECK|2026-09-21T01:37:13.394Z§\nHUMAN route domino PASS root=a37cf97ccd57645f\nMACHINE TRACK tag=SYSCHECK at=2026-09-21T01:37:13.394Z route=telegram-clickthrough\nProve: Basescan Input Data → UTF-8 after seal. Never invent tx hashes.",
+  "forceInjectBody": "§SYSCHECK§v1|routes|verdict=PASS|root=75478d79f9a4b729|at=2026-09-21T02:50:47.606Z§\nCONTAINER PASS root=75478d79f9a4b729\nDOMINO pass=34 q=0 fail=0/34\nMIN_TOKENS AERO,VIRTUAL,BRETT\nERRORS none — container good\n\nProve: Basescan Input Data → UTF-8 after seal. Never invent tx hashes.\n§VITACLICK§v1|track|SYSCHECK|2026-09-21T02:50:47.647Z§\nHUMAN route domino PASS root=75478d79f9a4b729\nMACHINE TRACK tag=SYSCHECK at=2026-09-21T02:50:47.647Z route=telegram-clickthrough\nProve: Basescan Input Data → UTF-8 after seal. Never invent tx hashes.",
   "forceInjectStaged": true,
   "neverInventHashes": true,
   "nodes": [
@@ -100,7 +100,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "subdirs=11"
+      "detail": "subdirs=14"
     },
     {
       "id": "home-callbacks",
@@ -109,7 +109,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "76 routes fit≤64"
+      "detail": "84 routes fit≤64"
     },
     {
       "id": "home-memory",
@@ -154,7 +154,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "8 buttons"
+      "detail": "11 buttons"
     },
     {
       "id": "home-trade",
@@ -173,6 +173,15 @@
       "parentStatus": "PASS",
       "status": "PASS",
       "detail": "4 buttons"
+    },
+    {
+      "id": "home-agents",
+      "avenue": "telegram-home",
+      "cmd": "/home agents",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "5 buttons"
     },
     {
       "id": "home-mother",
@@ -208,7 +217,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "53 routes fit≤64"
+      "detail": "55 routes fit≤64"
     },
     {
       "id": "token-catalog",
@@ -262,7 +271,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "6723B"
+      "detail": "7244B"
     },
     {
       "id": "core:vita/ORIGINAL_FORMULA.md",
@@ -280,7 +289,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "11022B"
+      "detail": "12006B"
     },
     {
       "id": "core:vita/anchors.json",
@@ -289,7 +298,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "1586B"
+      "detail": "1672B"
     },
     {
       "id": "core:vita/mainframe.js",
@@ -307,7 +316,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "28743B"
+      "detail": "29343B"
     },
     {
       "id": "core:vita/telegram-clickthrough.js",
@@ -316,7 +325,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "13917B"
+      "detail": "14013B"
     },
     {
       "id": "core:vita/telegram-help-routes.js",
@@ -325,7 +334,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "32449B"
+      "detail": "32596B"
     },
     {
       "id": "core:vita/chain-layer.js",
@@ -334,7 +343,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "37707B"
+      "detail": "37732B"
     },
     {
       "id": "core:vita/vita-dir.js",
@@ -343,7 +352,7 @@
       "parentFolder": "vita",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "23261B"
+      "detail": "25409B"
     },
     {
       "id": "core:vita/vita-feed.js",
@@ -355,13 +364,31 @@
       "detail": "84326B"
     },
     {
+      "id": "core:vita/x404-dir.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "13575B"
+    },
+    {
+      "id": "core:vita/agent-chat.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "22662B"
+    },
+    {
       "id": "core:public/vita.html",
       "avenue": "container",
       "cmd": null,
       "parentFolder": "public",
       "parentStatus": "PASS",
       "status": "PASS",
-      "detail": "16128B"
+      "detail": "16239B"
     }
   ]
 }

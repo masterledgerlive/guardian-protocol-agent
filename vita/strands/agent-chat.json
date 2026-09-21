@@ -1,0 +1,34 @@
+{
+  "strandId": "agent-chat",
+  "sparse": true,
+  "source": "agent-chat",
+  "filingLabel": "AGENT_CHAT",
+  "header": "§AGENTCHAT§v1|chat=<agentId>|dir|dual|proven|path",
+  "learn": "Dedicated always-on chat path per agent (storage-token first). Hex-only §KEY§…§LOC§ dual; public open key; x404 same-name many plots; proven locs wait master-location tag. HOME Agents buttons Chat·Dir·Dual·Proven locs·Path map. Bank hex when gas thin; hitch when leftover covers KEY+LOC. VITAFEED_PAID stays gated. Mother brain wrap-only.",
+  "formula": "original-message-first",
+  "telegram": [
+    "/home agents",
+    "/agents chat",
+    "/agents dir",
+    "/agents dual",
+    "/agents proven",
+    "/agents path"
+  ],
+  "locations": [
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    },
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    }
+  ]
+}

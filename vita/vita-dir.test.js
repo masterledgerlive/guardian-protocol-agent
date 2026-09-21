@@ -42,6 +42,25 @@ describe("vita-dir DOS master directory", () => {
     assert.match(formatSubDirCard(listed), /math-euler/);
   });
 
+  it("x404 + agents wrap beside #161 KIDS url dir without private keys", () => {
+    const names = VITADIR_SUBDIRS.map((d) => d.name);
+    assert.ok(names.includes("X404"));
+    assert.ok(names.includes("AGENTS"));
+    assert.ok(names.includes("KIDS"));
+    const kids = listSubDirectory("KIDS");
+    assert.equal(kids.ok, true);
+    assert.ok(kids.entries.some((e) => e.name === "kids-url-dir.json"));
+    const x404 = listSubDirectory("X404");
+    assert.equal(x404.ok, true);
+    assert.ok(x404.entries.some((e) => e.unlockName === "storage-token"));
+    const agents = listSubDirectory("AGENTS");
+    assert.equal(agents.ok, true);
+    assert.ok(agents.entries.some((e) => /storage-token/i.test(e.name)));
+    const unlocked = unlockDirectoryEntry("AGENTS\\storage-token.chat");
+    assert.equal(unlocked.ok, true);
+    assert.equal(unlocked.unlock.privateKey, false);
+  });
+
   it("open-source unlock never requires a private key", () => {
     const key = openSourceUnlockKey({ name: "math-euler.txt", content: "e^(iπ)+1=0" });
     assert.equal(key.privateKey, false);

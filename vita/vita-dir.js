@@ -7,6 +7,7 @@
  *     MEMORY\    STRANDS\   LEARN\
  *     REF_LIB\   CODEX\     MG_RECALL\
  *     LIBRARY\   PROVEN\   KIDS\
+ *     X404\      AGENTS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
  * Machine-short (ZK-style squash) unwraps instantly to English + machine blocks
@@ -24,6 +25,7 @@ import { listLibraryEntries, resolveLibraryEntry } from "./vita-feed-library.js"
 import { CALCULATOR_TRUE_NAME, TRANSLATOR_CODEX, searchRefMemory } from "./ref-memory.js";
 import { loadRecallBank } from "./mg-recall-bank.js";
 import { urlDirEntriesFor } from "./url-dir.js";
+import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -49,6 +51,8 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "LIBRARY", role: "sealed name→key→locs", filing: "VITALIB" },
   { name: "PROVEN", role: "proven test series", filing: "PROVEN_TEST" },
   { name: "KIDS", role: "closed-garden YouTube URL playlist", filing: "URLDIR" },
+  { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
+  { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
 ]);
 
 /** Seed library: start of open codex (math / theories) — not private. */
@@ -356,6 +360,44 @@ function dirEntriesFor(subdir) {
     });
   } else if (name === "KIDS" || name === "URLDIR") {
     urlDirEntriesFor().forEach((e) => out.push(e));
+  } else if (name === "X404") {
+    listX404DirEntries().forEach((e) => out.push(e));
+  } else if (name === "AGENTS") {
+    const tag = lookupX404Tag("storage-token");
+    const locs = provenX404Locs().map((l) => l.location);
+    out.push({
+      n: 1,
+      name: "storage-token.chat",
+      kind: "agent",
+      bytes: 0,
+      unlockName: "storage-token.chat",
+      english:
+        "Dedicated always-on chat channel for storage-token. /home → Agents → Chat. Public open key. Hex-only §KEY§…§LOC§ dual.",
+      machine: "AGENTCHAT id=storage-token channel=agent-chat:storage-token alwaysOn=1 paid=off",
+      locations: locs,
+      trueName: "storage-token",
+    });
+    if (tag.ok) {
+      tag.plots.forEach((p, i) => {
+        out.push({
+          n: i + 2,
+          name: sanitizeDosName(p.plotId) + ".plot",
+          kind: "x404",
+          bytes: 0,
+          unlockName: p.plotId,
+          english: "x404 plot " + p.plottedLocation + " status=" + p.status,
+          machine:
+            "X404 plot=" +
+            p.plotId +
+            " net=" +
+            p.net +
+            " route=" +
+            (p.answerKeyRoute || []).join(">"),
+          locations: isTxHash(p.sealedBaseLoc) ? [p.sealedBaseLoc] : [],
+          trueName: "storage-token",
+        });
+      });
+    }
   }
 
   return { subdir: name, entries: out };
