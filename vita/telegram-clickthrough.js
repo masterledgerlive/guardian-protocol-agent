@@ -27,6 +27,7 @@ import {
   parseTokenPlayerCommand,
   tokenPlayerHref,
 } from "./token-player.js";
+import { publicChainDirState } from "./chain-dir.js";
 
 export const CLICKTHROUGH_ID = "vita-telegram-clickthrough-v1";
 export const CLICKTHROUGH_MAGIC = "§VITACLICK§";
@@ -102,6 +103,7 @@ export function buildVitaFeedRootKeyboard() {
       [
         btn("📂 Dir", "/vitafeed dir"),
         btn("🧒 KIDS", "/vitafeed play kids"),
+        btn("⛓ Chain dir", "/vitafeed chaindir"),
         btn("📚 Files", "/vitafeed files"),
         btn("🔑 Keys", "/vitafeed keys"),
       ],
@@ -190,6 +192,13 @@ export function buildDirSubKeyboard(listed) {
     return btn("📄 " + clipName(e.name, 26), cmd);
   });
   const rows = rowsOf(fileBtns, 1);
+  if (sub === "CHAIN") {
+    rows.unshift([
+      btn("🔁 Cycle", "/vitafeed cycle"),
+      btn("📋 Chain dir", "/vitafeed chaindir"),
+      btn("🔤 Dual kids", "/vitafeed dual kids"),
+    ]);
+  }
   if (sub === "KIDS") {
     const href = vitaPlayerHref("/vita/kids-player?dir=kids");
     rows.unshift([
@@ -341,8 +350,38 @@ export function buildTokenActionKeyboard(symbol) {
 }
 
 /**
- * Attach the right keyboard for a vitafeed action result.
+ * Clickable Input Data proofs for the completion directory.
+ * URL buttons (Basescan) — routing lines have no loc yet.
  */
+export function buildChainDirKeyboard(state = publicChainDirState()) {
+  const proofs = [
+    ...(state.complete || []).flatMap((l) => l.proofs || []),
+    ...(state.active || []).flatMap((l) => l.proofs || []),
+  ].slice(0, 8);
+  const rows = [];
+  const proofBtns = proofs.map((p) =>
+    urlBtn((p.lane === "MACHINE" ? "🤖 " : "👁 ") + String(p.tx).slice(2, 8), p.basescan),
+  );
+  for (let i = 0; i < proofBtns.length; i += 2) {
+    rows.push(proofBtns.slice(i, i + 2));
+  }
+  if (!proofBtns.length) {
+    rows.push([
+      btn("🔤 Dual kids", "/vitafeed dual kids"),
+      btn("🔤 Dual", "/vitafeed dual"),
+    ]);
+  }
+  rows.push([
+    btn("🔁 Cycle", "/vitafeed cycle"),
+    btn("📋 Chain dir", "/vitafeed chaindir"),
+    btn("📂 CHAIN", "/vitafeed dir CHAIN"),
+  ]);
+  rows.push([
+    btn("🧒 KIDS", "/vitafeed play kids"),
+    btn("🏠 Menu", "/vitafeed"),
+  ]);
+  return { inline_keyboard: rows };
+}
 export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) {
   const act = String(action || out.phase || "").toLowerCase();
   if (act === "dir") {
@@ -369,6 +408,9 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
       playerPath: out.playerPath || (out.demo ? "/vita/feed-player?demo=1" : "/vita/kids-player?dir=kids"),
       includeDemo: true,
     });
+  }
+  if (act === "chaindir" || act === "cycle" || act === "loc") {
+    return out.keyboard || buildChainDirKeyboard(out.state || publicChainDirState());
   }
   if (act === "preview" || act === "dual" || act === "translate" || act === "brain" || act === "next" || act === "keys" || act === "enqueue") {
     return buildVitaFeedStagedKeyboard();

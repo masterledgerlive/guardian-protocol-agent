@@ -51,6 +51,7 @@
 //   GET  /vita/dex-reader?sym=  — live DexScreener + Gecko dual (miss ≠ $0)
 //   GET  /vita/chains        — 32-chain portfolio (ETH L1 other-path ≠ Base RISK)
 //   GET  /vita/url-dir      — JSON catalog of curated playlist urls
+//   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
@@ -137,6 +138,7 @@ import {
 } from "./vita/token-player.js";
 import { readDexForToken } from "./vita/dex-reader.js";
 import { listMultichainPortfolio } from "./vita/multichain-portfolio.js";
+import { publicChainDirState, searchByLocation } from "./vita/chain-dir.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -183,6 +185,7 @@ const VITA_FEED_LOADER_HTML = join(ROOT, "public", "vita-feed-loader.html");
 const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
 const VITA_KIDS_PLAYER_HTML = join(ROOT, "public", "vita-kids-player.html");
 const VITA_TOKEN_PLAYER_HTML = join(ROOT, "public", "vita-token-player.html");
+const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -706,6 +709,18 @@ async function handleVitaRequest(req, res) {
     if (path.startsWith("/vita/url-dir/") && req.method === "GET") {
       const id = decodeURIComponent(path.slice("/vita/url-dir/".length)).replace(/\/+$/, "") || "kids";
       return json(res, publicUrlDirState(id));
+    }
+    if ((path === "/vita/chain-dir" || path === "/vita/chain-dir/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      if (accept.includes("text/html") && !accept.includes("application/json")) {
+        return servePublicHtml(res, VITA_CHAIN_DIR_HTML, "vita chain dir");
+      }
+      const q = String(url.searchParams.get("loc") || url.searchParams.get("tx") || "").trim();
+      if (q) return json(res, searchByLocation(q));
+      return json(res, publicChainDirState());
+    }
+    if ((path === "/vita/chain-dir.html" || path === "/vita/chain-dir/ui") && req.method === "GET") {
+      return servePublicHtml(res, VITA_CHAIN_DIR_HTML, "vita chain dir");
     }
     if ((path === "/vita/mirror.html" || path === "/vita/mirror/ui") && req.method === "GET") {
       return servePublicHtml(res, VITA_MIRROR_HTML, "vita mirror dual");

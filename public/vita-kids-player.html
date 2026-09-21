@@ -173,6 +173,9 @@
     html.tg-popup .screen iframe,
     html.tg-popup .screen .yt { max-height: 42vh; aspect-ratio: 16 / 9; }
     html.tg-popup .now { font-size: .92rem; }
+    .proof { font-size: .72rem; color: #3d5566; margin: 0 0 .55rem; max-width: 42rem; }
+    .proof a { color: #1a6b8a; }
+    html.tg-popup .proof { font-size: .65rem; }
   </style>
 </head>
 <body>
@@ -183,6 +186,7 @@
       Only the URLs in our KIDS directory play here. No YouTube search, no other
       channels, no recommended videos. Next and previous stay inside this list.
     </p>
+    <div class="proof" id="chainProof">Checking Input Data loc proofs…</div>
     <div class="chrome">
       <label>Playlist
         <select id="playlistPick" aria-label="System playlists"></select>
@@ -297,6 +301,25 @@
 
     bootTelegramPopup();
     fillPlaylists();
+    (async function chainProof() {
+      const box = el("chainProof");
+      if (!box) return;
+      try {
+        const data = await fetch("/vita/chain-dir").then((r) => r.json());
+        const k = data.kids || {};
+        if (k.proven) {
+          const links = (k.proofs || []).slice(0, 4).map((p) =>
+            "<a href='" + p.basescan + "' target='_blank' rel='noopener'>" + p.lane + " Input Data</a>"
+          ).join(" · ");
+          box.innerHTML = "PROVEN on-chain @" + (k.completedAt || "") + " — " + links;
+        } else {
+          box.innerHTML = (k.note || "availability (local catalog) — not in Input Data yet.") +
+            " <a href='/vita/chain-dir.html'>chain directory</a>";
+        }
+      } catch (_) {
+        box.textContent = "availability — chain directory unreachable";
+      }
+    })();
 
     function clip(s, n) {
       const t = String(s || "");

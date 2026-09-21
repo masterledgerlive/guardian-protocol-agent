@@ -18,6 +18,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FORMULA_ID, MAINFRAME_ANCHORS } from "./mainframe.js";
+import { provenKidsOnChain } from "./chain-dir.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -506,6 +507,7 @@ export function publicUrlDirState(id = KIDS_DIR_ID) {
     closedGarden: true,
     playlists,
     dirs: listUrlDirectories().dirs,
+    onChain: provenKidsOnChain(),
     dir: {
       id: dir.id,
       label: dir.label,
@@ -534,7 +536,7 @@ export function publicUrlDirState(id = KIDS_DIR_ID) {
       controls: 1,
       host: "https://www.youtube-nocookie.com",
     },
-    note: "Closed garden — play only listed urls. Telegram Watch popup. Dual: /vitafeed dual kids.",
+    note: "Closed garden — play listed urls. Proven only after dual kids seals Input Data. Telegram Watch popup. Dual: /vitafeed dual kids.",
   };
 }
 
