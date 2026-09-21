@@ -6,7 +6,7 @@
  *     FORMULA\   ANCHORS\   FILING\
  *     MEMORY\    STRANDS\   LEARN\
  *     REF_LIB\   CODEX\     MG_RECALL\
- *     LIBRARY\   PROVEN\
+ *     LIBRARY\   PROVEN\   KIDS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
  * Machine-short (ZK-style squash) unwraps instantly to English + machine blocks
@@ -23,6 +23,7 @@ import { FORMULA_ID, MAINFRAME_ANCHORS, ORIGINAL_FORMULA } from "./mainframe.js"
 import { listLibraryEntries, resolveLibraryEntry } from "./vita-feed-library.js";
 import { CALCULATOR_TRUE_NAME, TRANSLATOR_CODEX, searchRefMemory } from "./ref-memory.js";
 import { loadRecallBank } from "./mg-recall-bank.js";
+import { urlDirEntriesFor } from "./url-dir.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -47,6 +48,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "MG_RECALL", role: "mother-genesis recall bank", filing: "MG_RECALL" },
   { name: "LIBRARY", role: "sealed name→key→locs", filing: "VITALIB" },
   { name: "PROVEN", role: "proven test series", filing: "PROVEN_TEST" },
+  { name: "KIDS", role: "closed-garden YouTube URL playlist", filing: "URLDIR" },
 ]);
 
 /** Seed library: start of open codex (math / theories) — not private. */
@@ -352,6 +354,8 @@ function dirEntriesFor(subdir) {
         mime: e.mime,
       });
     });
+  } else if (name === "KIDS" || name === "URLDIR") {
+    urlDirEntriesFor().forEach((e) => out.push(e));
   }
 
   return { subdir: name, entries: out };
@@ -516,6 +520,9 @@ function playGoalHint(mime, kind) {
   const k = String(kind || "");
   if (m.startsWith("audio/") || k === "audio") return "song → /vitafeed play · feed-player";
   if (m.startsWith("video/") || k === "video") return "movie → /vitafeed play · feed-player";
+  if (k === "youtube" || k === "url" || m.includes("uri-list") || m.includes("mpegurl")) {
+    return "kids url dir → /vitafeed play kids · /vita/kids-player";
+  }
   if (m.includes("html") || k === "html") return "html → unwrap English + machine; open as page when sealed";
   if (k === "math" || k === "codex" || k === "theory") return "codex → English + machine formula; library seed";
   if (k === "strand" || k === "memory") return "filed note → cite locs; recover via /vitapull or reader key";

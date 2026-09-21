@@ -45,6 +45,8 @@
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
 //   GET  /vita/read?f=FILE  — open file (local + GitHub CODE/STATE) + SNARK + IDM
 //   GET  /vita/mirror       — dual-path GitHub duplicate · tree · boot · zero-proof (+ HTML UI)
+//   GET  /vita/kids-player  — closed-garden KIDS YouTube URL directory player
+//   GET  /vita/url-dir      — JSON catalog of curated playlist urls
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
@@ -120,6 +122,9 @@ import {
   vitaFeedPaidEnabled,
   VITAFEED_AUTOFIRE_CHAT_ID,
 } from "./vita/vita-feed.js";
+import {
+  publicUrlDirState,
+} from "./vita/url-dir.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -164,6 +169,7 @@ const VITA_HTML = join(ROOT, "public", "vita.html");
 const VITA_FEED_PLAYER_HTML = join(ROOT, "public", "vita-feed-player.html");
 const VITA_FEED_LOADER_HTML = join(ROOT, "public", "vita-feed-loader.html");
 const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
+const VITA_KIDS_PLAYER_HTML = join(ROOT, "public", "vita-kids-player.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -646,6 +652,17 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/feed-player" || path === "/vita/feed-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_FEED_PLAYER_HTML, "vita feed player");
+    }
+    if ((path === "/vita/kids-player" || path === "/vita/kids-player/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_KIDS_PLAYER_HTML, "vita kids player");
+    }
+    if ((path === "/vita/url-dir" || path === "/vita/url-dir/") && req.method === "GET") {
+      const id = String(url.searchParams.get("dir") || url.searchParams.get("id") || "kids").trim();
+      return json(res, publicUrlDirState(id));
+    }
+    if (path.startsWith("/vita/url-dir/") && req.method === "GET") {
+      const id = decodeURIComponent(path.slice("/vita/url-dir/".length)).replace(/\/+$/, "") || "kids";
+      return json(res, publicUrlDirState(id));
     }
     if ((path === "/vita/mirror.html" || path === "/vita/mirror/ui") && req.method === "GET") {
       return servePublicHtml(res, VITA_MIRROR_HTML, "vita mirror dual");

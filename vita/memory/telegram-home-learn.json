@@ -277,7 +277,76 @@
       "formula": "original-message-first",
       "neverForget": true,
       "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:27:41.592Z",
+      "topic": "telegram-home-sim",
+      "section": "all",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -27,
+      "searchPassed": 6,
+      "snarkRoot": "dd54c2eb67f02bf11b5db44100096f897c6ce4823661354c491b2bd89483ef3f",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:27:41.595Z",
+      "topic": "telegram-home-sim",
+      "section": "search",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -30,
+      "searchPassed": 6,
+      "snarkRoot": "6924e4390ea5d7a02be9d41f53efa00eaac3c274395c5249569c1188bf849f08",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:27:41.596Z",
+      "topic": "engine-compare",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -14,
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:27:41.597Z",
+      "topic": "telegram-home-sim",
+      "section": "wave",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -28,
+      "searchPassed": null,
+      "snarkRoot": "7e1ff2854faaebef23370db87774c5aad7778bfe0556db2fd8cc435e3e4bde29",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
     }
   ],
-  "updatedAt": "2026-09-21T00:09:43.626Z"
+  "updatedAt": "2026-09-21T02:27:41.597Z"
 }

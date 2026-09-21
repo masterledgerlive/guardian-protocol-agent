@@ -651,6 +651,11 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:unlock|openfile|reveal)\s*/i, "").trim();
     return { ok: true, action: "unlock", body: rest, source: "unlock" };
   }
+  // KIDS closed-garden YouTube URL directory.
+  if (/^(?:kids|urldir|url-dir|kplaylist)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:kids|urldir|url-dir|kplaylist)\s*/i, "").trim();
+    return { ok: true, action: "kids", body: rest, source: "kids" };
+  }
   // Inject / message-sent tracking — prove click-through + running code path.
   if (/^(?:track|trackinject|clicktrack)(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:track|trackinject|clicktrack)\s*/i, "").trim();
@@ -752,6 +757,12 @@ export function vitaFeedUsageText() {
     "  Instant ZK-short unwrap → SNARK first · Human plain · Machine key (+ timing)",
     "  /vitafeed track [sym]      — stage inject/message proof for Confirm|Override",
     "  /tokens · /tok SYMBOL      — token catalog → buy/sell/exit/dual/track",
+    "KIDS URL DIRECTORY (closed-garden YouTube playlist — no recommendations):",
+    "  /vitafeed kids             — KIDS url dir card + player link",
+    "  /vitafeed dir KIDS         — DOS list of curated urls",
+    "  /vitafeed play kids [n]    — load directory in closed-garden player",
+    "  /vitafeed dual kids        — HUMAN url list + MACHINE ids (Telegram dual path)",
+    "  Player: /vita/kids-player?dir=kids  ·  also /vita/feed-player?dir=kids",
     "BACKLOG (feed brain without agentic AI):",
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
@@ -765,6 +776,7 @@ export function vitaFeedUsageText() {
     "Max payload/chunk = " + VITAFEED_MAX_CHUNK_BYTES + " bytes (VITAFEED_MAX_CHUNK_BYTES).",
     "Player: /vita/feed-player — upload any data, demo seal, play from locations.",
     "  or /vita/feed-player?lib=<n> after /vitafeed files.",
+    "  or /vita/kids-player?dir=kids — closed-garden KIDS url directory.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
   ].join("\n");
 }
@@ -1445,6 +1457,10 @@ export async function handleVitaFeedAction({
       const staged = peekVitaFeed(chatId);
       text = staged?.body || "";
     }
+    {
+      const { maybeKidsDualHumanBody } = await import("./url-dir.js");
+      text = maybeKidsDualHumanBody(text);
+    }
     if (!text) {
       return {
         ok: false,
@@ -1476,6 +1492,10 @@ export async function handleVitaFeedAction({
     if (!text) {
       const staged = peekVitaFeed(chatId);
       text = staged?.body || "";
+    }
+    {
+      const { maybeKidsDualHumanBody } = await import("./url-dir.js");
+      text = maybeKidsDualHumanBody(text);
     }
     if (!text) {
       return {
@@ -1654,6 +1674,35 @@ export async function handleVitaFeedAction({
       reply:
         formatProvenTestCard(report) +
         "\n\nTry: /vitafeed ref calculadora  ·  /vitafeed ask I built a calc for payroll",
+    };
+  }
+  if (action === "kids") {
+    const {
+      formatKidsDirCard,
+      loadUrlDirectory,
+      playKidsDirectory,
+    } = await import("./url-dir.js");
+    const rest = String(body || "").trim();
+    if (/^\d+$/.test(rest)) {
+      const opened = playKidsDirectory("kids " + rest);
+      return {
+        ok: opened.ok !== false,
+        phase: "play",
+        n: opened.n,
+        play: opened.play || null,
+        playProof: opened.ok
+          ? { play: opened.play, complete: true, card: opened.reply }
+          : null,
+        playerPath: opened.playerPath || null,
+        reply: opened.reply || opened.reason || "open failed",
+      };
+    }
+    const dir = loadUrlDirectory("kids");
+    return {
+      ok: dir.ok !== false,
+      phase: "kids",
+      directory: dir.ok ? { id: dir.id, count: dir.count, player: dir.player } : null,
+      reply: formatKidsDirCard(dir),
     };
   }
   if (action === "dir") {
@@ -1923,6 +1972,21 @@ export async function handleVitaFeedAction({
     };
   }
   if (action === "play") {
+    const { isKidsPlaySelector, playKidsDirectory } = await import("./url-dir.js");
+    if (isKidsPlaySelector(body)) {
+      const opened = playKidsDirectory(body);
+      return {
+        ok: opened.ok !== false,
+        phase: "play",
+        n: opened.n,
+        play: opened.play || null,
+        playProof: opened.ok
+          ? { play: opened.play, complete: true, card: opened.reply }
+          : null,
+        playerPath: opened.playerPath || null,
+        reply: opened.reply || opened.reason || "open failed",
+      };
+    }
     const { playFromLibrary } = await import("./vita-feed-library.js");
     const opened = await playFromLibrary(body, { label: "LIBRARY" });
     return {

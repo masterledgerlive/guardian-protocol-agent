@@ -584,6 +584,7 @@ import {
 import {
   playFromLibrary,
 } from "./vita/vita-feed-library.js";
+import { isKidsPlaySelector, playKidsDirectory } from "./vita/url-dir.js";
 import {
   closeVitaFeedTicket,
   dueVitaFeedExit,
@@ -13022,9 +13023,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
             "<code>/vitafeed keys</code> — stage §VITALIB§ keys catalog (name→key→locs)\n" +
             "<code>/vitafeed dir</code> · <code>/vitafeed unlock</code> — DOS click-through\n" +
+            "<code>/vitafeed kids</code> · <code>/vitafeed play kids</code> · <code>/vitafeed dual kids</code> — closed-garden KIDS url directory\n" +
             "<code>/vitafeed track</code> — stage inject/message proof · <code>/tokens</code> — token actions\n" +
             "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
-            "Player: <code>/vita/feed-player</code> or <code>/vita/feed-player?lib=N</code>\n" +
+            "Player: <code>/vita/feed-player</code> · <code>/vita/kids-player?dir=kids</code> · <code>/vita/feed-player?lib=N</code>\n" +
             "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
             "VIN headers link chunks (prev hash / next index).\n" +
             "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
@@ -13034,7 +13036,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         } else if (parsed.action === "files" || parsed.action === "play" || parsed.action === "keys") {
           try {
             if (parsed.action === "play") {
-              const opened = await playFromLibrary(parsed.selector || parsed.body, {
+              const sel = parsed.selector || parsed.body;
+              const opened = isKidsPlaySelector(sel)
+                ? playKidsDirectory(sel)
+                : await playFromLibrary(sel, {
                 fetchUtf8: async (txHash) => {
                   try {
                     const pulled = await pullLocationFromChain(txHash);
