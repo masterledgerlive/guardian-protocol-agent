@@ -231,6 +231,10 @@ describe("player surfaces exist", () => {
     assert.match(html, /telegram-web-app\.js/);
     assert.match(html, /btnPopout/);
     assert.match(html, /playlistPick/);
+    assert.match(html, /kids-locked|vitaKidsPin|Kids PIN/);
+    assert.match(html, /yt-shield|ytShield/);
+    assert.match(html, /DEFAULT_PIN|0000/);
+    assert.match(html, /btnPause/);
     const hook = readFileSync(join(root, "vita-webhook.js"), "utf8");
     assert.match(hook, /\/vita\/kids-player/);
     assert.match(hook, /\/vita\/url-dir/);
@@ -241,6 +245,8 @@ describe("player surfaces exist", () => {
     assert.match(feed, /music=maple/);
     assert.match(feed, /btnPopout/);
     assert.match(feed, /playlistPick/);
+    assert.match(feed, /liveReaders|readerHuman|MACHINE · SNARK|timeupdate|paintLiveLoc/);
+    assert.match(feed, /loc-active|loc-ticker/);
   });
 
   it("public HTTPS popup href + system playlists", () => {

@@ -1,0 +1,10 @@
+{
+  "id": "live-snark-captions",
+  "filingLabel": "FEED_PLAYER",
+  "at": "2026-09-21T06:20:00.000Z",
+  "learn": "Feed player layers HUMAN English + MACHINE/SNARK readers over playback like TV captions. As the song plays, timeupdate maps currentTime→next loc row from /vita/free-music/locs (revealed key · anyone can play). Active loc highlights + scrolls; ticker shows file + commit + next pull; pieces fill in order. Dual readers teach kids and adults what data/instructions the player is reading. Never invent tx hashes — sealed locs only; pending rows stay LOCAL_OK until confirm|override.",
+  "player": "/vita/feed-player?music=judy",
+  "locs": "/vita/free-music/locs?id=judy",
+  "lanes": ["HUMAN", "MACHINE"],
+  "neverInventHashes": true
+}

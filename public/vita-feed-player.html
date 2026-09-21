@@ -218,6 +218,87 @@
       white-space: pre-wrap;
       margin: .5rem 0 0;
     }
+    /* Dual readers — HUMAN English + MACHINE/SNARK — like TV captions over the play */
+    .live-readers {
+      margin-top: .75rem;
+      display: grid;
+      gap: .45rem;
+    }
+    .reader-lane {
+      position: relative;
+      border: 1.5px solid rgba(15,31,46,.2);
+      background: rgba(15,31,46,.92);
+      color: #e8f4f8;
+      padding: .55rem .7rem .55rem .85rem;
+      font-size: .72rem;
+      line-height: 1.35;
+      min-height: 3.2rem;
+      overflow: hidden;
+    }
+    .reader-lane::before {
+      content: attr(data-lane);
+      position: absolute;
+      top: .35rem;
+      right: .5rem;
+      font-family: var(--display);
+      font-size: .62rem;
+      letter-spacing: .06em;
+      opacity: .55;
+    }
+    .reader-lane.human {
+      border-color: var(--tide);
+      box-shadow: inset 3px 0 0 var(--tide);
+    }
+    .reader-lane.machine {
+      border-color: var(--coral);
+      box-shadow: inset 3px 0 0 var(--coral);
+      font-family: var(--mono);
+    }
+    .reader-lane .pull-file {
+      display: block;
+      font-family: var(--display);
+      font-size: .78rem;
+      color: #9fd4e8;
+      margin-bottom: .2rem;
+    }
+    .reader-lane .pull-body {
+      animation: captionIn .35s ease both;
+    }
+    .reader-lane.flash .pull-body {
+      animation: captionIn .35s ease both;
+    }
+    @keyframes captionIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: none; }
+    }
+    .loc-ticker {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .68rem;
+      color: #3d5566;
+      margin-top: .45rem;
+    }
+    .loc-ticker .dot {
+      width: .55rem;
+      height: .55rem;
+      border-radius: 50%;
+      background: var(--ok);
+      animation: pullPulse 1.1s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pullPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .45; transform: scale(1.25); }
+    }
+    table tr.loc-active {
+      background: rgba(26, 107, 138, 0.28) !important;
+      outline: 2px solid var(--tide);
+    }
+    table tr.loc-active td { font-weight: 700; }
+    table tr.loc-next {
+      background: rgba(224, 122, 95, 0.12);
+    }
     .chrome {
       display: flex;
       flex-wrap: wrap;
@@ -296,9 +377,24 @@
       <div>
         <section class="block">
           <h2>3 · Tailwind reader play</h2>
+          <p class="hint">HUMAN English + MACHINE SNARK readers layer over play like TV captions — each advances to the next loc as the song pulls data in order.</p>
           <p class="stat" id="statLine">0 / 0 locations</p>
           <div class="player-shell" id="playerShell">
             <p class="hint" style="margin:0">Player waits until every spaced packet is peaced together.</p>
+          </div>
+          <div class="live-readers" id="liveReaders" hidden aria-live="polite">
+            <div class="reader-lane human" data-lane="HUMAN" id="readerHuman">
+              <span class="pull-file" id="humanFile">—</span>
+              <span class="pull-body" id="humanBody">Waiting for play…</span>
+            </div>
+            <div class="reader-lane machine" data-lane="MACHINE · SNARK" id="readerMachine">
+              <span class="pull-file" id="machineFile">—</span>
+              <span class="pull-body" id="machineBody">Waiting for loc pull…</span>
+            </div>
+            <div class="loc-ticker" id="locTicker">
+              <span class="dot" aria-hidden="true"></span>
+              <span id="locTickerText">Locations idle — press play to pull SNARK locs in order</span>
+            </div>
           </div>
           <pre class="card" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
         </section>
@@ -328,8 +424,145 @@
     let fileBytes = null;
     let fileName = "blob.bin";
     let fileMime = "application/octet-stream";
+    let liveChunks = [];
+    let liveIndex = -1;
+    let liveMedia = null;
 
     const el = (id) => document.getElementById(id);
+
+    function humanLineFor(c, i, total) {
+      if (!c) return "No location queued.";
+      const file = c.filingPath
+        ? String(c.filingPath).replace(/^vita\/memory\//, "")
+        : (c.label || fileName || "packet");
+      const g = c.groupN != null ? ("group g" + c.groupN) : ("piece #" + (i + 1));
+      const match = c.match ? String(c.match).toUpperCase() : (c.demo ? "DEMO" : "LOCAL");
+      return (
+        "Reading " + file + " · " + g + " of " + total +
+        " · status " + match +
+        (c.bodyPreview ? " · text “" + String(c.bodyPreview).slice(0, 36) + "…”" : "")
+      );
+    }
+
+    function machineLineFor(c, i, total) {
+      if (!c) return "SNARK idle";
+      const loc = c.location
+        ? shortHex(c.location, 12)
+        : "pending-seal";
+      const commit = c.dataFieldCommit8 || shortHex(c.dataFieldCommit, 8) || shortHex(c.groupSha8 || c.groupSha, 8);
+      const next = liveChunks[i + 1];
+      const nextLoc = next
+        ? (next.location ? shortHex(next.location, 10) : "next-pending")
+        : "EOF";
+      return (
+        "PULL loc=" + loc +
+        " · commit=" + commit +
+        " · idx=" + (i + 1) + "/" + total +
+        " · NEXT→" + nextLoc +
+        (c.basescan ? " · Basescan Input Data" : " · local reconstruct")
+      );
+    }
+
+    function setLiveReadersVisible(on) {
+      const box = el("liveReaders");
+      if (box) box.hidden = !on;
+    }
+
+    function paintLiveLoc(i) {
+      const total = liveChunks.length;
+      if (!total) return;
+      const idx = Math.max(0, Math.min(total - 1, i));
+      const c = liveChunks[idx];
+      const fileLabel = c?.filingPath
+        ? String(c.filingPath).replace(/^vita\/memory\//, "")
+        : (proof?.play?.name || fileName || "SNARK packet");
+      const humanFile = el("humanFile");
+      const humanBody = el("humanBody");
+      const machineFile = el("machineFile");
+      const machineBody = el("machineBody");
+      const ticker = el("locTickerText");
+      const changed = idx !== liveIndex;
+      liveIndex = idx;
+      if (humanFile) humanFile.textContent = "FILE · " + fileLabel;
+      if (machineFile) machineFile.textContent = "SNARK · loc stream " + (idx + 1) + "/" + total;
+      if (humanBody) {
+        humanBody.textContent = humanLineFor(c, idx, total);
+        if (changed) {
+          el("readerHuman")?.classList.remove("flash");
+          void el("readerHuman")?.offsetWidth;
+          el("readerHuman")?.classList.add("flash");
+        }
+      }
+      if (machineBody) {
+        machineBody.textContent = machineLineFor(c, idx, total);
+        if (changed) {
+          el("readerMachine")?.classList.remove("flash");
+          void el("readerMachine")?.offsetWidth;
+          el("readerMachine")?.classList.add("flash");
+        }
+      }
+      if (ticker) {
+        const loc = c?.location || c?.filingPath || "local";
+        ticker.textContent =
+          "Actively pulling #" + (idx + 1) + "/" + total +
+          " → " + String(loc).slice(0, 22) +
+          (c?.location && String(c.location).length > 22 ? "…" : "") +
+          " into player (revealed key · anyone can play)";
+      }
+      const body = el("locBody");
+      if (body) {
+        const rows = body.querySelectorAll("tr");
+        const gActive = c?.groupN;
+        rows.forEach((tr, ri) => {
+          const label = tr.querySelector("td")?.textContent || "";
+          const isGroup = gActive != null && label.indexOf("g" + gActive + ".") === 0;
+          const isIdx = gActive == null && ri === idx;
+          tr.classList.toggle("loc-active", isGroup || isIdx);
+          const nextG = liveChunks[idx + 1]?.groupN;
+          const isNext = nextG != null
+            ? label.indexOf("g" + nextG + ".") === 0
+            : ri === idx + 1;
+          tr.classList.toggle("loc-next", !tr.classList.contains("loc-active") && isNext);
+        });
+        const active = body.querySelector("tr.loc-active");
+        if (active && changed) active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+      // Fill pieces in sync with pull order
+      if (total) renderPieces(total, idx + 1);
+    }
+
+    function syncLiveFromMedia() {
+      if (!liveMedia || !liveChunks.length) return;
+      const dur = Number(liveMedia.duration);
+      const t = Number(liveMedia.currentTime) || 0;
+      if (!Number.isFinite(dur) || dur <= 0) {
+        paintLiveLoc(0);
+        return;
+      }
+      const frac = Math.min(1, Math.max(0, t / dur));
+      const idx = Math.min(liveChunks.length - 1, Math.floor(frac * liveChunks.length));
+      paintLiveLoc(idx);
+    }
+
+    function bindLiveMedia(media, chunks) {
+      if (liveMedia) {
+        liveMedia.removeEventListener("timeupdate", syncLiveFromMedia);
+        liveMedia.removeEventListener("play", syncLiveFromMedia);
+        liveMedia.removeEventListener("seeked", syncLiveFromMedia);
+      }
+      liveChunks = Array.isArray(chunks) ? chunks : [];
+      liveIndex = -1;
+      liveMedia = media || null;
+      setLiveReadersVisible(liveChunks.length > 0);
+      if (!liveMedia || !liveChunks.length) {
+        if (liveChunks.length) paintLiveLoc(0);
+        return;
+      }
+      liveMedia.addEventListener("timeupdate", syncLiveFromMedia);
+      liveMedia.addEventListener("play", syncLiveFromMedia);
+      liveMedia.addEventListener("seeked", syncLiveFromMedia);
+      paintLiveLoc(0);
+    }
 
     function bootTelegramPopup() {
       const popup = q.get("popup") === "1" || q.get("popout") === "1";
@@ -571,12 +804,14 @@
       }).join("");
     }
 
-    function showPlay(proof) {
+    function showPlay(proofObj) {
       const shell = el("playerShell");
       shell.innerHTML = "";
-      const play = proof.play;
+      const play = proofObj?.play;
+      const chunks = proofObj?.chunks || liveChunks || [];
       if (!play) {
         shell.innerHTML = "<p class='hint' style='margin:0'>No playable payload.</p>";
+        bindLiveMedia(null, chunks);
         return;
       }
       if (play.kind === "audio") {
@@ -585,28 +820,35 @@
         a.autoplay = true;
         a.src = play.dataUrl;
         shell.appendChild(a);
+        bindLiveMedia(a, chunks);
       } else if (play.kind === "video") {
         const v = document.createElement("video");
         v.controls = true;
         v.autoplay = true;
         v.src = play.dataUrl;
         shell.appendChild(v);
+        bindLiveMedia(v, chunks);
       } else if (play.kind === "image") {
         const img = document.createElement("img");
         img.alt = play.name || "image";
         img.src = play.dataUrl;
         shell.appendChild(img);
+        bindLiveMedia(null, chunks);
+        if (chunks.length) paintLiveLoc(0);
       } else if (play.kind === "text") {
         const pre = document.createElement("pre");
         pre.className = "card";
         pre.textContent = play.text || "";
         shell.appendChild(pre);
+        bindLiveMedia(null, chunks);
+        if (chunks.length) paintLiveLoc(0);
       } else {
         const a = document.createElement("a");
         a.href = play.dataUrl;
         a.download = play.name || "file.bin";
         a.textContent = "Download " + (play.name || "file");
         shell.appendChild(a);
+        bindLiveMedia(null, chunks);
       }
     }
 
@@ -688,6 +930,7 @@
       el("playCard").textContent = proof.card;
       el("okPill").classList.add("show");
       el("btnPlay").disabled = false;
+      liveChunks = chunks;
     }
 
     el("fileIn").addEventListener("change", async (e) => {
@@ -764,6 +1007,7 @@
             "\nOpen from Telegram /vitafeed play " + data.n;
           renderPieces(proof.chunks.length || data.entry?.totalChunks || 1, proof.chunks.length || 0);
           renderLocs(proof.chunks);
+          liveChunks = proof.chunks;
           if (data.complete) {
             el("okPill").classList.add("show");
             el("btnPlay").disabled = false;
@@ -798,31 +1042,43 @@
           try {
             const locs = await fetch("/vita/free-music/locs?id=" + encodeURIComponent(musicId)).then((r) => r.json());
             if (locs?.ok && locs.rows?.length) {
-              locRows = locs.rows;
+              locRows = locs.rows.map((r) => ({
+                ...r,
+                dataFieldCommit8: r.dataFieldCommit8 || shortHex(r.dataFieldCommit, 8),
+                groupSha8: r.groupSha8 || shortHex(r.groupSha, 8),
+              }));
               const daisy = el("daisyBox");
               if (daisy) {
                 daisy.textContent =
                   (locs.daisyChain || []).join("\n") +
                   "\nmatched " + (locs.matched || 0) +
                   " · pending seal " + (locs.pending || 0) +
-                  " · click-through " + (locs.clickThrough?.length || 0);
+                  " · click-through " + (locs.clickThrough?.length || 0) +
+                  "\nlive: HUMAN + MACHINE readers advance with playback from SNARK locs";
               }
             }
           } catch (_) {}
+          const byGroup = new Map();
+          for (const r of locRows) {
+            const g = r.groupN != null ? r.groupN : byGroup.size + 1;
+            if (!byGroup.has(g)) byGroup.set(g, { ...r, index: 1 });
+          }
+          const groupChunks = [...byGroup.values()];
           proof = {
             complete: true,
             play: data.play,
             card: data.card || (musicId + " — grouped VIN original playback"),
-            chunks: locRows,
+            chunks: groupChunks.length ? groupChunks : locRows,
           };
+          liveChunks = proof.chunks;
           el("playCard").textContent = proof.card;
           el("costCard").textContent =
             (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
             (data.play.name || musicId) +
-            " · groups " + (data.groups?.length || 0) +
-            " · original OGG (not a demo WAV) · loc MATCH highlighted";
-          renderPieces(data.groups?.length || 1, data.groups?.length || 0);
-          renderLocs(proof.chunks);
+            " · groups " + (data.groups?.length || groupChunks.length || 0) +
+            " · original OGG (not a demo WAV) · loc MATCH highlighted · live SNARK pull";
+          renderPieces(groupChunks.length || data.groups?.length || 1, 0);
+          renderLocs(locRows);
           el("okPill").classList.add("show");
           el("btnPlay").disabled = false;
           showPlay(proof);

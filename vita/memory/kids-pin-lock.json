@@ -1,0 +1,15 @@
+{
+  "id": "kids-pin-lock",
+  "filingLabel": "URLDIR",
+  "at": "2026-09-21T06:20:00.000Z",
+  "learn": "KIDS closed-garden player gains a parent PIN lock (custom 4-digit or default 0000). When locked: only Play / Pause / Next / Prev + playlist row picks work; YouTube iframe is shielded (controls=0, fs=0, disablekb=1, yt-shield overlay); chrome/popout/proof/playlist-picker/replay hidden; back-swipe and stray taps trapped so the kid cannot escape into YouTube or the phone. Small lock FAB bottom-right toggles lock/unlock with PIN; Set kids PIN confirms twice. localStorage vitaKidsPin + vitaKidsLocked. Never invent hashes. Never open YouTube recommendations.",
+  "commands": [
+    "/vitafeed play kids",
+    "/vitafeed kids",
+    "/vita/kids-player?dir=kids&lock=1"
+  ],
+  "player": "/vita/kids-player?dir=kids",
+  "pinDefault": "0000",
+  "allowedWhenLocked": ["play", "pause", "next", "prev", "list"],
+  "neverInventHashes": true
+}
