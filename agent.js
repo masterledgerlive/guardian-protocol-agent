@@ -10356,7 +10356,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           let msg = "📡 <b>VITAFEED FILE READY</b>\n━━━━━━━━━━━━━━━━━━━━\n";
           msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
           msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override</code>\n";
-          msg += "Player: <code>/vita/feed-player</code> after seal (PLAY PROOF peaces locations).";
+          msg += "Player: " +
+            "<a href=\"" + vitaPlayerHref("/vita/feed-player").replace(/&/g, "&amp;") +
+            "\">Watch popup</a> after seal (PLAY PROOF peaces locations).";
           await tg(msg, {
             reply_markup: out.keyboard || buildVitaFeedStagedKeyboard(),
           });
@@ -13432,11 +13434,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 " locs. Remainder restaged — <code>/vitafeed override</code> again when funded.\n";
             }
             if (out.playProof?.complete) {
+              const playPath = out.library?.n
+                ? "/vita/feed-player?lib=" + encodeURIComponent(String(out.library.n))
+                : "/vita/feed-player";
+              const playHref = vitaPlayerHref(playPath).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
               msg +=
                 "\n▶️ <b>PLAY PROOF</b> — " +
                 (out.playProof.spacedProof?.spacedBlockchainLocations || locs.length) +
                 " spaced locations peaced together\n" +
-                "Open <code>/vita/feed-player</code> to play " +
+                "Open <a href=\"" + playHref + "\">Watch popup</a> to play " +
                 (out.playProof.play?.name || out.playProof.file?.name || "blob");
             }
             if (out.library?.ok) {
@@ -13449,6 +13455,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             await tg(msg, {
               reply_markup:
                 out.keyboard ||
+                (out.playProof?.complete
+                  ? buildPlayerPopupKeyboard({
+                      playerPath: out.library?.n
+                        ? "/vita/feed-player?lib=" + encodeURIComponent(String(out.library.n))
+                        : "/vita/feed-player",
+                    })
+                  : null) ||
                 keyboardForVitaFeedResult({ action: parsed.action, out }) ||
                 buildVitaFeedRootKeyboard(),
             });
