@@ -268,8 +268,8 @@
       animation: captionIn .35s ease both;
     }
     @keyframes captionIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: none; }
+      from { opacity: .35; }
+      to { opacity: 1; }
     }
     .loc-ticker {
       display: flex;
@@ -278,6 +278,13 @@
       font-size: .68rem;
       color: #3d5566;
       margin-top: .45rem;
+      min-height: 1.2rem;
+      overflow: hidden;
+    }
+    .loc-ticker #locTickerText {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .loc-ticker .dot {
       width: .55rem;
@@ -299,6 +306,100 @@
     table tr.loc-next {
       background: rgba(224, 122, 95, 0.12);
     }
+    .loc-rail {
+      display: grid;
+      gap: .5rem;
+    }
+    .loc-progress { display: grid; gap: .3rem; }
+    .loc-bar {
+      height: 8px;
+      background: rgba(15,31,46,.12);
+      overflow: hidden;
+      border: 1px solid rgba(15,31,46,.14);
+    }
+    .loc-bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--ok), var(--tide), var(--coral));
+      transition: width .2s linear;
+    }
+    .loc-progress-label {
+      font-size: .7rem;
+      color: #3d5566;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .loc-cards {
+      display: grid;
+      gap: .4rem;
+      min-height: 10.8rem;
+    }
+    .loc-card {
+      border: 1.5px solid rgba(15,31,46,.16);
+      background: rgba(255,255,255,.78);
+      padding: .45rem .6rem;
+      cursor: pointer;
+      min-height: 3.35rem;
+      display: grid;
+      gap: .12rem;
+    }
+    .loc-card.loc-match { outline: 1px solid rgba(42,157,143,.45); }
+    .loc-card.loc-active {
+      background: rgba(26, 107, 138, 0.16);
+      border-color: var(--tide);
+    }
+    .loc-card.slot-loading { border-style: dashed; border-color: var(--tide); }
+    .loc-card.slot-loading:not(.empty) .loc-card-load {
+      display: block;
+      height: 3px;
+      margin-top: .15rem;
+      background: linear-gradient(90deg, transparent, var(--tide), transparent);
+      background-size: 200% 100%;
+      animation: locLoad 1.1s linear infinite;
+    }
+    .loc-card-load { display: none; height: 3px; }
+    @keyframes locLoad {
+      from { background-position: 100% 0; }
+      to { background-position: -100% 0; }
+    }
+    .loc-card.slot-next { opacity: .8; }
+    .loc-card.empty { cursor: default; opacity: .5; }
+    .loc-card-kicker {
+      font-family: var(--display);
+      font-size: .68rem;
+      letter-spacing: .04em;
+    }
+    .loc-card-body { font-size: .72rem; }
+    .loc-card-meta { font-size: .64rem; color: #5a7182; }
+    .loc-tuck-list {
+      max-height: 9.5rem;
+      overflow: auto;
+      display: grid;
+      gap: 2px;
+      border: 1px solid rgba(15,31,46,.12);
+      padding: .35rem;
+      background: rgba(255,255,255,.55);
+      margin-top: .4rem;
+    }
+    .loc-tuck-item {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: var(--ink);
+      font-size: .68rem;
+      padding: .28rem .4rem;
+    }
+    .loc-inspect { min-height: 7.5rem; margin-top: .65rem; }
+    .loc-inspect-head {
+      font-family: var(--display);
+      font-size: .95rem;
+      margin: 0 0 .35rem;
+    }
+    #locInspectBody { max-height: 220px; min-height: 140px; }
     .chrome {
       display: flex;
       flex-wrap: wrap;
@@ -455,14 +556,40 @@
         </section>
 
         <section class="block proof-chrome">
-          <h2>Locations · click-through Basescan</h2>
-          <p class="hint">Highlighted MATCH rows = Input Data UTF-8 equals the VIN data-field commit. Daisy-chain: filing → group sha → VIN → sealed loc.</p>
+          <h2>Locations · blockchain pull</h2>
+          <p class="hint">Loaded block stays put. Loading bar + next 1–2 Input Data packets wait in line; the rest tucks behind a button. Click a block to read the exact VIN UTF-8 the player feeds — sha256(line) = dataFieldCommit, not a summary.</p>
           <pre class="daisy" id="daisyBox"></pre>
-          <div style="overflow:auto">
-            <table>
-              <thead><tr><th>#</th><th>filing / block</th><th>location · Input Data</th></tr></thead>
-              <tbody id="locBody"><tr><td colspan="3">None yet.</td></tr></tbody>
-            </table>
+          <div class="loc-rail" id="locRail">
+            <div class="loc-progress">
+              <div class="loc-bar" aria-hidden="true"><i id="locBarFill"></i></div>
+              <div class="loc-progress-label" id="locProgressLabel">0 / 0 blockchain blocks loaded</div>
+            </div>
+            <div class="loc-cards" id="locCards">
+              <article class="loc-card slot-current empty loc-active" id="locCard0" data-i="">
+                <div class="loc-card-kicker">LOADED · NOW</div>
+                <div class="loc-card-body">Waiting for loc pull…</div>
+                <div class="loc-card-meta"></div>
+              </article>
+              <article class="loc-card slot-loading empty" id="locCard1" data-i="">
+                <div class="loc-card-kicker">LOADING NEXT</div>
+                <div class="loc-card-body">—</div>
+                <div class="loc-card-meta"></div>
+                <div class="loc-card-load" aria-hidden="true"></div>
+              </article>
+              <article class="loc-card slot-next empty" id="locCard2" data-i="">
+                <div class="loc-card-kicker">NEXT UP</div>
+                <div class="loc-card-body">—</div>
+                <div class="loc-card-meta"></div>
+              </article>
+            </div>
+            <div class="loc-tuck">
+              <button type="button" class="ghost" id="btnLocTuck" aria-expanded="false">Show remaining blockchain blocks</button>
+              <div class="loc-tuck-list" id="locTuckList" hidden></div>
+            </div>
+          </div>
+          <div class="loc-inspect" id="locInspect">
+            <div class="loc-inspect-head">Exact packet fed into player</div>
+            <pre class="card" id="locInspectBody">Click a blockchain block to read the VIN data field (UTF-8). sha256(line) must equal dataFieldCommit — true to that block, no invented loc.</pre>
           </div>
         </section>
       </div>
@@ -482,6 +609,7 @@
     let liveChunks = [];
     let liveIndex = -1;
     let liveMedia = null;
+    let locBlocks = [];
     const PROOF_KEY = "vitaMusicProof";
     let catalogSongs = [];
     let musicIndex = 0;
@@ -569,7 +697,7 @@
         ? shortHex(c.location, 12)
         : "pending-seal";
       const commit = c.dataFieldCommit8 || shortHex(c.dataFieldCommit, 8) || shortHex(c.groupSha8 || c.groupSha, 8);
-      const next = liveChunks[i + 1];
+      const next = (locBlocks[i + 1] || liveChunks[i + 1]);
       const nextLoc = next
         ? (next.location ? shortHex(next.location, 10) : "next-pending")
         : "EOF";
@@ -587,11 +715,147 @@
       if (box) box.hidden = !on;
     }
 
+    function locLabel(c, i) {
+      if (c?.groupN != null) return "g" + c.groupN + "." + (c.index || i + 1);
+      return String(i + 1);
+    }
+
+    function fillLocCard(node, c, i, role) {
+      if (!node) return;
+      node.classList.toggle("empty", !c);
+      node.classList.toggle("loc-match", Boolean(c && (c.highlight || /MATCH|LOCAL_OK/i.test(c.match || ""))));
+      node.classList.toggle("loc-active", role === "current" && Boolean(c));
+      node.classList.toggle("loc-next", (role === "loading" || role === "next") && Boolean(c));
+      node.dataset.i = c ? String(i) : "";
+      node.dataset.g = c?.groupN != null ? String(c.groupN) : "";
+      node.dataset.idx = c?.index != null ? String(c.index) : "";
+      const kicker = node.querySelector(".loc-card-kicker");
+      const body = node.querySelector(".loc-card-body");
+      const meta = node.querySelector(".loc-card-meta");
+      const roleName = role === "current" ? "LOADED · NOW" : role === "loading" ? "LOADING NEXT" : "NEXT UP";
+      if (!c) {
+        if (kicker) kicker.textContent = roleName;
+        if (body) body.textContent = "—";
+        if (meta) meta.textContent = "";
+        return;
+      }
+      const match = String(c.match || "LOCAL_OK").toUpperCase();
+      if (kicker) kicker.textContent = roleName + "  " + locLabel(c, i) + "  " + match;
+      if (body) {
+        body.textContent = String(c.filingPath || c.label || fileName || "packet")
+          .replace(/^vita\/memory\//, "");
+      }
+      if (meta) {
+        const loc = c.location
+          ? ("loc " + shortHex(c.location, 12))
+          : "pending seal — no invented loc";
+        const commit = c.dataFieldCommit8 || shortHex(c.dataFieldCommit, 8) || shortHex(c.hash, 8) || "—";
+        meta.textContent = "commit " + commit + " · " + loc;
+      }
+    }
+
+    function renderLocTuck() {
+      const list = el("locTuckList");
+      const btn = el("btnLocTuck");
+      const blocks = locBlocks.length ? locBlocks : liveChunks;
+      const total = blocks.length;
+      const idx = Math.max(0, liveIndex);
+      const hidden = [];
+      for (let i = 0; i < total; i++) {
+        if (i < idx || i > idx + 2) hidden.push({ c: blocks[i], i });
+      }
+      if (btn) {
+        btn.textContent = hidden.length
+          ? ("Show remaining " + hidden.length + " blockchain blocks")
+          : "All blocks on the rail";
+        btn.disabled = hidden.length === 0;
+      }
+      if (!list) return;
+      if (!hidden.length) {
+        list.innerHTML = "<p class='hint' style='margin:0'>No tucked blocks.</p>";
+        return;
+      }
+      list.innerHTML = hidden.map(({ c, i }) => {
+        const match = String(c.match || "").toUpperCase();
+        return "<button type='button' class='loc-tuck-item" +
+          (c.highlight ? " loc-match" : "") +
+          "' data-i='" + i + "'>" +
+          "<span>" + locLabel(c, i) + "</span><span>" + (match || "VIN") + "</span></button>";
+      }).join("");
+      list.querySelectorAll(".loc-tuck-item").forEach((b) => {
+        b.addEventListener("click", () => inspectLocBlock(Number(b.dataset.i)));
+      });
+    }
+
+    function paintInspect(data) {
+      const box = el("locInspectBody");
+      if (!box) return;
+      const lines = [
+        "EXACT VIN DATA FIELD · fed into player",
+        "song " + (data.id || currentMusicId || "packet") + (data.title ? "  " + data.title : ""),
+        "block g" + (data.groupN ?? "?") + "." + (data.index ?? "?") +
+          (data.filingPath ? "  filing " + data.filingPath : ""),
+        "dataFieldCommit " + (data.dataFieldCommit || "—"),
+        "sha256(line)     " + (data.pulledUtf8Commit || "—"),
+        "match " + (data.match || "—") +
+          (data.trueToBlock ? " · true to this block" : ""),
+        "location " + (data.location || "pending seal — never invent hashes"),
+      ];
+      if (data.basescan) lines.push("Basescan Input Data " + data.basescan);
+      lines.push("bytes " + (data.bytes || 0));
+      lines.push("");
+      lines.push("— UTF-8 packet (Input Data) —");
+      lines.push(data.line || data.body || "");
+      box.textContent = lines.join("\n");
+    }
+
+    async function inspectLocBlock(i) {
+      const blocks = locBlocks.length ? locBlocks : liveChunks;
+      const c = blocks[i];
+      const box = el("locInspectBody");
+      if (!c) {
+        if (box) box.textContent = "No blockchain block at that index.";
+        return;
+      }
+      const g = c.groupN;
+      const index = c.index;
+      if (currentMusicId && g != null && index != null) {
+        try {
+          const data = await fetch(
+            "/vita/free-music/loc?id=" + encodeURIComponent(currentMusicId) +
+            "&g=" + encodeURIComponent(g) +
+            "&i=" + encodeURIComponent(index),
+          ).then((r) => r.json());
+          if (data?.ok && data.line) {
+            paintInspect(data);
+            return;
+          }
+        } catch (_) {}
+      }
+      paintInspect({
+        ok: true,
+        id: currentMusicId || (c.demo ? "demo" : "packet"),
+        groupN: g,
+        index,
+        filingPath: c.filingPath,
+        line: c.fullLine || c.line || c.body || "",
+        dataFieldCommit: c.dataFieldCommit || c.hash || "",
+        pulledUtf8Commit: "",
+        match: c.match || (c.demo ? "DEMO" : "LOCAL"),
+        trueToBlock: Boolean(c.fullLine || c.line),
+        location: c.demo ? null : (c.location || null),
+        basescan: c.demo ? null : (c.basescan || null),
+        bytes: (c.fullLine || c.line || c.body || "").length,
+        neverInventHashes: true,
+      });
+    }
+
     function paintLiveLoc(i) {
-      const total = liveChunks.length;
+      const blocks = locBlocks.length ? locBlocks : liveChunks;
+      const total = blocks.length;
       if (!total) return;
       const idx = Math.max(0, Math.min(total - 1, i));
-      const c = liveChunks[idx];
+      const c = blocks[idx];
       const fileLabel = c?.filingPath
         ? String(c.filingPath).replace(/^vita\/memory\//, "")
         : (proof?.play?.name || fileName || "SNARK packet");
@@ -628,26 +892,31 @@
           (c?.location && String(c.location).length > 22 ? "…" : "") +
           " into player (revealed key · anyone can play)";
       }
-      const body = el("locBody");
-      if (body) {
-        const rows = body.querySelectorAll("tr");
-        const gActive = c?.groupN;
-        rows.forEach((tr, ri) => {
-          const label = tr.querySelector("td")?.textContent || "";
-          const isGroup = gActive != null && label.indexOf("g" + gActive + ".") === 0;
-          const isIdx = gActive == null && ri === idx;
-          tr.classList.toggle("loc-active", isGroup || isIdx);
-          const nextG = liveChunks[idx + 1]?.groupN;
-          const isNext = nextG != null
-            ? label.indexOf("g" + nextG + ".") === 0
-            : ri === idx + 1;
-          tr.classList.toggle("loc-next", !tr.classList.contains("loc-active") && isNext);
-        });
-        const active = body.querySelector("tr.loc-active");
-        if (active && changed) active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      fillLocCard(el("locCard0"), blocks[idx], idx, "current");
+      fillLocCard(el("locCard1"), blocks[idx + 1], idx + 1, "loading");
+      fillLocCard(el("locCard2"), blocks[idx + 2], idx + 2, "next");
+      const bar = el("locBarFill");
+      if (bar) bar.style.width = ((idx + 1) / total * 100) + "%";
+      const lab = el("locProgressLabel");
+      if (lab) {
+        const waiting = Math.min(2, Math.max(0, total - idx - 1));
+        lab.textContent =
+          (idx + 1) + " / " + total + " blockchain blocks loaded · next " +
+          waiting + " waiting";
       }
-      // Fill pieces in sync with pull order
-      if (total) renderPieces(total, idx + 1);
+      const tuck = el("locTuckList");
+      if (tuck && !tuck.hidden) renderLocTuck();
+      const btn = el("btnLocTuck");
+      if (btn && (tuck?.hidden !== false)) {
+        const hiddenN = Math.max(0, total - 3);
+        btn.textContent = hiddenN
+          ? ("Show remaining " + hiddenN + " blockchain blocks")
+          : "All blocks on the rail";
+        btn.disabled = hiddenN === 0;
+      }
+      if (el("statLine")) el("statLine").textContent = (idx + 1) + " / " + total + " locations";
+      // Catalog music uses the loc rail; piece grid is demo-seal only (avoids layout jump).
+      if (!currentMusicId && el("pieces")) renderPieces(total, idx + 1);
     }
 
     function syncLiveFromMedia() {
@@ -670,6 +939,7 @@
         liveMedia.removeEventListener("seeked", syncLiveFromMedia);
       }
       liveChunks = Array.isArray(chunks) ? chunks : [];
+      if (liveChunks.length) locBlocks = liveChunks;
       liveIndex = -1;
       liveMedia = media || null;
       setLiveReadersVisible(liveChunks.length > 0);
@@ -826,15 +1096,17 @@
           if (el("costCard")) el("costCard").textContent = id + " play failed: " + (data?.error || "no audio");
           return;
         }
-        let locRows = (data.locProof?.rows || data.groups || []).map((g, i) => ({
-          groupN: g.groupN ?? g.n ?? null,
-          index: g.index ?? null,
-          filingPath: g.filingPath || null,
-          location: g.location || null,
-          basescan: g.basescan || null,
-          match: g.match || (g.location ? "SEALED" : "LOCAL_OK"),
-          highlight: g.highlight != null ? g.highlight : true,
-          label: "g" + String(g.n || g.groupN || i + 1).padStart(2, "0"),
+        let locRows = (data.locProof?.rows || []).map((r, i) => ({
+          groupN: r.groupN ?? r.n ?? null,
+          index: r.index ?? i + 1,
+          filingPath: r.filingPath || null,
+          location: r.location || null,
+          basescan: r.basescan || null,
+          match: r.match || (r.location ? "SEALED" : "LOCAL_OK"),
+          highlight: r.highlight != null ? r.highlight : true,
+          dataFieldCommit: r.dataFieldCommit,
+          dataFieldCommit8: r.dataFieldCommit8,
+          inspect: r.inspect,
           demo: false,
         }));
         try {
@@ -852,33 +1124,29 @@
                 "\nmatched " + (locs.matched || 0) +
                 " · pending seal " + (locs.pending || 0) +
                 " · click-through " + (locs.clickThrough?.length || 0) +
-                "\nlive: HUMAN + MACHINE readers advance with playback from SNARK locs";
+                "\nlive rail: loaded + loading bar + next 1–2 blocks · click a block for exact VIN UTF-8" +
+                "\ninspect /vita/free-music/loc?id=" + id + "&g=1&i=1";
             }
           }
         } catch (_) {}
-        const byGroup = new Map();
-        for (const r of locRows) {
-          const g = r.groupN != null ? r.groupN : byGroup.size + 1;
-          if (!byGroup.has(g)) byGroup.set(g, { ...r, index: 1 });
-        }
-        const groupChunks = [...byGroup.values()];
+        const locChunks = locRows.length ? locRows : [];
         proof = {
           complete: true,
           play: data.play,
           card: data.card || (id + " — grouped VIN original playback"),
-          chunks: groupChunks.length ? groupChunks : locRows,
+          chunks: locChunks,
         };
-        liveChunks = proof.chunks;
+        liveChunks = locChunks;
+        locBlocks = locChunks;
         if (el("playCard")) el("playCard").textContent = proof.card;
         if (el("costCard")) {
           el("costCard").textContent =
             (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
             (data.play.name || id) +
-            " · groups " + (data.groups?.length || groupChunks.length || 0) +
+            " · VIN packets " + (locChunks.length || data.groups?.length || 0) +
             " · original OGG (not a demo WAV) · loc MATCH highlighted · live SNARK pull";
         }
-        renderPieces(groupChunks.length || data.groups?.length || 1, 0);
-        renderLocs(locRows);
+        renderLocs(locChunks);
         el("okPill")?.classList.add("show");
         if (el("btnPlay")) el("btnPlay").disabled = false;
         showPlay(proof);
@@ -1022,34 +1290,18 @@
     }
 
     function renderLocs(chunks) {
-      const body = el("locBody");
-      if (!chunks?.length) {
-        body.innerHTML = "<tr><td colspan=3>None yet.</td></tr>";
-        return;
+      locBlocks = Array.isArray(chunks) ? chunks : [];
+      if (locBlocks.length) liveChunks = locBlocks;
+      const start = liveIndex >= 0 ? liveIndex : 0;
+      if (locBlocks.length) paintLiveLoc(start);
+      else {
+        fillLocCard(el("locCard0"), null, 0, "current");
+        fillLocCard(el("locCard1"), null, 1, "loading");
+        fillLocCard(el("locCard2"), null, 2, "next");
+        if (el("locBarFill")) el("locBarFill").style.width = "0%";
+        if (el("locProgressLabel")) el("locProgressLabel").textContent = "0 / 0 blockchain blocks loaded";
       }
-      body.innerHTML = chunks.map((c, i) => {
-        const match = String(c.match || "").toUpperCase();
-        const highlight = c.highlight || match === "MATCH" || match === "LOCAL_OK";
-        const pill = match
-          ? "<span class='match-pill" + (highlight ? "" : " match-pending") + "'>" + match + "</span>"
-          : (c.demo ? "<span class='match-pill match-pending'>DEMO</span>" : "");
-        const loc = c.location || "";
-        const href = c.basescan || (loc && !c.demo && /^0x[0-9a-fA-F]{64}$/.test(loc)
-          ? ("https://basescan.org/tx/" + loc)
-          : "");
-        const locHtml = href
-          ? "<a class='loc-link' href='" + href + "' target='_blank' rel='noopener'>" +
-            String(loc).slice(0, 14) + "… Input Data</a>" + pill
-          : "<code>" + (c.demo ? "DEMO " : "") +
-            (loc ? String(loc).slice(0, 18) + "…" : (c.filingPath || c.label || "pending seal")) +
-            "</code>" + pill;
-        const mid = c.filingPath
-          ? String(c.filingPath).replace(/^vita\/memory\//, "")
-          : (c.blockNumber ?? "—");
-        return "<tr class='" + (highlight ? "loc-match" : "") + "'><td>" +
-          (c.groupN != null ? ("g" + c.groupN + "." + (c.index || i + 1)) : (i + 1)) +
-          "</td><td>" + mid + "</td><td>" + locHtml + "</td></tr>";
-      }).join("");
+      renderLocTuck();
     }
 
     function showPlay(proofObj) {
@@ -1148,6 +1400,7 @@
           demo: true,
           blockNumber: blockStart + i * spacing,
         });
+        liveIndex = chunks.length - 1;
         renderPieces(prepared.totalChunks, chunks.length);
         renderLocs(chunks);
       }
@@ -1201,6 +1454,20 @@
     });
     el("btnMaple")?.addEventListener("click", () => loadCatalogMusic("maple", true));
     el("btnJudy")?.addEventListener("click", () => loadCatalogMusic("judy", true));
+    ["locCard0", "locCard1", "locCard2"].forEach((id) => {
+      el(id)?.addEventListener("click", () => {
+        const i = Number(el(id).dataset.i);
+        if (Number.isFinite(i) && i >= 0) inspectLocBlock(i);
+      });
+    });
+    el("btnLocTuck")?.addEventListener("click", () => {
+      const list = el("locTuckList");
+      if (!list) return;
+      const open = list.hidden;
+      list.hidden = !open;
+      el("btnLocTuck").setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) renderLocTuck();
+    });
 
     el("btnPacketize").addEventListener("click", () => packetize());
     el("btnSeal").addEventListener("click", () => demoSeal());

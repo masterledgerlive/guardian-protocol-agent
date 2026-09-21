@@ -34,11 +34,19 @@ findable.
 | `vita/memory/free-music/Auld_Lang_Syne.ogg` | `FREEMUSIC` | 1910 Frank C. Stanley Indestructible Record |
 | `vita/memory/free-music/Look_for_the_Silver_Lining.ogg` | `FREEMUSIC` | 1921 National Jukebox rainbow-adjacent PD singing (not Over the Rainbow Decca) |
 | `vita/memory/free-music/Oh_Susanna.ogg` | `FREEMUSIC` | US Navy Band PD-USGov Oh! Susanna (not the 1917 racist-verse cylinder) |
+| `vita/memory/free-music/The_Entertainer.ogg` | `FREEMUSIC` | Scott Joplin The Entertainer (1902, Commons PD performance) |
+| `vita/memory/free-music/Stars_and_Stripes_Forever.ogg` | `FREEMUSIC` | Sousa Stars and Stripes Forever — US Navy Band PD-USGov |
+| `vita/memory/free-music/Let_Me_Call_You_Sweetheart.ogg` | `FREEMUSIC` | 1911 National Jukebox Let Me Call You Sweetheart (PD-US-record-expired) |
+| `vita/memory/free-music/After_the_Ball.ogg` | `FREEMUSIC` | 1893 Edison After the Ball (George J. Gaskin) |
 | `vita/memory/free-music-catalog.json` | `FREEMUSIC` | Multi-song source, license, sha256, grouped inject plans (growing PD library) |
 | `vita/memory/free-music-learn.json` | `FREEMUSIC` | Append-only learn: grouped VIN → concat → original playback |
 | `vita/memory/free-music-judy-learn.json` | `FREEMUSIC` | Judy lane learn + loc daisy-chain proof |
+| `vita/memory/free-music-library-learn.json` | `FREEMUSIC` | Append-only learn: growing PD library + kids/feed music merge |
+| `vita/memory/free-music-loc-rail-learn.json` | `FREEMUSIC` | Append-only learn: stable loc rail + inspect exact VIN UTF-8 |
 | `vita/strands/free-music.json` | `FREEMUSIC` | Sparse strand: free catalog → grouped inject → feed-player |
 | `vita/strands/free-music-judy.json` | `FREEMUSIC` | Judy loc proof strand: filing → VIN → Basescan MATCH |
+| `vita/strands/free-music-library.json` | `FREEMUSIC` | Sparse strand: library enqueue + kids proof toggle |
+| `vita/strands/free-music-loc-rail.json` | `FREEMUSIC` | Sparse strand: loc rail + click-inspect packet |
 | `vita/telegram-clickthrough.js` | `VITACLICK` | Telegram inline keyboards — every category + subcategory clickable (dir→file→unlock, tokens→actions, track inject) |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
 | `vita/mirror-dual.js` | `MIRROR_DUAL` / `ZERO_PROOF` | Navigable GitHub duplicate tree + dual availability\|proven reader + open-source zero-proof key + SNARK boot from filing CAS follow-leader |

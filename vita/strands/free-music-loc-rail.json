@@ -1,0 +1,20 @@
+{
+  "strandId": "free-music-loc-rail",
+  "sparse": true,
+  "source": "vita-free-music",
+  "filingLabel": "FREEMUSIC",
+  "header": "§VITAMUSIC§v1|loc-rail§",
+  "learn": "Stable loc rail (loaded + bar + next 1–2; tuck rest) + click-inspect exact VIN UTF-8. Catalog grew entertainer/stripes/sweetheart/afterball. LOCAL_OK loc proof until real seals — never invent hashes.",
+  "commands": [
+    "/vitafeed play entertainer",
+    "/vitafeed play stripes",
+    "/vitafeed play sweetheart",
+    "/vitafeed play afterball",
+    "/vitafeed music"
+  ],
+  "player": "/vita/feed-player?music=sweetheart",
+  "locs": "/vita/free-music/locs?id=sweetheart",
+  "inspect": "/vita/free-music/loc?id=sweetheart&g=1&i=1",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}
