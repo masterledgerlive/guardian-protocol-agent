@@ -104,6 +104,8 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Keys", cmd: "/vitafeed keys" },
       { label: "Kids play", cmd: "/vitafeed play kids" },
       { label: "Demo play", cmd: "/vitafeed play demo" },
+      { label: "Chain dir", cmd: "/vitafeed chaindir" },
+      { label: "Cycle", cmd: "/vitafeed cycle" },
       { label: "Confirm", cmd: "/vitafeed confirm" },
       { label: "Override", cmd: "/vitafeed override" },
       { label: "Cancel", cmd: "/vitafeed cancel" },

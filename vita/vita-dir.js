@@ -25,6 +25,7 @@ import { listLibraryEntries, resolveLibraryEntry } from "./vita-feed-library.js"
 import { CALCULATOR_TRUE_NAME, TRANSLATOR_CODEX, searchRefMemory } from "./ref-memory.js";
 import { loadRecallBank } from "./mg-recall-bank.js";
 import { urlDirEntriesFor } from "./url-dir.js";
+import { chainDirEntriesFor } from "./chain-dir.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -51,6 +52,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "LIBRARY", role: "sealed name→key→locs", filing: "VITALIB" },
   { name: "PROVEN", role: "proven test series", filing: "PROVEN_TEST" },
   { name: "KIDS", role: "closed-garden YouTube URL playlist", filing: "URLDIR" },
+  { name: "CHAIN", role: "on-chain completion directory · loc proofs", filing: "CHAINDIR" },
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
 ]);
@@ -360,6 +362,8 @@ function dirEntriesFor(subdir) {
     });
   } else if (name === "KIDS" || name === "URLDIR") {
     urlDirEntriesFor().forEach((e) => out.push(e));
+  } else if (name === "CHAIN" || name === "CHAINDIR") {
+    chainDirEntriesFor().forEach((e) => out.push(e));
   } else if (name === "X404") {
     listX404DirEntries().forEach((e) => out.push(e));
   } else if (name === "AGENTS") {

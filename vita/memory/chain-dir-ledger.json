@@ -1,0 +1,17 @@
+{
+  "id": "vita-chain-dir-v1",
+  "filingLabel": "CHAINDIR",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "neverForget": true,
+  "createdAt": "2026-09-21T03:26:00.000Z",
+  "updatedAt": null,
+  "seq": 0,
+  "lines": [],
+  "cycle": {
+    "triggered": 0,
+    "lastCompleteN": null,
+    "lastCompleteAt": null
+  },
+  "note": "Append-only. Routing lines have no loc. Complete lines require real sealed txs in Input Data."
+}

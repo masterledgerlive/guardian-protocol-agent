@@ -1,0 +1,14 @@
+{
+  "id": "chain-dir-completion",
+  "filingLabel": "CHAINDIR",
+  "at": "2026-09-21T03:26:00.000Z",
+  "learn": "The KIDS player catalog was availability (local JSON), not Input Data, until dual HUMAN+MACHINE seals. CHAINDIR is the line-for-line completion log: top=routing/waiting (two ends talking, no invented locs), bottom=complete at an absolute moment with clickable Basescan Input Data → UTF-8 for both lanes. Completing a pair self-checks loc proofs and triggers /vitafeed cycle to route the next dual inject. Search is by sealed location. Never invent hashes.",
+  "commands": [
+    "/vitafeed chaindir",
+    "/vitafeed cycle",
+    "/vitafeed loc 0x…",
+    "/vitafeed dual kids",
+    "/vitafeed dir CHAIN"
+  ],
+  "neverInventHashes": true
+}

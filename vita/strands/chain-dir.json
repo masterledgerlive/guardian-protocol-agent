@@ -1,0 +1,16 @@
+{
+  "strandId": "chain-dir",
+  "sparse": true,
+  "source": "vita-chain-dir",
+  "filingLabel": "CHAINDIR",
+  "header": "§VITACHAINDIR§v1|top=active|bottom=complete|lanes=HUMAN+MACHINE§",
+  "learn": "Two ends talk: HUMAN exact UTF-8 and MACHINE ZK-short. Each routes until it has a real loc proof, then waits for the other. Complete = both Input Data proofs at one absolute moment. That completion triggers the next inject (cycle/self-check) so data streams into the injector. Directory order is the completion log. Infect HTML; do not erase. Message-first. Never invent hashes.",
+  "commands": [
+    "/vitafeed chaindir",
+    "/vitafeed cycle",
+    "/vitafeed dual kids"
+  ],
+  "player": "/vita/chain-dir.html",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}
