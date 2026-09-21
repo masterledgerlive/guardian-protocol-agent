@@ -558,6 +558,10 @@ import {
   handleTokenPlayerAction,
 } from "./vita/token-player.js";
 import {
+  handleProvenPlayerAction,
+  parseProvenPlayerCommand,
+} from "./vita/proven-player.js";
+import {
   attachWaveOnCoveredLeftover,
   commitWaveHitchShard,
   handleWaveTestAction,
@@ -10611,6 +10615,24 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: pct / 100 });
         await tg(`🚪 <b>CLEAN EXIT ${sym} ${pct}% queued</b>\nWill sell to ETH — NO cascade will fire`);
+      } else if (
+        text === "/provenplayer" || text === "/zkplayer" || text === "/zkav1"
+        || (text && text.startsWith("/provenplayer "))
+        || (text && text.startsWith("/zkplayer "))
+      ) {
+        try {
+          const parsedPlay = parseProvenPlayerCommand(raw);
+          const out = await handleProvenPlayerAction({
+            action: parsedPlay.action || "player",
+            chunk: parsedPlay.chunk,
+          });
+          await tg(
+            "▶ <b>PROVEN PLAYER</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            { reply_markup: out.keyboard, disable_web_page_preview: true },
+          );
+        } catch (e) {
+          await tg("❌ proven player failed: " + (e.message || e) + "\nNothing invented.");
+        }
       } else if (
         text === "/tokens" || text === "/tok" || text === "/token"
         || (text && text.startsWith("/tok ")) || (text && text.startsWith("/token "))

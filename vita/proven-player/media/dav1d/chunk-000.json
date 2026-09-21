@@ -1,0 +1,19 @@
+{
+  "id": "chunk-000",
+  "recipe": "testsrc2=size=160x90:rate=10:duration=1",
+  "width": 160,
+  "height": 90,
+  "fps": 10,
+  "durationMs": 1000,
+  "pixFmt": "yuv420p",
+  "encoder": "SVT-AV1 Encoder Lib v1.7.0",
+  "encoderLib": "libsvtav1",
+  "preset": 10,
+  "crf": 40,
+  "codec": "av01",
+  "sourceSha256": "b6c27e96f648b499a53269b7c41a423f47d4d2dabde1dcbe02c09dce336248a1",
+  "sourceBytes": 216000,
+  "sourceRetained": false,
+  "av1Sha256": "548121ab9d418046d2f9f8934080d458b5b8d23a804b756746a0bbbfe1c3596a",
+  "av1Bytes": 6304
+}
