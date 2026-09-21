@@ -77,14 +77,21 @@ Never invent tx hashes. Anthropic not required to open a file.
 for **sealed matching** inject locs (formula anchors = class proof, not body).
 Pull Input Data → UTF-8 to verify. Each pass creates files under `vita/memory/`
 + `vita/strands/` (`vita/chain-layer.js` · `vita/chain-inject.js`).
+**Telegram HELP (full click-through):** `/help` · `/help trade` · `/pick sell`
+— every category is a button; trade verbs open a token box (`/sell` → AERO…).
+**Route systems check:** `/vita check routes` · `/help check` — merkle folder
+integrity + avenue domino (PASS/QUESTIONABLE/FAIL), logs
+`vita/memory/systems-check-routes-*.json`, force-stages §SYSCHECK§ for
+Confirm|Override chain seal (`vita/telegram-help-routes.js`).
 **Telegram HOME (sectioned buttons):** `/home` · `/menu` · `/start` — every
-route is an inline button (Memory / Feed / Search / WAVE / Mirror / Dual /
-Mother / Status). `/home search` opens search routes (ref/ask/proven/xmem/
-dir/unlock). `/home sim` · `/home sim search` run many offline route sims.
-`/home engines` mirrors the same seed into **MAIN** exact UTF-8 VITAFEED and
-**NEW** snark-short, attaches Basescan IDM anchors as static proof, and seeds
-which engine is cheaper/faster (`vita/telegram-home.js`). Paid paths stay
-SIM / confirm|override — buttons never auto-spend.
+route is an inline button (Memory / Feed / Search / WAVE / Mirror / Trade /
+Syscheck / Dual / Mother / Status). `/home search` opens search routes
+(ref/ask/proven/xmem/dir/unlock). `/home sim` · `/home sim search` run many
+offline route sims. `/home engines` mirrors the same seed into **MAIN** exact
+UTF-8 VITAFEED and **NEW** snark-short, attaches Basescan IDM anchors as
+static proof, and seeds which engine is cheaper/faster
+(`vita/telegram-home.js`). Paid paths stay SIM / confirm|override — buttons
+never auto-spend.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.

@@ -600,6 +600,14 @@ import {
   parseHomeCommand,
   withHomeButton,
 } from "./vita/telegram-home.js";
+import {
+  handleHelpAction,
+  parseHelpCommand,
+  parsePickCommand,
+  runRouteSystemsCheck,
+  formatRouteSystemsCheckCard,
+  buildRouteCheckKeyboard,
+} from "./vita/telegram-help-routes.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -10392,6 +10400,67 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       // Each command wrapped individually — one crash can never kill the whole handler
       try {
+        // ── /help|/pick|bare /sell — click-through sections + token boxes
+        const parsedHelp = parseHelpCommand(raw);
+        const parsedPick = parsePickCommand(raw);
+        if (parsedHelp.ok && (parsedHelp.action === "help" || parsedHelp.action === "section")) {
+          const out = handleHelpAction({
+            action: parsedHelp.action,
+            section: parsedHelp.section || null,
+            symbols: tokens.map((t) => t.symbol),
+          });
+          await tg(
+            "🏄 <b>HELP</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            { reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }) },
+          );
+          continue;
+        }
+        if (parsedHelp.ok && parsedHelp.action === "routes") {
+          await tg("✅ <b>ROUTE SYSTEMS CHECK</b> running…");
+          try {
+            const report = await runRouteSystemsCheck({
+              cwd: process.cwd(),
+              symbols: tokens.map((t) => t.symbol),
+              write: true,
+              includeChainLayer: true,
+              env: process.env,
+            });
+            // Force-stage §SYSCHECK§ for Confirm|Override seal.
+            try {
+              const { stageVitaFeed, prepareVitaFeed, resolveVitaFeedQuotes } = await import("./vita/vita-feed.js");
+              const quotes = resolveVitaFeedQuotes({});
+              const prepared = prepareVitaFeed(report.forceInjectBody, quotes);
+              stageVitaFeed(msgChatId || "telegram", {
+                body: report.forceInjectBody,
+                prepared,
+                quotes,
+                source: "systems-check-routes",
+              });
+            } catch { /* stage best-effort */ }
+            await tg(
+              "✅ <b>ROUTE CHECK " + esc(report.verdict) + "</b>\n<pre>" +
+              esc(formatRouteSystemsCheckCard(report)).slice(0, 3500) +
+              "</pre>",
+              { reply_markup: withHomeButton(buildRouteCheckKeyboard()) },
+            );
+          } catch (e) {
+            await tg("❌ route check failed: " + (e.message || e) + "\nNothing invented.");
+          }
+          continue;
+        }
+        if (parsedPick.ok && (parsedPick.action === "pick" || parsedPick.action === "trade")) {
+          const out = handleHelpAction({
+            action: parsedPick.action === "trade" ? "trade" : "pick",
+            verb: parsedPick.verb,
+            symbols: tokens.map((t) => t.symbol),
+          });
+          await tg(
+            "🪙 <b>PICK</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            { reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }) },
+          );
+          continue;
+        }
+
         if (text.startsWith("/buy ")) {
         const parsed = parseManualBuyCommand(raw);
         const sym = parsed?.symbol;
@@ -13883,141 +13952,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         msg += `\n<i>Tier 2 opens new slot every $${TIER2_MIN_SLOT_USD} added to capital</i>`;
         await tg(msg);
 
-      } else if (text === "/help") {
+      } else if (text === "/help" || text === "/commands" || text === "/?" || (text && text.startsWith("/help"))) {
+        // Handled above via parseHelpCommand — keep fallback if parser missed.
+        const out = handleHelpAction({
+          action: "help",
+          symbols: tokens.map((t) => t.symbol),
+        });
         await tg(
-          `🏄 <b>GUARDIAN PROTOCOL — COMMAND REFERENCE</b>\n` +
-          `Control Board (waves + learn + V4): https://guardian-protocol-agent-production.up.railway.app/board\n` +
-          `SIM default — live buttons need VITA_WEBHOOK_SECRET. Tune params in sim or Railway env, not an open POST.\n\n` +
-          `<b>🏠 Interactive HOME:</b>\n` +
-          `/home · /menu · /start — sectioned clickable buttons for every route\n` +
-          `/home search · /home feed · /home mirror — open one section\n` +
-          `/home sim · /home sim search — run many route sims (search connected)\n` +
-          `/home engines — mirror MAIN exact UTF-8 vs NEW snark-short + IDM proof\n\n` +
-          `<b>📊 Status & Info:</b>\n` +
-          `/status — full portfolio status\n` +
-          `/bag [n] — last N real fills (FIFO / hitch / liquid / distance-to-PLUS)\n` +
-          `/recall — same as /bag (use /recall topic to search memories)\n` +
-          `/bank — complete money statement (LIVE chain)\n` +
-          `/freeze SYMBOL — freeze token (data only, no trades)\n` +
-          `/unfreeze SYMBOL — reactivate frozen token\n` +
-          `/frozenlist — list frozen tokens + readiness\n` +
-          `/sendsurferout [USD] [name] — launch a named capital surfer\n` +
-          `/waves — show 4-wave lookahead projection for top tokens\n` +
-          `/waves SYMBOL — 4-wave projection for specific token\n` +
-          `/surfers — list all active surfers\n` +
-          `/surfer NAME — detailed status of one surfer\n` +
-          `/surferout NAME — retire a surfer\n` +
-          `/surferstats — hall of fame: all retired surfers\n` +
-          `/eth — ETH + WETH balances\n` +
-          `/piggy — piggy bank balance\n` +
-          `/gas — current gas price\n` +
-          `/indicators — RSI/MACD/BB for all tokens\n` +
-          `/waves — arm status all tokens\n` +
-          `/tiers — 🏆 tier leaderboard + scores\n\n` +
-          `<b>🌊 Positions & Trading:</b>\n` +
-          `/surf — current riding positions\n` +
-          `/race — race display all positions\n` +
-          `/positions — open positions detail\n` +
-          `/profit — P&L summary\n` +
-          `/leaderboard — wave scoreboard\n` +
-          `/fib SYMBOL — fibonacci levels\n` +
-          `/history SYMBOL — 7/30/90d chart\n` +
-          `/wake (or /gm) — morning briefing\n\n` +
-          `<b>📱 Manual Trade Commands:</b>\n` +
-          `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
-          `/cycles — no-loss succession streaks + per-token min buys\n` +
-          `/injectprove — hitch injection count toward 20 + profit (capital gate)\n` +
-          `/costedge — COST_EDGE refusals + CBBTC-class lessons learned\n` +
-          `/brain — six-lobe brain status (FOMO radar + fine-tune graph)\n` +
-          `/hyp [thesis] — file hypothesis · /hyps · /hypok|/hypfail id\n` +
-          `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
-          `/sellhalf SYMBOL — sell 50% + cascade\n` +
-          `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +
-          `/exit SYMBOL — sell 100% to ETH, NO cascade (still leaves piggy dust)\n` +
-          `/exithalf SYMBOL — sell 50% to ETH, NO cascade\n` +
-          `/exitpct SYMBOL 75 — sell any % to ETH, NO cascade\n\n` +
-          `<b>💸 Withdraw:</b>\n` +
-          `/withdrawusd [amt] — send $USD of ETH to Coinbase\n` +
-          `/withdrawall — send all ETH to Coinbase\n` +
-          `/unwrap [amt] — unwrap WETH → ETH\n` +
-          `/unwrapall — unwrap all WETH → ETH\n\n` +
-          `<b>📡 Blockchain Telegram:</b>\n` +
-          `/prove — write §$STORE§ Eureka! letter as UTF-8 on a 0-ETH self-tx (Basescan Input Data → UTF-8)\n` +
-          `/voiceon /voiceoff — hitch leftover swaps (VITA §TOKEN§ by default; /prove keeps the love note)\n` +
-          `/vitarouter — secondary hitch router (vita|eureka|hat|auto)\n` +
-          `/vitamode vita|eureka|hat|auto — live pipeline switch\n` +
-          `/vitacourse — hourly memory/inject scorecard\n` +
-          `/vitascan — leftover hitch kinds on recent Uniswap swaps\n` +
-          `/xmem [query] — search UTF-8 input data (XMEM / STORE KEY / tags)\n` +
-          `/vitapull 0xHASH — re-read hitch UTF-8 from Base into §TOKEN§ memory\n` +
-          `HTML console /vita — same commands, local memory until the reader pulls locations\n` +
-          `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
-          `/transmit [msg] — queue a custom BTP message on later trades\n` +
-          `/btpstatus — show pending transmissions\n\n` +
-          `<b>🔑 Vault Unlock:</b>\n` +
-          `/unlock [password] — unlock vault (message deleted instantly)\n` +
-          `/lockdown — lock vault immediately\n` +
-          `/unlockstatus — show unlock state + time remaining\n\n` +
-          `<b>🔐 Vault (system keys on-chain):</b>\n` +
-          `/newvault KEYNAME — encrypt + inscribe a key on Base\n` +
-          `/vaultstatus — show all keys and their sources\n` +
-          `/vaulttest KEYNAME — verify a key is loaded (preview)\n` +
-          `/vaultreveal KEYNAME — show full decrypted value\n` +
-          `/vaultload KEYNAME — force reload from blockchain\n\n` +
-          `<b>🗝️  Keystore (personal double-encrypted keys):</b>\n` +
-          `/storekey NAME — double-encrypt any key on Base\n` +
-          `/showkey NAME — reveal for 60s then auto-delete\n` +
-          `/listkeys — show all stored key names\n` +
-          `/keystatus NAME — view locations + metadata\n\n` +
-          `<b>🌟 VITA Memory:</b>\n` +
-          `/vita [question] — ask VITA using blockchain memory\n` +
-          `/vita read FILE — open file (local + GitHub CODE/STATE) + SNARK + IDM locs — no Anthropic\n` +
-          `/vita files — click-through catalog (tap Open / Unwrap / Proof / Basescan)\n` +
-          `/vita proof FILE — does the file exist? merkle SNARK + Basescan Input Data → UTF-8\n` +
-          `/vita unwrap [KEY] — instant SNARK unwrap with the session key\n` +
-          `/vita chain — GitHub-as-blockchain map + plugins (Railway-style keys)\n` +
-          `/vita check — systems checklist (anchors · library growth · SNARK · EVM ms · models · LLM spin)\n` +
-          `/vita recover — EVM recover timing (brand-new spin from snark short)\n` +
-          `/vita models [next] — last-agreed / multi-model ring (Railway VITA_MODELS)\n` +
-          `/vita llm · /vita spin — LLM-on-chain spin manifest (change at will)\n` +
-          `/vita session — mint permanent / ttl / destroyable keys (new set each session)\n` +
-          `/vitasave — compress session + live trading data on Base\n` +
-          `/vitadata — snapshot full token/wave/trade dataset\n` +
-          `/vitapicture — VITA picture tailwind status (arm with /vitapicture arm)\n` +
-          `/vitanote [text] — queue a note for next save\n` +
-          `/vitaqueue — show queued notes\n` +
-          `/vitaclear — clear note queue\n` +
-          `/vitalearn einstein — inject Einstein knowledge base\n` +
-          `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitafeed [text|file] — exact UTF-8 / VITAFILE; files|play|keys library; confirm|override; /vita/feed-player\n` +
-          `/vitafeed dir — DOS master VITA:\\ ; /vitafeed dir MEMORY ; unlock CODEX\\file (open-source, no private key)\n` +
-          `/vitafeed unlock <path|n|name> — instant ZK-short unwrap → English + machine (html/song/movie/code)\n` +
-          `/vitafeed track — stage inject/message tracking proof (tap Confirm)\n` +
-          `/tokens · /tok SYMBOL — click-through token catalog → buy/sell/exit/dual/track\n` +
-          `/wavetest — WAVE memory-mirror SIM (shards→read-back vs answer key; leftover hitch wrap; VITAFEED_PAID stays off)\n` +
-          `/waveproof — capped 3-token WAVE proof (VIRTUAL/CLANKER/AERO 8B; WAVE_PROOF_LIVE=yes; desk POST /vita/waveproof)\n` +
-          `/wavefull — full 28-shard Heraclitus quote (WAVE_FULL_LIVE=yes; desk POST /vita/wavefull; /waveproof stays 3)\n` +
-          `/vitamothergenesis [code] — bank MGPLAIN hex (CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes to pay)\n` +
-          `/vitamothergenesis FORCE recall — force-bank recall stack; last layer = refined queries\n` +
-          `/vitamotherGenesisencoded [code] — bank encoded hex; CONFIRM + env for paid N-batch\n` +
-          `/encodegenesisreveal KEY — pull locations + decode (MGPLAIN or MG1 MG2)\n` +
-          `/vitamemory — show all VITA memory sessions\n` +
-          `/vitarecall — show recent memory context\n` +
-          `/vitarouter — hitch payload switch + location squash\n` +
-          `/vitacourse — hourly inject-without-loss scorecard\n` +
-          `/vitascan — leftover hitch eureka vs VITA on Base\n` +
-          `/xmem [query] — find XMEM / STORE KEY notes in wallet input data\n` +
-          `/vitapull 0xHASH — inject sealed hitch from Base without KEY loss\n\n` +
-          `/remember [text] — save cliff note, rides next trade\n` +
-          `/savesession — inscribe full session summary on Base\n` +
-          `/memories — show all memory chunks\n` +
-          `/recall [topic] — search memories\n` +
-          `/context — show recent memory context\n\n` +
-          `<b>📖 Ledger & History:</b>\n` +
-          `/ledger — permanent trade record\n` +
-          `/ledger full — last 20 trades detailed\n` +
-          `/watchlist — tokens watching but not trading\n` +
-          `/trades — trade count + recent log\n`
+          "🏄 <b>HELP</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+          { reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }) },
         );
       }
       } catch (cmdErr) {

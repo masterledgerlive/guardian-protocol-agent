@@ -895,6 +895,15 @@ export function parseChainLayerCommand(raw) {
   const src = String(raw || "").trim();
   const low = src.toLowerCase();
   if (
+    low === "/vita check routes" ||
+    low === "/vita check route" ||
+    low === "/vita routes" ||
+    low === "/vita routecheck" ||
+    low === "/vitacheck routes"
+  ) {
+    return { action: "routes" };
+  }
+  if (
     low === "/vita check" ||
     low === "/vita syscheck" ||
     low === "/vita systems" ||
@@ -976,6 +985,58 @@ export async function handleChainLayerAction({
       locations: result.locations,
       inject: result.inject,
       snark: result.snark,
+    };
+  }
+
+  if (action === "routes" || action === "route") {
+    // Dynamic import avoids cycle with telegram-help-routes → chain-layer.
+    const {
+      runRouteSystemsCheck,
+      formatRouteSystemsCheckCard,
+      buildRouteCheckKeyboard,
+    } = await import("./telegram-help-routes.js");
+    const { stageVitaFeed, prepareVitaFeed, resolveVitaFeedQuotes } = await import("./vita-feed.js");
+    let symbols = [];
+    try {
+      const tokPath = join(cwd, "tokens.json");
+      if (existsSync(tokPath)) {
+        const parsed = JSON.parse(readFileSync(tokPath, "utf8"));
+        symbols = (parsed.tokens || parsed || []).map((t) => t.symbol || t).filter(Boolean);
+      }
+    } catch { /* empty catalog → QUESTIONABLE trade nodes */ }
+    const report = await runRouteSystemsCheck({
+      cwd,
+      symbols,
+      write,
+      includeChainLayer: true,
+      env,
+      now,
+    });
+    // Force-stage §SYSCHECK§ body for Confirm|Override seal (never invent hashes).
+    try {
+      const quotes = resolveVitaFeedQuotes({});
+      const prepared = prepareVitaFeed(report.forceInjectBody, quotes);
+      stageVitaFeed("telegram", {
+        body: report.forceInjectBody,
+        prepared,
+        quotes,
+        source: "systems-check-routes",
+        routeCheck: {
+          verdict: report.verdict,
+          containerRoot: report.containerRoot,
+        },
+      });
+    } catch { /* stage best-effort */ }
+    const reply = formatRouteSystemsCheckCard(report);
+    return {
+      ok: report.verdict !== "FAIL",
+      action: "routes",
+      reply,
+      html: formatChainLayerTelegramHtml(reply),
+      keyboard: buildRouteCheckKeyboard(),
+      report,
+      forceInjectBody: report.forceInjectBody,
+      locations: [],
     };
   }
 

@@ -26,6 +26,7 @@ findable.
 | `vita/memory/llm-onchain-spin.json` | `LLM_ONCHAIN` | Open-source LLM spin manifest (commitment + Base locs) |
 | `vita/memory/mirror-chain-github.json` | `MIRROR_CHAIN` | Research note: GitHub contents ≈ availability ledger; Base hitch = settlement |
 | `vita/telegram-home.js` | `TELEGRAM_HOME` | Sectioned Telegram inline keyboards for every route + HOME; dual MAIN↔NEW engine mirror sims; search route sims; IDM static proof |
+| `vita/telegram-help-routes.js` | `VITAHELP` / `SYSTEMS_CHECK_ROUTES` | `/help` click-through + `/pick` token boxes + merkle/domino route systems-check; force-stages §SYSCHECK§ seal |
 | `vita/memory/telegram-home-learn.json` | `TELEGRAM_HOME` | Append-only learn: cheaper/faster engine + route sim seeds |
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
@@ -82,6 +83,8 @@ findable.
 | `LLM_ONCHAIN` | LLM-on-chain spin manifest (`§VITALLM§`) — content commitment + Base locs; change model at will |
 | `CHAIN_INJECT` | Spaced inject plan (`§VITAINJECT§`) — N×720B chunks; sealed IDM only when UTF-8 matches; formula anchors ≠ body |
 | `TELEGRAM_HOME` | Sectioned Telegram HOME (`§VITAHOME§`) — inline buttons for every route; MAIN↔NEW engine mirror; search sims; IDM static proof |
+| `VITAHELP` | Help click-through (`§VITAHELP§`) — `/help` sections + `/pick` token boxes |
+| `SYSTEMS_CHECK_ROUTES` | Route domino check (`§SYSCHECK§` routes) — folder merkle + avenue PASS/FLAG + forced seal stage; logs `systems-check-routes-*.json` |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |

@@ -48,12 +48,16 @@ describe("telegram-home sectioned keyboard", () => {
     assert.ok(ids.includes("mirror"));
     assert.ok(ids.includes("dual"));
     assert.ok(ids.includes("status"));
+    assert.ok(ids.includes("trade"));
+    assert.ok(ids.includes("syscheck"));
     const routes = allHomeRouteCommands();
     assert.ok(routes.length >= 40, "enough interactive routes");
     assert.ok(routes.some((r) => r.cmd === "/vitafeed ref calculator"));
     assert.ok(routes.some((r) => r.cmd === "/xmem STORE"));
     assert.ok(routes.some((r) => r.cmd === "/wavetest"));
     assert.ok(routes.some((r) => r.cmd.startsWith("/vita read")));
+    assert.ok(routes.some((r) => r.cmd === "/pick sell"));
+    assert.ok(routes.some((r) => r.cmd === "/vita check routes"));
   });
 
   it("fits every callback_data under Telegram 64-byte limit", () => {
