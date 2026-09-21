@@ -122,8 +122,20 @@ procedural meme pads + prompted bites + uploads → grouped `§VITAFILE§` VIN �
 inject. Zero-snark open key = name+contentCommit (`VITAOPEN…`). Loc rail at
 `/vita/soundboard` · `/vita/soundboard/locs?id=<id>` labels **LOCAL_OK**
 (availability), **MATCH** (sealed Input Data = VIN commit), **CLASS_PROOF**
-(formula anchors — same forever, NOT pad body / no new inputs). Never invent
-hashes. See `vita/soundboard.js`.
+(formula anchors — same forever, NOT pad body / no new inputs). Inject
+click-through href appears **only** after `/vitafeed confirm|override` seals a
+real Base tx (`VITAFEED_PAID=yes`); pending shows honest “no sealed tx yet”.
+Never invent hashes. See `vita/soundboard.js`.
+**Voxel spatial soundbites:** `/vitafeed spatial` · `/vitafeed spatial sparrow-nest` ·
+`/vitafeed spatial new bird.sparrow.a 1.2 0.8 -0.4` · `/vitafeed soundtrack 0,0,0` ·
+`/vitafeed enqueue spatial` · `/vitafeed dir VOXEL` — bird/syrinx vocal prints as
+fine-tuned DSP recipes placed in xyz voxels → `§VITASPATIAL§` one-block VIN when
+≤720B (space only if oversized). Z-SNARK open key = name+contentCommit. Agentic
+AI pulls sealed prints in a voxel neighborhood and mimics them into a soundtrack
+(`/vita/spatial?soundtrack=1`). Research notes (SonicMotion FOA, MRSAudio score→
+spatial, multi-species bird DSP) live in `vita/memory/spatial-sound-learn.json`.
+UI `/vita/spatial` · locs `/vita/spatial/locs?id=<id>`. Same inject-CTA honesty as
+the board. See `vita/spatial-sound.js`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
 song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to

@@ -42,7 +42,7 @@ import { prepareVitaFeed, VITAFEED_MAX_CHUNK_BYTES } from "./vita-feed.js";
 import { vitaPlayerHref } from "./url-dir.js";
 import { telegramCallbackData } from "./mirror-chain.js";
 
-function openSourceUnlockKeySync(opts) {
+export function openSourceUnlockKeySync(opts) {
   // Inline twin of vita-dir openSourceUnlockKey (name+contentCommit, never wallet secret)
   const commit = opts.contentCommit || sha256Hex(String(opts.content || opts.name || ""));
   const name = String(opts.name || "untitled");
@@ -86,6 +86,7 @@ const CATALOG_PATH = join(MEMORY_DIR, "soundboard-catalog.json");
 const LEARN_PATH = join(MEMORY_DIR, "soundboard-learn.json");
 const UPLOAD_LEDGER = join(MEMORY_DIR, "soundboard-uploads.json");
 const STRAND_PATH = join(STRANDS_DIR, "soundboard.json");
+const SEAL_PATH = join(MEMORY_DIR, "soundboard-seals.json");
 
 export const SOUNDBOARD_ID = "vita-soundboard-v1";
 export const SOUNDBOARD_MAGIC = "§VITABOARD§";
@@ -1008,6 +1009,101 @@ function classProofAnchors() {
     }));
 }
 
+/** Real sealed pad locs only (written after /vitafeed confirm|override). */
+export function loadPadSeals() {
+  return (
+    safeReadJson(SEAL_PATH) || {
+      id: "soundboard-seals-v1",
+      filingLabel: SOUNDBOARD_LABEL,
+      neverInventHashes: true,
+      byId: {},
+    }
+  );
+}
+
+export function recordPadSeal({
+  id,
+  locations = [],
+  contentCommit = null,
+  vinId = null,
+} = {}) {
+  const locs = (locations || []).map((t) => String(t || "").toLowerCase()).filter(isTxHash);
+  if (!locs.length) {
+    return {
+      ok: false,
+      reason: "no real tx hashes — VITAFEED_PAID may be OFF; never invent Basescan links",
+    };
+  }
+  ensureDirs();
+  const root = loadPadSeals();
+  root.byId = root.byId || {};
+  const key = String(id || "unknown");
+  const prev = root.byId[key] || { locations: [] };
+  const merged = [...new Set([...(prev.locations || []), ...locs])];
+  root.byId[key] = {
+    id: key,
+    locations: merged,
+    contentCommit: contentCommit || prev.contentCommit || null,
+    vinId: vinId || prev.vinId || null,
+    basescan: merged.map(basescanTx),
+    sealedAt: new Date().toISOString(),
+    proven: true,
+  };
+  root.updatedAt = new Date().toISOString();
+  writeFileSync(SEAL_PATH, JSON.stringify(root, null, 2) + "\n");
+  appendLearn({ kind: "pad-seal", id: key, locs: merged.length });
+  return { ok: true, entry: root.byId[key] };
+}
+
+export function sealedLocsForPad(id) {
+  const row = loadPadSeals().byId?.[id];
+  if (!row?.locations?.length) return [];
+  return row.locations.filter(isTxHash).map((tx, i) => ({
+    index: i + 1,
+    location: tx,
+    basescan: basescanTx(tx),
+    contentCommit: row.contentCommit || null,
+  }));
+}
+
+/**
+ * Inject proof click-through — sealed body only.
+ * Pending = no href (honest: no Basescan tx yet).
+ * Class-proof never returned as inject proof.
+ */
+export function resolvePadInjectClickThrough(id = "airhorn") {
+  const first = sealedLocsForPad(id)[0];
+  if (first) {
+    return {
+      ok: true,
+      proven: true,
+      kind: "sealed-body",
+      label: "Basescan Input Data · inject proof",
+      location: first.location,
+      href: first.basescan,
+      clickThrough: true,
+      classProof: false,
+      note: "Real sealed tx from /vitafeed confirm|override — click → Input Data → UTF-8",
+    };
+  }
+  return {
+    ok: true,
+    proven: false,
+    kind: "pending-seal",
+    label: "NO sealed Basescan tx yet",
+    location: null,
+    href: null,
+    clickThrough: false,
+    classProof: false,
+    note:
+      "Nothing to click — pad is availability until inject. " +
+      "/vitafeed enqueue pad " +
+      id +
+      " then confirm|override with VITAFEED_PAID=yes. " +
+      "CLASS_PROOF anchors look the same forever and are NOT this pad body.",
+  };
+}
+
 /**
  * Loc proof for a pad. Distinguishes:
  *   LOCAL_OK     — availability reconstruct (pre-seal)
@@ -1020,9 +1116,11 @@ export async function buildPadLocProof(opts = {}) {
   if (!packed.ok) return packed;
 
   const sealed = [];
-  for (const row of opts.sealedLocs || []) {
+  const fromLedger = sealedLocsForPad(packed.id);
+  for (const row of [...(opts.sealedLocs || []), ...fromLedger]) {
     const tx = String(row.location || row.tx || "").toLowerCase();
     if (!isTxHash(tx)) continue;
+    if (sealed.some((s) => s.location === tx)) continue;
     sealed.push({
       groupN: row.groupN ?? row.n ?? null,
       index: row.index ?? null,
@@ -1105,9 +1203,13 @@ export async function buildPadLocProof(opts = {}) {
     ...a,
     match: "CLASS_PROOF",
     highlight: false,
+    // Clickable for class inspection, but NEVER presented as inject proof
     clickThrough: true,
+    injectProof: false,
     idmChat: "Class proof hitch example — same forever; NOT pad body / no new inputs",
   }));
+
+  const inject = resolvePadInjectClickThrough(packed.id);
 
   return {
     ok: true,
@@ -1126,6 +1228,7 @@ export async function buildPadLocProof(opts = {}) {
     mismatched: rows.filter((r) => r.match === "MISMATCH").length,
     rows,
     classProof,
+    inject,
     clickThrough: rows.filter((r) => r.clickThrough),
     highlighted: rows.filter((r) => r.highlight),
     player: packed.player,
@@ -1134,13 +1237,13 @@ export async function buildPadLocProof(opts = {}) {
       "catalog: vita/memory/soundboard-catalog.json#" + packed.id,
       "zeroOpenKey: " + packed.zeroOpenKey,
       "VIN contentCommit → Basescan Input Data UTF-8 MATCH",
-      sealed.length
-        ? "sealed body locs bound — pull to verify"
-        : "availability only — inject to create NEW pad inputs (class-proof stays same)",
+      inject.proven
+        ? "INJECT PROOF: " + inject.location
+        : "NO sealed Basescan tx yet — enqueue + VITAFEED_PAID confirm|override",
     ],
-    note:
-      "If you follow a CLASS_PROOF loc and see the same data, that is expected — " +
-      "formula anchors do not hold pad body. New pad inputs appear only after confirm|override seals matching UTF-8.",
+    note: inject.proven
+      ? "Sealed inject proof available — click Basescan href for Input Data"
+      : inject.note,
   };
 }
 
@@ -1476,6 +1579,7 @@ export function enqueuePad({ enqueueFn, id = "airhorn", source = "soundboard" } 
       name: g.name || packed.fileName,
       mime: packed.mime,
       source,
+      kind: "soundboard",
       meta: {
         soundboard: true,
         padId: packed.id,

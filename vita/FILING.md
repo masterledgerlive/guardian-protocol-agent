@@ -40,12 +40,19 @@ findable.
 | `vita/strands/telegram-player-popup.json` | `URLDIR` | Sparse strand: Telegram Watch popup → compact player → system playlists |
 | `vita/strands/kids-url-dir.json` | `URLDIR` | Sparse strand: KIDS url dir → player → dual HUMAN/MACHINE |
 | `vita/free-music.js` | `FREEMUSIC` | Public-domain song catalog · grouped §VITAFILE§ VIN inject · original OGG playback · loc MATCH click-through |
-| `vita/soundboard.js` | `SOUNDBOARD` | DJ soundboard · procedural meme pads · prompted music bites · upload → §VITAFILE§ VIN · zero-snark open key · loc rail LOCAL_OK\|MATCH\|CLASS_PROOF |
-| `public/vita-soundboard.html` | `SOUNDBOARD` | Telegram Mini App / browser DJ pad board · waveform · click-through loc rail |
+| `vita/soundboard.js` | `SOUNDBOARD` | DJ soundboard · procedural meme pads · prompted music bites · upload → §VITAFILE§ VIN · zero-snark open key · loc rail LOCAL_OK\|MATCH\|CLASS_PROOF · seal ledger for Basescan inject CTA |
+| `public/vita-soundboard.html` | `SOUNDBOARD` | Telegram Mini App / browser DJ pad board · waveform · inject proof CTA (sealed only) · loc rail |
 | `vita/memory/soundboard/` | `SOUNDBOARD` | Pad WAV bytes (procedural + prompted + uploads) |
 | `vita/memory/soundboard-catalog.json` | `SOUNDBOARD` | Pad catalog · sha256 · zeroOpenKey · waveform peaks |
 | `vita/memory/soundboard-learn.json` | `SOUNDBOARD` | Append-only learn: ensure / prompt / upload / enqueue |
+| `vita/memory/soundboard-seals.json` | `SOUNDBOARD` | Real sealed pad locs only (after confirm\|override) — never invented hashes |
 | `vita/strands/soundboard.json` | `SOUNDBOARD` | Sparse strand: board → inject → reader MATCH |
+| `vita/spatial-sound.js` | `SPATIAL_SOUND` | Voxel spatial bird/syrinx prints · xyz · §VITASPATIAL§ one-block goal · agentic soundtrack · seal → Basescan inject CTA |
+| `public/vita-spatial.html` | `SPATIAL_SOUND` | Voxel field UI · bird bites · soundtrack neighborhood · inject proof CTA |
+| `vita/memory/spatial-sound-catalog.json` | `SPATIAL_SOUND` | Spatial bite catalog · printId · voxel · zeroOpenKey · oneBlock |
+| `vita/memory/spatial-sound-seals.json` | `SPATIAL_SOUND` | Real sealed spatial locs only — empty until VITAFEED_PAID seal |
+| `vita/memory/spatial-sound-learn.json` | `SPATIAL_SOUND` | Append-only learn: create / enqueue / seal / soundtrack |
+| `vita/strands/spatial-sound.json` | `SPATIAL_SOUND` | Sparse strand: bird print → voxel → one-block inject → agent mimic |
 | `vita/memory/free-music/Maple_Leaf_Rag.ogg` | `FREEMUSIC` | Scott Joplin Maple Leaf Rag (1899, PD) — full Ogg Vorbis, not a demo WAV |
 | `vita/memory/free-music/Im_Always_Chasing_Rainbows.ogg` | `FREEMUSIC` | 1918 PD singing (Harry Fox) — Judy Garland free-catalog rainbow lane |
 | `vita/memory/free-music/Amazing_Grace.ogg` | `FREEMUSIC` | 1922 Sacred Harp Amazing Grace (PD-US-record-expired) |
@@ -158,7 +165,8 @@ findable.
 | `REFERENCE` | Reference block (`§VITAREFBLOCK§`) — front·mid·back identity; data field of touched paths |
 | `SOURCE` | Original file location kept after reroute (never deleted) |
 | `FREEMUSIC` | Free-catalog PD song (`§VITAMUSIC§`) — grouped §VITAFILE§ VIN slices; original audio/ogg playback; loc daisy-chain MATCH click-through (growing library) |
-| `SOUNDBOARD` | DJ soundboard (`§VITABOARD§`) — procedural pads + prompted bites + uploads; zero-snark open key (name+contentCommit); inject → Basescan Input Data; loc rail LOCAL_OK \| MATCH \| CLASS_PROOF (class ≠ pad body) |
+| `SOUNDBOARD` | DJ soundboard (`§VITABOARD§`) — procedural pads + prompted bites + uploads; zero-snark open key (name+contentCommit); inject → Basescan Input Data; loc rail LOCAL_OK \| MATCH \| CLASS_PROOF (class ≠ pad body); seal ledger enables inject click-through |
+| `SPATIAL_SOUND` | Voxel spatial sound (`§VITASPATIAL§`) — bird/syrinx vocal prints + xyz; one-block VIN goal (≤720B); space only if oversized; agent soundtrack from neighborhood seals; Basescan inject CTA only after confirm\|override |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MIRROR_DUAL` | Dual-path mirror (`§VITADUALPATH§` / `§VITABOOT§`) — same file name on GitHub + filing; availability\|proven reader; zero-proof name+contentCommit; SNARK boot from CAS follow-leader |

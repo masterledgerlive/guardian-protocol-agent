@@ -29,6 +29,7 @@ import { urlDirEntriesFor } from "./url-dir.js";
 import { chainDirEntriesFor } from "./chain-dir.js";
 import { freeMusicEntriesFor } from "./free-music.js";
 import { soundboardEntriesFor } from "./soundboard.js";
+import { spatialEntriesFor } from "./spatial-sound.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 import { playerDirEntriesFor } from "./players/index.js";
 
@@ -59,6 +60,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "PLAYERS", role: "named Garden + Proven players · SOURCE|REFERENCE filer", filing: "PLAYERS" },
   { name: "MUSIC", role: "free-catalog PD song · grouped VIN playback", filing: "FREEMUSIC" },
   { name: "BOARD", role: "DJ soundboard pads · prompted bites · zero-open-key VIN", filing: "SOUNDBOARD" },
+  { name: "VOXEL", role: "voxel spatial bird-print microbites · one-block SNARK goal", filing: "SPATIAL_SOUND" },
   { name: "CHAIN", role: "on-chain completion directory · loc proofs", filing: "CHAINDIR" },
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
@@ -375,6 +377,8 @@ function dirEntriesFor(subdir) {
     freeMusicEntriesFor().forEach((e) => out.push(e));
   } else if (name === "BOARD" || name === "SOUNDBOARD" || name === "PADS") {
     soundboardEntriesFor().forEach((e) => out.push(e));
+  } else if (name === "VOXEL" || name === "SPATIAL" || name === "SPATIAL_SOUND") {
+    spatialEntriesFor().forEach((e) => out.push(e));
   } else if (name === "CHAIN" || name === "CHAINDIR") {
     chainDirEntriesFor().forEach((e) => out.push(e));
   } else if (name === "X404") {
@@ -578,7 +582,7 @@ function playGoalHint(mime, kind) {
   const m = String(mime || "");
   const k = String(kind || "");
   if (m.startsWith("audio/") || k === "audio" || k === "vitafile-group") {
-    return "song → /vitafeed play <id> · /vita/feed-player?music=<id> · board → /vitafeed pad <id> · /vita/soundboard?pad=<id>";
+    return "song → /vitafeed play <id> · /vita/feed-player?music=<id> · board → /vitafeed pad <id> · /vita/soundboard?pad=<id> · spatial → /vitafeed spatial <id> · /vita/spatial?id=<id>";
   }
   if (m.startsWith("video/") || k === "video") return "movie → /vitafeed play · feed-player";
   if (k === "youtube" || k === "url" || m.includes("uri-list") || m.includes("mpegurl")) {

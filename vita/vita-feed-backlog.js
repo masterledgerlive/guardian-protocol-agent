@@ -246,6 +246,7 @@ export function enqueueFeedBacklogItem({
   source = "manual",
   mime = "text/plain",
   preferSmall = true,
+  meta = null,
 } = {}) {
   const text = String(body ?? "");
   if (!text.trim()) {
@@ -296,6 +297,8 @@ export function enqueueFeedBacklogItem({
     readerKey: null,
     at: new Date().toISOString(),
     sealedAt: null,
+    // Pad / spatial / filing meta — enables Basescan inject click-through after seal
+    meta: meta && typeof meta === "object" ? meta : null,
     note:
       m.chunks > FEED_BACKLOG_PREF_MAX_CHUNKS
         ? "over prefer-max " + FEED_BACKLOG_PREF_MAX_CHUNKS + " chunks — drain when funded"
@@ -334,6 +337,7 @@ function publicItem(it) {
     readerKey: it.readerKey || null,
     at: it.at,
     sealedAt: it.sealedAt || null,
+    meta: it.meta || null,
     note: it.note || null,
   };
 }

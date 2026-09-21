@@ -1,0 +1,177 @@
+{
+  "id": "vita-spatial-catalog-v1",
+  "filingLabel": "SPATIAL_SOUND",
+  "neverInventHashes": true,
+  "oneBlockGoal": true,
+  "bites": {
+    "sparrow-nest": {
+      "id": "sparrow-nest",
+      "printId": "bird.sparrow.a",
+      "title": "Sparrow chip",
+      "x": 1.2,
+      "y": 0.8,
+      "z": -0.4,
+      "voxel": {
+        "vx": 2,
+        "vy": 1,
+        "vz": -1
+      },
+      "contentCommit": "43f2126f0d49613eeedb7547fbb9c7e624f544913bd66b7fff8963fb21e89623",
+      "zeroOpenKey": "VITAOPEN.VOXEL_sparrow-nest.spatial.43f2126f0d49",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 325,
+      "snarkShort": "§VITASNARK§43f2126f0d49|T=sparrow-nest.spatial|B=325|M=SNARK kind=file name=sparrow-nest.spati…",
+      "player": "/vita/spatial?id=sparrow-nest",
+      "color": "#f4a261"
+    },
+    "sparrow-reply": {
+      "id": "sparrow-reply",
+      "printId": "bird.sparrow.b",
+      "title": "Sparrow reply",
+      "x": 1.5,
+      "y": 0.9,
+      "z": -0.2,
+      "voxel": {
+        "vx": 3,
+        "vy": 1,
+        "vz": -1
+      },
+      "contentCommit": "41875567fe39b6d225512ea786e1ca2a800e6511ce599a211dd42f8dc6406e38",
+      "zeroOpenKey": "VITAOPEN.VOXEL_sparrow-reply.spatial.41875567fe39",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 334,
+      "snarkShort": "§VITASNARK§41875567fe39|T=sparrow-reply.spatial|B=334|M=SNARK kind=file name=sparrow-reply.spat…",
+      "player": "/vita/spatial?id=sparrow-reply",
+      "color": "#e76f51"
+    },
+    "thrush-branch": {
+      "id": "thrush-branch",
+      "printId": "bird.thrush.a",
+      "title": "Thrush flute",
+      "x": -0.8,
+      "y": 1.4,
+      "z": 0.6,
+      "voxel": {
+        "vx": -2,
+        "vy": 2,
+        "vz": 1
+      },
+      "contentCommit": "5cfda9ab8cb96d24fb734d851fae0a70814ac0a84750f0c15c17b4cbe3f27edc",
+      "zeroOpenKey": "VITAOPEN.VOXEL_thrush-branch.spatial.5cfda9ab8cb9",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 325,
+      "snarkShort": "§VITASNARK§5cfda9ab8cb9|T=thrush-branch.spatial|B=325|M=SNARK kind=file name=thrush-branch.spat…",
+      "player": "/vita/spatial?id=thrush-branch",
+      "color": "#2a9d8f"
+    },
+    "crow-roost": {
+      "id": "crow-roost",
+      "printId": "bird.crow.a",
+      "title": "Crow caw",
+      "x": 2,
+      "y": 2.2,
+      "z": 1,
+      "voxel": {
+        "vx": 4,
+        "vy": 4,
+        "vz": 2
+      },
+      "contentCommit": "b4a8e939a1a7d4e3582b81071da2b52a392319c4c05159ae1497a5b93bda8309",
+      "zeroOpenKey": "VITAOPEN.VOXEL_crow-roost.spatial.b4a8e939a1a7",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 307,
+      "snarkShort": "§VITASNARK§b4a8e939a1a7|T=crow-roost.spatial|B=307|M=SNARK kind=file name=crow-roost.spatial…",
+      "player": "/vita/spatial?id=crow-roost",
+      "color": "#264653"
+    },
+    "wren-hedge": {
+      "id": "wren-hedge",
+      "printId": "bird.wren.a",
+      "title": "Wren trill",
+      "x": 0.3,
+      "y": 0.2,
+      "z": 0.1,
+      "voxel": {
+        "vx": 0,
+        "vy": 0,
+        "vz": 0
+      },
+      "contentCommit": "e8bebab3bf8f7cd5b98de366b45ba0c0a3b8c250cb9063f12ef4c5cc08be196d",
+      "zeroOpenKey": "VITAOPEN.VOXEL_wren-hedge.spatial.e8bebab3bf8f",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 307,
+      "snarkShort": "§VITASNARK§e8bebab3bf8f|T=wren-hedge.spatial|B=307|M=SNARK kind=file name=wren-hedge.spatial…",
+      "player": "/vita/spatial?id=wren-hedge",
+      "color": "#e9c46a"
+    },
+    "wind-gap": {
+      "id": "wind-gap",
+      "printId": "ambi.wind.a",
+      "title": "Wind hush",
+      "x": 0,
+      "y": 1,
+      "z": -1.5,
+      "voxel": {
+        "vx": 0,
+        "vy": 2,
+        "vz": -3
+      },
+      "contentCommit": "9b31228beb8276cd76dd0b12d3890adbae6f9f8acb055664a00fc3604bcd6d07",
+      "zeroOpenKey": "VITAOPEN.VOXEL_wind-gap.spatial.9b31228beb82",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 300,
+      "snarkShort": "§VITASNARK§9b31228beb82|T=wind-gap.spatial|B=300|M=SNARK kind=file name=wind-gap.spatial b…",
+      "player": "/vita/spatial?id=wind-gap",
+      "color": "#90e0ef"
+    },
+    "drip-well": {
+      "id": "drip-well",
+      "printId": "ambi.drop.a",
+      "title": "Water drop",
+      "x": -1.2,
+      "y": 0.1,
+      "z": 0.4,
+      "voxel": {
+        "vx": -3,
+        "vy": 0,
+        "vz": 0
+      },
+      "contentCommit": "87a7de54a8475c1131eb8f9f31152bb67d04e83e3d8c3dc84d89d7ed02cdcb20",
+      "zeroOpenKey": "VITAOPEN.VOXEL_drip-well.spatial.87a7de54a847",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 309,
+      "snarkShort": "§VITASNARK§87a7de54a847|T=drip-well.spatial|B=309|M=SNARK kind=file name=drip-well.spatial …",
+      "player": "/vita/spatial?id=drip-well",
+      "color": "#48cae4"
+    },
+    "pad-seed": {
+      "id": "pad-seed",
+      "printId": "tone.pad.a",
+      "title": "Soft pad tone",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "voxel": {
+        "vx": 0,
+        "vy": 0,
+        "vz": 0
+      },
+      "contentCommit": "b5f5b8ede29fbd6af92f91c361ac21358af4ea59d42d9202484a11b17e8cbac6",
+      "zeroOpenKey": "VITAOPEN.VOXEL_pad-seed.spatial.b5f5b8ede29f",
+      "oneBlock": true,
+      "totalVin": 1,
+      "bodyBytes": 312,
+      "snarkShort": "§VITASNARK§b5f5b8ede29f|T=pad-seed.spatial|B=312|M=SNARK kind=file name=pad-seed.spatial b…",
+      "player": "/vita/spatial?id=pad-seed",
+      "color": "#c77dff"
+    }
+  },
+  "updatedAt": "2026-09-21T19:42:09.215Z"
+}

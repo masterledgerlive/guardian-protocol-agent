@@ -66,6 +66,11 @@
 //   GET  /vita/soundboard/loc  — exact pad VIN UTF-8
 //   POST /vita/soundboard/prompt — prompted music bite → catalog
 //   POST /vita/soundboard/upload — upload bytes → catalog
+//   GET  /vita/spatial      — voxel spatial bird-print HTML + catalog JSON
+//   GET  /vita/spatial/play — spatial WAV reconstruct + inject CTA
+//   GET  /vita/spatial/locs — LOCAL_OK vs MATCH · sealed inject click-through
+//   GET  /vita/spatial/loc  — exact §VITASPATIAL§ VIN UTF-8
+//   GET  /vita/spatial/soundtrack — agentic neighborhood soundtrack
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -176,6 +181,14 @@ import {
   addUploadedPad,
 } from "./vita/soundboard.js";
 import {
+  publicSpatialState,
+  publicSpatialPlay,
+  publicSpatialLocs,
+  publicSpatialLoc,
+  publicSpatialSoundtrack,
+  createSpatialBite,
+} from "./vita/spatial-sound.js";
+import {
   publicPlayersIndex,
   publicGardenState,
   publicProvenState,
@@ -235,6 +248,7 @@ const VITA_PROVEN_PLAYER_HTML = join(ROOT, "public", "vita-proven-player.html");
 const VITA_PROVEN_PLAYER_VERIFY = join(ROOT, "vita", "proven-player-verify.js");
 const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
+const VITA_SPATIAL_HTML = join(ROOT, "public", "vita-spatial.html");
 const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
 const VITA_PLAYERS_PROVEN_HTML = join(ROOT, "public", "players", "proven.html");
 const VITA_CHAIN_BOX_JS = join(ROOT, "public", "players", "chain-box.js");
@@ -911,6 +925,46 @@ async function handleVitaRequest(req, res) {
         mime: body.mime || "audio/wav",
         bytes,
         aliases: body.aliases || [],
+      }));
+    }
+    if ((path === "/vita/spatial" || path === "/vita/spatial/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      const id = String(url.searchParams.get("id") || url.searchParams.get("pad") || "").trim();
+      if (id) return json(res, publicSpatialState(id));
+      if (accept.includes("text/html") && !accept.includes("application/json")) {
+        return servePublicHtml(res, VITA_SPATIAL_HTML, "vita spatial");
+      }
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, publicSpatialState());
+      }
+      return servePublicHtml(res, VITA_SPATIAL_HTML, "vita spatial");
+    }
+    if ((path === "/vita/spatial/play" || path === "/vita/spatial/play/") && req.method === "GET") {
+      return json(res, publicSpatialPlay(String(url.searchParams.get("id") || "sparrow-nest")));
+    }
+    if ((path === "/vita/spatial/loc" || path === "/vita/spatial/loc/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "sparrow-nest");
+      const i = url.searchParams.get("i") || url.searchParams.get("index") || "1";
+      return json(res, publicSpatialLoc(id, i));
+    }
+    if ((path === "/vita/spatial/locs" || path === "/vita/spatial/locs/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "sparrow-nest");
+      return json(res, await publicSpatialLocs(id));
+    }
+    if ((path === "/vita/spatial/soundtrack" || path === "/vita/spatial/soundtrack/") && req.method === "GET") {
+      const voxel = String(url.searchParams.get("voxel") || "0,0,0");
+      const radius = Number(url.searchParams.get("radius") || 2) || 2;
+      return json(res, publicSpatialSoundtrack(voxel, radius));
+    }
+    if ((path === "/vita/spatial/create" || path === "/vita/spatial/create/") && req.method === "POST") {
+      const body = (await readBody(req)) || {};
+      return json(res, createSpatialBite({
+        printId: body.printId || body.print || "bird.sparrow.a",
+        x: body.x,
+        y: body.y,
+        z: body.z,
+        id: body.id || null,
+        title: body.title || null,
       }));
     }
     if ((path === "/vita/chain-dir" || path === "/vita/chain-dir/") && req.method === "GET") {
