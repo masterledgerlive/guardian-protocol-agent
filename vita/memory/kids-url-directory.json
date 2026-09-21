@@ -1,0 +1,728 @@
+{
+  "id": "kids",
+  "label": "KIDS",
+  "title": "Kids",
+  "filingLabel": "URLDIR",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "closedGarden": true,
+  "note": "Curated YouTube URL mirror directory. Player loads only this list — no YouTube recommendations, other channels, or related videos. URLs only (no media copies). Dual-path: Telegram HUMAN plain list + MACHINE ZK-short; GitHub availability vs proven Base UTF-8.",
+  "sourcePlaylist": {
+    "id": "PLn0hL1STYCDcXYheammcXrxfS1i2kkMV6",
+    "title": "Kids",
+    "url": "https://www.youtube.com/playlist?list=PLn0hL1STYCDcXYheammcXrxfS1i2kkMV6",
+    "seedWatch": "https://www.youtube.com/watch?v=PGASxo9GdQM&list=PLn0hL1STYCDcXYheammcXrxfS1i2kkMV6"
+  },
+  "player": "/vita/kids-player?dir=kids",
+  "feedPlayer": "/vita/feed-player?dir=kids",
+  "telegram": [
+    "/vitafeed dir KIDS",
+    "/vitafeed play kids",
+    "/vitafeed dual kids",
+    "/vitafeed unlock KIDS\\kids-url-dir.json"
+  ],
+  "count": 100,
+  "items": [
+    {
+      "n": 1,
+      "videoId": "PGASxo9GdQM",
+      "title": "Reading Rainbow Digging Up Dinosaurs S1 E6 VHS Video 1983",
+      "url": "https://www.youtube.com/watch?v=PGASxo9GdQM",
+      "shortUrl": "https://youtu.be/PGASxo9GdQM"
+    },
+    {
+      "n": 2,
+      "videoId": "xdXw6fXS_YM",
+      "title": "Reading Rainbow My Little Island S5 E10 VHS Video 1987",
+      "url": "https://www.youtube.com/watch?v=xdXw6fXS_YM",
+      "shortUrl": "https://youtu.be/xdXw6fXS_YM"
+    },
+    {
+      "n": 3,
+      "videoId": "8pnRREnegvE",
+      "title": "Reading Rainbow Sam and The Sea Cow S10 E3 VHS Video 1992",
+      "url": "https://www.youtube.com/watch?v=8pnRREnegvE",
+      "shortUrl": "https://youtu.be/8pnRREnegvE"
+    },
+    {
+      "n": 4,
+      "videoId": "tM6busJlyt8",
+      "title": "On The Day You Were Born 👶 | Reading Rainbow 📖🌈 | Full Episode | ‪@Kidzuko",
+      "url": "https://www.youtube.com/watch?v=tM6busJlyt8",
+      "shortUrl": "https://youtu.be/tM6busJlyt8"
+    },
+    {
+      "n": 5,
+      "videoId": "Ur5p1bLFEaY",
+      "title": "Atoms & Bonds - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=Ur5p1bLFEaY",
+      "shortUrl": "https://youtu.be/Ur5p1bLFEaY"
+    },
+    {
+      "n": 6,
+      "videoId": "2pVKqxvqC4M",
+      "title": "Birds for kids - Vertebrate animals - Natural Science For Kids",
+      "url": "https://www.youtube.com/watch?v=2pVKqxvqC4M",
+      "shortUrl": "https://youtu.be/2pVKqxvqC4M"
+    },
+    {
+      "n": 7,
+      "videoId": "BNk-yaFguNs",
+      "title": "Learning Multiplication and Division - Basic Math for Kids - Advanced level",
+      "url": "https://www.youtube.com/watch?v=BNk-yaFguNs",
+      "shortUrl": "https://youtu.be/BNk-yaFguNs"
+    },
+    {
+      "n": 8,
+      "videoId": "PCMIgFs6sZQ",
+      "title": "A Day at the Pool with Blue! ⛱️ | 2 Hour Compilation | Blue's Clues & You!",
+      "url": "https://www.youtube.com/watch?v=PCMIgFs6sZQ",
+      "shortUrl": "https://youtu.be/PCMIgFs6sZQ"
+    },
+    {
+      "n": 9,
+      "videoId": "TKOVmP40Pb8",
+      "title": "Best Of Prehistoric Creatures | Dino Dana",
+      "url": "https://www.youtube.com/watch?v=TKOVmP40Pb8",
+      "shortUrl": "https://youtu.be/TKOVmP40Pb8"
+    },
+    {
+      "n": 10,
+      "videoId": "kqrpfYF-i-g",
+      "title": "The Ultimate Preschool Learning Hour | ABCs, Numbers & Shapes",
+      "url": "https://www.youtube.com/watch?v=kqrpfYF-i-g",
+      "shortUrl": "https://youtu.be/kqrpfYF-i-g"
+    },
+    {
+      "n": 11,
+      "videoId": "quSdXloue4M",
+      "title": "Help us, Ultimate Jungle Dinos! | Giganotosaurus | Nursery rhymes & Kids Song | #Cheetahboo",
+      "url": "https://www.youtube.com/watch?v=quSdXloue4M",
+      "shortUrl": "https://youtu.be/quSdXloue4M"
+    },
+    {
+      "n": 12,
+      "videoId": "fHJTxkwIzUY",
+      "title": "Learn DINO FACTS about VELOCIRAPTOR | Club Baboo | 1 HOUR video | Dinosaurs for Kids | T-Rex & more!",
+      "url": "https://www.youtube.com/watch?v=fHJTxkwIzUY",
+      "shortUrl": "https://youtu.be/fHJTxkwIzUY"
+    },
+    {
+      "n": 13,
+      "videoId": "obd0lDfbq8g",
+      "title": "KIDS PRETEND 🦴 DIGGING UP BACKYARD BONES - COMPILATION",
+      "url": "https://www.youtube.com/watch?v=obd0lDfbq8g",
+      "shortUrl": "https://youtu.be/obd0lDfbq8g"
+    },
+    {
+      "n": 14,
+      "videoId": "R9lxN_gwRKw",
+      "title": "What is Outer Space? | Science for Kids | Learn About the Solar System & Constellations",
+      "url": "https://www.youtube.com/watch?v=R9lxN_gwRKw",
+      "shortUrl": "https://youtu.be/R9lxN_gwRKw"
+    },
+    {
+      "n": 15,
+      "videoId": "RVTGJqzXY-0",
+      "title": "Blippi Visits an Aquarium (The Florida Aquarium) | 1 HOUR OF BLIPPI | Educational Videos For Kids",
+      "url": "https://www.youtube.com/watch?v=RVTGJqzXY-0",
+      "shortUrl": "https://youtu.be/RVTGJqzXY-0"
+    },
+    {
+      "n": 16,
+      "videoId": "7I7kOMN8E18",
+      "title": "Blippi Plays and Learns With A Robot! | Educational Video for Kids",
+      "url": "https://www.youtube.com/watch?v=7I7kOMN8E18",
+      "shortUrl": "https://youtu.be/7I7kOMN8E18"
+    },
+    {
+      "n": 17,
+      "videoId": "v_2cFgvfDBw",
+      "title": "Florence And Eric Take The Cake 🍰 | Reading Rainbow 📖🌈 | Full Episode | ‪@Kidzuko",
+      "url": "https://www.youtube.com/watch?v=v_2cFgvfDBw",
+      "shortUrl": "https://youtu.be/v_2cFgvfDBw"
+    },
+    {
+      "n": 18,
+      "videoId": "_UVcNBjoxs4",
+      "title": "Multiplication Rap | Rock 'N Learn | Facts 0x through 12x | Learn to Multiply for Kids",
+      "url": "https://www.youtube.com/watch?v=_UVcNBjoxs4",
+      "shortUrl": "https://youtu.be/_UVcNBjoxs4"
+    },
+    {
+      "n": 19,
+      "videoId": "IRMoelIMpqE",
+      "title": "Rain Falls - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=IRMoelIMpqE",
+      "shortUrl": "https://youtu.be/IRMoelIMpqE"
+    },
+    {
+      "n": 20,
+      "videoId": "sd9phNoroqs",
+      "title": "Entropy - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=sd9phNoroqs",
+      "shortUrl": "https://youtu.be/sd9phNoroqs"
+    },
+    {
+      "n": 21,
+      "videoId": "v1zeIrO50mY",
+      "title": "Adventure into the Renaissance - History for Kids",
+      "url": "https://www.youtube.com/watch?v=v1zeIrO50mY",
+      "shortUrl": "https://youtu.be/v1zeIrO50mY"
+    },
+    {
+      "n": 22,
+      "videoId": "gQWfYAsoLUQ",
+      "title": "The Calamead Dragon - A children's story about respect",
+      "url": "https://www.youtube.com/watch?v=gQWfYAsoLUQ",
+      "shortUrl": "https://youtu.be/gQWfYAsoLUQ"
+    },
+    {
+      "n": 23,
+      "videoId": "U3zQEkIbyN8",
+      "title": "Magnetic Wonders + Amazing Science Experiments | Full Episodes | Science Max",
+      "url": "https://www.youtube.com/watch?v=U3zQEkIbyN8",
+      "shortUrl": "https://youtu.be/U3zQEkIbyN8"
+    },
+    {
+      "n": 24,
+      "videoId": "PkujpWzHrpA",
+      "title": "Science and Engineering Educational Compilation for Kids - Planets, Airplanes and More!",
+      "url": "https://www.youtube.com/watch?v=PkujpWzHrpA",
+      "shortUrl": "https://youtu.be/PkujpWzHrpA"
+    },
+    {
+      "n": 25,
+      "videoId": "UOOkup9xigs",
+      "title": "The Very Big Story of the Dinosaurs | SciShow Kids Compilation",
+      "url": "https://www.youtube.com/watch?v=UOOkup9xigs",
+      "shortUrl": "https://youtu.be/UOOkup9xigs"
+    },
+    {
+      "n": 26,
+      "videoId": "WH6Jfqen1H8",
+      "title": "Alphabet Dinosaurs🦕 | Dinosaurs A to Z Song | Alphabet Songs for Kids | Learn Engilsh | JunyTony",
+      "url": "https://www.youtube.com/watch?v=WH6Jfqen1H8",
+      "shortUrl": "https://youtu.be/WH6Jfqen1H8"
+    },
+    {
+      "n": 27,
+      "videoId": "pIcxGD0cZQw",
+      "title": "Addition for kids - Mathematics for kids with dinosaurs - Exercises",
+      "url": "https://www.youtube.com/watch?v=pIcxGD0cZQw",
+      "shortUrl": "https://youtu.be/pIcxGD0cZQw"
+    },
+    {
+      "n": 28,
+      "videoId": "0pnM7U23bkg",
+      "title": "🦕✨ Dino Says Please and Thank You | Learning Manners for Kids ✨🦖| Kid's learning song |Kid's Nursery",
+      "url": "https://www.youtube.com/watch?v=0pnM7U23bkg",
+      "shortUrl": "https://youtu.be/0pnM7U23bkg"
+    },
+    {
+      "n": 29,
+      "videoId": "4Wa-pr5_AFE",
+      "title": "Learn Addition and Subtraction Level 2 | Learn to Count | Maths Cartoons for Kids | Numberblocks",
+      "url": "https://www.youtube.com/watch?v=4Wa-pr5_AFE",
+      "shortUrl": "https://youtu.be/4Wa-pr5_AFE"
+    },
+    {
+      "n": 30,
+      "videoId": "vSQWTUuoZlI",
+      "title": "First Words for Babies | First Gestures for Toddlers | Talking, Singing & Learning Together ",
+      "url": "https://www.youtube.com/watch?v=vSQWTUuoZlI",
+      "shortUrl": "https://youtu.be/vSQWTUuoZlI"
+    },
+    {
+      "n": 31,
+      "videoId": "VQqWs9qIyYU",
+      "title": "Learn to Read with Phonics | Diphthongs, Schwa Sound, Ending Sounds | Part 4 of 4",
+      "url": "https://www.youtube.com/watch?v=VQqWs9qIyYU",
+      "shortUrl": "https://youtu.be/VQqWs9qIyYU"
+    },
+    {
+      "n": 32,
+      "videoId": "fXnNZdi53Vc",
+      "title": "What kind of whale am I? | Shadow Whale Game 1 hour Special | Baby Whale? Whale Shark? | NINIkids",
+      "url": "https://www.youtube.com/watch?v=fXnNZdi53Vc",
+      "shortUrl": "https://youtu.be/fXnNZdi53Vc"
+    },
+    {
+      "n": 33,
+      "videoId": "ObXKussWUXg",
+      "title": "[130 Minutes] 🎵 Dino School Full Playlist | Educational Dinosaur Songs | Pinkfong Dinosaurs for Kids",
+      "url": "https://www.youtube.com/watch?v=ObXKussWUXg",
+      "shortUrl": "https://youtu.be/ObXKussWUXg"
+    },
+    {
+      "n": 34,
+      "videoId": "_BB6tlBUA_w",
+      "title": "Learn DINOSAURS with Club Baboo DINO FACTS | Learning about the Triceratops and more Dinos!",
+      "url": "https://www.youtube.com/watch?v=_BB6tlBUA_w",
+      "shortUrl": "https://youtu.be/_BB6tlBUA_w"
+    },
+    {
+      "n": 35,
+      "videoId": "0U_-b0Num2U",
+      "title": "Do I have something special too? | Dinosaurs | Ankylosaurus | Nursery rhymes & Kids | #Cheetahboo",
+      "url": "https://www.youtube.com/watch?v=0U_-b0Num2U",
+      "shortUrl": "https://youtu.be/0U_-b0Num2U"
+    },
+    {
+      "n": 36,
+      "videoId": "Vb2ZXRh74WU",
+      "title": "StoryBots Outer Space | Planets, Sun, Moon, Earth and Stars | Solar System Super Song | Fun Learning",
+      "url": "https://www.youtube.com/watch?v=Vb2ZXRh74WU",
+      "shortUrl": "https://youtu.be/Vb2ZXRh74WU"
+    },
+    {
+      "n": 37,
+      "videoId": "_zkCnxlL8Lg",
+      "title": "Learn about Astronauts In Space and Planets in our Solar Systems for kids!",
+      "url": "https://www.youtube.com/watch?v=_zkCnxlL8Lg",
+      "shortUrl": "https://youtu.be/_zkCnxlL8Lg"
+    },
+    {
+      "n": 38,
+      "videoId": "MlcqKa6v418",
+      "title": "Learn About Mammals & Birds with Blippi ! 🦉🦌 | Blippi’s Educational Animal Adventure!",
+      "url": "https://www.youtube.com/watch?v=MlcqKa6v418",
+      "shortUrl": "https://youtu.be/MlcqKa6v418"
+    },
+    {
+      "n": 39,
+      "videoId": "05dcZUK_k7I",
+      "title": "Blippi Visits a Zoo And Learns About Animals! | Educational Videos for Kids",
+      "url": "https://www.youtube.com/watch?v=05dcZUK_k7I",
+      "shortUrl": "https://youtu.be/05dcZUK_k7I"
+    },
+    {
+      "n": 40,
+      "videoId": "hHbGrg_gvpY",
+      "title": "Top 3 Learning Stories for Kids | Tia & Tofu | Bedtime Stories | Educational Kids Stories",
+      "url": "https://www.youtube.com/watch?v=hHbGrg_gvpY",
+      "shortUrl": "https://youtu.be/hHbGrg_gvpY"
+    },
+    {
+      "n": 41,
+      "videoId": "42ph74aFzZc",
+      "title": "Reading Rainbow: The Tin Forest (S14, E7)",
+      "url": "https://www.youtube.com/watch?v=42ph74aFzZc",
+      "shortUrl": "https://youtu.be/42ph74aFzZc"
+    },
+    {
+      "n": 42,
+      "videoId": "tm_c71NdX2E",
+      "title": "Borreguita And The Coyote 🐕 | Reading Rainbow 📖🌈 | Full Episode | ‪@Kidzuko",
+      "url": "https://www.youtube.com/watch?v=tm_c71NdX2E",
+      "shortUrl": "https://youtu.be/tm_c71NdX2E"
+    },
+    {
+      "n": 43,
+      "videoId": "VrTGclugG0k",
+      "title": "DNA - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=VrTGclugG0k",
+      "shortUrl": "https://youtu.be/VrTGclugG0k"
+    },
+    {
+      "n": 44,
+      "videoId": "ycmyVhXcvTM",
+      "title": "Homoeostasis - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=ycmyVhXcvTM",
+      "shortUrl": "https://youtu.be/ycmyVhXcvTM"
+    },
+    {
+      "n": 45,
+      "videoId": "87P0G_9aK2c",
+      "title": "Climate vs. Weather - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=87P0G_9aK2c",
+      "shortUrl": "https://youtu.be/87P0G_9aK2c"
+    },
+    {
+      "n": 46,
+      "videoId": "jq_honq8Qgk",
+      "title": "Glycolysis - Science Rap Academy",
+      "url": "https://www.youtube.com/watch?v=jq_honq8Qgk",
+      "shortUrl": "https://youtu.be/jq_honq8Qgk"
+    },
+    {
+      "n": 47,
+      "videoId": "d1FNJhNB5LA",
+      "title": "Fish for kids - Vertebrate animals - Natural Science For Kids",
+      "url": "https://www.youtube.com/watch?v=d1FNJhNB5LA",
+      "shortUrl": "https://youtu.be/d1FNJhNB5LA"
+    },
+    {
+      "n": 48,
+      "videoId": "y46FuaUMtBw",
+      "title": "Musical Notation - Learning Music for Kids - The quarter note, the half note and the whole note",
+      "url": "https://www.youtube.com/watch?v=y46FuaUMtBw",
+      "shortUrl": "https://youtu.be/y46FuaUMtBw"
+    },
+    {
+      "n": 49,
+      "videoId": "2bJjigIRo4c",
+      "title": "Musical Notation - The quarter, the eighth and the sixteenth note - Music for Kids",
+      "url": "https://www.youtube.com/watch?v=2bJjigIRo4c",
+      "shortUrl": "https://youtu.be/2bJjigIRo4c"
+    },
+    {
+      "n": 50,
+      "videoId": "r9i1sR2Q9GE",
+      "title": "SUPER WHY! FULL EPISODE | Snow White | PBS KIDS",
+      "url": "https://www.youtube.com/watch?v=r9i1sR2Q9GE",
+      "shortUrl": "https://youtu.be/r9i1sR2Q9GE"
+    },
+    {
+      "n": 51,
+      "videoId": "3ZCfdR7XjKI",
+      "title": "The importance of having self control | Ubongo Kids Compilation | Educational Cartoons Nigeria",
+      "url": "https://www.youtube.com/watch?v=3ZCfdR7XjKI",
+      "shortUrl": "https://youtu.be/3ZCfdR7XjKI"
+    },
+    {
+      "n": 52,
+      "videoId": "NCwGhnoPLmc",
+      "title": "The Floor is Lava Dinosaur Adventure with Soso | Dinosaur Toys Come Alive!",
+      "url": "https://www.youtube.com/watch?v=NCwGhnoPLmc",
+      "shortUrl": "https://youtu.be/NCwGhnoPLmc"
+    },
+    {
+      "n": 53,
+      "videoId": "-TrHHGKQxcI",
+      "title": "Learn About Dinosaurs Part 1 | T-Rex, Triceratops and More | Educational Video for Kids",
+      "url": "https://www.youtube.com/watch?v=-TrHHGKQxcI",
+      "shortUrl": "https://youtu.be/-TrHHGKQxcI"
+    },
+    {
+      "n": 54,
+      "videoId": "Yo81WTHYnn8",
+      "title": "Learn Dinosaurs for Kids! 🦖💡SURPRISE ENDING | T-Rex and Velociraptor | Kids Learn Dinosaurs | T-Rex",
+      "url": "https://www.youtube.com/watch?v=Yo81WTHYnn8",
+      "shortUrl": "https://youtu.be/Yo81WTHYnn8"
+    },
+    {
+      "n": 55,
+      "videoId": "qfpCHF7g9Wg",
+      "title": "Learning Dinosaurs With Blippi at T-Rex Ranch! | Fun and Educational Videos For Kids",
+      "url": "https://www.youtube.com/watch?v=qfpCHF7g9Wg",
+      "shortUrl": "https://youtu.be/qfpCHF7g9Wg"
+    },
+    {
+      "n": 56,
+      "videoId": "1i-I_ka2RIQ",
+      "title": "ABC Dinosaurs | Learn the Dinosaur Alphabet with Club Baboo | Ceratosaurus, Brachiosaurus, TRex",
+      "url": "https://www.youtube.com/watch?v=1i-I_ka2RIQ",
+      "shortUrl": "https://youtu.be/1i-I_ka2RIQ"
+    },
+    {
+      "n": 57,
+      "videoId": "dktnOPfE7Dc",
+      "title": "Dinosaurs for Kids | Learn about Dinosaur History, Fossils, Dinosaur Extinction and more!",
+      "url": "https://www.youtube.com/watch?v=dktnOPfE7Dc",
+      "shortUrl": "https://youtu.be/dktnOPfE7Dc"
+    },
+    {
+      "n": 58,
+      "videoId": "mN4AwWI1nmE",
+      "title": "Lava Baby T rex Egg Hunt! | Educational Dinosaur Videos for Kids",
+      "url": "https://www.youtube.com/watch?v=mN4AwWI1nmE",
+      "shortUrl": "https://youtu.be/mN4AwWI1nmE"
+    },
+    {
+      "n": 59,
+      "videoId": "9iCkDyqVOQ8",
+      "title": "Speech Therapy at home for 2 year olds (Teach baby to talk)",
+      "url": "https://www.youtube.com/watch?v=9iCkDyqVOQ8",
+      "shortUrl": "https://youtu.be/9iCkDyqVOQ8"
+    },
+    {
+      "n": 60,
+      "videoId": "JuFFc8ijCZA",
+      "title": "Learn To Talk | Play & Colours | Toddler Learning, Speech, Songs & Sign Language With Ms Moni",
+      "url": "https://www.youtube.com/watch?v=JuFFc8ijCZA",
+      "shortUrl": "https://youtu.be/JuFFc8ijCZA"
+    },
+    {
+      "n": 61,
+      "videoId": "iJghCUqX1pI",
+      "title": "Learn to Read with Miss Sarah: Fun Phonics Activities for Kids | Its Circle Time",
+      "url": "https://www.youtube.com/watch?v=iJghCUqX1pI",
+      "shortUrl": "https://youtu.be/iJghCUqX1pI"
+    },
+    {
+      "n": 62,
+      "videoId": "tcGWl2TN4Ec",
+      "title": "SIGHT WORDS SENTENCES COMPILATION | PRACTICE READING ENGLISH | LEARN TO READ | TEACHING MAMA",
+      "url": "https://www.youtube.com/watch?v=tcGWl2TN4Ec",
+      "shortUrl": "https://youtu.be/tcGWl2TN4Ec"
+    },
+    {
+      "n": 63,
+      "videoId": "VxBEmaaSh1c",
+      "title": "One Syllable Words | Phonics for Kids - Learn To Read | Alphablocks",
+      "url": "https://www.youtube.com/watch?v=VxBEmaaSh1c",
+      "shortUrl": "https://youtu.be/VxBEmaaSh1c"
+    },
+    {
+      "n": 64,
+      "videoId": "FxXV4nUtEcE",
+      "title": "Let's Sign It | Common ASL Phrases Vol. 1 | Jack Hartmann",
+      "url": "https://www.youtube.com/watch?v=FxXV4nUtEcE",
+      "shortUrl": "https://youtu.be/FxXV4nUtEcE"
+    },
+    {
+      "n": 65,
+      "videoId": "IzEim3aW254",
+      "title": "Baby Sign Language | Baby Sign Language Basics | Sign Language for Babies",
+      "url": "https://www.youtube.com/watch?v=IzEim3aW254",
+      "shortUrl": "https://youtu.be/IzEim3aW254"
+    },
+    {
+      "n": 66,
+      "videoId": "q_gUMODzkOM",
+      "title": "Meekah Learns ASL (American Sign Language) | Educational Videos for Kids | Blippi and Meekah Kids TV",
+      "url": "https://www.youtube.com/watch?v=q_gUMODzkOM",
+      "shortUrl": "https://youtu.be/q_gUMODzkOM"
+    },
+    {
+      "n": 67,
+      "videoId": "WP1blVh1ZQM",
+      "title": "See It, Say It, Sign It | Letter Sounds | ASL Alphabet | Jack Hartmann",
+      "url": "https://www.youtube.com/watch?v=WP1blVh1ZQM",
+      "shortUrl": "https://youtu.be/WP1blVh1ZQM"
+    },
+    {
+      "n": 68,
+      "videoId": "6sgdIndfqZ4",
+      "title": "Sign the Colors | Jack Hartmann | ASL Colors",
+      "url": "https://www.youtube.com/watch?v=6sgdIndfqZ4",
+      "shortUrl": "https://youtu.be/6sgdIndfqZ4"
+    },
+    {
+      "n": 69,
+      "videoId": "vjEV5UnI6ZE",
+      "title": "First Sentences For Toddlers | Play, Sing & Learn to Talk | Signs & Gestures | Baby Learning Video",
+      "url": "https://www.youtube.com/watch?v=vjEV5UnI6ZE",
+      "shortUrl": "https://youtu.be/vjEV5UnI6ZE"
+    },
+    {
+      "n": 70,
+      "videoId": "vOHS72_mnMc",
+      "title": "Preschool Phonics | Rock ’N Learn Phonics Songs",
+      "url": "https://www.youtube.com/watch?v=vOHS72_mnMc",
+      "shortUrl": "https://youtu.be/vOHS72_mnMc"
+    },
+    {
+      "n": 71,
+      "videoId": "RFgnMr67Se4",
+      "title": "Learn To Talk with Silly Ms Lily | Toddler Learning & Baby Sign Language | Best Toy Learning Video",
+      "url": "https://www.youtube.com/watch?v=RFgnMr67Se4",
+      "shortUrl": "https://youtu.be/RFgnMr67Se4"
+    },
+    {
+      "n": 72,
+      "videoId": "7BUIfsKe4c0",
+      "title": "Alphabet Sing and Sign | ASL Song for Kids | Alphabet and Letter Sounds | Jack Hartmann",
+      "url": "https://www.youtube.com/watch?v=7BUIfsKe4c0",
+      "shortUrl": "https://youtu.be/7BUIfsKe4c0"
+    },
+    {
+      "n": 73,
+      "videoId": "oT9kbU0Jicg",
+      "title": "LEARNING ABOUT SIGN LANGUAGE & CARS | Babies and Toddlers Educational Video | Jesus",
+      "url": "https://www.youtube.com/watch?v=oT9kbU0Jicg",
+      "shortUrl": "https://youtu.be/oT9kbU0Jicg"
+    },
+    {
+      "n": 74,
+      "videoId": "pgbuAagtTIc",
+      "title": "Animal Signs | ASL for Kids | Jack Hartmann Sign Language",
+      "url": "https://www.youtube.com/watch?v=pgbuAagtTIc",
+      "shortUrl": "https://youtu.be/pgbuAagtTIc"
+    },
+    {
+      "n": 75,
+      "videoId": "G6hVRVG74lc",
+      "title": "100 ASL Signs in 5 Minutes!",
+      "url": "https://www.youtube.com/watch?v=G6hVRVG74lc",
+      "shortUrl": "https://youtu.be/G6hVRVG74lc"
+    },
+    {
+      "n": 76,
+      "videoId": "urGIbCsCgNg",
+      "title": "ASL Animals Song Lesson for Kids - Learn how to sign Animals with Fireese",
+      "url": "https://www.youtube.com/watch?v=urGIbCsCgNg",
+      "shortUrl": "https://youtu.be/urGIbCsCgNg"
+    },
+    {
+      "n": 77,
+      "videoId": "FPXhmn1YMG0",
+      "title": "Meekah Learns ASL with Dinosaurs! | Educational Videos for Kids | Blippi and Meekah Kids TV",
+      "url": "https://www.youtube.com/watch?v=FPXhmn1YMG0",
+      "shortUrl": "https://youtu.be/FPXhmn1YMG0"
+    },
+    {
+      "n": 78,
+      "videoId": "zizPQ-7iT8Q",
+      "title": "Learn Dinosaur Sign Language | Educational Videos for Kids | Blippi and Meekah Kids TV",
+      "url": "https://www.youtube.com/watch?v=zizPQ-7iT8Q",
+      "shortUrl": "https://youtu.be/zizPQ-7iT8Q"
+    },
+    {
+      "n": 79,
+      "videoId": "XPNGC9416Bs",
+      "title": "Dinosaur Learning Adventure | Colours, Counting, Toy Play & Signs, | Songs For Kids | Baby Signs",
+      "url": "https://www.youtube.com/watch?v=XPNGC9416Bs",
+      "shortUrl": "https://youtu.be/XPNGC9416Bs"
+    },
+    {
+      "n": 80,
+      "videoId": "aJW60juh2Uk",
+      "title": "Dinosaur Song | MyGo! Sign Language For Kids | Blippi - Songs | ASL",
+      "url": "https://www.youtube.com/watch?v=aJW60juh2Uk",
+      "shortUrl": "https://youtu.be/aJW60juh2Uk"
+    },
+    {
+      "n": 81,
+      "videoId": "_o292EhDPLY",
+      "title": "ASL Dinosaurs for Kids",
+      "url": "https://www.youtube.com/watch?v=_o292EhDPLY",
+      "shortUrl": "https://youtu.be/_o292EhDPLY"
+    },
+    {
+      "n": 82,
+      "videoId": "SLaqbZAJZCE",
+      "title": "Dinosaur Song | MyGo! Sign Language For Kids | Blippi - Songs | ASL",
+      "url": "https://www.youtube.com/watch?v=SLaqbZAJZCE",
+      "shortUrl": "https://youtu.be/SLaqbZAJZCE"
+    },
+    {
+      "n": 83,
+      "videoId": "rz6Fp0qUyfw",
+      "title": "Dinosaurs for Kids | Educational Video For Toddlers | Baby Sign",
+      "url": "https://www.youtube.com/watch?v=rz6Fp0qUyfw",
+      "shortUrl": "https://youtu.be/rz6Fp0qUyfw"
+    },
+    {
+      "n": 84,
+      "videoId": "3tbbaD-MHAo",
+      "title": "ABC Dinosaur Song for Kids | Fun Alphabet Phonics | Learn the Alphabet and ABCs",
+      "url": "https://www.youtube.com/watch?v=3tbbaD-MHAo",
+      "shortUrl": "https://youtu.be/3tbbaD-MHAo"
+    },
+    {
+      "n": 85,
+      "videoId": "YbYgjN7XwYA",
+      "title": "Twinkle Twinkle Little Start | ASL Sign Language Song for Kids | Barney the Dinosaur",
+      "url": "https://www.youtube.com/watch?v=YbYgjN7XwYA",
+      "shortUrl": "https://youtu.be/YbYgjN7XwYA"
+    },
+    {
+      "n": 86,
+      "videoId": "_Qg-ob-AYpI",
+      "title": "ABC For Kids | Learn ASL Alphabet and ABC Animal Names",
+      "url": "https://www.youtube.com/watch?v=_Qg-ob-AYpI",
+      "shortUrl": "https://youtu.be/_Qg-ob-AYpI"
+    },
+    {
+      "n": 87,
+      "videoId": "fN4baaByX9A",
+      "title": "50 ASL Animal Signs | Part 1 | Sign Language for Beginners",
+      "url": "https://www.youtube.com/watch?v=fN4baaByX9A",
+      "shortUrl": "https://youtu.be/fN4baaByX9A"
+    },
+    {
+      "n": 88,
+      "videoId": "tVOLxXM4Z2E",
+      "title": "My Dino Hero  | MyGo! Sign Language For Kids | @MorphleTV | ASL",
+      "url": "https://www.youtube.com/watch?v=tVOLxXM4Z2E",
+      "shortUrl": "https://youtu.be/tVOLxXM4Z2E"
+    },
+    {
+      "n": 89,
+      "videoId": "YLmTvwjJ9qo",
+      "title": "Educational Video for Kids | Animal Video for Kids | Atrin & Soren Explore and Learn Animal Homes",
+      "url": "https://www.youtube.com/watch?v=YLmTvwjJ9qo",
+      "shortUrl": "https://youtu.be/YLmTvwjJ9qo"
+    },
+    {
+      "n": 90,
+      "videoId": "WAUhBIC_JOo",
+      "title": "Toddler Learning | Zoo animals Names and Sounds for Kids | ZOO, FARM, PETS & More Learning Fun!",
+      "url": "https://www.youtube.com/watch?v=WAUhBIC_JOo",
+      "shortUrl": "https://youtu.be/WAUhBIC_JOo"
+    },
+    {
+      "n": 91,
+      "videoId": "4IJeX6kWCQI",
+      "title": "All About Wild Animals |  BEST ANIMAL ADVENTURE Park!",
+      "url": "https://www.youtube.com/watch?v=4IJeX6kWCQI",
+      "shortUrl": "https://youtu.be/4IJeX6kWCQI"
+    },
+    {
+      "n": 92,
+      "videoId": "WxjHzlQVtZs",
+      "title": "Learning Good Manners for Kids - Miss V Teaching Children with good behaviour and Being Polite",
+      "url": "https://www.youtube.com/watch?v=WxjHzlQVtZs",
+      "shortUrl": "https://youtu.be/WxjHzlQVtZs"
+    },
+    {
+      "n": 93,
+      "videoId": "efkCkHENtkw",
+      "title": "Use Polite Words (Signing Savvy) S3 E23",
+      "url": "https://www.youtube.com/watch?v=efkCkHENtkw",
+      "shortUrl": "https://youtu.be/efkCkHENtkw"
+    },
+    {
+      "n": 94,
+      "videoId": "TPhabSkn3sM",
+      "title": "PLEASE, THANK YOU AND ASKING FOR PERMISSION 🤝 GOOD MANNERS for kids 😊 Episode 2",
+      "url": "https://www.youtube.com/watch?v=TPhabSkn3sM",
+      "shortUrl": "https://youtu.be/TPhabSkn3sM"
+    },
+    {
+      "n": 95,
+      "videoId": "T7ly5H1k9gM",
+      "title": "Preschool Learning - Learn Good Manners for Kids | Videos for Toddlers | Educational Videos for Kids",
+      "url": "https://www.youtube.com/watch?v=T7ly5H1k9gM",
+      "shortUrl": "https://youtu.be/T7ly5H1k9gM"
+    },
+    {
+      "n": 96,
+      "videoId": "locoJsFi9sw",
+      "title": "10 Essential Good Manners for Kids | Politeness, Respect, and More!",
+      "url": "https://www.youtube.com/watch?v=locoJsFi9sw",
+      "shortUrl": "https://youtu.be/locoJsFi9sw"
+    },
+    {
+      "n": 97,
+      "videoId": "_u-xR4rn-lo",
+      "title": "How Do Dinosaurs Show Good Manners? By Jane Yolen & Mark Teague | #parenting #esl #preschool #kids",
+      "url": "https://www.youtube.com/watch?v=_u-xR4rn-lo",
+      "shortUrl": "https://youtu.be/_u-xR4rn-lo"
+    },
+    {
+      "n": 98,
+      "videoId": "oDSlU0QRUcQ",
+      "title": "Dinosaurs | Early Learning | Phonics | Little Fox | Bedtime Stories",
+      "url": "https://www.youtube.com/watch?v=oDSlU0QRUcQ",
+      "shortUrl": "https://youtu.be/oDSlU0QRUcQ"
+    },
+    {
+      "n": 99,
+      "videoId": "BSyRdyv4gR0",
+      "title": "The Dino Museum | Good Manners | Fun Story | Kids Cartoon | Sheriff Labrador",
+      "url": "https://www.youtube.com/watch?v=BSyRdyv4gR0",
+      "shortUrl": "https://youtu.be/BSyRdyv4gR0"
+    },
+    {
+      "n": 100,
+      "videoId": "0hhMWHC59sU",
+      "title": "Learn Good Manners with Baby Dino 🦖  Please, Thank You & Sorry",
+      "url": "https://www.youtube.com/watch?v=0hhMWHC59sU",
+      "shortUrl": "https://youtu.be/0hhMWHC59sU"
+    }
+  ],
+  "pulledAt": "2026-09-21T02:20:13Z"
+}

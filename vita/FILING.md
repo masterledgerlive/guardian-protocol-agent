@@ -16,6 +16,10 @@ findable.
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
+| `vita/url-dir.js` | `URLDIR` | Curated YouTube URL directories (KIDS closed garden) — load/play in player; Telegram dual path |
+| `vita/memory/kids-url-directory.json` | `URLDIR` | Pulled KIDS playlist URLs (urls only — no media copies) |
+| `public/vita-kids-player.html` | `URLDIR` | Closed-garden player — only listed URLs; no YouTube recommendations |
+| `vita/strands/kids-url-dir.json` | `URLDIR` | Sparse strand: KIDS url dir → player → dual HUMAN/MACHINE |
 | `vita/telegram-clickthrough.js` | `VITACLICK` | Telegram inline keyboards — every category + subcategory clickable (dir→file→unlock, tokens→actions, track inject) |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
 | `vita/mirror-dual.js` | `MIRROR_DUAL` / `ZERO_PROOF` | Navigable GitHub duplicate tree + dual availability\|proven reader + open-source zero-proof key + SNARK boot from filing CAS follow-leader |
@@ -81,6 +85,7 @@ findable.
 | `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
 | `MG_RECALL` | Force-banked recall stack (`§MGRECALL§`) — pull one location; last layer is refined queries |
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
+| `URLDIR` | Curated URL playlist directory (`§VITAURLDIR§`) — closed-garden YouTube urls for `/vita/kids-player`; dual HUMAN list + MACHINE ids |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MIRROR_DUAL` | Dual-path mirror (`§VITADUALPATH§` / `§VITABOOT§`) — same file name on GitHub + filing; availability\|proven reader; zero-proof name+contentCommit; SNARK boot from CAS follow-leader |

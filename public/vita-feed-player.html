@@ -552,8 +552,17 @@
     });
 
     // Telegram library deep-link: /vita/feed-player?lib=N
+    // KIDS closed-garden URL directory: /vita/feed-player?dir=kids
     (async function loadLibraryFromQuery() {
       const q = new URLSearchParams(location.search);
+      const dirSel = q.get("dir") || q.get("playlist");
+      if (dirSel) {
+        const i = q.get("i") || q.get("n") || "1";
+        el("costCard").textContent =
+          "Closed garden — loading KIDS URL directory into the player (no YouTube recommendations)…";
+        location.replace("/vita/kids-player?dir=" + encodeURIComponent(dirSel) + "&i=" + encodeURIComponent(i));
+        return;
+      }
       const sel = q.get("lib") || q.get("n") || q.get("name") || q.get("key");
       if (!sel) return;
       el("costCard").textContent = "Loading library #" + sel + " from keys chain…";

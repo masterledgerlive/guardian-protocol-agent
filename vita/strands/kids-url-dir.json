@@ -1,0 +1,18 @@
+{
+  "strandId": "kids-url-dir",
+  "sparse": true,
+  "source": "vita-url-dir",
+  "filingLabel": "URLDIR",
+  "header": "§VITAURLDIR§v1|id=kids|n=100§",
+  "learn": "Operator KIDS YouTube playlist becomes a URL directory (urls only). Telegram /vitafeed dir KIDS lists it; /vitafeed play kids loads /vita/kids-player closed garden (youtube-nocookie, rel=0, next/prev only inside the list — no recommendations or other channels). Dual paths: /vitafeed dual kids stages HUMAN exact url list + MACHINE ZK-short ids for confirm|override; /vita dual vita/memory/kids-url-directory.json is GitHub availability vs proven. Never invent locs. Never copy media.",
+  "commands": [
+    "/vitafeed kids",
+    "/vitafeed dir KIDS",
+    "/vitafeed play kids",
+    "/vitafeed dual kids",
+    "/vita dual vita/memory/kids-url-directory.json"
+  ],
+  "player": "/vita/kids-player?dir=kids",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

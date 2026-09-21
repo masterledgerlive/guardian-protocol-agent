@@ -54,6 +54,7 @@ export function buildVitaFeedRootKeyboard() {
     inline_keyboard: [
       [
         btn("📂 Dir", "/vitafeed dir"),
+        btn("🧒 KIDS", "/vitafeed play kids"),
         btn("📚 Files", "/vitafeed files"),
         btn("🔑 Keys", "/vitafeed keys"),
       ],
@@ -133,6 +134,12 @@ export function buildDirSubKeyboard(listed) {
     return btn("📄 " + clipName(e.name, 26), cmd);
   });
   const rows = rowsOf(fileBtns, 1);
+  if (sub === "KIDS") {
+    rows.unshift([
+      btn("▶️ Play KIDS", "/vitafeed play kids"),
+      btn("🔤 Dual KIDS", "/vitafeed dual kids"),
+    ]);
+  }
   rows.push([
     btn("⬆️ Up VITA:\\", "/vitafeed dir"),
     btn("🏠 Menu", "/vitafeed"),
@@ -153,8 +160,15 @@ export function buildUnlockKeyboard(result) {
   const shortPath = String(path || "").replace(/^VITA:\\/i, "");
   const unlockCmd = shortPath ? "/vitafeed unlock " + shortPath : "/vitafeed dir";
   const playHint = result?.goalHint || "";
-  const playCmd =
-    /song|audio|movie|video|play/i.test(playHint) && result?.entry?.name
+  const youtubePlay =
+    result?.entry?.playKind === "youtube" ||
+    result?.entry?.kind === "youtube" ||
+    /kids url|youtube/i.test(playHint);
+  const playCmd = youtubePlay
+    ? (result?.entry?.playIndex
+        ? "/vitafeed play kids " + result.entry.playIndex
+        : "/vitafeed play kids")
+    : /song|audio|movie|video|play/i.test(playHint) && result?.entry?.name
       ? "/vitafeed play " + result.entry.name
       : "/vitafeed files";
   const dualSeed = clipName(
@@ -261,6 +275,14 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
   }
   if (act === "files") {
     return buildLibraryFilesKeyboard(out.entries || out.items || out.files || []);
+  }
+  if (act === "kids" || (act === "play" && (out.play?.kind === "youtube" || /kids-player/.test(String(out.reply || out.playerPath || ""))))) {
+    return buildDirSubKeyboard({
+      ok: true,
+      master: false,
+      subdir: "KIDS",
+      entries: [],
+    });
   }
   if (act === "preview" || act === "dual" || act === "translate" || act === "brain" || act === "next" || act === "keys" || act === "enqueue") {
     return buildVitaFeedStagedKeyboard();
