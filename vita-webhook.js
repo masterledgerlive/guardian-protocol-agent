@@ -46,6 +46,10 @@
 //   GET  /vita/read?f=FILE  — open file (local + GitHub CODE/STATE) + SNARK + IDM
 //   GET  /vita/mirror       — dual-path GitHub duplicate · tree · boot · zero-proof (+ HTML UI)
 //   GET  /vita/kids-player  — closed-garden KIDS YouTube URL directory player
+//   GET  /vita/token-player — token pulldown player (DEX reader + 32-chain + $0.05 seed)
+//   GET  /vita/token-player/api — JSON catalog + portfolio snapshot
+//   GET  /vita/dex-reader?sym=  — live DexScreener + Gecko dual (miss ≠ $0)
+//   GET  /vita/chains        — 32-chain portfolio (ETH L1 other-path ≠ Base RISK)
 //   GET  /vita/url-dir      — JSON catalog of curated playlist urls
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -125,6 +129,14 @@ import {
 import {
   publicUrlDirState,
 } from "./vita/url-dir.js";
+import {
+  evaluateTokenLegit,
+  findCatalogToken,
+  loadTokenCatalog,
+  tokenPlayerPublicState,
+} from "./vita/token-player.js";
+import { readDexForToken } from "./vita/dex-reader.js";
+import { listMultichainPortfolio } from "./vita/multichain-portfolio.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -170,6 +182,7 @@ const VITA_FEED_PLAYER_HTML = join(ROOT, "public", "vita-feed-player.html");
 const VITA_FEED_LOADER_HTML = join(ROOT, "public", "vita-feed-loader.html");
 const VITA_MIRROR_HTML = join(ROOT, "public", "vita-mirror.html");
 const VITA_KIDS_PLAYER_HTML = join(ROOT, "public", "vita-kids-player.html");
+const VITA_TOKEN_PLAYER_HTML = join(ROOT, "public", "vita-token-player.html");
 const VITA_CLIENT_JS = join(ROOT, "public", "vita-client.js");
 const VITA_PARSE_JS = join(ROOT, "vita-parse.js");
 const XMEM_JS = join(ROOT, "xmem.js");
@@ -655,6 +668,36 @@ async function handleVitaRequest(req, res) {
     }
     if ((path === "/vita/kids-player" || path === "/vita/kids-player/") && req.method === "GET") {
       return servePublicHtml(res, VITA_KIDS_PLAYER_HTML, "vita kids player");
+    }
+    if ((path === "/vita/token-player" || path === "/vita/token-player/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_TOKEN_PLAYER_HTML, "vita token player");
+    }
+    if ((path === "/vita/token-player/api" || path === "/vita/token-player/api/") && req.method === "GET") {
+      const sym = String(url.searchParams.get("sym") || url.searchParams.get("token") || "").trim();
+      return json(res, tokenPlayerPublicState({ symbol: sym }));
+    }
+    if ((path === "/vita/chains" || path === "/vita/chains/") && req.method === "GET") {
+      return json(res, listMultichainPortfolio());
+    }
+    if ((path === "/vita/dex-reader" || path === "/vita/dex-reader/") && req.method === "GET") {
+      const sym = String(url.searchParams.get("sym") || url.searchParams.get("token") || "").trim().toUpperCase();
+      const token = findCatalogToken(sym) || loadTokenCatalog().find((t) => t.symbol === sym);
+      if (!token && sym !== "ETH") {
+        return json(res, { ok: false, miss: true, reason: "unknown symbol — will not invent a pool", symbol: sym });
+      }
+      if (sym === "ETH") {
+        const port = listMultichainPortfolio();
+        return json(res, {
+          ok: true,
+          otherPath: true,
+          mixIntoBaseRisk: false,
+          dex: { miss: true, symbol: "ETH", reason: "ETH L1 other-path — not Base DexScreener" },
+          portfolio: port.otherPath,
+        });
+      }
+      const dex = await readDexForToken(token, { fetchLive: true });
+      const legit = evaluateTokenLegit(token, dex);
+      return json(res, { ok: true, symbol: token.symbol, token, dex, legit });
     }
     if ((path === "/vita/url-dir" || path === "/vita/url-dir/") && req.method === "GET") {
       const id = String(url.searchParams.get("dir") || url.searchParams.get("id") || "kids").trim();

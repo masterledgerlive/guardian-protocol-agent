@@ -117,18 +117,36 @@ export function parseDefaultTokensFromAgentSource(src) {
     const piggyMin = chunk.match(/piggyBankMinUsd:\s*([0-9.]+)/)?.[1];
     const feeTier = Number(chunk.match(/feeTier:\s*(\d+)/)?.[1]) || null;
     const poolFeeRaw = chunk.match(/poolFeePct:\s*([0-9.]+)/)?.[1];
+    const scoreTotalRaw = chunk.match(/score:\s*\{[^}]*\btotal:(\d+)/)?.[1];
+    const fundamentalsRaw = chunk.match(/fundamentals:(\d+)/)?.[1];
+    const liquidityRaw = chunk.match(/liquidity:(\d+)/)?.[1];
+    const coinbaseFitRaw = chunk.match(/coinbaseFit:(\d+)/)?.[1];
+    const communityRaw = chunk.match(/community:(\d+)/)?.[1];
+    const minBuyRaw = chunk.match(/minBuyUsd:\s*([0-9.]+)/)?.[1];
+    const minNetRaw = chunk.match(/minNetMargin:\s*([0-9.]+)/)?.[1];
     rows.push({
       symbol,
       address: chunk.match(/address:\s*"(0x[0-9a-fA-F]+)"/)?.[1] || null,
       injectMain: /injectMain:\s*true/.test(chunk),
       frozen: /frozen:\s*true/.test(chunk),
       disabled: /disabled:\s*true/.test(chunk),
+      noBasePool: /noBasePool:\s*true/.test(chunk),
+      brokenQuote: /brokenQuote:\s*true/.test(chunk),
       piggyBankPct: piggyRaw != null ? Number(piggyRaw) : null,
       piggyBankMinUsd: piggyMin != null ? Number(piggyMin) : null,
       feeTier,
       poolFeePct: poolFeeRaw != null
         ? Number(poolFeeRaw)
         : feeTier === 10000 ? 0.01 : feeTier === 3000 ? 0.003 : null,
+      minBuyUsd: minBuyRaw != null ? Number(minBuyRaw) : null,
+      minNetMargin: minNetRaw != null ? Number(minNetRaw) : null,
+      scoreTotal: scoreTotalRaw != null ? Number(scoreTotalRaw) : null,
+      fundamentals: fundamentalsRaw != null ? Number(fundamentalsRaw) : null,
+      liquidityScore: liquidityRaw != null ? Number(liquidityRaw) : null,
+      coinbaseFit: coinbaseFitRaw != null ? Number(coinbaseFitRaw) : null,
+      community: communityRaw != null ? Number(communityRaw) : null,
+      frozenReason: chunk.match(/frozenReason:\s*"([^"]*)"/)?.[1] || "",
+      disabledReason: chunk.match(/disabledReason:\s*"([^"]*)"/)?.[1] || "",
       notes: chunk.match(/notes:\s*"([^"]*)"/)?.[1] || "",
     });
   }

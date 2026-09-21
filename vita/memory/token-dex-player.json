@@ -1,0 +1,23 @@
+{
+  "id": "token-dex-player",
+  "filingLabel": "TOKEN_PLAYER",
+  "at": "2026-09-21T03:55:00.000Z",
+  "learn": "Every catalog token has a DEX reader (DexScreener primary, GeckoTerminal secondary) plus Basescan/Dex/Gecko/CoinGecko refs. Telegram /tokens /tok /dex /legit open a pulldown pop-out player. Market-trigger auto buy/sell options stay SIM — confirm|override spends. $0.05 log seed never sells so math can start. Meme-only (no protocol use) fails new-buy legit. 32-chain display: Base hitch ~$7 (73%) vs Ethereum L1 ~$3 (27%) other-path — never mix L1 ETH into Base SwapRouter02. Empty chains are seats, not invented P&L. Never invent hashes.",
+  "commands": [
+    "/tokens",
+    "/tok AERO",
+    "/dex LINK",
+    "/legit UNI",
+    "/tokenplayer",
+    "/chains"
+  ],
+  "player": "/vita/token-player?popup=1",
+  "logSeedUsd": 0.05,
+  "otherPath": {
+    "chain": "ethereum",
+    "usd": 3,
+    "pct": 27,
+    "mixIntoBaseRisk": false
+  },
+  "neverInventHashes": true
+}

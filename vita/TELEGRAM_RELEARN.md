@@ -37,7 +37,7 @@ Engines / Chain / Routes. Every section keyboard has 🏠 HOME, 🧪 Sim, prev/n
 | `search` | Search | Proven ref · ask\|self · xmem · recall · DOS dir unlock | Ref calc · Ask calc · Proven · XMEM `/xmem STORE` · Recall · Know · Dir `/vitafeed dir` · Dir MEM `/vitafeed dir MEMORY` · Unlock `CODEX\math-euler.txt` · Cipher · Bag recall `/recall vita` · Bag files `/vita files` |
 | `wave` | WAVE | Memory-mirror SIM · 3-proof · 28-full — paid gates OFF | Wavetest · Waveproof · Wavefull · Hitch tip `/wavetest hitch` |
 | `mirror` | Mirror | GitHub duplicate · dual avail\|proven · zero-proof · SNARK boot | Chain · Files · Tree `vita` · Dual path `vita/mainframe.js` · Boot `hitch-gate` · Session · Open vault · Proof pos · Engines · Sim all · Sim search |
-| `trade` | Trade | Verb → token box | `/pick buy\|sell\|sellhalf\|exit\|piggyunlock` · Tokens · `/pick waves` · Cycles |
+| `trade` | Trade | Verb → token box | `/pick buy\|sell\|sellhalf\|exit\|piggyunlock` · Tokens · Player · DEX · Chains · `/pick waves` · Cycles |
 | `dual` | Dual | Human plain ↔ machine ZK-short · restart ≥$0.50 | Translate · Dual · Restart · Loader `/vitafeed load all` |
 | `agents` | Agents | **(this PR)** agent-owned chat · x404 dir tags | Chat `/agents chat` · Dir `/agents dir` · Dual `/agents dual` · Proven locs `/agents proven` · Path map `/agents path` |
 | `mother` | Mother | N-batch dumps + FORCE recall — **not** mother brain | MG plain · MG encoded · FORCE recall |
@@ -87,7 +87,8 @@ Click-through:
   └─ file                 → wait for Telegram attachment → §VITAFILE§
 ```
 
-`/tokens` · `/tok SYMBOL` → buy / sell / half / exit / piggy / status / dual / track.
+`/tokens` · `/tok SYMBOL` → DEX · legit · player popup · buy / sell / half / exit / piggy / dual / track.
+`/dex` · `/legit` · `/tokenplayer` · `/chains` (32-chain; ETH L1 ~$3 other-path, not Base RISK). $0.05 seed never sells.
 
 Staged cost cards use Confirm|Override|Cancel + Dir|Files|Menu. Override cannot
 bypass `VITAFEED_PAID=no`. Confirm respects `VITAFEED_MIN_LIQUID_USD` default $5.

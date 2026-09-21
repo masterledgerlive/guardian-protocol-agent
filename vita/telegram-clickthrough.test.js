@@ -135,12 +135,16 @@ describe("telegram click-through keyboards", () => {
     const symbols = ["AERO", "BRETT", "VIRTUAL", "HOME"];
     const cat = buildTokenCatalogKeyboard(symbols);
     assert.ok(allCallbacks(cat).includes("/tok AERO"));
+    assert.ok(allCallbacks(cat).includes("/chains"));
+    assert.ok(allCallbacks(cat).includes("/dex"));
     assertCallbacksFit(cat, "tokens");
     const act = buildTokenActionKeyboard("AERO");
     const cbs = allCallbacks(act);
     assert.ok(cbs.includes("/buy AERO"));
     assert.ok(cbs.includes("/sell AERO"));
     assert.ok(cbs.includes("/exit AERO"));
+    assert.ok(cbs.includes("/dex AERO"));
+    assert.ok(cbs.includes("/legit AERO"));
     assert.ok(cbs.includes("/piggyunlock AERO"));
     assert.ok(cbs.includes("/vitafeed track AERO") || cbs.includes("/vitafeed track"));
     assertCallbacksFit(act, "tok-AERO");

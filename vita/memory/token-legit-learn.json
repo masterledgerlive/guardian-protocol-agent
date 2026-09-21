@@ -1,0 +1,5 @@
+{
+  "id": "token-legit-learn",
+  "events": [],
+  "note": "Append-only. Agents write PASS/QUESTIONABLE/FAIL after DexScreener + Gecko dual + 3rd-party refs. Never invent quotes or hashes."
+}

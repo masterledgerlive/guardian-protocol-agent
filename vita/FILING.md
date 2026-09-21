@@ -42,6 +42,13 @@ findable.
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
 | `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up |
+| `vita/dex-reader.js` | `DEX_READER` | Per-token DexScreener reader + Gecko dual check + Basescan/Dex/Gecko/CoinGecko refs; miss ≠ $0 |
+| `vita/token-player.js` | `TOKEN_PLAYER` / `TOKEN_LEGIT` | Token pulldown player · $0.05 never-remove log seed · market-trigger SIM values · legit PASS/FLAG/FAIL |
+| `vita/multichain-portfolio.js` | `MULTICHAIN` | 32-chain display; Base hitch vs Ethereum L1 other-path (~$3 / 27% — never mix into Base RISK) |
+| `public/vita-token-player.html` | `TOKEN_PLAYER` | Telegram Mini App popup + HTTPS pulldown player |
+| `vita/memory/token-legit-learn.json` | `TOKEN_LEGIT` | Append-only agent legit checks |
+| `vita/memory/token-dex-reader.json` | `DEX_READER` | Append-only DEX dual-check learn |
+| `vita/strands/token-dex-player.json` | `TOKEN_PLAYER` | Sparse strand: catalog → DEX dual → legit → player popup → 32-chain other-path |
 | `vita/memory/message-cascade-operator.json` | `MESSAGE_CASCADE` | Operator love/eureka cascade brief (message half of alternation) |
 | `vita/strands/message-cascade.json` | `MESSAGE_CASCADE` | Agentic cascade knowledge (knowledge half — useful for time to come) |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
@@ -99,6 +106,10 @@ findable.
 | `VITAHELP` | Help click-through (`§VITAHELP§`) — `/help` sections + `/pick` token boxes |
 | `SYSTEMS_CHECK_ROUTES` | Route domino check (`§SYSCHECK§` routes) — folder merkle + avenue PASS/FLAG + forced seal stage; logs `systems-check-routes-*.json` |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
+| `TOKEN_PLAYER` | Token pulldown player (`§VITATOKPLAY§`) — DEX reader + trigger SIM + $0.05 seed; Telegram popup |
+| `TOKEN_LEGIT` | Legitimacy dual-check (`§VITALEGIT§`) — not meme-only; DexScreener ↔ Gecko + 3rd-party refs |
+| `DEX_READER` | Own DEX reader (`§VITADEX§`) — verified Uni/Aero WETH\|USDC; miss ≠ invented $0 |
+| `MULTICHAIN` | 32-chain portfolio (`§VITACHAINS§`) — Base hitch vs ETH L1 other-path; empty seats ready |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |
 | `PEER_REVIEW` | One peer review of learn (`§PEERREVIEW§`) — separate from MEMORY |
 | `ZERO_PROOF` | Squashed content-addressed retrieval growth (`§ZEROPROOF§`) |
