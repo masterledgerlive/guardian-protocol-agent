@@ -85,6 +85,16 @@ findable.
 | `vita/token-player.js` | `TOKEN_PLAYER` / `TOKEN_LEGIT` | Token pulldown player · $0.05 never-remove log seed · market-trigger SIM values · legit PASS/FLAG/FAIL |
 | `vita/multichain-portfolio.js` | `MULTICHAIN` | 32-chain display; Base hitch vs Ethereum L1 other-path (~$3 / 27% — never mix into Base RISK) |
 | `public/vita-token-player.html` | `TOKEN_PLAYER` | Telegram Mini App popup + HTTPS pulldown player |
+| `vita/proven-player.js` | `PROVEN_PLAYER` | Own player · switch dav1d (SVT-AV1 MP4) and AV2 (AVM v1.0.0 IVF) · 448-byte SHA-256 receipt · follow-the-leader registry |
+| `vita/proven-player-verify.js` | `PROVEN_PLAYER` | Browser and Node unlock gate (chunk-binding-v1). Groth16 slot must stay zero |
+| `vita/proven-player/ZkAv1Registry.sol` | `PROVEN_PLAYER` | Solidity mirror of the leader registry. No deployed address in this repo |
+| `vita/proven-player/ChunkBinding.circom` | `PROVEN_PLAYER` | Conceptual binding circuit. Not an AV2 encoder |
+| `vita/proven-player/libvlc_access.rs` | `PROVEN_PLAYER` | Native access gate that refuses bytes until the receipt matches, then hands them to dav2d |
+| `vita/proven-player/media/dav1d/` | `PROVEN_PLAYER` | SVT-AV1 MP4 chunks for the dav1d path |
+| `vita/proven-player/media/av2/` | `PROVEN_PLAYER` | AV2 IVF chunks (fourcc AV02) plus AVM reference-decode RGB |
+| `public/vita-proven-player.html` | `PROVEN_PLAYER` | Proven Player page. Does not call feed, kids, or token players |
+| `vita/memory/proven-player-learn.json` | `PROVEN_PLAYER` | Append-only learn: binding receipt, unwired Groth16, availability chain |
+| `vita/strands/proven-player.json` | `PROVEN_PLAYER` | Sparse strand: switch dav1d and AV2 after the same receipt unlock |
 | `vita/memory/token-legit-learn.json` | `TOKEN_LEGIT` | Append-only agent legit checks |
 | `vita/memory/token-dex-reader.json` | `DEX_READER` | Append-only DEX dual-check learn |
 | `vita/strands/token-dex-player.json` | `TOKEN_PLAYER` | Sparse strand: catalog → DEX dual → legit → player popup → 32-chain other-path |
@@ -154,6 +164,7 @@ findable.
 | `SYSTEMS_CHECK_ROUTES` | Route domino check (`§SYSCHECK§` routes) — folder merkle + avenue PASS/FLAG + forced seal stage; logs `systems-check-routes-*.json` |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
 | `TOKEN_PLAYER` | Token pulldown player (`§VITATOKPLAY§`) — DEX reader + trigger SIM + $0.05 seed; Telegram popup |
+| `PROVEN_PLAYER` | Proven Player (`§VITAPROVENPLAY§`) — own AV2 route; SHA-256 chunk receipt; Groth16 slot unwired; availability until a real loc |
 | `TOKEN_LEGIT` | Legitimacy dual-check (`§VITALEGIT§`) — not meme-only; DexScreener ↔ Gecko + 3rd-party refs |
 | `DEX_READER` | Own DEX reader (`§VITADEX§`) — verified Uni/Aero WETH\|USDC; miss ≠ invented $0 |
 | `MULTICHAIN` | 32-chain portfolio (`§VITACHAINS§`) — Base hitch vs ETH L1 other-path; empty seats ready |

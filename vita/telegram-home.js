@@ -114,6 +114,17 @@ export const HOME_SECTIONS = Object.freeze([
     ],
   },
   {
+    id: "players",
+    title: "Players",
+    emoji: "🎬",
+    blurb: "Proven Player switches dav1d and AV2 on its own route — no shared playback",
+    buttons: [
+      { label: "Proven", cmd: "/provenplayer" },
+      { label: "Manifest", cmd: "/provenplayer manifest" },
+      { label: "Verify", cmd: "/provenplayer verify" },
+    ],
+  },
+  {
     id: "search",
     title: "Search",
     emoji: "🔎",
