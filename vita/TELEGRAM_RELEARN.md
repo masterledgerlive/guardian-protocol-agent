@@ -1,4 +1,4 @@
-# Telegram relearn map (after #154–#160)
+# Telegram relearn map (after #154–#161)
 
 Accurate to **main** code: `vita/telegram-home.js`, `vita/telegram-clickthrough.js`,
 `vita/telegram-help-routes.js`, `vita/vita-dir.js`, `vita/vita-feed.js`,
