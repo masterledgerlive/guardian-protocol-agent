@@ -63,7 +63,9 @@ No invented hashes.
 machine blocks (timed dual routes) so you can see what agentic AI filed and
 recover html/song/movie/code. **Every step is an inline button** — see
 `vita/telegram-clickthrough.js`. `/vitafeed track` stages inject/message
-proof. `/tokens` · `/tok SYMBOL` → buy/sell/exit/dual/track.
+proof. `/tokens` · `/tok SYMBOL` → DEX reader · legit · player popup · buy/sell/exit/dual/track.
+`/dex SYMBOL` · `/legit SYMBOL` · `/tokenplayer` · `/chains` — 32-chain display; Ethereum L1 ~$3
+(27%) is an **other-path** (never mixed into Base SwapRouter02). $0.05 log seed never sells.
 **KIDS URL directory (closed garden):** `/vitafeed kids` · `/vitafeed dir KIDS`
 · `/vitafeed play kids` · `/vitafeed play demo` · `/vitafeed dual kids` — pull a
 YouTube playlist into our own URL directory and play it in `/vita/kids-player`

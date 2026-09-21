@@ -23,6 +23,10 @@ import {
   unlockDirectoryEntry,
 } from "./vita-dir.js";
 import { vitaPlayerHref } from "./url-dir.js";
+import {
+  parseTokenPlayerCommand,
+  tokenPlayerHref,
+} from "./token-player.js";
 import { publicChainDirState } from "./chain-dir.js";
 
 export const CLICKTHROUGH_ID = "vita-telegram-clickthrough-v1";
@@ -288,11 +292,21 @@ export function buildTokenCatalogKeyboard(symbols = []) {
   const syms = (symbols || [])
     .map((s) => String(s?.symbol || s || "").toUpperCase())
     .filter(Boolean);
-  const unique = [...new Set(syms)].slice(0, 18);
+  const unique = [...new Set(syms)].slice(0, 24);
   const rows = rowsOf(
     unique.map((sym) => btn("🪙 " + sym, "/tok " + sym)),
     3,
   );
+  const href = tokenPlayerHref("");
+  rows.push([
+    { text: "▶ Token popup".slice(0, 64), web_app: { url: href } },
+    { text: "↗ Player".slice(0, 64), url: href },
+  ]);
+  rows.push([
+    btn("📡 DEX", "/dex"),
+    btn("🗺 Chains", "/chains"),
+    btn("⚖️ Legit", "/legit"),
+  ]);
   rows.push([
     btn("💼 Bag", "/bag"),
     btn("📡 Vitafeed", "/vitafeed"),
@@ -318,11 +332,19 @@ export function buildTokenActionKeyboard(symbol) {
         btn("📊 Status", "/status"),
       ],
       [
-        btn("📡 Feed dual", "/vitafeed dual " + sym),
-        btn("🧪 Track", "/vitafeed track " + sym),
+        btn("📡 DEX", "/dex " + sym),
+        btn("⚖️ Legit", "/legit " + sym),
         btn("⬅️ Tokens", "/tokens"),
       ],
-      [btn("🏠 Menu", "/vitafeed"), btn("💼 Bag", "/bag")],
+      [
+        btn("📡 Dual", "/vitafeed dual " + sym),
+        btn("🧪 Track", "/vitafeed track " + sym),
+      ],
+      [
+        { text: "▶ Token popup".slice(0, 64), web_app: { url: tokenPlayerHref(sym) } },
+        { text: "↗ Player".slice(0, 64), url: tokenPlayerHref(sym) },
+      ],
+      [btn("🏠 Menu", "/vitafeed"), btn("💼 Bag", "/bag"), btn("🗺 Chains", "/chains")],
     ],
   };
 }
@@ -460,17 +482,7 @@ export function buildTrackInjectBody({ symbol = "", note = "" } = {}) {
  * Parse /tok SYMBOL and /tokens for agent wiring.
  */
 export function parseTokenClickCommand(raw) {
-  const src = String(raw || "").trim();
-  const low = src.toLowerCase();
-  if (low === "/tokens" || low === "/tok" || low === "/token") {
-    return { ok: true, action: "catalog" };
-  }
-  if (low.startsWith("/tok ") || low.startsWith("/token ")) {
-    const sym = src.replace(/^\/tok(?:en)?\s+/i, "").trim().split(/\s+/)[0]?.toUpperCase() || "";
-    if (!sym) return { ok: true, action: "catalog" };
-    return { ok: true, action: "token", symbol: sym };
-  }
-  return { ok: false, action: null };
+  return parseTokenPlayerCommand(raw);
 }
 
 export function formatTokenClickCard(symbol, { symbols = [] } = {}) {
@@ -480,14 +492,14 @@ export function formatTokenClickCard(symbol, { symbols = [] } = {}) {
     for (const s of symbols.slice(0, 24)) {
       lines.push("  · " + String(s?.symbol || s).toUpperCase());
     }
-    lines.push("", "Tap → buy / sell / exit / piggy / dual / track");
+    lines.push("", "Tap → DEX · legit · player popup · buy/sell · chains");
     return lines.join("\n");
   }
   return [
     CLICKTHROUGH_MAGIC + "v1|tok=" + sym + "§",
     "🪙 " + sym + " — pick an action",
     "Buy · Sell · Half · Exit · Piggy · Status",
-    "Dual lane · Track inject · back to /tokens",
+    "DEX reader · Legit · Dual · Track · pop-out player",
   ].join("\n");
 }
 

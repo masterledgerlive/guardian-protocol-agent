@@ -555,6 +555,9 @@ import {
   stripWebAppButtons,
 } from "./vita/telegram-clickthrough.js";
 import {
+  handleTokenPlayerAction,
+} from "./vita/token-player.js";
+import {
   attachWaveOnCoveredLeftover,
   commitWaveHitchShard,
   handleWaveTestAction,
@@ -10601,31 +10604,45 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: pct / 100 });
         await tg(`🚪 <b>CLEAN EXIT ${sym} ${pct}% queued</b>\nWill sell to ETH — NO cascade will fire`);
-      } else if (text === "/tokens" || text === "/tok" || text === "/token" || (text && text.startsWith("/tok ")) || (text && text.startsWith("/token "))) {
+      } else if (
+        text === "/tokens" || text === "/tok" || text === "/token"
+        || (text && text.startsWith("/tok ")) || (text && text.startsWith("/token "))
+        || text === "/dex" || text === "/dexreader"
+        || (text && text.startsWith("/dex ")) || (text && text.startsWith("/dexreader "))
+        || text === "/legit" || text === "/tokenlegit"
+        || (text && text.startsWith("/legit ")) || (text && text.startsWith("/tokenlegit "))
+        || text === "/tokenplayer" || text === "/tokplay"
+        || (text && text.startsWith("/tokenplayer ")) || (text && text.startsWith("/tokplay "))
+        || text === "/chains" || text === "/chain" || text === "/portfolio" || text === "/multichain" || text === "/otherpath"
+        || (text && text.startsWith("/chains "))
+      ) {
         const parsedTok = parseTokenClickCommand(raw);
         const symbols = tokens.map((t) => t.symbol);
-        if (parsedTok.action === "token" && parsedTok.symbol) {
-          const sym = parsedTok.symbol;
-          if (!tokens.find((t) => t.symbol === sym)) {
-            await tg(
-              `❓ Unknown token: <code>${esc(sym)}</code>\nTap a known symbol:`,
-              { reply_markup: buildTokenCatalogKeyboard(symbols) },
-            );
-            continue;
+        const bags = {};
+        for (const t of tokens) {
+          const px = Number(t.lastPrice || t.price || t.entryPriceUsd);
+          const bal = Number(t.balance || t.tokenBal || 0);
+          if (Number.isFinite(px) && px > 0 && bal > 0) bags[t.symbol] = px * bal;
+        }
+        try {
+          const out = await handleTokenPlayerAction({
+            action: parsedTok.action || "catalog",
+            symbol: parsedTok.symbol || "",
+            bags,
+            fetchLive: parsedTok.action === "dex" || parsedTok.action === "legit" || parsedTok.action === "token",
+          });
+          let markup = out.keyboard;
+          if (out.action === "catalog" || out.action === "dex-catalog" || out.action === "legit-catalog" || out.action === "player") {
+            markup = buildTokenCatalogKeyboard(symbols);
+          } else if (out.symbol && out.symbol !== "ETH" && (out.action === "token" || out.action === "dex" || out.action === "legit")) {
+            markup = buildTokenActionKeyboard(out.symbol);
           }
           await tg(
-            "🪙 <b>" + esc(sym) + "</b>\n<pre>" +
-            esc(formatTokenClickCard(sym, { symbols })) +
-            "</pre>",
-            { reply_markup: buildTokenActionKeyboard(sym) },
+            "🪙 <b>TOKENS</b>\n" + (out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>"),
+            { reply_markup: markup, disable_web_page_preview: true },
           );
-        } else {
-          await tg(
-            "🪙 <b>TOKENS</b> — tap a symbol for buy / sell / exit / dual / track\n<pre>" +
-            esc(formatTokenClickCard("", { symbols })) +
-            "</pre>",
-            { reply_markup: buildTokenCatalogKeyboard(symbols) },
-          );
+        } catch (e) {
+          await tg("❌ token player failed: " + (e.message || e) + "\nNothing invented.");
         }
       // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
       } else if (

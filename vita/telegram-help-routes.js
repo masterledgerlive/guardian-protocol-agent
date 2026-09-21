@@ -62,6 +62,8 @@ export const TOKEN_PICK_VERBS = Object.freeze([
   "fib",
   "history",
   "tok",
+  "dex",
+  "legit",
 ]);
 
 /** Bare `/sell` (no symbol) opens a picker. `/waves` alone stays global status. */
@@ -113,6 +115,11 @@ export const HELP_SECTIONS = Object.freeze([
       { label: "Piggy…", cmd: "/pick piggyunlock" },
       { label: "Freeze…", cmd: "/pick freeze" },
       { label: "Unfreeze…", cmd: "/pick unfreeze" },
+      { label: "Tokens", cmd: "/tokens" },
+      { label: "Player", cmd: "/tokenplayer" },
+      { label: "DEX", cmd: "/dex" },
+      { label: "Chains", cmd: "/chains" },
+      { label: "Legit", cmd: "/legit" },
     ],
   },
   {
@@ -469,6 +476,10 @@ export const ROUTE_CHECK_CORE_FILES = Object.freeze([
   "vita/x404-dir.js",
   "vita/agent-chat.js",
   "public/vita.html",
+  "public/vita-token-player.html",
+  "vita/token-player.js",
+  "vita/dex-reader.js",
+  "vita/multichain-portfolio.js",
 ]);
 
 function listFilesRecursive(dir, { max = 400, ext = null } = {}) {
