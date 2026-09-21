@@ -1,5 +1,5 @@
 /**
- * Free-catalog Maple Leaf Rag — grouped VIN inject + original OGG playback.
+ * Free-catalog songs — Maple Leaf Rag + Judy Garland lane (PD 1918 singing).
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -13,8 +13,11 @@ import {
   FREEMUSIC_LABEL,
   FREEMUSIC_MAGIC,
   FREEMUSIC_SUBDIR,
+  JUDY_ID,
   MAPLE_ID,
   MUSIC_GROUP_VIN_CAP,
+  buildFreeMusicLocProof,
+  buildFreeMusicLocProofLocal,
   enqueueFreeMusicGroups,
   formatFreeMusicCard,
   isMusicPlaySelector,
@@ -24,9 +27,11 @@ import {
   musicMachineGroupsLine,
   packetizeFreeMusic,
   playFreeMusic,
+  publicFreeMusicLocs,
   publicFreeMusicPlay,
   publicFreeMusicState,
   reconstructFreeMusicFromGroups,
+  resolveSongId,
   sliceBytesForVinCap,
 } from "./free-music.js";
 import { parseVitaFileBody } from "./vita-feed-file.js";
@@ -53,7 +58,9 @@ import { MAINFRAME_ANCHORS } from "./mainframe.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OGG = join(root, "vita/memory/free-music/Maple_Leaf_Rag.ogg");
+const JUDY_OGG = join(root, "vita/memory/free-music/Im_Always_Chasing_Rainbows.ogg");
 const EXPECT_SHA = "a1142a1e51ebfa69f7f7752d2f6fc9dffce18efe0fe13a5e1a108f492e5a01f2";
+const JUDY_SHA = "ce6cf7bf94a93968beeb3bd5b1f854168341d9191414d4ccc2cb047becbdf115";
 
 describe("free catalog Maple Leaf Rag file", () => {
   it("is a real Ogg bitstream matching the catalog sha", () => {
@@ -63,6 +70,71 @@ describe("free catalog Maple Leaf Rag file", () => {
     assert.equal(bytes.length, 263304);
     const sha = createHash("sha256").update(bytes).digest("hex");
     assert.equal(sha, EXPECT_SHA);
+  });
+});
+
+describe("Judy Garland free-catalog PD singing", () => {
+  it("files I'm Always Chasing Rainbows OGG with catalog sha", () => {
+    assert.equal(existsSync(JUDY_OGG), true);
+    const bytes = readFileSync(JUDY_OGG);
+    assert.equal(bytes.subarray(0, 4).toString("ascii"), "OggS");
+    assert.equal(bytes.length, 1053294);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), JUDY_SHA);
+  });
+
+  it("resolves judy/garland/rainbow selectors", () => {
+    assert.equal(resolveSongId("judy"), JUDY_ID);
+    assert.equal(resolveSongId("garland"), JUDY_ID);
+    assert.equal(resolveSongId("rainbow"), JUDY_ID);
+    assert.equal(resolveSongId("chasing"), JUDY_ID);
+    assert.equal(isMusicPlaySelector("judy"), true);
+    assert.equal(isMusicPlaySelector("garland"), true);
+  });
+
+  it("packetizes into thrift-capped groups and reconstructs original OGG", () => {
+    const packed = packetizeFreeMusic("judy");
+    assert.equal(packed.ok, true);
+    assert.equal(packed.id, JUDY_ID);
+    assert.equal(packed.judyGarlandLane, true);
+    assert.equal(packed.sha256, JUDY_SHA);
+    assert.ok(packed.groupCount >= 2);
+    for (const g of packed.groups) {
+      assert.ok(g.totalChunks <= MUSIC_GROUP_VIN_CAP);
+      assert.ok(g.filingPath.includes("Im_Always_Chasing_Rainbows"));
+      assert.ok(g.lineCommits?.length >= 1);
+    }
+    const rebuilt = reconstructFreeMusicFromGroups(packed.groups);
+    assert.equal(rebuilt.sha256, JUDY_SHA);
+    assert.equal(Buffer.compare(rebuilt.data, readFileSync(JUDY_OGG)), 0);
+  });
+
+  it("loc daisy-chain highlights MATCH when sealed UTF-8 equals VIN data field", async () => {
+    const packed = packetizeFreeMusic("judy");
+    const line = packed.groups[0].lines[0].line;
+    const wantCommit = packed.groups[0].lineCommits[0].contentCommit;
+    const fakeTx = "0x" + "cd".repeat(32);
+    const proof = await buildFreeMusicLocProof({
+      id: "judy",
+      packed,
+      sealedLocs: [{ groupN: 1, index: 1, location: fakeTx, utf8: line }],
+    });
+    assert.equal(proof.ok, true);
+    assert.equal(proof.matched, 1);
+    assert.equal(proof.highlighted.length, 1);
+    assert.equal(proof.rows[0].match, "MATCH");
+    assert.equal(proof.rows[0].highlight, true);
+    assert.equal(proof.rows[0].clickThrough, true);
+    assert.match(proof.rows[0].basescan, /basescan\.org\/tx\/0xcd/);
+    assert.equal(proof.rows[0].dataFieldCommit, wantCommit);
+    assert.equal(proof.rows[0].pulledUtf8Commit, wantCommit);
+  });
+
+  it("local loc proof marks every VIN data-field LOCAL_OK from filing", () => {
+    const loc = buildFreeMusicLocProofLocal("judy");
+    assert.equal(loc.ok, true);
+    assert.ok(loc.matched >= 10);
+    assert.equal(loc.highlighted.length, loc.matched);
+    assert.match(loc.rows[0].filingPath, /free-music\/Im_Always_Chasing_Rainbows/);
   });
 });
 
@@ -152,6 +224,13 @@ describe("dual HUMAN catalog + MACHINE group shas", () => {
     assert.match(musicMachineGroupsLine(), /MUSIC lane=MACHINE/);
     assert.equal(guessTransmissionName(body), "maple-leaf-rag");
   });
+
+  it("expands judy into Judy lane §VITAMUSIC§ body", () => {
+    const body = maybeMusicDualHumanBody("judy");
+    assert.match(body, /ALWAYS CHASING RAINBOWS/i);
+    assert.match(body, /Judy Garland free-catalog/);
+    assert.equal(guessTransmissionName(body), "judy-chasing-rainbows");
+  });
 });
 
 describe("DOS MUSIC + Telegram wire", () => {
@@ -161,6 +240,7 @@ describe("DOS MUSIC + Telegram wire", () => {
     const listed = listSubDirectory("MUSIC");
     assert.equal(listed.ok, true);
     assert.ok(listed.entries.some((e) => e.name === "Maple_Leaf_Rag.ogg"));
+    assert.ok(listed.entries.some((e) => e.name === "Im_Always_Chasing_Rainbows.ogg"));
     assert.ok(listed.entries.length >= 3);
   });
 
@@ -168,21 +248,22 @@ describe("DOS MUSIC + Telegram wire", () => {
     assert.equal(parseVitaFeedCommand("/vitafeed music").action, "music");
     assert.equal(parseVitaFeedCommand("/vitafeed play maple").action, "play");
     assert.equal(parseVitaFeedCommand("/vitafeed play maple").body, "maple");
+    assert.equal(parseVitaFeedCommand("/vitafeed play judy").body, "judy");
     assert.equal(parseVitaFeedCommand("/vitafeed enqueue maple").action, "enqueue");
     assert.equal(parseVitaFeedCommand("/vitafeed dual maple").action, "dual");
-    const card = await handleVitaFeedAction({ action: "music", body: "", chatId: "music-wire" });
+    const card = await handleVitaFeedAction({ action: "music", body: "judy", chatId: "music-wire" });
     assert.equal(card.ok, true);
-    assert.match(card.reply, /MAPLE LEAF RAG/i);
+    assert.match(card.reply, /CHASING RAINBOWS/i);
     assert.match(card.reply, /grouped/i);
     const play = await handleVitaFeedAction({
       action: "play",
-      body: "maple",
+      body: "judy",
       chatId: "music-wire",
     });
     assert.equal(play.ok, true);
     assert.equal(play.music, true);
     assert.equal(play.play?.mime, "audio/ogg");
-    assert.match(play.playerHref, /music=maple/);
+    assert.match(play.playerHref, /music=judy/);
     resetVitaFeedPending();
   });
 
@@ -229,10 +310,11 @@ describe("grouped enqueue stays under VIN cap (isolated backlog)", () => {
     const queued = enqueueFreeMusicGroups({
       enqueueFn: enqueueFeedBacklogItem,
       includeManifest: true,
+      id: "maple",
     });
     assert.equal(queued.ok, true);
     assert.ok(queued.added >= queued.groupCount);
-    assert.equal(provenMusicOnChain().proven, false);
+    assert.equal(provenMusicOnChain("maple").proven, false);
     const items = queued.items.filter((x) => x.kind === "group");
     for (const it of items) {
       assert.ok((it.chunks || 0) <= MUSIC_GROUP_VIN_CAP);
@@ -240,19 +322,24 @@ describe("grouped enqueue stays under VIN cap (isolated backlog)", () => {
   });
 });
 
-describe("HTTP free-music catalog + play", () => {
-  it("serves catalog JSON and reconstructed OGG dataUrl", async () => {
+describe("HTTP free-music catalog + play + locs", () => {
+  it("serves catalog JSON, reconstructed OGG, and click-through loc proof", async () => {
     const html = readFileSync(join(root, "public", "vita-feed-player.html"), "utf8");
-    const server = createServer((req, res) => {
+    const server = createServer(async (req, res) => {
       const u = new URL(req.url || "/", "http://127.0.0.1");
       if (u.pathname === "/vita/free-music/play") {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(publicFreeMusicPlay("maple")));
+        res.end(JSON.stringify(publicFreeMusicPlay(u.searchParams.get("id") || "maple")));
+        return;
+      }
+      if (u.pathname === "/vita/free-music/locs") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(await publicFreeMusicLocs(u.searchParams.get("id") || "judy")));
         return;
       }
       if (u.pathname.startsWith("/vita/free-music")) {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(publicFreeMusicState("maple")));
+        res.end(JSON.stringify(publicFreeMusicState(u.searchParams.get("id") || "maple")));
         return;
       }
       if (u.pathname.startsWith("/vita/feed-player")) {
@@ -266,18 +353,24 @@ describe("HTTP free-music catalog + play", () => {
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
     const { port } = server.address();
     try {
-      const cat = await fetch("http://127.0.0.1:" + port + "/vita/free-music").then((r) => r.json());
+      const cat = await fetch("http://127.0.0.1:" + port + "/vita/free-music?id=judy").then((r) => r.json());
       assert.equal(cat.ok, true);
       assert.equal(cat.filingLabel, FREEMUSIC_LABEL);
-      assert.equal(cat.song.sha256, EXPECT_SHA);
+      assert.equal(cat.song.sha256, JUDY_SHA);
       assert.ok(cat.song.groupCount >= 2);
-      const play = await fetch("http://127.0.0.1:" + port + "/vita/free-music/play?id=maple").then((r) => r.json());
+      assert.ok(cat.playlists.some((p) => p.id === "judy"));
+      const play = await fetch("http://127.0.0.1:" + port + "/vita/free-music/play?id=judy").then((r) => r.json());
       assert.equal(play.ok, true);
       assert.equal(play.play.mime, "audio/ogg");
       assert.match(play.play.dataUrl, /^data:audio\/ogg;base64,/);
-      const page = await fetch("http://127.0.0.1:" + port + "/vita/feed-player?music=maple").then((r) => r.text());
-      assert.match(page, /music=maple/);
-      assert.match(page, /free-music\/play/);
+      const locs = await fetch("http://127.0.0.1:" + port + "/vita/free-music/locs?id=judy").then((r) => r.json());
+      assert.equal(locs.ok, true);
+      assert.ok(locs.rows.length >= 10);
+      assert.ok(locs.daisyChain?.length >= 2);
+      const page = await fetch("http://127.0.0.1:" + port + "/vita/feed-player?music=judy").then((r) => r.text());
+      assert.match(page, /music=judy/);
+      assert.match(page, /free-music\/locs/);
+      assert.match(page, /loc-match/);
       assert.match(page, /playlistPick/);
     } finally {
       await new Promise((resolve) => server.close(resolve));
@@ -285,11 +378,12 @@ describe("HTTP free-music catalog + play", () => {
   });
 });
 
-describe("system playlists include maple", () => {
-  it("picker lists maple ahead of the demo beep", () => {
+describe("system playlists include judy + maple", () => {
+  it("picker lists judy ahead of maple and the demo beep", () => {
     const lists = systemPlaylists();
+    assert.ok(lists.some((p) => p.id === "judy"));
     assert.ok(lists.some((p) => p.id === "maple"));
     assert.ok(lists.some((p) => p.id === "demo"));
-    assert.match(formatFreeMusicCard(), /Maple Leaf Rag/);
+    assert.match(formatFreeMusicCard("judy"), /Chasing Rainbows/i);
   });
 });

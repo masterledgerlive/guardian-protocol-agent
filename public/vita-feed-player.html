@@ -191,6 +191,33 @@
     th, td { border-bottom: 1px solid rgba(15,31,46,.12); padding: .4rem .3rem; text-align: left; vertical-align: top; }
     th { font-family: var(--display); }
     a { color: var(--tide); }
+    table a.loc-link {
+      color: var(--tide);
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    table tr.loc-match {
+      background: rgba(42, 157, 143, 0.18);
+      outline: 2px solid var(--ok);
+    }
+    table tr.loc-match td { font-weight: 600; }
+    table .match-pill {
+      display: inline-block;
+      font-size: .65rem;
+      padding: .1rem .35rem;
+      border-radius: 3px;
+      background: var(--ok);
+      color: #fff;
+      margin-left: .35rem;
+    }
+    table .match-pending { background: #c9a227; }
+    .daisy {
+      font-size: .72rem;
+      color: #3d5566;
+      white-space: pre-wrap;
+      margin: .5rem 0 0;
+    }
     .chrome {
       display: flex;
       flex-wrap: wrap;
@@ -246,6 +273,7 @@
           <div class="cta">
             <label class="filebtn">Choose file<input id="fileIn" type="file" /></label>
             <button type="button" id="btnDemo" class="ghost">Demo beep (WAV)</button>
+            <button type="button" id="btnJudy" class="ghost">Judy · Chasing Rainbows (PD)</button>
             <button type="button" id="btnMaple" class="ghost">Maple Leaf Rag (PD)</button>
             <button type="button" id="btnPacketize" disabled>Packetize</button>
           </div>
@@ -276,10 +304,12 @@
         </section>
 
         <section class="block hide-in-popup">
-          <h2>Locations</h2>
+          <h2>Locations · click-through Basescan</h2>
+          <p class="hint">Highlighted MATCH rows = Input Data UTF-8 equals the VIN data-field commit. Daisy-chain: filing → group sha → VIN → sealed loc.</p>
+          <pre class="daisy" id="daisyBox"></pre>
           <div style="overflow:auto">
             <table>
-              <thead><tr><th>#</th><th>block</th><th>location</th></tr></thead>
+              <thead><tr><th>#</th><th>filing / block</th><th>location · Input Data</th></tr></thead>
               <tbody id="locBody"><tr><td colspan="3">None yet.</td></tr></tbody>
             </table>
           </div>
@@ -331,6 +361,7 @@
       const sel = el("playlistPick");
       if (!sel) return;
       const opts = [
+        { id: "judy", title: "I'm Always Chasing Rainbows (Judy lane)", href: "/vita/feed-player?music=judy&popup=1" },
         { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&popup=1" },
         { id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
       ];
@@ -338,7 +369,7 @@
         const data = await fetch("/vita/url-dir").then((r) => r.json());
         const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
         for (const d of lists) {
-          if (!d || d.id === "demo" || d.id === "maple") continue;
+          if (!d || d.id === "demo" || d.id === "maple" || d.id === "judy") continue;
           opts.push({
             id: String(d.id),
             title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
@@ -356,7 +387,8 @@
           });
         }
       } catch (_) {}
-      const current = q.get("music") ? "maple" : q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : "maple"));
+      const musicId = q.get("music") || "";
+      const current = musicId || (q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : "judy")));
       sel.innerHTML = opts.map((o) => {
         const href = String(o.href || "").replace(/'/g, "");
         const selected = o.id === current ? " selected" : "";
@@ -514,10 +546,29 @@
         body.innerHTML = "<tr><td colspan=3>None yet.</td></tr>";
         return;
       }
-      body.innerHTML = chunks.map((c, i) =>
-        "<tr><td>" + (i + 1) + "</td><td>" + (c.blockNumber ?? "—") +
-        "</td><td><code>" + (c.demo ? "DEMO " : "") + String(c.location || "").slice(0, 18) + "…</code></td></tr>"
-      ).join("");
+      body.innerHTML = chunks.map((c, i) => {
+        const match = String(c.match || "").toUpperCase();
+        const highlight = c.highlight || match === "MATCH" || match === "LOCAL_OK";
+        const pill = match
+          ? "<span class='match-pill" + (highlight ? "" : " match-pending") + "'>" + match + "</span>"
+          : (c.demo ? "<span class='match-pill match-pending'>DEMO</span>" : "");
+        const loc = c.location || "";
+        const href = c.basescan || (loc && !c.demo && /^0x[0-9a-fA-F]{64}$/.test(loc)
+          ? ("https://basescan.org/tx/" + loc)
+          : "");
+        const locHtml = href
+          ? "<a class='loc-link' href='" + href + "' target='_blank' rel='noopener'>" +
+            String(loc).slice(0, 14) + "… Input Data</a>" + pill
+          : "<code>" + (c.demo ? "DEMO " : "") +
+            (loc ? String(loc).slice(0, 18) + "…" : (c.filingPath || c.label || "pending seal")) +
+            "</code>" + pill;
+        const mid = c.filingPath
+          ? String(c.filingPath).replace(/^vita\/memory\//, "")
+          : (c.blockNumber ?? "—");
+        return "<tr class='" + (highlight ? "loc-match" : "") + "'><td>" +
+          (c.groupN != null ? ("g" + c.groupN + "." + (c.index || i + 1)) : (i + 1)) +
+          "</td><td>" + mid + "</td><td>" + locHtml + "</td></tr>";
+      }).join("");
     }
 
     function showPlay(proof) {
@@ -659,6 +710,9 @@
     el("btnMaple")?.addEventListener("click", () => {
       location.href = "/vita/feed-player?music=maple" + (q.get("popup") === "1" ? "&popup=1" : "");
     });
+    el("btnJudy")?.addEventListener("click", () => {
+      location.href = "/vita/feed-player?music=judy" + (q.get("popup") === "1" ? "&popup=1" : "");
+    });
 
     el("btnPacketize").addEventListener("click", () => packetize());
     el("btnSeal").addEventListener("click", () => demoSeal());
@@ -668,6 +722,7 @@
 
     // Telegram library deep-link: /vita/feed-player?lib=N
     // KIDS closed-garden URL directory: /vita/feed-player?dir=kids
+    // Free catalog: /vita/feed-player?music=judy|maple
     // Demo WAV autoplay: /vita/feed-player?demo=1 (Telegram popup)
     (async function loadLibraryFromQuery() {
       const dirSel = q.get("dir") || q.get("playlist");
@@ -695,8 +750,11 @@
             card: data.card || ("LIBRARY #" + data.n + " · " + (data.entry?.name || "")),
             chunks: (data.locations || []).map((l, i) => ({
               location: l.location || l,
+              basescan: l.basescan || null,
               blockNumber: l.blockNumber ?? null,
               demo: false,
+              highlight: Boolean(l.location),
+              match: l.location ? "SEALED" : "PENDING",
             })),
           };
           el("playCard").textContent = proof.card;
@@ -717,37 +775,59 @@
         return;
       }
       if (q.get("music") || q.get("song") === "1") {
-        el("costCard").textContent = "Free catalog — reconstructing Maple Leaf Rag from grouped VIN packets…";
+        const musicId = q.get("music") || "judy";
+        el("costCard").textContent =
+          "Free catalog — reconstructing " + musicId + " from grouped VIN packets + loc daisy-chain…";
         try {
-          const data = await fetch("/vita/free-music/play?id=maple").then((r) => r.json());
+          const data = await fetch("/vita/free-music/play?id=" + encodeURIComponent(musicId)).then((r) => r.json());
           if (!data?.ok || !data.play?.dataUrl) {
-            el("costCard").textContent = "Maple play failed: " + (data?.error || "no audio");
+            el("costCard").textContent = musicId + " play failed: " + (data?.error || "no audio");
             return;
           }
+          let locRows = (data.locProof?.rows || data.groups || []).map((g, i) => ({
+            groupN: g.groupN ?? g.n ?? null,
+            index: g.index ?? null,
+            filingPath: g.filingPath || null,
+            location: g.location || null,
+            basescan: g.basescan || null,
+            match: g.match || (g.location ? "SEALED" : "LOCAL_OK"),
+            highlight: g.highlight != null ? g.highlight : true,
+            label: "g" + String(g.n || g.groupN || i + 1).padStart(2, "0"),
+            demo: false,
+          }));
+          try {
+            const locs = await fetch("/vita/free-music/locs?id=" + encodeURIComponent(musicId)).then((r) => r.json());
+            if (locs?.ok && locs.rows?.length) {
+              locRows = locs.rows;
+              const daisy = el("daisyBox");
+              if (daisy) {
+                daisy.textContent =
+                  (locs.daisyChain || []).join("\n") +
+                  "\nmatched " + (locs.matched || 0) +
+                  " · pending seal " + (locs.pending || 0) +
+                  " · click-through " + (locs.clickThrough?.length || 0);
+              }
+            }
+          } catch (_) {}
           proof = {
             complete: true,
             play: data.play,
-            card: data.card || "Maple Leaf Rag — grouped VIN original playback",
-            chunks: (data.groups || []).map((g) => ({
-              location: null,
-              blockNumber: null,
-              demo: false,
-              label: "g" + String(g.n).padStart(2, "0") + "/" + (data.groups.length),
-            })),
+            card: data.card || (musicId + " — grouped VIN original playback"),
+            chunks: locRows,
           };
           el("playCard").textContent = proof.card;
           el("costCard").textContent =
             (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
-            (data.play.name || "Maple_Leaf_Rag.ogg") +
+            (data.play.name || musicId) +
             " · groups " + (data.groups?.length || 0) +
-            " · original OGG (not a demo WAV)";
+            " · original OGG (not a demo WAV) · loc MATCH highlighted";
           renderPieces(data.groups?.length || 1, data.groups?.length || 0);
           renderLocs(proof.chunks);
           el("okPill").classList.add("show");
           el("btnPlay").disabled = false;
           showPlay(proof);
         } catch (e) {
-          el("costCard").textContent = "Maple fetch error: " + (e.message || e);
+          el("costCard").textContent = "Music fetch error: " + (e.message || e);
         }
         return;
       }

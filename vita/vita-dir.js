@@ -570,7 +570,7 @@ function playGoalHint(mime, kind) {
   const m = String(mime || "");
   const k = String(kind || "");
   if (m.startsWith("audio/") || k === "audio" || k === "vitafile-group") {
-    return "song → /vitafeed play maple · /vita/feed-player?music=maple";
+    return "song → /vitafeed play judy · /vita/feed-player?music=judy · locs /vita/free-music/locs?id=judy";
   }
   if (m.startsWith("video/") || k === "video") return "movie → /vitafeed play · feed-player";
   if (k === "youtube" || k === "url" || m.includes("uri-list") || m.includes("mpegurl")) {

@@ -32,9 +32,13 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    Completing both lanes is the absolute moment; `/vitafeed cycle` self-checks
    loc proofs and routes the next dual inject. `/vitafeed dir CHAIN`. UI:
    `/vita/chain-dir`. KIDS player is availability until dual kids is sealed.
-   Maple Leaf Rag is availability until grouped VIN injects (`/vitafeed enqueue maple`)
-   seal every slice; `/vitafeed dual maple` logs the catalog line. Original
-   playback: `/vita/feed-player?music=maple` reconstructs the OGG from groups.
+   Free-catalog songs (Maple Leaf Rag + Judy *I'm Always Chasing Rainbows* PD
+   1918 singing) are availability until grouped VIN injects
+   (`/vitafeed enqueue maple|judy`) seal every slice; `/vitafeed dual judy`
+   logs the catalog line. Loc proof: `/vita/free-music/locs?id=judy` highlights
+   MATCH when Input Data UTF-8 equals the VIN data-field commit (click-through
+   Basescan). Original playback: `/vita/feed-player?music=judy` reconstructs
+   the OGG from groups.
 7c. **Loader (curated knowledge):** `/vitafeed load` preloads cipher/programming/LLM
    packs into the **existing** backlog with dual cost mirrors + text animation.
    `/vitafeed know` = Hey did you know… + on-chain library recall.
