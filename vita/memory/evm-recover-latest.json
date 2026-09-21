@@ -1,29 +1,36 @@
 {
-  "at": "2026-09-21T00:33:11.547Z",
+  "at": "2026-09-21T00:52:29.537Z",
   "topic": "evm-recover",
   "filingLabel": "CHAIN_LAYER",
   "ok": true,
-  "localRecoverMs": 1.029,
+  "localRecoverMs": 2.034,
   "rpcPingMs": 0,
-  "totalMs": 1.029,
-  "snarkShort": "ZK§32ad6ade97|T=VITA-PROVEN-LIB|L=5c0a93e4,d9827a9c,931d8411|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
-  "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
-  "fileCount": 14,
-  "locCount": 3,
+  "totalMs": 2.034,
+  "snarkShort": "ZK§6a19809852|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
+  "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
+  "fileCount": 15,
+  "formulaAnchorCount": 3,
+  "sealedInjectCount": 0,
+  "locCount": 0,
   "unwrapInstant": true,
   "privateKeyRequired": false,
   "evmClass": "base-calldata-utf8-v1",
   "chainId": 8453,
   "chain": "base",
-  "note": "Local snark unwrap = brand-new spin. RPC ping is optional Basescan/RPC RTT — never invents tx hashes.",
-  "locations": [
+  "localOnly": true,
+  "note": "Local snark unwrap only — library body not yet sealed on Base. Formula anchors are class proof, not body.",
+  "locations": [],
+  "formulaAnchors": [
     {
       "id": "keycat-plain",
       "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
       "kind": "none",
       "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
       "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
-      "idmChat": "Basescan → Input Data → View as UTF-8"
+      "idmChat": "Basescan → Input Data → View as UTF-8",
+      "role": "formula-anchor",
+      "holdsLibraryBody": false,
+      "note": "Formula/class proof only — does not contain proven-lib bytes"
     },
     {
       "id": "eureka-prove",
@@ -31,7 +38,10 @@
       "kind": "eureka",
       "label": "Eureka love note on Base (/prove class)",
       "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
-      "idmChat": "Basescan → Input Data → View as UTF-8"
+      "idmChat": "Basescan → Input Data → View as UTF-8",
+      "role": "formula-anchor",
+      "holdsLibraryBody": false,
+      "note": "Formula/class proof only — does not contain proven-lib bytes"
     },
     {
       "id": "vita-strand",
@@ -39,7 +49,10 @@
       "kind": "vita",
       "label": "VITA §TOKEN§ strand chunk on Base",
       "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
-      "idmChat": "Basescan → Input Data → View as UTF-8"
+      "idmChat": "Basescan → Input Data → View as UTF-8",
+      "role": "formula-anchor",
+      "holdsLibraryBody": false,
+      "note": "Formula/class proof only — does not contain proven-lib bytes"
     }
   ],
   "neverInventHashes": true,

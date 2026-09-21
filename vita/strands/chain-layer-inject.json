@@ -1,17 +1,15 @@
 {
-  "strandId": "chain-layer",
+  "strandId": "chain-layer-inject",
   "sparse": true,
-  "source": "chain-layer",
-  "filingLabel": "CHAIN_LAYER",
-  "learn": "Always /vita check. SNARK is local until spaced inject seals matching locs. Telegram IDM only for sealed inject txs — formula anchors are class proof only. Pull Input Data → UTF-8 to verify. Never invent hashes.",
+  "source": "chain-inject",
+  "filingLabel": "CHAIN_INJECT",
+  "learn": "Spaced inject: N chunks × 720B. Telegram IDM only for sealed matching locs. Formula anchors ≠ library body.",
   "formula": "original-message-first",
-  "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
-  "recoverMs": 1.989,
-  "agreedModel": "claude-sonnet-4-20250514",
-  "llmCommit": "812e6aaf521048f8f5e3fb35ffee2b7b55b1de84d0a7073f2d6bfdeb9627dafe",
-  "spacedChunks": 338,
-  "sealedInject": 0,
-  "pendingInject": 338,
+  "totalChunks": 338,
+  "sealedCount": 0,
+  "pendingCount": 338,
+  "verifiedCount": 0,
+  "maxBytes": 720,
   "locations": [],
   "formulaAnchors": [
     {
@@ -32,5 +30,6 @@
       "kind": "vita",
       "role": "formula-anchor"
     }
-  ]
+  ],
+  "neverInventHashes": true
 }

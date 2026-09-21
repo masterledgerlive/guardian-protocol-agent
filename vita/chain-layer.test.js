@@ -82,7 +82,9 @@ describe("vita chain-layer systems check", () => {
     assert.equal(recover.privateKeyRequired, false);
     assert.ok(Number(recover.localRecoverMs) >= 0);
     assert.equal(recover.chainId, MAINFRAME_ANCHORS.chainId);
-    assert.ok(recover.locations.every((l) => /^0x[0-9a-fA-F]{64}$/.test(l.location)));
+    assert.equal(recover.localOnly, true);
+    assert.equal(recover.locations.length, 0);
+    assert.ok(recover.formulaAnchors.length >= 3);
   });
 
   it("agrees model ring and registers LLM spin manifest", () => {
@@ -102,30 +104,36 @@ describe("vita chain-layer systems check", () => {
     assert.match(llm.magic, /VITALLM/);
     assert.equal(llm.neverInventHashes, true);
     assert.ok(llm.contentCommit);
+    assert.equal(llm.formulaAnchorsOnly, true);
     assert.ok(existsSync(join(memoryDir, "llm-onchain-spin.json")));
   });
 
   it("runSystemsCheck creates visible memory + strand files", async () => {
     const beforeMem = readdirSync(memoryDir).filter((f) => f.endsWith(".json")).length;
-    const result = runSystemsCheck({
+    const result = await runSystemsCheck({
       cwd: root,
       env: { VITA_MODELS: "claude-sonnet-4-20250514,claude-opus-4-20250514" },
       write: true,
       now: Date.now(),
+      pull: false,
     });
     assert.equal(result.id, CHAIN_LAYER_ID);
     assert.equal(result.ok, true);
     assert.equal(result.passed, result.total);
     assert.match(result.magic, /VITACHAIN/);
+    assert.ok(result.inject.totalChunks > 10);
+    assert.equal(result.snark.localOnly, true);
     assert.ok(existsSync(join(memoryDir, "chain-layer-checks.json")));
     assert.ok(existsSync(join(memoryDir, "chain-layer-growth.json")));
+    assert.ok(existsSync(join(memoryDir, "chain-layer-inject.json")));
     assert.ok(existsSync(join(strandsDir, "chain-layer.json")));
     const afterMem = readdirSync(memoryDir).filter((f) => f.endsWith(".json")).length;
     assert.ok(afterMem > beforeMem, "library must grow with new check files");
     const card = formatSystemsCheckCard(result);
     assert.match(card, /SYSCHECK|SYSTEMS CHECK/);
-    assert.match(card, /EVM RECOVER|local/);
-    assert.match(card, /SNARK/);
+    assert.match(card, /SPACED INJECT/);
+    assert.match(card, /FORMULA ANCHORS/);
+    assert.match(card, /LOCAL_ONLY|none sealed/);
   });
 
   it("Telegram handleChainLayerAction + mirror click-through", async () => {
@@ -137,8 +145,12 @@ describe("vita chain-layer systems check", () => {
     });
     assert.equal(out.ok, true);
     assert.match(out.reply, /SYSTEMS CHECK|SYSCHECK/);
-    assert.ok(out.keyboard?.inline_keyboard?.length >= 2);
-    assert.ok(out.keyboard.inline_keyboard.flat().some((b) => b.callback_data === "/vita recover"));
+    assert.ok(out.keyboard?.inline_keyboard?.length >= 1);
+    assert.ok(
+      out.keyboard.inline_keyboard.flat().some(
+        (b) => b.callback_data === "/vita check locs" || b.callback_data === "/vita check pull",
+      ),
+    );
 
     const viaMirror = await handleVitaMirrorAction({
       action: "recover",
@@ -149,25 +161,27 @@ describe("vita chain-layer systems check", () => {
     assert.equal(viaMirror.ok, true);
     assert.match(viaMirror.reply, /EVM RECOVER|recover/i);
 
-    const kb = buildSystemsCheckKeyboard({ locations: MAINFRAME_ANCHORS.known.map((a) => ({
-      location: a.tx,
-      basescan: MAINFRAME_ANCHORS.basescanTx + a.tx,
-    })) });
-    assert.ok(kb.inline_keyboard.some((row) => row.some((b) => b.url)));
+    const kb = buildSystemsCheckKeyboard({
+      plan: null,
+      includeFormulaAnchors: false,
+    });
+    assert.ok(kb.inline_keyboard.flat().some((b) => b.callback_data === "/vita check"));
   });
 
-  it("never invents Base tx hashes in check output", () => {
-    const result = runSystemsCheck({
+  it("never invents Base tx hashes in check output", async () => {
+    const result = await runSystemsCheck({
       cwd: root,
       write: false,
+      pull: false,
       env: { VITA_MODELS: "claude-sonnet-4-20250514" },
     });
-    for (const loc of result.locations) {
+    // Sealed inject locs only — empty until real seals (not formula anchors)
+    assert.equal(result.locations.length, 0);
+    for (const loc of result.formulaAnchors) {
       assert.ok(
         MAINFRAME_ANCHORS.known.some((a) => a.tx.toLowerCase() === loc.location.toLowerCase()),
       );
     }
-    const growth = JSON.parse(readFileSync(join(memoryDir, "chain-layer-growth.json"), "utf8"));
-    assert.equal(growth.neverInventHashes, true);
+    assert.equal(result.neverInventHashes, true);
   });
 });

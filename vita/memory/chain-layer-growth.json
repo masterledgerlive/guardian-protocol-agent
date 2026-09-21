@@ -1,24 +1,29 @@
 {
-  "at": "2026-09-21T00:33:44.135Z",
+  "at": "2026-09-21T00:52:29.523Z",
   "topic": "chain-layer-growth",
   "filingLabel": "CHAIN_LAYER",
   "formula": "original-message-first",
   "before": {
     "memory": {
-      "count": 115,
-      "bytes": 383467
+      "count": 120,
+      "bytes": 612377
     },
     "strands": {
-      "count": 40,
-      "bytes": 32521
+      "count": 42,
+      "bytes": 35036
     }
   },
-  "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
-  "recoverMs": 1.052,
+  "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
+  "snarkLocalOnly": true,
+  "recoverMs": 1.989,
   "agreedModel": "claude-sonnet-4-20250514",
-  "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20",
-  "checklistPassed": 7,
-  "checklistTotal": 7,
+  "llmCommit": "812e6aaf521048f8f5e3fb35ffee2b7b55b1de84d0a7073f2d6bfdeb9627dafe",
+  "spacedChunks": 338,
+  "sealedInject": 0,
+  "pendingInject": 338,
+  "verifiedInject": 0,
+  "checklistPassed": 9,
+  "checklistTotal": 9,
   "neverInventHashes": true,
   "messageFirst": true
 }

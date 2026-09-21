@@ -1,16 +1,14 @@
 {
-  "at": "2026-09-21T00:33:44.135Z",
+  "at": "2026-09-21T00:52:29.523Z",
   "topic": "model-agreement",
   "filingLabel": "CHAIN_LAYER",
   "formula": "original-message-first",
   "agreed": "claude-sonnet-4-20250514",
   "cycle": [
-    "claude-sonnet-4-20250514",
-    "claude-opus-4-20250514"
+    "claude-sonnet-4-20250514"
   ],
   "multi": [
-    "claude-sonnet-4-20250514",
-    "claude-opus-4-20250514"
+    "claude-sonnet-4-20250514"
   ],
   "index": 0,
   "opensource": true,

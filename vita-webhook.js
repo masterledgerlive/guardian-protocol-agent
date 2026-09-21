@@ -845,6 +845,7 @@ async function handleVitaRequest(req, res) {
         stateBranch: liveStateBranch(),
         repo: liveGithubRepo(),
         chatId: "http-mirror",
+        fetchCalldata: fetchTxCalldataHex,
       });
       return json(res, {
         ok: out.ok,
@@ -871,6 +872,7 @@ async function handleVitaRequest(req, res) {
         cwd: ROOT,
         write: true,
         env: process.env,
+        fetchCalldata: fetchTxCalldataHex,
       });
       return json(res, {
         ok: out.ok,
@@ -878,6 +880,15 @@ async function handleVitaRequest(req, res) {
         reply: out.reply,
         snark: out.snark || null,
         locations: out.locations || [],
+        inject: out.inject
+          ? {
+              totalChunks: out.inject.totalChunks,
+              sealedCount: out.inject.sealedCount,
+              pendingCount: out.inject.pendingCount,
+              verifiedCount: out.inject.verifiedCount || 0,
+              maxBytes: out.inject.maxBytes,
+            }
+          : null,
         result: out.result
           ? {
               passed: out.result.passed,
@@ -886,10 +897,18 @@ async function handleVitaRequest(req, res) {
               agreedModel: out.result.models?.agreed,
               llmCommit: out.result.llm?.contentCommit,
               growth: out.result.growth,
+              snarkLocalOnly: out.result.snark?.localOnly,
             }
           : null,
         neverInventHashes: true,
-        telegram: ["/vita check", "/vita recover", "/vita models", "/vita llm"],
+        telegram: [
+          "/vita check",
+          "/vita check locs",
+          "/vita check pull",
+          "/vita recover",
+          "/vita models",
+          "/vita llm",
+        ],
       }, out.ok ? 200 : 500);
     }
     if ((path === "/vita/wavetest" || path === "/vita/wavetest/") && req.method === "GET") {
