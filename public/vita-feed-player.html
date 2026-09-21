@@ -430,11 +430,6 @@
 
     const el = (id) => document.getElementById(id);
 
-    function shortHex(h, n) {
-      const s = String(h || "").replace(/^0x/i, "");
-      return s ? s.slice(0, n || 8) : "—";
-    }
-
     function humanLineFor(c, i, total) {
       if (!c) return "No location queued.";
       const file = c.filingPath
