@@ -17,10 +17,12 @@ import {
   buildUnlockKeyboard,
   buildVitaFeedRootKeyboard,
   buildVitaFeedStagedKeyboard,
+  buildPlayerPopupKeyboard,
   formatTokenClickCard,
   keyboardForVitaFeedResult,
   parseTokenClickCommand,
   smokeClickThroughWalk,
+  stripWebAppButtons,
   timeDualRoutes,
 } from "./telegram-clickthrough.js";
 import { listMasterDirectory, listSubDirectory, unlockDirectoryEntry } from "./vita-dir.js";
@@ -163,6 +165,8 @@ describe("telegram click-through keyboards", () => {
     assert.ok(walk.subFiles >= 1);
     assert.equal(walk.unlocked, true);
     assert.equal(walk.allFit64, true);
+    assert.ok(walk.urlCount >= 2);
+    assert.equal(walk.httpsPlayer, true);
     assert.ok(walk.snarkFirst?.startsWith("ZK§"));
     assert.equal(walk.timing?.plainTextProof, true);
   });
@@ -177,6 +181,30 @@ describe("telegram click-through keyboards", () => {
     assert.ok(allCallbacks(staged).includes("/vitafeed confirm"));
     const root = keyboardForVitaFeedResult({ action: "usage", out: {} });
     assert.ok(allCallbacks(root).includes("/vitafeed dir"));
+    const flatRoot = root.inline_keyboard.flat();
+    assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("kids-player")));
+    assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("demo=1")));
+    assert.ok(flatRoot.some((b) => b.url?.includes("kids-player")));
+  });
+
+  it("player popup keyboard is Mini App + HTTPS url fallback", () => {
+    const kb = buildPlayerPopupKeyboard({ playerPath: "/vita/kids-player?dir=kids" });
+    const flat = kb.inline_keyboard.flat();
+    const web = flat.find((b) => b.web_app?.url);
+    const url = flat.find((b) => b.url);
+    assert.ok(web, "Watch popup Mini App button");
+    assert.ok(url, "Open player HTTPS fallback");
+    assert.match(web.web_app.url, /^https:\/\//);
+    assert.match(web.web_app.url, /popup=1/);
+    assert.match(url.url, /^https:\/\//);
+    const stripped = stripWebAppButtons(kb);
+    assert.ok(!stripped.inline_keyboard.flat().some((b) => b.web_app));
+    assert.ok(stripped.inline_keyboard.flat().some((b) => b.url));
+    const demoKb = keyboardForVitaFeedResult({
+      action: "play",
+      out: { demo: true, playerPath: "/vita/feed-player?demo=1" },
+    });
+    assert.ok(demoKb.inline_keyboard.flat().some((b) => (b.web_app?.url || b.url || "").includes("demo=1")));
   });
 
   it("staged keyboard always offers confirm/override/cancel", () => {
@@ -194,6 +222,9 @@ describe("telegram click-through keyboards", () => {
     assert.match(agent, /parseTokenClickCommand/);
     assert.match(agent, /reply_markup:\s*out\.keyboard/);
     assert.match(agent, /text === "\/tokens"/);
+    assert.match(agent, /stripWebAppButtons/);
+    assert.match(agent, /Watch popup/);
+    assert.match(agent, /demoPlayerOpen/);
   });
 
   it("unlock keyboard callbacks fit for long paths", () => {

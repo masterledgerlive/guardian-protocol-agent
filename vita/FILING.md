@@ -16,9 +16,11 @@ findable.
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
-| `vita/url-dir.js` | `URLDIR` | Curated YouTube URL directories (KIDS closed garden) — load/play in player; Telegram dual path |
+| `vita/url-dir.js` | `URLDIR` | Curated YouTube URL directories (KIDS closed garden) — load/play in player; Telegram Watch popup + dual path |
 | `vita/memory/kids-url-directory.json` | `URLDIR` | Pulled KIDS playlist URLs (urls only — no media copies) |
-| `public/vita-kids-player.html` | `URLDIR` | Closed-garden player — only listed URLs; no YouTube recommendations |
+| `public/vita-kids-player.html` | `URLDIR` | Closed-garden player — only listed URLs; Telegram Mini App popup + playlist picker |
+| `vita/memory/telegram-player-popup.json` | `URLDIR` | Learn: Telegram HTTPS popup player (web_app + url fallback) |
+| `vita/strands/telegram-player-popup.json` | `URLDIR` | Sparse strand: Telegram Watch popup → compact player → system playlists |
 | `vita/strands/kids-url-dir.json` | `URLDIR` | Sparse strand: KIDS url dir → player → dual HUMAN/MACHINE |
 | `vita/telegram-clickthrough.js` | `VITACLICK` | Telegram inline keyboards — every category + subcategory clickable (dir→file→unlock, tokens→actions, track inject) |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |

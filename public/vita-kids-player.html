@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KIDS — VITA closed-garden player</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -136,6 +137,42 @@
       margin-bottom: .55rem;
     }
     a { color: #1a6b8a; }
+    .chrome {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      align-items: center;
+      margin: 0 0 .75rem;
+    }
+    .chrome label {
+      display: flex;
+      gap: .35rem;
+      align-items: center;
+      font-size: .75rem;
+      color: #3d5566;
+    }
+    .chrome select {
+      font-family: var(--mono);
+      font-size: .75rem;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: .3rem .6rem;
+      background: #fff;
+      max-width: min(100%, 280px);
+    }
+    html.tg-popup, html.tg-popup body {
+      min-height: var(--tg-viewport-stable-height, 100%);
+      background: #fff8ef;
+    }
+    html.tg-popup .lede,
+    html.tg-popup .pill { display: none; }
+    html.tg-popup .wrap { padding: .45rem .55rem .8rem; max-width: none; }
+    html.tg-popup h1 { font-size: 1.15rem; margin: 0 0 .35rem; }
+    html.tg-popup .grid { grid-template-columns: 1fr; gap: .55rem; }
+    html.tg-popup .list { max-height: 22vh; }
+    html.tg-popup .screen iframe,
+    html.tg-popup .screen .yt { max-height: 42vh; aspect-ratio: 16 / 9; }
+    html.tg-popup .now { font-size: .92rem; }
   </style>
 </head>
 <body>
@@ -146,6 +183,12 @@
       Only the URLs in our KIDS directory play here. No YouTube search, no other
       channels, no recommended videos. Next and previous stay inside this list.
     </p>
+    <div class="chrome">
+      <label>Playlist
+        <select id="playlistPick" aria-label="System playlists"></select>
+      </label>
+      <button type="button" id="btnPopout" class="ghost">Pop out</button>
+    </div>
     <div class="grid">
       <div>
         <div class="screen">
@@ -182,6 +225,78 @@
     let pendingPlay = false;
 
     const el = (id) => document.getElementById(id);
+
+    function bootTelegramPopup() {
+      const popup = q.get("popup") === "1" || q.get("popout") === "1";
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) {
+        try { tg.ready(); } catch (_) {}
+        document.documentElement.classList.add("tg-popup");
+      }
+      if (popup) document.documentElement.classList.add("tg-popup");
+      const btn = el("btnPopout");
+      if (btn) {
+        if (q.get("popout") === "1") btn.style.display = "none";
+        btn.addEventListener("click", () => {
+          const u = new URL(location.href);
+          u.searchParams.set("popup", "1");
+          u.searchParams.set("popout", "1");
+          const w = 480, h = 380;
+          const left = Math.max(0, (screen.availWidth || 900) - w - 16);
+          window.open(
+            u.toString(),
+            "vita-player",
+            "popup=yes,width=" + w + ",height=" + h + ",left=" + left + ",top=24,resizable=yes,scrollbars=yes",
+          );
+        });
+      }
+    }
+
+    async function fillPlaylists() {
+      const sel = el("playlistPick");
+      if (!sel) return;
+      const opts = [
+        { id: "demo", title: "Demo song (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
+      ];
+      try {
+        const data = await fetch("/vita/url-dir").then((r) => r.json());
+        const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
+        for (const d of lists) {
+          if (!d || d.id === "demo") continue;
+          opts.push({
+            id: String(d.id),
+            title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
+            href: d.player || ("/vita/kids-player?dir=" + encodeURIComponent(d.id)),
+          });
+        }
+      } catch (_) {}
+      try {
+        const lib = await fetch("/vita/feed-library").then((r) => r.json());
+        for (const e of lib.entries || []) {
+          opts.push({
+            id: "lib-" + e.n,
+            title: "LIB #" + e.n + " " + (e.name || ""),
+            href: "/vita/feed-player?lib=" + encodeURIComponent(String(e.n)),
+          });
+        }
+      } catch (_) {}
+      const current = dirId || "kids";
+      sel.innerHTML = opts.map((o) => {
+        const href = String(o.href || "").replace(/'/g, "");
+        const selected = o.id === current ? " selected" : "";
+        return "<option value='" + href + "'" + selected + ">" + String(o.title).replace(/</g, "") + "</option>";
+      }).join("");
+      sel.addEventListener("change", () => {
+        const href = sel.value;
+        if (!href) return;
+        const u = new URL(href, location.origin);
+        if (document.documentElement.classList.contains("tg-popup")) u.searchParams.set("popup", "1");
+        location.href = u.pathname + u.search;
+      });
+    }
+
+    bootTelegramPopup();
+    fillPlaylists();
 
     function clip(s, n) {
       const t = String(s || "");

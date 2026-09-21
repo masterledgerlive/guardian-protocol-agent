@@ -30,6 +30,36 @@ export const URLDIR_SUBDIR = "KIDS";
 export const KIDS_DIR_ID = "kids";
 export const KIDS_PLAYER_PATH = "/vita/kids-player";
 export const KIDS_FEED_PLAYER_PATH = "/vita/feed-player";
+export const VITA_PRODUCTION_ORIGIN =
+  "https://guardian-protocol-agent-production.up.railway.app";
+
+/** Public HTTPS origin for Telegram url / web_app buttons. */
+export function vitaPublicOrigin(env = process.env) {
+  const explicit = String(env?.VITA_PUBLIC_URL || env?.VITA_PUBLIC_ORIGIN || "").trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const railway = String(env?.RAILWAY_PUBLIC_DOMAIN || "").trim();
+  if (railway) {
+    return /^https?:\/\//i.test(railway)
+      ? railway.replace(/\/+$/, "")
+      : "https://" + railway.replace(/\/+$/, "");
+  }
+  return VITA_PRODUCTION_ORIGIN;
+}
+
+/** Absolute player URL Telegram can tap (popup=1 for compact Mini App / pop-out). */
+export function vitaPlayerHref(path = KIDS_PLAYER_PATH, { popup = true, env = process.env } = {}) {
+  const origin = vitaPublicOrigin(env);
+  let rel = String(path || KIDS_PLAYER_PATH).trim() || KIDS_PLAYER_PATH;
+  if (/^https?:\/\//i.test(rel)) {
+    const u = new URL(rel);
+    if (popup) u.searchParams.set("popup", "1");
+    return u.toString();
+  }
+  if (!rel.startsWith("/")) rel = "/" + rel;
+  const u = new URL(origin + rel);
+  if (popup) u.searchParams.set("popup", "1");
+  return u.toString();
+}
 
 const YT_ID = /^[A-Za-z0-9_-]{11}$/;
 
@@ -107,6 +137,30 @@ export function isKidsPlaySelector(sel) {
   const s = String(sel || "").trim();
   if (!s) return false;
   return /^(?:kids|k|urldir|url-dir)(?:\b|[/?#]|$)/i.test(s);
+}
+
+/** Empty / demo / song → Tailwind demo player (WAV), not the KIDS list. */
+export function isDemoPlaySelector(sel) {
+  const s = String(sel || "").trim();
+  return !s || /^(?:demo|song|wav|feed-player|player)$/i.test(s);
+}
+
+export function demoPlayerOpen() {
+  const playerPath = KIDS_FEED_PLAYER_PATH + "?demo=1";
+  const playerHref = vitaPlayerHref(playerPath);
+  return {
+    ok: true,
+    demo: true,
+    playerPath,
+    playerHref,
+    play: { kind: "audio", name: "demo-song.wav", demo: true },
+    reply: [
+      "VITAFEED DEMO PLAYER",
+      "Tap Watch popup — small window while you work.",
+      "href=" + playerHref,
+      "Playlists: /vitafeed play kids",
+    ].join("\n"),
+  };
 }
 
 /**
@@ -197,9 +251,35 @@ export function listUrlDirectories() {
     neverInventHashes: true,
     closedGarden: true,
     dirs: kids.ok
-      ? [{ id: kids.id, label: kids.label, title: kids.title, count: kids.count, player: kids.player }]
+      ? [{
+          id: kids.id,
+          label: kids.label,
+          title: kids.title,
+          count: kids.count,
+          kind: "youtube",
+          player: kids.player,
+          playerHref: vitaPlayerHref(kids.player),
+        }]
       : [],
   };
+}
+
+/** Playlists already loaded in the system — picker + Telegram popup. */
+export function systemPlaylists() {
+  const demoPath = KIDS_FEED_PLAYER_PATH + "?demo=1";
+  const out = [
+    {
+      id: "demo",
+      label: "DEMO",
+      title: "Demo song (WAV)",
+      kind: "audio",
+      count: 1,
+      player: demoPath,
+      playerHref: vitaPlayerHref(demoPath),
+    },
+  ];
+  for (const d of listUrlDirectories().dirs) out.push(d);
+  return out;
 }
 
 function kidsDualHumanBodyFrom(raw, items) {
@@ -345,6 +425,8 @@ export function formatKidsDirCard(dir = loadUrlDirectory(KIDS_DIR_ID)) {
   }
   lines.push("");
   lines.push("play:  /vitafeed play kids");
+  lines.push("popup: tap Watch popup in Telegram (small window)");
+  lines.push("href:  " + vitaPlayerHref("/vita/kids-player?dir=kids"));
   lines.push("dual:  /vitafeed dual kids   (HUMAN urls + MACHINE ids → confirm)");
   lines.push("path:  /vita dual vita/memory/kids-url-directory.json");
   lines.push("dir:   /vitafeed dir KIDS");
@@ -363,14 +445,16 @@ export function playKidsDirectory(selector = "kids") {
     KIDS_PLAYER_PATH + "?dir=kids&i=" + encodeURIComponent(String(item.n));
   const feedPlayerPath =
     KIDS_FEED_PLAYER_PATH + "?dir=kids&i=" + encodeURIComponent(String(item.n));
+  const playerHref = vitaPlayerHref(playerPath);
   const lines = [
     URLDIR_MAGIC + " PLAY · CLOSED GARDEN",
     "KIDS  #" + item.n + "/" + dir.count + "  " + item.title,
     "video=" + item.videoId,
     "url=" + item.url,
     "embed=youtube-nocookie · rel=0 · modestbranding · no related",
-    "player " + playerPath,
-    "also   " + feedPlayerPath,
+    "player " + playerHref,
+    "also   " + vitaPlayerHref(feedPlayerPath),
+    "Telegram: tap Watch popup (small window while you work)",
     "next/prev only walk this directory — child cannot pick other channels",
     "dual-path test: /vitafeed dual kids  then confirm|override",
   ];
@@ -390,6 +474,7 @@ export function playKidsDirectory(selector = "kids") {
     },
     playerPath,
     feedPlayerPath,
+    playerHref,
     play: {
       kind: "youtube",
       closedGarden: true,
@@ -411,6 +496,7 @@ export function publicUrlDirState(id = KIDS_DIR_ID) {
   if (!dir.ok) {
     return { ok: false, error: dir.reason || "missing" };
   }
+  const playlists = systemPlaylists();
   return {
     ok: true,
     id: URLDIR_ID,
@@ -418,6 +504,8 @@ export function publicUrlDirState(id = KIDS_DIR_ID) {
     formula: FORMULA_ID,
     neverInventHashes: true,
     closedGarden: true,
+    playlists,
+    dirs: listUrlDirectories().dirs,
     dir: {
       id: dir.id,
       label: dir.label,
@@ -427,6 +515,7 @@ export function publicUrlDirState(id = KIDS_DIR_ID) {
       catalogPath: dir.catalogPath,
       sourcePlaylist: dir.sourcePlaylist,
       player: dir.player,
+      playerHref: vitaPlayerHref(dir.player),
       feedPlayer: dir.feedPlayer,
       telegram: dir.telegram,
       items: dir.items.map((it) => ({
@@ -445,7 +534,7 @@ export function publicUrlDirState(id = KIDS_DIR_ID) {
       controls: 1,
       host: "https://www.youtube-nocookie.com",
     },
-    note: "Closed garden — play only listed urls. Dual: /vitafeed dual kids.",
+    note: "Closed garden — play only listed urls. Telegram Watch popup. Dual: /vitafeed dual kids.",
   };
 }
 
