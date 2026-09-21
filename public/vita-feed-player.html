@@ -329,6 +329,53 @@
     html.tg-popup .stage { padding: .55rem .7rem 1rem; }
     html.tg-popup .hide-in-popup { display: none !important; }
     html.tg-popup .row { grid-template-columns: 1fr; }
+
+    .music-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      align-items: center;
+      margin: 0 0 .85rem;
+    }
+    .now-title {
+      font-family: var(--display);
+      font-size: 1.2rem;
+      margin: 0 0 .25rem;
+      letter-spacing: -.02em;
+    }
+    .music-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 280px;
+      overflow: auto;
+      margin: .4rem 0 0;
+    }
+    .music-list .song {
+      display: grid;
+      grid-template-columns: 2.2rem 1fr;
+      gap: .35rem;
+      padding: .4rem .5rem;
+      cursor: pointer;
+      font-size: .74rem;
+      border: 1px solid transparent;
+    }
+    .music-list .song:hover { background: rgba(26,107,138,.12); }
+    .music-list .song.on {
+      background: var(--ok);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    .proof-toggle[aria-pressed="true"] {
+      background: var(--ok);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    html.proof-off .proof-chrome { display: none !important; }
+    html.kids-mode .hide-in-kids { display: none !important; }
+    html.kids-mode .lede { display: none; }
+    html.kids-mode .brand { font-size: clamp(1.7rem, 6vw, 2.4rem); }
+    html.proof-off .row { grid-template-columns: 1fr; }
   </style>
 </head>
 <body>
@@ -344,11 +391,18 @@
         <select id="playlistPick" aria-label="System playlists"></select>
       </label>
       <button type="button" id="btnPopout" class="ghost">Pop out</button>
+      <button type="button" id="btnProof" class="ghost proof-toggle" aria-pressed="false" title="Show loc MATCH · Basescan Input Data">Show blockchain</button>
+    </div>
+    <h2 class="now-title" id="nowTitle">Free-catalog library</h2>
+    <div class="music-nav" id="musicNav">
+      <button type="button" id="btnPrevSong">◀ Prev</button>
+      <button type="button" id="btnPausePlay">Play / Pause</button>
+      <button type="button" id="btnNextSong">Next ▶</button>
     </div>
 
     <div class="row">
       <div>
-        <section class="block hide-in-popup">
+        <section class="block hide-in-popup hide-in-kids">
           <h2>1 · Upload</h2>
           <p class="hint">Bytes → §VITAFILE§ base64 text → VIN packets (720 B payload). Telegram: reply with a file + <code>/vitafeed</code> then <code>/vitafeed override</code>.</p>
           <div class="cta">
@@ -361,7 +415,7 @@
           <pre class="card" id="costCard">Drop a file or load the demo song to see spaced packet plan.</pre>
         </section>
 
-        <section class="block hide-in-popup">
+        <section class="block hide-in-popup hide-in-kids">
           <h2>2 · Override seal → piece locations</h2>
           <p class="hint">DEMO seals spaced synthetic locations (labeled — never LIVE Basescan). LIVE uses Telegram <code>/vitafeed override</code>.</p>
           <div class="cta">
@@ -377,12 +431,12 @@
       <div>
         <section class="block">
           <h2>3 · Tailwind reader play</h2>
-          <p class="hint">HUMAN English + MACHINE SNARK readers layer over play like TV captions — each advances to the next loc as the song pulls data in order.</p>
-          <p class="stat" id="statLine">0 / 0 locations</p>
+          <p class="hint proof-chrome">HUMAN English + MACHINE SNARK readers layer over play like TV captions — each advances to the next loc as the song pulls data in order.</p>
+          <p class="stat proof-chrome" id="statLine">0 / 0 locations</p>
           <div class="player-shell" id="playerShell">
             <p class="hint" style="margin:0">Player waits until every spaced packet is peaced together.</p>
           </div>
-          <div class="live-readers" id="liveReaders" hidden aria-live="polite">
+          <div class="live-readers proof-chrome" id="liveReaders" hidden aria-live="polite">
             <div class="reader-lane human" data-lane="HUMAN" id="readerHuman">
               <span class="pull-file" id="humanFile">—</span>
               <span class="pull-body" id="humanBody">Waiting for play…</span>
@@ -396,10 +450,11 @@
               <span id="locTickerText">Locations idle — press play to pull SNARK locs in order</span>
             </div>
           </div>
-          <pre class="card" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
+          <pre class="card proof-chrome" id="playCard" style="margin-top:1rem">PLAY PROOF will land here.</pre>
+          <div class="music-list" id="musicList" aria-label="Free-catalog library"></div>
         </section>
 
-        <section class="block hide-in-popup">
+        <section class="block proof-chrome">
           <h2>Locations · click-through Basescan</h2>
           <p class="hint">Highlighted MATCH rows = Input Data UTF-8 equals the VIN data-field commit. Daisy-chain: filing → group sha → VIN → sealed loc.</p>
           <pre class="daisy" id="daisyBox"></pre>
@@ -427,8 +482,72 @@
     let liveChunks = [];
     let liveIndex = -1;
     let liveMedia = null;
+    const PROOF_KEY = "vitaMusicProof";
+    let catalogSongs = [];
+    let musicIndex = 0;
+    let currentMusicId = q.get("music") || "";
 
     const el = (id) => document.getElementById(id);
+
+    function kidsMode() {
+      return q.get("kids") === "1" || q.get("mode") === "kids";
+    }
+
+    function readProofPref() {
+      try {
+        const v = localStorage.getItem(PROOF_KEY);
+        if (v === "on") return true;
+        if (v === "off") return false;
+      } catch (_) {}
+      return !kidsMode();
+    }
+
+    function writeProofPref(on) {
+      try { localStorage.setItem(PROOF_KEY, on ? "on" : "off"); } catch (_) {}
+    }
+
+    function applyProofUi(on) {
+      document.documentElement.classList.toggle("proof-off", !on);
+      document.documentElement.classList.toggle("proof-on", !!on);
+      document.documentElement.classList.toggle("kids-mode", kidsMode());
+      const btn = el("btnProof");
+      if (btn) {
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+        btn.textContent = on ? "Proof ON" : "Show blockchain";
+        btn.title = on
+          ? "Hide loc MATCH / Basescan Input Data chrome"
+          : "Show loc MATCH · Basescan Input Data";
+      }
+    }
+
+    function setProof(on) {
+      writeProofPref(on);
+      applyProofUi(on);
+    }
+
+    function toggleMedia() {
+      if (!liveMedia) return;
+      if (liveMedia.paused) liveMedia.play().catch(() => {});
+      else liveMedia.pause();
+    }
+
+    function renderMusicList() {
+      const box = el("musicList");
+      if (!box) return;
+      if (!catalogSongs.length) {
+        box.innerHTML = "";
+        return;
+      }
+      box.innerHTML = catalogSongs.map((s, i) =>
+        "<div class='song" + (s.id === currentMusicId ? " on" : "") + "' data-id='" +
+        String(s.id).replace(/'/g, "") + "' data-i='" + i + "'>" +
+        "<span>" + String(i + 1).padStart(2, "0") + "</span>" +
+        "<span>" + String(s.title || s.id).replace(/</g, "") + "</span></div>"
+      ).join("");
+      box.querySelectorAll(".song").forEach((row) => {
+        row.addEventListener("click", () => loadCatalogMusic(row.dataset.id, true));
+      });
+    }
 
     function humanLineFor(c, i, total) {
       if (!c) return "No location queued.";
@@ -593,16 +712,34 @@
     async function fillPlaylists() {
       const sel = el("playlistPick");
       if (!sel) return;
-      const opts = [
-        { id: "judy", title: "I'm Always Chasing Rainbows (Judy lane)", href: "/vita/feed-player?music=judy&popup=1" },
-        { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&popup=1" },
-        { id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" },
-      ];
+      const kidsQ = kidsMode() ? "&kids=1" : "";
+      const popupQ = q.get("popup") === "1" ? "&popup=1" : "";
+      const opts = [];
+      try {
+        const cat = await fetch("/vita/free-music").then((r) => r.json());
+        catalogSongs = cat.playlists || [];
+        if (!catalogSongs.length && cat.song) {
+          catalogSongs = [{ id: cat.song.id, title: cat.song.title, player: cat.song.player }];
+        }
+        for (const p of catalogSongs) {
+          opts.push({
+            id: p.id,
+            title: p.title || p.id,
+            href: (p.player || ("/vita/feed-player?music=" + p.id)) + kidsQ + popupQ,
+          });
+        }
+      } catch (_) {
+        opts.push(
+          { id: "judy", title: "I'm Always Chasing Rainbows (Judy lane)", href: "/vita/feed-player?music=judy" + kidsQ + popupQ },
+          { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple" + kidsQ + popupQ },
+        );
+      }
+      opts.push({ id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1" + popupQ });
       try {
         const data = await fetch("/vita/url-dir").then((r) => r.json());
         const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
         for (const d of lists) {
-          if (!d || d.id === "demo" || d.id === "maple" || d.id === "judy") continue;
+          if (!d || opts.some((o) => o.id === d.id)) continue;
           opts.push({
             id: String(d.id),
             title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
@@ -621,23 +758,134 @@
         }
       } catch (_) {}
       const musicId = q.get("music") || "";
-      const current = musicId || (q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : "judy")));
+      const current = musicId || (q.get("demo") === "1" ? "demo" : (q.get("dir") || (q.get("lib") ? "lib-" + q.get("lib") : (catalogSongs[0]?.id || "judy"))));
       sel.innerHTML = opts.map((o) => {
         const href = String(o.href || "").replace(/'/g, "");
         const selected = o.id === current ? " selected" : "";
         return "<option value='" + href + "'" + selected + ">" + String(o.title).replace(/</g, "") + "</option>";
       }).join("");
-      sel.addEventListener("change", () => {
+      if (!sel.dataset.bound) {
+        sel.dataset.bound = "1";
+        sel.addEventListener("change", () => {
         const href = sel.value;
         if (!href) return;
         const u = new URL(href, location.origin);
         if (document.documentElement.classList.contains("tg-popup")) u.searchParams.set("popup", "1");
+        if (kidsMode()) u.searchParams.set("kids", "1");
+        const mid = u.searchParams.get("music");
+        if (mid && u.pathname.indexOf("feed-player") !== -1) {
+          loadCatalogMusic(mid, true);
+          return;
+        }
         location.href = u.pathname + u.search;
-      });
+        });
+      }
+      renderMusicList();
     }
 
     bootTelegramPopup();
+    applyProofUi(readProofPref());
     fillPlaylists();
+    el("btnProof")?.addEventListener("click", () => setProof(!readProofPref()));
+    el("btnPausePlay")?.addEventListener("click", () => toggleMedia());
+    el("btnNextSong")?.addEventListener("click", () => stepMusic(1));
+    el("btnPrevSong")?.addEventListener("click", () => stepMusic(-1));
+
+    function stepMusic(dir) {
+      if (!catalogSongs.length) return;
+      const ids = catalogSongs.map((s) => s.id);
+      let i = ids.indexOf(currentMusicId);
+      if (i < 0) i = 0;
+      const next = ids[(i + dir + ids.length) % ids.length];
+      loadCatalogMusic(next, true);
+    }
+
+    async function loadCatalogMusic(musicId, replaceUrl) {
+      const id = String(musicId || "maple");
+      currentMusicId = id;
+      musicIndex = Math.max(0, catalogSongs.findIndex((s) => s.id === id));
+      const title = catalogSongs.find((s) => s.id === id)?.title || id;
+      if (el("nowTitle")) el("nowTitle").textContent = title;
+      renderMusicList();
+      if (replaceUrl) {
+        const u = new URL(location.href);
+        u.searchParams.set("music", id);
+        u.searchParams.delete("demo");
+        u.searchParams.delete("lib");
+        u.searchParams.delete("dir");
+        if (kidsMode()) u.searchParams.set("kids", "1");
+        history.replaceState({}, "", u.pathname + u.search);
+      }
+      if (el("costCard")) {
+        el("costCard").textContent =
+          "Free catalog — reconstructing " + id + " from grouped VIN packets + loc daisy-chain…";
+      }
+      try {
+        const data = await fetch("/vita/free-music/play?id=" + encodeURIComponent(id)).then((r) => r.json());
+        if (!data?.ok || !data.play?.dataUrl) {
+          if (el("costCard")) el("costCard").textContent = id + " play failed: " + (data?.error || "no audio");
+          return;
+        }
+        let locRows = (data.locProof?.rows || data.groups || []).map((g, i) => ({
+          groupN: g.groupN ?? g.n ?? null,
+          index: g.index ?? null,
+          filingPath: g.filingPath || null,
+          location: g.location || null,
+          basescan: g.basescan || null,
+          match: g.match || (g.location ? "SEALED" : "LOCAL_OK"),
+          highlight: g.highlight != null ? g.highlight : true,
+          label: "g" + String(g.n || g.groupN || i + 1).padStart(2, "0"),
+          demo: false,
+        }));
+        try {
+          const locs = await fetch("/vita/free-music/locs?id=" + encodeURIComponent(id)).then((r) => r.json());
+          if (locs?.ok && locs.rows?.length) {
+            locRows = locs.rows.map((r) => ({
+              ...r,
+              dataFieldCommit8: r.dataFieldCommit8 || shortHex(r.dataFieldCommit, 8),
+              groupSha8: r.groupSha8 || shortHex(r.groupSha, 8),
+            }));
+            const daisy = el("daisyBox");
+            if (daisy) {
+              daisy.textContent =
+                (locs.daisyChain || []).join("\n") +
+                "\nmatched " + (locs.matched || 0) +
+                " · pending seal " + (locs.pending || 0) +
+                " · click-through " + (locs.clickThrough?.length || 0) +
+                "\nlive: HUMAN + MACHINE readers advance with playback from SNARK locs";
+            }
+          }
+        } catch (_) {}
+        const byGroup = new Map();
+        for (const r of locRows) {
+          const g = r.groupN != null ? r.groupN : byGroup.size + 1;
+          if (!byGroup.has(g)) byGroup.set(g, { ...r, index: 1 });
+        }
+        const groupChunks = [...byGroup.values()];
+        proof = {
+          complete: true,
+          play: data.play,
+          card: data.card || (id + " — grouped VIN original playback"),
+          chunks: groupChunks.length ? groupChunks : locRows,
+        };
+        liveChunks = proof.chunks;
+        if (el("playCard")) el("playCard").textContent = proof.card;
+        if (el("costCard")) {
+          el("costCard").textContent =
+            (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
+            (data.play.name || id) +
+            " · groups " + (data.groups?.length || groupChunks.length || 0) +
+            " · original OGG (not a demo WAV) · loc MATCH highlighted · live SNARK pull";
+        }
+        renderPieces(groupChunks.length || data.groups?.length || 1, 0);
+        renderLocs(locRows);
+        el("okPill")?.classList.add("show");
+        if (el("btnPlay")) el("btnPlay").disabled = false;
+        showPlay(proof);
+      } catch (e) {
+        if (el("costCard")) el("costCard").textContent = "Music fetch error: " + (e.message || e);
+      }
+    }
 
     function guessMime(name, hint) {
       if (hint && hint.includes("/")) return hint;
@@ -819,6 +1067,7 @@
         a.controls = true;
         a.autoplay = true;
         a.src = play.dataUrl;
+        a.addEventListener("ended", () => stepMusic(1));
         shell.appendChild(a);
         bindLiveMedia(a, chunks);
       } else if (play.kind === "video") {
@@ -950,12 +1199,8 @@
       el("btnPacketize").disabled = false;
       el("costCard").textContent = "Demo beep loaded (synthetic WAV). Click Packetize.";
     });
-    el("btnMaple")?.addEventListener("click", () => {
-      location.href = "/vita/feed-player?music=maple" + (q.get("popup") === "1" ? "&popup=1" : "");
-    });
-    el("btnJudy")?.addEventListener("click", () => {
-      location.href = "/vita/feed-player?music=judy" + (q.get("popup") === "1" ? "&popup=1" : "");
-    });
+    el("btnMaple")?.addEventListener("click", () => loadCatalogMusic("maple", true));
+    el("btnJudy")?.addEventListener("click", () => loadCatalogMusic("judy", true));
 
     el("btnPacketize").addEventListener("click", () => packetize());
     el("btnSeal").addEventListener("click", () => demoSeal());
@@ -1018,73 +1263,10 @@
         }
         return;
       }
-      if (q.get("music") || q.get("song") === "1") {
-        const musicId = q.get("music") || "judy";
-        el("costCard").textContent =
-          "Free catalog — reconstructing " + musicId + " from grouped VIN packets + loc daisy-chain…";
-        try {
-          const data = await fetch("/vita/free-music/play?id=" + encodeURIComponent(musicId)).then((r) => r.json());
-          if (!data?.ok || !data.play?.dataUrl) {
-            el("costCard").textContent = musicId + " play failed: " + (data?.error || "no audio");
-            return;
-          }
-          let locRows = (data.locProof?.rows || data.groups || []).map((g, i) => ({
-            groupN: g.groupN ?? g.n ?? null,
-            index: g.index ?? null,
-            filingPath: g.filingPath || null,
-            location: g.location || null,
-            basescan: g.basescan || null,
-            match: g.match || (g.location ? "SEALED" : "LOCAL_OK"),
-            highlight: g.highlight != null ? g.highlight : true,
-            label: "g" + String(g.n || g.groupN || i + 1).padStart(2, "0"),
-            demo: false,
-          }));
-          try {
-            const locs = await fetch("/vita/free-music/locs?id=" + encodeURIComponent(musicId)).then((r) => r.json());
-            if (locs?.ok && locs.rows?.length) {
-              locRows = locs.rows.map((r) => ({
-                ...r,
-                dataFieldCommit8: r.dataFieldCommit8 || shortHex(r.dataFieldCommit, 8),
-                groupSha8: r.groupSha8 || shortHex(r.groupSha, 8),
-              }));
-              const daisy = el("daisyBox");
-              if (daisy) {
-                daisy.textContent =
-                  (locs.daisyChain || []).join("\n") +
-                  "\nmatched " + (locs.matched || 0) +
-                  " · pending seal " + (locs.pending || 0) +
-                  " · click-through " + (locs.clickThrough?.length || 0) +
-                  "\nlive: HUMAN + MACHINE readers advance with playback from SNARK locs";
-              }
-            }
-          } catch (_) {}
-          const byGroup = new Map();
-          for (const r of locRows) {
-            const g = r.groupN != null ? r.groupN : byGroup.size + 1;
-            if (!byGroup.has(g)) byGroup.set(g, { ...r, index: 1 });
-          }
-          const groupChunks = [...byGroup.values()];
-          proof = {
-            complete: true,
-            play: data.play,
-            card: data.card || (musicId + " — grouped VIN original playback"),
-            chunks: groupChunks.length ? groupChunks : locRows,
-          };
-          liveChunks = proof.chunks;
-          el("playCard").textContent = proof.card;
-          el("costCard").textContent =
-            (data.proven ? "PROVEN Input Data · " : "availability reconstruct · ") +
-            (data.play.name || musicId) +
-            " · groups " + (data.groups?.length || groupChunks.length || 0) +
-            " · original OGG (not a demo WAV) · loc MATCH highlighted · live SNARK pull";
-          renderPieces(groupChunks.length || data.groups?.length || 1, 0);
-          renderLocs(locRows);
-          el("okPill").classList.add("show");
-          el("btnPlay").disabled = false;
-          showPlay(proof);
-        } catch (e) {
-          el("costCard").textContent = "Music fetch error: " + (e.message || e);
-        }
+      if (q.get("music") || q.get("song") === "1" || kidsMode()) {
+        await fillPlaylists();
+        const startId = q.get("music") || catalogSongs[0]?.id || "judy";
+        await loadCatalogMusic(startId, false);
         return;
       }
       if (q.get("demo") === "1") {

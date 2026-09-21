@@ -670,18 +670,40 @@ export function provenKidsOnChain() {
 }
 
 export function provenMusicOnChain(songId = "maple") {
-  const want =
-    String(songId || "maple").toLowerCase() === "judy" ||
-    /chasing|garland|rainbow/.test(String(songId || ""))
-      ? "judy-chasing-rainbows"
-      : "maple-leaf-rag";
+  const raw = String(songId || "maple").toLowerCase();
+  let want = "maple-leaf-rag";
+  let cmd = "maple";
+  let label = "Maple Leaf Rag";
+  try {
+    const cat = JSON.parse(readFileSync(join(MEMORY_DIR, "free-music-catalog.json"), "utf8"));
+    const songs = cat.songs || {};
+    let hit = songs[raw] || null;
+    if (!hit) {
+      for (const meta of Object.values(songs)) {
+        const aliases = (meta.aliases || []).map((a) => String(a).toLowerCase());
+        if (aliases.includes(raw)) {
+          hit = meta;
+          break;
+        }
+      }
+    }
+    if (!hit && /judy|garland|chasing|rainbow/.test(raw) && !/silver|lining/.test(raw)) {
+      hit = songs.judy || null;
+    }
+    if (hit) {
+      want = hit.chainDirName || hit.id || want;
+      cmd = hit.id || cmd;
+      label = hit.title || label;
+    }
+  } catch {
+    if (raw === "judy" || /chasing|garland|rainbow/.test(raw)) {
+      want = "judy-chasing-rainbows";
+      cmd = "judy";
+      label = "I'm Always Chasing Rainbows (Judy Garland free-catalog lane)";
+    }
+  }
   const rows = loadChainDir().lines.filter((l) => l.name === want);
   const complete = rows.find((l) => l.status === STATUS_COMPLETE);
-  const label =
-    want === "judy-chasing-rainbows"
-      ? "I'm Always Chasing Rainbows (Judy Garland free-catalog lane)"
-      : "Maple Leaf Rag";
-  const cmd = want === "judy-chasing-rainbows" ? "judy" : "maple";
   if (complete) {
     return {
       proven: true,

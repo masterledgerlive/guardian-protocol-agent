@@ -656,15 +656,13 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:kids|urldir|url-dir|kplaylist)\s*/i, "").trim();
     return { ok: true, action: "kids", body: rest, source: "kids" };
   }
-  if (/^(?:music|maple|freemusic|joplin|judy|garland|rainbow|chasing)(?:\s|$)/i.test(trimmed)) {
-    const isJudy = /^(?:judy|garland|rainbow|chasing)(?:\s|$)/i.test(trimmed);
-    const rest = trimmed
-      .replace(/^(?:music|maple|freemusic|joplin|judy|garland|rainbow|chasing)\s*/i, "")
-      .trim();
+  if (/^(?:music|maple|freemusic|joplin|judy|garland|rainbow|chasing|grace|amazing|daisy|bicycle|ballgame|ball|auld|syne|susanna|foster|lining|silver)(?:\s|$)/i.test(trimmed)) {
+    const first = trimmed.split(/\s+/)[0];
+    const rest = trimmed.replace(/^\S+\s*/, "").trim();
     return {
       ok: true,
       action: "music",
-      body: isJudy ? (rest || "judy") : (rest || "maple"),
+      body: /^(?:music|freemusic)$/i.test(first) ? rest : (rest || first),
       source: "music",
     };
   }
@@ -788,16 +786,18 @@ export function vitaFeedUsageText() {
     "  /vitafeed dir KIDS         — DOS list of curated urls",
     "  /vitafeed play kids [n]    — load directory in closed-garden player",
     "  /vitafeed play demo        — Tailwind demo WAV player (Telegram popup)",
-    "  /vitafeed play maple       — public-domain Maple Leaf Rag (grouped VIN, original OGG)",
-    "  /vitafeed play judy        — PD I'm Always Chasing Rainbows (Judy Garland free-catalog lane)",
-    "  /vitafeed music [maple|judy] — free-catalog card + grouped inject plan + loc proof",
+    "  /vitafeed play maple|judy|grace|daisy|ballgame|auld|lining|susanna",
+    "  /vitafeed music            — growing PD library card (Maple, Judy rainbow lane, …)",
+    "  /vitafeed music <id>       — one-song grouped inject plan + loc proof",
     "  /vitafeed dir MUSIC        — DOS list of VIN groups",
-    "  /vitafeed enqueue maple|judy — queue grouped §VITAFILE§ slices (≤24 VIN/group)",
-    "  /vitafeed dual maple|judy  — HUMAN catalog + MACHINE group shas (Telegram dual path)",
+    "  /vitafeed enqueue <id>     — queue grouped §VITAFILE§ slices (≤24 VIN/group)",
+    "  /vitafeed enqueue library  — bank every catalog song (not memory seed; enqueue all stays seed)",
+    "  /vitafeed dual <id>        — HUMAN catalog + MACHINE group shas (Telegram dual path)",
     "  /vitafeed dual kids        — HUMAN url list + MACHINE ids (Telegram dual path)",
     "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
     "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
-    "  Loc proof: /vita/free-music/locs?id=judy — click-through Basescan · data-field MATCH",
+    "  Loc proof: /vita/free-music/locs?id=<id> — click-through Basescan · data-field MATCH",
+    "  Kids player: /vita/feed-player?music=<id>&kids=1 — proof chrome default OFF (Show blockchain toggle)",
     "CHAIN DIRECTORY (Input Data loc proofs · HUMAN + MACHINE · order of completion):",
     "  /vitafeed chaindir         — top=routing/waiting · bottom=complete clickable proofs",
     "  /vitafeed loc 0x…          — search directory by sealed location",
@@ -816,8 +816,8 @@ export function vitaFeedUsageText() {
     "Max payload/chunk = " + VITAFEED_MAX_CHUNK_BYTES + " bytes (VITAFEED_MAX_CHUNK_BYTES).",
     "Player: /vita/feed-player — upload any data, demo seal, play from locations.",
     "  or /vita/feed-player?lib=<n> after /vitafeed files.",
-    "  or /vita/feed-player?music=judy — PD rainbow singing · click-through loc MATCH.",
-    "  or /vita/feed-player?music=maple — PD Maple Leaf Rag reconstructed from grouped VIN.",
+    "  or /vita/feed-player?music=<id> — PD library · click-through loc MATCH.",
+    "  or /vita/feed-player?music=<id>&kids=1 — clean play UI; Proof toggle shows blockchain.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
   ].join("\n");
 }
@@ -1818,12 +1818,27 @@ export async function handleVitaFeedAction({
   if (action === "music") {
     const {
       formatFreeMusicCard,
+      formatFreeMusicLibraryCard,
       loadFreeMusic,
       playFreeMusic,
       resolveSongId,
+      listCatalogSongIds,
     } = await import("./free-music.js");
     const { buildPlayerPopupKeyboard } = await import("./telegram-clickthrough.js");
     const rest = String(body || "").trim();
+    if (!rest || /^(?:library|list|all|songs)$/i.test(rest)) {
+      const playerPath = "/vita/feed-player?music=maple";
+      return {
+        ok: true,
+        phase: "music",
+        library: true,
+        songs: listCatalogSongIds(),
+        playerPath,
+        playerHref: (await import("./url-dir.js")).vitaPlayerHref(playerPath),
+        reply: formatFreeMusicLibraryCard(),
+        keyboard: buildPlayerPopupKeyboard({ playerPath }),
+      };
+    }
     const songId = resolveSongId(/^(?:play|open)$/i.test(rest) ? "maple" : rest) || "maple";
     if (/^(?:play|open)/i.test(rest)) {
       const opened = playFreeMusic(songId);
@@ -2035,14 +2050,50 @@ export async function handleVitaFeedAction({
     const { fileURLToPath } = await import("node:url");
     const arg = String(body || "").trim().toLowerCase();
     let result;
-    if (
-      arg === "maple" || arg === "music" || arg === "song" || arg === "joplin" ||
-      arg === "judy" || arg === "garland" || arg === "rainbow" || arg === "chasing"
-    ) {
-      const { enqueueFreeMusicGroups, resolveSongId } = await import("./free-music.js");
+    const {
+      enqueueFreeMusicGroups,
+      enqueueFreeMusicLibrary,
+      resolveSongId,
+      isMusicLibraryEnqueue,
+    } = await import("./free-music.js");
+    if (isMusicLibraryEnqueue(arg)) {
+      const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+      const queued = enqueueFreeMusicLibrary({
+        enqueueFn: enqueueFeedBacklogItem,
+        includeManifest: true,
+      });
+      return {
+        ok: queued.ok !== false,
+        phase: "enqueue",
+        added: queued.added || 0,
+        skipped: queued.skipped || 0,
+        music: true,
+        library: true,
+        songIds: queued.ids,
+        groupCount: queued.groupCount,
+        totalVin: queued.totalVin,
+        reply:
+          formatFeedBacklogCard() +
+          "\n\nMUSIC LIBRARY grouped enqueue +" +
+          (queued.added || 0) +
+          " · skipped " +
+          (queued.skipped || 0) +
+          " · songs " +
+          (queued.songCount || 0) +
+          " · groups " +
+          (queued.groupCount || 0) +
+          " · VIN " +
+          (queued.totalVin || 0) +
+          "\n" +
+          (queued.note || "") +
+          "\n\nNext: /vitafeed next → /vitafeed confirm|override (one group per hourly cap)." +
+          "\nVITAFEED_PAID stays default OFF. /vitafeed enqueue all is still memory seed.",
+      };
+    }
+    const songId = arg ? resolveSongId(arg) : null;
+    if (songId && arg && arg !== "seed" && arg !== "memory" && arg !== "all" && arg !== "brain") {
       const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
       const { routeTransmission } = await import("./chain-dir.js");
-      const songId = resolveSongId(arg) || "maple";
       const queued = enqueueFreeMusicGroups({
         enqueueFn: enqueueFeedBacklogItem,
         includeManifest: true,

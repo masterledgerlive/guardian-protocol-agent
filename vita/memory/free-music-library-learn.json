@@ -1,0 +1,24 @@
+{
+  "id": "free-music-library-learn",
+  "filingLabel": "FREEMUSIC",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "at": "2026-09-21T15:50:00.000Z",
+  "learn": "Free-catalog library grew past maple+judy with verified US-PD Commons/LOC/USGov recordings converted to compact mono 22050 Vorbis: Amazing Grace 1922 Sacred Harp, Daisy Bell 1894 Edison cylinder, Take Me Out to the Ball Game 1908 Meeker, Auld Lang Syne 1910 Stanley, Look for the Silver Lining 1921 National Jukebox (rainbow-adjacent — not Over the Rainbow Decca), Oh! Susanna US Navy Band PD-USGov (skip 1917 racist-verse cylinder and Camptown Races minstrel). /vitafeed enqueue <id> banks grouped VIN; /vitafeed enqueue library banks every song; /vitafeed enqueue all remains memory seed. VITAFEED_PAID stays default OFF. Kids+feed music players share the feed-player path: ?kids=1 proof chrome default OFF (Show blockchain / vitaMusicProof). Loc proof stays LOCAL_OK until real seals — never invent hashes.",
+  "commands": [
+    "/vitafeed music",
+    "/vitafeed play grace",
+    "/vitafeed play daisy",
+    "/vitafeed play ballgame",
+    "/vitafeed play auld",
+    "/vitafeed play lining",
+    "/vitafeed play susanna",
+    "/vitafeed enqueue library",
+    "/vitafeed dir MUSIC",
+    "/vitafeed next"
+  ],
+  "player": "/vita/feed-player?music=grace",
+  "kidsPlayer": "/vita/feed-player?music=grace&kids=1",
+  "locs": "/vita/free-music/locs?id=grace",
+  "songs": ["maple", "judy", "grace", "daisy", "ballgame", "auld", "lining", "susanna"]
+}

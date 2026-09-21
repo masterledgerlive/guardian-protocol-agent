@@ -19,8 +19,12 @@ import {
   buildFreeMusicLocProof,
   buildFreeMusicLocProofLocal,
   enqueueFreeMusicGroups,
+  enqueueFreeMusicLibrary,
   formatFreeMusicCard,
+  formatFreeMusicLibraryCard,
+  isMusicLibraryEnqueue,
   isMusicPlaySelector,
+  listCatalogSongIds,
   loadFreeMusic,
   maybeMusicDualHumanBody,
   musicDualHumanBody,
@@ -241,6 +245,8 @@ describe("DOS MUSIC + Telegram wire", () => {
     assert.equal(listed.ok, true);
     assert.ok(listed.entries.some((e) => e.name === "Maple_Leaf_Rag.ogg"));
     assert.ok(listed.entries.some((e) => e.name === "Im_Always_Chasing_Rainbows.ogg"));
+    assert.ok(listed.entries.some((e) => e.name === "Amazing_Grace.ogg"));
+    assert.ok(listed.entries.some((e) => e.name === "Daisy_Bell.ogg"));
     assert.ok(listed.entries.length >= 3);
   });
 
@@ -255,6 +261,11 @@ describe("DOS MUSIC + Telegram wire", () => {
     assert.equal(card.ok, true);
     assert.match(card.reply, /CHASING RAINBOWS/i);
     assert.match(card.reply, /grouped/i);
+    const library = await handleVitaFeedAction({ action: "music", body: "", chatId: "music-wire" });
+    assert.equal(library.ok, true);
+    assert.equal(library.library, true);
+    assert.match(library.reply, /LIBRARY/i);
+    assert.match(library.reply, /enqueue library/);
     const play = await handleVitaFeedAction({
       action: "play",
       body: "judy",
@@ -359,6 +370,9 @@ describe("HTTP free-music catalog + play + locs", () => {
       assert.equal(cat.song.sha256, JUDY_SHA);
       assert.ok(cat.song.groupCount >= 2);
       assert.ok(cat.playlists.some((p) => p.id === "judy"));
+      assert.ok(cat.playlists.length >= 6);
+      assert.ok(cat.playlists.some((p) => p.id === "grace"));
+      assert.ok(cat.playlists.some((p) => p.id === "daisy"));
       const play = await fetch("http://127.0.0.1:" + port + "/vita/free-music/play?id=judy").then((r) => r.json());
       assert.equal(play.ok, true);
       assert.equal(play.play.mime, "audio/ogg");
@@ -374,6 +388,9 @@ describe("HTTP free-music catalog + play + locs", () => {
       assert.match(page, /playlistPick/);
       assert.match(page, /liveReaders|readerHuman|MACHINE · SNARK/);
       assert.match(page, /timeupdate|paintLiveLoc|loc-active/);
+      assert.match(page, /btnProof|Show blockchain|vitaMusicProof/);
+      assert.match(page, /btnNextSong/);
+      assert.match(page, /kids=1|kids-mode|proof-off/);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -387,5 +404,163 @@ describe("system playlists include judy + maple", () => {
     assert.ok(lists.some((p) => p.id === "maple"));
     assert.ok(lists.some((p) => p.id === "demo"));
     assert.match(formatFreeMusicCard("judy"), /Chasing Rainbows/i);
+  });
+
+  it("picker lists the expanded PD library", () => {
+    const lists = systemPlaylists();
+    for (const id of ["grace", "daisy", "ballgame", "auld", "lining", "susanna"]) {
+      assert.ok(lists.some((p) => p.id === id), "missing playlist " + id);
+    }
+  });
+});
+
+const NEW_SONGS = [
+  {
+    id: "grace",
+    file: "Amazing_Grace.ogg",
+    sha: "31c4d55541b942b9b3aecb187ae738722ed8c23500584868816fa55559b92cc2",
+    bytes: 686731,
+    aliases: ["amazing", "amazing-grace"],
+  },
+  {
+    id: "daisy",
+    file: "Daisy_Bell.ogg",
+    sha: "641019baa5acfc4da514c86a5d7c349ac16765a6f7951651261d35374a554aa3",
+    bytes: 657145,
+    aliases: ["bicycle", "daisy-bell"],
+  },
+  {
+    id: "ballgame",
+    file: "Take_Me_Out_to_the_Ball_Game.ogg",
+    sha: "06bfaba89ac385002656eef2eceef25d5b4ff0fc4831e0fffc30518758f02f24",
+    bytes: 530355,
+    aliases: ["baseball", "take-me-out"],
+  },
+  {
+    id: "auld",
+    file: "Auld_Lang_Syne.ogg",
+    sha: "d72d24c139e99ccc4d6f4549672e342b140062f449a36bcfe9599baa72d7040f",
+    bytes: 753096,
+    aliases: ["syne", "auld-lang-syne"],
+  },
+  {
+    id: "lining",
+    file: "Look_for_the_Silver_Lining.ogg",
+    sha: "a2a2048511ff3ca629abf1fd12420313d1b1e57fe8bd77a8b516fada432ca64e",
+    bytes: 1061924,
+    aliases: ["silver", "silver-lining"],
+  },
+  {
+    id: "susanna",
+    file: "Oh_Susanna.ogg",
+    sha: "1235438f9449dc6e0b614ec0cd013c925313309d736a3cff25e68e10884751f3",
+    bytes: 1089099,
+    aliases: ["oh-susanna", "foster"],
+  },
+];
+
+describe("expanded free-catalog PD library", () => {
+  it("files ≥4 new real OGG bitstreams matching catalog sha256", () => {
+    const ids = listCatalogSongIds();
+    assert.ok(ids.includes("maple"));
+    assert.ok(ids.includes("judy"));
+    assert.ok(ids.length >= 6);
+    for (const s of NEW_SONGS) {
+      const path = join(root, "vita/memory/free-music", s.file);
+      assert.equal(existsSync(path), true, s.file + " missing");
+      const bytes = readFileSync(path);
+      assert.equal(bytes.subarray(0, 4).toString("ascii"), "OggS");
+      assert.equal(bytes.length, s.bytes);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), s.sha);
+    }
+  });
+
+  it("resolves new aliases without stealing judy rainbow", () => {
+    assert.equal(resolveSongId("rainbow"), JUDY_ID);
+    assert.equal(resolveSongId("silver"), "lining");
+    assert.equal(resolveSongId("lining"), "lining");
+    for (const s of NEW_SONGS) {
+      assert.equal(resolveSongId(s.id), s.id);
+      for (const a of s.aliases) {
+        assert.equal(resolveSongId(a), s.id, a + " → " + s.id);
+        assert.equal(isMusicPlaySelector(a), true);
+      }
+    }
+  });
+
+  it("packetizes daisy and reconstructs original OGG", () => {
+    const packed = packetizeFreeMusic("daisy");
+    assert.equal(packed.ok, true);
+    assert.equal(packed.id, "daisy");
+    assert.equal(packed.sha256, NEW_SONGS.find((s) => s.id === "daisy").sha);
+    for (const g of packed.groups) {
+      assert.ok(g.totalChunks <= MUSIC_GROUP_VIN_CAP);
+    }
+    const rebuilt = reconstructFreeMusicFromGroups(packed.groups);
+    assert.equal(rebuilt.sha256, packed.sha256);
+  });
+
+  it("library card lists growing catalog; local loc proof LOCAL_OK", () => {
+    const card = formatFreeMusicLibraryCard();
+    assert.match(card, /FREE CATALOG LIBRARY/);
+    assert.match(card, /enqueue library/);
+    assert.match(card, /kids=1/);
+    assert.doesNotMatch(card, /VITAFEED_PAID=yes/);
+    for (const s of NEW_SONGS) assert.match(card, new RegExp(s.id));
+    const loc = buildFreeMusicLocProofLocal("grace");
+    assert.equal(loc.ok, true);
+    assert.ok(loc.matched >= 1);
+    assert.equal(loc.rows[0].match, "LOCAL_OK");
+    assert.equal(loc.rows[0].clickThrough, false);
+    assert.equal(provenMusicOnChain("grace").chainDirName, "amazing-grace");
+    assert.equal(provenMusicOnChain("grace").proven, false);
+  });
+
+  it("never files Over the Rainbow Decca; lining is rainbow-adjacent", () => {
+    const lining = loadFreeMusic("lining");
+    assert.equal(lining.ok, true);
+    assert.match(lining.license, /not Over the Rainbow Decca/i);
+    const catalog = JSON.parse(
+      readFileSync(join(root, "vita/memory/free-music-catalog.json"), "utf8"),
+    );
+    assert.ok((catalog.skipped || []).some((x) => /Over the Rainbow/i.test(x.title || x.reason || "")));
+  });
+});
+
+describe("enqueue library banks songs without flipping VITAFEED_PAID", () => {
+  it("isMusicLibraryEnqueue does not steal memory-seed all", () => {
+    assert.equal(isMusicLibraryEnqueue("library"), true);
+    assert.equal(isMusicLibraryEnqueue("playlist"), true);
+    assert.equal(isMusicLibraryEnqueue("music all"), true);
+    assert.equal(isMusicLibraryEnqueue("all"), false);
+    assert.equal(isMusicLibraryEnqueue("seed"), false);
+    assert.equal(parseVitaFeedCommand("/vitafeed enqueue library").action, "enqueue");
+    assert.equal(parseVitaFeedCommand("/vitafeed enqueue library").body, "library");
+    assert.equal(parseVitaFeedCommand("/vitafeed enqueue grace").body, "grace");
+    assert.equal(parseVitaFeedCommand("/vitafeed enqueue all").body, "all");
+  });
+
+  it("enqueues a subset of new ids each ≤24 VIN", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "vita-free-music-lib-"));
+    setFeedBacklogPathForTests(join(tmp, "vitafeed-backlog.json"));
+    resetFeedBacklogForTests();
+    try {
+      const queued = enqueueFreeMusicLibrary({
+        enqueueFn: enqueueFeedBacklogItem,
+        includeManifest: false,
+        ids: ["grace", "daisy"],
+      });
+      assert.equal(queued.ok, true);
+      assert.equal(queued.library, true);
+      assert.deepEqual(queued.ids, ["grace", "daisy"]);
+      assert.ok(queued.added >= 2);
+      for (const s of queued.songs) {
+        assert.equal(s.ok, true);
+        assert.ok(s.groupCount >= 1);
+      }
+    } finally {
+      setFeedBacklogPathForTests(null);
+      try { rmSync(tmp, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
   });
 });

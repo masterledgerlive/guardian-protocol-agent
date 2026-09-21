@@ -188,6 +188,7 @@ describe("telegram click-through keyboards", () => {
     const root = keyboardForVitaFeedResult({ action: "usage", out: {} });
     assert.ok(allCallbacks(root).includes("/vitafeed dir"));
     assert.ok(allCallbacks(root).includes("/vitafeed play maple"));
+    assert.ok(allCallbacks(root).includes("/vitafeed music"));
     const flatRoot = root.inline_keyboard.flat();
     assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("kids-player")));
     assert.ok(flatRoot.some((b) => b.web_app?.url?.includes("demo=1")));
@@ -201,6 +202,8 @@ describe("telegram click-through keyboards", () => {
     const url = flat.find((b) => b.url);
     assert.ok(web, "Watch popup Mini App button");
     assert.ok(url, "Open player HTTPS fallback");
+    assert.ok(allCallbacks(kb).includes("/vitafeed music"));
+    assert.ok(allCallbacks(kb).includes("/vitafeed enqueue library"));
     assert.match(web.web_app.url, /^https:\/\//);
     assert.match(web.web_app.url, /popup=1/);
     assert.match(url.url, /^https:\/\//);

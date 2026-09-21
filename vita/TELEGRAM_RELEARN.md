@@ -143,10 +143,17 @@ DOS master `VITA:\` (`vita-dir.js` `VITADIR_SUBDIRS`):
 
 - **Kids dir (#161):** closed-garden YouTube URL playlist. `/vitafeed dir KIDS`
   · `/vitafeed play kids` · `/vitafeed dual kids` · `/vita/kids-player`. Child UI
-  lists only those urls — no YouTube search or other channels.
-- **Free catalog song:** `/vitafeed play maple` · `/vitafeed dir MUSIC` ·
-  `/vitafeed enqueue maple` — Maple Leaf Rag (PD) grouped VIN original OGG
-  playback (`/vita/feed-player?music=maple`). Not a demo WAV.
+  lists only those urls — no YouTube search or other channels. MUSIC library
+  songs in the picker open `/vita/feed-player?music=<id>&kids=1` (same music
+  player; proof chrome default OFF).
+- **Free catalog library:** `/vitafeed music` · `/vitafeed play <id>` ·
+  `/vitafeed dir MUSIC` · `/vitafeed enqueue <id>` · `/vitafeed enqueue library`
+  — growing PD OGG library (maple, judy rainbow lane, grace, daisy, ballgame,
+  auld, lining, susanna). Player `/vita/feed-player?music=<id>` shows loc MATCH +
+  Basescan Input Data click-through. Kids `?kids=1` hides hex/IDM until **Show
+  blockchain** (localStorage `vitaMusicProof`). `/vitafeed enqueue all` is still
+  memory seed — use `enqueue library` to bank songs. VITAFEED_PAID default OFF.
+  Never Over the Rainbow Decca.
 - **Dir tags (x404):** same display name → many plotted locations (Telegram path,
   filing path, strand, sealed Base). Directories = **answer-key routes** = the
   path the chain took. Proven Base loc is optional; plots wait for a
