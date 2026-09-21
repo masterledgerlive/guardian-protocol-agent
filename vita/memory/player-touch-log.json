@@ -5,7 +5,7 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-21T17:07:18.079Z",
-  "updatedAt": "2026-09-21T17:07:18.079Z",
+  "updatedAt": "2026-09-21T17:15:05.422Z",
   "entries": [
     {
       "at": "2026-09-21T17:07:18.079Z",
@@ -110,6 +110,22 @@
       "role": "click-through-chain-box",
       "player": "garden",
       "filerId": "ref-chain-box"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/players/chain-box.js",
+      "label": "REFERENCE",
+      "role": "browser-chain-box-widget",
+      "player": "garden",
+      "filerId": "ref-chain-box-widget"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/memory/player-chain-box-learn.json",
+      "label": "REFERENCE",
+      "role": "chain-box-click-learn",
+      "player": "garden",
+      "filerId": "ref-chain-box-learn"
     }
   ]
 }

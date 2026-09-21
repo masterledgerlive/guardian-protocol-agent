@@ -21,6 +21,18 @@ export const CHAIN_BOX_CSS_ID = "vita-chain-box-css";
 
 const BASESCAN = MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/";
 
+/**
+ * telegram-web-app.js always exposes WebApp.openLink, even in a normal
+ * browser. Calling it there preventDefault's the <a> and the loc never
+ * opens. Only intercept inside a real Mini App (initData present).
+ */
+export function shouldUseTelegramOpenLink(webApp) {
+  if (!webApp || typeof webApp.openLink !== "function") return false;
+  if (String(webApp.initData || "").length > 0) return true;
+  const unsafe = webApp.initDataUnsafe || {};
+  return Boolean(unsafe.user || unsafe.query_id || unsafe.hash);
+}
+
 function basescanTx(tx) {
   return BASESCAN + tx;
 }

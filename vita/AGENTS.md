@@ -84,8 +84,10 @@ are class proof, not this body.
 **Garden Player** (name+block holder under `vita/players/garden`; original
 `/vita/kids-player` + `/vita/feed-player` stay SOURCE). **Proven Player** is
 the ZK-Streaming Engine beside it (448-byte cell keys, follow-the-leader
-registry, libVLC access module). Chain box is always an `<a>` to a real
-Basescan loc (Telegram `openLink`); kids/proof-off no longer hide it.
+registry, libVLC access module). Chain box is a real `<a href>` in the HTML
+(infected memory — class-proof loc `931d·145b·19db`) so it clicks through
+without waiting on JS. Native browser navigation; Telegram `openLink` only
+inside a Mini App (`initData`). Kids lock still hides it; proof-off does not.
 Filer search labels reference blocks **SOURCE** or **REFERENCE** only —
 static names do not hold the true place; the chain loc does.
 **Free-catalog songs (original blockchain playback):** `/vitafeed play maple` ·

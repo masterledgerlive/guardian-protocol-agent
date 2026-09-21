@@ -29,7 +29,19 @@
       border-radius: 999px; padding: .35rem .7rem; background: var(--sun); color: var(--ink); cursor: pointer;
     }
     button.ghost { background: transparent; }
-    #chainMount { display: inline-flex; vertical-align: middle; margin: 0 0 .55rem; pointer-events: auto; z-index: 35; position: relative; }
+    #chainMount { display: inline-flex; vertical-align: middle; margin: 0 0 .55rem; pointer-events: auto !important; z-index: 40; position: relative; }
+    .vita-chain-box {
+      display: inline-flex; align-items: center; gap: .45rem;
+      position: relative; z-index: 40; pointer-events: auto !important; cursor: pointer;
+      text-decoration: none; color: inherit; border: 2px solid currentColor; background: #fff;
+      padding: .38rem .7rem; font-family: var(--mono); font-size: .72rem; line-height: 1.2;
+    }
+    .vita-chain-box:hover, .vita-chain-box:focus { outline: 2px solid var(--leaf); outline-offset: 2px; }
+    .vita-chain-box .cb-name { font-weight: 800; }
+    .vita-chain-box .cb-id b { font-weight: 800; }
+    .vita-chain-box .cb-id i { font-style: normal; opacity: .7; }
+    .vita-chain-box .cb-kind { font-size: .62rem; padding: .1rem .35rem; background: #1a6b8a; color: #fff; font-weight: 700; }
+    html.kids-locked .vita-chain-box { display: none !important; }
     .screen { background: #0b1220; border-radius: 18px; overflow: hidden; border: 3px solid var(--ink); min-height: 200px; position: relative; }
     .screen iframe, .screen video, .screen audio { width: 100%; display: block; }
     .screen iframe { aspect-ratio: 16/9; border: 0; background: #000; }
@@ -48,7 +60,18 @@
 <body>
   <div class="wrap">
     <h1>Garden Player</h1>
-    <div id="chainMount" data-player="garden" aria-label="Chain box — click through to Base"></div>
+    <div id="chainMount" data-player="garden" aria-label="Chain box — click through to Base">
+      <a class="vita-chain-box class-proof" id="vitaChainBox"
+         href="https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         target="_blank" rel="noopener"
+         data-player="garden" data-kind="class-proof"
+         data-loc="0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         title="Click opens a real Base loc (class proof of Garden Player). Song/video body seals replace this when present.">
+        <span class="cb-name">Garden Player</span>
+        <span class="cb-id" aria-label="block identity"><b>931d</b><i>·</i><b>145b</b><i>·</i><b>19db</b></span>
+        <span class="cb-kind">CLASS PROOF</span>
+      </a>
+    </div>
     <p class="lede lock-hide">
       Named VIN / closed-garden engine for kids. Original
       <a href="/vita/kids-player?dir=kids">kids-player</a> and

@@ -21,18 +21,35 @@
     document.head.appendChild(s);
   }
 
+  function isTelegramMiniApp() {
+    try {
+      const tg = global.Telegram && global.Telegram.WebApp;
+      if (!tg || typeof tg.openLink !== "function") return false;
+      if (String(tg.initData || "").length > 0) return true;
+      const unsafe = tg.initDataUnsafe || {};
+      return Boolean(unsafe.user || unsafe.query_id || unsafe.hash);
+    } catch (_) {
+      return false;
+    }
+  }
+
   function openChain(href, ev) {
-    if (!href) return;
-    const tg = global.Telegram && global.Telegram.WebApp;
-    if (tg && typeof tg.openLink === "function") {
+    if (!href || href === "#") return;
+    // telegram-web-app.js always defines openLink. Using it outside a Mini App
+    // preventDefault's the native <a> and Basescan never opens.
+    if (isTelegramMiniApp()) {
       if (ev) {
         ev.preventDefault();
         ev.stopPropagation();
       }
-      try { tg.openLink(href); } catch (_) { global.open(href, "_blank", "noopener"); }
+      try { global.Telegram.WebApp.openLink(href); } catch (_) {
+        global.open(href, "_blank", "noopener");
+      }
       return;
     }
-    if (ev && ev.currentTarget && ev.currentTarget.tagName === "A") return;
+    if (ev && ev.currentTarget && String(ev.currentTarget.tagName || "").toUpperCase() === "A") {
+      return;
+    }
     if (ev) ev.preventDefault();
     global.open(href, "_blank", "noopener");
   }

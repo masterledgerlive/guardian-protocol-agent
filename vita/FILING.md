@@ -33,6 +33,7 @@ findable.
 | `vita/players/proven/zk-wrapper.js` | `PROVEN_PLAYER` | 448-byte cell keys · fail-closed verifier |
 | `vita/players/proven/FollowTheLeaderRegistry.sol` | `PROVEN_PLAYER` | On-chain chronological proof manifest |
 | `vita/memory/player-touch-log.json` | `REFERENCE` | Append-only follow log of touched player paths |
+| `vita/memory/player-chain-box-learn.json` | `REFERENCE` | Learn: native `<a>` click-through; Telegram openLink only in Mini App |
 | `vita/memory/player-reference-blocks.json` | `REFERENCE` | SOURCE + REFERENCE refined blocks |
 | `vita/strands/players.json` | `PLAYERS` | Sparse strand: Garden named holder + Proven ZK engine + chain box |
 | `vita/memory/telegram-player-popup.json` | `URLDIR` | Learn: Telegram HTTPS popup player (web_app + url fallback) |

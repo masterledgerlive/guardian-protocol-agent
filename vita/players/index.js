@@ -14,7 +14,7 @@ import {
   LABEL_REFERENCE,
 } from "./filer-registry.js";
 import { buildReferenceBlocks, recordTouch, loadTouchLog } from "./reference-block.js";
-import { buildChainBox, chainBoxCss, chainBoxHtml } from "./chain-box.js";
+import { buildChainBox, chainBoxCss, chainBoxHtml, shouldUseTelegramOpenLink } from "./chain-box.js";
 import { publicGardenState, GARDEN_ROUTE, GARDEN_PLAYER_ID } from "./garden/player.js";
 import { publicProvenState, publicProvenVerify, PROVEN_ROUTE, PROVEN_PLAYER_ID } from "./proven/player.js";
 
@@ -35,6 +35,7 @@ export {
   buildChainBox,
   chainBoxCss,
   chainBoxHtml,
+  shouldUseTelegramOpenLink,
   publicGardenState,
   publicProvenState,
   publicProvenVerify,
@@ -52,6 +53,8 @@ function seedHolderTouches() {
   recordTouch({ path: "public/players/proven.html", label: LABEL_REFERENCE, role: "named-proven-html", player: "proven" });
   recordTouch({ path: "public/vita-kids-player.html", label: LABEL_SOURCE, role: "original-kids-html", player: "garden" });
   recordTouch({ path: "public/vita-feed-player.html", label: LABEL_SOURCE, role: "original-vin-html", player: "garden" });
+  recordTouch({ path: "public/players/chain-box.js", label: LABEL_REFERENCE, role: "browser-chain-box-widget", player: "garden" });
+  recordTouch({ path: "vita/memory/player-chain-box-learn.json", label: LABEL_REFERENCE, role: "chain-box-click-learn", player: "garden" });
 }
 
 export function publicPlayersIndex() {

@@ -3,7 +3,7 @@
   "filingLabel": "REFERENCE",
   "formula": "original-message-first",
   "neverInventHashes": true,
-  "updatedAt": "2026-09-21T17:08:35.362Z",
+  "updatedAt": "2026-09-21T17:15:05.843Z",
   "blocks": [
     {
       "id": "player-source-block",
@@ -141,10 +141,22 @@
           "label": "REFERENCE",
           "role": "click-through-chain-box",
           "player": "garden"
+        },
+        {
+          "path": "public/players/chain-box.js",
+          "label": "REFERENCE",
+          "role": "browser-chain-box-widget",
+          "player": "garden"
+        },
+        {
+          "path": "vita/memory/player-chain-box-learn.json",
+          "label": "REFERENCE",
+          "role": "chain-box-click-learn",
+          "player": "garden"
         }
       ],
-      "dataFieldCommit": "5f583e6001fb54287f1bbac66b9687f014aabd3014b1d49cddbef809000504b4",
-      "dataFieldCommit8": "5f583e60",
+      "dataFieldCommit": "b8208519f73b334ba5af3baaddad73a076694a6021291805a8a023c9afd10b14",
+      "dataFieldCommit8": "b8208519",
       "formula": "original-message-first",
       "neverInventHashes": true,
       "note": "REFERENCE block — named holder. Original paths stay in SOURCE data field."
@@ -299,6 +311,22 @@
       "role": "click-through-chain-box",
       "player": "garden",
       "filerId": "ref-chain-box"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/players/chain-box.js",
+      "label": "REFERENCE",
+      "role": "browser-chain-box-widget",
+      "player": "garden",
+      "filerId": "ref-chain-box-widget"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/memory/player-chain-box-learn.json",
+      "label": "REFERENCE",
+      "role": "chain-box-click-learn",
+      "player": "garden",
+      "filerId": "ref-chain-box-learn"
     }
   ],
   "basescanTx": "https://basescan.org/tx/",

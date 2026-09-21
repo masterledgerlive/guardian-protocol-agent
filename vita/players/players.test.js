@@ -17,7 +17,7 @@ import {
   searchFiler,
   truePlaceFor,
 } from "./filer-registry.js";
-import { buildChainBox, resolveChainHref } from "./chain-box.js";
+import { buildChainBox, resolveChainHref, shouldUseTelegramOpenLink } from "./chain-box.js";
 import { buildReferenceBlocks, recordTouch } from "./reference-block.js";
 import { publicGardenState, GARDEN_ROUTE, gardenReroute } from "./garden/player.js";
 import { segmentIntoCells, verifyCell, makeCellKey, ZK_PROOF_BYTES } from "./proven/zk-wrapper.js";
@@ -90,6 +90,13 @@ describe("chain box click-through", () => {
     assert.equal(got.location, loc.toLowerCase());
     assert.ok(got.href.endsWith(loc.toLowerCase()));
   });
+
+  it("does not steal native <a> clicks outside a Telegram Mini App", () => {
+    const fakeOpenLink = () => {};
+    assert.equal(shouldUseTelegramOpenLink({ openLink: fakeOpenLink, initData: "", platform: "unknown" }), false);
+    assert.equal(shouldUseTelegramOpenLink({ openLink: fakeOpenLink, initData: "query_id=1", platform: "ios" }), true);
+    assert.equal(shouldUseTelegramOpenLink(null), false);
+  });
 });
 
 describe("Garden named holder keeps SOURCE", () => {
@@ -150,9 +157,12 @@ describe("players hub + DOS PLAYERS dir", () => {
     const proven = readFileSync(join(root, "public/players/proven.html"), "utf8");
     const kids = readFileSync(join(root, "public/vita-kids-player.html"), "utf8");
     const feed = readFileSync(join(root, "public/vita-feed-player.html"), "utf8");
+    const strandHref = "https://basescan.org/tx/" + String(strandTx).toLowerCase();
     for (const html of [garden, proven, kids, feed]) {
       assert.match(html, /chain-box\.js/);
       assert.match(html, /id="chainMount"/);
+      assert.match(html, /id="vitaChainBox"/);
+      assert.match(html, new RegExp(strandHref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
     assert.match(feed, /VitaChainBox/);
     assert.match(kids, /VitaChainBox/);

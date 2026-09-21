@@ -165,6 +165,20 @@ export const FILER_BLOCKS = Object.freeze([
     role: "click-through-chain-box",
     player: "garden",
   },
+  {
+    id: "ref-chain-box-widget",
+    label: LABEL_REFERENCE,
+    path: "public/players/chain-box.js",
+    role: "browser-chain-box-widget",
+    player: "garden",
+  },
+  {
+    id: "ref-chain-box-learn",
+    label: LABEL_REFERENCE,
+    path: "vita/memory/player-chain-box-learn.json",
+    role: "chain-box-click-learn",
+    player: "garden",
+  },
 ]);
 
 export function truePlaceFor(playerId = "garden") {

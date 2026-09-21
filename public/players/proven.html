@@ -21,7 +21,17 @@
     }
     .stage { max-width: 920px; margin: 0 auto; padding: clamp(1rem, 4vw, 2.2rem); }
     h1 { font-family: var(--display); font-size: clamp(1.8rem, 6vw, 3.2rem); letter-spacing: -.04em; margin: 0 .5rem 0 0; display: inline-block; vertical-align: middle; }
-    #chainMount { display: inline-flex; vertical-align: middle; margin: 0 0 .6rem; pointer-events: auto; z-index: 35; position: relative; }
+    #chainMount { display: inline-flex; vertical-align: middle; margin: 0 0 .6rem; pointer-events: auto !important; z-index: 40; position: relative; }
+    .vita-chain-box {
+      display: inline-flex; align-items: center; gap: .45rem;
+      position: relative; z-index: 40; pointer-events: auto !important; cursor: pointer;
+      text-decoration: none; color: inherit; border: 2px solid currentColor; background: #fff;
+      padding: .38rem .7rem; font-family: var(--mono); font-size: .72rem; line-height: 1.2;
+    }
+    .vita-chain-box:hover, .vita-chain-box:focus { outline: 2px solid var(--ok); outline-offset: 2px; }
+    .vita-chain-box .cb-name { font-weight: 800; }
+    .vita-chain-box .cb-id i { font-style: normal; opacity: .7; }
+    .vita-chain-box .cb-kind { font-size: .62rem; padding: .1rem .35rem; background: #1a6b8a; color: #fff; font-weight: 700; }
     .lede { color: #3d5566; max-width: 40rem; font-size: .88rem; }
     .cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; margin: 1rem 0; }
     .cell {
@@ -49,7 +59,18 @@
 <body>
   <div class="stage">
     <h1>Proven Player</h1>
-    <div id="chainMount" data-player="proven"></div>
+    <div id="chainMount" data-player="proven">
+      <a class="vita-chain-box class-proof" id="vitaChainBox"
+         href="https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         target="_blank" rel="noopener"
+         data-player="proven" data-kind="class-proof"
+         data-loc="0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         title="Click opens a real Base loc (class proof of Proven Player). Song/video body seals replace this when present.">
+        <span class="cb-name">Proven Player</span>
+        <span class="cb-id" aria-label="block identity"><b>931d</b><i>·</i><b>145b</b><i>·</i><b>19db</b></span>
+        <span class="cb-kind">CLASS PROOF</span>
+      </a>
+    </div>
     <p class="lede">
       ZK-Streaming Engine for kids — grouped cells stay locked until a 448-byte
       key verifies sequence and origin. Only then does the bitstream reach the
