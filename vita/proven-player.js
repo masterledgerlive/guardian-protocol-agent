@@ -1,22 +1,23 @@
 /**
- * Proven Player — royalty-free AV1 stream with a follow-the-leader registry.
+ * Proven Player — two decode paths, one follow-the-leader registry.
  *
  * Own player. It does not call the feed player, the kids player, or the
  * token player, and it does not share their playback buffers.
  *
- * Pipeline
- *   1. Off chain, SVT-AV1 compresses a short ingest into independent chunks.
- *   2. Each chunk gets a 448-byte receipt (chunk-binding-v1). The receipt
- *      binds source digest, AV1 digest, slice Merkle root, and encoder build.
- *   3. A local registry accepts those receipts only in order (head + 1).
- *   4. The browser verifies the receipt, then plays the MP4. Chromium and
- *      Firefox decode AV1 with dav1d. A native libVLC access module is the
- *      same gate, in vita/proven-player/libvlc_access.rs.
+ * Paths
+ *   dav1d — SVT-AV1 MP4. The browser decoder plays it after the receipt.
+ *   av2   — AVM v1.0.0 IVF (fourcc AV02). dav2d is not linked yet, so the
+ *           page paints the avmdec reference decode after the same receipt.
  *
- * What the receipt proves: the bytes you decode are the bytes that were
- * committed. What it does not prove: bit-exact SVT-AV1 execution inside a
- * zk-SNARK. That circuit does not fit. The Groth16 slot stays zero until a
- * real verifier is wired, and a nonzero slot is rejected.
+ * Pipeline
+ *   1. Off chain, each path seals its own short ingest.
+ *   2. Each chunk gets a 448-byte receipt (chunk-binding-v1).
+ *   3. A local registry accepts those receipts only in order (head + 1).
+ *   4. The page verifies the active path, then plays that path.
+ *
+ * What the receipt proves: the IVF bytes are the bytes that were committed.
+ * What it does not prove: bit-exact AVM execution inside a zk-SNARK. The
+ * Groth16 slot stays zero until a real verifier is wired.
  *
  * Chain status stays "availability". No registry address and no Base tx are
  * invented. Proven means a real Input Data loc later — not this file.
@@ -41,16 +42,47 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MEDIA_DIR = join(HERE, "proven-player", "media");
 const MEMORY_DIR = join(HERE, "memory");
 const STRANDS_DIR = join(HERE, "strands");
-const LEARN_PATH = join(MEMORY_DIR, "proven-player-learn.json");
+const LEARN_PATH = join(MEMORY_DIR, "proven-player-av2.json");
 
 export const PROVEN_PLAYER_ID = "vita-proven-player-v1";
 export const PROVEN_PLAYER_MAGIC = "§VITAPROVENPLAY§";
 export const PROVEN_PLAYER_LABEL = "PROVEN_PLAYER";
 export const PROVEN_PLAYER_PATH = "/vita/proven-player";
 export const CHUNK_TARGET_MS = 5000;
-export const DEMO_CHUNK_MS = 1000;
+export const DEMO_CHUNK_MS = 800;
+export const AV2_SPEC = "AV2 v1.0.0";
+export const AV2_SPEC_DATE = "2026-05-28";
+export const AVM_COMMIT = "966a7d7cd6fcf60360caf5dc413b2aeeb65e144d";
 export const ENCODER_BUILD =
+  "AVM v1.0.0|commit=" + AVM_COMMIT + "|cpu-used=9|end-usage=q|qp=43|ivf|fourcc=AV02";
+export const DAV1D_ENCODER_BUILD =
   "SVT-AV1 Encoder Lib v1.7.0|preset=10|crf=40|libsvtav1|pix_fmt=yuv420p";
+
+/** Two decode paths on one player. dav1d is the browser path. AV2 is sealed and waiting on dav2d. */
+export const PLAY_METHODS = Object.freeze([
+  {
+    id: "dav1d",
+    label: "dav1d",
+    codec: "av01",
+    display: "video",
+    platformDecoder: true,
+    note: "SVT-AV1 MP4. Chromium and Firefox decode it with dav1d.",
+  },
+  {
+    id: "av2",
+    label: "AV2",
+    codec: "av02",
+    display: "canvas",
+    platformDecoder: false,
+    note: "AVM v1.0.0 IVF. dav2d is not linked yet, so the canvas paints the avmdec reference decode.",
+  },
+]);
+
+export function normalizePlayMethod(raw) {
+  const id = String(raw || "").trim().toLowerCase();
+  if (id === "av2" || id === "dav2d") return "av2";
+  return "dav1d";
+}
 
 /** Production origin already used by this avenue. Not a transaction. */
 export const PROVEN_PLAYER_ORIGIN =
@@ -63,14 +95,14 @@ export const PROOF_STATEMENT = Object.freeze({
   groth16Wired: false,
   proves: Object.freeze([
     "registry binding equals SHA-256 of the 448-byte envelope",
-    "AV1 container bytes hash to the envelope av1Digest",
+    "AV2 IVF bytes hash to the envelope media digest",
     "4096-byte slice Merkle root matches the envelope",
-    "source ingest SHA-256 recorded at SVT-AV1 encode time is bound",
+    "source ingest SHA-256 recorded at AVM encode time is bound",
     "chunk N carries the first 16 bytes of chunk N-1 binding",
   ]),
   doesNotProve: Object.freeze([
-    "bit-exact execution of SVT-AV1 or libaom inside a zk-SNARK",
-    "perceptual quality or that a patent pool was legally avoided",
+    "bit-exact execution of AVM inside a zk-SNARK",
+    "that dav2d or a browser decoded the IVF",
     "a Groth16 witness — the 256-byte slot is unwired and must stay zero",
   ]),
 });
@@ -78,11 +110,11 @@ export const PROOF_STATEMENT = Object.freeze({
 export const ARCHITECTURE_MERMAID = `flowchart LR
   subgraph offchain [Off-chain prover node]
     YUV[Raw ingest YUV]
-    SVT[SVT-AV1 preset 10]
+    AVM[AVM v1.0.0 cpu-used 9]
     REC[448-byte chunk receipt]
-    YUV --> SVT --> AV1[AV1 MP4 chunk]
-    SVT --> REC
-    AV1 --> REC
+    YUV --> AVM --> IVF[AV2 IVF fourcc AV02]
+    AVM --> REC
+    IVF --> REC
   end
   subgraph registry [Follow-the-leader registry]
     HEAD[head = last chunk id]
@@ -90,13 +122,15 @@ export const ARCHITECTURE_MERMAID = `flowchart LR
   end
   subgraph player [Proven Player]
     GATE[Verify receipt]
-    DAV[dav1d via video element or libVLC]
+    REF[AVM reference decode on canvas]
+    DAV[dav2d when the host has it]
     HEAD --> GATE
-    AV1 --> GATE --> DAV
+    IVF --> GATE --> REF
+    GATE --> DAV
   end
 `;
 
-let demoPromise = null;
+const demoCache = new Map();
 
 function sha256HexSync(text) {
   return createHash("sha256").update(text).digest("hex");
@@ -229,38 +263,72 @@ export async function buildEnvelope({
   };
 }
 
-function readChunkFile(index) {
-  const id = "chunk-" + String(index).padStart(3, "0");
-  const mp4Path = join(MEDIA_DIR, id + ".mp4");
-  const sidePath = join(MEDIA_DIR, id + ".json");
-  if (!existsSync(mp4Path) || !existsSync(sidePath)) return null;
-  const av1 = readFileSync(mp4Path);
-  const side = JSON.parse(readFileSync(sidePath, "utf8"));
-  return { id, av1, side };
+function methodQuery(method, path) {
+  return path + "?method=" + method;
 }
 
-async function sealDemo() {
-  const streamKey = "vita-proven-player/demo-v1";
+function readChunkFile(method, index) {
+  const id = "chunk-" + String(index).padStart(3, "0");
+  const dir = join(MEDIA_DIR, method);
+  const sidePath = join(dir, id + ".json");
+  if (!existsSync(sidePath)) return null;
+  const side = JSON.parse(readFileSync(sidePath, "utf8"));
+  if (method === "dav1d") {
+    const mp4Path = join(dir, id + ".mp4");
+    if (!existsSync(mp4Path)) return null;
+    return { id, bitstream: readFileSync(mp4Path), preview: null, side };
+  }
+  const ivfPath = join(dir, id + ".ivf");
+  const rgbPath = join(dir, id + ".rgb");
+  if (!existsSync(ivfPath) || !existsSync(rgbPath)) return null;
+  return {
+    id,
+    bitstream: readFileSync(ivfPath),
+    preview: readFileSync(rgbPath),
+    side,
+  };
+}
+
+async function sealDemo(method) {
+  const spec = PLAY_METHODS.find((m) => m.id === method);
+  const streamKey = method === "av2"
+    ? "vita-proven-player/demo-av2-v1"
+    : "vita-proven-player/demo-v1";
   const streamId = sha256HexSync(streamKey);
-  const encoderBuild = await sha256Bytes(new TextEncoder().encode(ENCODER_BUILD));
+  const encoderText = method === "av2" ? ENCODER_BUILD : DAV1D_ENCODER_BUILD;
+  const encoderBuild = await sha256Bytes(new TextEncoder().encode(encoderText));
   const registry = createRegistry();
   const chunks = [];
   let prev = null;
   for (let i = 0; ; i++) {
-    const file = readChunkFile(i);
+    const file = readChunkFile(method, i);
     if (!file) break;
-    const av1Hex = createHash("sha256").update(file.av1).digest("hex");
-    if (av1Hex !== String(file.side.av1Sha256 || "").toLowerCase()) {
-      throw new Error("sidecar av1 digest drifted for " + file.id);
+    const bitHex = createHash("sha256").update(file.bitstream).digest("hex");
+    const expectHex = String(
+      file.side.bitstreamSha256 || file.side.av1Sha256 || "",
+    ).toLowerCase();
+    if (bitHex !== expectHex) throw new Error("sidecar digest drifted for " + method + " " + file.id);
+    let previewHex = null;
+    if (method === "av2") {
+      previewHex = createHash("sha256").update(file.preview).digest("hex");
+      if (previewHex !== String(file.side.previewSha256 || "").toLowerCase()) {
+        throw new Error("sidecar reference-decode digest drifted for " + file.id);
+      }
+      if (file.bitstream.subarray(0, 4).toString("ascii") !== "DKIF") {
+        throw new Error("IVF magic missing for " + file.id);
+      }
+      if (file.bitstream.subarray(8, 12).toString("ascii") !== "AV02") {
+        throw new Error("AV2 fourcc missing for " + file.id);
+      }
     }
     const built = await buildEnvelope({
       chunkIndex: i,
       width: Number(file.side.width) || 160,
-      height: Number(file.side.height) || 90,
-      durationMs: Number(file.side.durationMs) || DEMO_CHUNK_MS,
+      height: Number(file.side.height) || (method === "av2" ? 96 : 90),
+      durationMs: Number(file.side.durationMs) || (method === "av2" ? DEMO_CHUNK_MS : 1000),
       streamId,
       sourceDigest: file.side.sourceSha256,
-      av1Bytes: file.av1,
+      av1Bytes: file.bitstream,
       encoderBuild,
       prevBinding: prev,
     });
@@ -273,7 +341,7 @@ async function sealDemo() {
     if (!committed.ok) throw new Error(committed.reason);
     const unlocked = await verifyChunkUnlock({
       envelope: built.envelope,
-      av1Bytes: file.av1,
+      bitstream: file.bitstream,
       binding: built.bindingHex,
       prevBinding: prev || "00".repeat(16),
     });
@@ -281,19 +349,27 @@ async function sealDemo() {
     chunks.push({
       chunkIndex: i,
       id: file.id,
-      bytes: file.av1.length,
-      mime: "video/mp4",
-      codec: "av01",
+      method,
+      bytes: file.bitstream.length,
+      mime: method === "av2" ? "video/x-ivf" : "video/mp4",
+      codec: spec.codec,
+      container: method === "av2" ? "ivf" : "mp4",
+      fourcc: method === "av2" ? "AV02" : "av01",
+      display: spec.display,
+      spec: file.side.spec || null,
       width: file.side.width,
       height: file.side.height,
+      fps: file.side.fps,
+      frames: file.side.frames || null,
       durationMs: file.side.durationMs,
       recipe: file.side.recipe,
       encoder: file.side.encoder,
-      preset: file.side.preset,
-      crf: file.side.crf,
       sourceSha256: file.side.sourceSha256,
-      sourceRetained: false,
-      av1Sha256: av1Hex,
+      bitstreamSha256: bitHex,
+      previewSha256: previewHex,
+      previewFrames: file.side.previewFrames || null,
+      previewBytes: file.preview ? file.preview.length : 0,
+      platformDecoder: spec.platformDecoder,
       bindingHex: built.bindingHex,
       sliceRootHex: built.sliceRootHex,
       sliceCount: built.sliceCount,
@@ -301,43 +377,59 @@ async function sealDemo() {
       chainStatus: "availability",
       baseTx: null,
       cid: null,
-      chunkUrl: PROVEN_PLAYER_PATH + "/chunk/" + i,
-      proofUrl: PROVEN_PLAYER_PATH + "/proof/" + i,
+      chunkUrl: methodQuery(method, PROVEN_PLAYER_PATH + "/chunk/" + i),
+      proofUrl: methodQuery(method, PROVEN_PLAYER_PATH + "/proof/" + i),
+      previewUrl: method === "av2" ? methodQuery(method, PROVEN_PLAYER_PATH + "/preview/" + i) : null,
     });
     prev = built.bindingHex;
   }
-  if (!chunks.length) throw new Error("proven player media missing");
+  if (!chunks.length) throw new Error("proven player media missing for " + method);
   return {
+    method,
     streamKey,
     streamId,
     head: chunks.length - 1,
     chunkTargetMs: CHUNK_TARGET_MS,
-    demoChunkMs: DEMO_CHUNK_MS,
+    demoChunkMs: method === "av2" ? DEMO_CHUNK_MS : 1000,
     chunks,
     registry,
+    spec,
   };
 }
 
-export function loadDemoStream() {
-  if (!demoPromise) {
-    demoPromise = sealDemo().catch((err) => {
-      demoPromise = null;
+export function loadDemoStream(method = "dav1d") {
+  const id = normalizePlayMethod(method);
+  if (!demoCache.has(id)) {
+    const pending = sealDemo(id).catch((err) => {
+      demoCache.delete(id);
       throw err;
     });
+    demoCache.set(id, pending);
   }
-  return demoPromise;
+  return demoCache.get(id);
 }
 
-export async function readChunkBytes(index) {
-  const demo = await loadDemoStream();
+export async function readChunkBytes(index, method = "dav1d") {
+  const id = normalizePlayMethod(method);
+  const demo = await loadDemoStream(id);
   const n = Number(index);
   if (!Number.isInteger(n) || n < 0 || n >= demo.chunks.length) return null;
-  const file = readChunkFile(n);
-  return file ? file.av1 : null;
+  const file = readChunkFile(id, n);
+  return file ? file.bitstream : null;
 }
 
-export async function readChunkProof(index) {
-  const demo = await loadDemoStream();
+export async function readPreviewBytes(index, method = "av2") {
+  const id = normalizePlayMethod(method);
+  if (id !== "av2") return null;
+  const demo = await loadDemoStream(id);
+  const n = Number(index);
+  if (!Number.isInteger(n) || n < 0 || n >= demo.chunks.length) return null;
+  const file = readChunkFile(id, n);
+  return file ? file.preview : null;
+}
+
+export async function readChunkProof(index, method = "dav1d") {
+  const demo = await loadDemoStream(method);
   const n = Number(index);
   const row = demo.chunks[n];
   if (!row) return null;
@@ -348,30 +440,84 @@ export async function readChunkProof(index) {
     chunkIndex: row.chunkIndex,
     binding: row.bindingHex,
     envelope: row.envelopeHex,
+    method: row.method,
     mime: row.mime,
     codec: row.codec,
+    container: row.container,
+    fourcc: row.fourcc,
     chainStatus: "availability",
     baseTx: null,
   };
 }
 
-export async function verifyDemoChunk(index) {
-  const demo = await loadDemoStream();
+export async function verifyDemoChunk(index, method = "dav1d") {
+  const demo = await loadDemoStream(method);
   const n = Number(index);
   const row = demo.chunks[n];
   if (!row) return { ok: false, reason: "missing-chunk" };
-  const bytes = await readChunkBytes(n);
+  const bytes = await readChunkBytes(n, method);
   const prev = n === 0 ? "00".repeat(16) : demo.chunks[n - 1].bindingHex;
   return verifyChunkUnlock({
     envelope: row.envelopeHex,
-    av1Bytes: bytes,
+    bitstream: bytes,
     binding: row.bindingHex,
     prevBinding: prev,
   });
 }
 
-export async function publicProvenPlayerState() {
-  const demo = await loadDemoStream();
+function methodView(demo) {
+  return {
+    id: demo.method,
+    label: demo.spec.label,
+    codec: demo.spec.codec,
+    display: demo.spec.display,
+    platformDecoder: demo.spec.platformDecoder,
+    note: demo.spec.note,
+    streamId: demo.streamId,
+    head: demo.head,
+    chunkTargetMs: demo.chunkTargetMs,
+    demoChunkMs: demo.demoChunkMs,
+    chunks: demo.chunks.map((c) => ({
+      chunkIndex: c.chunkIndex,
+      method: c.method,
+      bytes: c.bytes,
+      mime: c.mime,
+      codec: c.codec,
+      container: c.container,
+      fourcc: c.fourcc,
+      display: c.display,
+      spec: c.spec,
+      width: c.width,
+      height: c.height,
+      fps: c.fps,
+      frames: c.frames,
+      durationMs: c.durationMs,
+      recipe: c.recipe,
+      binding: c.bindingHex,
+      bitstreamSha256: c.bitstreamSha256,
+      previewSha256: c.previewSha256,
+      previewFrames: c.previewFrames,
+      previewBytes: c.previewBytes,
+      platformDecoder: c.platformDecoder,
+      sourceSha256: c.sourceSha256,
+      sliceRoot: c.sliceRootHex,
+      chainStatus: c.chainStatus,
+      baseTx: null,
+      cid: null,
+      chunkUrl: c.chunkUrl,
+      proofUrl: c.proofUrl,
+      previewUrl: c.previewUrl,
+    })),
+  };
+}
+
+export async function publicProvenPlayerState({ method = "dav1d" } = {}) {
+  const active = normalizePlayMethod(method);
+  const methods = [];
+  for (const spec of PLAY_METHODS) {
+    methods.push(methodView(await loadDemoStream(spec.id)));
+  }
+  const current = methods.find((m) => m.id === active) || methods[0];
   return {
     ok: true,
     id: PROVEN_PLAYER_ID,
@@ -384,15 +530,22 @@ export async function publicProvenPlayerState() {
     proof: PROOF_STATEMENT,
     architectureMermaid: ARCHITECTURE_MERMAID,
     encoder: {
-      name: "SVT-AV1",
-      version: "1.7.0",
+      name: "AVM",
+      version: "v1.0.0",
+      commit: AVM_COMMIT,
+      spec: AV2_SPEC,
+      specDate: AV2_SPEC_DATE,
       build: ENCODER_BUILD,
-      note: "CPU encoder. Ampere NVENC on an RTX A4500 does not encode AV1. CUDA is not used here.",
+      note: "Reference encoder from the AV2 v1.0.0 tag. cpu-used 9, qp 43, IVF fourcc AV02. SVT-AV2 is not this build.",
     },
     decoder: {
-      browser: "HTML video element. Chromium and Firefox hand AV1 to dav1d.",
-      native: "vita/proven-player/libvlc_access.rs gates the same bytes into libVLC with dav1d.",
+      browser: "Switch dav1d or AV2. dav1d plays in the video element. AV2 paints the AVM reference decode until dav2d is linked.",
+      native: "libVLC access gate is unlock_for_dav2d. The dav1d path uses the browser decoder.",
+      platformDecoder: current.platformDecoder,
     },
+    defaultMethod: "dav1d",
+    activeMethod: current.id,
+    methods,
     chain: {
       status: "availability",
       registryAddress: null,
@@ -400,30 +553,7 @@ export async function publicProvenPlayerState() {
       cid: null,
       note: "Local follow-the-leader mirror of ZkAv1Registry.sol. No tx hash is invented.",
     },
-    stream: {
-      streamId: demo.streamId,
-      head: demo.head,
-      chunkTargetMs: demo.chunkTargetMs,
-      demoChunkMs: demo.demoChunkMs,
-      chunks: demo.chunks.map((c) => ({
-        chunkIndex: c.chunkIndex,
-        bytes: c.bytes,
-        codec: c.codec,
-        width: c.width,
-        height: c.height,
-        durationMs: c.durationMs,
-        recipe: c.recipe,
-        binding: c.bindingHex,
-        av1Sha256: c.av1Sha256,
-        sourceSha256: c.sourceSha256,
-        sliceRoot: c.sliceRootHex,
-        chainStatus: c.chainStatus,
-        baseTx: null,
-        cid: null,
-        chunkUrl: c.chunkUrl,
-        proofUrl: c.proofUrl,
-      })),
-    },
+    stream: current,
     neverInventHashes: true,
   };
 }
@@ -471,19 +601,20 @@ export function provenPlayerKeyboard(href) {
 function formatPlayerCard(state) {
   const lines = [
     PROVEN_PLAYER_MAGIC + "v1|player§",
-    "PROVEN PLAYER — AV1 chunk binding",
-    "Own route " + PROVEN_PLAYER_PATH + ". No shared playback with other players.",
-    "Encoder " + state.encoder.version + " preset 10 CRF 40.",
+    "PROVEN PLAYER — dav1d and AV2",
+    "Own route " + PROVEN_PLAYER_PATH + ". Switch paths on the page. No shared playback with other players.",
     "Proof " + state.proof.id + " · Groth16 slot unwired.",
     "Chain " + state.chain.status + " · registry address unset · tx unset.",
-    "Head chunk " + state.stream.head + " · stream " + state.stream.streamId.slice(0, 12),
   ];
-  for (const c of state.stream.chunks) {
-    lines.push(
-      "  #" + c.chunkIndex + " " + c.bytes + "B av1 " + c.av1Sha256.slice(0, 12) + " bind " + c.binding.slice(0, 12),
-    );
+  for (const m of state.methods) {
+    lines.push(m.label + " · " + m.codec + " · " + (m.platformDecoder ? "browser decoder" : "reference decode"));
+    for (const c of m.chunks) {
+      lines.push(
+        "  #" + c.chunkIndex + " " + c.bytes + "B " + c.codec + " " + c.bitstreamSha256.slice(0, 12),
+      );
+    }
   }
-  lines.push("Unlock checks the receipt, then the video element decodes with dav1d.");
+  lines.push("dav1d plays in the video element. AV2 paints the AVM reference decode until dav2d is linked.");
   return lines.join("\n");
 }
 
@@ -492,15 +623,21 @@ export async function handleProvenPlayerAction({ action = "player", chunk = null
   const href = provenPlayerHref();
   const keyboard = provenPlayerKeyboard(href);
   if (action === "verify") {
-    const indexes = chunk == null ? state.stream.chunks.map((c) => c.chunkIndex) : [chunk];
+    const indexes = chunk == null ? state.methods[0].chunks.map((c) => c.chunkIndex) : [chunk];
     const results = [];
-    for (const n of indexes) results.push({ chunk: n, ...(await verifyDemoChunk(n)) });
+    for (const m of state.methods) {
+      for (const n of indexes) {
+        results.push({ method: m.id, chunk: n, ...(await verifyDemoChunk(n, m.id)) });
+      }
+    }
     const ok = results.every((r) => r.ok);
     const lines = [
       PROVEN_PLAYER_MAGIC + "v1|verify§",
       ok ? "UNLOCKED " + results.length + " chunk(s)" : "LOCKED",
     ];
-    for (const r of results) lines.push("  #" + r.chunk + " " + (r.ok ? "unlocked" : r.reason));
+    for (const r of results) {
+      lines.push("  " + r.method + " #" + r.chunk + " " + (r.ok ? "unlocked" : r.reason));
+    }
     lines.push("Groth16 remains unwired. Chain status availability. No tx invented.");
     const reply = lines.join("\n");
     return {
@@ -532,18 +669,19 @@ export function ensureProvenPlayerLearn() {
   if (!existsSync(STRANDS_DIR)) mkdirSync(STRANDS_DIR, { recursive: true });
   if (existsSync(LEARN_PATH)) return { wrote: false, path: LEARN_PATH };
   const note = {
-    topic: "proven-player",
+    topic: "proven-player-av2",
     label: PROVEN_PLAYER_LABEL,
     magic: PROVEN_PLAYER_MAGIC,
-    at: "2026-09-21T17:41:00.000Z",
+    at: "2026-09-21T18:02:00.000Z",
     formula: FORMULA_ID,
     proofClass: PROOF_STATEMENT.id,
     refinement: [
-      "Full SVT-AV1 inside a 448-byte Groth16 is not a real circuit. The receipt binds hashes.",
-      "SVT-AV1 1.7.0 encoded three 1-second 160x90 AV1 MP4 chunks on CPU. Demo chunks are shorter than the 5-second protocol target so the leader sequence is visible.",
-      "dav1d 1.4.1 decoded the containers through ffmpeg. The browser player uses the platform AV1 decoder, which is dav1d on Chromium and Firefox.",
-      "Registry address, Base tx, and IPFS CID stay null. Availability until a real loc is sealed.",
-      "This player does not route through feed-player, kids-player, or token-player.",
+      "Migrated the Proven Player from SVT-AV1 MP4 to AV2 IVF. Spec is AV2 v1.0.0, 28 May 2026.",
+      "Encoder is AVM v1.0.0 commit 966a7d7cd6fcf60360caf5dc413b2aeeb65e144d, cpu-used 9, qp 43, fourcc AV02.",
+      "Stock browsers have no AV2 decoder. After the receipt matches, the page paints the avmdec reference decode.",
+      "dav2d is the intended software decoder. It is not linked here. The conformance decode for this seal is avmdec from the same tag.",
+      "The 448-byte receipt still binds hashes. The Groth16 slot stays zero.",
+      "Registry address, Base tx, and IPFS CID stay null.",
     ],
     neverInventHashes: true,
     baseTx: null,

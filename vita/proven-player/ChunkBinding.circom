@@ -4,7 +4,7 @@ pragma circom 2.1.6;
   Chunk binding — conceptual statement for the Proven Player.
 
   This is the circuit we would compile the day a prover host exists.
-  It is not an AV1 encoder. SVT-AV1's prediction, transform, and entropy
+  It is not an AV2 encoder. AVM's prediction, transform, and entropy
   coder are not in this template. Constraining the encoder itself does not
   fit a succinct proof of a 5-second chunk.
 

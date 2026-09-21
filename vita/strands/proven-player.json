@@ -3,8 +3,8 @@
   "sparse": true,
   "source": "vita-proven-player",
   "filingLabel": "PROVEN_PLAYER",
-  "header": "§VITAPROVENPLAY§v1|av1+svt+dav1d|binding=sha256|groth16=unwired|chain=availability§",
-  "learn": "Own player. SVT-AV1 chunks, 448-byte SHA-256 receipt, follow-the-leader registry, dav1d after unlock. Groth16 slot stays zero. No shared playback with feed, kids, or token players. Never invent tx hashes.",
+  "header": "§VITAPROVENPLAY§v1|dav1d+av2|binding=sha256|groth16=unwired|chain=availability§",
+  "learn": "Own player. Switch dav1d (SVT-AV1 MP4, browser decoder) and AV2 (AVM v1.0.0 IVF). dav2d is not linked, so AV2 paints the avmdec reference decode after the same 448-byte SHA-256 receipt. Follow-the-leader registry. Groth16 slot stays zero. No shared playback with feed, kids, or token players. Never invent tx hashes.",
   "commands": [
     "/provenplayer",
     "/provenplayer manifest",

@@ -2,20 +2,18 @@
  * Proven Player — chunk-binding verifier.
  *
  * Runs in Node and in the browser (global crypto.subtle). The player calls
- * this before any AV1 byte is handed to a decoder.
+ * this before any AV2 byte is handed to a decoder.
  *
  * Statement (chunk-binding-v1)
  *   The 448-byte envelope is the public receipt. Its SHA-256 is the binding.
  *   Playback unlocks only when:
  *     1. SHA-256(envelope) equals the registry binding
- *     2. SHA-256(AV1 bytes) equals the digest inside the envelope
- *     3. the byte-slice Merkle root of those AV1 bytes equals sliceRoot
+ *     2. SHA-256(AV2 IVF bytes) equals the digest inside the envelope
+ *     3. the byte-slice Merkle root of those IVF bytes equals sliceRoot
  *     4. the Groth16 slot is still unwired (all zeros, flag clear)
  *
- * This is not a proof that SVT-AV1 executed. A Groth16 of the encoder is not
- * viable: one AV1 encode is far past a succinct circuit. The 256-byte slot is
- * reserved so a future prover can land without changing the envelope size.
- * Until a verifier ships with it, a nonzero slot refuses to unlock.
+ * This is not a proof that AVM executed. A Groth16 of the AV2 encoder is not
+ * viable. The 256-byte slot stays reserved. A nonzero slot refuses to unlock.
  */
 
 export const ENVELOPE_BYTES = 448;
@@ -161,16 +159,25 @@ export function parseEnvelope(envelope) {
 }
 
 /**
- * Unlock gate. Returns ok only when the AV1 bytes match the envelope and the
- * Groth16 slot has not been stuffed with an unverifiable proof.
+ * Unlock gate. Returns ok only when the AV2 IVF bytes match the envelope and
+ * the Groth16 slot has not been stuffed with an unverifiable proof.
+ * `bitstream` is the AV2 container. `av1Bytes` is the same argument from the
+ * first seal, still accepted so older callers keep working.
  */
-export async function verifyChunkUnlock({ envelope, av1Bytes, binding, prevBinding = null } = {}) {
+export async function verifyChunkUnlock({
+  envelope,
+  av1Bytes = null,
+  bitstream = null,
+  binding,
+  prevBinding = null,
+} = {}) {
   let env;
   let media;
   let bind;
+  const mediaIn = bitstream != null ? bitstream : av1Bytes;
   try {
     env = typeof envelope === "string" ? hexToBytes(envelope) : toU8(envelope);
-    media = typeof av1Bytes === "string" ? hexToBytes(av1Bytes) : toU8(av1Bytes);
+    media = typeof mediaIn === "string" ? hexToBytes(mediaIn) : toU8(mediaIn);
     bind = typeof binding === "string" ? hexToBytes(binding) : toU8(binding);
   } catch (e) {
     return { ok: false, reason: "bytes", detail: e.message || String(e) };
@@ -188,8 +195,8 @@ export async function verifyChunkUnlock({ envelope, av1Bytes, binding, prevBindi
     return { ok: false, reason: "groth16-unwired", parsed };
   }
 
-  const av1Digest = await sha256Bytes(media);
-  if (!bytesEqual(av1Digest, parsed.av1Digest)) return { ok: false, reason: "av1-digest", parsed };
+  const mediaDigest = await sha256Bytes(media);
+  if (!bytesEqual(mediaDigest, parsed.av1Digest)) return { ok: false, reason: "bitstream-digest", parsed };
 
   const leaves = await sliceLeaves(media);
   if (leaves.length !== parsed.sliceCount) return { ok: false, reason: "slice-count", parsed };
@@ -216,6 +223,7 @@ export async function verifyChunkUnlock({ envelope, av1Bytes, binding, prevBindi
       durationMs: parsed.durationMs,
       streamId: bytesToHex(parsed.streamId),
       sourceDigest: bytesToHex(parsed.sourceDigest),
+      mediaDigest: bytesToHex(parsed.av1Digest),
       av1Digest: bytesToHex(parsed.av1Digest),
       sliceRoot: bytesToHex(parsed.sliceRoot),
       encoderBuild: bytesToHex(parsed.encoderBuild),

@@ -180,7 +180,7 @@ export const HELP_SECTIONS = Object.freeze([
     id: "players",
     title: "Players",
     emoji: "🎬",
-    blurb: "Proven Player — own AV1 route, receipt unlock, no shared playback",
+    blurb: "Proven Player — switch dav1d and AV2, receipt unlock, no shared playback",
     buttons: [
       { label: "Proven", cmd: "/provenplayer" },
       { label: "Manifest", cmd: "/provenplayer manifest" },

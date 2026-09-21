@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 /// @title ZkAv1Registry
 /// @notice Follow-the-leader manifest for Proven Player chunk receipts.
 /// @dev The 448-byte envelope is a SHA-256 chunk binding, not a Groth16 of
-///      SVT-AV1. Byte 5 bit 0 (groth16Wired) must stay clear and bytes
+///      AVM. Byte 5 bit 0 (groth16Wired) must stay clear and bytes
 ///      [176, 432) must stay zero until a verifier is deployed beside this
 ///      contract. This file has no deployed address in the repo.
 contract ZkAv1Registry {

@@ -48,7 +48,7 @@
 //   GET  /vita/kids-player  — closed-garden KIDS YouTube URL directory player
 //   GET  /vita/token-player — token pulldown player (DEX reader + 32-chain + $0.05 seed)
 //   GET  /vita/token-player/api — JSON catalog + portfolio snapshot
-//   GET  /vita/proven-player — own AV1 Proven Player (receipt unlock, then dav1d)
+//   GET  /vita/proven-player — Proven Player. Switch dav1d or AV2 after the receipt.
 //   GET  /vita/dex-reader?sym=  — live DexScreener + Gecko dual (miss ≠ $0)
 //   GET  /vita/chains        — 32-chain portfolio (ETH L1 other-path ≠ Base RISK)
 //   GET  /vita/url-dir      — JSON catalog of curated playlist urls
@@ -143,8 +143,10 @@ import {
 } from "./vita/token-player.js";
 import {
   publicProvenPlayerState,
+  normalizePlayMethod,
   readChunkBytes,
   readChunkProof,
+  readPreviewBytes,
 } from "./vita/proven-player.js";
 import { readDexForToken } from "./vita/dex-reader.js";
 import { listMultichainPortfolio } from "./vita/multichain-portfolio.js";
@@ -708,10 +710,24 @@ async function handleVitaRequest(req, res) {
     }
     if (path.startsWith("/vita/proven-player/chunk/") && req.method === "GET") {
       const index = Number(path.split("/").pop());
-      const body = await readChunkBytes(index);
+      const method = normalizePlayMethod(url.searchParams.get("method") || "dav1d");
+      const body = await readChunkBytes(index, method);
       if (!body) return err(res, "unknown proven-player chunk", 404);
       res.writeHead(200, {
-        "Content-Type": "video/mp4",
+        "Content-Type": method === "av2" ? "video/x-ivf" : "video/mp4",
+        "Cache-Control": "no-store",
+        "Content-Length": body.length,
+      });
+      res.end(body);
+      return;
+    }
+    if (path.startsWith("/vita/proven-player/preview/") && req.method === "GET") {
+      const index = Number(path.split("/").pop());
+      const method = normalizePlayMethod(url.searchParams.get("method") || "av2");
+      const body = await readPreviewBytes(index, method);
+      if (!body) return err(res, "unknown proven-player preview", 404);
+      res.writeHead(200, {
+        "Content-Type": "application/octet-stream",
         "Cache-Control": "no-store",
         "Content-Length": body.length,
       });
@@ -720,7 +736,8 @@ async function handleVitaRequest(req, res) {
     }
     if (path.startsWith("/vita/proven-player/proof/") && req.method === "GET") {
       const index = Number(path.split("/").pop());
-      const proof = await readChunkProof(index);
+      const method = normalizePlayMethod(url.searchParams.get("method") || "dav1d");
+      const proof = await readChunkProof(index, method);
       if (!proof) return err(res, "unknown proven-player proof", 404);
       return json(res, proof);
     }

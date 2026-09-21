@@ -1,12 +1,11 @@
 /**
- * Proven Player — own AV1 surface. Receipts, leader order, no invented txs.
+ * Proven Player — own AV2 surface. Receipts, leader order, no invented txs.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
 import {
   ENVELOPE_BYTES,
   bytesToHex,
@@ -30,7 +29,7 @@ import { HOME_SECTIONS } from "./telegram-home.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("proven player receipts", () => {
-  it("unlocks the SVT-AV1 demo and refuses a tampered byte", async () => {
+  it("unlocks the AV2 demo and refuses a tampered byte", async () => {
     const state = await publicProvenPlayerState();
     assert.equal(state.isolated, true);
     assert.deepEqual(state.sharesPlaybackWith, []);
@@ -39,11 +38,21 @@ describe("proven player receipts", () => {
     assert.equal(state.chain.cid, null);
     assert.equal(state.chain.status, "availability");
     assert.equal(state.proof.groth16Wired, false);
-    assert.equal(state.stream.chunks.length, 3);
-    for (const c of state.stream.chunks) {
-      const checked = await verifyDemoChunk(c.chunkIndex);
-      assert.equal(checked.ok, true, checked.reason);
-      assert.equal(checked.parsed.av1Digest, c.av1Sha256);
+    assert.equal(state.defaultMethod, "dav1d");
+    assert.equal(state.methods.length, 2);
+    const dav1d = state.methods.find((m) => m.id === "dav1d");
+    const av2 = state.methods.find((m) => m.id === "av2");
+    assert.equal(dav1d.platformDecoder, true);
+    assert.equal(av2.platformDecoder, false);
+    assert.notEqual(dav1d.streamId, av2.streamId);
+    assert.notEqual(dav1d.chunks[0].binding, av2.chunks[0].binding);
+    for (const method of state.methods) {
+      assert.equal(method.chunks.length, 3);
+      for (const c of method.chunks) {
+        const checked = await verifyDemoChunk(c.chunkIndex, method.id);
+        assert.equal(checked.ok, true, method.id + " " + checked.reason);
+        assert.equal(checked.parsed.mediaDigest, c.bitstreamSha256);
+      }
     }
     const bytes = Buffer.from(await readChunkBytes(0));
     bytes[64] ^= 0xff;
@@ -54,7 +63,7 @@ describe("proven player receipts", () => {
       binding: demo.chunks[0].bindingHex,
     });
     assert.equal(tampered.ok, false);
-    assert.equal(tampered.reason, "av1-digest");
+    assert.equal(tampered.reason, "bitstream-digest");
   });
 
   it("keeps the Groth16 slot unwired and the envelope at 448 bytes", async () => {
@@ -78,7 +87,7 @@ describe("proven player receipts", () => {
       streamId: demo.streamId,
       sourceDigest: demo.chunks[0].sourceSha256,
       av1Bytes: await readChunkBytes(0),
-      encoderBuild: "SVT-AV1 Encoder Lib v1.7.0|preset=10|crf=40|libsvtav1|pix_fmt=yuv420p",
+      encoderBuild: "AVM v1.0.0|commit=966a7d7cd6fcf60360caf5dc413b2aeeb65e144d|cpu-used=9|end-usage=q|qp=43|ivf|fourcc=AV02",
     });
     stuffed.envelope[5] = 1;
     const rebound = bytesToHex(await sha256Bytes(stuffed.envelope));
@@ -129,7 +138,9 @@ describe("proven player is its own category", () => {
     assert.equal(parseProvenPlayerCommand("/tokenplayer").ok, false);
     const out = await handleProvenPlayerAction({ action: "verify" });
     assert.equal(out.ok, true);
-    assert.match(out.reply, /UNLOCKED 3/);
+    assert.match(out.reply, /UNLOCKED 6/);
+    assert.match(out.reply, /dav1d #0 unlocked/);
+    assert.match(out.reply, /av2 #2 unlocked/);
     assert.equal(out.keyboard.inline_keyboard[0][0].url.includes("/vita/proven-player"), true);
 
     const home = HOME_SECTIONS.find((s) => s.id === "players");
@@ -145,6 +156,8 @@ describe("proven player is its own category", () => {
     assert.equal(html.includes("kids-player"), false);
     assert.equal(html.includes("token-player"), false);
     assert.match(html, /verifyChunkUnlock/);
+    assert.match(html, /data-method="dav1d"/);
+    assert.match(html, /data-method="av2"/);
     assert.equal(html.includes(PROVEN_PLAYER_PATH), true);
 
     const sol = readFileSync(join(root, "vita", "proven-player", "ZkAv1Registry.sol"), "utf8");
@@ -152,41 +165,23 @@ describe("proven player is its own category", () => {
     assert.match(sol, /function latest/);
     assert.match(sol, /sha256\(envelope\)/);
     const circuit = readFileSync(join(root, "vita", "proven-player", "ChunkBinding.circom"), "utf8");
-    assert.match(circuit, /not an AV1 encoder/);
+    assert.match(circuit, /not an AV2 encoder/);
     const rust = readFileSync(join(root, "vita", "proven-player", "libvlc_access.rs"), "utf8");
-    assert.match(rust, /unlock_for_dav1d/);
-    assert.match(rust, /dav1d/);
+    assert.match(rust, /unlock_for_dav2d/);
+    assert.match(rust, /dav2d/);
   });
 });
 
-describe("encoded chunks are AV1", () => {
-  it("ffprobe reports av1 for each demo chunk", async () => {
-    const demo = await loadDemoStream();
+describe("encoded chunks are AV2 IVF", () => {
+  it("each chunk is DKIF / AV02 and the reference decode hash matches", async () => {
+    const demo = await loadDemoStream("av2");
     for (const c of demo.chunks) {
-      const file = join(root, "vita", "proven-player", "media", c.id + ".mp4");
-      const codec = await probeCodec(file);
-      assert.equal(codec, "av1");
+      const ivf = readFileSync(join(root, "vita", "proven-player", "media", "av2", c.id + ".ivf"));
+      const rgb = readFileSync(join(root, "vita", "proven-player", "media", "av2", c.id + ".rgb"));
+      assert.equal(ivf.subarray(0, 4).toString("ascii"), "DKIF");
+      assert.equal(ivf.subarray(8, 12).toString("ascii"), "AV02");
+      assert.equal(c.bitstreamSha256, (await import("node:crypto")).createHash("sha256").update(ivf).digest("hex"));
+      assert.equal(c.previewSha256, (await import("node:crypto")).createHash("sha256").update(rgb).digest("hex"));
     }
   });
 });
-
-function probeCodec(file) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("ffprobe", [
-      "-v", "error",
-      "-select_streams", "v:0",
-      "-show_entries", "stream=codec_name",
-      "-of", "csv=p=0",
-      file,
-    ]);
-    let out = "";
-    let err = "";
-    child.stdout.on("data", (d) => { out += d; });
-    child.stderr.on("data", (d) => { err += d; });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) reject(new Error(err || "ffprobe " + code));
-      else resolve(out.trim());
-    });
-  });
-}

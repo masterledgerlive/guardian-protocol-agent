@@ -31,7 +31,11 @@
       border-radius: 6px;
       overflow: hidden;
     }
-    video { width: 100%; display: block; background: #000; aspect-ratio: 16/9; }
+    video, canvas { width: 100%; display: block; background: #000; aspect-ratio: 16/9; }
+    canvas { aspect-ratio: 160/96; }
+    video.hidden, canvas.hidden { display: none; }
+    .methods { display: flex; gap: 8px; }
+    .methods button.idle { background: transparent; color: var(--ink); border: 1px solid var(--line); }
     .controls { display: flex; gap: 10px; align-items: center; padding: 10px 12px; background: var(--panel); }
     button {
       background: var(--amber);
@@ -83,12 +87,17 @@
 <body>
   <header>
     <h1>Proven Player</h1>
-    <p class="sub">AV1 chunks stay locked until the 448-byte receipt matches. This player does not share a buffer with any other player.</p>
+    <p class="sub">One player, two decode paths. dav1d plays the SVT-AV1 MP4. AV2 stays on the AVM reference decode until dav2d is linked. Neither path shares a buffer with another player.</p>
   </header>
   <main>
     <div class="stage">
-      <video id="screen" playsinline controls></video>
+      <video id="screen" class="hidden" playsinline></video>
+      <canvas id="paint" class="hidden" width="160" height="96"></canvas>
       <div class="controls">
+        <div class="methods">
+          <button id="pick-dav1d" type="button" data-method="dav1d">dav1d</button>
+          <button id="pick-av2" type="button" class="idle" data-method="av2">AV2</button>
+        </div>
         <button id="play" type="button" disabled>Play unlocked stream</button>
         <span class="status" id="status">Fetching manifest…</span>
       </div>
@@ -97,16 +106,16 @@
     <section class="essay">
       <div class="flow">
         <div>
-          <h2>Encode</h2>
-          <p>SVT-AV1 1.7.0 on CPU compresses each ingest. The demo chunks are one second so the leader sequence is easy to see. The protocol target is five seconds.</p>
+          <h2>dav1d</h2>
+          <p>SVT-AV1 1.7.0 MP4. After the receipt matches, Play hands the bytes to the browser decoder.</p>
+        </div>
+        <div>
+          <h2>AV2</h2>
+          <p>AVM v1.0.0 IVF, fourcc AV02. dav2d is not linked yet, so Play paints the avmdec reference decode on the canvas.</p>
         </div>
         <div>
           <h2>Bind</h2>
-          <p>SHA-256 binds the source digest, the AV1 bytes, and a slice Merkle root. The Groth16 slot stays zero. A stuffed slot will not unlock.</p>
-        </div>
-        <div>
-          <h2>Decode</h2>
-          <p>After the receipt checks, the MP4 is handed to the video element. Chromium and Firefox decode AV1 with dav1d.</p>
+          <p>Both paths use the same 448-byte SHA-256 receipt. The Groth16 slot stays zero. A stuffed slot will not unlock.</p>
         </div>
       </div>
       <details>
@@ -116,9 +125,11 @@
     </section>
   </main>
   <script type="module">
-    import { verifyChunkUnlock } from "/vita/proven-player/verify.js";
+    import { bytesToHex, sha256Bytes, verifyChunkUnlock } from "/vita/proven-player/verify.js";
 
     const screen = document.getElementById("screen");
+    const paint = document.getElementById("paint");
+    const ctx = paint.getContext("2d");
     const play = document.getElementById("play");
     const status = document.getElementById("status");
     const rail = document.getElementById("rail");
@@ -126,7 +137,13 @@
     const popup = new URLSearchParams(location.search).get("popup") === "1";
     if (popup) document.body.classList.add("popup");
 
-    const unlocked = [];
+    let catalog = null;
+    let active = new URLSearchParams(location.search).get("method") === "av2" ? "av2" : "dav1d";
+    let loadGen = 0;
+    let unlocked = [];
+    let cursor = 0;
+    let timer = null;
+    let url = null;
 
     function row(index) {
       const el = document.createElement("article");
@@ -142,71 +159,181 @@
       el.textContent = text;
     }
 
-    async function boot() {
-      const state = await fetch("/vita/proven-player/api").then((r) => r.json());
-      note.textContent = [
-        state.proof.id,
-        state.chain.note,
-        state.encoder.note,
-        "",
-        state.architectureMermaid,
-      ].join("\n");
-      for (const c of state.stream.chunks) row(c.chunkIndex);
-      status.textContent = "Verifying " + state.stream.chunks.length + " receipts…";
+    function stopPlay() {
+      if (timer) clearInterval(timer);
+      timer = null;
+      screen.pause();
+      screen.removeAttribute("src");
+      if (url) URL.revokeObjectURL(url);
+      url = null;
+      play.disabled = unlocked.length === 0;
+      play.textContent = "Play unlocked stream";
+    }
 
-      for (const c of state.stream.chunks) {
+    function showSurface() {
+      const video = active === "dav1d";
+      screen.classList.toggle("hidden", !video);
+      paint.classList.toggle("hidden", video);
+      document.getElementById("pick-dav1d").classList.toggle("idle", active !== "dav1d");
+      document.getElementById("pick-av2").classList.toggle("idle", active !== "av2");
+    }
+
+    async function loadMethod(id) {
+      const gen = ++loadGen;
+      stopPlay();
+      active = id;
+      unlocked = [];
+      rail.textContent = "";
+      showSurface();
+      const method = catalog.methods.find((m) => m.id === id);
+      if (!method) {
+        status.textContent = "Unknown path.";
+        return;
+      }
+      for (const c of method.chunks) row(c.chunkIndex);
+      status.textContent = "Verifying " + method.label + " receipts…";
+      for (const c of method.chunks) {
+        if (gen !== loadGen) return;
         const meta = rail.querySelector('[data-meta="' + c.chunkIndex + '"]');
         meta.textContent = c.bytes + " bytes · " + c.codec + " · " + c.binding.slice(0, 16);
         const [proof, buf] = await Promise.all([
           fetch(c.proofUrl).then((r) => r.json()),
           fetch(c.chunkUrl).then((r) => r.arrayBuffer()),
         ]);
+        if (gen !== loadGen) return;
         const prev = unlocked.length ? unlocked[unlocked.length - 1].binding : "0".repeat(32);
+        const bytes = new Uint8Array(buf);
         const result = await verifyChunkUnlock({
           envelope: proof.envelope,
-          av1Bytes: new Uint8Array(buf),
+          bitstream: bytes,
           binding: proof.binding,
           prevBinding: prev,
         });
+        if (gen !== loadGen) return;
         if (!result.ok) {
           setLock(c.chunkIndex, "shut", "locked");
-          status.textContent = "Chunk " + c.chunkIndex + " refused: " + result.reason;
+          status.textContent = method.label + " chunk " + c.chunkIndex + " refused: " + result.reason;
+          play.disabled = true;
           return;
         }
+        let rgb = null;
+        if (id === "av2") {
+          rgb = new Uint8Array(await fetch(c.previewUrl).then((r) => r.arrayBuffer()));
+          if (gen !== loadGen) return;
+          const previewHash = bytesToHex(await sha256Bytes(rgb));
+          if (previewHash !== c.previewSha256) {
+            setLock(c.chunkIndex, "shut", "locked");
+            status.textContent = "AV2 chunk " + c.chunkIndex + " reference decode does not match.";
+            play.disabled = true;
+            return;
+          }
+        }
+        if (gen !== loadGen) return;
         setLock(c.chunkIndex, "open", "unlocked");
-        unlocked.push({ binding: proof.binding, buf, mime: proof.mime || "video/mp4", index: c.chunkIndex });
+        unlocked.push({
+          binding: proof.binding,
+          index: c.chunkIndex,
+          bytes,
+          mime: c.mime,
+          rgb,
+          width: c.width,
+          height: c.height,
+          frames: c.previewFrames,
+          fps: c.fps || 10,
+        });
       }
+      if (gen !== loadGen) return;
       play.disabled = false;
-      status.textContent = "All receipts matched. Chain status is availability — no transaction is attached.";
+      status.textContent = id === "dav1d"
+        ? "dav1d path unlocked. Play uses the browser decoder."
+        : "AV2 path unlocked. dav2d is not linked yet — Play paints the AVM reference decode.";
     }
 
-    let cursor = 0;
-    let url = null;
+    function drawFrame(item, frame) {
+      const { width, height, rgb } = item;
+      paint.width = width;
+      paint.height = height;
+      const frameBytes = width * height * 3;
+      const start = frame * frameBytes;
+      const img = ctx.createImageData(width, height);
+      for (let i = 0, p = start; i < img.data.length; i += 4, p += 3) {
+        img.data[i] = rgb[p];
+        img.data[i + 1] = rgb[p + 1];
+        img.data[i + 2] = rgb[p + 2];
+        img.data[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+    }
 
-    function playAt(index) {
+    function playCanvas(index) {
+      if (timer) clearInterval(timer);
       const item = unlocked[index];
       if (!item) {
-        status.textContent = "End of stream.";
+        status.textContent = "End of AV2 reference decode.";
+        play.disabled = false;
+        play.textContent = "Play unlocked stream";
+        return;
+      }
+      cursor = index;
+      let frame = 0;
+      drawFrame(item, 0);
+      status.textContent = "AV2 reference decode, chunk " + item.index + ".";
+      const gap = Math.max(40, Math.round(1000 / item.fps));
+      timer = setInterval(() => {
+        frame += 1;
+        if (frame >= item.frames) {
+          clearInterval(timer);
+          timer = null;
+          playCanvas(index + 1);
+          return;
+        }
+        drawFrame(item, frame);
+      }, gap);
+    }
+
+    function playVideo(index) {
+      const item = unlocked[index];
+      if (!item) {
+        status.textContent = "End of dav1d stream.";
         play.disabled = false;
         play.textContent = "Play unlocked stream";
         return;
       }
       if (url) URL.revokeObjectURL(url);
-      url = URL.createObjectURL(new Blob([item.buf], { type: item.mime }));
+      url = URL.createObjectURL(new Blob([item.bytes], { type: item.mime || "video/mp4" }));
       screen.src = url;
       cursor = index;
-      status.textContent = "Playing chunk " + item.index + " after unlock.";
+      status.textContent = "dav1d path, chunk " + item.index + ".";
       screen.play().catch(() => {
-        status.textContent = "Press play on the video control if the browser held autoplay.";
+        status.textContent = "Press the video control if the browser held autoplay.";
       });
     }
 
-    screen.addEventListener("ended", () => playAt(cursor + 1));
+    screen.addEventListener("ended", () => {
+      if (active === "dav1d") playVideo(cursor + 1);
+    });
+
     play.addEventListener("click", () => {
       play.disabled = true;
       play.textContent = "Playing";
-      playAt(0);
+      if (active === "dav1d") playVideo(0);
+      else playCanvas(0);
     });
+
+    document.getElementById("pick-dav1d").addEventListener("click", () => loadMethod("dav1d"));
+    document.getElementById("pick-av2").addEventListener("click", () => loadMethod("av2"));
+
+    async function boot() {
+      catalog = await fetch("/vita/proven-player/api").then((r) => r.json());
+      note.textContent = [
+        catalog.proof.id,
+        catalog.decoder.browser,
+        catalog.chain.note,
+        "",
+        catalog.architectureMermaid,
+      ].join("\n");
+      await loadMethod(active);
+    }
 
     boot().catch((e) => {
       status.textContent = "Player stopped: " + (e.message || e);
