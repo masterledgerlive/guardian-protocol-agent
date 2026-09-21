@@ -69,6 +69,13 @@ proof. `/tokens` · `/tok SYMBOL` → buy/sell/exit/dual/track.
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed
 Base locs. Session keys = Railway env (permanent / ttl / destroy-on-unwrap).
 Never invent tx hashes. Anthropic not required to open a file.
+**Dual-path mirror (real data):** `/vita tree [dir]` · `/vita dual FILE` ·
+`/vita path availability|proven|dual FILE` · `/vita zero FILE` · `/vita boot [section]`
+— navigable GitHub duplicate (same path names); reader chooses availability
+(local/GitHub) or proven (sealed Base UTF-8); zero-proof lock+key =
+name+contentCommit (not a wallet secret); follow-leader filing CAS boots
+SNARK-compressed export sections until chain seal matches. UI: `/vita/mirror`.
+Formula anchors = class proof only — never file body.
 **Systems check (blockchain layer):** `/vita check` · `/vita check locs` ·
 `/vita check pull` · `/vita recover` · `/vita models` · `/vita llm` · `/vita spin`
 — always walk anchors + library growth + SNARK proven libs (skip whole mainframe)

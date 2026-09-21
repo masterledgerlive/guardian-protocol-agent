@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-21T02:15:00.000Z",
+  "topic": "mirror-dual-real-data",
+  "filingLabel": "MIRROR_DUAL",
+  "text": "Stub catalog reads were not mirrors of actual data. Dual-path reader: AVAILABILITY = local/GitHub same path name; PROVEN = sealed Base UTF-8 matching contentCommit (pending until spaced inject seals). Zero-proof lock+key = open-source VITAOPEN.name.contentCommit — never a wallet secret. Follow-leader: filing contentCommit leads pre-seal; chain leads when sealed+verified. Boot harness SNARK-compresses real exports (originalFormulaHitchDecision, openSourceUnlockKey, sanitizeMirrorPath), stores body in mirror-cas by commit, reconstructs and executes — proves mirror can boot code from compressed filing before Base seal. Formula anchors remain class proof only. UI /vita/mirror. Never invent tx hashes.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+  ],
+  "hypothesis": {
+    "id": "dual-path-follow-leader-boot",
+    "status": "operating",
+    "note": "Real file bytes drive contentCommit. Proven path stays pending until inject seals matching UTF-8. Boot from filing CAS is the pre-seal leader path."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

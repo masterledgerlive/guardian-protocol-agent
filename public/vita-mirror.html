@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITA Mirror — dual path reader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0e1a14;
+      --paper: #e8f0e4;
+      --moss: #1f5c3a;
+      --leaf: #3d9b62;
+      --amber: #c47a1a;
+      --line: rgba(14, 26, 20, 0.14);
+      --panel: rgba(255, 255, 255, 0.55);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(61, 155, 98, 0.22), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(196, 122, 26, 0.16), transparent 55%),
+        linear-gradient(165deg, #d7e8d4 0%, #f3f6f0 45%, #dde8e0 100%);
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(220px, 300px) 1fr;
+      min-height: 100vh;
+    }
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; }
+    }
+    aside {
+      border-right: 1px solid var(--line);
+      background: rgba(14, 26, 20, 0.04);
+      padding: 1.25rem 1rem 2rem;
+      overflow: auto;
+      max-height: 100vh;
+    }
+    main {
+      padding: 1.5rem 1.5rem 3rem;
+      overflow: auto;
+    }
+    h1 {
+      font-family: Syne, sans-serif;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      letter-spacing: -0.03em;
+      margin: 0 0 0.35rem;
+      font-weight: 700;
+    }
+    .lede {
+      margin: 0 0 1.25rem;
+      max-width: 42rem;
+      line-height: 1.45;
+      opacity: 0.85;
+      font-size: 0.92rem;
+    }
+    .brand {
+      font-family: Syne, sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--moss);
+      margin-bottom: 1rem;
+      display: block;
+      text-decoration: none;
+    }
+    .crumb {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-bottom: 0.75rem;
+      word-break: break-all;
+    }
+    .tree button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      color: inherit;
+      padding: 0.28rem 0.35rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .tree button:hover { background: rgba(31, 92, 58, 0.1); }
+    .tree button.active { background: rgba(31, 92, 58, 0.18); font-weight: 600; }
+    .tree .dir { opacity: 0.65; font-size: 0.78rem; margin-top: 0.45rem; }
+    .tree .file { font-size: 0.8rem; }
+    .paths {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 0 0 1rem;
+    }
+    .paths button, .actions button {
+      font: inherit;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .paths button.on {
+      background: var(--moss);
+      color: #f4fff7;
+      border-color: var(--moss);
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      backdrop-filter: blur(6px);
+    }
+    .panel h2 {
+      font-family: Syne, sans-serif;
+      font-size: 1rem;
+      margin: 0 0 0.5rem;
+      color: var(--moss);
+    }
+    .meta {
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      margin-bottom: 0.75rem;
+    }
+    .meta b { color: var(--amber); font-weight: 600; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      max-height: 28rem;
+      overflow: auto;
+    }
+    .dual-grid {
+      display: grid;
+      gap: 1rem;
+    }
+    @media (min-width: 900px) {
+      .dual-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .status { font-size: 0.8rem; opacity: 0.8; min-height: 1.2em; }
+    a.top { color: var(--moss); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <a class="brand" href="/vita">VITA</a>
+      <div class="crumb" id="crumb">prefix: vita</div>
+      <div class="tree" id="tree">Loading mirror tree…</div>
+    </aside>
+    <main>
+      <h1>Mirror dual reader</h1>
+      <p class="lede">
+        Navigate the GitHub duplicate by the same path names. Choose availability
+        (local/GitHub) or proven (sealed Base UTF-8). Zero-proof lock+key is
+        name + contentCommit — not a wallet secret. Formula anchors prove hitch
+        class only, never invent hashes.
+      </p>
+      <div class="paths" id="paths">
+        <button type="button" data-mode="dual" class="on">Dual</button>
+        <button type="button" data-mode="availability">Availability</button>
+        <button type="button" data-mode="proven">Proven</button>
+      </div>
+      <div class="actions">
+        <button type="button" id="bootBtn">Boot hitch-gate</button>
+        <button type="button" id="zeroBtn">Show zero-proof</button>
+        <a class="top" href="/vita">Console</a>
+        <a class="top" href="/vita/feed-player">Feed player</a>
+      </div>
+      <p class="status" id="status"></p>
+      <div id="out"></div>
+    </main>
+  </div>
+  <script>
+    const state = { prefix: "vita", file: "vita/mainframe.js", mode: "dual" };
+
+    async function api(cmd) {
+      const res = await fetch("/vita/mirror?cmd=" + encodeURIComponent(cmd));
+      return res.json();
+    }
+
+    function setStatus(t) {
+      document.getElementById("status").textContent = t || "";
+    }
+
+    function renderTree(tree) {
+      const el = document.getElementById("tree");
+      document.getElementById("crumb").textContent = "prefix: " + (tree.prefix || ".") +
+        " · " + (tree.fileCount || 0) + " files";
+      if (!tree.ok) {
+        el.textContent = tree.reason || "tree miss";
+        return;
+      }
+      el.innerHTML = "";
+      const up = document.createElement("button");
+      up.type = "button";
+      up.className = "dir";
+      up.textContent = "… / (repo root)";
+      up.onclick = () => loadTree("");
+      el.appendChild(up);
+
+      for (const e of tree.entries || []) {
+        if (e.type === "dir") {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "dir";
+          b.textContent = "📁 " + e.path + "/";
+          b.onclick = () => loadTree(e.path);
+          el.appendChild(b);
+        } else {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "file" + (e.path === state.file ? " active" : "");
+          b.textContent = "📄 " + e.path.split("/").pop();
+          b.title = e.path + (e.contentCommit ? " · " + e.contentCommit.slice(0, 12) : "");
+          b.onclick = () => {
+            state.file = e.path;
+            renderTree(tree);
+            loadDual();
+          };
+          el.appendChild(b);
+        }
+      }
+    }
+
+    async function loadTree(prefix) {
+      state.prefix = prefix;
+      setStatus("Loading tree…");
+      const data = await api("/vita tree " + (prefix || ""));
+      renderTree(data.tree || { ok: false, reason: data.reply });
+      setStatus(data.ok ? "" : (data.reply || "tree failed"));
+    }
+
+    function panel(title, bodyHtml) {
+      return '<section class="panel"><h2>' + title + '</h2>' + bodyHtml + "</section>";
+    }
+
+    function metaLine(k, v) {
+      return "<div><b>" + k + "</b> " + String(v ?? "—") + "</div>";
+    }
+
+    async function loadDual() {
+      setStatus("Reading " + state.file + " · " + state.mode + "…");
+      const cmd =
+        state.mode === "dual"
+          ? "/vita dual " + state.file
+          : "/vita path " + state.mode + " " + state.file;
+      const data = await api(cmd);
+      const out = document.getElementById("out");
+      const z = data.zeroProof || {};
+      const fl = data.followLeader || {};
+      let html = panel(
+        "Lock + leader",
+        '<div class="meta">' +
+          metaLine("file", data.filename || state.file) +
+          metaLine("zero-proof", z.key || "—") +
+          metaLine("privateKey", z.privateKey === false ? "false" : z.privateKey) +
+          metaLine("leader", fl.leader) +
+          metaLine("provenOnChain", fl.proven ? "YES" : "no") +
+          metaLine("note", fl.note || "") +
+          "</div>"
+      );
+
+      const avail = data.availability;
+      const proven = data.proven;
+      const blocks = [];
+      if (avail) {
+        blocks.push(
+          panel(
+            "Availability (local / GitHub)",
+            '<div class="meta">' +
+              metaLine("ok", avail.ok) +
+              metaLine("source", avail.source) +
+              metaLine("sha", (avail.contentCommit || "").slice(0, 16)) +
+              "</div><pre>" +
+              escapeHtml(avail.preview || data.preview || data.reply || "") +
+              "</pre>"
+          )
+        );
+      }
+      if (proven) {
+        blocks.push(
+          panel(
+            "Proven (Base seal / filing)",
+            '<div class="meta">' +
+              metaLine("ok", proven.ok) +
+              metaLine("pending", proven.pending) +
+              metaLine("sealed", proven.sealed) +
+              metaLine("reason", proven.reason) +
+              metaLine("anchors≠body", proven.formulaAnchorsAreNotBody) +
+              "</div><pre>" +
+              escapeHtml(proven.preview || proven.reason || "") +
+              "</pre>"
+          )
+        );
+      }
+      if (!avail && !proven) {
+        blocks.push(panel("Reply", "<pre>" + escapeHtml(data.reply || "") + "</pre>"));
+      }
+      html += '<div class="dual-grid">' + blocks.join("") + "</div>";
+      if (data.snark?.short) {
+        html += panel("SNARK", "<pre>" + escapeHtml(data.snark.short) + "</pre>");
+      }
+      out.innerHTML = html;
+      setStatus(data.ok ? "Ready · neverInventHashes=true" : (data.reply || "miss"));
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    document.getElementById("paths").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-mode]");
+      if (!btn) return;
+      state.mode = btn.dataset.mode;
+      for (const b of document.querySelectorAll("#paths button")) {
+        b.classList.toggle("on", b === btn);
+      }
+      loadDual();
+    });
+
+    document.getElementById("bootBtn").onclick = async () => {
+      setStatus("Booting SNARK section from filing CAS…");
+      const data = await api("/vita boot hitch-gate");
+      document.getElementById("out").innerHTML = panel(
+        "Boot",
+        "<pre>" + escapeHtml(data.reply || JSON.stringify(data, null, 2)) + "</pre>"
+      );
+      setStatus(data.ok ? "Boot YES · matchLive in reply" : "Boot failed");
+    };
+
+    document.getElementById("zeroBtn").onclick = async () => {
+      const data = await api("/vita zero " + state.file);
+      document.getElementById("out").innerHTML = panel(
+        "Zero-proof",
+        "<pre>" + escapeHtml(data.reply || "") + "</pre>"
+      );
+    };
+
+    loadTree("vita").then(loadDual);
+  </script>
+</body>
+</html>
