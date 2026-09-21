@@ -69,6 +69,22 @@ proof. `/tokens` · `/tok SYMBOL` → buy/sell/exit/dual/track.
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed
 Base locs. Session keys = Railway env (permanent / ttl / destroy-on-unwrap).
 Never invent tx hashes. Anthropic not required to open a file.
+**Systems check (blockchain layer):** `/vita check` · `/vita check locs` ·
+`/vita check pull` · `/vita recover` · `/vita models` · `/vita llm` · `/vita spin`
+— always walk anchors + library growth + SNARK proven libs (skip whole mainframe)
++ **spaced inject plan** (code > 720B hitch field → N Base locs) + EVM recover ms
++ last-agreed / multi-model ring + LLM-on-chain spin. Telegram IDM buttons only
+for **sealed matching** inject locs (formula anchors = class proof, not body).
+Pull Input Data → UTF-8 to verify. Each pass creates files under `vita/memory/`
++ `vita/strands/` (`vita/chain-layer.js` · `vita/chain-inject.js`).
+**Telegram HOME (sectioned buttons):** `/home` · `/menu` · `/start` — every
+route is an inline button (Memory / Feed / Search / WAVE / Mirror / Dual /
+Mother / Status). `/home search` opens search routes (ref/ask/proven/xmem/
+dir/unlock). `/home sim` · `/home sim search` run many offline route sims.
+`/home engines` mirrors the same seed into **MAIN** exact UTF-8 VITAFEED and
+**NEW** snark-short, attaches Basescan IDM anchors as static proof, and seeds
+which engine is cheaper/faster (`vita/telegram-home.js`). Paid paths stay
+SIM / confirm|override — buttons never auto-spend.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.

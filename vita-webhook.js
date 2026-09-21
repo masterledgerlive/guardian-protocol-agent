@@ -45,11 +45,12 @@
 //   GET  /vita/pull?tx=0x  — re-read hitch UTF-8 from Base into recursive memory
 //   GET  /vita/read?f=FILE  — open file (local + GitHub CODE/STATE) + SNARK + IDM
 //   GET  /vita/mirror       — GitHub-as-chain catalog / proof / unwrap / session keys
+//   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
 //   POST /vita/save           — trigger vitasave programmatically
 //
 // Auth: VITA_WEBHOOK_SECRET header must match env var
-// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover + GET /vita/read + GET /vita/mirror + XMEM spec/decode do not require the secret.
+// Public HTML + /board/health + demo/sim APIs + GET /vita/leftover + GET /vita/read + GET /vita/mirror + GET /vita/check + XMEM spec/decode do not require the secret.
 // Live queue / vita/* still require the secret. No unauthenticated mutate of env.
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -121,6 +122,7 @@ import {
 } from "./vita/vita-feed.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
+import { handleChainLayerAction } from "./vita/chain-layer.js";
 import {
   liveGithubRepo,
   liveGithubBranch,
@@ -836,12 +838,14 @@ async function handleVitaRequest(req, res) {
         filename: parsed.filename || null,
         key: parsed.key || null,
         kind: parsed.kind || null,
+        modelId: parsed.modelId || null,
         cwd: ROOT,
         githubFetch: webhookGithubUtf8,
         codeBranch: liveGithubBranch(),
         stateBranch: liveStateBranch(),
         repo: liveGithubRepo(),
         chatId: "http-mirror",
+        fetchCalldata: fetchTxCalldataHex,
       });
       return json(res, {
         ok: out.ok,
@@ -860,6 +864,52 @@ async function handleVitaRequest(req, res) {
         github: out.github,
         neverInventHashes: true,
       }, out.ok ? 200 : 404);
+    }
+    // Public systems check — blockchain layer reminder (grows memory/strands)
+    if ((path === "/vita/check" || path === "/vita/check/") && req.method === "GET") {
+      const out = await handleChainLayerAction({
+        action: "check",
+        cwd: ROOT,
+        write: true,
+        env: process.env,
+        fetchCalldata: fetchTxCalldataHex,
+      });
+      return json(res, {
+        ok: out.ok,
+        action: "check",
+        reply: out.reply,
+        snark: out.snark || null,
+        locations: out.locations || [],
+        inject: out.inject
+          ? {
+              totalChunks: out.inject.totalChunks,
+              sealedCount: out.inject.sealedCount,
+              pendingCount: out.inject.pendingCount,
+              verifiedCount: out.inject.verifiedCount || 0,
+              maxBytes: out.inject.maxBytes,
+            }
+          : null,
+        result: out.result
+          ? {
+              passed: out.result.passed,
+              total: out.result.total,
+              recoverMs: out.result.recover?.localRecoverMs,
+              agreedModel: out.result.models?.agreed,
+              llmCommit: out.result.llm?.contentCommit,
+              growth: out.result.growth,
+              snarkLocalOnly: out.result.snark?.localOnly,
+            }
+          : null,
+        neverInventHashes: true,
+        telegram: [
+          "/vita check",
+          "/vita check locs",
+          "/vita check pull",
+          "/vita recover",
+          "/vita models",
+          "/vita llm",
+        ],
+      }, out.ok ? 200 : 500);
     }
     if ((path === "/vita/wavetest" || path === "/vita/wavetest/") && req.method === "GET") {
       const hitch = String(url.searchParams.get("hitch") || "") === "1"
@@ -1260,6 +1310,7 @@ export function startVitaWebhook() {
     console.log("   /vita/hypotheses — query hypothesis graph");
     console.log("   /vita/read     — public open files (local + GitHub CODE/STATE, SNARK + IDM)");
     console.log("   /vita/mirror   — public GitHub-as-chain catalog / proof / unwrap / session keys");
+    console.log("   /vita/check    — blockchain systems check (SNARK + EVM recover + models + LLM spin)");
     console.log("   /vita/status   — live bot status");
     console.log("   /vita/save     — programmatic vitasave (auth; banks unpaired STORE)");
   });

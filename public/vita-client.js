@@ -243,12 +243,15 @@ function helpText() {
     "/vita [question]  answer from KEY / LOC / LEARN",
     "/vita read FILE   open file + SNARK + IDM locs (no Anthropic)",
     "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
+    "/vita check · /vita recover · /vita models · /vita llm — systems check + EVM ms + model ring + LLM spin (library grows files)",
     "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
     "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",
     "/vitafeed [text|file|brain|learn|proof|load|know|recall|cipher|backlog|enqueue|next|dir|unlock|dual|translate] exact/VITAFILE/mind; DOS dir; dual lanes; loader packs; open-source unlock; files|play|keys; confirm|override; /vita/feed-player · /vita/feed-loader",
     "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO 8B; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",
+    "/home · /menu · /start — sectioned clickable Telegram routes (Search/Feed/WAVE/Mirror…)",
+    "/home sim · /home engines — many route sims + MAIN↔NEW snark cost/speed mirror + IDM",
     "/vitamotherGenesisencoded [code]  bank encoded hex; two-part key",
     "/encodegenesisreveal KEY  pull locs + decode",
     "/zk  locations-only preview (future ZK path)",
@@ -537,9 +540,14 @@ export async function handleCommand(state, raw) {
     const rest = input.slice(6).trim();
     const lowRest = rest.toLowerCase();
     if (
-      /^(read|files|proof|unwrap|chain|session|keys|plugins|open|exist)\b/.test(lowRest) ||
+      /^(read|files|proof|unwrap|chain|session|keys|plugins|open|exist|check|recover|models|model|llm|spin|syscheck|systems|evm|speed)\b/.test(lowRest) ||
       lowRest === "files" ||
       lowRest === "chain" ||
+      lowRest === "check" ||
+      lowRest === "recover" ||
+      lowRest === "models" ||
+      lowRest === "llm" ||
+      lowRest === "spin" ||
       lowRest === "session" ||
       lowRest === "keys"
     ) {

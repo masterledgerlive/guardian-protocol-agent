@@ -595,6 +595,11 @@ import {
   handleVitaMirrorAction,
   parseVitaMirrorCommand,
 } from "./vita/mirror-chain.js";
+import {
+  handleHomeAction,
+  parseHomeCommand,
+  withHomeButton,
+} from "./vita/telegram-home.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -10518,6 +10523,33 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             { reply_markup: buildTokenCatalogKeyboard(symbols) },
           );
         }
+      // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
+      } else if (
+        text === "/home" ||
+        text === "/menu" ||
+        text === "/start" ||
+        text === "/homesim" ||
+        text === "/engines" ||
+        (text && text.startsWith("/home "))
+      ) {
+        try {
+          const parsed = parseHomeCommand(raw);
+          const out = handleHomeAction({
+            action: parsed.action || "home",
+            section: parsed.section || "all",
+            quotes: { ethUsd: ethUsd || 0 },
+          });
+          await tg(
+            "🏠 <b>VITA HOME</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ home failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (text === "/status") {
         await sendFullReport(bal, ethUsd, "📊 STATUS");
       } else if (text === "/cycles" || text === "/succession") {
@@ -13377,16 +13409,21 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               filename: parsedMirror.filename || null,
               key: parsedMirror.key || null,
               kind: parsedMirror.kind || null,
+              modelId: parsedMirror.modelId || null,
               chatId: msgChatId || "telegram",
               cwd: process.cwd(),
               githubFetch: githubGetUtf8FromBranch,
               codeBranch: liveGithubBranch(),
               stateBranch: liveStateBranch(),
               repo: liveGithubRepo(),
+              fetchCalldata: fetchTxCalldataHex,
             });
             await tg(
               "🌟 <b>VITA " + esc(parsedMirror.action) + "</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
-              { reply_markup: out.keyboard || undefined, disable_web_page_preview: true },
+              {
+                reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }),
+                disable_web_page_preview: true,
+              },
             );
           } catch (e) {
             await tg("❌ VITA " + parsedMirror.action + " failed: " + (e.message || e) + "\nNothing invented.");
@@ -13398,7 +13435,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         if (!vitaKey) {
           await tg(
             "🌟 VITA needs VITA_ANTHROPIC_KEY in Railway to answer questions.\n" +
-            "File click-through still works: <code>/vita read vault-unlock.js</code> · <code>/vita files</code> · <code>/vita chain</code>",
+            "File click-through still works: <code>/vita read vault-unlock.js</code> · <code>/vita files</code> · <code>/vita chain</code> · <code>/vita check</code>",
           );
 
         // ── /vita [question] — answer from memory registry ──────────────────
@@ -13851,6 +13888,11 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `🏄 <b>GUARDIAN PROTOCOL — COMMAND REFERENCE</b>\n` +
           `Control Board (waves + learn + V4): https://guardian-protocol-agent-production.up.railway.app/board\n` +
           `SIM default — live buttons need VITA_WEBHOOK_SECRET. Tune params in sim or Railway env, not an open POST.\n\n` +
+          `<b>🏠 Interactive HOME:</b>\n` +
+          `/home · /menu · /start — sectioned clickable buttons for every route\n` +
+          `/home search · /home feed · /home mirror — open one section\n` +
+          `/home sim · /home sim search — run many route sims (search connected)\n` +
+          `/home engines — mirror MAIN exact UTF-8 vs NEW snark-short + IDM proof\n\n` +
           `<b>📊 Status & Info:</b>\n` +
           `/status — full portfolio status\n` +
           `/bag [n] — last N real fills (FIFO / hitch / liquid / distance-to-PLUS)\n` +
@@ -13934,6 +13976,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           `/vita proof FILE — does the file exist? merkle SNARK + Basescan Input Data → UTF-8\n` +
           `/vita unwrap [KEY] — instant SNARK unwrap with the session key\n` +
           `/vita chain — GitHub-as-blockchain map + plugins (Railway-style keys)\n` +
+          `/vita check — systems checklist (anchors · library growth · SNARK · EVM ms · models · LLM spin)\n` +
+          `/vita recover — EVM recover timing (brand-new spin from snark short)\n` +
+          `/vita models [next] — last-agreed / multi-model ring (Railway VITA_MODELS)\n` +
+          `/vita llm · /vita spin — LLM-on-chain spin manifest (change at will)\n` +
           `/vita session — mint permanent / ttl / destroyable keys (new set each session)\n` +
           `/vitasave — compress session + live trading data on Base\n` +
           `/vitadata — snapshot full token/wave/trade dataset\n` +

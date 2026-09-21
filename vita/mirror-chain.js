@@ -22,6 +22,10 @@ import { fileURLToPath } from "node:url";
 import { FORMULA_ID, MAINFRAME_ANCHORS } from "./mainframe.js";
 import { packMachineShort, unwrapMachineShort } from "./vita-dir.js";
 import { feedFlowAnchorLocations } from "./feed-flow.js";
+import {
+  handleChainLayerAction,
+  parseChainLayerCommand,
+} from "./chain-layer.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..");
@@ -80,6 +84,11 @@ export const MIRROR_PLUGINS = Object.freeze([
     name: "VITA:\\ DOS directory",
     when: "/vitafeed dir · unlock by file name",
   },
+  {
+    id: "systems-check",
+    name: "Blockchain systems check",
+    when: "/vita check · recover · models · llm — SNARK lib + EVM ms + grow files",
+  },
 ]);
 
 /** Files Telegram advertised that must resolve. lane=code|state|both. */
@@ -102,6 +111,7 @@ export const MIRROR_CATALOG = Object.freeze([
   { name: "xmem.js", lane: "code", kind: "js", role: "XMEM overlay" },
   { name: "vita/mainframe.js", lane: "code", kind: "js", role: "HTML infect + formula" },
   { name: "vita/mirror-chain.js", lane: "code", kind: "js", role: "GitHub-as-chain read/unwrap" },
+  { name: "vita/chain-layer.js", lane: "code", kind: "js", role: "systems check + EVM recover + LLM spin" },
   { name: "vita/anchors.json", lane: "code", kind: "json", role: "hardcoded Base txs" },
   { name: "vita/FILING.md", lane: "code", kind: "md", role: "filing map" },
   { name: "public/vita.html", lane: "code", kind: "html", role: "infected HTML memory" },
@@ -623,6 +633,15 @@ function parseExportsHint(text) {
 export function parseVitaMirrorCommand(raw) {
   const src = String(raw || "").trim();
   const low = src.toLowerCase();
+  const chainLayer = parseChainLayerCommand(src);
+  if (chainLayer?.action) {
+    return {
+      action: chainLayer.action,
+      kind: chainLayer.kind || null,
+      modelId: chainLayer.modelId || null,
+      filename: null,
+    };
+  }
   if (low === "/vita files" || low === "/vita ls" || low === "/vita dir") {
     return { action: "files" };
   }
@@ -704,6 +723,7 @@ export function buildMirrorKeyboard({
   const nav = [];
   if (includeFiles) nav.push({ text: "📂 Files", callback_data: "/vita files" });
   nav.push({ text: "🪞 Chain", callback_data: "/vita chain" });
+  nav.push({ text: "✅ Check", callback_data: "/vita check" });
   nav.push({ text: "🔑 Session keys", callback_data: "/vita session" });
   rows.push(nav);
   return { inline_keyboard: rows };
@@ -852,6 +872,7 @@ export function formatMirrorChainCard() {
   }
   lines.push("");
   lines.push("Session keys = Railway env: /vita session  (permanent|ttl|destroy)");
+  lines.push("Systems: /vita check · /vita recover · /vita models · /vita llm");
   lines.push("Proof: /vita proof FILE  ·  IDM: Basescan Input Data → UTF-8");
   lines.push("Never invent tx hashes. Blob SHA is GitHub, not Base.");
   return lines.join("\n");
@@ -912,7 +933,8 @@ async function listFilesWithExistence({ cwd, githubFetch, codeBranch, stateBranc
 }
 
 /**
- * Handle /vita read|files|proof|unwrap|chain|session|keys|plugins.
+ * Handle /vita read|files|proof|unwrap|chain|session|keys|plugins|
+ * check|recover|models|llm|spin.
  * githubFetch(filename, branch) optional — local disk still works.
  */
 export async function handleVitaMirrorAction({
@@ -920,6 +942,7 @@ export async function handleVitaMirrorAction({
   filename = null,
   key = null,
   kind = null,
+  modelId = null,
   chatId = "default",
   cwd = REPO_ROOT,
   githubFetch = null,
@@ -928,9 +951,45 @@ export async function handleVitaMirrorAction({
   repo = "",
   now = Date.now(),
   extraLocs = [],
+  env = process.env,
+  rpcPingMs = null,
+  write = true,
+  fetchCalldata = null,
+  readUtf8FromCalldata = null,
 } = {}) {
   expireSessionKeys(chatId, now);
   const bucket = sessionBucket(chatId);
+
+  if (
+    action === "check" ||
+    action === "recover" ||
+    action === "models" ||
+    action === "model" ||
+    action === "llm" ||
+    action === "spin" ||
+    action === "syscheck" ||
+    action === "systems" ||
+    action === "evm" ||
+    action === "speed" ||
+    action === "llmspin" ||
+    action === "locs" ||
+    action === "inject" ||
+    action === "pull" ||
+    action === "verify"
+  ) {
+    return handleChainLayerAction({
+      action,
+      kind,
+      modelId,
+      cwd,
+      env,
+      rpcPingMs,
+      write,
+      now,
+      fetchCalldata,
+      readUtf8FromCalldata,
+    });
+  }
 
   if (action === "chain" || action === "plugins") {
     const reply = formatMirrorChainCard();

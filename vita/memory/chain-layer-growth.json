@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-21T00:52:29.523Z",
+  "topic": "chain-layer-growth",
+  "filingLabel": "CHAIN_LAYER",
+  "formula": "original-message-first",
+  "before": {
+    "memory": {
+      "count": 120,
+      "bytes": 612377
+    },
+    "strands": {
+      "count": 42,
+      "bytes": 35036
+    }
+  },
+  "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
+  "snarkLocalOnly": true,
+  "recoverMs": 1.989,
+  "agreedModel": "claude-sonnet-4-20250514",
+  "llmCommit": "812e6aaf521048f8f5e3fb35ffee2b7b55b1de84d0a7073f2d6bfdeb9627dafe",
+  "spacedChunks": 338,
+  "sealedInject": 0,
+  "pendingInject": 338,
+  "verifiedInject": 0,
+  "checklistPassed": 9,
+  "checklistTotal": 9,
+  "neverInventHashes": true,
+  "messageFirst": true
+}

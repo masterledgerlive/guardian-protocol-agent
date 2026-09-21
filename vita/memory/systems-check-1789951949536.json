@@ -1,0 +1,181 @@
+{
+  "at": "2026-09-21T00:52:29.523Z",
+  "topic": "systems-check",
+  "filingLabel": "SYSTEMS_CHECK",
+  "magic": "§SYSCHECK§",
+  "formula": "original-message-first",
+  "checks": [
+    {
+      "id": "anchors",
+      "title": "Hardcoded Base anchors",
+      "why": "Never invent hashes — settle only on sealed Base locs",
+      "ok": true,
+      "detail": "3 formula-class anchors (not library body)"
+    },
+    {
+      "id": "library-growth",
+      "title": "Library growth (memory + strands)",
+      "why": "Visible file creation proves learn-and-never-forget",
+      "ok": true,
+      "detail": "memory=120f/612377B strands=42f/35036B"
+    },
+    {
+      "id": "snark-compress",
+      "title": "SNARK compress proven libraries",
+      "why": "Recover from short commitment — skip whole mainframe body",
+      "ok": true,
+      "detail": "15 files · 238057B · 28af210e49… · LOCAL_ONLY"
+    },
+    {
+      "id": "spaced-inject",
+      "title": "Spaced inject batch (code > calldata)",
+      "why": "Every chunk needs its own sealed Base loc — never fake IDM with formula anchors",
+      "ok": true,
+      "detail": "338 spaced locs × 720B · sealed=0 · pending=338"
+    },
+    {
+      "id": "chain-match",
+      "title": "On-chain UTF-8 match",
+      "why": "Pull sealed locs and verify Input Data matches planned chunk commits",
+      "ok": true,
+      "detail": "bind-only sealed=0 (pass fetchCalldata to pull/verify)"
+    },
+    {
+      "id": "model-ring",
+      "title": "Last-agreed / multi-model ring",
+      "why": "Open-source: swap or stack models without rewriting settlement",
+      "ok": true,
+      "detail": "agreed=claude-sonnet-4-20250514 · multi=1"
+    },
+    {
+      "id": "evm-recover",
+      "title": "EVM recover timing",
+      "why": "How fast calldata → UTF-8 / snark unwrap spins a brand-new session",
+      "ok": true,
+      "detail": "1.989ms local + 0ms rpc · LOCAL_ONLY"
+    },
+    {
+      "id": "llm-spin",
+      "title": "LLM-on-chain spin registry",
+      "why": "Manifest to read / grow / change an LLM route at will",
+      "ok": true,
+      "detail": "model=claude-sonnet-4-20250514 · commit=812e6aaf52…"
+    },
+    {
+      "id": "telegram-pointer",
+      "title": "Telegram click-through",
+      "why": "Demonstrate each proven system as it is added",
+      "ok": true,
+      "detail": "/vita check · check locs · check pull · 0 sealed IDM buttons"
+    }
+  ],
+  "snark": {
+    "short": "ZK§6a19809852|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
+    "root": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
+    "fileCount": 15,
+    "bytes": 238057,
+    "localOnly": true,
+    "sealedLocCount": 0,
+    "note": "LOCAL snark only — no sealed inject locs yet. Formula anchors are not library body."
+  },
+  "inject": {
+    "totalChunks": 338,
+    "maxBytes": 720,
+    "sealedCount": 0,
+    "pendingCount": 338,
+    "verifiedCount": 0,
+    "spacedBlockchainLocationsRequired": 338,
+    "sealedLocations": [],
+    "pull": null
+  },
+  "recover": {
+    "ok": true,
+    "at": "2026-09-21T00:52:29.523Z",
+    "localRecoverMs": 1.989,
+    "rpcPingMs": 0,
+    "totalMs": 1.989,
+    "snarkShort": "ZK§6a19809852|T=VITA-PROVEN-LIB|M=SNARK kind=proven-lib title=VITA-PROVEN-LIB fil…",
+    "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
+    "fileCount": 15,
+    "formulaAnchorCount": 3,
+    "sealedInjectCount": 0,
+    "locCount": 0,
+    "unwrapInstant": true,
+    "privateKeyRequired": false,
+    "evmClass": "base-calldata-utf8-v1",
+    "chainId": 8453,
+    "chain": "base",
+    "localOnly": true,
+    "note": "Local snark unwrap only — library body not yet sealed on Base. Formula anchors are class proof, not body.",
+    "locations": [],
+    "formulaAnchors": [
+      {
+        "id": "keycat-plain",
+        "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "kind": "none",
+        "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+        "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "idmChat": "Basescan → Input Data → View as UTF-8",
+        "role": "formula-anchor",
+        "holdsLibraryBody": false,
+        "note": "Formula/class proof only — does not contain proven-lib bytes"
+      },
+      {
+        "id": "eureka-prove",
+        "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "kind": "eureka",
+        "label": "Eureka love note on Base (/prove class)",
+        "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "idmChat": "Basescan → Input Data → View as UTF-8",
+        "role": "formula-anchor",
+        "holdsLibraryBody": false,
+        "note": "Formula/class proof only — does not contain proven-lib bytes"
+      },
+      {
+        "id": "vita-strand",
+        "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+        "kind": "vita",
+        "label": "VITA §TOKEN§ strand chunk on Base",
+        "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+        "idmChat": "Basescan → Input Data → View as UTF-8",
+        "role": "formula-anchor",
+        "holdsLibraryBody": false,
+        "note": "Formula/class proof only — does not contain proven-lib bytes"
+      }
+    ],
+    "neverInventHashes": true
+  },
+  "models": {
+    "agreed": "claude-sonnet-4-20250514",
+    "multi": [
+      "claude-sonnet-4-20250514"
+    ],
+    "cycle": [
+      "claude-sonnet-4-20250514"
+    ]
+  },
+  "llm": {
+    "modelId": "claude-sonnet-4-20250514",
+    "contentCommit": "812e6aaf521048f8f5e3fb35ffee2b7b55b1de84d0a7073f2d6bfdeb9627dafe",
+    "snarkShort": "ZK§812e6aaf52|T=LLM-SPIN-claude-sonnet-4-20250514|M=SNARK kind=proven-lib title=LLM-SPIN-claude-son…",
+    "spin": {
+      "read": "/vita llm",
+      "check": "/vita check",
+      "locs": "/vita check locs",
+      "pull": "/vita check pull",
+      "recover": "/vita recover",
+      "models": "/vita models",
+      "change": "Set Railway VITA_MODELS or /vita models next",
+      "grow": "Append vita/memory + vita/strands — never erase genesis"
+    }
+  },
+  "formulaAnchors": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+  ],
+  "sealedInjectLocations": [],
+  "neverInventHashes": true,
+  "neverForget": true,
+  "route": "Always /vita check → check locs → check pull. Spaced inject for code > calldata. IDM only for sealed matching locs. Formula anchors ≠ library body."
+}

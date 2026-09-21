@@ -1,0 +1,283 @@
+{
+  "id": "telegram-home-learn-v1",
+  "filingLabel": "TELEGRAM_HOME",
+  "notes": [
+    {
+      "at": "2026-09-21T00:09:21.312Z",
+      "topic": "telegram-home-sim",
+      "section": "all",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -27,
+      "searchPassed": 6,
+      "snarkRoot": "adb01afd385826c6be9b612d8de96674ec855dea02a6012a12441e0989a345fa",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:21.315Z",
+      "topic": "telegram-home-sim",
+      "section": "search",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -30,
+      "searchPassed": 6,
+      "snarkRoot": "5b5a6a9b5f8decbbcbd2832d562a1bbfd325b72b3527353e82c0304006f97fcc",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:21.316Z",
+      "topic": "engine-compare",
+      "cheaper": "MAIN",
+      "faster": "NEW",
+      "byteDelta": -14,
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:21.316Z",
+      "topic": "telegram-home-sim",
+      "section": "wave",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -28,
+      "searchPassed": null,
+      "snarkRoot": "1c6e3e2ff1ecd67a97cad3d213a3eeb65ed88cd56c59725af5a9b848d25c7e3e",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:30.465Z",
+      "topic": "telegram-home-sim",
+      "section": "all",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -27,
+      "searchPassed": 6,
+      "snarkRoot": "bbc3ad7eac024369990f3a87abcadca38984bc7e20e26de937955db8a658fcf7",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:30.468Z",
+      "topic": "telegram-home-sim",
+      "section": "search",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -30,
+      "searchPassed": 6,
+      "snarkRoot": "de4bbde3353488b8afbca7ab2e5140967648dda24aaca9a7834cc8a3e87eabca",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:30.469Z",
+      "topic": "engine-compare",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -14,
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:30.469Z",
+      "topic": "telegram-home-sim",
+      "section": "wave",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -28,
+      "searchPassed": null,
+      "snarkRoot": "438e74e2c82ea5f2319ee3b5840cf79b291a2a8a7e86d44f118db1221ae0d0bc",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:34.506Z",
+      "topic": "telegram-home-sim",
+      "section": "all",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -27,
+      "searchPassed": 6,
+      "snarkRoot": "87729a044fdc2f7c47f826cb85474200b6f8d70caf7a76f4fe0126db9d5a934a",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:34.509Z",
+      "topic": "telegram-home-sim",
+      "section": "search",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -30,
+      "searchPassed": 6,
+      "snarkRoot": "8c7406aba94a7f505574a1444ebf1affcc61765ce1773373bc08803eb653ab32",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:34.510Z",
+      "topic": "engine-compare",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -14,
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:34.511Z",
+      "topic": "telegram-home-sim",
+      "section": "wave",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -28,
+      "searchPassed": null,
+      "snarkRoot": "0c86a1f782999ee49e818bf059a77b6a0b931d6ac49edabd27b5f6c029d0e5fe",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:43.621Z",
+      "topic": "telegram-home-sim",
+      "section": "all",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -27,
+      "searchPassed": 6,
+      "snarkRoot": "a9f618efaf58f716449d4b65e676f4f4d5bf5c51565ed3b4d82e22616f38db79",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:43.624Z",
+      "topic": "telegram-home-sim",
+      "section": "search",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -30,
+      "searchPassed": 6,
+      "snarkRoot": "5302d01ade2f8c3db248c486f3068f5e30adbdbee7c0d8c4d200644e0180d40c",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:43.625Z",
+      "topic": "engine-compare",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -14,
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T00:09:43.626Z",
+      "topic": "telegram-home-sim",
+      "section": "wave",
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "byteDelta": -28,
+      "searchPassed": null,
+      "snarkRoot": "6fdedc3c3de971a995de9f5c0806d96b6ca61e97048df1b48762bff502a7820c",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    }
+  ],
+  "updatedAt": "2026-09-21T00:09:43.626Z"
+}

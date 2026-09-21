@@ -1,0 +1,35 @@
+{
+  "strandId": "chain-layer-inject",
+  "sparse": true,
+  "source": "chain-inject",
+  "filingLabel": "CHAIN_INJECT",
+  "learn": "Spaced inject: N chunks × 720B. Telegram IDM only for sealed matching locs. Formula anchors ≠ library body.",
+  "formula": "original-message-first",
+  "totalChunks": 338,
+  "sealedCount": 0,
+  "pendingCount": 338,
+  "verifiedCount": 0,
+  "maxBytes": 720,
+  "locations": [],
+  "formulaAnchors": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none",
+      "role": "formula-anchor"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka",
+      "role": "formula-anchor"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita",
+      "role": "formula-anchor"
+    }
+  ],
+  "neverInventHashes": true
+}
