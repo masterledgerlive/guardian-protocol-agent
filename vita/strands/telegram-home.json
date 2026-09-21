@@ -1,0 +1,35 @@
+{
+  "strandId": "telegram-home",
+  "sparse": true,
+  "source": "telegram-home",
+  "filingLabel": "TELEGRAM_HOME",
+  "header": "§VITAHOME§v1|home|section=<id>|sim|engines",
+  "learn": "Telegram HOME = sectioned inline_keyboard for every VITA route (Memory/Feed/Search/WAVE/Mirror/Dual/Mother/Status). callback_data ≤64 = existing slash commands. /home sim runs route connectivity + search ref/proven sims. /home engines dual-mirrors seed into MAIN exact-utf8 VITAFEED vs NEW snark-short; records cheaper/faster; attaches IDM Basescan anchors as static proof. Snark batch root verifies many blobs. Paid paths never auto-spend. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": [
+    "/home",
+    "/menu",
+    "/start",
+    "/home search",
+    "/home sim",
+    "/home sim search",
+    "/home engines"
+  ],
+  "locations": [
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    },
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    }
+  ]
+}
