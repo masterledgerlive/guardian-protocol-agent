@@ -1,0 +1,29 @@
+{
+  "strandId": "chain-layer",
+  "sparse": true,
+  "source": "chain-layer",
+  "filingLabel": "CHAIN_LAYER",
+  "learn": "Always /vita check before inventing a route. SNARK proven libs so agents skip whole mainframe. EVM recover ms = brand-new spin. Model ring + LLM manifest are open-source change-at-will. Never invent hashes.",
+  "formula": "original-message-first",
+  "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+  "recoverMs": 1.456,
+  "agreedModel": "claude-sonnet-4-20250514",
+  "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20",
+  "locations": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    }
+  ]
+}

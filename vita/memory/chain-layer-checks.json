@@ -1,0 +1,64 @@
+{
+  "id": "vita-chain-layer-v1",
+  "magic": "§VITACHAIN§",
+  "formula": "original-message-first",
+  "at": "2026-09-21T00:33:11.542Z",
+  "count": 6,
+  "events": [
+    {
+      "at": "2026-09-21T00:32:56.326Z",
+      "passed": 7,
+      "total": 7,
+      "recoverMs": 1.439,
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "agreedModel": "claude-sonnet-4-20250514",
+      "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:32:56.334Z",
+      "passed": 7,
+      "total": 7,
+      "recoverMs": 1.146,
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "agreedModel": "claude-sonnet-4-20250514",
+      "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:04.683Z",
+      "passed": 7,
+      "total": 7,
+      "recoverMs": 1.391,
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "agreedModel": "claude-sonnet-4-20250514",
+      "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:04.690Z",
+      "passed": 7,
+      "total": 7,
+      "recoverMs": 1.207,
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "agreedModel": "claude-sonnet-4-20250514",
+      "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:11.536Z",
+      "passed": 7,
+      "total": 7,
+      "recoverMs": 0.946,
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "agreedModel": "claude-sonnet-4-20250514",
+      "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    },
+    {
+      "at": "2026-09-21T00:33:11.542Z",
+      "passed": 7,
+      "total": 7,
+      "recoverMs": 1.456,
+      "snarkRoot": "ba78df51e54bcb50d4cda0f3ceca8847937e4ba82be0452d60e50c0077b0bc2a",
+      "agreedModel": "claude-sonnet-4-20250514",
+      "llmCommit": "4feef6eca82e988594aaf5a4a08037ccf8831ab508861452ad36a0665aa71d20"
+    }
+  ],
+  "neverInventHashes": true
+}

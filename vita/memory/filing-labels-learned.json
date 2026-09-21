@@ -24,8 +24,11 @@
     "VITALIB": "Named library name→key→locs",
     "MEMORY": "Append-only learned notes",
     "STRAND": "Sparse inject chunk plans",
-    "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust"
+    "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust",
+    "CHAIN_LAYER": "Always-on blockchain systems check — SNARK libs + EVM recover + model ring",
+    "SYSTEMS_CHECK": "Checklist proof each pass — grows memory/strands files",
+    "LLM_ONCHAIN": "LLM spin manifest — content commitment + Base locs; change at will"
   },
-  "lastAdded": [],
-  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
+  "lastAdded": ["CHAIN_LAYER", "SYSTEMS_CHECK", "LLM_ONCHAIN"],
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. Systems-check layer proves recover speed without inventing hashes."
 }

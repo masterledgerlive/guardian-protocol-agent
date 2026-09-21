@@ -47,13 +47,15 @@ describe("vita mirror-chain GitHub-as-ledger", () => {
     assert.ok(MIRROR_CATALOG.some((e) => e.name === "positions.json" && e.lane === "both"));
   });
 
-  it("parses /vita read|files|proof|unwrap|chain|session without eating questions", () => {
+  it("parses /vita read|files|proof|unwrap|chain|session|check without eating questions", () => {
     assert.equal(parseVitaMirrorCommand("/vita read vault-unlock.js").action, "read");
     assert.equal(parseVitaMirrorCommand("/vita read vault-unlock.js").filename, "vault-unlock.js");
     assert.equal(parseVitaMirrorCommand("/vita files").action, "files");
     assert.equal(parseVitaMirrorCommand("/vita proof positions.json").action, "proof");
     assert.equal(parseVitaMirrorCommand("/vita unwrap VITASESS.destroy.abc vault-unlock.js").action, "unwrap");
     assert.equal(parseVitaMirrorCommand("/vita chain").action, "chain");
+    assert.equal(parseVitaMirrorCommand("/vita check").action, "check");
+    assert.equal(parseVitaMirrorCommand("/vita recover").action, "recover");
     assert.equal(parseVitaMirrorCommand("/vita session").action, "session");
     assert.equal(parseVitaMirrorCommand("/vita who is KEY?").action, "ask");
     assert.equal(parseVitaMirrorCommand("/vitafeed dir").action, null);
