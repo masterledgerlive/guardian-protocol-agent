@@ -73,8 +73,12 @@ while you work; playlists already in the system (KIDS dir, demo WAV, library)
 load from the picker. Child sees only that list — no YouTube recommendations or
 other channels. Dual paths: Telegram HUMAN url list + MACHINE ZK-short
 (`/vitafeed dual kids` then confirm|override); GitHub availability vs proven
-(`/vita dual vita/memory/kids-url-directory.json`). URLs only — never invent
-hashes. See `vita/url-dir.js`.
+(`/vita dual vita/memory/kids-url-directory.json`). Proven = both HUMAN and
+MACHINE lanes sealed into Basescan **Input Data** (clickable loc proofs). Until
+then the catalog is **availability** only (local/GitHub) — formula anchors are
+class proof, not this body. Completion directory: `/vitafeed chaindir` ·
+`/vitafeed cycle` · `/vitafeed loc 0x…` · `/vitafeed dir CHAIN` (`vita/chain-dir.js`).
+URLs only — never invent hashes. See `vita/url-dir.js`.
 **GitHub mirror chain:** `/vita read FILE` · `/vita files` · `/vita proof FILE`
 · `/vita unwrap [KEY]` · `/vita chain` · `/vita session` — local Railway disk
 + GitHub CODE (main) / STATE (bot-state). SNARK-batched IDM chat of sealed

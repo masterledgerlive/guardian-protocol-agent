@@ -25,6 +25,13 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    HUMAN plain vs MACHINE ZK-short sizes + ETH/$. `/vitafeed dual [text]` stages both;
    confirm|override seals HUMAN then MACHINE and prints both location sets as proof.
    `/vitafeed restart` lists bags ≥ $0.50 to exit if RISK needs fuel for more inject tests.
+7b2. **CHAINDIR (completion log):** `/vitafeed chaindir` shows **top** routing/waiting
+   (two ends talking — HUMAN plain vs MACHINE ZK-short, no invented locs) and
+   **bottom** complete lines with clickable Basescan **Input Data → UTF-8** proofs
+   in order of completion. `/vitafeed loc 0x…` searches by sealed location.
+   Completing both lanes is the absolute moment; `/vitafeed cycle` self-checks
+   loc proofs and routes the next dual inject. `/vitafeed dir CHAIN`. UI:
+   `/vita/chain-dir`. KIDS player is availability until dual kids is sealed.
 7c. **Loader (curated knowledge):** `/vitafeed load` preloads cipher/programming/LLM
    packs into the **existing** backlog with dual cost mirrors + text animation.
    `/vitafeed know` = Hey did you know… + on-chain library recall.

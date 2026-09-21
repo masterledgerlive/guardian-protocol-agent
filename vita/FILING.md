@@ -16,7 +16,10 @@ findable.
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
-| `vita/url-dir.js` | `URLDIR` | Curated YouTube URL directories (KIDS closed garden) — load/play in player; Telegram Watch popup + dual path |
+| `vita/chain-dir.js` | `CHAINDIR` | Line-for-line on-chain completion directory — routing vs sealed Input Data proofs; HUMAN+MACHINE wait; cycle trigger |
+| `vita/memory/chain-dir-ledger.json` | `CHAINDIR` | Append-only completion log (active top, complete bottom) |
+| `public/vita-chain-dir.html` | `CHAINDIR` | Clickable Basescan Input Data directory |
+| `vita/strands/chain-dir.json` | `CHAINDIR` | Sparse strand: two ends talk → loc proof → cycle next inject |
 | `vita/memory/kids-url-directory.json` | `URLDIR` | Pulled KIDS playlist URLs (urls only — no media copies) |
 | `public/vita-kids-player.html` | `URLDIR` | Closed-garden player — only listed URLs; Telegram Mini App popup + playlist picker |
 | `vita/memory/telegram-player-popup.json` | `URLDIR` | Learn: Telegram HTTPS popup player (web_app + url fallback) |
@@ -87,6 +90,7 @@ findable.
 | `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
 | `MG_RECALL` | Force-banked recall stack (`§MGRECALL§`) — pull one location; last layer is refined queries |
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
+| `CHAINDIR` | Line-for-line completion directory (`§VITACHAINDIR§`) — HUMAN+MACHINE loc proofs in Input Data; routing until both sealed |
 | `URLDIR` | Curated URL playlist directory (`§VITAURLDIR§`) — closed-garden YouTube urls for `/vita/kids-player`; dual HUMAN list + MACHINE ids |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |

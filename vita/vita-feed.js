@@ -656,6 +656,17 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:kids|urldir|url-dir|kplaylist)\s*/i, "").trim();
     return { ok: true, action: "kids", body: rest, source: "kids" };
   }
+  if (/^(?:chaindir|chain-dir|chdir)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:chaindir|chain-dir|chdir)\s*/i, "").trim();
+    return { ok: true, action: "chaindir", body: rest, source: "chaindir" };
+  }
+  if (/^(?:cycle|grease|nextcycle)(?:\s|$)/i.test(trimmed)) {
+    return { ok: true, action: "cycle", body: "", source: "cycle" };
+  }
+  if (/^(?:loc|location|inputdata)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:loc|location|inputdata)\s*/i, "").trim();
+    return { ok: true, action: "loc", body: rest, source: "loc" };
+  }
   // Inject / message-sent tracking — prove click-through + running code path.
   if (/^(?:track|trackinject|clicktrack)(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:track|trackinject|clicktrack)\s*/i, "").trim();
@@ -768,6 +779,11 @@ export function vitaFeedUsageText() {
     "  /vitafeed dual kids        — HUMAN url list + MACHINE ids (Telegram dual path)",
     "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
     "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
+    "CHAIN DIRECTORY (Input Data loc proofs · HUMAN + MACHINE · order of completion):",
+    "  /vitafeed chaindir         — top=routing/waiting · bottom=complete clickable proofs",
+    "  /vitafeed loc 0x…          — search directory by sealed location",
+    "  /vitafeed cycle            — complete pair triggers next dual inject (self-check)",
+    "  /vitafeed dir CHAIN        — DOS line-for-line log",
     "BACKLOG (feed brain without agentic AI):",
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
@@ -1538,6 +1554,19 @@ export async function handleVitaFeedAction({
       machineBody: dualStage.machineBody,
       machinePrepared: dualStage.machinePrepared,
     });
+    let chainDirExtra = "";
+    try {
+      const { routeTransmission, guessTransmissionName, formatChainDirCard } =
+        await import("./chain-dir.js");
+      routeTransmission({
+        name: guessTransmissionName(dualStage.body),
+        humanBody: dualStage.body,
+        machineBody: dualStage.machineBody,
+      });
+      chainDirExtra =
+        "\n\n" + formatChainDirCard() +
+        "\nRouting — two ends talking. Confirm seals HUMAN then MACHINE into Input Data.";
+    } catch { /* chain dir is best-effort */ }
     const restart = formatRestartMoneyExitHint({ bags: seatsToBags(seats) });
     return {
       ok: true,
@@ -1552,6 +1581,7 @@ export async function handleVitaFeedAction({
         dualStage.card +
         "\n\n" + formatVitaFeedBuyInCard(buyIn) +
         "\n\n" + restart.card +
+        chainDirExtra +
         "\n\nNext: /vitafeed confirm (or override) — HUMAN then MACHINE · Basescan read receipts",
     };
   }
@@ -1679,6 +1709,86 @@ export async function handleVitaFeedAction({
       reply:
         formatProvenTestCard(report) +
         "\n\nTry: /vitafeed ref calculadora  ·  /vitafeed ask I built a calc for payroll",
+    };
+  }
+  if (action === "chaindir") {
+    const {
+      formatChainDirCard,
+      formatChainDirSearchCard,
+      searchByLocation,
+      publicChainDirState,
+    } = await import("./chain-dir.js");
+    const { buildChainDirKeyboard } = await import("./telegram-clickthrough.js");
+    const rest = String(body || "").trim();
+    if (/^0x[0-9a-fA-F]{64}$/.test(rest)) {
+      const found = searchByLocation(rest);
+      return {
+        ok: found.ok,
+        phase: "chaindir",
+        found,
+        reply: formatChainDirSearchCard(found),
+        keyboard: buildChainDirKeyboard(publicChainDirState()),
+      };
+    }
+    const state = publicChainDirState();
+    return {
+      ok: true,
+      phase: "chaindir",
+      state,
+      reply: formatChainDirCard(),
+      keyboard: buildChainDirKeyboard(state),
+    };
+  }
+  if (action === "loc") {
+    const { searchByLocation, formatChainDirSearchCard, publicChainDirState } =
+      await import("./chain-dir.js");
+    const { buildChainDirKeyboard } = await import("./telegram-clickthrough.js");
+    const found = searchByLocation(body);
+    return {
+      ok: found.ok,
+      phase: "loc",
+      found,
+      reply: formatChainDirSearchCard(found),
+      keyboard: buildChainDirKeyboard(publicChainDirState()),
+    };
+  }
+  if (action === "cycle") {
+    const {
+      formatChainDirCard,
+      formatCycleCard,
+      listCompleteLines,
+      triggerCycle,
+      publicChainDirState,
+      routeTransmission,
+      guessTransmissionName,
+    } = await import("./chain-dir.js");
+    const { peekNextFeedBacklogItem } = await import("./vita-feed-backlog.js");
+    const { buildChainDirKeyboard } = await import("./telegram-clickthrough.js");
+    const done = listCompleteLines();
+    const last = done.at(-1);
+    const cycle = last ? triggerCycle({ n: last.n, status: "complete", completedAt: last.completedAt, name: last.name }) : { triggered: false, reason: "no complete pair yet — dual then confirm" };
+    const next = peekNextFeedBacklogItem();
+    if (last && next?.ok && next.item?.body) {
+      routeTransmission({
+        name: guessTransmissionName(next.item.body, next.public?.name || next.item?.name),
+        humanBody: next.item.body,
+      });
+    }
+    const state = publicChainDirState();
+    return {
+      ok: true,
+      phase: "cycle",
+      cycle,
+      next: next?.ok ? next.public : null,
+      reply:
+        formatCycleCard(cycle, last) +
+        "\n\n" +
+        formatChainDirCard() +
+        "\n\n" +
+        (next?.ok
+          ? "Next backlog staged as routing — /vitafeed next then confirm|override (HUMAN then MACHINE)."
+          : "Backlog empty — /vitafeed dual kids or /vitafeed enqueue seed to keep the injector streaming."),
+      keyboard: buildChainDirKeyboard(state),
     };
   }
   if (action === "kids") {
@@ -2331,6 +2441,43 @@ export async function handleVitaFeedAction({
         }
       }
     } catch { /* backlog seal is best-effort */ }
+    let chainDirSeal = null;
+    try {
+      const {
+        recordDualSealIntoChainDir,
+        formatChainDirCard,
+        formatCycleCard,
+        guessTransmissionName,
+      } = await import("./chain-dir.js");
+      const hLocs = (result.strand?.locations || result.priorLocations || [])
+        .map(String)
+        .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+      const mLocs = (machineResult?.strand?.locations || [])
+        .map(String)
+        .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+      if (hLocs.length || row.dual) {
+        chainDirSeal = recordDualSealIntoChainDir({
+          name: guessTransmissionName(row.body || "", row.backlogItem?.name),
+          humanBody: row.body || "",
+          machineBody: row.machineBody || "",
+          humanLocs: hLocs,
+          machineLocs: mLocs,
+          humanVin: result.strand?.vinId || row.prepared?.vinId,
+          machineVin: machineResult?.strand?.vinId,
+          humanReaderKey: result.strand?.readerKey,
+          machineReaderKey: machineResult?.strand?.readerKey,
+          humanPartial: Boolean(restaged || result.banked),
+          machinePartial: Boolean(machineResult?.banked),
+        });
+      }
+      if (chainDirSeal?.ok) {
+        chainDirSeal.card =
+          formatChainDirCard() +
+          (chainDirSeal.cycle
+            ? "\n\n" + formatCycleCard(chainDirSeal.cycle, chainDirSeal.line)
+            : "");
+      }
+    } catch { /* chain dir seal is best-effort */ }
     const card = formatVitaFeedCostCard(cost, row.prepared, { phase: "after" });
     const receipt = formatVitaFeedReceipt(result, cost);
     const buyCard = formatVitaFeedBuyInCard(buyIn);
@@ -2368,6 +2515,9 @@ export async function handleVitaFeedAction({
       ? "\n\n" + backlogSeal.card +
         (restaged ? "" : "\nDrain more: /vitafeed next")
       : "";
+    const chainDirExtra = chainDirSeal?.card
+      ? "\n\n" + chainDirSeal.card
+      : "";
     const resumeExtra = restaged
       ? "\n\nPARTIAL — sealed " + result.sealedCount + "/" + result.needed +
         ". Remainder restaged. /vitafeed override again when RISK has gas."
@@ -2384,12 +2534,13 @@ export async function handleVitaFeedAction({
       playProof,
       library: librarySave,
       backlog: backlogSeal,
+      chainDir: chainDirSeal,
       forcedOverride: override,
       restaged,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
         card + "\n\n" + buyCard + "\n\n" + receipt + dualExtra + playExtra +
-        libExtra + backlogExtra + resumeExtra,
+        libExtra + backlogExtra + chainDirExtra + resumeExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };
