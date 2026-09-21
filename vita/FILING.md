@@ -16,6 +16,7 @@ findable.
 | `vita/mother-genesis.js` | `MOTHER_GENESIS` | N-batch plain/encoded dumps + on-chain full MGLOCS loc list (squash later) — not the 5-chunk mother brain |
 | `vita/mg-recall-bank.js` | `MG_RECALL` | Force-banked recall stack for simple pull — notes attached; last layer is refined queries |
 | `vita/vita-dir.js` | `VITADIR` | DOS-style master directory + open-source unlock (no private key); instant ZK-short unwrap |
+| `vita/telegram-clickthrough.js` | `VITACLICK` | Telegram inline keyboards — every category + subcategory clickable (dir→file→unlock, tokens→actions, track inject) |
 | `vita/mirror-chain.js` | `MIRROR_CHAIN` | GitHub-as-blockchain file read + SNARK unwrap + Railway-style session keys + Telegram click-through |
 | `vita/memory/mirror-chain-github.json` | `MIRROR_CHAIN` | Research note: GitHub contents ≈ availability ledger; Base hitch = settlement |
 | `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up |
@@ -64,6 +65,7 @@ findable.
 | `MOTHER_GENESIS` | N-batch plain/encoded dumps — not the 5-chunk mother brain |
 | `MG_RECALL` | Force-banked recall stack (`§MGRECALL§`) — pull one location; last layer is refined queries |
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
+| `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
 | `BRAIN_LEARN` | Old→new learn delta (`§VITALEARN§`) |

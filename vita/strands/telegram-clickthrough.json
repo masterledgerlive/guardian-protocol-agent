@@ -1,0 +1,14 @@
+{
+  "id": "telegram-clickthrough-strand",
+  "label": "VITACLICK",
+  "at": "2026-09-21T01:20:00.000Z",
+  "plan": [
+    "Root /vitafeed keyboard → dir|files|brain|track|tokens",
+    "Dir master → tap subdir → tap file → unlock card",
+    "Unlock: SNARK+path first; Human ms; Machine+key ms; Play|Dual|Track",
+    "Tokens: /tok SYMBOL → buy/sell/half/exit/piggy/status/dual/track",
+    "Track: stage §VITACLICK§ body → Confirm|Override → Basescan UTF-8 proof"
+  ],
+  "locations": [],
+  "note": "Locations append only after real seal — never invent hashes."
+}
