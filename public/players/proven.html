@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Proven Player — ZK-Streaming Engine</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="/vita/players/chain-box.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0f1f2e; --tide: #1a6b8a; --ok: #2a9d8f; --coral: #e07a5f; --sand: #f3ebe0;
+      --display: "Syne", sans-serif; --mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--ink); font-family: var(--mono);
+      background:
+        radial-gradient(900px 420px at 85% -5%, rgba(26,107,138,.28), transparent 55%),
+        linear-gradient(168deg, #f7f3ec 0%, #e4f1f6 48%, #d5e4ee 100%);
+    }
+    .stage { max-width: 920px; margin: 0 auto; padding: clamp(1rem, 4vw, 2.2rem); }
+    h1 { font-family: var(--display); font-size: clamp(1.8rem, 6vw, 3.2rem); letter-spacing: -.04em; margin: 0 .5rem 0 0; display: inline-block; vertical-align: middle; }
+    #chainMount { display: inline-flex; vertical-align: middle; margin: 0 0 .6rem; pointer-events: auto !important; z-index: 40; position: relative; }
+    .vita-chain-box {
+      display: inline-flex; align-items: center; gap: .45rem;
+      position: relative; z-index: 40; pointer-events: auto !important; cursor: pointer;
+      text-decoration: none; color: inherit; border: 2px solid currentColor; background: #fff;
+      padding: .38rem .7rem; font-family: var(--mono); font-size: .72rem; line-height: 1.2;
+    }
+    .vita-chain-box:hover, .vita-chain-box:focus { outline: 2px solid var(--ok); outline-offset: 2px; }
+    .vita-chain-box .cb-name { font-weight: 800; }
+    .vita-chain-box .cb-id i { font-style: normal; opacity: .7; }
+    .vita-chain-box .cb-kind { font-size: .62rem; padding: .1rem .35rem; background: #1a6b8a; color: #fff; font-weight: 700; }
+    .lede { color: #3d5566; max-width: 40rem; font-size: .88rem; }
+    .cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; margin: 1rem 0; }
+    .cell {
+      border: 1.5px solid rgba(15,31,46,.25); background: rgba(255,255,255,.6);
+      min-height: 72px; padding: .4rem; font-size: .62rem; cursor: default;
+    }
+    .cell.open { background: var(--ok); color: #fff; border-color: var(--ink); }
+    .cell.drop { background: var(--coral); color: #fff; }
+    .cell.next { outline: 2px dashed var(--tide); }
+    .player-shell { background: rgba(255,255,255,.72); border: 1.5px solid rgba(15,31,46,.18); padding: 1rem; }
+    audio, video { width: 100%; display: block; }
+    button, select {
+      font-family: var(--mono); font-weight: 600; border: 1.5px solid var(--ink);
+      background: var(--ink); color: var(--sand); padding: .5rem .8rem; cursor: pointer;
+    }
+    button.ghost { background: transparent; color: var(--ink); }
+    .chrome { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; margin: .8rem 0; }
+    pre { white-space: pre-wrap; font-size: .7rem; background: rgba(255,255,255,.72); border: 1px solid rgba(15,31,46,.14); padding: .8rem 1rem; }
+    details { margin: 1rem 0; }
+    summary { cursor: pointer; font-family: var(--display); }
+    a { color: var(--tide); }
+    .stat { font-family: var(--display); font-size: 1.3rem; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1>Proven Player</h1>
+    <div id="chainMount" data-player="proven">
+      <a class="vita-chain-box class-proof" id="vitaChainBox"
+         href="https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         target="_blank" rel="noopener"
+         data-player="proven" data-kind="class-proof"
+         data-loc="0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         title="Click opens a real Base loc (class proof of Proven Player). Song/video body seals replace this when present.">
+        <span class="cb-name">Proven Player</span>
+        <span class="cb-id" aria-label="block identity"><b>931d</b><i>·</i><b>145b</b><i>·</i><b>19db</b></span>
+        <span class="cb-kind">CLASS PROOF</span>
+      </a>
+    </div>
+    <p class="lede">
+      ZK-Streaming Engine for kids — grouped cells stay locked until a 448-byte
+      key verifies sequence and origin. Only then does the bitstream reach the
+      decoder. Sister engine: <a href="/vita/players/garden">Garden Player</a>
+      (VIN / closed garden). Click the chain box to open the real Basescan loc.
+    </p>
+    <div class="chrome">
+      <label>Song <select id="songPick"></select></label>
+      <button type="button" id="btnStream">Verify · unlock · play</button>
+      <button type="button" class="ghost" id="btnGarden">Garden Player</button>
+    </div>
+    <p class="stat" id="statLine">0 cells unlocked</p>
+    <div class="cells" id="cells" aria-label="ZK cells"></div>
+    <div class="player-shell" id="playerShell">
+      <p class="lede" style="margin:0">Lock is shut until every prefix key opens.</p>
+    </div>
+    <pre id="log">Waiting for stream…</pre>
+    <details>
+      <summary>Architecture (Prover → registry → lock → decoder)</summary>
+      <pre id="arch">
+flowchart LR
+  P[Prover node] -->|cells + 448B key| S[Data field / VIN]
+  P -->|follow-the-leader| C[On-chain registry]
+  S --> V[Proven Player verifier]
+  C --> V
+  V -->|lock opens| D[HTML5 / libVLC decode]
+  V -->|fail| X[drop cell]
+      </pre>
+    </details>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const el = (id) => document.getElementById(id);
+    let state = null;
+
+    function bootTg() {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) { try { tg.ready(); } catch (_) {} }
+    }
+
+    function paintCells(rows) {
+      const box = el("cells");
+      box.innerHTML = (rows || []).map((c, i) => {
+        const cls = c.open ? "open" : (c.dropped ? "drop" : (i === 0 ? "next" : ""));
+        return "<div class='cell " + cls + "'>g" + (c.groupN || "?") +
+          "<br>#" + (c.chunkId || i + 1) +
+          "<br>" + (c.open ? "OPEN" : (c.dropped ? "DROP" : "LOCK")) +
+          "<br>" + (c.cellHash8 || (c.cellHash || "").slice(0, 8)) + "</div>";
+      }).join("");
+    }
+
+    async function load(id) {
+      const song = id || q.get("music") || "maple";
+      el("log").textContent = "Fetching ZK stream " + song + "…";
+      const data = await fetch("/vita/players/proven/api?id=" + encodeURIComponent(song)).then((r) => r.json());
+      state = data;
+      if (!data?.ok) {
+        el("log").textContent = "Stream failed: " + (data?.error || "unknown");
+        return;
+      }
+      if (window.VitaChainBox) {
+        window.VitaChainBox.mount("#chainMount", { player: "proven", music: song });
+      }
+      const prefix = data.verifyPrefix || {};
+      paintCells(data.cells || []);
+      const opened = prefix.opened || 0;
+      el("statLine").textContent = opened + " / " + (data.song?.cellCount || 0) + " prefix keys open · 448B each";
+      el("log").textContent =
+        "PROVEN PLAYER · " + data.song.title + "\n" +
+        "cells " + data.song.cellCount + " · groups " + data.song.groupCount + "\n" +
+        "prefix verify opened=" + opened + " checked=" + (prefix.checked || 0) + "\n" +
+        "pipeline: prove N+1 while playing N · drop on fail\n" +
+        "chain " + data.chainBox.identify.display + " · " + data.chainBox.kind + "\n" +
+        data.latency;
+      const shell = el("playerShell");
+      shell.innerHTML = "";
+      if (prefix.ok && data.play?.dataUrl) {
+        const a = document.createElement(data.play.kind === "video" ? "video" : "audio");
+        a.controls = true;
+        a.autoplay = true;
+        a.src = data.play.dataUrl;
+        shell.appendChild(a);
+      } else {
+        shell.innerHTML = "<p class='lede' style='margin:0'>Prefix lock still shut — no decode.</p>";
+      }
+    }
+
+    async function fillSongs() {
+      const sel = el("songPick");
+      let ids = ["maple", "judy", "grace"];
+      try {
+        const cat = await fetch("/vita/free-music").then((r) => r.json());
+        if (cat.playlists?.length) ids = cat.playlists.map((p) => p.id);
+      } catch (_) {}
+      const cur = q.get("music") || ids[0];
+      sel.innerHTML = ids.map((id) =>
+        "<option value='" + id + "'" + (id === cur ? " selected" : "") + ">" + id + "</option>"
+      ).join("");
+      sel.addEventListener("change", () => {
+        const u = new URL(location.href);
+        u.searchParams.set("music", sel.value);
+        history.replaceState({}, "", u.pathname + u.search);
+        load(sel.value);
+      });
+    }
+
+    el("btnStream").addEventListener("click", () => load(el("songPick").value));
+    el("btnGarden").addEventListener("click", () => { location.href = "/vita/players/garden"; });
+
+    bootTg();
+    fillSongs();
+    if (window.VitaChainBox) window.VitaChainBox.mount("#chainMount", { player: "proven", music: q.get("music") || "maple" });
+    load(q.get("music") || "maple").catch((e) => {
+      el("log").textContent = "Load failed: " + (e && e.message || e);
+    });
+  </script>
+</body>
+</html>

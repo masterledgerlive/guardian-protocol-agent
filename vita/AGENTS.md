@@ -86,6 +86,17 @@ proven (`/vita dual vita/memory/kids-url-directory.json`). Proven = both HUMAN
 and MACHINE lanes sealed into Basescan **Input Data** (clickable loc proofs).
 Until then the catalog is **availability** only (local/GitHub) — formula anchors
 are class proof, not this body.
+**Named players (Garden + Proven):** `/vitafeed dir PLAYERS` · `/vita/players`
+· `/vita/players/garden` · `/vita/players/proven` — the VIN/kids engine is
+**Garden Player** (name+block holder under `vita/players/garden`; original
+`/vita/kids-player` + `/vita/feed-player` stay SOURCE). **Proven Player** is
+the ZK-Streaming Engine beside it (448-byte cell keys, follow-the-leader
+registry, libVLC access module). Chain box is a real `<a href>` in the HTML
+(infected memory — class-proof loc `931d·145b·19db`) so it clicks through
+without waiting on JS. Native browser navigation; Telegram `openLink` only
+inside a Mini App (`initData`). Kids lock still hides it; proof-off does not.
+Filer search labels reference blocks **SOURCE** or **REFERENCE** only —
+static names do not hold the true place; the chain loc does.
 **Free-catalog songs (original blockchain playback):** `/vitafeed play maple` ·
 `/vitafeed play judy` · `/vitafeed play grace|daisy|ballgame|auld|lining|susanna|entertainer|stripes|sweetheart|afterball` ·
 `/vitafeed music` · `/vitafeed dir MUSIC` ·

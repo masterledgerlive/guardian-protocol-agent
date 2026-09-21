@@ -7,7 +7,7 @@
  *     MEMORY\    STRANDS\   LEARN\
  *     REF_LIB\   CODEX\     MG_RECALL\
  *     LIBRARY\   PROVEN\   KIDS\
- *     MUSIC\     CHAIN\    X404\
+ *     PLAYERS\   MUSIC\     CHAIN\    X404\
  *     AGENTS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
@@ -29,6 +29,7 @@ import { urlDirEntriesFor } from "./url-dir.js";
 import { chainDirEntriesFor } from "./chain-dir.js";
 import { freeMusicEntriesFor } from "./free-music.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
+import { playerDirEntriesFor } from "./players/index.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -54,6 +55,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "LIBRARY", role: "sealed name→key→locs", filing: "VITALIB" },
   { name: "PROVEN", role: "proven test series", filing: "PROVEN_TEST" },
   { name: "KIDS", role: "closed-garden YouTube URL playlist", filing: "URLDIR" },
+  { name: "PLAYERS", role: "named Garden + Proven players · SOURCE|REFERENCE filer", filing: "PLAYERS" },
   { name: "MUSIC", role: "free-catalog PD song · grouped VIN playback", filing: "FREEMUSIC" },
   { name: "CHAIN", role: "on-chain completion directory · loc proofs", filing: "CHAINDIR" },
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
@@ -365,6 +367,8 @@ function dirEntriesFor(subdir) {
     });
   } else if (name === "KIDS" || name === "URLDIR") {
     urlDirEntriesFor().forEach((e) => out.push(e));
+  } else if (name === "PLAYERS") {
+    (playerDirEntriesFor().entries || []).forEach((e) => out.push(e));
   } else if (name === "MUSIC" || name === "FREEMUSIC") {
     freeMusicEntriesFor().forEach((e) => out.push(e));
   } else if (name === "CHAIN" || name === "CHAINDIR") {

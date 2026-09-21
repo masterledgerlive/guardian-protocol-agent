@@ -22,6 +22,20 @@ findable.
 | `vita/strands/chain-dir.json` | `CHAINDIR` | Sparse strand: two ends talk → loc proof → cycle next inject |
 | `vita/memory/kids-url-directory.json` | `URLDIR` | Pulled KIDS playlist URLs (urls only — no media copies) |
 | `public/vita-kids-player.html` | `URLDIR` | Closed-garden player — only listed URLs; kids PIN lock (default 0000); Telegram Mini App popup + playlist picker |
+| `vita/players/index.js` | `PLAYERS` | Named player hub — Garden + Proven; mirror/reroute; filer SOURCE\|REFERENCE |
+| `vita/players/filer-registry.js` | `FILER` | Search registry — static names; reference blocks labeled SOURCE or REFERENCE only |
+| `vita/players/reference-block.js` | `REFERENCE` | Refined front·mid·back blocks; data field = all touched project paths |
+| `vita/players/chain-box.js` | `PLAYERS` | Click-through chain box — real Basescan href (Telegram openLink) |
+| `vita/players/garden/player.js` | `GARDEN_PLAYER` | Named Garden Player holder (VIN/kids). Original HTML stays SOURCE |
+| `public/players/garden.html` | `GARDEN_PLAYER` | Named Garden Player UI · chain box always clickable |
+| `vita/players/proven/player.js` | `PROVEN_PLAYER` | ZK-Streaming Engine / Proven Player — lock+key cells then decode |
+| `public/players/proven.html` | `PROVEN_PLAYER` | Proven Player UI — verify 448B keys then unlock playback |
+| `vita/players/proven/zk-wrapper.js` | `PROVEN_PLAYER` | 448-byte cell keys · fail-closed verifier |
+| `vita/players/proven/FollowTheLeaderRegistry.sol` | `PROVEN_PLAYER` | On-chain chronological proof manifest |
+| `vita/memory/player-touch-log.json` | `REFERENCE` | Append-only follow log of touched player paths |
+| `vita/memory/player-chain-box-learn.json` | `REFERENCE` | Learn: native `<a>` click-through; Telegram openLink only in Mini App |
+| `vita/memory/player-reference-blocks.json` | `REFERENCE` | SOURCE + REFERENCE refined blocks |
+| `vita/strands/players.json` | `PLAYERS` | Sparse strand: Garden named holder + Proven ZK engine + chain box |
 | `vita/memory/telegram-player-popup.json` | `URLDIR` | Learn: Telegram HTTPS popup player (web_app + url fallback) |
 | `vita/strands/telegram-player-popup.json` | `URLDIR` | Sparse strand: Telegram Watch popup → compact player → system playlists |
 | `vita/strands/kids-url-dir.json` | `URLDIR` | Sparse strand: KIDS url dir → player → dual HUMAN/MACHINE |
@@ -131,6 +145,12 @@ findable.
 | `VITADIR` | DOS master directory (`§VITADIR§` / `§VITAUNLOCK§`) — open-source file-name unlock; instant unwrap |
 | `CHAINDIR` | Line-for-line completion directory (`§VITACHAINDIR§`) — HUMAN+MACHINE loc proofs in Input Data; routing until both sealed |
 | `URLDIR` | Curated URL playlist directory (`§VITAURLDIR§`) — closed-garden YouTube urls for `/vita/kids-player`; kids PIN lock (default 0000); dual HUMAN list + MACHINE ids |
+| `PLAYERS` | Named players hub (`§VITAPLAYERS§`) — Garden + Proven; filer SOURCE\|REFERENCE; `/vita/players` |
+| `GARDEN_PLAYER` | Garden Player (`§VITAGARDEN§`) — named VIN/kids holder; original kids/feed HTML stay SOURCE |
+| `PROVEN_PLAYER` | Proven Player / ZK-Streaming Engine (`§VITAPROVEN§`) — 448B cell keys; libVLC access beside HTML5 |
+| `FILER` | Filer search registry (`§VITAFILER§`) — static names; reference blocks SOURCE or REFERENCE only |
+| `REFERENCE` | Reference block (`§VITAREFBLOCK§`) — front·mid·back identity; data field of touched paths |
+| `SOURCE` | Original file location kept after reroute (never deleted) |
 | `FREEMUSIC` | Free-catalog PD song (`§VITAMUSIC§`) — grouped §VITAFILE§ VIN slices; original audio/ogg playback; loc daisy-chain MATCH click-through (growing library) |
 | `VITACLICK` | Telegram click-through (`§VITACLICK§`) — inline keyboards for dir/files/tokens/track; SNARK-first + dual-lane timing |
 | `MIRROR_CHAIN` | GitHub-as-chain (`§VITAMIRROR§` / `§VITASNARK§`) — CODE=main / STATE=bot-state blob SHA + SNARK unwrap + Basescan IDM; session keys like Railway env |

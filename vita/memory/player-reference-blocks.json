@@ -1,0 +1,334 @@
+{
+  "id": "vita-player-ref-block-v1",
+  "filingLabel": "REFERENCE",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "updatedAt": "2026-09-21T17:15:05.843Z",
+  "blocks": [
+    {
+      "id": "player-source-block",
+      "magic": "§VITAREFBLOCK§",
+      "filingLabel": "SOURCE",
+      "player": "garden",
+      "title": "SOURCE · original player locations",
+      "identify": {
+        "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+        "hash": {
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "front": "931d",
+          "mid": "145b",
+          "back": "19db",
+          "display": "931d·145b·19db",
+          "short": "0x931d…19db"
+        },
+        "block": null,
+        "display": "931d·145b·19db",
+        "front": "931d",
+        "mid": "145b",
+        "back": "19db"
+      },
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "classProof": true,
+      "dataField": [
+        {
+          "path": "public/vita-kids-player.html",
+          "label": "SOURCE",
+          "role": "original-kids-html",
+          "player": "garden"
+        },
+        {
+          "path": "public/vita-feed-player.html",
+          "label": "SOURCE",
+          "role": "original-vin-html",
+          "player": "garden"
+        },
+        {
+          "path": "vita/vita-feed-player.js",
+          "label": "SOURCE",
+          "role": "original-vin-assemble",
+          "player": "garden"
+        },
+        {
+          "path": "vita/url-dir.js",
+          "label": "SOURCE",
+          "role": "original-kids-url-dir",
+          "player": "garden"
+        },
+        {
+          "path": "vita/free-music.js",
+          "label": "SOURCE",
+          "role": "original-pd-catalog",
+          "player": "garden"
+        },
+        {
+          "path": "public/vita-token-player.html",
+          "label": "SOURCE",
+          "role": "original-token-html",
+          "player": "token"
+        },
+        {
+          "path": "vita/token-player.js",
+          "label": "SOURCE",
+          "role": "original-token-engine",
+          "player": "token"
+        }
+      ],
+      "dataFieldCommit": "489609c39000e3bca432fda264bc37b4a08796cbc32413651e223457dbb858c7",
+      "dataFieldCommit8": "489609c3",
+      "formula": "original-message-first",
+      "neverInventHashes": true,
+      "note": "SOURCE block — original file locations. Name is static; loc is truth."
+    },
+    {
+      "id": "player-reference-block",
+      "magic": "§VITAREFBLOCK§",
+      "filingLabel": "REFERENCE",
+      "player": "garden",
+      "title": "REFERENCE · named players holder",
+      "identify": {
+        "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+        "hash": {
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "front": "931d",
+          "mid": "145b",
+          "back": "19db",
+          "display": "931d·145b·19db",
+          "short": "0x931d…19db"
+        },
+        "block": null,
+        "display": "931d·145b·19db",
+        "front": "931d",
+        "mid": "145b",
+        "back": "19db"
+      },
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "classProof": true,
+      "dataField": [
+        {
+          "path": "vita/players/index.js",
+          "label": "REFERENCE",
+          "role": "name-and-block-holder",
+          "player": "garden"
+        },
+        {
+          "path": "vita/players/garden/player.js",
+          "label": "REFERENCE",
+          "role": "named-garden-holder",
+          "player": "garden"
+        },
+        {
+          "path": "public/players/garden.html",
+          "label": "REFERENCE",
+          "role": "named-garden-html",
+          "player": "garden"
+        },
+        {
+          "path": "vita/players/proven/player.js",
+          "label": "REFERENCE",
+          "role": "named-proven-holder",
+          "player": "proven"
+        },
+        {
+          "path": "public/players/proven.html",
+          "label": "REFERENCE",
+          "role": "named-proven-html",
+          "player": "proven"
+        },
+        {
+          "path": "vita/players/chain-box.js",
+          "label": "REFERENCE",
+          "role": "click-through-chain-box",
+          "player": "garden"
+        },
+        {
+          "path": "public/players/chain-box.js",
+          "label": "REFERENCE",
+          "role": "browser-chain-box-widget",
+          "player": "garden"
+        },
+        {
+          "path": "vita/memory/player-chain-box-learn.json",
+          "label": "REFERENCE",
+          "role": "chain-box-click-learn",
+          "player": "garden"
+        }
+      ],
+      "dataFieldCommit": "b8208519f73b334ba5af3baaddad73a076694a6021291805a8a023c9afd10b14",
+      "dataFieldCommit8": "b8208519",
+      "formula": "original-message-first",
+      "neverInventHashes": true,
+      "note": "REFERENCE block — named holder. Original paths stay in SOURCE data field."
+    },
+    {
+      "id": "proven-reference-block",
+      "magic": "§VITAREFBLOCK§",
+      "filingLabel": "REFERENCE",
+      "player": "proven",
+      "title": "REFERENCE · Proven Player / ZK-Streaming Engine",
+      "identify": {
+        "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+        "hash": {
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "front": "931d",
+          "mid": "145b",
+          "back": "19db",
+          "display": "931d·145b·19db",
+          "short": "0x931d…19db"
+        },
+        "block": null,
+        "display": "931d·145b·19db",
+        "front": "931d",
+        "mid": "145b",
+        "back": "19db"
+      },
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "classProof": true,
+      "dataField": [
+        {
+          "path": "vita/players/proven/player.js",
+          "label": "REFERENCE",
+          "role": "named-proven-holder",
+          "player": "proven"
+        },
+        {
+          "path": "public/players/proven.html",
+          "label": "REFERENCE",
+          "role": "named-proven-html",
+          "player": "proven"
+        }
+      ],
+      "dataFieldCommit": "3d3da52a709f2ea274fce6b6ddea1aa1dfe4c55997c70172da7a50829886ea69",
+      "dataFieldCommit8": "3d3da52a",
+      "formula": "original-message-first",
+      "neverInventHashes": true,
+      "note": "REFERENCE block — named holder. Original paths stay in SOURCE data field."
+    }
+  ],
+  "follow": [
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/vita-kids-player.html",
+      "label": "SOURCE",
+      "role": "original-kids-html",
+      "player": "garden",
+      "filerId": "src-kids-html"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/vita-feed-player.html",
+      "label": "SOURCE",
+      "role": "original-vin-html",
+      "player": "garden",
+      "filerId": "src-feed-html"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/vita-feed-player.js",
+      "label": "SOURCE",
+      "role": "original-vin-assemble",
+      "player": "garden",
+      "filerId": "src-feed-js"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/url-dir.js",
+      "label": "SOURCE",
+      "role": "original-kids-url-dir",
+      "player": "garden",
+      "filerId": "src-url-dir"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/free-music.js",
+      "label": "SOURCE",
+      "role": "original-pd-catalog",
+      "player": "garden",
+      "filerId": "src-free-music"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/vita-token-player.html",
+      "label": "SOURCE",
+      "role": "original-token-html",
+      "player": "token",
+      "filerId": "src-token-html"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/token-player.js",
+      "label": "SOURCE",
+      "role": "original-token-engine",
+      "player": "token",
+      "filerId": "src-token-js"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/players/index.js",
+      "label": "REFERENCE",
+      "role": "name-and-block-holder",
+      "player": "garden",
+      "filerId": "ref-players-root"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/players/garden/player.js",
+      "label": "REFERENCE",
+      "role": "named-garden-holder",
+      "player": "garden",
+      "filerId": "ref-garden-holder"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/players/garden.html",
+      "label": "REFERENCE",
+      "role": "named-garden-html",
+      "player": "garden",
+      "filerId": "ref-garden-html"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/players/proven/player.js",
+      "label": "REFERENCE",
+      "role": "named-proven-holder",
+      "player": "proven",
+      "filerId": "ref-proven-holder"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/players/proven.html",
+      "label": "REFERENCE",
+      "role": "named-proven-html",
+      "player": "proven",
+      "filerId": "ref-proven-html"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/players/chain-box.js",
+      "label": "REFERENCE",
+      "role": "click-through-chain-box",
+      "player": "garden",
+      "filerId": "ref-chain-box"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "public/players/chain-box.js",
+      "label": "REFERENCE",
+      "role": "browser-chain-box-widget",
+      "player": "garden",
+      "filerId": "ref-chain-box-widget"
+    },
+    {
+      "at": "2026-09-21T17:07:18.079Z",
+      "path": "vita/memory/player-chain-box-learn.json",
+      "label": "REFERENCE",
+      "role": "chain-box-click-learn",
+      "player": "garden",
+      "filerId": "ref-chain-box-learn"
+    }
+  ],
+  "basescanTx": "https://basescan.org/tx/",
+  "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915"
+}

@@ -488,6 +488,8 @@ export const ROUTE_CHECK_CORE_FILES = Object.freeze([
   "vita/agent-chat.js",
   "public/vita.html",
   "public/vita-token-player.html",
+  "public/players/garden.html",
+  "vita/players/index.js",
   "vita/token-player.js",
   "public/vita-proven-player.html",
   "vita/proven-player.js",
