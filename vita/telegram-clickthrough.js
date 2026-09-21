@@ -22,6 +22,7 @@ import {
   listSubDirectory,
   unlockDirectoryEntry,
 } from "./vita-dir.js";
+import { vitaPlayerHref } from "./url-dir.js";
 
 export const CLICKTHROUGH_ID = "vita-telegram-clickthrough-v1";
 export const CLICKTHROUGH_MAGIC = "§VITACLICK§";
@@ -48,6 +49,48 @@ function clipName(name, max = 28) {
   return s.slice(0, Math.max(0, max - 1)) + "…";
 }
 
+function urlBtn(text, href) {
+  return { text: String(text).slice(0, 64), url: String(href) };
+}
+
+function webAppBtn(text, href) {
+  return { text: String(text).slice(0, 64), web_app: { url: String(href) } };
+}
+
+/**
+ * Telegram Mini App (popup overlay) + HTTPS url fallback.
+ * Watch while you work — web_app is the small in-chat window.
+ */
+export function buildPlayerPopupKeyboard({
+  playerPath = "/vita/kids-player?dir=kids",
+  includeDemo = true,
+} = {}) {
+  const href = vitaPlayerHref(playerPath);
+  const demoHref = vitaPlayerHref("/vita/feed-player?demo=1");
+  const rows = [
+    [webAppBtn("▶ Watch popup", href), urlBtn("↗ Open player", href)],
+  ];
+  if (includeDemo && !/demo=1/.test(String(playerPath))) {
+    rows.push([webAppBtn("▶ Demo player", demoHref), urlBtn("↗ Demo", demoHref)]);
+  }
+  rows.push([
+    btn("📋 KIDS list", "/vitafeed dir KIDS"),
+    btn("🔤 Dual", "/vitafeed dual kids"),
+    btn("🏠 Menu", "/vitafeed"),
+  ]);
+  return { inline_keyboard: rows };
+}
+
+/** Drop Mini App buttons if BotFather domain is not set — keep url + callbacks. */
+export function stripWebAppButtons(markup) {
+  const rows = (markup?.inline_keyboard || [])
+    .map((row) =>
+      (row || []).filter((b) => b && !b.web_app).map((b) => ({ ...b })),
+    )
+    .filter((row) => row.length);
+  return { inline_keyboard: rows };
+}
+
 /** Root VITAFEED categories — every next step is a tap. */
 export function buildVitaFeedRootKeyboard() {
   return {
@@ -57,6 +100,11 @@ export function buildVitaFeedRootKeyboard() {
         btn("🧒 KIDS", "/vitafeed play kids"),
         btn("📚 Files", "/vitafeed files"),
         btn("🔑 Keys", "/vitafeed keys"),
+      ],
+      [
+        webAppBtn("▶ Watch popup", vitaPlayerHref("/vita/kids-player?dir=kids")),
+        webAppBtn("▶ Demo player", vitaPlayerHref("/vita/feed-player?demo=1")),
+        urlBtn("↗ Player", vitaPlayerHref("/vita/kids-player?dir=kids")),
       ],
       [
         btn("🧠 Brain", "/vitafeed brain"),
@@ -139,6 +187,11 @@ export function buildDirSubKeyboard(listed) {
   });
   const rows = rowsOf(fileBtns, 1);
   if (sub === "KIDS") {
+    const href = vitaPlayerHref("/vita/kids-player?dir=kids");
+    rows.unshift([
+      webAppBtn("▶ Watch popup", href),
+      urlBtn("↗ Open player", href),
+    ]);
     rows.unshift([
       btn("▶️ Play KIDS", "/vitafeed play kids"),
       btn("🔤 Dual KIDS", "/vitafeed dual kids"),
@@ -280,12 +333,19 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
   if (act === "files") {
     return buildLibraryFilesKeyboard(out.entries || out.items || out.files || []);
   }
-  if (act === "kids" || (act === "play" && (out.play?.kind === "youtube" || /kids-player/.test(String(out.reply || out.playerPath || ""))))) {
-    return buildDirSubKeyboard({
-      ok: true,
-      master: false,
-      subdir: "KIDS",
-      entries: [],
+  if (
+    act === "kids" ||
+    act === "demo" ||
+    (act === "play" && (
+      out.demo === true ||
+      out.play?.kind === "youtube" ||
+      out.play?.demo === true ||
+      /kids-player|feed-player/.test(String(out.reply || out.playerPath || out.playerHref || ""))
+    ))
+  ) {
+    return buildPlayerPopupKeyboard({
+      playerPath: out.playerPath || (out.demo ? "/vita/feed-player?demo=1" : "/vita/kids-player?dir=kids"),
+      includeDemo: true,
     });
   }
   if (act === "preview" || act === "dual" || act === "translate" || act === "brain" || act === "next" || act === "keys" || act === "enqueue") {
@@ -412,7 +472,16 @@ export function smokeClickThroughWalk() {
     ...(unlockKb?.inline_keyboard || []),
   ]
     .flat()
-    .map((b) => b.callback_data || b.url || "");
+    .map((b) => b.callback_data || "");
+  const allUrls = [
+    ...rootKb.inline_keyboard,
+    ...masterKb.inline_keyboard,
+    ...subKb.inline_keyboard,
+    ...(unlockKb?.inline_keyboard || []),
+  ]
+    .flat()
+    .map((b) => b.url || b.web_app?.url || "")
+    .filter(Boolean);
 
   const timing = unlocked.ok
     ? timeDualRoutes({
@@ -429,7 +498,9 @@ export function smokeClickThroughWalk() {
     unlocked: Boolean(unlocked.ok),
     unlockPath: unlocked.path || null,
     callbackCount: allCallbacks.length,
+    urlCount: allUrls.length,
     allFit64: allCallbacks.every((c) => !c || c.length <= CALLBACK_DATA_MAX),
+    httpsPlayer: allUrls.every((u) => /^https:\/\//i.test(u)),
     timing,
     snarkFirst: unlocked.packed?.short || null,
   };
