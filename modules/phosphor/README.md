@@ -13,6 +13,7 @@ The other draft used a Go binary, an ephemeral ECDSA “proof”, and a file:// 
 5. If `127.0.0.1:5001` answers, store the payload there and keep `ipfs://CID`. If it does not, the outlet is **STANDBY** and no CID is invented.
 6. Split header + payload into `§PHOSPHOR§` wires. `chain.location` stays null until a real Base seal.
 7. File the stored bytes as machine `§PHOSBLOCK§` records. Each header `next=` is the following `stark://` loc, or `END`. The system recalls the bytes with the key and only then logs `SYSTEM_INJECTED`. The compressed filing location is `stark://` + 16 hex of that block merkle. Click `/phosphor/receipt?c=` and `/phosphor/block?c=&i=` to read the exact data field.
+8. The CRT slices a large upload (about 200KB a part) so a proxy does not answer 502. Payloads over 512KB are `stored.bin` plus an ndjson block chain. READER recomputes `joined = payloadHash`, `recall = rawHash`, and `snark.commit = sha256(sha256(headerCore) || payloadHash)`. PULL streams the file when the open key or the lock passphrase matches. The filing seat is internal HOME `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f`. That is not a swap. `baseLocation` stays null.
 
 The library of this folder folds into one stark-class merkle root (`phosphor-stark-fold-v1`).
 

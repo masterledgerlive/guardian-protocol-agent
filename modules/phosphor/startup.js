@@ -24,6 +24,7 @@ export const LIBRARY_FILES = Object.freeze([
   "snark.js",
   "stark.js",
   "blocks.js",
+  "home.js",
   "ipfs-outlet.js",
   "chain-store.js",
   "writer.js",
