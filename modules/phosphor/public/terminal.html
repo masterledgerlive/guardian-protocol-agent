@@ -66,7 +66,9 @@ Chain location stays blank until a real Base seal. No invented tx.</div>
       <input id="commit" type="text" placeholder="commit prefix" size="28">
       <input id="unlock" type="password" placeholder="unwrap key if locked" autocomplete="off">
       <button id="read" type="button">UNWRAP</button>
+      <button id="reader" type="button">READER</button>
       <a id="bundle" hidden>SEND AS CODE</a>
+      <a id="pull" hidden>PULL</a>
     </div>
     <div id="receipt"></div>
     <audio id="play" controls hidden></audio>
@@ -90,9 +92,7 @@ async function typeLines(lines) {
   }
 }
 
-async function fileToB64(file) {
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
+function bytesToB64(bytes) {
   let binary = "";
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {
@@ -101,28 +101,42 @@ async function fileToB64(file) {
   return btoa(binary);
 }
 
-document.getElementById("write").onclick = async () => {
-  const file = document.getElementById("file").files[0];
-  if (!file) { paint("C:\\PHOSPHOR> no file"); return; }
-  paint("C:\\PHOSPHOR> squashing " + file.name + " …");
-  const bytesBase64 = await fileToB64(file);
-  const res = await fetch("/phosphor/api/write", {
+async function postJson(url, body) {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: file.name,
-      mime: file.type || "",
-      bytesBase64,
-      lockKey: document.getElementById("lock").value,
-    }),
+    body: JSON.stringify(body),
   });
-  const json = await res.json();
-  if (!json.ok) { paint("FAIL " + (json.reason || res.status)); return; }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.ok === false) {
+    const error = new Error(json.reason || ("HTTP " + res.status));
+    error.status = res.status;
+    throw error;
+  }
+  return json;
+}
+
+let openKey = "";
+
+function showWritten(json) {
   document.getElementById("commit").value = json.commit;
+  openKey = json.openKey || "";
   const link = document.getElementById("bundle");
-  link.hidden = false;
-  link.href = json.bundle;
-  link.textContent = "SEND AS CODE";
+  if (json.bundle) {
+    link.hidden = false;
+    link.href = json.bundle;
+    link.textContent = "SEND AS CODE";
+  } else {
+    link.hidden = true;
+  }
+  const pull = document.getElementById("pull");
+  if (json.pull && openKey) {
+    pull.hidden = false;
+    pull.href = json.pull + "&key=" + encodeURIComponent(openKey);
+    pull.textContent = "PULL";
+  } else {
+    pull.hidden = true;
+  }
   const audio = document.getElementById("play");
   if (json.play && (json.mime || "").startsWith("audio/")) {
     audio.hidden = false;
@@ -132,16 +146,64 @@ document.getElementById("write").onclick = async () => {
     audio.hidden = true;
     audio.removeAttribute("src");
   }
-  await typeLines(json.trace || []);
   const box = document.getElementById("receipt");
   const rec = json.receipt;
   if (!rec) { box.innerHTML = ""; return; }
   const links = (rec.blocks || []).map((block) =>
     '<div>block ' + block.i + ' <a href="' + block.href + '">' + block.loc + '</a> next ' + block.next + '</div>'
   ).join("");
+  const home = rec.home ? ("HOME " + rec.home.address + " lane " + rec.home.lane + "<br>") : "";
+  const more = rec.blocksExternal ? "<div class=\"dim\">preview of " + rec.blockCount + " blocks</div>" : "";
   box.innerHTML =
     '<p>SYSTEM_INJECTED <a href="' + rec.href + '">' + rec.filingLoc + '</a> recall ' +
-    (rec.recalled ? "OK" : "FAIL") + ' · base loc empty</p>' + links;
+    (rec.recalled ? "OK" : "FAIL") + ' · base loc empty<br>' + home + '</p>' + more + links;
+}
+
+document.getElementById("write").onclick = async () => {
+  const file = document.getElementById("file").files[0];
+  if (!file) { paint("C:\\PHOSPHOR> no file"); return; }
+  const partBytes = 200 * 1024;
+  try {
+    paint("C:\\PHOSPHOR> slicing " + file.name + "  " + file.size + " bytes");
+    const opened = await postJson("/phosphor/api/write/open", {
+      name: file.name,
+      mime: file.type || "",
+      lockKey: document.getElementById("lock").value,
+      totalBytes: file.size,
+      tryIpfs: file.size <= 1024 * 1024,
+    });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let index = 0;
+    for (let offset = 0; offset < bytes.length; offset += partBytes) {
+      const slice = bytes.subarray(offset, Math.min(bytes.length, offset + partBytes));
+      paint("C:\\PHOSPHOR> part " + index + "  " + slice.length + " bytes");
+      await postJson("/phosphor/api/write/part", {
+        session: opened.session,
+        index,
+        bytesBase64: bytesToB64(slice),
+      });
+      index += 1;
+    }
+    paint("C:\\PHOSPHOR> sealing " + index + " parts");
+    const json = await postJson("/phosphor/api/write/seal", { session: opened.session });
+    showWritten(json);
+    await typeLines(json.trace || []);
+  } catch (error) {
+    paint("FAIL " + error.message);
+  }
+};
+
+document.getElementById("reader").onclick = async () => {
+  const commit = document.getElementById("commit").value.trim();
+  if (!commit) { paint("C:\\PHOSPHOR> commit required"); return; }
+  const key = document.getElementById("unlock").value || openKey;
+  paint("C:\\PHOSPHOR> READER proving " + commit.slice(0, 12) + " …");
+  try {
+    const json = await postJson("/phosphor/api/proof", { commit, key });
+    await typeLines(json.equation.lines || []);
+  } catch (error) {
+    paint("READER FAIL " + error.message);
+  }
 };
 
 document.getElementById("read").onclick = async () => {

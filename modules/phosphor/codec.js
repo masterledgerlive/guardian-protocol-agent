@@ -34,6 +34,23 @@ export function canonicalJson(value) {
 /** Smallest of identity / deflate-raw / brotli. Encoder id is what the reader must use. */
 export function squash(raw) {
   const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+  // Tens of megabytes stall on brotli-11. Large bodies use deflate-1 or identity.
+  if (buf.length > 256 * 1024) {
+    const deflated = deflateRawSync(buf, { level: 1 });
+    const choices = [
+      { encoder: "identity-v1", bytes: buf },
+      { encoder: "deflate-raw-v1", bytes: deflated },
+    ];
+    choices.sort((a, b) => a.bytes.length - b.bytes.length || a.encoder.localeCompare(b.encoder));
+    const best = choices[0];
+    return {
+      encoder: best.encoder,
+      bytes: best.bytes,
+      rawBytes: buf.length,
+      payloadBytes: best.bytes.length,
+      ratio: buf.length ? best.bytes.length / buf.length : 1,
+    };
+  }
   const deflated = deflateRawSync(buf, { level: 9 });
   const brotli = brotliCompressSync(buf);
   const choices = [

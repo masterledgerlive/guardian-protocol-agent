@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { readInjectLog, verifyFiling, walkBlocks } from "./blocks.js";
+import { readInjectLog, verifyFiling, walkBlocks, BLOCK_CAP, dataFieldRoom, packBlocks } from "./blocks.js";
 import { PACKET_MAX, parseWire, sha256Hex, squash, expand } from "./codec.js";
 import { displayOpenKey } from "./keys.js";
 import { ipfsAdd } from "./ipfs-outlet.js";
-import { readBytes } from "./reader.js";
+import { HOME_ADDRESS } from "./home.js";
+import { VERIFIED_HOME_ADDRESS } from "../../operator-rotate.js";
+import { proveFromReceipt, readBytes } from "./reader.js";
 import { renderBundle } from "./bundle.js";
 import { startPhosphorServer } from "./server.js";
 import { runStartup } from "./startup.js";
@@ -140,6 +143,7 @@ test("CRT page and write route", async () => {
     assert.equal(page.status, 200);
     assert.match(html, /PHOSPHOR/);
     assert.match(html, /#67ff78|67ff78/);
+    assert.match(html, /READER/);
     const body = Buffer.from("crt note");
     const res = await fetch("http://127.0.0.1:" + started.port + "/phosphor/api/write", {
       method: "POST",
@@ -286,4 +290,134 @@ test("telegram pop-out is https with popup=1", () => {
   const kb = buildPhosphorPopupKeyboard({ PHOSPHOR_PUBLIC_URL: "https://example.test" });
   const urls = kb.inline_keyboard.flat().map((button) => button.web_app?.url || button.url);
   assert.ok(urls.every((url) => url.startsWith("https://example.test/phosphor?popup=1")));
+});
+
+test("auto machine line stays inside the 720 byte hitch", () => {
+  assert.equal(HOME_ADDRESS, VERIFIED_HOME_ADDRESS);
+  const room = dataFieldRoom(200000);
+  const packed = packBlocks(Buffer.alloc(room * 2 + 3));
+  assert.ok(packed.blockCount >= 2);
+  for (const block of packed.blocks) {
+    assert.ok(Buffer.byteLength(block.machine, "utf8") <= BLOCK_CAP);
+  }
+});
+
+test("chunked write proves the snark equation on the HOME seat", async () => {
+  const stateDir = scratch();
+  const started = await startPhosphorServer({ port: 0, host: "127.0.0.1", stateDir });
+  const origin = "http://127.0.0.1:" + started.port;
+  try {
+    const size = 600 * 1024;
+    const source = randomBytes(size);
+    const openRes = await fetch(origin + "/phosphor/api/write/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "wide.bin",
+        mime: "application/octet-stream",
+        totalBytes: size,
+        tryIpfs: false,
+      }),
+    });
+    const opened = await openRes.json();
+    assert.equal(opened.ok, true);
+    const part = 200 * 1024;
+    let index = 0;
+    for (let offset = 0; offset < size; offset += part) {
+      const slice = source.subarray(offset, Math.min(size, offset + part));
+      const partRes = await fetch(origin + "/phosphor/api/write/part", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session: opened.session,
+          index,
+          bytesBase64: slice.toString("base64"),
+        }),
+      });
+      const partJson = await partRes.json();
+      assert.equal(partJson.ok, true, partJson.reason);
+      index += 1;
+    }
+    assert.equal(index, 3);
+    const sealRes = await fetch(origin + "/phosphor/api/write/seal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session: opened.session }),
+    });
+    const sealed = await sealRes.json();
+    assert.equal(sealed.ok, true, sealed.reason);
+    assert.equal(sealed.location, null);
+    assert.equal(sealed.receipt.baseLocation, null);
+    assert.equal(sealed.receipt.blocksExternal, true);
+    assert.equal(sealed.home.address, VERIFIED_HOME_ADDRESS);
+    assert.equal(sealed.home.lane, "internal");
+    assert.equal(sealed.home.symbol, "HOME");
+    const proofRes = await fetch(origin + "/phosphor/api/proof", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commit: sealed.commit, key: sealed.openKey }),
+    });
+    const proof = await proofRes.json();
+    assert.equal(proof.equal, true, proof.reason);
+    assert.equal(proof.equation.recallHash, proof.equation.rawHash);
+    assert.equal(proof.equation.joinedHash, proof.equation.payloadHash);
+    assert.equal(proof.equation.snarkCommit, proof.equation.recomputedCommit);
+    assert.equal(proof.bytes, size);
+    assert.equal(proof.baseLocation, null);
+    assert.match(proof.equation.text, /EQUAL/);
+    const denied = await fetch(origin + "/phosphor/api/proof", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commit: sealed.commit, key: "PHOSOPEN|0000000000000000" }),
+    });
+    assert.equal(denied.status, 400);
+    const pull = await fetch(origin + "/phosphor/api/pull?c=" + sealed.commit + "&key=" + encodeURIComponent(sealed.openKey));
+    assert.equal(pull.status, 200);
+    assert.ok(Buffer.from(await pull.arrayBuffer()).equals(source));
+    const blockPage = await fetch(origin + sealed.receipt.blocks[0].href);
+    assert.equal(blockPage.status, 200);
+    const blockHtml = await blockPage.text();
+    assert.match(blockHtml, /GENESIS/);
+    const huge = await fetch(origin + "/phosphor/api/write", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "x".repeat(3 * 1024 * 1024),
+    });
+    assert.equal(huge.status, 413);
+  } finally {
+    started.server.close();
+    rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("large injector file recalls from external machine blocks", async () => {
+  const stateDir = scratch();
+  const size = Math.floor(1.2 * 1024 * 1024);
+  const source = randomBytes(size);
+  const written = await writeBytes({
+    bytes: source,
+    name: "large.bin",
+    stateDir,
+    tryIpfs: true,
+  });
+  assert.equal(written.ipfs.cid, null);
+  assert.match(written.ipfs.reason, /large file/);
+  assert.equal(written.header.chain.location, null);
+  assert.equal(written.wires.length, 0);
+  assert.equal(existsSync(join(stateDir, "objects", written.commit, "stored.bin")), true);
+  assert.equal(existsSync(join(stateDir, "objects", written.commit, "wires.json")), false);
+  const proof = proveFromReceipt(stateDir, written.commit, displayOpenKey(written.header.keyMeta));
+  assert.equal(proof.equal, true);
+  assert.equal(proof.bytes, size);
+  assert.equal(proof.home.address, HOME_ADDRESS);
+  assert.equal(proof.baseLocation, null);
+  const { loadBlock } = await import("./blocks.js");
+  const first = loadBlock(stateDir, written.commit, { i: 0 });
+  const last = loadBlock(stateDir, written.commit, { i: written.receipt.blockCount - 1 });
+  assert.equal(first.block.prev, "GENESIS");
+  assert.equal(first.block.next.startsWith("stark://"), true);
+  assert.equal(last.block.next, "END");
+  const back = await readBytes({ commit: written.commit, stateDir });
+  assert.ok(back.raw.equals(source));
+  rmSync(stateDir, { recursive: true, force: true });
 });

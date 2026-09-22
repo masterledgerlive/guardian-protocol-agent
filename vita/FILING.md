@@ -54,7 +54,8 @@ findable.
 | `vita/memory/spatial-sound-learn.json` | `SPATIAL_SOUND` | Append-only learn: create / enqueue / seal / soundtrack |
 | `vita/strands/spatial-sound.json` | `SPATIAL_SOUND` | Sparse strand: bird print → voxel → one-block inject → agent mimic |
 | `modules/phosphor/` | `PHOSPHOR` | Chain writer/reader — injector wires are the store (new IPFS); IPFS HTTP is the outlet; open `PHOSOPEN` or AES lock; per-file snark + library stark fold; green CRT `/phosphor`; self-boot from wires |
-| `modules/phosphor/blocks.js` | `PHOSPHOR` | STARK block filing — machine `§PHOSBLOCK§` records, next-block header, compressed `stark://` filing loc, SYSTEM_INJECTED receipt, exact data-field page |
+| `modules/phosphor/blocks.js` | `PHOSPHOR` | STARK block filing — machine `§PHOSBLOCK§` records, next-block header, compressed `stark://` filing loc, SYSTEM_INJECTED receipt, exact data-field page; wide files use blocks.ndjson |
+| `modules/phosphor/home.js` | `PHOSPHOR` | Internal HOME filing seat `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f` — not a swap, base location stays empty |
 | `modules/phosphor/public/terminal.html` | `PHOSPHOR` | DOS green CRT — Telegram pop-out `?popup=1`; drop a file, watch squash, play, send-as-code |
 | `modules/phosphor/contract/SnapshotRegistry.sol` | `PHOSPHOR` | Anchor mirror — no deployed address in this repo |
 | `modules/phosphor/LLM_PROMPT.md` | `PHOSPHOR` | Next-model prompt: do not replace the injector store with the naive Go/file:// draft |

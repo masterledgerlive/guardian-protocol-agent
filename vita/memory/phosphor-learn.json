@@ -13,6 +13,24 @@
       "at": "2026-09-22T02:40:00.000Z",
       "kind": "stark-block-receipt",
       "note": "SYSTEM_INJECTED receipt logs each machine block. Click the block to read its exact data field. Header next= points at the following stark:// loc or END. Filing location is the compressed stark root. Base location stays empty. Recall with the key must match the original bytes for one block and for a five-block chain."
+    },
+    {
+      "at": "2026-09-22T03:20:00.000Z",
+      "kind": "large-file-home-seat",
+      "note": "A single JSON body over 2MB reset the socket and the proxy reported 502. The CRT now slices uploads. Payloads over 512KB are stored.bin plus blocks.ndjson. READER recomputes joined=payloadHash, recall=rawHash, snark.commit=sha256(sha256(headerCore)||payloadHash) and does not return the file. PULL streams it with the open key or the lock passphrase. Internal HOME seat is 0x4BfAa776991E85e5f8b1255461cbbd216cFc714f lane internal. Not a swap. baseLocation stays null. IPFS stays standby for bodies over 1MB. No invented tx."
+    },
+    {
+      "at": "2026-09-22T03:25:00.000Z",
+      "kind": "vlc-3.0.21-win64-recall",
+      "bytes": 44943296,
+      "rawHash": "9742689a50e96ddc04d80ceff046b28da2beefd617be18166f8c5e715ec60c59",
+      "filingLoc": "stark://6428603b0fbaf477",
+      "snarkCommit": "6c594623902c37eeba51cc66119b1d89ea2b2d0698a6b1ac788aa72b1a6429c6",
+      "blockCount": 104617,
+      "openKey": "PHOSOPEN|4c652a3268636c93",
+      "home": "0x4BfAa776991E85e5f8b1255461cbbd216cFc714f",
+      "baseLocation": null,
+      "note": "Official vlc-3.0.21-win64.exe matched the published sha256 and the reader recall hash. 104617 machine blocks, filing stark://6428603b0fbaf477, open key PHOSOPEN|4c652a3268636c93, HOME lane internal. The exe is not in git. That run lived in a temp injector store. It is not a Base transaction."
     }
   ]
 }

@@ -4,7 +4,7 @@
   "source": "modules/phosphor",
   "filingLabel": "PHOSPHOR",
   "header": "§PHOSPHOR§v1|store=injector-wires|ipfs=outlet|stark=fold|loc=null§",
-  "learn": "PHOSPHOR CRT pops out of Telegram. Injector wires are the new IPFS. IPFS HTTP is the outlet and stays standby without a daemon. Per-file snark squash, library stark fold, Groth16 unwired, Winterfell unwired. Open PHOSOPEN or AES lock. Self-boot reads itself back from wires. SYSTEM_INJECTED receipt logs each machine block; click the data field; header next= chains stark:// locs; compressed filing root; base location empty; key recalls the bytes. Never invent hashes. Infect HTML; do not erase.",
+  "learn": "PHOSPHOR CRT pops out of Telegram. Injector wires are the new IPFS. IPFS HTTP is the outlet and stays standby without a daemon. Per-file snark squash, library stark fold, Groth16 unwired, Winterfell unwired. Open PHOSOPEN or AES lock. Self-boot reads itself back from wires. SYSTEM_INJECTED receipt logs each machine block; click the data field; header next= chains stark:// locs; compressed filing root; base location empty; key recalls the bytes. Large uploads are sliced so a 2MB body does not 502. Payloads over 512KB sit in stored.bin with an ndjson block chain. READER recomputes the snark equality. The internal HOME seat is 0x4BfAa776991E85e5f8b1255461cbbd216cFc714f and is not a swap. Never invent hashes. Infect HTML; do not erase.",
   "commands": [
     "/phosphor",
     "/phosphor test"
