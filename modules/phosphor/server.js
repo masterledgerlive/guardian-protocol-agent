@@ -7,8 +7,9 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadReceipt, recallPlain, renderBlockPage, renderReceiptPage } from "./blocks.js";
 import { renderBundle } from "./bundle.js";
-import { defaultStateDir, loadIndex, loadStark } from "./chain-store.js";
+import { defaultStateDir, loadIndex, loadObject, loadStark, resolveCommit } from "./chain-store.js";
 import { readBytes } from "./reader.js";
 import { runStartup } from "./startup.js";
 import { writeBytes } from "./writer.js";
@@ -118,6 +119,7 @@ export async function handlePhosphorHttp(req, res, url, { stateDir = defaultStat
         lockKey: body.lockKey || "",
         stateDir,
         tryIpfs: body.tryIpfs !== false,
+        blockCount: Number(body.blockCount) || 0,
       });
       sendJson(res, 200, {
         ok: true,
@@ -136,6 +138,24 @@ export async function handlePhosphorHttp(req, res, url, { stateDir = defaultStat
         trace: written.trace,
         play: written.header.keyMode === "open" ? "/phosphor/api/play?c=" + written.commit : null,
         bundle: "/phosphor/api/bundle?c=" + written.commit,
+        receipt: {
+          proof: written.receipt.proof,
+          recalled: written.receipt.recalled,
+          filingLoc: written.receipt.filingLoc,
+          starkRoot: written.receipt.starkRoot,
+          blockCount: written.receipt.blockCount,
+          baseLocation: null,
+          href: "/phosphor/receipt?c=" + written.commit,
+          blocks: written.receipt.blocks.map((block) => ({
+            i: block.i,
+            n: block.n,
+            loc: block.loc,
+            next: block.next,
+            prev: block.prev,
+            df: block.df,
+            href: block.href,
+          })),
+        },
       });
       return true;
     }
@@ -154,6 +174,46 @@ export async function handlePhosphorHttp(req, res, url, { stateDir = defaultStat
         bytesBase64: opened.raw.toString("base64"),
         from: opened.from,
         location: null,
+      });
+      return true;
+    }
+    if (req.method === "GET" && path === "/phosphor/receipt") {
+      const commit = resolveCommit(stateDir, url.searchParams.get("c") || "");
+      send(res, 200, renderReceiptPage(loadReceipt(stateDir, commit)), { "Content-Type": "text/html; charset=utf-8" });
+      return true;
+    }
+    if (req.method === "GET" && path === "/phosphor/block") {
+      const commit = resolveCommit(stateDir, url.searchParams.get("c") || "");
+      const receipt = loadReceipt(stateDir, commit);
+      const index = url.searchParams.get("i");
+      const loc = url.searchParams.get("loc") || "";
+      const block = receipt.blocks.find((row) => (
+        (index != null && index !== "" && String(row.i) === String(index)) ||
+        (loc && row.loc === loc)
+      ));
+      if (!block) {
+        sendJson(res, 404, { ok: false, reason: "block not in receipt" });
+        return true;
+      }
+      send(res, 200, renderBlockPage(block, receipt), { "Content-Type": "text/html; charset=utf-8" });
+      return true;
+    }
+    if (req.method === "POST" && path === "/phosphor/api/recall") {
+      const body = JSON.parse((await readBody(req)).toString("utf8") || "{}");
+      const commit = resolveCommit(stateDir, body.commit || body.c || "");
+      const receipt = loadReceipt(stateDir, commit);
+      const object = loadObject(stateDir, commit);
+      const raw = recallPlain(object.header, receipt.blocks, body.key || body.lockKey || "");
+      sendJson(res, 200, {
+        ok: true,
+        proof: receipt.proof,
+        recalled: true,
+        filingLoc: receipt.filingLoc,
+        baseLocation: null,
+        bytes: raw.length,
+        bytesBase64: raw.toString("base64"),
+        name: receipt.name,
+        mime: receipt.mime,
       });
       return true;
     }

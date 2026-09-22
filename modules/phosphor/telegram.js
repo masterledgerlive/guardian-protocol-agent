@@ -55,6 +55,7 @@ export function phosphorHelpHtml() {
     "Drop any file in the green CRT. Watch the squash, the pre-embedded <code>PHOSOPEN</code> key, and the packet count.",
     "A lock passphrase wraps AES-256-GCM and stays off the header.",
     "Each file is a snark squash. The module library folds into one stark-class root.",
+    "Inject receipt: <code>SYSTEM_INJECTED</code> · click a block for its exact data field · header <code>next=</code> chains the blocks · filing loc is <code>stark://</code> compressed. Base loc stays empty. The key pieces the code back together.",
     "Groth16 and Winterfell stay unwired. Chain location stays empty until a real Base seal.",
     "",
     "<code>/phosphor</code> — this card + pop-out",

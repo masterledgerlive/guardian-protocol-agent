@@ -68,6 +68,7 @@ Chain location stays blank until a real Base seal. No invented tx.</div>
       <button id="read" type="button">UNWRAP</button>
       <a id="bundle" hidden>SEND AS CODE</a>
     </div>
+    <div id="receipt"></div>
     <audio id="play" controls hidden></audio>
     <p class="dim">Telegram: open this page from the PHOSPHOR pop-out. Songs play from the wire store after unwrap.</p>
   </div>
@@ -132,6 +133,15 @@ document.getElementById("write").onclick = async () => {
     audio.removeAttribute("src");
   }
   await typeLines(json.trace || []);
+  const box = document.getElementById("receipt");
+  const rec = json.receipt;
+  if (!rec) { box.innerHTML = ""; return; }
+  const links = (rec.blocks || []).map((block) =>
+    '<div>block ' + block.i + ' <a href="' + block.href + '">' + block.loc + '</a> next ' + block.next + '</div>'
+  ).join("");
+  box.innerHTML =
+    '<p>SYSTEM_INJECTED <a href="' + rec.href + '">' + rec.filingLoc + '</a> recall ' +
+    (rec.recalled ? "OK" : "FAIL") + ' · base loc empty</p>' + links;
 };
 
 document.getElementById("read").onclick = async () => {

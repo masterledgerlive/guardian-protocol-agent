@@ -2,6 +2,7 @@
  * Writer — squash, snark-seal, optional lock, IPFS outlet, injector wires.
  */
 
+import { packBlocks, recallPlain, saveReceipt } from "./blocks.js";
 import { buildWires, sha256Hex, squash } from "./codec.js";
 import { defaultStateDir, saveObject } from "./chain-store.js";
 import { ipfsAdd } from "./ipfs-outlet.js";
@@ -38,6 +39,7 @@ export async function writeBytes({
   stateDir = defaultStateDir(),
   tryIpfs = true,
   timestamp = new Date().toISOString(),
+  blockCount = 0,
 } = {}) {
   const raw = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes || []);
   if (!raw.length) throw new Error("empty file");
@@ -97,6 +99,32 @@ export async function writeBytes({
     header.chain.packets = finalWires.length;
   }
   saveObject(stateDir, { commit: snark.commit, header, wires: finalWires });
+  const packed = packBlocks(stored, blockCount ? { blockCount } : {});
+  const unlockKey = locked ? lockKey : displayOpenKey(keyMeta);
+  const recalled = recallPlain(header, packed.blocks, unlockKey);
+  if (!recalled.equals(raw)) throw new Error("system recall mismatch");
+  const blocks = packed.blocks.map((block) => ({
+    ...block,
+    href: "/phosphor/block?c=" + snark.commit + "&i=" + block.i,
+  }));
+  const receipt = saveReceipt(stateDir, {
+    at: timestamp,
+    proof: "SYSTEM_INJECTED",
+    recalled: true,
+    commit: snark.commit,
+    name: fileName,
+    mime: header.mime,
+    filingLoc: packed.filingLoc,
+    starkRoot: packed.starkRoot,
+    blockCount: packed.blockCount,
+    baseLocation: null,
+    recallHash: sha256Hex(recalled),
+    keyMode,
+    keyMeta,
+    circuitWired: false,
+    winterfellWired: false,
+    blocks,
+  });
   const ratio = raw.length ? stored.length / raw.length : 1;
   const trace = [
     "C:\\PHOSPHOR> WRITE " + fileName,
@@ -107,8 +135,10 @@ export async function writeBytes({
     "key " + (keyMode === "open" ? displayOpenKey(keyMeta) : "LOCK aes-256-gcm (passphrase stays off-header)"),
     "wires " + finalWires.length + " × ≤720B  injector CAS",
     ipfs.ok ? "ipfs outlet " + ipfs.loc : "ipfs outlet STANDBY" + (ipfs.reason ? " — " + ipfs.reason : ""),
-    "chain AVAILABILITY — no sealed loc",
+    "chain AVAILABILITY — base loc empty",
+    "SYSTEM_INJECTED  filing " + receipt.filingLoc + "  blocks " + receipt.blockCount + "  recall OK",
+    ...blocks.map((block) => "block " + block.i + "  " + block.loc + "  next " + block.next),
     "commit " + snark.commit,
   ];
-  return { ok: true, commit: snark.commit, header, wires: finalWires, trace, ipfs, snark };
+  return { ok: true, commit: snark.commit, header, wires: finalWires, trace, ipfs, snark, receipt };
 }

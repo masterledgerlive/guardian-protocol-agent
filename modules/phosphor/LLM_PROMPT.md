@@ -10,7 +10,8 @@ You are extending **PHOSPHOR**, the writer/reader under `modules/phosphor/`. A p
 - Library proof = `foldStark`. Merkle of `sha256(name + ":" + snarkCommit)`. `winterfellWired: false`. Do not paste a fake Groth16 or Winterfell blob.
 - Open key = `PHOSOPEN|<16 hex>` derived from name + payload hash and stored in `keyMeta`. Pre-embedded. Not a wallet key. `assertOpenKey` recomputes it.
 - Lock key = AES-256-GCM. Passphrase never enters the header. Unwrap without it must fail.
-- `chain.location` is **null** and `status` is `availability` until a human seals a real Base transaction and binds that `0x` + 64 hex. Formula anchors in `vita/anchors.json` are class proof only. They do not hold PHOSPHOR bytes. Never invent a tx hash. Never sell red to place code.
+- `chain.location` / `baseLocation` is **null** until a human seals a real Base transaction. The returned location is the compressed stark filing id `stark://` + 16 hex of the block merkle root. Formula anchors do not hold PHOSPHOR bytes. Never invent a tx hash.
+- Every inject writes a **SYSTEM_INJECTED** receipt and an append-only `inject-log.jsonl` line only after the system recalls the bytes with the key. Click `/phosphor/receipt?c=` and `/phosphor/block?c=&i=` to read the exact machine data field. Block 0 `prev=GENESIS`. Each header `next=` is the following block loc, or `END`. One-block and five-block recalls must match the original bytes. A wrong key does not piece the code together.
 - Boot = `runStartup`. It writes this module into the wire store, reconstructs a temp tree from wires only, and `spawn`s that tree’s `selfrun.js`. The child reads the note and the WAV back from wires. Hash mismatch must refuse to execute.
 - CRT = `public/terminal.html` at `/phosphor?popup=1`. Telegram card = `handlePhosphorCommand` / `/phosphor`.
 - Send-as-code = `renderBundle`. One `.mjs`, node builtins only.

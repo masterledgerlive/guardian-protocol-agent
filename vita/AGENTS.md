@@ -143,8 +143,12 @@ local IPFS daemon is only an outlet and never invents a CID. Each file is
 snark-squashed; this module folds into one stark-class merkle root. Groth16
 and Winterfell stay unwired. Open key `PHOSOPEN` is pre-embedded; a lock
 passphrase wraps AES-256-GCM. Startup reconstructs the module from wires and
-runs that copy against a note and a beep. Chain location stays empty until a
-real Base seal. See `modules/phosphor/`.
+runs that copy against a note and a beep. Each inject logs a SYSTEM_INJECTED
+receipt: click `/phosphor/receipt` and `/phosphor/block` for the exact machine
+data field. The header `next=` loc chains the blocks (one-block and five-block
+recalls). Filing location is the compressed stark root. Base location stays
+empty until a real seal. Only the key pieces the blocks back into code.
+See `modules/phosphor/`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
 song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to
