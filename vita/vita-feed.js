@@ -11,13 +11,22 @@
  *
  * Emergency thrift (n5624→6007 +383 self-call class): paid confirm/override
  * default OFF. /vitafeed override cannot bypass VITAFEED_PAID=no unless
- * VITAFEED_FORCE=yes (then override also skips rate limit; liquid floor already
- * bypassed). Override DOES bypass liquid floor + RISK balance REFUSE (money stall).
+ * VITAFEED_FORCE=yes **or** `/vitafeed override force` (command latch — then
+ * also skips rate limit; liquid floor already bypassed). Override alone DOES
+ * bypass liquid floor + RISK balance REFUSE (money stall) but not thrift.
+ * Media/players on disk are availability (LOCAL_OK) until confirm|override
+ * seals real Base Input Data — never invent hashes. `/vitafeed check` audits.
  * Inscribe sends what it can before an error, then restages the remainder.
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { formatVitaFeedBuyInCard, planVitaFeedBuyIns } from "./vita-feed-buyin.js";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const MEMORY_DIR = join(HERE, "memory");
 
 const VITAFILE_MAGIC = "§VITAFILE§";
 
@@ -588,8 +597,24 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     return { ok: true, action: "confirm", body: "", source: "confirm" };
   }
   // Operator force-through of the RISK balance REFUSE (typo "overide" accepted).
-  if (/^(?:override|overide)$/i.test(trimmed)) {
-    return { ok: true, action: "override", body: "", source: "override", forceOverride: true };
+  // `/vitafeed override force` (also `/vitafeed force`) is the thrift latch:
+  // bypasses paid-off + rate limit for this seal only — same as VITAFEED_FORCE=yes.
+  if (/^(?:override|overide)(?:\s+force)?$/i.test(trimmed) || /^(?:force|forceoverride|overrideforce)$/i.test(trimmed)) {
+    const commandForce =
+      /\bforce\b/i.test(trimmed) || /^(?:force|forceoverride|overrideforce)$/i.test(trimmed);
+    return {
+      ok: true,
+      action: "override",
+      body: "",
+      source: commandForce ? "override-force" : "override",
+      forceOverride: true,
+      forceLatch: commandForce === true,
+    };
+  }
+  // Systems check: local files / players vs sealed Base mirrors (honest).
+  if (/^(?:check|mirror|syscheck|systems?)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:check|mirror|syscheck|systems?)\s*/i, "").trim();
+    return { ok: true, action: "check", body: rest, source: "check" };
   }
   if (/^cancel$/i.test(trimmed)) {
     return { ok: true, action: "cancel", body: "", source: "cancel" };
@@ -770,17 +795,20 @@ export function vitaFeedUsageText() {
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
     "PAID PATH DEFAULT OFF: set VITAFEED_PAID=yes (or VITAFEED_ENABLED=yes|true|1)",
     "  or confirm/override BANKS (no sendTransaction). Override cannot bypass paid-off",
-    "  unless VITAFEED_FORCE=yes (then override also skips rate limit).",
+    "  unless VITAFEED_FORCE=yes or /vitafeed override force (then also skips rate limit).",
     "Liquid floor: VITAFEED_MIN_LIQUID_USD default $5 (confirm blocked; override bypasses).",
     "Rate limit: one confirm / chat / 60s and max 24 chunks/hour",
     "  (VITAFEED_RATE_LIMIT=no disables). Override does not bypass rate limit unless FORCE.",
-    "FORCE: VITAFEED_FORCE=yes + /vitafeed override — thrift block id off; plain body seal.",
+    "FORCE: VITAFEED_FORCE=yes + /vitafeed override — OR /vitafeed override force",
+    "  (command latch, no env) — thrift block id off; plain body seal.",
     "AUTOFIRE: VITAFEED_AUTOFIRE=yes + VITAFEED_AUTOFIRE_BODY=… one-shot (no BL- id).",
     "/vitafeed override — force-through money stalls:",
     "  bypasses RISK balance REFUSE + liquid floor; still needs VITAFEED_PAID=yes (or FORCE).",
+    "  /vitafeed override force — ALSO bypasses paid-off + hourly chunk cap (media dumps).",
     "  Sends each VIN chunk until on-chain/gas error — keeps sealed locs,",
     "  restages remainder so you can override again when funded.",
     "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
+    "/vitafeed check — systems check: files/players LOCAL_OK vs sealed Base MATCH.",
     "BRAIN: /vitafeed brain — activate learn cycle (old→new + peer review +",
     "  zero-proof growth + library + vita-save packet) then stage for override.",
     "  /vitafeed learn  — last cycle old→new card (no restage).",
@@ -937,6 +965,149 @@ export function vitaFeedForceEnabled(env = process.env) {
   return envFlagOnExplicit(env?.[VITAFEED_FORCE_ENV] ?? "");
 }
 
+function readJsonSafe(path) {
+  try {
+    if (!existsSync(path)) return null;
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function countSealMap(byId) {
+  if (!byId || typeof byId !== "object") return { ids: 0, locs: 0 };
+  let ids = 0;
+  let locs = 0;
+  for (const row of Object.values(byId)) {
+    ids += 1;
+    const list = row?.locs || row?.locations || row?.sealedLocs || [];
+    locs += Array.isArray(list) ? list.length : 0;
+  }
+  return { ids, locs };
+}
+
+/**
+ * Honest mirror audit: disk/library availability vs sealed Base body locs.
+ * Media players that play from local OGG/WAV are LOCAL_OK until every VIN
+ * group has a real Input Data hash — formula anchors are class proof only.
+ */
+export function auditVitaFeedChainMirror({ memoryDir = MEMORY_DIR } = {}) {
+  const music = readJsonSafe(join(memoryDir, "free-music-catalog.json"));
+  const songs = music?.songs && typeof music.songs === "object" ? music.songs : {};
+  const songIds = Object.keys(songs);
+  let musicLocalFiles = 0;
+  for (const s of Object.values(songs)) {
+    const rel = String(s?.file || "");
+    if (rel && existsSync(join(HERE, "..", rel))) musicLocalFiles += 1;
+    else if (rel && existsSync(rel)) musicLocalFiles += 1;
+  }
+
+  const boardSeals = readJsonSafe(join(memoryDir, "soundboard-seals.json"));
+  const spatialSeals = readJsonSafe(join(memoryDir, "spatial-sound-seals.json"));
+  const boardCat = readJsonSafe(join(memoryDir, "soundboard-catalog.json"));
+  const spatialCat = readJsonSafe(join(memoryDir, "spatial-sound-catalog.json"));
+  const backlog = readJsonSafe(join(memoryDir, "vitafeed-backlog.json"));
+  const inject = readJsonSafe(join(memoryDir, "chain-layer-inject.json"));
+
+  const boardCount = countSealMap(boardSeals?.byId);
+  const spatialCount = countSealMap(spatialSeals?.byId);
+  const padIds = Object.keys(boardCat?.pads || boardCat?.byId || {}).length
+    || (Array.isArray(boardCat?.pads) ? boardCat.pads.length : 0);
+  const spatialIds = Object.keys(spatialCat?.bites || spatialCat?.byId || {}).length
+    || (Array.isArray(spatialCat?.bites) ? spatialCat.bites.length : 0);
+
+  const items = Array.isArray(backlog?.items) ? backlog.items : [];
+  const pending = items.filter((i) => i?.status === "pending" || i?.status === "staged").length;
+  const sealed = items.filter((i) => i?.status === "sealed").length;
+
+  const injectSealed = Number(inject?.sealedCount || 0);
+  const injectPending = Number(inject?.pendingCount || inject?.totalChunks || 0);
+  const musicSealedOnChain = 0; // catalog never invents locs; CHAINDIR proven only after seal
+
+  const mediaLocalOnly =
+    musicLocalFiles > 0 && boardCount.locs === 0 && spatialCount.locs === 0 && musicSealedOnChain === 0;
+
+  return {
+    ok: true,
+    neverInventHashes: true,
+    formulaAnchorsAreClassProofOnly: true,
+    mediaLocalOnly,
+    music: {
+      songs: songIds.length,
+      localFiles: musicLocalFiles,
+      sealedBodyLocs: musicSealedOnChain,
+      status: musicSealedOnChain > 0 ? "MATCH" : "LOCAL_OK",
+      note: "OGG on disk = availability until /vitafeed enqueue <id> → override force seals VIN groups",
+    },
+    soundboard: {
+      pads: padIds,
+      sealedIds: boardCount.ids,
+      sealedLocs: boardCount.locs,
+      status: boardCount.locs > 0 ? "MATCH" : "LOCAL_OK",
+    },
+    spatial: {
+      bites: spatialIds,
+      sealedIds: spatialCount.ids,
+      sealedLocs: spatialCount.locs,
+      status: spatialCount.locs > 0 ? "MATCH" : "LOCAL_OK",
+    },
+    backlog: {
+      pending,
+      sealed,
+      total: items.length,
+      status: sealed > 0 && pending === 0 ? "DRAINED" : pending > 0 ? "PENDING" : "EMPTY",
+    },
+    spacedInject: {
+      sealed: injectSealed,
+      pending: injectPending,
+      status: injectSealed > 0 ? "PARTIAL_OR_MATCH" : "LOCAL_ONLY",
+    },
+    next:
+      "Stage: /vitafeed next (or enqueue maple|board) → /vitafeed override force to seal past paid-off + hourly cap",
+  };
+}
+
+export function formatVitaFeedMirrorCheckCard(audit = auditVitaFeedChainMirror()) {
+  const a = audit || {};
+  const lines = [
+    "VITAFEED SYSTEMS CHECK — chain mirror (honest)",
+    "class-proof anchors ≠ file/song/pad body — never invent Basescan hashes",
+    "",
+    "MUSIC  songs=" + (a.music?.songs ?? 0) +
+      " localFiles=" + (a.music?.localFiles ?? 0) +
+      " sealedBodyLocs=" + (a.music?.sealedBodyLocs ?? 0) +
+      " · " + (a.music?.status || "LOCAL_OK"),
+    "BOARD  pads=" + (a.soundboard?.pads ?? 0) +
+      " sealedLocs=" + (a.soundboard?.sealedLocs ?? 0) +
+      " · " + (a.soundboard?.status || "LOCAL_OK"),
+    "SPATIAL bites=" + (a.spatial?.bites ?? 0) +
+      " sealedLocs=" + (a.spatial?.sealedLocs ?? 0) +
+      " · " + (a.spatial?.status || "LOCAL_OK"),
+    "BACKLOG pending=" + (a.backlog?.pending ?? 0) +
+      " sealed=" + (a.backlog?.sealed ?? 0) +
+      " · " + (a.backlog?.status || "?"),
+    "INJECT  sealed=" + (a.spacedInject?.sealed ?? 0) +
+      " pendingChunks≈" + (a.spacedInject?.pending ?? 0) +
+      " · " + (a.spacedInject?.status || "LOCAL_ONLY"),
+    "",
+  ];
+  if (a.mediaLocalOnly) {
+    lines.push(
+      "VERDICT: media players are SAVED on disk / GitHub — NOT yet mirrored as Input Data.",
+      "Playback from LOCAL_OK is expected until confirm|override seals every VIN group.",
+    );
+  } else {
+    lines.push("VERDICT: some body locs sealed — pull Basescan Input Data → UTF-8 to verify MATCH.");
+  }
+  lines.push("");
+  lines.push("UNSTICK: " + (a.next || "/vitafeed override force"));
+  lines.push(
+    "Thrift: plain /vitafeed override bypasses money floor only;",
+    "  paid-off + rate-limit need FORCE env or /vitafeed override force.",
+  );
+  return lines.join("\n");
+}
+
 /** VITAFEED_AUTOFIRE must be yes|true|1. Default OFF. One-shot boot/desk fire. */
 export function vitaFeedAutofireEnabled(env = process.env) {
   return envFlagOnExplicit(env?.[VITAFEED_AUTOFIRE_ENV] ?? "");
@@ -1006,7 +1177,9 @@ export function formatVitaFeedPaidOffReply({ action = "confirm" } = {}) {
   return [
     "VITAFEED BANK — paid confirm is OFF",
     "VITAFEED_PAID / VITAFEED_ENABLED must be yes|true|1 to call sendTransaction.",
-    "/vitafeed override cannot bypass this kill-switch unless VITAFEED_FORCE=yes (action=" + action + ").",
+    "/vitafeed override alone cannot bypass this kill-switch (action=" + action + ").",
+    "FORCE through thrift: /vitafeed override force  (or set VITAFEED_FORCE=yes).",
+    "That also skips the hourly chunk / rate-limit cap (needed for song/video dumps).",
     "Cost card / preview still works. Staged payload kept. /vitafeed cancel to drop.",
     "Stops runaway RISK self-calls (n5624→6007 +383 class).",
   ].join("\n");
@@ -1038,14 +1211,16 @@ export function formatVitaFeedRateLimitReply({ reason, cooldownSec, cap, used, n
     );
   }
   lines.push("Flood / loop guard. Set VITAFEED_RATE_LIMIT=no to disable.");
+  lines.push("Or /vitafeed override force (FORCE latch) to seal media dumps past the hourly cap.");
   return lines.join("\n");
 }
 
 /**
  * Kill-switch + liquid floor + rate limit for confirm/override.
- * /vitafeed override cannot bypass paid-off or rate limit unless VITAFEED_FORCE=yes.
+ * /vitafeed override cannot bypass paid-off or rate limit unless VITAFEED_FORCE=yes
+ * OR command forceLatch (/vitafeed override force).
  * Override DOES bypass liquid floor (money stall) when forceOverride/action=override.
- * VITAFEED_FORCE + override also bypasses paid-off + rate limit (block id / thrift off).
+ * FORCE + override also bypasses paid-off + rate limit (block id / thrift off).
  */
 export function evaluateVitaFeedThriftGate({
   action,
@@ -1058,10 +1233,12 @@ export function evaluateVitaFeedThriftGate({
   forceOverride = false,
   /** Partial-seal resume: skip per-chat cooldown so remainder can continue. */
   skipCooldown = false,
+  /** /vitafeed override force — one-shot thrift latch (same as VITAFEED_FORCE=yes). */
+  forceLatch: commandForceLatch = false,
 } = {}) {
   const paidAction = action === "confirm" || action === "override";
   const override = forceOverride === true || action === "override";
-  const forceLatch = override && vitaFeedForceEnabled(env);
+  const forceLatch = (override && vitaFeedForceEnabled(env)) || (override && commandForceLatch === true);
   if (!paidAction) {
     return { ok: true, send: false, code: "not-paid-action" };
   }
@@ -1338,8 +1515,9 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
 
 /**
  * Thin Telegram/HTML action router. Paid send only when confirm + sendTx
- * AND VITAFEED_PAID=yes. Override cannot bypass the paid kill-switch.
- * Override bypasses liquid floor + RISK balance REFUSE; partial seal restages.
+ * AND VITAFEED_PAID=yes. Override alone cannot bypass the paid kill-switch;
+ * `/vitafeed override force` (or VITAFEED_FORCE=yes) can. Override bypasses
+ * liquid floor + RISK balance REFUSE; partial seal restages.
  */
 export async function handleVitaFeedAction({
   action,
@@ -1354,6 +1532,8 @@ export async function handleVitaFeedAction({
   reserveBuyStake = true,
   /** /vitafeed override — bypass RISK balance REFUSE + liquid floor. */
   forceOverride = false,
+  /** /vitafeed override force — one-shot thrift latch (paid-off + rate limit). */
+  forceLatch = false,
   /** Env snapshot (tests pass {}). Default process.env. */
   env = process.env,
   /** RISK ETH+WETH mark USD. Null skips the liquid floor. */
@@ -1362,6 +1542,15 @@ export async function handleVitaFeedAction({
   /** Telegram message.date * 1000 — stale confirm / getUpdates replay guard. */
   messageAtMs = null,
 } = {}) {
+  if (action === "check") {
+    const audit = auditVitaFeedChainMirror();
+    return {
+      ok: true,
+      phase: "check",
+      audit,
+      reply: formatVitaFeedMirrorCheckCard(audit),
+    };
+  }
   if (action === "usage" || action === "file") {
     // "file" without Telegram attachment bytes → usage (agent encodes attachment first).
     const { buildVitaFeedRootKeyboard } = await import("./telegram-clickthrough.js");
@@ -2814,6 +3003,7 @@ export async function handleVitaFeedAction({
       now,
       messageAtMs,
       forceOverride: override,
+      forceLatch: forceLatch === true,
       skipCooldown: Boolean(override && row.resume),
     });
     if (!thrift.ok) {

@@ -10369,7 +10369,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           });
           let msg = "📡 <b>VITAFEED FILE READY</b>\n━━━━━━━━━━━━━━━━━━━━\n";
           msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
-          msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override</code>\n";
+          msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override force</code>\n";
           msg += "Player: " +
             "<a href=\"" + vitaPlayerHref("/vita/feed-player").replace(/&/g, "&amp;") +
             "\">Watch popup</a> after seal (PLAY PROOF peaces locations).";
@@ -13115,7 +13115,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
             "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
             "<code>/vitafeed override</code> — bypass RISK balance REFUSE + liquid floor; " +
-            "sends what gas allows, restages remainder. Cannot bypass VITAFEED_PAID=no or rate limit.\n" +
+            "sends what gas allows, restages remainder. Alone cannot bypass VITAFEED_PAID=no or rate limit.\n" +
+            "<code>/vitafeed override force</code> — FORCE latch: also bypass paid-off + hourly chunk cap (media).\n" +
+            "<code>/vitafeed check</code> — systems check: disk/players LOCAL_OK vs sealed Base MATCH.\n" +
             "<code>/vitafeed brain</code> — activate learn (old→new + peer review + zero-proof + library + vita-save)\n" +
             "<code>/vitafeed learn</code> · <code>/vitafeed proof</code> — last cycle / growth card\n" +
             "<b>Backlog (feed brain without agent AI):</b>\n" +
@@ -13257,6 +13259,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             parsed.action === "confirm" || parsed.action === "override";
           const forceOverride =
             parsed.action === "override" || parsed.forceOverride === true;
+          const forceLatch = parsed.forceLatch === true;
 
           let sendTx = null;
           if (isPaidConfirm) {
@@ -13280,13 +13283,17 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               chunkCount,
               messageAtMs,
               forceOverride,
+              forceLatch,
               skipCooldown: Boolean(forceOverride && staged?.resume),
             });
             if (!gate.ok) {
               await tg(
                 "📡 <b>VITAFEED BANK</b>\n<pre>" +
                 String(gate.reply || "paid path refused").replace(/</g, "&lt;") +
-                "</pre>",
+                "</pre>\n" +
+                (gate.code === "paid-off" || gate.code === "chunk-cap" || gate.code === "cooldown"
+                  ? "Try <code>/vitafeed override force</code> to seal past thrift (paid-off + rate limit)."
+                  : ""),
               );
               continue;
             }
@@ -13334,9 +13341,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
             } else if (parsed.action === "override") {
               await tg(
-                "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK REFUSE + liquid floor; " +
-                "buy-in seats best-effort, then seal chunks until gas/error (partial OK)…",
+                forceLatch
+                  ? "📡 <b>VITAFEED OVERRIDE FORCE</b> — thrift latch ON (paid-off + rate limit bypass); " +
+                    "money floor already bypassed; seal chunks until gas/error (partial OK)…"
+                  : "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK REFUSE + liquid floor; " +
+                    "buy-in seats best-effort, then seal chunks until gas/error (partial OK). " +
+                    "If BANK/rate-limit blocks, use <code>/vitafeed override force</code>…",
               );
+            } else if (parsed.action === "check") {
+              await tg("📡 <b>VITAFEED CHECK</b> — auditing local files vs sealed Base mirrors…");
             } else if (parsed.action === "confirm") {
               await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
             } else if (parsed.action === "brain") {
@@ -13454,6 +13467,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               // Buy-in already spent above on confirm|override — do not demand stake twice.
               reserveBuyStake: !isPaidConfirm,
               forceOverride,
+              forceLatch,
               env: process.env,
               liquidUsd: isPaidConfirm ? liquidUsdForGate : null,
               messageAtMs,

@@ -1,0 +1,16 @@
+{
+  "id": "vitafeed-override-force-strand-v1",
+  "filingLabel": "VITAFEED",
+  "formula": "message-first",
+  "ends": [
+    "LOCAL_OK disk media / players",
+    "/vitafeed override force → sealed Input Data MATCH"
+  ],
+  "notes": [
+    "Plain override = money stalls only",
+    "FORCE latch = paid-off + rate limit for media dumps",
+    "/vitafeed check audits mirror honesty"
+  ],
+  "neverInventHashes": true,
+  "updatedAt": "2026-09-22T00:25:00.000Z"
+}

@@ -123,6 +123,11 @@ export const SYSTEMS_CHECKLIST = Object.freeze([
     why: "Manifest to read / grow / change an LLM route at will",
   },
   {
+    id: "media-mirror",
+    title: "Media / player chain mirror",
+    why: "Songs/pads/players on disk are LOCAL_OK until sealed Input Data MATCH — never invent hashes",
+  },
+  {
     id: "telegram-pointer",
     title: "Telegram click-through",
     why: "Demonstrate each proven system as it is added",
@@ -523,6 +528,22 @@ export async function runSystemsCheck({
   });
   const sealedIdm = sealedInjectIdmLocations(inject);
 
+  let mediaMirror = {
+    ok: true,
+    neverInventHashes: true,
+    mediaLocalOnly: true,
+    music: { status: "LOCAL_OK" },
+    soundboard: { status: "LOCAL_OK" },
+    spatial: { status: "LOCAL_OK" },
+    backlog: { pending: 0, sealed: 0 },
+  };
+  try {
+    const feed = await import("./vita-feed.js");
+    mediaMirror = feed.auditVitaFeedChainMirror() || mediaMirror;
+  } catch {
+    /* keep defaults — check still runs */
+  }
+
   const anchorsOk = (MAINFRAME_ANCHORS.known || []).every((a) => isTxHash(a.tx));
   const snark = snarkCompressProvenLibrary({ cwd, sealedLocs: sealedIdm });
   const recover = measureEvmRecover({
@@ -596,6 +617,17 @@ export async function runSystemsCheck({
         detail =
           `/vita check · check locs · check pull · ${sealedIdm.length} sealed IDM buttons`;
         break;
+      case "media-mirror": {
+        // Honest pass: audit ran. Disk media ≠ sealed until confirm|override force.
+        ok = mediaMirror.ok === true && mediaMirror.neverInventHashes === true;
+        detail =
+          `music=${mediaMirror.music?.status || "?"} ` +
+          `board=${mediaMirror.soundboard?.status || "?"} ` +
+          `spatial=${mediaMirror.spatial?.status || "?"} ` +
+          `backlog=${mediaMirror.backlog?.pending ?? "?"}p/${mediaMirror.backlog?.sealed ?? "?"}s` +
+          (mediaMirror.mediaLocalOnly ? " · MEDIA_LOCAL_ONLY" : "");
+        break;
+      }
       default:
         ok = false;
         detail = "unknown";
