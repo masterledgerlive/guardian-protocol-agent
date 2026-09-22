@@ -409,7 +409,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(r.ok, false);
     assert.equal(r.thrift, "paid-off");
     assert.equal(sent, 0);
-    assert.match(r.reply, /override cannot bypass/i);
+    assert.match(r.reply, /override alone cannot bypass|override cannot bypass|FORCE through thrift|override force/i);
     const gate = evaluateVitaFeedThriftGate({
       action: "override",
       env: {},
@@ -417,6 +417,59 @@ describe("vitafeed emergency thrift gates", () => {
     });
     assert.equal(gate.ok, false);
     assert.equal(gate.code, "paid-off");
+  });
+
+  it("/vitafeed override force command latch bypasses paid-off + rate limit", async () => {
+    assert.equal(parseVitaFeedCommand("/vitafeed override force").forceLatch, true);
+    assert.equal(parseVitaFeedCommand("/vitafeed force").forceLatch, true);
+    assert.equal(parseVitaFeedCommand("/vitafeed override").forceLatch || false, false);
+    resetVitaFeedPending();
+    resetVitaFeedPaidLog();
+    await handleVitaFeedAction({
+      action: "preview",
+      body: "command force latch body",
+      chatId: "cmd-force",
+    });
+    let sent = 0;
+    const hash = "0x" + "c".repeat(64);
+    const r = await handleVitaFeedAction({
+      action: "override",
+      chatId: "cmd-force",
+      env: { VITAFEED_PAID: "no", VITAFEED_RATE_LIMIT: "yes" },
+      forceOverride: true,
+      forceLatch: true,
+      riskBalanceEth: 0,
+      liquidUsd: 0,
+      reserveBuyStake: false,
+      gasReserveEth: 0,
+      sendTx: async () => {
+        sent += 1;
+        return hash;
+      },
+    });
+    assert.equal(r.ok, true);
+    assert.equal(sent, 1);
+    const locs = r.result?.strand?.locations || [];
+    assert.ok(locs.includes(hash));
+    const gate = evaluateVitaFeedThriftGate({
+      action: "override",
+      env: { VITAFEED_PAID: "no" },
+      forceOverride: true,
+      forceLatch: true,
+      chunkCount: 100,
+    });
+    assert.equal(gate.ok, true);
+    assert.equal(gate.code, "force-ok");
+  });
+
+  it("/vitafeed check reports media LOCAL_OK when seals empty", async () => {
+    assert.equal(parseVitaFeedCommand("/vitafeed check").action, "check");
+    const r = await handleVitaFeedAction({ action: "check" });
+    assert.equal(r.ok, true);
+    assert.equal(r.phase, "check");
+    assert.match(r.reply, /SYSTEMS CHECK|LOCAL_OK|MEDIA/i);
+    assert.equal(r.audit?.neverInventHashes, true);
+    assert.ok(r.audit?.music?.songs >= 1);
   });
 
   it("VITAFEED_FORCE=yes lets override bypass paid-off + rate limit (block id off)", async () => {

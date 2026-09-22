@@ -1,0 +1,22 @@
+{
+  "id": "vitafeed-override-force-learn-v1",
+  "filingLabel": "VITAFEED",
+  "formula": "message-first · never invent hashes · HTML memory until inject",
+  "at": "2026-09-22T00:25:00.000Z",
+  "topic": "systems-check + override force unstick",
+  "finding": [
+    "Media players (free-music OGG, soundboard pads, spatial bites) were LOCAL_OK on disk — seal ledgers empty (byId {}).",
+    "Backlog had pending items with zero sealed body locs. Spaced inject plan sealed=0.",
+    "Plain /vitafeed override only bypasses money stalls (liquid floor + RISK REFUSE).",
+    "The 'other restriction' blocking inject was thrift: VITAFEED_PAID default OFF and/or hourly 24-chunk rate limit — override alone cannot bypass those.",
+    "Song/video VIN groups exceed 24 chunks/hour so media dumps need FORCE."
+  ],
+  "fix": [
+    "/vitafeed override force — one-shot command latch (same as VITAFEED_FORCE=yes) bypasses paid-off + rate limit for that seal.",
+    "/vitafeed check — honest LOCAL_OK vs MATCH audit for music/board/spatial/backlog/inject.",
+    "chain-layer systems check adds media-mirror row (MEDIA_LOCAL_ONLY when seals empty).",
+    "Railway: enable VITAFEED_FORCE=yes (and VITAFEED_PAID=yes) so live Telegram override can seal without env guesswork."
+  ],
+  "neverInventHashes": true,
+  "messageFirst": true
+}
