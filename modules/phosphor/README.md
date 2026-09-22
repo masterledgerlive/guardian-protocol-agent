@@ -17,6 +17,8 @@ The other draft used a Go binary, an ephemeral ECDSA “proof”, and a file:// 
 
 The library of this folder folds into one stark-class merkle root (`phosphor-stark-fold-v1`).
 
+The CRT LIBRARY imprints `sample/pong.route` into the injector (snark squash, machine blocks, `stark://` filing, empty base location). PLAY runs the reader, checks the equality, and steps that recalled listing line by line. The court is not a second copy of the match.
+
 ## Run the self-test
 
 ```bash

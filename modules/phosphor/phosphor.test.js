@@ -11,6 +11,7 @@ import { displayOpenKey } from "./keys.js";
 import { ipfsAdd } from "./ipfs-outlet.js";
 import { HOME_ADDRESS } from "./home.js";
 import { VERIFIED_HOME_ADDRESS } from "../../operator-rotate.js";
+import { createMatch, stepMatch } from "./pong.js";
 import { proveFromReceipt, readBytes } from "./reader.js";
 import { renderBundle } from "./bundle.js";
 import { startPhosphorServer } from "./server.js";
@@ -144,6 +145,7 @@ test("CRT page and write route", async () => {
     assert.match(html, /PHOSPHOR/);
     assert.match(html, /#67ff78|67ff78/);
     assert.match(html, /READER/);
+    assert.match(html, /LIBRARY/);
     const body = Buffer.from("crt note");
     const res = await fetch("http://127.0.0.1:" + started.port + "/phosphor/api/write", {
       method: "POST",
@@ -420,4 +422,51 @@ test("large injector file recalls from external machine blocks", async () => {
   const back = await readBytes({ commit: written.commit, stateDir });
   assert.ok(back.raw.equals(source));
   rmSync(stateDir, { recursive: true, force: true });
+});
+
+test("library pong plays from the recalled snark imprint", async () => {
+  const stateDir = scratch();
+  const started = await startPhosphorServer({ port: 0, host: "127.0.0.1", stateDir });
+  const origin = "http://127.0.0.1:" + started.port;
+  try {
+    const page = await fetch(origin + "/phosphor/vm.js");
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /export function stepMatch/);
+    const libRes = await fetch(origin + "/phosphor/api/library");
+    const lib = await libRes.json();
+    assert.equal(lib.ok, true);
+    assert.equal(lib.location, null);
+    const pong = lib.items.find((item) => item.play === "phosphong");
+    assert.ok(pong);
+    assert.equal(pong.baseLocation, null);
+    assert.match(pong.filingLoc, /^stark:\/\/[0-9a-f]{16}$/);
+    assert.ok(pong.payloadBytes < pong.rawBytes, "snark squash should shrink the listing");
+    assert.match(pong.snark, /§PHOSSNARK§/);
+    const source = readFileSync(new URL("./sample/pong.route", import.meta.url));
+    const proofRes = await fetch(origin + "/phosphor/api/proof", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commit: pong.commit, key: pong.openKey }),
+    });
+    const proof = await proofRes.json();
+    assert.equal(proof.equal, true, proof.reason);
+    assert.equal(proof.equation.recallHash, sha256Hex(source));
+    const recallRes = await fetch(origin + "/phosphor/api/recall", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commit: pong.commit, key: pong.openKey }),
+    });
+    const recalled = await recallRes.json();
+    const text = Buffer.from(recalled.bytesBase64, "base64").toString("utf8");
+    assert.equal(text, source.toString("utf8"));
+    const match = createMatch(text);
+    const x0 = match.ballX;
+    for (let i = 0; i < 40; i++) stepMatch(match, 1 / 60);
+    assert.notEqual(match.ballX, x0);
+    assert.equal(match.over, false);
+    assert.ok(match.routeIndex >= 0);
+  } finally {
+    started.server.close();
+    rmSync(stateDir, { recursive: true, force: true });
+  }
 });
