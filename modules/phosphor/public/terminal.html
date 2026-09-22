@@ -46,6 +46,18 @@
   audio { width: min(420px, 100%); margin-top: 8px; filter: sepia(1) hue-rotate(70deg) saturate(3); }
   a { color: #b6ff9a; }
   .dim { color: #1f8a3a; }
+  h2 { font-size: 14px; font-weight: normal; letter-spacing: 0.14em; margin: 16px 0 6px; }
+  #court {
+    display: block;
+    width: min(640px, 100%);
+    height: auto;
+    background: #010801;
+    border: 1px solid #1c7a34;
+    margin: 8px 0;
+  }
+  #routes { max-height: 200px; overflow: auto; padding-left: 1.2em; margin: 8px 0; }
+  #routes li.active { color: #e8ffc4; }
+  .lib button { text-align: left; }
 </style>
 </head>
 <body>
@@ -71,6 +83,14 @@ Chain location stays blank until a real Base seal. No invented tx.</div>
       <a id="pull" hidden>PULL</a>
     </div>
     <div id="receipt"></div>
+    <h2>LIBRARY</h2>
+    <div id="library" class="dim">loading imprints…</div>
+    <canvas id="court" width="320" height="180" hidden></canvas>
+    <div class="row" id="pad" hidden>
+      <button id="up" type="button">UP</button>
+      <button id="down" type="button">DOWN</button>
+    </div>
+    <ol id="routes" hidden></ol>
     <audio id="play" controls hidden></audio>
     <p class="dim">Telegram: open this page from the PHOSPHOR pop-out. Songs play from the wire store after unwrap.</p>
   </div>
@@ -233,7 +253,123 @@ async function runTest() {
   paint(json.log || json.reason || "no log");
 }
 
+function esc(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+let currentMatch = null;
+let rally = 0;
+
+function drawMatch(match) {
+  const canvas = document.getElementById("court");
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#010801";
+  ctx.fillRect(0, 0, match.w, match.h);
+  ctx.strokeStyle = "#145c28";
+  ctx.beginPath();
+  ctx.setLineDash([3, 5]);
+  ctx.moveTo(match.w / 2, 0);
+  ctx.lineTo(match.w / 2, match.h);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#67ff78";
+  ctx.fillRect(16, match.leftY - match.paddleH / 2, match.paddleW, match.paddleH);
+  ctx.fillRect(match.w - 16 - match.paddleW, match.rightY - match.paddleH / 2, match.paddleW, match.paddleH);
+  ctx.beginPath();
+  ctx.arc(match.ballX, match.ballY, match.ballR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = "14px Courier New";
+  ctx.fillText(String(match.scoreL) + "    " + String(match.scoreR) + (match.over ? "  GAME" : ""), 8, 16);
+  const rows = document.getElementById("routes").children;
+  for (const row of rows) row.classList.toggle("active", Number(row.dataset.i) === match.routeIndex);
+}
+
+function startRally(match) {
+  currentMatch = match;
+  const canvas = document.getElementById("court");
+  canvas.hidden = false;
+  canvas.width = match.w;
+  canvas.height = match.h;
+  document.getElementById("pad").hidden = false;
+  const ol = document.getElementById("routes");
+  ol.hidden = false;
+  ol.innerHTML = match.program.lines.map((line) =>
+    "<li data-i=\"" + line.i + "\">" + esc(line.text || " ") + "</li>"
+  ).join("");
+  if (rally) cancelAnimationFrame(rally);
+  let last = performance.now();
+  const frame = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    window.PHOSPONG.stepMatch(match, dt);
+    drawMatch(match);
+    if (!match.over) rally = requestAnimationFrame(frame);
+  };
+  rally = requestAnimationFrame(frame);
+}
+
+async function playLibrary(commit, key) {
+  paint("C:\\PHOSPHOR> LIBRARY READER " + commit.slice(0, 12) + " …");
+  document.getElementById("commit").value = commit;
+  openKey = key || openKey;
+  try {
+    const proof = await postJson("/phosphor/api/proof", { commit, key });
+    const recalled = await postJson("/phosphor/api/recall", { commit, key });
+    if (!proof.equal || !recalled.bytesBase64) throw new Error("imprint did not return the program");
+    const bytes = Uint8Array.from(atob(recalled.bytesBase64), (ch) => ch.charCodeAt(0));
+    const text = new TextDecoder().decode(bytes);
+    await typeLines([
+      ...(proof.equation.lines || []),
+      "line router " + text.split(/\n/).length + " lines loaded from the injector",
+    ]);
+    if (!window.PHOSPONG) throw new Error("line router host missing");
+    startRally(window.PHOSPONG.createMatch(text));
+  } catch (error) {
+    paint("LIBRARY FAIL " + error.message);
+  }
+}
+
+async function loadLibrary() {
+  const lib = await fetch("/phosphor/api/library").then((r) => r.json());
+  const box = document.getElementById("library");
+  if (!lib.ok) { box.textContent = "library missing"; return; }
+  const rows = (lib.items || []).filter((item) => item.play === "phosphong");
+  if (!rows.length) { box.textContent = "no playable imprint"; return; }
+  box.innerHTML = rows.map((item) =>
+    "<div class=\"row lib\"><button type=\"button\" data-commit=\"" + esc(item.commit) + "\" data-key=\"" + esc(item.openKey || "") + "\">PLAY " + esc(item.name) + "</button>" +
+    "<span>squash " + esc(item.encoder) + " " + item.rawBytes + "→" + item.payloadBytes +
+    " · snark " + esc(item.snark) +
+    " · <a href=\"" + esc(item.href) + "\">" + esc(item.filingLoc) + "</a>" +
+    " · blocks " + item.blockCount + " · base loc empty</span></div>"
+  ).join("");
+  box.querySelectorAll("button[data-commit]").forEach((button) => {
+    button.onclick = () => playLibrary(button.dataset.commit, button.dataset.key);
+  });
+}
+
+document.getElementById("up").addEventListener("pointerdown", () => { if (currentMatch) currentMatch.keys.up = true; });
+document.getElementById("down").addEventListener("pointerdown", () => { if (currentMatch) currentMatch.keys.down = true; });
+window.addEventListener("pointerup", () => {
+  if (!currentMatch) return;
+  currentMatch.keys.up = false;
+  currentMatch.keys.down = false;
+});
+window.addEventListener("keydown", (event) => {
+  if (!currentMatch) return;
+  if (event.key === "ArrowUp") currentMatch.keys.up = true;
+  if (event.key === "ArrowDown") currentMatch.keys.down = true;
+});
+window.addEventListener("keyup", (event) => {
+  if (!currentMatch) return;
+  if (event.key === "ArrowUp") currentMatch.keys.up = false;
+  if (event.key === "ArrowDown") currentMatch.keys.down = false;
+});
+
 if (q.get("test") === "1") runTest();
+loadLibrary().catch(() => {});
 fetch("/phosphor/api/status").then((r) => r.json()).then((s) => {
   if (!s.ok) return;
   document.getElementById("sub").textContent =
@@ -241,6 +377,10 @@ fetch("/phosphor/api/status").then((r) => r.json()).then((s) => {
     "  stark " + (s.starkRoot ? s.starkRoot.slice(0, 12) : "pending") +
     "  loc —";
 }).catch(() => {});
+</script>
+<script type="module">
+import { createMatch, stepMatch } from "/phosphor/vm.js";
+window.PHOSPONG = { createMatch, stepMatch };
 </script>
 </body>
 </html>

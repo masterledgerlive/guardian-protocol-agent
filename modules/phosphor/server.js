@@ -12,6 +12,7 @@ import { assertRecallKey, loadBlock, loadReceipt, recallPlain, renderBlockPage, 
 import { renderBundle } from "./bundle.js";
 import { defaultStateDir, loadIndex, loadObject, loadStark, resolveCommit } from "./chain-store.js";
 import { displayOpenKey } from "./keys.js";
+import { ensurePlayLibrary } from "./library.js";
 import { proveFromReceipt, readBytes } from "./reader.js";
 import { runStartup } from "./startup.js";
 import { writeBytes } from "./writer.js";
@@ -126,6 +127,15 @@ export async function handlePhosphorHttp(req, res, url, { stateDir = defaultStat
   try {
     if (req.method === "GET" && (path === "/phosphor" || path === "/phosphor/")) {
       send(res, 200, readFileSync(PAGE), { "Content-Type": "text/html; charset=utf-8" });
+      return true;
+    }
+    if (req.method === "GET" && path === "/phosphor/vm.js") {
+      send(res, 200, readFileSync(join(HERE, "pong.js")), { "Content-Type": "text/javascript; charset=utf-8" });
+      return true;
+    }
+    if (req.method === "GET" && path === "/phosphor/api/library") {
+      const library = await ensurePlayLibrary(stateDir);
+      sendJson(res, 200, library);
       return true;
     }
     if (req.method === "GET" && path === "/phosphor/api/status") {

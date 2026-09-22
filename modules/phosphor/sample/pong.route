@@ -1,0 +1,27 @@
+; PHOSPONG line router. Each tick line is a route the reader steps.
+; The bytes below are the imprint. The CRT does not keep a second copy.
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+; imprint phosphor pong route from injector wires — snark squash of this listing
+PHOSPONG/1
+court 320 180
+paddle 8 36
+ball 4
+speed 120
+goal 5
+tick input
+tick ai
+tick move
+tick walls
+tick paddle
+tick score
+tick draw

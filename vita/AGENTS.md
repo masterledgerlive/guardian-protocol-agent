@@ -149,8 +149,9 @@ data field. The header `next=` loc chains the blocks (one-block and five-block
 recalls). Filing location is the compressed stark root. A large file is
 chunked into the injector, filed on the internal HOME seat, and proved by
 READER (`joined = payloadHash`, `recall = rawHash`, snark commit recomputed).
-Base location stays empty until a real seal. Only the key pieces the blocks
-back into code. See `modules/phosphor/`.
+The CRT LIBRARY imprints `sample/pong.route` and PLAY steps those recalled
+lines on the court. Base location stays empty until a real seal. Only the key
+pieces the blocks back into code. See `modules/phosphor/`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
 song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to
