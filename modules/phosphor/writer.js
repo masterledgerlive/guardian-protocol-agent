@@ -35,6 +35,7 @@ function guessMime(name, hint) {
   if (lower.endsWith(".json")) return "application/json";
   if (lower.endsWith(".js") || lower.endsWith(".mjs")) return "text/javascript";
   if (lower.endsWith(".html")) return "text/html";
+  if (lower.endsWith(".route")) return "text/x-phosphong";
   if (lower.endsWith(".exe") || lower.endsWith(".msi") || lower.endsWith(".zip")) return "application/octet-stream";
   if (lower.endsWith(".md") || lower.endsWith(".txt") || lower.endsWith(".sol")) return "text/plain";
   return "application/octet-stream";

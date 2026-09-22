@@ -6,6 +6,8 @@ export { foldStark, verifyStark, STARK_SYSTEM } from "./stark.js";
 export { packBlocks, walkBlocks, recallPlain, filingLoc } from "./blocks.js";
 export { homeSeat, HOME_ADDRESS, HOME_SYMBOL } from "./home.js";
 export { proveFromReceipt } from "./reader.js";
+export { createMatch, stepMatch, parsePhosphong } from "./pong.js";
+export { ensurePlayLibrary, PONG_NAME } from "./library.js";
 export { ipfsAdd } from "./ipfs-outlet.js";
 export { writeBytes } from "./writer.js";
 export { readBytes } from "./reader.js";

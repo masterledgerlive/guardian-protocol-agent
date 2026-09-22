@@ -31,6 +31,11 @@
       "home": "0x4BfAa776991E85e5f8b1255461cbbd216cFc714f",
       "baseLocation": null,
       "note": "Official vlc-3.0.21-win64.exe matched the published sha256 and the reader recall hash. 104617 machine blocks, filing stark://6428603b0fbaf477, open key PHOSOPEN|4c652a3268636c93, HOME lane internal. The exe is not in git. That run lived in a temp injector store. It is not a Base transaction."
+    },
+    {
+      "at": "2026-09-22T03:55:00.000Z",
+      "kind": "phosphong-library",
+      "note": "CRT LIBRARY imprints sample/pong.route through the injector. Snark squash shrinks the listing. PLAY recalls those bytes, checks joined=payloadHash and recall=rawHash, then steps the tick lines on the court. The page does not keep a second match. Base location stays empty. A Doom-sized binary stays on the large-file path."
     }
   ]
 }
