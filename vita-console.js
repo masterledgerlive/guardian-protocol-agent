@@ -51,6 +51,7 @@ import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js"
 import { handleWaveProofAction, parseWaveProofCommand } from "./vita/wave-proof.js";
 import { handleWaveFullAction, parseWaveFullCommand } from "./vita/wave-full.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
+import { phosphorHelpHtml } from "./modules/phosphor/telegram.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -82,6 +83,7 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/wavetest",
   "/waveproof",
   "/wavefull",
+  "/phosphor",
 ]);
 
 function shortLoc(location) {
@@ -345,6 +347,7 @@ function helpText() {
     "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
     "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
     "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",
+    "/phosphor — green CRT writer/reader. Injector wires are the store. IPFS is the outlet. /phosphor?popup=1",
     "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
     "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
@@ -524,6 +527,11 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
       "\nHTML SIM only — WAVE_FULL_LIVE live batch is desk POST /vita/wavefull or Telegram. /waveproof stays 3. VITAFEED_PAID stays default off." +
       "\nMother brain (/vitasave) untouched.",
     );
+  }
+
+  if (text === "/phosphor" || text.startsWith("/phosphor")) {
+    const plain = phosphorHelpHtml().replace(/<[^>]+>/g, "");
+    return reply(plain + "\nHTML CRT: /phosphor?popup=1 — chain location stays empty until a real seal.");
   }
 
   // /vitafeed — Storage Token game preview (paid RISK path is Telegram confirm)

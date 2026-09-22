@@ -44,6 +44,7 @@ import {
   revealMotherGenesis,
   runMotherGenesisInscribe,
 } from "./vita/mother-genesis.js";
+import { handlePhosphorCommand } from "./modules/phosphor/telegram.js";
 
 // ── 🧠 IKN MEMORY ENGINE — cliff notes + session summaries ────────────────────
 import {
@@ -13070,6 +13071,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) {
             await tg("❌ encodegenesisreveal failed: " + (e.message || e));
           }
+        }
+
+      // ── /phosphor — CRT writer/reader pop-out (injector wires, IPFS outlet)
+      } else if (text === "/phosphor" || (text && text.startsWith("/phosphor"))) {
+        try {
+          const out = await handlePhosphorCommand(raw);
+          await tg(out.html, { reply_markup: out.keyboard });
+        } catch (e) {
+          await tg("❌ phosphor failed: " + (e.message || e));
         }
 
       // ── /vitafeed — Storage Token game (exact plain / VITAFILE, RISK confirm)
