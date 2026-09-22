@@ -290,8 +290,9 @@ test("telegram pop-out is https with popup=1", () => {
   const href = phosphorHref({ PHOSPHOR_PUBLIC_URL: "https://example.test" });
   assert.equal(href, "https://example.test/phosphor?popup=1");
   const kb = buildPhosphorPopupKeyboard({ PHOSPHOR_PUBLIC_URL: "https://example.test" });
-  const urls = kb.inline_keyboard.flat().map((button) => button.web_app?.url || button.url);
+  const urls = kb.inline_keyboard.flat().map((button) => button.web_app?.url || button.url).filter(Boolean);
   assert.ok(urls.every((url) => url.startsWith("https://example.test/phosphor?popup=1")));
+  assert.ok(kb.inline_keyboard.flat().some((button) => button.callback_data === "/phosphor dir"));
 });
 
 test("auto machine line stays inside the 720 byte hitch", () => {
@@ -440,7 +441,8 @@ test("library pong plays from the recalled snark imprint", async () => {
     assert.ok(pong);
     assert.equal(pong.baseLocation, null);
     assert.match(pong.filingLoc, /^stark:\/\/[0-9a-f]{16}$/);
-    assert.ok(pong.payloadBytes < pong.rawBytes, "snark squash should shrink the listing");
+    assert.equal(pong.shorterThanData, true);
+    assert.ok(pong.directoryBytes < pong.dataFieldBytes);
     assert.match(pong.snark, /§PHOSSNARK§/);
     const source = readFileSync(new URL("./sample/pong.route", import.meta.url));
     const proofRes = await fetch(origin + "/phosphor/api/proof", {
@@ -465,6 +467,53 @@ test("library pong plays from the recalled snark imprint", async () => {
     assert.notEqual(match.ballX, x0);
     assert.equal(match.over, false);
     assert.ok(match.routeIndex >= 0);
+    const picture = lib.items.find((item) => item.play === "picture");
+    assert.ok(picture);
+    assert.equal(picture.folder, "PICTURE");
+    assert.equal(picture.keyAttached, true);
+    assert.equal(picture.baseLocation, null);
+    assert.equal(picture.basescan, null);
+    assert.ok(picture.payloadBytes < picture.rawBytes);
+    assert.equal(picture.shorterThanData, true);
+    assert.equal(picture.shorterThanRaw, true);
+    assert.ok(picture.directoryBytes < picture.dataFieldBytes);
+    assert.ok(picture.directoryBytes < picture.rawBytes);
+    const { unwrapDirectory } = await import("./directory.js");
+    const { synthPicture } = await import("./picture.js");
+    const opened = unwrapDirectory(stateDir, picture.filingLoc);
+    assert.ok(opened.raw.equals(synthPicture()));
+    assert.deepEqual(opened.order, picture.directory.split("|L=")[1].split("+"));
+    const dir = await fetch(origin + "/phosphor/api/library").then((r) => r.json());
+    const folders = dir.folders.map((folder) => folder.id);
+    assert.deepEqual(folders, ["PLAY", "PICTURE"]);
+    const { handlePhosphorCommand } = await import("./telegram.js");
+    const clicked = await handlePhosphorCommand("/phosphor dir PICTURE", {
+      stateDir,
+      env: { PHOSPHOR_PUBLIC_URL: "https://example.test" },
+    });
+    assert.match(clicked.html, /picture\.ppm/);
+    assert.match(clicked.html, /stark:\/\//);
+    const openedCard = await handlePhosphorCommand("/phosphor open " + picture.commit.slice(0, 12), { stateDir });
+    assert.match(openedCard.html, /open key attached/);
+    assert.match(openedCard.html, /directory is shorter than the data field/);
+    assert.match(openedCard.html, /base loc empty/);
+    assert.equal(openedCard.result.basescan, null);
+    const { writeBytes } = await import("./writer.js");
+    const locked = await writeBytes({
+      bytes: Buffer.from("lock-me-please"),
+      name: "lock.txt",
+      lockKey: "given-key",
+      stateDir,
+      tryIpfs: false,
+    });
+    const asked = await handlePhosphorCommand("/phosphor key " + locked.commit.slice(0, 12), { stateDir });
+    assert.match(asked.html, /key required to unwrap snark/);
+    const wrong = await handlePhosphorCommand("/phosphor key " + locked.commit.slice(0, 12) + " nope", { stateDir });
+    assert.match(wrong.html, /authenticate data/);
+    const recovered = await handlePhosphorCommand("/phosphor key " + locked.commit.slice(0, 12) + " given-key", { stateDir });
+    assert.match(recovered.html, /recovered 14 bytes/);
+    assert.equal(recovered.result.basescan, null);
+    assert.equal(recovered.result.baseLocation, null);
   } finally {
     started.server.close();
     rmSync(stateDir, { recursive: true, force: true });

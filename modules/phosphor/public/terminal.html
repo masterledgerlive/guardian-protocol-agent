@@ -51,6 +51,7 @@
     display: block;
     width: min(640px, 100%);
     height: auto;
+    image-rendering: pixelated;
     background: #010801;
     border: 1px solid #1c7a34;
     margin: 8px 0;
@@ -311,20 +312,60 @@ function startRally(match) {
   rally = requestAnimationFrame(frame);
 }
 
-async function playLibrary(commit, key) {
+function drawPpm(bytes) {
+  const head = new TextDecoder().decode(bytes.slice(0, 32));
+  const match = head.match(/^P6\n(\d+) (\d+)\n255\n/);
+  if (!match) throw new Error("picture is not a P6 listing");
+  const w = Number(match[1]);
+  const h = Number(match[2]);
+  const canvas = document.getElementById("court");
+  canvas.hidden = false;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  const image = ctx.createImageData(w, h);
+  const body = bytes.subarray(match[0].length);
+  for (let i = 0; i < w * h; i++) {
+    image.data[i * 4] = body[i * 3];
+    image.data[i * 4 + 1] = body[i * 3 + 1];
+    image.data[i * 4 + 2] = body[i * 3 + 2];
+    image.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  document.getElementById("pad").hidden = true;
+  if (rally) cancelAnimationFrame(rally);
+  currentMatch = null;
+}
+
+async function playLibrary(item) {
+  const commit = item.commit;
+  const key = item.openKey || "";
   paint("C:\\PHOSPHOR> LIBRARY READER " + commit.slice(0, 12) + " …");
   document.getElementById("commit").value = commit;
   openKey = key || openKey;
   try {
-    const proof = await postJson("/phosphor/api/proof", { commit, key });
-    const recalled = await postJson("/phosphor/api/recall", { commit, key });
-    if (!proof.equal || !recalled.bytesBase64) throw new Error("imprint did not return the program");
+    if (item.keyAttached === false && item.keyMode === "lock" && !document.getElementById("unlock").value) {
+      throw new Error("key required to unwrap snark");
+    }
+    const useKey = document.getElementById("unlock").value || key;
+    const proof = await postJson("/phosphor/api/proof", { commit, key: useKey });
+    const recalled = await postJson("/phosphor/api/recall", { commit, key: useKey });
+    if (!proof.equal || !recalled.bytesBase64) throw new Error("imprint did not return the file");
     const bytes = Uint8Array.from(atob(recalled.bytesBase64), (ch) => ch.charCodeAt(0));
-    const text = new TextDecoder().decode(bytes);
-    await typeLines([
+    const lines = [
       ...(proof.equation.lines || []),
-      "line router " + text.split(/\n/).length + " lines loaded from the injector",
-    ]);
+      "directory " + (item.directoryBytes || "?") + " bytes  data field " + (item.dataFieldBytes || "?") + " bytes",
+      "formula " + (item.directory || ""),
+      "final " + (item.filingLoc || ""),
+      item.shorterThanData ? "directory shorter than the data field" : "directory does not fit under the data field",
+      "base loc empty",
+    ];
+    await typeLines(lines);
+    if (item.play === "picture" || (recalled.name || "").endsWith(".ppm")) {
+      drawPpm(bytes);
+      return;
+    }
+    const text = new TextDecoder().decode(bytes);
     if (!window.PHOSPONG) throw new Error("line router host missing");
     startRally(window.PHOSPONG.createMatch(text));
   } catch (error) {
@@ -336,18 +377,30 @@ async function loadLibrary() {
   const lib = await fetch("/phosphor/api/library").then((r) => r.json());
   const box = document.getElementById("library");
   if (!lib.ok) { box.textContent = "library missing"; return; }
-  const rows = (lib.items || []).filter((item) => item.play === "phosphong");
-  if (!rows.length) { box.textContent = "no playable imprint"; return; }
-  box.innerHTML = rows.map((item) =>
-    "<div class=\"row lib\"><button type=\"button\" data-commit=\"" + esc(item.commit) + "\" data-key=\"" + esc(item.openKey || "") + "\">PLAY " + esc(item.name) + "</button>" +
-    "<span>squash " + esc(item.encoder) + " " + item.rawBytes + "→" + item.payloadBytes +
-    " · snark " + esc(item.snark) +
-    " · <a href=\"" + esc(item.href) + "\">" + esc(item.filingLoc) + "</a>" +
-    " · blocks " + item.blockCount + " · base loc empty</span></div>"
-  ).join("");
-  box.querySelectorAll("button[data-commit]").forEach((button) => {
-    button.onclick = () => playLibrary(button.dataset.commit, button.dataset.key);
-  });
+  const folders = lib.folders || [{ id: "LIBRARY", items: lib.items || [] }];
+  const playable = [];
+  box.innerHTML = folders.map((folder) => {
+    const buttons = (folder.items || []).filter((item) => item.play).map((item) => {
+      playable.push(item);
+      const id = "lib-" + item.commit.slice(0, 12);
+      return "<div class=\"row lib\"><button type=\"button\" id=\"" + id + "\">" + esc(folder.id) + " " + esc(item.name) + "</button>" +
+        "<span>raw " + item.rawBytes + " → payload " + item.payloadBytes + " → directory " + item.directoryBytes +
+        " · data field " + item.dataFieldBytes +
+        " · <a href=\"" + esc(item.href) + "\">" + esc(item.filingLoc) + "</a>" +
+        " · key " + (item.keyAttached ? "attached" : "ask") +
+        " · base loc empty</span></div>";
+    }).join("");
+    return buttons ? "<div><div class=\"dim\">" + esc(folder.id) + "</div>" + buttons + "</div>" : "";
+  }).join("");
+  for (const item of playable) {
+    const button = document.getElementById("lib-" + item.commit.slice(0, 12));
+    if (button) button.onclick = () => playLibrary(item);
+  }
+  const want = q.get("play");
+  if (want) {
+    const hit = playable.find((item) => item.commit.startsWith(want));
+    if (hit) playLibrary(hit);
+  }
 }
 
 document.getElementById("up").addEventListener("pointerdown", () => { if (currentMatch) currentMatch.keys.up = true; });
