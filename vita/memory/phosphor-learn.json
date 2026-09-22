@@ -1,0 +1,13 @@
+{
+  "id": "phosphor-learn-v1",
+  "filingLabel": "PHOSPHOR",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "events": [
+    {
+      "at": "2026-09-22T02:20:00.000Z",
+      "kind": "adapt-injector-store",
+      "note": "Naive draft used file:// plus an ephemeral ECDSA stub and a fresh hardhat hash. PHOSPHOR keeps IPFS as an outlet and uses §PHOSPHOR§ wires (≤720B) as the store. Groth16 and Winterfell stay unwired. location null until a real Base seal. Open key PHOSOPEN is pre-embedded. Lock is AES-256-GCM."
+    }
+  ]
+}

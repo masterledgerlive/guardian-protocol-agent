@@ -1,0 +1,3 @@
+PHOSPHOR sample note
+Open key is pre-embedded.
+This file is here so you can point the writer at a real path.

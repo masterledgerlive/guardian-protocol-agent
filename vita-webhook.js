@@ -198,6 +198,7 @@ import {
   buildChainBox,
   chainBoxCss,
 } from "./vita/players/index.js";
+import { handlePhosphorHttp } from "./modules/phosphor/server.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -715,6 +716,9 @@ async function handleVitaRequest(req, res) {
   const path = url.pathname;
 
   try {
+    if (path === "/phosphor" || path.startsWith("/phosphor/")) {
+      if (await handlePhosphorHttp(req, res, url)) return;
+    }
     // ── Public Control Board / Arena / Engine HTML ──────────────────────────
     // `/` and `/arena` stay the original Arena ledger (do not hijack live path).
     if ((path === "/board" || path === "/board/") && req.method === "GET") {

@@ -53,6 +53,12 @@ findable.
 | `vita/memory/spatial-sound-seals.json` | `SPATIAL_SOUND` | Real sealed spatial locs only — empty until VITAFEED_PAID seal |
 | `vita/memory/spatial-sound-learn.json` | `SPATIAL_SOUND` | Append-only learn: create / enqueue / seal / soundtrack |
 | `vita/strands/spatial-sound.json` | `SPATIAL_SOUND` | Sparse strand: bird print → voxel → one-block inject → agent mimic |
+| `modules/phosphor/` | `PHOSPHOR` | Chain writer/reader — injector wires are the store (new IPFS); IPFS HTTP is the outlet; open `PHOSOPEN` or AES lock; per-file snark + library stark fold; green CRT `/phosphor`; self-boot from wires |
+| `modules/phosphor/public/terminal.html` | `PHOSPHOR` | DOS green CRT — Telegram pop-out `?popup=1`; drop a file, watch squash, play, send-as-code |
+| `modules/phosphor/contract/SnapshotRegistry.sol` | `PHOSPHOR` | Anchor mirror — no deployed address in this repo |
+| `modules/phosphor/LLM_PROMPT.md` | `PHOSPHOR` | Next-model prompt: do not replace the injector store with the naive Go/file:// draft |
+| `vita/memory/phosphor-learn.json` | `PHOSPHOR` | Append-only learn: wire store, standby IPFS, unwired provers, null location |
+| `vita/strands/phosphor.json` | `PHOSPHOR` | Sparse strand: CRT → wires → stark fold → self-run |
 | `vita/memory/free-music/Maple_Leaf_Rag.ogg` | `FREEMUSIC` | Scott Joplin Maple Leaf Rag (1899, PD) — full Ogg Vorbis, not a demo WAV |
 | `vita/memory/free-music/Im_Always_Chasing_Rainbows.ogg` | `FREEMUSIC` | 1918 PD singing (Harry Fox) — Judy Garland free-catalog rainbow lane |
 | `vita/memory/free-music/Amazing_Grace.ogg` | `FREEMUSIC` | 1922 Sacred Harp Amazing Grace (PD-US-record-expired) |
@@ -195,6 +201,7 @@ findable.
 | `VITADUAL` | Dual-lane human plain + machine ZK-short (`§VITADUAL§`) — side-by-side cost/size + Basescan read receipt |
 | `FEED_LOADER` | Curated pack preload into backlog (`§VITALOAD§`) — cipher/prog hierarchy + did-you-know recall |
 | `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
+| `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real Base seal |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
 (`#vita-mainframe`). Hitch trailers only carry squashed `§LOC§`.
