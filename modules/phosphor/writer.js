@@ -14,6 +14,7 @@ import {
 } from "./blocks.js";
 import { buildWires, computeCommit, sha256Hex, squash } from "./codec.js";
 import { defaultStateDir, saveObject, saveStored } from "./chain-store.js";
+import { sealDirectory } from "./directory.js";
 import { appendHomeFiling, homeSeat } from "./home.js";
 import { ipfsAdd } from "./ipfs-outlet.js";
 import { lockBytes, openKeyMeta, displayOpenKey } from "./keys.js";
@@ -155,6 +156,14 @@ export async function writeBytes({
     ...block,
     href: "/phosphor/block?c=" + snark.commit + "&i=" + block.i,
   }));
+  const directory = packed.blocksExternal
+    ? {
+      ok: false,
+      reason: "wide chain keeps data fields on disk; directory formula is for a listing that fits one data field",
+      baseLocation: null,
+      basescan: null,
+    }
+    : sealDirectory(stateDir, { header, blocks: packed.blocks });
   const equation = {
     joinedHash,
     payloadHash,
@@ -188,6 +197,7 @@ export async function writeBytes({
     keyMeta,
     home,
     equation,
+    directory,
     circuitWired: false,
     winterfellWired: false,
     blocks,

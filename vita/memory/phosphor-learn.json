@@ -36,6 +36,18 @@
       "at": "2026-09-22T03:55:00.000Z",
       "kind": "phosphong-library",
       "note": "CRT LIBRARY imprints sample/pong.route through the injector. Snark squash shrinks the listing. PLAY recalls those bytes, checks joined=payloadHash and recall=rawHash, then steps the tick lines on the court. The page does not keep a second match. Base location stays empty. A Doom-sized binary stays on the large-file path."
+    },
+    {
+      "at": "2026-09-22T05:40:00.000Z",
+      "kind": "directory-picture",
+      "rawBytes": 18445,
+      "payloadBytes": 729,
+      "directoryBytes": 107,
+      "dataFieldBytes": 488,
+      "filingLoc": "stark://1df6b4f1400a4880",
+      "baseLocation": null,
+      "basescan": null,
+      "note": "Tiled P6 picture squashes 18445 bytes to 729. The unwrap formula is one §PHOSDIR§v1 line of two ordered stark:// data-field locs plus the attached PHOSOPEN key. That line is 107 bytes, shorter than the 488-byte data field and shorter than the original. Reader final loc stark://1df6b4f1400a4880 walks those locs in order. LOCK without a passphrase asks for the key. Telegram folders are PLAY and PICTURE. This runtime has no signer, so baseLocation and basescan stay null. The filing is injector data fields, not a Basescan transaction. No hash was invented."
     }
   ]
 }

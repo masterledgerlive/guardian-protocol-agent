@@ -149,9 +149,13 @@ data field. The header `next=` loc chains the blocks (one-block and five-block
 recalls). Filing location is the compressed stark root. A large file is
 chunked into the injector, filed on the internal HOME seat, and proved by
 READER (`joined = payloadHash`, `recall = rawHash`, snark commit recomputed).
-The CRT LIBRARY imprints `sample/pong.route` and PLAY steps those recalled
-lines on the court. Base location stays empty until a real seal. Only the key
-pieces the blocks back into code. See `modules/phosphor/`.
+The CRT LIBRARY imprints `sample/pong.route` and a tiled picture. The unwrap
+formula is one `§PHOSDIR§v1` line of ordered `stark://` data-field locs plus
+the open key or `LOCK`. That line is shorter than a data field. The reader
+final loc is the filing loc of the line; it walks the locs in order into the
+player. Open key attached unwraps without a prompt. `LOCK` asks for the key
+(`/phosphor key`). Telegram folders: `/phosphor dir` then PLAY or PICTURE.
+Base location and Basescan stay empty until a real seal. See `modules/phosphor/`.
 Completion directory: `/vitafeed chaindir` · `/vitafeed cycle` · `/vitafeed loc 0x…`
 · `/vitafeed dir CHAIN` (`vita/chain-dir.js`). URLs only for YouTube kids —
 song bytes are VIN. Kids player PIN lock (default `0000`) freezes escape to

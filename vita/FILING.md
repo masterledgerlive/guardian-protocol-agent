@@ -56,9 +56,12 @@ findable.
 | `modules/phosphor/` | `PHOSPHOR` | Chain writer/reader — injector wires are the store (new IPFS); IPFS HTTP is the outlet; open `PHOSOPEN` or AES lock; per-file snark + library stark fold; green CRT `/phosphor`; self-boot from wires |
 | `modules/phosphor/blocks.js` | `PHOSPHOR` | STARK block filing — machine `§PHOSBLOCK§` records, next-block header, compressed `stark://` filing loc, SYSTEM_INJECTED receipt, exact data-field page; wide files use blocks.ndjson |
 | `modules/phosphor/home.js` | `PHOSPHOR` | Internal HOME filing seat `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f` — not a swap, base location stays empty |
-| `modules/phosphor/public/terminal.html` | `PHOSPHOR` | DOS green CRT — Telegram pop-out `?popup=1`; drop a file, watch squash, play, send-as-code; LIBRARY plays recalled pong routes |
+| `modules/phosphor/public/terminal.html` | `PHOSPHOR` | DOS green CRT — Telegram pop-out `?popup=1`; folder library PLAY / PICTURE; directory formula on READER |
+| `modules/phosphor/directory.js` | `PHOSPHOR` | `§PHOSDIR§v1` location formula — ordered data-field locs, shorter than one data field; final loc is the line hash; LOCK asks for the key |
+| `modules/phosphor/picture.js` | `PHOSPHOR` | Deterministic tiled P6 PPM — squash shorter than raw; picture test for the directory formula |
+| `modules/phosphor/library.js` | `PHOSPHOR` | Clickable PLAY and PICTURE folders — imprint once, recall into the player |
 | `modules/phosphor/pong.js` | `PHOSPHOR` | Line router for a recalled PHOSPONG/1 listing — tick input, ai, move, walls, paddle, score |
-| `modules/phosphor/sample/pong.route` | `PHOSPHOR` | Imprinted pong program — snark-squashed into the injector; the court steps these lines |
+| `modules/phosphor/sample/pong.route` | `PHOSPHOR` | Short pong program — no comment padding; snark-squashed into the injector |
 | `modules/phosphor/contract/SnapshotRegistry.sol` | `PHOSPHOR` | Anchor mirror — no deployed address in this repo |
 | `modules/phosphor/LLM_PROMPT.md` | `PHOSPHOR` | Next-model prompt: do not replace the injector store with the naive Go/file:// draft |
 | `vita/memory/phosphor-learn.json` | `PHOSPHOR` | Append-only learn: wire store, standby IPFS, unwired provers, null location |

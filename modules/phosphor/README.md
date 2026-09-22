@@ -17,7 +17,7 @@ The other draft used a Go binary, an ephemeral ECDSA “proof”, and a file:// 
 
 The library of this folder folds into one stark-class merkle root (`phosphor-stark-fold-v1`).
 
-The CRT LIBRARY imprints `sample/pong.route` into the injector (snark squash, machine blocks, `stark://` filing, empty base location). PLAY runs the reader, checks the equality, and steps that recalled listing line by line. The court is not a second copy of the match.
+The CRT LIBRARY imprints `sample/pong.route` and a tiled PPM into the injector. The squash stays shorter than the original bytes. The unwrap formula is one `§PHOSDIR§v1` line: the open key (or `LOCK`) and the ordered `stark://` data-field locs. That line is shorter than one data field. Its final filing loc is `stark://` plus 16 hex of the line hash. The reader walks those locs in order and loads the player. An open key on the formula unwraps without a prompt. `LOCK` without a passphrase asks for the key. Telegram folders are PLAY, PICTURE, and FILES (`/phosphor dir`, `/phosphor open`, `/phosphor key`). `baseLocation` and Basescan stay empty until a real seal. This module does not invent a transaction hash.
 
 ## Run the self-test
 

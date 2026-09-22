@@ -38,6 +38,8 @@ export const LIBRARY_FILES = Object.freeze([
   "index.js",
   "public/terminal.html",
   "pong.js",
+  "picture.js",
+  "directory.js",
   "library.js",
   "sample/pong.route",
   "contract/SnapshotRegistry.sol",
