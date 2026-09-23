@@ -199,6 +199,9 @@ never auto-spend.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
+`playKind` includes `html` (`text/html`) — after unlock the feed player runs
+sealed pages in a sandboxed iframe (`srcdoc` + open-in-new-tab data URL).
+Plain `.txt` / text kinds render in `<pre>` from the same recovered UTF-8.
 **Compression bake-off:** `/vitafeed compress` · `/vitafeed compress add` ·
 `/vitafeed compress <path>` · `/vitafeed compress dir` ·
 `/vitafeed compress unwrap [key]` · `/vitafeed compress verify <key>` ·
@@ -207,8 +210,10 @@ personal, program, video, or any other file. Drop a file in
 `vita/compression/inbox/` or on `/vita/compression`. Every codec runs
 (including the Gemini zlib project). The call is `verified` with the open
 key that recovers the bytes. **Unwrap** shows HUMAN plain text recovered
-from the machine wire (plus MACHINE denser lane). That key is the directory
-row. Telegram: every step is a button (HOME → Compress, Feed → Comp add,
+from the machine wire (plus MACHINE denser lane) — tap **Unwrap** / Trail
+**Plain** / `/vitafeed compress unwrap` after a `.txt` compress to see the
+original again (lossless). That key is the directory row. Telegram: every
+step is a button (HOME → Compress, Feed → Comp add,
 `/vitafeed dir COMPRESS`). Next module is `/vitafeed` injection
 (confirm|override). Chain stays availability until a real seal. Never invent
 hashes. See `vita/compression/`.

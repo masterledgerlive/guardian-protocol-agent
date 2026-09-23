@@ -74,6 +74,34 @@ describe("vitafile encode / decode", () => {
     assert.ok(file.dataUrl.startsWith("data:audio/wav;base64,"));
   });
 
+  it("marks text/html as playKind html with UTF-8 text for iframe", () => {
+    const html = "<html><body>hi</body></html>";
+    const enc = encodeVitaFile({
+      name: "page.html",
+      mime: "text/html",
+      bytes: Buffer.from(html, "utf8"),
+    });
+    assert.equal(enc.ok, true);
+    assert.equal(enc.playKind, "html");
+    const parsed = parseVitaFileBody(enc.body);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.playKind, "html");
+    assert.equal(parsed.text, html);
+  });
+
+  it("marks .txt as playKind text with recovered plain UTF-8", () => {
+    const note = "see me again after unwrap";
+    const enc = encodeVitaFile({
+      name: "note.txt",
+      bytes: Buffer.from(note, "utf8"),
+    });
+    assert.equal(enc.mime, "text/plain");
+    assert.equal(enc.playKind, "text");
+    const parsed = parseVitaFileBody(enc.body);
+    assert.equal(parsed.playKind, "text");
+    assert.equal(parsed.text, note);
+  });
+
   it("refuses corrupt sha on parse", () => {
     const enc = encodeVitaFile({ name: "x.bin", bytes: Buffer.from("hello") });
     const bad = enc.body.replace(/sha256=[0-9a-f]+/, "sha256=" + "0".repeat(64));
@@ -127,6 +155,48 @@ describe("vitafeed player play proof", () => {
     });
     assert.equal(pieces.complete, true);
     assert.equal(pieces.progressPct, 100);
+  });
+
+  it("HTML playKind runs as iframe srcdoc text after unlock", () => {
+    const html =
+      "<!doctype html><html><body><h1 id='ok'>VITA</h1><script>document.title='sealed'</script></body></html>";
+    const prepared = prepareVitaFileFeed({
+      name: "sealed-page.html",
+      mime: "text/html",
+      bytes: Buffer.from(html, "utf8"),
+    }, { maxBytes: 64 });
+    assert.equal(prepared.ok, true);
+    assert.equal(prepared.file.playKind, "html");
+
+    const sealed = demoSealFeedLines(prepared);
+    const proof = buildVitaFeedPlayProof({
+      strand: sealed.strand,
+      label: "DEMO",
+    });
+    assert.equal(proof.complete, true);
+    assert.equal(proof.play.kind, "html");
+    assert.equal(proof.play.mime, "text/html");
+    assert.equal(proof.play.text, html);
+    assert.ok(proof.play.dataUrl.startsWith("data:text/html;base64,"));
+    assert.match(proof.card, /HTML runs in sandboxed iframe/);
+  });
+
+  it("plain .txt playKind recovers UTF-8 text (same as compress unwrap)", () => {
+    const note = "hello plain after compression\nline two";
+    const prepared = prepareVitaFileFeed({
+      name: "note.txt",
+      mime: "text/plain",
+      bytes: Buffer.from(note, "utf8"),
+    }, { maxBytes: 48 });
+    assert.equal(prepared.file.playKind, "text");
+    const sealed = demoSealFeedLines(prepared);
+    const proof = buildVitaFeedPlayProof({
+      strand: sealed.strand,
+      label: "DEMO",
+    });
+    assert.equal(proof.play.kind, "text");
+    assert.equal(proof.play.text, note);
+    assert.match(proof.card, /plain text recovered/);
   });
 
   it("/vitafeed override completes with play proof for VITAFILE", async () => {
@@ -215,7 +285,11 @@ describe("mother brain untouched + player surface", () => {
   it("git diff main is empty for VITA root inscription files", () => {
     // Soft check — files exist and player html is present.
     assert.ok(readFileSync(join(root, "vita-memory.js"), "utf8").length > 100);
-    assert.ok(readFileSync(join(root, "public", "vita-feed-player.html"), "utf8").includes("VITAFEED"));
+    const playerHtml = readFileSync(join(root, "public", "vita-feed-player.html"), "utf8");
+    assert.ok(playerHtml.includes("VITAFEED"));
+    assert.ok(playerHtml.includes('play.kind === "html"'));
+    assert.ok(playerHtml.includes("srcdoc"));
+    assert.ok(playerHtml.includes("sandbox"));
     assert.ok(readFileSync(join(root, "vita-webhook.js"), "utf8").includes("/vita/feed-player"));
   });
 
