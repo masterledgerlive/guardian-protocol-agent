@@ -52,6 +52,7 @@ describe("telegram click-through keyboards", () => {
     assert.ok(cbs.includes("/home"));
     assert.ok(cbs.includes("/vitafeed compress"));
     assert.ok(cbs.includes("/vitafeed compress add"));
+    assert.ok(cbs.includes("/vitafeed trail"));
     assert.ok(cbs.includes("/phosphor"));
     assertCallbacksFit(kb, "root");
   });

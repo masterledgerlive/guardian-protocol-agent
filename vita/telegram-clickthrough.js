@@ -160,6 +160,7 @@ export function buildVitaFeedRootKeyboard() {
         btn("📎 File", "/vitafeed file"),
         btn("🗜 Compress", "/vitafeed compress"),
         btn("📥 Comp add", "/vitafeed compress add"),
+        btn("📜 Trail", "/vitafeed trail"),
         btn("🟢 Phosphor", "/phosphor"),
         btn("🧪 Track", "/vitafeed track"),
       ],
@@ -261,7 +262,15 @@ export function buildDirSubKeyboard(listed) {
     rows.unshift([
       btn("🗜 Bench", "/vitafeed compress"),
       btn("📂 Keys", "/vitafeed compress dir"),
+      btn("📜 Trail", "/vitafeed trail"),
       webAppBtn("▶ Page", vitaPlayerHref("/vita/compression")),
+    ]);
+  }
+  if (sub === "PROOFLOG") {
+    rows.unshift([
+      btn("📜 Trail", "/vitafeed trail"),
+      btn("🗜 Compress", "/vitafeed compress"),
+      btn("📥 Add", "/vitafeed compress add"),
     ]);
   }
   if (sub === "PHOS" || sub === "PHOSPHOR") {
@@ -358,6 +367,26 @@ export function buildUnlockKeyboard(result) {
     rows.push([
       webAppBtn("▶ Compress page", vitaPlayerHref("/vita/compression")),
       btn("📂 Keys", "/vitafeed compress dir"),
+      btn("📜 Trail", "/vitafeed trail"),
+    ]);
+  }
+  if (src === "PROOFLOG") {
+    const n = result?.entry?.proofLogN || result?.proofLog?.n || result?.entry?.n;
+    if (n) {
+      rows.push([
+        btn("👁 Plain", "/vitafeed log plain " + n),
+        btn("🤖 Machine", "/vitafeed log machine " + n),
+        btn("📄 Original", "/vitafeed log original " + n),
+      ]);
+      rows.push([
+        btn("🔓 Unwrap", "/vitafeed log " + n),
+        btn("🏁 Race", "/vitafeed log race " + n),
+        btn("⛓ Chains", "/vitafeed log chains " + n),
+      ]);
+    }
+    rows.push([
+      btn("📜 Trail", "/vitafeed trail"),
+      btn("📁 PROOFLOG", "/vitafeed dir PROOFLOG"),
     ]);
   }
   rows.push([
@@ -537,6 +566,7 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
     return buildVitaFeedRootKeyboard();
   }
   if (act === "compress") return out.keyboard || buildVitaFeedRootKeyboard();
+  if (act === "log" || act === "trail") return out.keyboard || buildVitaFeedRootKeyboard();
   if (act === "backlog" || act === "load" || act === "know" || act === "recall" || act === "cipher" || act === "ref" || act === "proven" || act === "learn" || act === "proof" || act === "restart") {
     return buildVitaFeedRootKeyboard();
   }

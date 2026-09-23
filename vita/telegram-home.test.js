@@ -52,6 +52,7 @@ describe("telegram-home sectioned keyboard", () => {
     assert.ok(ids.includes("syscheck"));
     assert.ok(ids.includes("agents"));
     assert.ok(ids.includes("compress"));
+    assert.ok(ids.includes("prooflog"));
     assert.ok(ids.includes("phosphor"));
     const routes = allHomeRouteCommands();
     assert.ok(routes.length >= 40, "enough interactive routes");
@@ -62,6 +63,8 @@ describe("telegram-home sectioned keyboard", () => {
     assert.ok(routes.some((r) => r.cmd === "/pick sell"));
     assert.ok(routes.some((r) => r.cmd === "/vitafeed compress add"));
     assert.ok(routes.some((r) => r.cmd === "/vitafeed compress unwrap"));
+    assert.ok(routes.some((r) => r.cmd === "/vitafeed trail"));
+    assert.ok(routes.some((r) => r.cmd === "/vitafeed dir PROOFLOG"));
     assert.ok(routes.some((r) => r.cmd === "/phosphor"));
     assert.ok(routes.some((r) => r.cmd === "/vitafeed dir COMPRESS"));
     assert.ok(routes.some((r) => r.cmd === "/vitafeed dir PHOS"));

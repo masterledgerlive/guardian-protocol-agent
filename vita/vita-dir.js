@@ -33,6 +33,7 @@ import { spatialEntriesFor } from "./spatial-sound.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 import { playerDirEntriesFor } from "./players/index.js";
 import { compressionDirEntries, verifyCompressionKey, plainTextFromBytes, machineLineFromEntry } from "./compression/index.js";
+import { proofLogDirEntries, getProofLogEntry } from "./proof-log.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -66,6 +67,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
   { name: "COMPRESS", role: "codec bake-off · verified key directory · then inject", filing: "COMPRESS" },
+  { name: "PROOFLOG", role: "creation-order proof-of-logs trail · key+root · race 1–3", filing: "PROOFLOG" },
   { name: "PHOS", role: "PHOSPHOR CRT · wire store · PLAY/PICTURE library", filing: "PHOSPHOR" },
 ]);
 
@@ -388,6 +390,8 @@ function dirEntriesFor(subdir) {
     listX404DirEntries().forEach((e) => out.push(e));
   } else if (name === "COMPRESS" || name === "COMPRESSION" || name === "CODEC") {
     compressionDirEntries().forEach((e) => out.push(e));
+  } else if (name === "PROOFLOG" || name === "PROOF" || name === "TRAIL") {
+    proofLogDirEntries().forEach((e) => out.push(e));
   } else if (name === "PHOS" || name === "PHOSPHOR") {
     out.push({
       n: 1,
@@ -598,6 +602,7 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
     let english = hit.english;
     let machine = hit.machine;
     let compressChecked = null;
+    let proofEntry = null;
     if (d === "COMPRESS" && (hit.unlockName || hit.readerKey || hit.trueName)) {
       const key = hit.unlockName || hit.readerKey || hit.trueName;
       compressChecked = verifyCompressionKey(key);
@@ -608,6 +613,21 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
           name: hit.name || compressChecked.name,
         });
         machine = compressChecked.machine || machineLineFromEntry(compressChecked.entry || hit, compressChecked.payload);
+      }
+    }
+    if (d === "PROOFLOG") {
+      const found = getProofLogEntry(hit.unlockName || hit.n || hit.name);
+      if (found.ok) {
+        proofEntry = found.entry;
+        english =
+          (proofEntry.plainPreview || hit.english) +
+          "\nroot=" +
+          proofEntry.rootPath +
+          "\nkey=" +
+          proofEntry.key;
+        machine =
+          proofEntry.machine ||
+          "PROOFLOG n=" + proofEntry.n + " key=" + proofEntry.key + " root=" + proofEntry.rootPath;
       }
     }
 
@@ -632,6 +652,7 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
         machine,
         compressKey: compressChecked?.key || hit.unlockName || null,
         compressVerified: compressChecked?.verified === true,
+        proofLogN: proofEntry?.n || hit.proofLogN || null,
       },
       unlock,
       packed,
@@ -639,8 +660,11 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
       goalHint:
         d === "COMPRESS"
           ? "compress unwrap → plain text + machine wire · /vitafeed compress inject · /vita/compression"
-          : playGoalHint(hit.mime, hit.kind),
+          : d === "PROOFLOG"
+            ? "proof-log tabs → /vitafeed log " + (proofEntry?.n || hit.n) + " · Plain|Machine|Original|Unwrap"
+            : playGoalHint(hit.mime, hit.kind),
       compress: compressChecked || null,
+      proofLog: proofEntry || null,
     };
   }
 

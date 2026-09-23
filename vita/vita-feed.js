@@ -779,6 +779,11 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
       wantsFile,
     };
   }
+  // Proof-of-logs trail — creation-order verification log + Telegram tabs.
+  if (/^(?:log|trail|prooflog|proof-log|proofs)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:log|trail|prooflog|proof-log|proofs)\s*/i, "").trim();
+    return { ok: true, action: "log", body: rest, source: "log" };
+  }
   // Reply-to-file / explicit file cue — Telegram handler encodes attachment.
   if (/^file(?:\s|$)/i.test(trimmed) || /^upload(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:file|upload)\s*/i, "");
@@ -904,6 +909,16 @@ export function vitaFeedUsageText() {
     "  Inbox: vita/compression/inbox/   ·   page: /vita/compression",
     "  Buttons: HOME→Compress · Feed→Comp add · dir COMPRESS — every step is a tap",
     "  Call returns verified + the open key that compressed the file.",
+    "PROOF-OF-LOGS (creation-order trail · key+root on every row):",
+    "  /vitafeed trail            — rolling log of filed/verified/message-out",
+    "  /vitafeed log <n>          — open trail file · tabs Plain|Machine|Original",
+    "  /vitafeed log plain <n>    — HUMAN plain text",
+    "  /vitafeed log machine <n>  — MACHINE handoff for agentic AI",
+    "  /vitafeed log original <n> — original format + download",
+    "  /vitafeed log race <n>     — who proofed/injected first (slots 1–3+)",
+    "  /vitafeed log chains <n> [base,ethereum,…] — memory credit seats",
+    "  Dir: /vitafeed dir PROOFLOG  ·  page: /vita/proof-log",
+    "  Never invents hashes. Sealed locs only after confirm|override.",
     "  Chain stays availability until a real seal. Never invent hashes.",
     "LIBRARY (Telegram quick pull):",
     "  /vitafeed files          — list saved names (auto-saved on seal)",
@@ -3044,7 +3059,22 @@ export async function handleVitaFeedAction({
       chainStatus: "availability",
       locations: [],
       neverInventHashes: true,
+      proofLog: out.proofLog || null,
       reply,
+      keyboard: out.keyboard,
+    };
+  }
+  if (action === "log" || action === "trail") {
+    const { handleProofLogRequest } = await import("./proof-log.js");
+    const out = handleProofLogRequest({ body }, compressionOpts?.proofLog || {});
+    return {
+      ok: out.ok !== false,
+      phase: "log",
+      tab: out.tab || null,
+      entry: out.entry || null,
+      trail: out.trail || null,
+      neverInventHashes: true,
+      reply: out.reply || out.reason || "",
       keyboard: out.keyboard,
     };
   }

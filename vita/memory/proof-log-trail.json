@@ -1,0 +1,90 @@
+{
+  "id": "vita-proof-log-v1",
+  "filingLabel": "PROOFLOG",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "neverForget": true,
+  "createdAt": "2026-09-23T21:08:48.006Z",
+  "updatedAt": "2026-09-23T21:08:48.006Z",
+  "seq": 1,
+  "header": {
+    "version": "v1",
+    "rootCommit": "6e2f4a7ac0b5661020c1cc6218cfc5ed49a640e8e23496d0c6a08796d664f647",
+    "lastSeq": 1,
+    "raceSlots": 3,
+    "entryCount": 1,
+    "verifiedCount": 1,
+    "messageOutCount": 0,
+    "sealedCount": 0,
+    "note": "Main proof-of-logs header. Child labels refine the tree. Keys attach every row to root path.",
+    "updatedAt": "2026-09-23T21:08:48.006Z"
+  },
+  "entries": [
+    {
+      "n": 1,
+      "at": "2026-09-23T21:08:48.006Z",
+      "phase": "filed",
+      "key": "VITACOMP.deflate-raw-9-v1.94fc5a26",
+      "name": "t.txt",
+      "kind": "personal",
+      "mime": "text/plain",
+      "codec": "deflate-raw-9-v1",
+      "rootPath": "t.txt",
+      "storePath": "vita/compression/store/VITACOMP.deflate-raw-9-v1.94fc5a26.json",
+      "rawHash": "94fc5a26018b892b3841f65ac0eac08c4a55f0e95d89b5ccb9b10d3d9cb6c583",
+      "payloadHash": "a4ff6db7d38c139bfc5fa6ceffc2342cc137a31eda2f500b40c0b5ac500454c4",
+      "rawBytes": 120,
+      "payloadBytes": 8,
+      "verified": true,
+      "messageOut": false,
+      "timing": {
+        "filedMs": 0.119,
+        "at": "2026-09-23T21:08:48.004Z"
+      },
+      "machine": "COMPRESS key=VITACOMP.deflate-raw-9-v1.94fc5a26 codec=deflate-raw-9-v1 ratio=0.0667",
+      "plainPreview": "",
+      "locations": [],
+      "chainCredits": [
+        {
+          "chain": "base",
+          "chainId": 8453,
+          "name": "Base",
+          "role": "hitch-trade",
+          "status": "requested",
+          "location": null,
+          "basescan": null,
+          "memoryCredit": true,
+          "note": "Credit seat reserved — loc empty until a real seal on this chain"
+        }
+      ],
+      "race": {
+        "slot": null,
+        "injectSlot": null,
+        "who": "operator",
+        "proofedFirst": false,
+        "injectedFirst": false
+      },
+      "parentLogN": null,
+      "label": "",
+      "source": "add",
+      "history": [
+        {
+          "at": "2026-09-23T21:08:48.006Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        }
+      ]
+    }
+  ],
+  "tree": [
+    {
+      "n": 1,
+      "label": "#1",
+      "phase": "filed",
+      "key": "VITACOMP.deflate-raw-9-v1.94fc5a26",
+      "depth": 0,
+      "children": []
+    }
+  ]
+}

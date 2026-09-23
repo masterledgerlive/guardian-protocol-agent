@@ -151,6 +151,11 @@ findable.
 | `vita/memory/compression-learn.json` | `COMPRESS` | Append-only learn: which codec won for which kind |
 | `vita/memory/compression-telegram-unwrap.json` | `COMPRESS` | Learn: Telegram unwrap + full button path matched to VITA:\\COMPRESS\\ |
 | `vita/strands/compression.json` | `COMPRESS` | Sparse strand: file → bake-off → verified key → unwrap plain → inject |
+| `vita/proof-log.js` | `PROOFLOG` | Creation-order proof-of-logs trail · key+root on every row · race 1–3 · multi-chain credit seats · Telegram Plain/Machine/Original tabs |
+| `public/vita-proof-log.html` | `PROOFLOG` | Trail UI + download original via open key |
+| `vita/memory/proof-log-trail.json` | `PROOFLOG` | Append-only rolling verification trail (message-out proofs) |
+| `vita/memory/proof-log-learn.json` | `PROOFLOG` | Append-only learn events for trail growth |
+| `vita/strands/proof-log.json` | `PROOFLOG` | Sparse strand: file → verify → race → chain seats → seal |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
 | `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play; live HUMAN+MACHINE SNARK caption layers synced to audio |

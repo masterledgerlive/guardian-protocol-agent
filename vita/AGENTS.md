@@ -212,6 +212,16 @@ row. Telegram: every step is a button (HOME → Compress, Feed → Comp add,
 `/vitafeed dir COMPRESS`). Next module is `/vitafeed` injection
 (confirm|override). Chain stays availability until a real seal. Never invent
 hashes. See `vita/compression/`.
+**Proof-of-logs trail:** `/vitafeed trail` · `/vitafeed log <n>` ·
+`/vitafeed log plain|machine|original|race <n>` ·
+`/vitafeed log chains <n> base,ethereum,…` · `/vitafeed dir PROOFLOG` —
+creation-order rolling log of every compressed file/message. Each row
+attaches the open key + original root path (trace to root). Header is the
+main log; labels/numbers grow a log-of-logs tree. Timed verify writes the
+message-out proof. Race slots 1–3 (+extras) justify who proofed or injected
+first. Multi-chain seats reserve memory credit until a real seal (never
+invent locs). Telegram tabs: Plain text · Machine handoff · Original
+download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
 
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank
