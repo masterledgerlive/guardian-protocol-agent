@@ -225,7 +225,187 @@
         "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
         "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
       ]
+    },
+    {
+      "at": "2026-09-23T20:41:58.764Z",
+      "section": "all",
+      "routeCount": 128,
+      "routesOk": 128,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "52771ff27ce9c8e0829d1ff0b7263dca4c656500ddb9b4f21595b45e04c39b22",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:41:58.766Z",
+      "section": "search",
+      "routeCount": 19,
+      "routesOk": 19,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "91027d0ca3bb7df2f0326302893f0526fcbb540813f9b4203e7189f2665eefbf",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:41:58.768Z",
+      "section": "wave",
+      "routeCount": 4,
+      "routesOk": 4,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "81f68e40dad3a4d473f1726ae2c1999ccb410eba5f7619135f24804143579689",
+      "searchPassed": null,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:18.759Z",
+      "section": "all",
+      "routeCount": 128,
+      "routesOk": 128,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "957c4c1d9ea26d5f25ee00ff7255035079ba5574fbafea99ed991ccb07d99ee5",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:18.762Z",
+      "section": "search",
+      "routeCount": 19,
+      "routesOk": 19,
+      "cheaper": "MAIN",
+      "faster": "NEW",
+      "snarkRoot": "2175e8a2a9b879494b866ffac635dd8c6ecd7cfdf039c06dd35b6d96db41be9d",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:18.764Z",
+      "section": "wave",
+      "routeCount": 4,
+      "routesOk": 4,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "b30e1af623bb7e898eedefac08b4185ef1f229265f9c4085d1c7bd6d30988477",
+      "searchPassed": null,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:35.558Z",
+      "section": "all",
+      "routeCount": 128,
+      "routesOk": 128,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "da164145348a908c2b591b68b73f94e0732c95cf0c8131ee8f9af06852192a72",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:35.560Z",
+      "section": "search",
+      "routeCount": 19,
+      "routesOk": 19,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "01cd78c11206f5828b985d28f9a25838875a343ccd87b56ede4cf8add13c1ed5",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:35.562Z",
+      "section": "wave",
+      "routeCount": 4,
+      "routesOk": 4,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "fe9b13ce18ba8c006d8d40be74fc8828832d2ecfb221087bafab0ce43f2becd5",
+      "searchPassed": null,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:57.358Z",
+      "section": "all",
+      "routeCount": 128,
+      "routesOk": 128,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "7597bb724bb90c8bb0d8085eea02f8a0c70915a212d9e2567afd84fa9f7b2ccc",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:57.361Z",
+      "section": "search",
+      "routeCount": 19,
+      "routesOk": 19,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "f9146a31b4903bd2595669d59cf79d65422eebc4af1fd7d615f1bba8dc4cb23e",
+      "searchPassed": 6,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
+    },
+    {
+      "at": "2026-09-23T20:42:57.363Z",
+      "section": "wave",
+      "routeCount": 4,
+      "routesOk": 4,
+      "cheaper": "MAIN",
+      "faster": "tie",
+      "snarkRoot": "678f7123e7f951c136c884441a7001ac49d5a30ec19fa4fe7c133bb6017d0a3b",
+      "searchPassed": null,
+      "idm": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ]
     }
   ],
-  "updatedAt": "2026-09-21T02:27:41.597Z"
+  "updatedAt": "2026-09-23T20:42:57.363Z"
 }

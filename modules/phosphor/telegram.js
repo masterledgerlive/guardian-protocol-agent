@@ -32,7 +32,7 @@ function esc(text) {
 
 export function buildPhosphorPopupKeyboard(env = process.env) {
   const href = phosphorHref(env);
-  const testHref = href + "&test=1";
+  const testHref = href.includes("?") ? href + "&test=1" : href + "?test=1";
   return {
     inline_keyboard: [
       [
@@ -41,7 +41,17 @@ export function buildPhosphorPopupKeyboard(env = process.env) {
       ],
       [
         { text: "LIBRARY", callback_data: "/phosphor dir" },
+        { text: "PLAY", callback_data: "/phosphor dir PLAY" },
+        { text: "PICTURE", callback_data: "/phosphor dir PICTURE" },
+      ],
+      [
         { text: "▶ Self-test", web_app: { url: testHref } },
+        { text: "Self-test", callback_data: "/phosphor test" },
+      ],
+      [
+        { text: "📁 PHOS dir", callback_data: "/vitafeed dir PHOS" },
+        { text: "🗜 Compress", callback_data: "/vitafeed compress" },
+        { text: "🏠 HOME", callback_data: "/home" },
       ],
     ],
   };

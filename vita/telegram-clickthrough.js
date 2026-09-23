@@ -96,6 +96,11 @@ export function buildPlayerPopupKeyboard({
     btn("🕊 Spatial", "/vitafeed spatial"),
   ]);
   rows.push([
+    btn("📦 Enqueue lib", "/vitafeed enqueue library"),
+    btn("🗜 Compress", "/vitafeed compress"),
+    btn("🟢 Phosphor", "/phosphor"),
+  ]);
+  rows.push([
     btn("📋 KIDS list", "/vitafeed dir KIDS"),
     btn("🔤 Dual", "/vitafeed dual kids"),
     btn("🏠 Menu", "/vitafeed"),
@@ -135,6 +140,8 @@ export function buildVitaFeedRootKeyboard() {
         webAppBtn("▶ Judy player", vitaPlayerHref("/vita/feed-player?music=judy")),
         webAppBtn("▶ Soundboard", vitaPlayerHref("/vita/soundboard")),
         webAppBtn("▶ Spatial", vitaPlayerHref("/vita/spatial")),
+        webAppBtn("▶ Compress", vitaPlayerHref("/vita/compression")),
+        webAppBtn("▶ Phosphor", vitaPlayerHref("/phosphor?popup=1")),
         webAppBtn("▶ Demo player", vitaPlayerHref("/vita/feed-player?demo=1")),
         urlBtn("↗ Player", vitaPlayerHref("/vita/kids-player?dir=kids")),
       ],
@@ -152,6 +159,8 @@ export function buildVitaFeedRootKeyboard() {
         btn("🔐 Cipher", "/vitafeed cipher"),
         btn("📎 File", "/vitafeed file"),
         btn("🗜 Compress", "/vitafeed compress"),
+        btn("📥 Comp add", "/vitafeed compress add"),
+        btn("🟢 Phosphor", "/phosphor"),
         btn("🧪 Track", "/vitafeed track"),
       ],
       [
@@ -245,9 +254,21 @@ export function buildDirSubKeyboard(listed) {
   }
   if (sub === "COMPRESS") {
     rows.unshift([
+      btn("📥 Add", "/vitafeed compress add"),
+      btn("👁 Unwrap", "/vitafeed compress unwrap"),
+      btn("➡ Inject", "/vitafeed compress inject"),
+    ]);
+    rows.unshift([
       btn("🗜 Bench", "/vitafeed compress"),
       btn("📂 Keys", "/vitafeed compress dir"),
       webAppBtn("▶ Page", vitaPlayerHref("/vita/compression")),
+    ]);
+  }
+  if (sub === "PHOS" || sub === "PHOSPHOR") {
+    rows.unshift([
+      btn("🟢 CRT", "/phosphor"),
+      btn("📂 Lib", "/phosphor dir"),
+      webAppBtn("▶ Popup", vitaPlayerHref("/phosphor?popup=1")),
     ]);
   }
   rows.push([
@@ -274,7 +295,14 @@ export function buildUnlockKeyboard(result) {
     result?.entry?.playKind === "youtube" ||
     result?.entry?.kind === "youtube" ||
     /kids url|youtube/i.test(playHint);
-  const playCmd = youtubePlay
+  const phosphorPlay = result?.entry?.kind === "phosphor" || String(result?.source || "").toUpperCase() === "PHOS";
+  const playCmd = phosphorPlay
+    ? (String(result?.entry?.unlockName || "").toUpperCase() === "PLAY"
+        ? "/phosphor dir PLAY"
+        : String(result?.entry?.unlockName || "").toUpperCase() === "PICTURE"
+          ? "/phosphor dir PICTURE"
+          : "/phosphor")
+    : youtubePlay
     ? (result?.entry?.playIndex
         ? "/vitafeed play kids " + result.entry.playIndex
         : "/vitafeed play kids")
@@ -290,10 +318,29 @@ export function buildUnlockKeyboard(result) {
       ? "/vitafeed dual " + dualSeed
       : "/vitafeed dual";
   const src = String(result?.source || "").toUpperCase();
+  const compressKey = result?.entry?.compressKey || result?.compress?.key || result?.entry?.unlockName || "";
+  const unwrapCmd =
+    src === "COMPRESS"
+      ? (
+          compressKey && ("/vitafeed compress unwrap " + compressKey).length <= CALLBACK_DATA_MAX
+            ? "/vitafeed compress unwrap " + compressKey
+            : "/vitafeed compress unwrap"
+        )
+      : unlockCmd.length <= CALLBACK_DATA_MAX
+        ? unlockCmd
+        : "/vitafeed dir";
+  const injectCompress =
+    src === "COMPRESS"
+      ? (
+          compressKey && ("/vitafeed compress inject " + compressKey).length <= CALLBACK_DATA_MAX
+            ? "/vitafeed compress inject " + compressKey
+            : "/vitafeed compress inject"
+        )
+      : null;
   const rows = [
     [
-      btn("👁 Human", unlockCmd.length <= CALLBACK_DATA_MAX ? unlockCmd : "/vitafeed dir"),
-      btn("🤖 Machine", unlockCmd.length <= CALLBACK_DATA_MAX ? unlockCmd : "/vitafeed dir"),
+      btn("👁 Human", unwrapCmd),
+      btn("🤖 Machine", unwrapCmd),
       btn("▶️ Play", playCmd.length <= CALLBACK_DATA_MAX ? playCmd : "/vitafeed files"),
     ],
     [
@@ -301,12 +348,23 @@ export function buildUnlockKeyboard(result) {
       btn("🧪 Track inject", "/vitafeed track"),
       btn("📡 Stage feed", "/vitafeed"),
     ],
-    [
-      btn("⬆️ " + (src || "Dir"), src ? "/vitafeed dir " + src : "/vitafeed dir"),
-      btn("📂 Master", "/vitafeed dir"),
-      btn("🏠 Menu", "/vitafeed"),
-    ],
   ];
+  if (src === "COMPRESS") {
+    rows.push([
+      btn("👁 Unwrap plain", unwrapCmd),
+      btn("➡ Inject", injectCompress || "/vitafeed compress inject"),
+      btn("📥 Add file", "/vitafeed compress add"),
+    ]);
+    rows.push([
+      webAppBtn("▶ Compress page", vitaPlayerHref("/vita/compression")),
+      btn("📂 Keys", "/vitafeed compress dir"),
+    ]);
+  }
+  rows.push([
+    btn("⬆️ " + (src || "Dir"), src ? "/vitafeed dir " + src : "/vitafeed dir"),
+    btn("📂 Master", "/vitafeed dir"),
+    btn("🏠 Menu", "/vitafeed"),
+  ]);
   return { inline_keyboard: rows };
 }
 

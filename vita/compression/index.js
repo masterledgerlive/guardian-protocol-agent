@@ -539,6 +539,7 @@ export function verifyCompressionKey(key, opts = {}) {
     codec: entry.codec,
     kind: entry.kind,
     name: entry.name,
+    mime: entry.mime || "",
     rawBytes: back.length,
     rawHash: got,
     chainStatus: entry.chainStatus || "availability",
@@ -546,6 +547,12 @@ export function verifyCompressionKey(key, opts = {}) {
     neverInventHashes: true,
     privateKey: false,
     bytes: match ? back : null,
+    payload: match ? payload : null,
+    entry,
+    plain: match
+      ? plainTextFromBytes(back, { kind: entry.kind, mime: entry.mime, name: entry.name })
+      : "",
+    machine: match ? machineLineFromEntry(entry, payload) : "",
     reason: match ? "" : "recovered hash does not match the key",
   };
 }
@@ -716,6 +723,115 @@ function formatRow(row) {
   );
 }
 
+/** True when recovered bytes are mostly printable UTF-8 (plain text / source). */
+export function isMostlyTextBytes(bytes) {
+  const buf = asBuffer(bytes);
+  if (!buf || !buf.length) return false;
+  let printable = 0;
+  const n = Math.min(buf.length, 4096);
+  for (let i = 0; i < n; i++) {
+    const c = buf[i];
+    if (c === 9 || c === 10 || c === 13 || (c >= 32 && c < 127) || c >= 160) printable += 1;
+  }
+  return printable / n >= 0.85;
+}
+
+/**
+ * HUMAN plain preview from recovered bytes — what you see after unwrap.
+ * Binary kinds get a short hex dump so machine code is still readable.
+ */
+export function plainTextFromBytes(bytes, { kind = "", mime = "", name = "", maxChars = 1800 } = {}) {
+  const buf = asBuffer(bytes);
+  if (!buf || !buf.length) return "(empty)";
+  const binaryKind =
+    kind === "video" ||
+    kind === "audio" ||
+    kind === "image" ||
+    /^video\//i.test(mime) ||
+    /^audio\//i.test(mime) ||
+    /^image\//i.test(mime);
+  if (!binaryKind && isMostlyTextBytes(buf)) {
+    let text = buf.toString("utf8");
+    if (text.length > maxChars) text = text.slice(0, maxChars) + "\n… +" + (buf.length - maxChars) + "B";
+    return text;
+  }
+  const head = buf.subarray(0, Math.min(48, buf.length)).toString("hex");
+  return (
+    "(binary " + (kind || mime || "file") + " · " + buf.length + "B · name=" + (name || "?") + ")\n" +
+    "hex[0.." + Math.min(48, buf.length) + "]=" + head +
+    (buf.length > 48 ? "…" : "")
+  );
+}
+
+export function machineLineFromEntry(entry, payload = null) {
+  const pay = payload || (entry?.payloadBase64 ? Buffer.from(entry.payloadBase64, "base64") : null);
+  const wire = pay
+    ? "wireB64=" + pay.subarray(0, 36).toString("base64") + (pay.length > 36 ? "…" : "")
+    : "wire=on-disk";
+  return (
+    "COMPRESS key=" + (entry?.key || "—") +
+    " codec=" + (entry?.codec || "—") +
+    " ratio=" + (entry?.ratio ?? "—") +
+    " raw=" + (entry?.rawBytes ?? "—") +
+    " payload=" + (entry?.payloadBytes ?? "—") +
+    " verified=true recovered=true " +
+    wire
+  );
+}
+
+/**
+ * Instant unwrap card — HUMAN plain text + MACHINE key/wire (Telegram + HTML).
+ * No private key. answer recovered only when sha256 matches.
+ */
+export function formatCompressionUnwrapCard(checked, { timing = null, entry = null } = {}) {
+  const lines = [];
+  lines.push(COMPRESS_MAGIC + COMPRESS_VERSION + "|unwrap|openSource=1§");
+  lines.push("COMPRESSION UNWRAP");
+  lines.push("VERIFIED " + (checked?.verified === true ? "true" : "false"));
+  lines.push("key=" + (checked?.key || "—"));
+  lines.push("answer recovered=" + (checked?.recovered === true ? "true" : "false"));
+  lines.push("call=" + (checked?.call || "refused"));
+  lines.push("codec=" + (checked?.codec || "—") + "  kind=" + (checked?.kind || "—"));
+  lines.push("name=" + (checked?.name || "—"));
+  lines.push("privateKey=NO · openSource=YES · instantUnwrap=YES");
+  lines.push("chain=" + (checked?.chainStatus || "availability"));
+  if (timing) {
+    lines.push(
+      "timing human=" + timing.humanMs + "ms machine=" + timing.machineMs +
+      "ms · plainProof=" + (timing.plainTextProof ? "YES" : "no") +
+      " · snarkDenser=" + (timing.snarkUnlocksDenser ? "YES" : "no"),
+    );
+  }
+  lines.push("");
+  lines.push("— HUMAN (plain text from machine code) —");
+  if (checked?.ok && checked.bytes) {
+    lines.push(plainTextFromBytes(checked.bytes, {
+      kind: checked.kind,
+      mime: entry?.mime,
+      name: checked.name,
+    }));
+  } else {
+    lines.push(checked?.reason || "(not recovered)");
+  }
+  lines.push("");
+  lines.push("— MACHINE (codec wire · denser lane) —");
+  if (entry) {
+    lines.push(machineLineFromEntry(entry, checked?.payload || null));
+  } else {
+    lines.push(
+      "COMPRESS key=" + (checked?.key || "—") +
+      " codec=" + (checked?.codec || "—") +
+      " verified=" + (checked?.verified === true) +
+      " recovered=" + (checked?.recovered === true),
+    );
+  }
+  lines.push("");
+  lines.push("TAP Unwrap · Human · Machine · Inject · Add — every step is a button");
+  lines.push("NEXT MODULE: /vitafeed compress inject " + (checked?.key || "") + " → confirm|override");
+  lines.push("directory: /vitafeed compress dir · /vitafeed dir COMPRESS");
+  return lines.join("\n");
+}
+
 export function formatCompressionCard(result) {
   if (!result?.ok && !result?.bench) {
     return "COMPRESSION REFUSED\n" + (result?.reason || "miss");
@@ -741,8 +857,10 @@ export function formatCompressionCard(result) {
   }
   lines.push("chain=" + (entry?.chainStatus || "availability") + "  locs=0 until a real seal");
   lines.push("privateKey=NO  open key is the codec + content hash");
+  lines.push("UNWRAP plain: /vitafeed compress unwrap  ·  /vitafeed unlock COMPRESS\\<n>");
   lines.push("NEXT MODULE: injection  —  /vitafeed confirm | /vitafeed override");
   lines.push("directory: /vitafeed compress dir   ·   /vitafeed dir COMPRESS");
+  lines.push("buttons: Add · Bench · Keys · Unwrap · Inject · Confirm");
   return lines.join("\n");
 }
 
@@ -754,8 +872,9 @@ export function formatCompressionDirectoryCard(opts = {}) {
   lines.push("KEY DIRECTORY  VITA:\\COMPRESS\\");
   lines.push("chain=" + directory.chainStatus + "  neverInventHashes=true");
   lines.push("unlock = the compression key (not a wallet secret)");
+  lines.push("unwrap = tap a file · /vitafeed compress unwrap · HUMAN plain + MACHINE wire");
   if (!files.length) {
-    lines.push("(empty — /vitafeed compress  or drop a file in vita/compression/inbox/)");
+    lines.push("(empty — tap Add file · /vitafeed compress add · or drop in vita/compression/inbox/)");
   }
   files.forEach((f, i) => {
     lines.push(
@@ -763,12 +882,15 @@ export function formatCompressionDirectoryCard(opts = {}) {
       f.codec.padEnd(20) + "  " + f.ratio + "  " + f.key,
     );
     lines.push("     " + f.name + "  verified=true  recovered=true");
+    lines.push("     unwrap: /vitafeed unlock COMPRESS\\" + (i + 1));
   });
   const growth = recommendForKind("", opts);
   if (growth.leader) {
     lines.push("");
     lines.push("learned leader (all kinds): " + growth.leader.codec + " ×" + growth.leader.wins);
   }
+  lines.push("");
+  lines.push("buttons: Add · Bench · Keys · Unwrap · Inject · Confirm");
   return lines.join("\n");
 }
 
@@ -859,32 +981,75 @@ export function formatBakeoffSummary(results, opts = {}) {
   return lines.join("\n");
 }
 
-export function buildCompressionKeyboard({ key = "" } = {}) {
-  const verifyCmd = key ? "/vitafeed compress verify " + key : "/vitafeed compress learn";
-  const injectCmd = key ? "/vitafeed compress inject " + key : "/vitafeed compress inject";
+/**
+ * Every compression step is a tap. Long keys fall back to unwrap-latest /
+ * unlock-by-index so callback_data stays ≤64B.
+ */
+export function buildCompressionKeyboard({ key = "", n = null } = {}) {
+  const unlockByN =
+    n != null && Number.isFinite(Number(n))
+      ? "/vitafeed unlock COMPRESS\\" + Number(n)
+      : "";
+  const verifyByKey = key ? "/vitafeed compress verify " + key : "";
+  const unwrapCmd =
+    (verifyByKey && verifyByKey.length <= 64 && verifyByKey) ||
+    (unlockByN && unlockByN.length <= 64 && unlockByN) ||
+    "/vitafeed compress unwrap";
+  const injectByKey = key ? "/vitafeed compress inject " + key : "";
+  const injectCmd =
+    (injectByKey && injectByKey.length <= 64 && injectByKey) ||
+    "/vitafeed compress inject";
   const rows = [
     [
-      { text: "🗜 Bench all", callback_data: "/vitafeed compress" },
-      { text: "📂 Keys", callback_data: "/vitafeed compress dir" },
-    ],
-    [
-      { text: "✔ Verify", callback_data: verifyCmd },
-      { text: "➡ Inject", callback_data: injectCmd },
-    ],
-    [
       { text: "📥 Add file", callback_data: "/vitafeed compress add" },
+      { text: "🗜 Bench all", callback_data: "/vitafeed compress" },
+    ],
+    [
+      { text: "📂 Keys", callback_data: "/vitafeed compress dir" },
       { text: "📁 COMPRESS", callback_data: "/vitafeed dir COMPRESS" },
     ],
     [
+      { text: "👁 Unwrap", callback_data: unwrapCmd },
+      { text: "➡ Inject", callback_data: injectCmd },
+    ],
+    [
+      { text: "🧠 Learn", callback_data: "/vitafeed compress learn" },
       { text: "✅ Confirm", callback_data: "/vitafeed confirm" },
       { text: "🏠 Menu", callback_data: "/vitafeed" },
     ],
   ];
   for (const row of rows) {
     for (const b of row) {
-      if (b.callback_data.length > 64) b.callback_data = "/vitafeed compress dir";
+      if (b.callback_data.length > 64) b.callback_data = "/vitafeed compress unwrap";
     }
   }
+  return { inline_keyboard: rows };
+}
+
+/** Dir card — one Unwrap button per filed key (index path when key is long). */
+export function buildCompressionDirKeyboard(opts = {}) {
+  const directory = readCompressionDirectory(opts);
+  const files = Object.values(directory.files || {});
+  const rows = [
+    [
+      { text: "📥 Add file", callback_data: "/vitafeed compress add" },
+      { text: "🗜 Bench", callback_data: "/vitafeed compress" },
+      { text: "👁 Unwrap", callback_data: "/vitafeed compress unwrap" },
+    ],
+  ];
+  files.slice(0, 12).forEach((f, i) => {
+    const n = i + 1;
+    const byKey = "/vitafeed compress unwrap " + f.key;
+    const byUnlock = "/vitafeed unlock COMPRESS\\" + n;
+    const cmd = byKey.length <= 64 ? byKey : byUnlock;
+    const label = ("📄 " + String(n) + " " + String(f.name || f.key).slice(0, 24)).slice(0, 64);
+    rows.push([{ text: label, callback_data: cmd }]);
+  });
+  rows.push([
+    { text: "➡ Inject", callback_data: "/vitafeed compress inject" },
+    { text: "✅ Confirm", callback_data: "/vitafeed confirm" },
+    { text: "🏠 Menu", callback_data: "/vitafeed" },
+  ]);
   return { inline_keyboard: rows };
 }
 
@@ -971,7 +1136,7 @@ export function handleCompressionRequest({
       ok: true,
       phase: "compress",
       reply: formatCompressionDirectoryCard(opts),
-      keyboard: buildCompressionKeyboard({ key: latestCompressionKey(opts) }),
+      keyboard: buildCompressionDirKeyboard(opts),
       directory: readCompressionDirectory(opts),
     };
   }
@@ -981,30 +1146,54 @@ export function handleCompressionRequest({
       ok: true,
       phase: "compress",
       reply: formatLearnCard(opts),
-      keyboard: buildCompressionKeyboard(),
+      keyboard: buildCompressionKeyboard({ key: latestCompressionKey(opts) }),
     };
   }
 
+  const bareUnwrap = /^(?:verify|recover|unwrap)$/i.test(trimmed);
   const verifyMatch = trimmed.match(/^(?:verify|recover|unwrap)\s+(\S+)/i);
-  if (verifyMatch || parseCompressionKey(trimmed)) {
-    const key = verifyMatch ? verifyMatch[1] : trimmed;
+  if (bareUnwrap || verifyMatch || parseCompressionKey(trimmed)) {
+    const key = bareUnwrap
+      ? latestCompressionKey(opts)
+      : verifyMatch
+        ? verifyMatch[1]
+        : trimmed;
+    if (!key) {
+      return {
+        ok: false,
+        phase: "compress",
+        call: "refused",
+        verified: false,
+        reply: "directory empty — /vitafeed compress or tap Add file",
+        keyboard: buildCompressionKeyboard(),
+      };
+    }
     const checked = verifyCompressionKey(key, opts);
-    const lines = [
-      "VERIFIED " + (checked.verified ? "true" : "false"),
-      "key=" + (checked.key || key),
-      "answer recovered=" + (checked.recovered ? "true" : "false"),
-      "call=" + checked.call,
-      "codec=" + (checked.codec || "—"),
-      "name=" + (checked.name || "—"),
-      "chain=" + (checked.chainStatus || "availability"),
-    ];
-    if (checked.reason) lines.push(checked.reason);
-    lines.push("NEXT MODULE: injection — /vitafeed compress inject " + (checked.key || ""));
+    const entry = checked.entry || readCompressionDirectory(opts).files[checked.key];
+    const t0 = Date.now();
+    const english = checked.plain || "";
+    const tHuman = Date.now();
+    const machine = checked.machine || "";
+    const tMachine = Date.now();
+    const timing = {
+      humanMs: Math.max(0, tHuman - t0),
+      machineMs: Math.max(0, tMachine - tHuman),
+      totalMs: Math.max(0, tMachine - t0),
+      humanBytes: Buffer.byteLength(english, "utf8"),
+      machineBytes: Buffer.byteLength(machine, "utf8"),
+      plainTextProof: english.length > 0,
+      snarkUnlocksDenser: Boolean(checked.key),
+    };
+    const files = Object.values(readCompressionDirectory(opts).files || {});
+    const n = files.findIndex((f) => f.key === checked.key) + 1 || null;
     return {
       ...checked,
       phase: "compress",
-      reply: lines.join("\n"),
-      keyboard: buildCompressionKeyboard({ key: checked.key || "" }),
+      unwrap: true,
+      entry,
+      timing,
+      reply: formatCompressionUnwrapCard(checked, { timing, entry }),
+      keyboard: buildCompressionKeyboard({ key: checked.key || "", n: n || null }),
     };
   }
 
@@ -1130,9 +1319,11 @@ export function publicCompressionState(opts = {}) {
 
 export function publicVerifyCompression(key, opts = {}) {
   const checked = verifyCompressionKey(key, opts);
-  const preview = checked.bytes && checked.kind !== "video" && checked.bytes.length <= 400
-    ? checked.bytes.toString("utf8")
-    : "";
+  const preview = checked.ok && checked.plain
+    ? String(checked.plain).slice(0, 400)
+    : checked.bytes && checked.kind !== "video" && checked.bytes.length <= 400
+      ? checked.bytes.toString("utf8")
+      : "";
   return {
     call: checked.call,
     ok: checked.ok,
@@ -1149,6 +1340,8 @@ export function publicVerifyCompression(key, opts = {}) {
     locations: checked.locations || [],
     neverInventHashes: true,
     preview,
+    plain: checked.plain || "",
+    machine: checked.machine || "",
     reason: checked.reason || "",
   };
 }

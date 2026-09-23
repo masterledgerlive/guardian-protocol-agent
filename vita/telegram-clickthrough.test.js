@@ -41,7 +41,7 @@ function assertCallbacksFit(kb, label) {
 }
 
 describe("telegram click-through keyboards", () => {
-  it("root menu exposes dir/files/tokens/track with ≤64B callbacks", () => {
+  it("root menu exposes dir/files/tokens/track/compress/phosphor with ≤64B callbacks", () => {
     const kb = buildVitaFeedRootKeyboard();
     const cbs = allCallbacks(kb);
     assert.ok(cbs.includes("/vitafeed dir"));
@@ -50,6 +50,9 @@ describe("telegram click-through keyboards", () => {
     assert.ok(cbs.includes("/tokens"));
     assert.ok(cbs.includes("/home agents"));
     assert.ok(cbs.includes("/home"));
+    assert.ok(cbs.includes("/vitafeed compress"));
+    assert.ok(cbs.includes("/vitafeed compress add"));
+    assert.ok(cbs.includes("/phosphor"));
     assertCallbacksFit(kb, "root");
   });
 
@@ -73,6 +76,27 @@ describe("telegram click-through keyboards", () => {
     assert.ok(cbs.some((c) => /unlock/i.test(c) && /math-euler/i.test(c)));
     assert.ok(cbs.includes("/vitafeed dir"));
     assertCallbacksFit(kb, "codex");
+  });
+
+  it("COMPRESS and PHOS dirs expose add/unwrap/inject/phosphor buttons", () => {
+    const compress = listSubDirectory("COMPRESS");
+    assert.equal(compress.ok, true);
+    const ckb = buildDirSubKeyboard(compress);
+    const ccbs = allCallbacks(ckb);
+    assert.ok(ccbs.includes("/vitafeed compress add"));
+    assert.ok(ccbs.includes("/vitafeed compress unwrap"));
+    assert.ok(ccbs.includes("/vitafeed compress inject"));
+    assert.ok(ccbs.includes("/vitafeed compress"));
+    assertCallbacksFit(ckb, "compress");
+
+    const phos = listSubDirectory("PHOS");
+    assert.equal(phos.ok, true);
+    assert.ok(phos.entries.length >= 3);
+    const pkb = buildDirSubKeyboard(phos);
+    const pcbs = allCallbacks(pkb);
+    assert.ok(pcbs.includes("/phosphor"));
+    assert.ok(pcbs.includes("/phosphor dir"));
+    assertCallbacksFit(pkb, "phos");
   });
 
   it("unlock card shows SNARK first + dual timing + next-step buttons", async () => {
