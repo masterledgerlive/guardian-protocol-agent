@@ -60,6 +60,9 @@
 //   GET  /vita/free-music/play — original OGG reconstructed from grouped packets
 //   GET  /vita/free-music/locs — daisy-chain loc proof · click-through Basescan MATCH
 //   GET  /vita/free-music/loc  — exact VIN UTF-8 packet for one block (inspect; no invented hash)
+//   GET  /vita/os-builder   — DOS brain builder CRT (IFTTT · follow-leader · sandbox)
+//   GET  /vita/os-builder/state — public JSON session + anchors + lexicon
+//   POST /vita/os-builder/action — wizard step (boot/name/lobes/triggers/sandbox/seal)
 //   GET  /vita/soundboard   — DJ pad board HTML + catalog JSON
 //   GET  /vita/soundboard/play — pad WAV reconstruct
 //   GET  /vita/soundboard/locs — LOCAL_OK vs MATCH vs CLASS_PROOF (not pad body)
@@ -215,6 +218,10 @@ import {
   chainBoxCss,
 } from "./vita/players/index.js";
 import { handlePhosphorHttp } from "./modules/phosphor/server.js";
+import {
+  publicOsBuilderState,
+  handleOsBuilderAction,
+} from "./vita/os-builder.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -268,6 +275,7 @@ const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
 const VITA_SPATIAL_HTML = join(ROOT, "public", "vita-spatial.html");
 const VITA_COMPRESSION_HTML = join(ROOT, "public", "vita-compression.html");
 const VITA_PROOF_LOG_HTML = join(ROOT, "public", "vita-proof-log.html");
+const VITA_OS_BUILDER_HTML = join(ROOT, "public", "vita-os-builder.html");
 const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
 const VITA_PLAYERS_PROVEN_HTML = join(ROOT, "public", "players", "proven.html");
 const VITA_CHAIN_BOX_JS = join(ROOT, "public", "players", "chain-box.js");
@@ -898,6 +906,24 @@ async function handleVitaRequest(req, res) {
     if ((path === "/vita/free-music/locs" || path === "/vita/free-music/locs/") && req.method === "GET") {
       const id = String(url.searchParams.get("id") || url.searchParams.get("music") || "judy");
       return json(res, await publicFreeMusicLocs(id));
+    }
+    if ((path === "/vita/os-builder" || path === "/vita/os-builder/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, publicOsBuilderState());
+      }
+      return servePublicHtml(res, VITA_OS_BUILDER_HTML, "vita os builder");
+    }
+    if ((path === "/vita/os-builder/state" || path === "/vita/os-builder/state/") && req.method === "GET") {
+      return json(res, publicOsBuilderState());
+    }
+    if ((path === "/vita/os-builder/action" || path === "/vita/os-builder/action/") && req.method === "POST") {
+      const body = (await readBody(req).catch(() => ({}))) || {};
+      const out = handleOsBuilderAction({
+        action: String(body.action || url.searchParams.get("action") || "home"),
+        body: String(body.body || body.text || url.searchParams.get("body") || ""),
+      });
+      return json(res, out);
     }
     if ((path === "/vita/soundboard" || path === "/vita/soundboard/") && req.method === "GET") {
       const accept = String(req.headers.accept || "");
@@ -1802,6 +1828,7 @@ export function startVitaWebhook() {
     console.log("   /vita/course   — hourly inject-without-loss scorecard");
     console.log("   /vita/inject   — recursive §TOKEN§ memory for session start");
     console.log("   /vita/brain    — six-lobe brain + finetune hypothesis graph");
+    console.log("   /vita/os-builder — DOS brain builder CRT + IFTTT sandbox");
     console.log("   /vita/hypotheses — query hypothesis graph");
     console.log("   /vita/read     — public open files (local + GitHub CODE/STATE, SNARK + IDM)");
     console.log("   /vita/mirror   — dual-path tree/read/boot + HTML UI (/vita/mirror.html)");

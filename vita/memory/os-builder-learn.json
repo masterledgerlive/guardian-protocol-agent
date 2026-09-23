@@ -1,0 +1,585 @@
+{
+  "id": "os-builder-learn-v1",
+  "filingLabel": "OS_BUILDER",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "learn": "DOS OS builder seeds human↔machine brain construction. IFTTT triggers fire on real Base class kinds (eureka/vita/none). Follow-the-leader chronological cells. Sandbox cites hardcoded anchors only. Seal stages /vitafeed — locs empty until real seal.",
+  "events": [
+    {
+      "kind": "genesis",
+      "note": "OS builder avenue opened — Telegram /os · CRT /vita/os-builder · dir VITA:\\OS\\",
+      "at": "2026-09-23T00:00:00.000Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "watcher-eureka",
+      "step": "boot",
+      "at": "2026-09-23T22:32:52.425Z"
+    },
+    {
+      "kind": "rename",
+      "from": "watcher-eureka",
+      "to": "watcher-eureka",
+      "at": "2026-09-23T22:32:52.425Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "watcher-eureka",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:32:52.426Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "watcher-eureka",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T22:32:52.426Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 1,
+      "cellHash": "5a1d387316ef",
+      "at": "2026-09-23T22:32:52.426Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 2,
+      "cellHash": "68e643a7cacc",
+      "at": "2026-09-23T22:32:52.426Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 3,
+      "cellHash": "c28c17e19a00",
+      "at": "2026-09-23T22:32:52.426Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "at": "2026-09-23T22:32:52.427Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "watcher-eureka",
+      "runId": "os-run-4bada1e23a",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:32:52.427Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "watcher-eureka",
+      "contentCommit": "6291ca253c94",
+      "bytes": 1657,
+      "at": "2026-09-23T22:32:52.428Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T22:32:52.429Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 1,
+      "cellHash": "08370de12fce",
+      "at": "2026-09-23T22:32:52.430Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 2,
+      "cellHash": "c0d24fd5fd0a",
+      "at": "2026-09-23T22:32:52.430Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "sandbox",
+      "at": "2026-09-23T22:32:52.431Z"
+    },
+    {
+      "kind": "step",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T22:32:52.431Z"
+    },
+    {
+      "kind": "rename",
+      "from": "lex-brain",
+      "to": "lex-brain",
+      "at": "2026-09-23T22:32:52.432Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "lex-brain",
+      "lobes": [
+        "formula",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:32:52.432Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "lex-brain",
+      "triggers": [
+        "eureka-learn",
+        "plain-refuse-claim"
+      ],
+      "at": "2026-09-23T22:32:52.432Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "lex-brain",
+      "chunkId": 1,
+      "cellHash": "a6c573809ad3",
+      "at": "2026-09-23T22:32:52.433Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "build together",
+      "machine": "osBuilder=co-construct",
+      "at": "2026-09-23T22:32:52.433Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "lex-brain",
+      "runId": "os-run-663e535a51",
+      "passed": 3,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:32:52.433Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "lex-brain",
+      "contentCommit": "5042b575a415",
+      "bytes": 1477,
+      "at": "2026-09-23T22:32:52.434Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "watcher-eureka",
+      "step": "boot",
+      "at": "2026-09-23T22:33:04.817Z"
+    },
+    {
+      "kind": "rename",
+      "from": "watcher-eureka",
+      "to": "watcher-eureka",
+      "at": "2026-09-23T22:33:04.817Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "watcher-eureka",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:33:04.818Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "watcher-eureka",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T22:33:04.818Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 1,
+      "cellHash": "5a1d387316ef",
+      "at": "2026-09-23T22:33:04.819Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 2,
+      "cellHash": "68e643a7cacc",
+      "at": "2026-09-23T22:33:04.819Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 3,
+      "cellHash": "c28c17e19a00",
+      "at": "2026-09-23T22:33:04.819Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "at": "2026-09-23T22:33:04.820Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "watcher-eureka",
+      "runId": "os-run-723a9da66f",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:33:04.821Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "watcher-eureka",
+      "contentCommit": "612ab23f20f5",
+      "bytes": 1715,
+      "at": "2026-09-23T22:33:04.822Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T22:33:04.824Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 1,
+      "cellHash": "08370de12fce",
+      "at": "2026-09-23T22:33:04.824Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 2,
+      "cellHash": "c0d24fd5fd0a",
+      "at": "2026-09-23T22:33:04.824Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "sandbox",
+      "at": "2026-09-23T22:33:04.826Z"
+    },
+    {
+      "kind": "step",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T22:33:04.827Z"
+    },
+    {
+      "kind": "rename",
+      "from": "lex-brain",
+      "to": "lex-brain",
+      "at": "2026-09-23T22:33:04.828Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "lex-brain",
+      "lobes": [
+        "formula",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:33:04.829Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "lex-brain",
+      "triggers": [
+        "eureka-learn",
+        "plain-refuse-claim"
+      ],
+      "at": "2026-09-23T22:33:04.829Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "lex-brain",
+      "chunkId": 1,
+      "cellHash": "a6c573809ad3",
+      "at": "2026-09-23T22:33:04.829Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "build together",
+      "machine": "osBuilder=co-construct",
+      "at": "2026-09-23T22:33:04.829Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "lex-brain",
+      "runId": "os-run-b4ee86ab66",
+      "passed": 3,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:33:04.830Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "lex-brain",
+      "contentCommit": "5042b575a415",
+      "bytes": 1477,
+      "at": "2026-09-23T22:33:04.831Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "watcher-eureka",
+      "step": "boot",
+      "at": "2026-09-23T22:33:10.969Z"
+    },
+    {
+      "kind": "rename",
+      "from": "watcher-eureka",
+      "to": "watcher-eureka",
+      "at": "2026-09-23T22:33:10.970Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "watcher-eureka",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:33:10.970Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "watcher-eureka",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T22:33:10.970Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 1,
+      "cellHash": "5a1d387316ef",
+      "at": "2026-09-23T22:33:10.971Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 2,
+      "cellHash": "68e643a7cacc",
+      "at": "2026-09-23T22:33:10.971Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 3,
+      "cellHash": "c28c17e19a00",
+      "at": "2026-09-23T22:33:10.971Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "at": "2026-09-23T22:33:10.972Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "watcher-eureka",
+      "runId": "os-run-8de7cd1ad2",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:33:10.972Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "watcher-eureka",
+      "contentCommit": "cbc2a47f9cf6",
+      "bytes": 1716,
+      "at": "2026-09-23T22:33:10.973Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T22:33:10.974Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 1,
+      "cellHash": "08370de12fce",
+      "at": "2026-09-23T22:33:10.975Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 2,
+      "cellHash": "c0d24fd5fd0a",
+      "at": "2026-09-23T22:33:10.975Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "sandbox",
+      "at": "2026-09-23T22:33:10.976Z"
+    },
+    {
+      "kind": "step",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T22:33:10.976Z"
+    },
+    {
+      "kind": "rename",
+      "from": "lex-brain",
+      "to": "lex-brain",
+      "at": "2026-09-23T22:33:10.977Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "lex-brain",
+      "lobes": [
+        "formula",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:33:10.977Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "lex-brain",
+      "triggers": [
+        "eureka-learn",
+        "plain-refuse-claim"
+      ],
+      "at": "2026-09-23T22:33:10.977Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "lex-brain",
+      "chunkId": 1,
+      "cellHash": "a6c573809ad3",
+      "at": "2026-09-23T22:33:10.978Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "build together",
+      "machine": "osBuilder=co-construct",
+      "at": "2026-09-23T22:33:10.978Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "lex-brain",
+      "runId": "os-run-afe8cf3957",
+      "passed": 3,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:33:10.979Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "lex-brain",
+      "contentCommit": "d2a8984ac919",
+      "bytes": 1478,
+      "at": "2026-09-23T22:33:10.979Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "watcher-eureka",
+      "step": "boot",
+      "at": "2026-09-23T22:33:21.297Z"
+    },
+    {
+      "kind": "rename",
+      "from": "watcher-eureka",
+      "to": "watcher-eureka",
+      "at": "2026-09-23T22:33:21.299Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "watcher-eureka",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon"
+      ],
+      "at": "2026-09-23T22:33:21.299Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "watcher-eureka",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T22:33:21.299Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 1,
+      "cellHash": "5a1d387316ef",
+      "at": "2026-09-23T22:33:21.300Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 2,
+      "cellHash": "68e643a7cacc",
+      "at": "2026-09-23T22:33:21.300Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 3,
+      "cellHash": "c28c17e19a00",
+      "at": "2026-09-23T22:33:21.301Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "at": "2026-09-23T22:33:21.301Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "watcher-eureka",
+      "runId": "os-run-eaab0fcbc9",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T22:33:21.302Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "watcher-eureka",
+      "contentCommit": "cbc2a47f9cf6",
+      "bytes": 1716,
+      "at": "2026-09-23T22:33:21.303Z"
+    }
+  ]
+}

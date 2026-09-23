@@ -191,13 +191,22 @@ integrity + avenue domino (PASS/QUESTIONABLE/FAIL), logs
 Confirm|Override chain seal (`vita/telegram-help-routes.js`).
 **Telegram HOME (sectioned buttons):** `/home` · `/menu` · `/start` — every
 route is an inline button (Memory / Feed / Search / WAVE / Mirror / Trade /
-Syscheck / Dual / Mother / Status). `/home search` opens search routes
+Syscheck / Dual / Mother / Status / Agents / OS). `/home search` opens search routes
 (ref/ask/proven/xmem/dir/unlock). `/home sim` · `/home sim search` run many
 offline route sims. `/home engines` mirrors the same seed into **MAIN** exact
 UTF-8 VITAFEED and **NEW** snark-short, attaches Basescan IDM anchors as
 static proof, and seeds which engine is cheaper/faster
 (`vita/telegram-home.js`). Paid paths stay SIM / confirm|override — buttons
 never auto-spend.
+**OS Builder (DOS brain construction):** `/os` · `/brainos` · `/build` ·
+`/home os` — guided human↔machine wizard to build an agent brain together:
+BOOT → NAME → LOBES → TRIGGERS (IFTTT on Base kinds) → FOLLOW-THE-LEADER →
+SANDBOX (prove against hardcoded anchors only) → LANGUAGE refine → SEAL
+(`/vitafeed confirm|override`). Every step is an inline button. CRT
+`/vita/os-builder` (Telegram popup). Real use case: `/os demo` builds
+`watcher-eureka`. Directory: `/vitafeed dir OS`. Solidity mirror
+`vita/os-builder/AgentTriggerRegistry.sol` (no deployed address). Never
+invent hashes. See `vita/os-builder.js`.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.

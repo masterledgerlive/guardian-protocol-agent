@@ -8,7 +8,7 @@
  *     REF_LIB\   CODEX\     MG_RECALL\
  *     LIBRARY\   PROVEN\   KIDS\
  *     PLAYERS\   MUSIC\     BOARD\    CHAIN\    X404\
- *     AGENTS\    COMPRESS\  PHOS\
+ *     AGENTS\    OS\        COMPRESS\  PHOS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
  * Machine-short (ZK-style squash) unwraps instantly to English + machine blocks
@@ -34,6 +34,7 @@ import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js
 import { playerDirEntriesFor } from "./players/index.js";
 import { compressionDirEntries, verifyCompressionKey, plainTextFromBytes, machineLineFromEntry } from "./compression/index.js";
 import { proofLogDirEntries, getProofLogEntry } from "./proof-log.js";
+import { osBuilderDirEntries } from "./os-builder.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -66,6 +67,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "CHAIN", role: "on-chain completion directory · loc proofs", filing: "CHAINDIR" },
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
+  { name: "OS", role: "DOS brain builder · IFTTT · follow-leader · sandbox", filing: "OS_BUILDER" },
   { name: "COMPRESS", role: "codec bake-off · verified key directory · then inject", filing: "COMPRESS" },
   { name: "PROOFLOG", role: "creation-order proof-of-logs trail · key+root · race 1–3", filing: "PROOFLOG" },
   { name: "PHOS", role: "PHOSPHOR CRT · wire store · PLAY/PICTURE library", filing: "PHOSPHOR" },
@@ -466,6 +468,9 @@ function dirEntriesFor(subdir) {
         });
       });
     }
+  } else if (name === "OS" || name === "OSBUILDER" || name === "BRAINOS") {
+    const listed = osBuilderDirEntries();
+    for (const e of listed.entries || []) out.push(e);
   }
 
   return { subdir: name, entries: out };
