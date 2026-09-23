@@ -3,7 +3,7 @@ export { openKeyMeta, displayOpenKey } from "./keys.js";
 export { synthWav } from "./wav.js";
 export { sealSnark, SNARK_CLASS } from "./snark.js";
 export { foldStark, verifyStark, STARK_SYSTEM } from "./stark.js";
-export { packBlocks, walkBlocks, recallPlain, filingLoc } from "./blocks.js";
+export { packBlocks, walkBlocks, recallPlain, filingLoc, stampTripleTime, parseLeaderStamp, connectedPathsFromBlocks, pathsFromKnown, findByLeaderTime, resolveConnectedPaths } from "./blocks.js";
 export { homeSeat, HOME_ADDRESS, HOME_SYMBOL } from "./home.js";
 export { proveFromReceipt } from "./reader.js";
 export { createMatch, stepMatch, parsePhosphong } from "./pong.js";

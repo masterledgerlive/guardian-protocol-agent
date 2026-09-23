@@ -146,7 +146,9 @@ passphrase wraps AES-256-GCM. Startup reconstructs the module from wires and
 runs that copy against a note and a beep. Each inject logs a SYSTEM_INJECTED
 receipt: click `/phosphor/receipt` and `/phosphor/block` for the exact machine
 data field. The header `next=` loc chains the blocks (one-block and five-block
-recalls). Filing location is the compressed stark root. A large file is
+recalls). Leader block 0 alone stamps `utc|local|unix|filing` so date/time/
+location are never lost; trailing blocks lean follow-the-leader. Find-by-time
+and one-path→all-connected train agent recall. Filing location is the compressed stark root. A large file is
 chunked into the injector, filed on the internal HOME seat, and proved by
 READER (`joined = payloadHash`, `recall = rawHash`, snark commit recomputed).
 The CRT LIBRARY imprints `sample/pong.route` and a tiled picture. The unwrap

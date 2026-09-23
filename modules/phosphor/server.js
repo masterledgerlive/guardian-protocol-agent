@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertRecallKey, loadBlock, loadReceipt, recallPlain, renderBlockPage, renderReceiptPage } from "./blocks.js";
+import { assertRecallKey, findByLeaderTime, loadBlock, loadReceipt, recallPlain, renderBlockPage, renderReceiptPage, resolveConnectedPaths } from "./blocks.js";
 import { renderBundle } from "./bundle.js";
 import { defaultStateDir, loadIndex, loadObject, loadStark, resolveCommit } from "./chain-store.js";
 import { displayOpenKey } from "./keys.js";
@@ -312,6 +312,21 @@ export async function handlePhosphorHttp(req, res, url, { stateDir = defaultStat
     if (req.method === "GET" && path === "/phosphor/receipt") {
       const commit = resolveCommit(stateDir, url.searchParams.get("c") || "");
       send(res, 200, renderReceiptPage(loadReceipt(stateDir, commit)), { "Content-Type": "text/html; charset=utf-8" });
+      return true;
+    }
+    if (req.method === "GET" && path === "/phosphor/api/find-time") {
+      const found = findByLeaderTime(stateDir, {
+        unix: url.searchParams.get("unix") || undefined,
+        utc: url.searchParams.get("utc") || undefined,
+        local: url.searchParams.get("local") || undefined,
+        day: url.searchParams.get("day") || undefined,
+      });
+      sendJson(res, 200, found);
+      return true;
+    }
+    if (req.method === "GET" && path === "/phosphor/api/connected") {
+      const known = url.searchParams.get("path") || url.searchParams.get("loc") || "";
+      sendJson(res, 200, resolveConnectedPaths(stateDir, known));
       return true;
     }
     if (req.method === "GET" && path === "/phosphor/block") {

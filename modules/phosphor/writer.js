@@ -138,8 +138,10 @@ export async function writeBytes({
   const plan = blockCount ? null : autoBlockCount(stored.length);
   const external = !blockCount && plan.count > INLINE_BLOCK_MAX;
   const packed = external
-    ? packBlocksFile(stored, stateDir, snark.commit)
-    : packBlocks(stored, blockCount ? { blockCount } : { blockCount: plan.count });
+    ? packBlocksFile(stored, stateDir, snark.commit, { at: timestamp })
+    : packBlocks(stored, blockCount
+      ? { blockCount, at: timestamp }
+      : { blockCount: plan.count, at: timestamp });
   const unlockKey = locked ? lockKey : displayOpenKey(keyMeta);
   const joined = external ? walkBlockFile(stateDir, snark.commit, packed) : null;
   const recalled = external
