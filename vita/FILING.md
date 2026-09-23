@@ -223,6 +223,7 @@ findable.
 | `FEED_LOADER` | Curated pack preload into backlog (`§VITALOAD§`) — cipher/prog hierarchy + did-you-know recall |
 | `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
 | `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; unwrap shows HUMAN plain from MACHINE wire; Telegram buttons on HOME/Feed/dir COMPRESS; key directory stages into `/vitafeed` injection; availability until a real seal |
+| `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
