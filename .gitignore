@@ -11,3 +11,6 @@ node_modules/
 node_modules/
 artifacts/
 modules/phosphor/state/
+vita/compression/store/
+vita/compression/inbox/*
+!vita/compression/inbox/.gitkeep

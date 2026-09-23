@@ -10329,13 +10329,38 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       // ── VITAFEED FILE await — next song/video/doc after "/vitafeed file"
       if (awaitingVitaFile && mediaOnMessage.ok && !text.startsWith("/vitafeed")) {
+        if (awaitingVitaFile.purpose === "compress") {
+          takeVitaFeedFileAwait(msgChatId);
+          try {
+            const dl = await downloadTelegramFileBytes(mediaOnMessage.fileId);
+            if (!dl.ok) {
+              await tg("❌ compression read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            const out = await handleVitaFeedAction({
+              action: "compress",
+              body: "add",
+              chatId: msgChatId,
+              compressionBytes: dl.bytes,
+              compressionName: mediaOnMessage.name,
+              compressionMime: mediaOnMessage.mime,
+            });
+            let msg = "📡 <b>COMPRESSION</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+            msg += "Next: <code>/vitafeed confirm</code> injects the verified key. Nothing sent yet.";
+            await tg(msg, { reply_markup: out.keyboard || buildVitaFeedStagedKeyboard() });
+          } catch (e) {
+            await tg("❌ compression failed: " + (e.message || e));
+          }
+          continue;
+        }
         takeVitaFeedFileAwait(msgChatId);
         await tg(
           "📡 <b>VITAFEED FILE</b> — got <code>" + mediaOnMessage.name + "</code> (" +
           mediaOnMessage.kind + "). Packetizing to spaced VIN format…",
         );
         try {
-          const packed = await packetizeTelegramMessageForVitaFeed(upd.message);
+          const packed = await packetizeTelegramMessageForVitaFeed(upd.message, { recommend: true });
           if (!packed.ok) {
             await tg("❌ VITAFILE packetize failed: " + packed.reason);
             continue;
@@ -10343,6 +10368,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           await tg(
             "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
             " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets\n" +
+            (packed.compression?.replyLine ? packed.compression.replyLine + "\n" : "") +
             "Building cost card…",
           );
           let quotes = {};
@@ -13099,6 +13125,17 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         }
 
         // /vitafeed file with no attachment yet → ask to insert file, wait for next media.
+        if (parsed.ok && parsed.action === "compress" && parsed.wantsFile && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command", purpose: "compress" });
+          await tg(
+            "📡 <b>COMPRESSION</b>\n" +
+            "Please insert a file — personal, program, video, or any other bytes.\n" +
+            "Every codec runs. The reply is <code>VERIFIED true</code> plus the key that recovers it.\n" +
+            "Then injection is staged. <code>/vitafeed confirm</code> seals it. <code>/vitafeed cancel</code> aborts.",
+          );
+          continue;
+        }
+
         if (parsed.ok && parsed.action === "file" && !mediaHint.ok) {
           beginVitaFeedFileAwait(msgChatId, { via: "command" });
           await tg(
@@ -13253,7 +13290,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               "📡 <b>VITAFEED FILE</b> — reading <code>" + mediaHint.name + "</code> (" +
               mediaHint.kind + ") → spaced VIN packets…",
             );
-            const packed = await packetizeTelegramMessageForVitaFeed(mediaSourceMsg);
+            const packed = await packetizeTelegramMessageForVitaFeed(mediaSourceMsg, { recommend: true });
             if (!packed.ok) {
               await tg("❌ VITAFILE packetize failed: " + packed.reason);
               continue;
@@ -13261,8 +13298,23 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             feedBody = packed.body;
             await tg(
               "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
-              " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets",
+              " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets" +
+              (packed.compression?.replyLine ? "\n" + packed.compression.replyLine : ""),
             );
+          }
+
+          let compressionBytes = null;
+          let compressionName = "";
+          let compressionMime = "";
+          if (parsed.action === "compress" && mediaHint.ok && mediaSourceMsg) {
+            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
+            if (!dl.ok) {
+              await tg("❌ compression file read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            compressionBytes = dl.bytes;
+            compressionName = mediaHint.name;
+            compressionMime = mediaHint.mime;
           }
 
           const isPaidConfirm =
@@ -13481,6 +13533,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               env: process.env,
               liquidUsd: isPaidConfirm ? liquidUsdForGate : null,
               messageAtMs,
+              compressionBytes,
+              compressionName,
+              compressionMime,
             });
             // Brain activate → queue §TOKEN§ learn for next /vitasave (bank path).
             if (parsed.action === "brain" && out.brainLearn?.vitaSave?.tokenPacket) {

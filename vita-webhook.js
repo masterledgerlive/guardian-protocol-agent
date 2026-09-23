@@ -71,6 +71,10 @@
 //   GET  /vita/spatial/locs — LOCAL_OK vs MATCH · sealed inject click-through
 //   GET  /vita/spatial/loc  — exact §VITASPATIAL§ VIN UTF-8
 //   GET  /vita/spatial/soundtrack — agentic neighborhood soundtrack
+//   GET  /vita/compression  — codec bake-off page + key directory JSON
+//   POST /vita/compression/add — any file bytes → bench → verified key
+//   GET  /vita/compression/verify — recover with the compression key
+//   POST /vita/compression/run — bench built-in personal/program/video paths
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -167,6 +171,12 @@ import { readDexForToken } from "./vita/dex-reader.js";
 import { listMultichainPortfolio } from "./vita/multichain-portfolio.js";
 import { publicChainDirState, searchByLocation } from "./vita/chain-dir.js";
 import {
+  publicCompressionState,
+  publicVerifyCompression,
+  handleCompressionRequest,
+  addCompressionFile,
+} from "./vita/compression/index.js";
+import {
   publicFreeMusicState,
   publicFreeMusicPlay,
   publicFreeMusicLocs,
@@ -250,6 +260,7 @@ const VITA_PROVEN_PLAYER_VERIFY = join(ROOT, "vita", "proven-player-verify.js");
 const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
 const VITA_SPATIAL_HTML = join(ROOT, "public", "vita-spatial.html");
+const VITA_COMPRESSION_HTML = join(ROOT, "public", "vita-compression.html");
 const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
 const VITA_PLAYERS_PROVEN_HTML = join(ROOT, "public", "players", "proven.html");
 const VITA_CHAIN_BOX_JS = join(ROOT, "public", "players", "chain-box.js");
@@ -971,6 +982,71 @@ async function handleVitaRequest(req, res) {
         title: body.title || null,
       }));
     }
+    if ((path === "/vita/compression" || path === "/vita/compression/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      const key = String(url.searchParams.get("key") || "").trim();
+      if (key) return json(res, publicVerifyCompression(key));
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, publicCompressionState());
+      }
+      return servePublicHtml(res, VITA_COMPRESSION_HTML, "vita compression");
+    }
+    if ((path === "/vita/compression/verify" || path === "/vita/compression/verify/") && req.method === "GET") {
+      const key = String(url.searchParams.get("key") || "").trim();
+      if (!key) return json(res, { ok: false, call: "refused", verified: false, reason: "key required" }, 400);
+      return json(res, publicVerifyCompression(key));
+    }
+    if ((path === "/vita/compression/run" || path === "/vita/compression/run/") && req.method === "POST") {
+      const out = handleCompressionRequest({ body: "all" });
+      return json(res, {
+        call: out.call,
+        ok: out.ok,
+        verified: out.verified === true,
+        answer: out.answer === true,
+        recovered: out.recovered === true,
+        results: out.results || [],
+        reply: out.reply,
+        chainStatus: "availability",
+        locations: [],
+        neverInventHashes: true,
+        stagedForInject: Boolean(out.stageBody),
+      });
+    }
+    if ((path === "/vita/compression/add" || path === "/vita/compression/add/") && req.method === "POST") {
+      const body = (await readBody(req, { maxBytes: 3_000_000 })) || {};
+      const b64 = String(body.bytesBase64 || body.b64 || "");
+      if (!b64) return json(res, { ok: false, call: "refused", verified: false, reason: "bytesBase64 required" }, 400);
+      let bytes;
+      try {
+        bytes = Buffer.from(b64, "base64");
+      } catch {
+        return json(res, { ok: false, call: "refused", verified: false, reason: "bad base64" }, 400);
+      }
+      const filed = addCompressionFile({
+        name: body.name || "upload.bin",
+        mime: body.mime || "",
+        kind: body.kind || "",
+        bytes,
+        source: "http",
+      });
+      return json(res, {
+        call: filed.call || "refused",
+        ok: filed.ok === true,
+        verified: filed.verified === true,
+        answer: filed.answer === true,
+        recovered: filed.recovered === true,
+        key: filed.key || "",
+        codec: filed.codec || "",
+        kind: filed.kind || "",
+        name: filed.name || body.name || "",
+        ratio: filed.entry?.ratio ?? null,
+        chainStatus: "availability",
+        locations: [],
+        neverInventHashes: true,
+        reply: filed.reply || filed.reason || "",
+        next: "injection",
+      });
+    }
     if ((path === "/vita/chain-dir" || path === "/vita/chain-dir/") && req.method === "GET") {
       const accept = String(req.headers.accept || "");
       if (accept.includes("text/html") && !accept.includes("application/json")) {
@@ -1674,6 +1750,7 @@ export function startVitaWebhook() {
     console.log("   /vita/waveproof — WAVE 3-token proof (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/wavefull  — WAVE 28-shard quote (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/vitafeed  — exact plain feed (GET SIM; POST live+force auth)");
+    console.log("   /vita/compression — codec bake-off page + verified key directory");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");

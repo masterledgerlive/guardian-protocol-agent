@@ -199,6 +199,15 @@ never auto-spend.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
+**Compression bake-off:** `/vitafeed compress` · `/vitafeed compress add` ·
+`/vitafeed compress <path>` · `/vitafeed compress dir` ·
+`/vitafeed compress verify <key>` · `/vitafeed compress inject [key]` —
+personal, program, video, or any other file. Drop a file in
+`vita/compression/inbox/` or on `/vita/compression`. Every codec runs
+(including the Gemini zlib project). The call is `verified` with the open
+key that recovers the bytes. That key is the directory row. Next module is
+`/vitafeed` injection (confirm|override). Chain stays availability until a
+real seal. Never invent hashes. See `vita/compression/`.
 
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank

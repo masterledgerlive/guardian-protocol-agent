@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITA compression</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; font: 15px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #10140f; color: #d7e7c8;
+    }
+    header, main { max-width: 980px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 1.35rem; margin: 0 0 6px; }
+    a { color: #9dcc6a; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    button, .file {
+      background: #1c2618; color: #d7e7c8; border: 1px solid #3d5234;
+      padding: 8px 12px; cursor: pointer;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #243022; vertical-align: top; }
+    .true { color: #b6f27c; }
+    .false { color: #e07a7a; }
+    pre { white-space: pre-wrap; background: #0b0e0a; padding: 12px; border: 1px solid #243022; }
+    .note { color: #8aa37a; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>VITA compression</h1>
+    <p class="note">Drop any file. Every codec runs. The verified winner is a key. Injection is the next module — nothing is sent from this page.</p>
+    <p><a href="/vita">Console</a> · <a href="/vitafeed">/vitafeed</a> is Telegram. Chain status stays availability until a real seal.</p>
+  </header>
+  <main>
+    <div class="row">
+      <button type="button" id="bench">Bench personal, program, video</button>
+      <label class="file">Add a file<input id="file" type="file" hidden /></label>
+    </div>
+    <p id="status" class="note">Loading directory…</p>
+    <pre id="call">call=…</pre>
+    <h2>Codecs</h2>
+    <table id="codecs"><tbody></tbody></table>
+    <h2>Key directory</h2>
+    <table id="files"><tbody></tbody></table>
+    <h2>Learned recommendation</h2>
+    <pre id="learn"></pre>
+  </main>
+  <script>
+    const statusEl = document.getElementById("status");
+    const callEl = document.getElementById("call");
+    const codecsEl = document.querySelector("#codecs tbody");
+    const filesEl = document.querySelector("#files tbody");
+    const learnEl = document.getElementById("learn");
+
+    function showCall(data) {
+      const verified = data.verified === true ? "true" : "false";
+      const recovered = data.recovered === true || data.answer === true ? "true" : "false";
+      callEl.textContent = [
+        "VERIFIED " + verified,
+        "key=" + (data.key || "—"),
+        "answer recovered=" + recovered,
+        "call=" + (data.call || "—"),
+        "codec=" + (data.codec || "—"),
+        "chain=" + (data.chainStatus || "availability"),
+        data.preview ? "preview=" + data.preview : "",
+        data.reason || "",
+      ].filter(Boolean).join("\n");
+    }
+
+    function render(state) {
+      codecsEl.innerHTML = "";
+      for (const c of state.codecs || []) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>" + c.id + "</td><td>" + (c.project || "") + "</td><td>" + (c.role || "") + "</td><td>" + (c.note || "") + "</td>";
+        codecsEl.appendChild(tr);
+      }
+      filesEl.innerHTML = "";
+      for (const f of state.files || []) {
+        const tr = document.createElement("tr");
+        const key = document.createElement("button");
+        key.type = "button";
+        key.textContent = f.key;
+        key.addEventListener("click", () => verify(f.key));
+        const td0 = document.createElement("td");
+        td0.appendChild(key);
+        const td1 = document.createElement("td");
+        td1.textContent = f.kind + " · " + f.name;
+        const td2 = document.createElement("td");
+        td2.textContent = f.codec + "  ratio=" + f.ratio;
+        const td3 = document.createElement("td");
+        td3.className = f.verified ? "true" : "false";
+        td3.textContent = f.verified ? "verified true" : "false";
+        tr.append(td0, td1, td2, td3);
+        filesEl.appendChild(tr);
+      }
+      const learn = state.learn || {};
+      learnEl.textContent = ["personal", "program", "video", "all"].map((k) => {
+        const row = learn[k] || {};
+        const leader = row.leader ? row.leader.codec + " ×" + row.leader.wins : "—";
+        return k.padEnd(10) + " n=" + (row.events || 0) + "  best=" + leader;
+      }).join("\n");
+      statusEl.textContent = (state.files || []).length + " keys · chain=" + (state.chainStatus || "availability");
+    }
+
+    async function load() {
+      const res = await fetch("/vita/compression?json=1", { headers: { accept: "application/json" } });
+      const state = await res.json();
+      render(state);
+      return state;
+    }
+
+    async function verify(key) {
+      statusEl.textContent = "Recovering " + key + "…";
+      const res = await fetch("/vita/compression/verify?key=" + encodeURIComponent(key));
+      const data = await res.json();
+      showCall(data);
+      statusEl.textContent = data.verified ? "Recovered with " + data.key : (data.reason || "refused");
+    }
+
+    document.getElementById("bench").addEventListener("click", async () => {
+      statusEl.textContent = "Running every codec on the sample paths…";
+      const res = await fetch("/vita/compression/run", { method: "POST" });
+      const data = await res.json();
+      showCall({
+        verified: data.verified,
+        recovered: data.recovered,
+        answer: data.answer,
+        call: data.call,
+        key: (data.results && data.results[0] && data.results[0].key) || "",
+        codec: (data.results && data.results[0] && data.results[0].codec) || "",
+        chainStatus: data.chainStatus,
+      });
+      callEl.textContent += "\n\n" + (data.reply || "");
+      await load();
+    });
+
+    document.getElementById("file").addEventListener("change", async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      statusEl.textContent = "Compressing " + file.name + "…";
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const res = await fetch("/vita/compression/add", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: file.name,
+          mime: file.type || "",
+          bytesBase64: btoa(binary),
+        }),
+      });
+      const data = await res.json();
+      showCall(data);
+      if (data.reply) callEl.textContent += "\n\n" + data.reply;
+      await load();
+    });
+
+    load().catch((e) => { statusEl.textContent = String(e.message || e); });
+  </script>
+</body>
+</html>

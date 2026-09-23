@@ -32,6 +32,7 @@ import { soundboardEntriesFor } from "./soundboard.js";
 import { spatialEntriesFor } from "./spatial-sound.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 import { playerDirEntriesFor } from "./players/index.js";
+import { compressionDirEntries } from "./compression/index.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -64,6 +65,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "CHAIN", role: "on-chain completion directory · loc proofs", filing: "CHAINDIR" },
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
+  { name: "COMPRESS", role: "codec bake-off · verified key directory · then inject", filing: "COMPRESS" },
 ]);
 
 /** Seed library: start of open codex (math / theories) — not private. */
@@ -383,6 +385,8 @@ function dirEntriesFor(subdir) {
     chainDirEntriesFor().forEach((e) => out.push(e));
   } else if (name === "X404") {
     listX404DirEntries().forEach((e) => out.push(e));
+  } else if (name === "COMPRESS" || name === "COMPRESSION" || name === "CODEC") {
+    compressionDirEntries().forEach((e) => out.push(e));
   } else if (name === "AGENTS") {
     const tag = lookupX404Tag("storage-token");
     const locs = provenX404Locs().map((l) => l.location);

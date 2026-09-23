@@ -308,6 +308,14 @@ export async function packetizeTelegramMessageForVitaFeed(message, opts = {}) {
     bytes: dl.bytes,
   });
   if (!enc.ok) return { ok: false, reason: enc.reason || "encode failed", media };
+  let compression = null;
+  if (opts.recommend === true) {
+    compression = await recommendCompressionForFeed({
+      name: enc.name,
+      mime: enc.mime,
+      bytes: dl.bytes,
+    });
+  }
   return {
     ok: true,
     media,
@@ -319,6 +327,44 @@ export async function packetizeTelegramMessageForVitaFeed(message, opts = {}) {
     bodyBytes: enc.bodyBytes,
     sha256: enc.sha256,
     softWarn: enc.softWarn,
+    compression,
+  };
+}
+
+/** Best verified codec for a /vitafeed file. Does not replace the §VITAFILE§ body. */
+export async function recommendCompressionForFeed({ name, mime, bytes } = {}) {
+  const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes || []);
+  if (!buf.length) return null;
+  if (buf.length > 256 * 1024) {
+    return {
+      verified: false,
+      replyLine: "file is above the auto bake-off cap (256KB) — /vitafeed compress add still accepts it on the compression path",
+    };
+  }
+  const { fileCompression } = await import("./compression/index.js");
+  const filed = fileCompression({
+    name: name || "upload.bin",
+    mime: mime || "",
+    bytes: buf,
+    source: "vitafeed-file",
+    includePython: buf.length <= 48 * 1024,
+  });
+  if (!filed.ok) {
+    return { verified: false, replyLine: "compression bench refused — " + (filed.reason || "miss") };
+  }
+  return {
+    verified: true,
+    answer: true,
+    recovered: true,
+    call: "verified",
+    key: filed.key,
+    codec: filed.codec,
+    ratio: filed.entry?.ratio,
+    replyLine:
+      "BEST " + filed.codec +
+      "  VERIFIED true  key=" + filed.key +
+      "  answer recovered=true  ratio=" + filed.entry?.ratio +
+      "  · next inject /vitafeed compress inject " + filed.key,
   };
 }
 
