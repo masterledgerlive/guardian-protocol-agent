@@ -142,14 +142,15 @@ findable.
 | `vita/memory/filing-labels-learned.json` | `FILING` (refined) | Self-refining label map (PEER_REVIEW, ZERO_PROOF, …) |
 | `vita/memory/brain-learn-log.json` | `ZERO_PROOF` | Append-only learn cycles + hash-chain roots |
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
-| `vita/compression/index.js` | `COMPRESS` | Bake-off every codec · verified open key · key directory · stage injection |
+| `vita/compression/index.js` | `COMPRESS` | Bake-off every codec · verified open key · HUMAN unwrap from machine wire · key directory · stage injection |
 | `vita/compression/codecs.js` | `COMPRESS` | Codec projects (gemini zlib, zlib, deflate, gzip, brotli, identity). Add one object. |
 | `vita/compression/projects/gemini-zlib.py` | `COMPRESS` | Uploaded Gemini zlib.compress → 0x hex calldata project |
 | `vita/compression/inbox/` | `COMPRESS` | Drop any file here (personal, program, video, other) |
 | `public/vita-compression.html` | `COMPRESS` | Page: bench, add a file, verify the key, see the recommendation |
 | `vita/memory/compression-directory.json` | `COMPRESS` | Key directory. locations empty until a real seal |
 | `vita/memory/compression-learn.json` | `COMPRESS` | Append-only learn: which codec won for which kind |
-| `vita/strands/compression.json` | `COMPRESS` | Sparse strand: file → bake-off → verified key → inject |
+| `vita/memory/compression-telegram-unwrap.json` | `COMPRESS` | Learn: Telegram unwrap + full button path matched to VITA:\\COMPRESS\\ |
+| `vita/strands/compression.json` | `COMPRESS` | Sparse strand: file → bake-off → verified key → unwrap plain → inject |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
 | `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play; live HUMAN+MACHINE SNARK caption layers synced to audio |
@@ -216,7 +217,7 @@ findable.
 | `VITADUAL` | Dual-lane human plain + machine ZK-short (`§VITADUAL§`) — side-by-side cost/size + Basescan read receipt |
 | `FEED_LOADER` | Curated pack preload into backlog (`§VITALOAD§`) — cipher/prog hierarchy + did-you-know recall |
 | `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
-| `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; key directory stages into `/vitafeed` injection; availability until a real seal |
+| `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; unwrap shows HUMAN plain from MACHINE wire; Telegram buttons on HOME/Feed/dir COMPRESS; key directory stages into `/vitafeed` injection; availability until a real seal |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
