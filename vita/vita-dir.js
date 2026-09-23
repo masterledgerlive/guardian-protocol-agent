@@ -681,7 +681,9 @@ function playGoalHint(mime, kind) {
   if (k === "youtube" || k === "url" || m.includes("uri-list") || m.includes("mpegurl")) {
     return "kids url dir → /vitafeed play kids · /vita/kids-player";
   }
-  if (m.includes("html") || k === "html") return "html → unwrap English + machine; open as page when sealed";
+  if (m.includes("html") || k === "html") {
+    return "html → feed-player sandboxed iframe after unlock · unwrap English + machine";
+  }
   if (k === "math" || k === "codex" || k === "theory") return "codex → English + machine formula; library seed";
   if (k === "strand" || k === "memory") return "filed note → cite locs; recover via /vitapull or reader key";
   if (k === "personal" || k === "program" || k === "text" || k === "file") {

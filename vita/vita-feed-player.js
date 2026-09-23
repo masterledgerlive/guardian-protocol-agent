@@ -134,6 +134,7 @@ export function buildVitaFeedPlayProof({
             sha256: rebuilt.sha256,
             dataUrl: rebuilt.dataUrl,
             data: rebuilt.data,
+            text: rebuilt.text,
           }
         : { error: rebuilt.reason, isVitaFile: true };
     } else if (rebuilt.ok) {
@@ -151,6 +152,7 @@ export function buildVitaFeedPlayProof({
           sha256: parsed.sha256,
           dataUrl: parsed.dataUrl,
           data: parsed.data,
+          text: parsed.text,
         }
       : { error: parsed.reason, isVitaFile: true };
   } else if (typeof body === "string") {
@@ -216,6 +218,7 @@ export function buildVitaFeedPlayProof({
           mime: file.mime,
           name: file.name,
           dataUrl: file.dataUrl,
+          text: utf8PlayText(file),
         }
       : plainBody != null
         ? { kind: "text", mime: "text/plain", name: "body.txt", text: plainBody }
@@ -231,6 +234,16 @@ export function buildVitaFeedPlayProof({
       label,
     }),
   };
+}
+
+/** UTF-8 body for text/html play — iframe srcdoc or <pre>. */
+function utf8PlayText(file) {
+  if (!file) return undefined;
+  if (file.text != null && String(file.text).length) return String(file.text);
+  if (file.playKind !== "html" && file.playKind !== "text") return undefined;
+  if (Buffer.isBuffer(file.data)) return file.data.toString("utf8");
+  if (file.data instanceof Uint8Array) return Buffer.from(file.data).toString("utf8");
+  return "";
 }
 
 function padPiece(i, total) {
@@ -264,7 +277,11 @@ export function formatPlayProofCard({
   if (spacedProof?.proofLine) lines.push(spacedProof.proofLine);
   lines.push(
     complete
-      ? "PLAY — Tailwind reader peaces locations together and plays the blob"
+      ? file?.playKind === "html"
+        ? "PLAY — HTML runs in sandboxed iframe from sealed/recovered bytes"
+        : file?.playKind === "text"
+          ? "PLAY — plain text recovered (pre) — same lossless bytes as unwrap"
+          : "PLAY — Tailwind reader peaces locations together and plays the blob"
       : "Wait for every VIN packet seal — never invent a missing hash",
   );
   return lines.join("\n");

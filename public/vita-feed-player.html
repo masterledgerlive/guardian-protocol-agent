@@ -1228,15 +1228,21 @@
       if (n.endsWith(".png")) return "image/png";
       if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
       if (n.endsWith(".js")) return "text/javascript";
+      if (n.endsWith(".html") || n.endsWith(".htm")) return "text/html";
+      if (n.endsWith(".css")) return "text/css";
       if (n.endsWith(".txt") || n.endsWith(".md")) return "text/plain";
       return "application/octet-stream";
     }
 
     function playKind(mime) {
-      if (mime.startsWith("audio/")) return "audio";
-      if (mime.startsWith("video/")) return "video";
-      if (mime.startsWith("image/")) return "image";
-      if (mime.startsWith("text/")) return "text";
+      const m = String(mime || "").toLowerCase();
+      if (m.startsWith("audio/")) return "audio";
+      if (m.startsWith("video/")) return "video";
+      if (m.startsWith("image/")) return "image";
+      if (m === "text/html" || m === "application/xhtml+xml") return "html";
+      if (m.startsWith("text/") || m === "application/json" || m === "application/javascript") {
+        return "text";
+      }
       return "file";
     }
 
@@ -1398,6 +1404,40 @@
         shell.appendChild(img);
         bindLiveMedia(null, chunks);
         if (chunks.length) paintLiveLoc(0);
+      } else if (play.kind === "html") {
+        const wrap = document.createElement("div");
+        wrap.className = "html-run";
+        wrap.style.cssText = "display:flex;flex-direction:column;gap:.5rem;width:100%";
+        const bar = document.createElement("div");
+        bar.className = "hint";
+        bar.textContent =
+          "HTML from chain · " + (play.name || "page.html") +
+          " · sandbox allow-scripts · open in new tab uses data URL";
+        const frame = document.createElement("iframe");
+        frame.title = play.name || "html-from-chain";
+        frame.setAttribute(
+          "sandbox",
+          "allow-scripts allow-forms allow-modals allow-popups allow-downloads",
+        );
+        frame.setAttribute("referrerpolicy", "no-referrer");
+        frame.style.cssText =
+          "width:100%;min-height:min(70vh,640px);border:1px solid #3d5234;background:#fff;border-radius:4px";
+        if (play.text != null && String(play.text).length) {
+          frame.srcdoc = String(play.text);
+        } else if (play.dataUrl) {
+          frame.src = play.dataUrl;
+        }
+        const open = document.createElement("a");
+        open.href = play.dataUrl || "#";
+        open.target = "_blank";
+        open.rel = "noopener noreferrer";
+        open.textContent = "Open HTML in new tab";
+        wrap.appendChild(bar);
+        wrap.appendChild(frame);
+        wrap.appendChild(open);
+        shell.appendChild(wrap);
+        bindLiveMedia(null, chunks);
+        if (chunks.length) paintLiveLoc(0);
       } else if (play.kind === "text") {
         const pre = document.createElement("pre");
         pre.className = "card";
@@ -1471,14 +1511,19 @@
       const b64 = body.slice(body.indexOf("§\n") + 2);
       const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const dataUrl = "data:" + prepared.file.mime + ";base64," + b64;
+      const kind = prepared.file.playKind;
+      const playObj = {
+        kind,
+        mime: prepared.file.mime,
+        name: prepared.file.name,
+        dataUrl,
+      };
+      if (kind === "text" || kind === "html") {
+        playObj.text = new TextDecoder().decode(bin);
+      }
       proof = {
         complete: true,
-        play: {
-          kind: prepared.file.playKind,
-          mime: prepared.file.mime,
-          name: prepared.file.name,
-          dataUrl,
-        },
+        play: playObj,
         card:
           "VITAFEED PLAY PROOF · DEMO · COMPLETE\n" +
           "VIN " + prepared.vinId + "\n" +
@@ -1487,7 +1532,9 @@
           " · raw=" + prepared.file.rawBytes + "B · play=" + prepared.file.playKind + "\n" +
           "locations " + chunks.length + "/" + chunks.length + " spaced · " + chunks.length + " txs\n" +
           "File assembled from " + chunks.length + " spaced blockchain locations across " + chunks.length + " blocks\n" +
-          "PLAY — Tailwind reader peaces locations together and plays the blob",
+          (kind === "html"
+            ? "PLAY — HTML runs in sandboxed iframe from sealed/recovered bytes"
+            : "PLAY — Tailwind reader peaces locations together and plays the blob"),
         chunks,
         bytes: bin.length,
       };

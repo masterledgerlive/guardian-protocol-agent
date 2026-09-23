@@ -65,6 +65,7 @@ export function playKindForMime(mime) {
   if (m.startsWith("audio/")) return "audio";
   if (m.startsWith("video/")) return "video";
   if (m.startsWith("image/")) return "image";
+  if (m === "text/html" || m === "application/xhtml+xml") return "html";
   if (m.startsWith("text/") || m === "application/json" || m === "application/javascript") {
     return "text";
   }
@@ -183,12 +184,13 @@ export function parseVitaFileBody(text) {
   }
   const name = sanitizeName(meta.name || "blob.bin");
   const mime = guessMime(name, meta.mime);
-  return {
+  const playKind = playKindForMime(mime);
+  const out = {
     ok: true,
     isVitaFile: true,
     name,
     mime,
-    playKind: playKindForMime(mime),
+    playKind,
     rawBytes: data.length,
     sha256: sha,
     enc: VITAFILE_ENC,
@@ -196,6 +198,11 @@ export function parseVitaFileBody(text) {
     data,
     dataUrl: "data:" + mime + ";base64," + data.toString("base64"),
   };
+  // Plain UTF-8 for text + HTML — feed player shows <pre> or iframe srcdoc.
+  if (playKind === "text" || playKind === "html") {
+    out.text = data.toString("utf8");
+  }
+  return out;
 }
 
 export function isVitaFileBody(text) {

@@ -1,0 +1,12 @@
+{
+  "strandId": "html-iframe-playkind",
+  "sparse": true,
+  "source": "vita-feed-player",
+  "playKind": "html",
+  "mime": "text/html",
+  "render": "sandboxed iframe srcdoc + data URL open-in-new-tab",
+  "learn": "Sealed HTML stays HTML bytes in §VITAFILE§. After unlock, feed player playKind=html runs the page in sandbox (allow-scripts) — not <pre>. Plain .txt uses playKind=text in <pre>. Compress unwrap recovers the same UTF-8 for HUMAN plain. Never invent locs.",
+  "txtUnwrap": "/vitafeed compress unwrap · Trail Plain · /vitafeed unlock COMPRESS\\n",
+  "formula": "original-message-first",
+  "payer": "RISK"
+}
