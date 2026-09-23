@@ -201,13 +201,17 @@ never auto-spend.
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
 **Compression bake-off:** `/vitafeed compress` · `/vitafeed compress add` ·
 `/vitafeed compress <path>` · `/vitafeed compress dir` ·
-`/vitafeed compress verify <key>` · `/vitafeed compress inject [key]` —
+`/vitafeed compress unwrap [key]` · `/vitafeed compress verify <key>` ·
+`/vitafeed compress inject [key]` · `/vitafeed unlock COMPRESS\<n>` —
 personal, program, video, or any other file. Drop a file in
 `vita/compression/inbox/` or on `/vita/compression`. Every codec runs
 (including the Gemini zlib project). The call is `verified` with the open
-key that recovers the bytes. That key is the directory row. Next module is
-`/vitafeed` injection (confirm|override). Chain stays availability until a
-real seal. Never invent hashes. See `vita/compression/`.
+key that recovers the bytes. **Unwrap** shows HUMAN plain text recovered
+from the machine wire (plus MACHINE denser lane). That key is the directory
+row. Telegram: every step is a button (HOME → Compress, Feed → Comp add,
+`/vitafeed dir COMPRESS`). Next module is `/vitafeed` injection
+(confirm|override). Chain stays availability until a real seal. Never invent
+hashes. See `vita/compression/`.
 
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank

@@ -69,7 +69,23 @@
       "source": "sample",
       "tried": 9,
       "verifiedCount": 9
+    },
+    {
+      "at": "2026-09-23T20:45:00.000Z",
+      "name": "telegram-unwrap-buttons",
+      "kind": "text",
+      "codec": "operator-learn",
+      "project": "telegram-clickthrough",
+      "key": "LEARN.compress-unwrap-buttons",
+      "ratio": null,
+      "rawBytes": 0,
+      "payloadBytes": 0,
+      "verified": true,
+      "recovered": true,
+      "answer": true,
+      "source": "agent-learn",
+      "note": "Unwrap shows HUMAN plain from machine wire. Every compress step is a Telegram button (Add/Bench/Keys/Unwrap/Inject). HOME Compress + Phosphor sections. VITA:\\COMPRESS\\ and VITA:\\PHOS\\ matched."
     }
   ],
-  "updatedAt": "2026-09-23T05:53:38.640Z"
+  "updatedAt": "2026-09-23T20:45:00.000Z"
 }

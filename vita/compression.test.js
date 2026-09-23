@@ -17,7 +17,7 @@ import {
   verifyCompressionKey,
 } from "./compression/index.js";
 import { handleVitaFeedAction, parseVitaFeedCommand, peekVitaFeed, resetVitaFeedPending } from "./vita-feed.js";
-import { listSubDirectory } from "./vita-dir.js";
+import { listSubDirectory, unlockDirectoryEntry } from "./vita-dir.js";
 import { createVitaServer } from "../vita-webhook.js";
 
 function isolated() {
@@ -159,6 +159,53 @@ describe("compression bake-off", () => {
     assert.equal(again.recovered, true);
     assert.equal(again.answer, true);
     rmSync(opts.root, { recursive: true, force: true });
+  });
+
+  it("unwraps machine wire back to HUMAN plain text with buttons", () => {
+    const opts = isolated();
+    const note = Buffer.from(
+      "Clearwater morning. Hitch still sends when KEY+LOC is covered.\n".repeat(8),
+    );
+    const filed = fileCompression({
+      name: "morning.txt",
+      mime: "text/plain",
+      kind: "personal",
+      bytes: note,
+      includePython: false,
+    }, opts);
+    assert.equal(filed.ok, true);
+    const unwrapped = handleCompressionRequest({ body: "unwrap" }, opts);
+    assert.equal(unwrapped.ok, true);
+    assert.equal(unwrapped.unwrap, true);
+    assert.equal(unwrapped.verified, true);
+    assert.equal(unwrapped.recovered, true);
+    assert.match(unwrapped.reply, /HUMAN \(plain text from machine code\)/);
+    assert.match(unwrapped.reply, /Clearwater morning/);
+    assert.match(unwrapped.reply, /MACHINE \(codec wire/);
+    assert.match(unwrapped.reply, /COMPRESS key=/);
+    const cbs = (unwrapped.keyboard?.inline_keyboard || []).flat().map((b) => b.callback_data);
+    assert.ok(cbs.includes("/vitafeed compress add"));
+    assert.ok(cbs.some((c) => /unwrap|verify/i.test(c)));
+    assert.ok(cbs.every((c) => c.length <= 64));
+
+    const byDir = handleCompressionRequest({ body: "dir" }, opts);
+    const dirCbs = (byDir.keyboard?.inline_keyboard || []).flat().map((b) => b.callback_data);
+    assert.ok(dirCbs.includes("/vitafeed compress add"));
+    assert.ok(dirCbs.some((c) => /unwrap|unlock COMPRESS/i.test(c)));
+    rmSync(opts.root, { recursive: true, force: true });
+  });
+
+  it("unlock COMPRESS recovers plain text from the telegram directory row", () => {
+    const listed = listSubDirectory("COMPRESS");
+    assert.equal(listed.ok, true);
+    assert.ok(listed.entries.length > 0, "COMPRESS directory should list filed keys");
+    const unlocked = unlockDirectoryEntry("COMPRESS\\1");
+    assert.equal(unlocked.ok, true);
+    assert.equal(unlocked.source, "COMPRESS");
+    assert.equal(unlocked.entry.compressVerified, true);
+    assert.ok(unlocked.reveal.english.length > 20);
+    assert.match(unlocked.reveal.machine, /COMPRESS key=/);
+    assert.ok(!/^COMPRESS key=/.test(unlocked.reveal.english), "HUMAN lane is plain, not the machine line");
   });
 
   it("gemini zlib bytes inflate back to the original", () => {

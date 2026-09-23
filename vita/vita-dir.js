@@ -8,7 +8,7 @@
  *     REF_LIB\   CODEX\     MG_RECALL\
  *     LIBRARY\   PROVEN\   KIDS\
  *     PLAYERS\   MUSIC\     BOARD\    CHAIN\    X404\
- *     AGENTS\
+ *     AGENTS\    COMPRESS\  PHOS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
  * Machine-short (ZK-style squash) unwraps instantly to English + machine blocks
@@ -32,7 +32,7 @@ import { soundboardEntriesFor } from "./soundboard.js";
 import { spatialEntriesFor } from "./spatial-sound.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 import { playerDirEntriesFor } from "./players/index.js";
-import { compressionDirEntries } from "./compression/index.js";
+import { compressionDirEntries, verifyCompressionKey, plainTextFromBytes, machineLineFromEntry } from "./compression/index.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -66,6 +66,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "X404", role: "dir tags · same name many plots", filing: "X404_DIR" },
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
   { name: "COMPRESS", role: "codec bake-off · verified key directory · then inject", filing: "COMPRESS" },
+  { name: "PHOS", role: "PHOSPHOR CRT · wire store · PLAY/PICTURE library", filing: "PHOSPHOR" },
 ]);
 
 /** Seed library: start of open codex (math / theories) — not private. */
@@ -387,6 +388,44 @@ function dirEntriesFor(subdir) {
     listX404DirEntries().forEach((e) => out.push(e));
   } else if (name === "COMPRESS" || name === "COMPRESSION" || name === "CODEC") {
     compressionDirEntries().forEach((e) => out.push(e));
+  } else if (name === "PHOS" || name === "PHOSPHOR") {
+    out.push({
+      n: 1,
+      name: "crt-terminal.html",
+      kind: "phosphor",
+      bytes: 0,
+      unlockName: "crt",
+      mime: "text/html",
+      english: "PHOSPHOR green CRT — /phosphor · pop-out ?popup=1. Injector wires are the store.",
+      machine: "PHOSPHOR route=/phosphor dir=/phosphor dir key=PHOSOPEN chain=availability",
+      locations: [],
+      readerKey: "PHOSOPEN",
+      trueName: "phosphor-crt",
+    });
+    out.push({
+      n: 2,
+      name: "library-PLAY.txt",
+      kind: "phosphor",
+      bytes: 0,
+      unlockName: "PLAY",
+      mime: "text/plain",
+      english: "PHOSPHOR PLAY folder — /phosphor dir PLAY. Pong imprint recalls into the player.",
+      machine: "PHOSPHOR folder=PLAY cmd=/phosphor dir PLAY",
+      locations: [],
+      trueName: "phosphor-play",
+    });
+    out.push({
+      n: 3,
+      name: "library-PICTURE.txt",
+      kind: "phosphor",
+      bytes: 0,
+      unlockName: "PICTURE",
+      mime: "text/plain",
+      english: "PHOSPHOR PICTURE folder — /phosphor dir PICTURE. Tiled PPM imprint.",
+      machine: "PHOSPHOR folder=PICTURE cmd=/phosphor dir PICTURE",
+      locations: [],
+      trueName: "phosphor-picture",
+    });
   } else if (name === "AGENTS") {
     const tag = lookupX404Tag("storage-token");
     const locs = provenX404Locs().map((l) => l.location);
@@ -556,26 +595,52 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
     }
     if (!hit) continue;
 
+    let english = hit.english;
+    let machine = hit.machine;
+    let compressChecked = null;
+    if (d === "COMPRESS" && (hit.unlockName || hit.readerKey || hit.trueName)) {
+      const key = hit.unlockName || hit.readerKey || hit.trueName;
+      compressChecked = verifyCompressionKey(key);
+      if (compressChecked.ok && compressChecked.bytes) {
+        english = plainTextFromBytes(compressChecked.bytes, {
+          kind: compressChecked.kind || hit.kind,
+          mime: hit.mime,
+          name: hit.name || compressChecked.name,
+        });
+        machine = compressChecked.machine || machineLineFromEntry(compressChecked.entry || hit, compressChecked.payload);
+      }
+    }
+
     const packed = packMachineShort({
-      english: hit.english,
-      machine: hit.machine,
+      english,
+      machine,
       locs: hit.locations || [],
-      trueName: hit.trueName || null,
+      trueName: hit.trueName || hit.unlockName || null,
     });
     const unlock = openSourceUnlockKey({
       name: hit.name,
-      content: hit.english + "|" + hit.machine,
+      content: english + "|" + machine,
       contentCommit: packed.commit,
     });
     return {
       ok: true,
       source: d,
-      path: VITADIR_ROOT + d + "\\" + hit.name,
-      entry: hit,
+      path: VITADIR_ROOT + d + "\\" + (hit.unlockName || hit.name),
+      entry: {
+        ...hit,
+        english,
+        machine,
+        compressKey: compressChecked?.key || hit.unlockName || null,
+        compressVerified: compressChecked?.verified === true,
+      },
       unlock,
       packed,
-      reveal: unwrapMachineShort(packed, { english: hit.english, machine: hit.machine }),
-      goalHint: playGoalHint(hit.mime, hit.kind),
+      reveal: unwrapMachineShort(packed, { english, machine }),
+      goalHint:
+        d === "COMPRESS"
+          ? "compress unwrap → plain text + machine wire · /vitafeed compress inject · /vita/compression"
+          : playGoalHint(hit.mime, hit.kind),
+      compress: compressChecked || null,
     };
   }
 
@@ -595,6 +660,9 @@ function playGoalHint(mime, kind) {
   if (m.includes("html") || k === "html") return "html → unwrap English + machine; open as page when sealed";
   if (k === "math" || k === "codex" || k === "theory") return "codex → English + machine formula; library seed";
   if (k === "strand" || k === "memory") return "filed note → cite locs; recover via /vitapull or reader key";
+  if (k === "personal" || k === "program" || k === "text" || k === "file") {
+    return "compress → /vitafeed compress unwrap · unlock COMPRESS\\n · plain text from machine wire";
+  }
   return "reveal English + machine blocks; seal via /vitafeed when funded";
 }
 

@@ -1,0 +1,27 @@
+{
+  "id": "compression-telegram-unwrap-v1",
+  "label": "COMPRESS",
+  "at": "2026-09-23T20:45:00.000Z",
+  "summary": "Operator could compress via Telegram but had to type /vitafeed compress add and could not unwrap machine code to plain text. Fix: Unwrap card shows HUMAN plain + MACHINE wire; bare /vitafeed compress unwrap recovers the latest key; unlock COMPRESS\\n recovers bytes; every step is an inline button on root, HOME Compress, HELP, and VITA:\\COMPRESS\\. Phosphor CRT + library buttons matched on HOME, root, and VITA:\\PHOS\\.",
+  "commands": [
+    "/vitafeed compress",
+    "/vitafeed compress add",
+    "/vitafeed compress dir",
+    "/vitafeed compress unwrap",
+    "/vitafeed compress unwrap <key>",
+    "/vitafeed compress inject",
+    "/vitafeed dir COMPRESS",
+    "/vitafeed unlock COMPRESS\\1",
+    "/home compress",
+    "/phosphor",
+    "/vitafeed dir PHOS"
+  ],
+  "invariants": [
+    "never invent tx hashes",
+    "callback_data ≤ 64 bytes",
+    "open-source unlock — no private key",
+    "HUMAN plain recovered only when sha256 matches",
+    "message-first formula untouched"
+  ],
+  "module": "vita/compression/index.js"
+}
