@@ -151,6 +151,7 @@ export function buildVitaFeedRootKeyboard() {
       [
         btn("🔐 Cipher", "/vitafeed cipher"),
         btn("📎 File", "/vitafeed file"),
+        btn("🗜 Compress", "/vitafeed compress"),
         btn("🧪 Track", "/vitafeed track"),
       ],
       [
@@ -240,6 +241,13 @@ export function buildDirSubKeyboard(listed) {
     rows.unshift([
       webAppBtn("▶ Garden", vitaPlayerHref("/vita/players/garden")),
       webAppBtn("▶ Proven", vitaPlayerHref("/vita/players/proven")),
+    ]);
+  }
+  if (sub === "COMPRESS") {
+    rows.unshift([
+      btn("🗜 Bench", "/vitafeed compress"),
+      btn("📂 Keys", "/vitafeed compress dir"),
+      webAppBtn("▶ Page", vitaPlayerHref("/vita/compression")),
     ]);
   }
   rows.push([
@@ -470,6 +478,7 @@ export function keyboardForVitaFeedResult({ action, out = {}, body = "" } = {}) 
   if (act === "usage" || act === "file" || !act) {
     return buildVitaFeedRootKeyboard();
   }
+  if (act === "compress") return out.keyboard || buildVitaFeedRootKeyboard();
   if (act === "backlog" || act === "load" || act === "know" || act === "recall" || act === "cipher" || act === "ref" || act === "proven" || act === "learn" || act === "proof" || act === "restart") {
     return buildVitaFeedRootKeyboard();
   }

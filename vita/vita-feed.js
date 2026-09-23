@@ -767,6 +767,18 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:next|drain)\s*/i, "").trim();
     return { ok: true, action: "next", body: rest, source: "next" };
   }
+  // Compression bake-off — every codec, verified key, then injection.
+  if (/^(?:compress|compression|squash|codec)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:compress|compression|squash|codec)\s*/i, "").trim();
+    const wantsFile = /^(?:add|file|upload|drop)$/i.test(rest);
+    return {
+      ok: true,
+      action: "compress",
+      body: rest,
+      source: "compress",
+      wantsFile,
+    };
+  }
   // Reply-to-file / explicit file cue — Telegram handler encodes attachment.
   if (/^file(?:\s|$)/i.test(trimmed) || /^upload(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:file|upload)\s*/i, "");
@@ -880,6 +892,16 @@ export function vitaFeedUsageText() {
     "  /vitafeed backlog        — pending→sealed growth card",
     "  /vitafeed enqueue seed   — queue brain seed + memory files (no send)",
     "  /vitafeed next           — stage next pending for confirm|override",
+    "COMPRESSION (every codec · verified key · then injection):",
+    "  /vitafeed compress         — bench personal + program + video + inbox",
+    "  /vitafeed compress add     — drop any file; recommend the best verified codec",
+    "  /vitafeed compress <path>  — one file (kind optional: personal|program|video)",
+    "  /vitafeed compress dir     — key directory (VITA:\\COMPRESS\\)",
+    "  /vitafeed compress verify <key> — VERIFIED true · answer recovered",
+    "  /vitafeed compress inject [key] — stage winner for confirm|override",
+    "  Inbox: vita/compression/inbox/   ·   page: /vita/compression",
+    "  Call returns verified + the open key that compressed the file.",
+    "  Chain stays availability until a real seal. Never invent hashes.",
     "LIBRARY (Telegram quick pull):",
     "  /vitafeed files          — list saved names (auto-saved on seal)",
     "  /vitafeed play <n|name>  — open from keys → player (also: open|pull)",
@@ -1541,6 +1563,12 @@ export async function handleVitaFeedAction({
   now = Date.now(),
   /** Telegram message.date * 1000 — stale confirm / getUpdates replay guard. */
   messageAtMs = null,
+  /** Bytes from a dropped file on the compression path. */
+  compressionBytes = null,
+  compressionName = "",
+  compressionMime = "",
+  /** Isolated dirs for tests. Production uses vita/memory + vita/compression. */
+  compressionOpts = null,
 } = {}) {
   if (action === "check") {
     const audit = auditVitaFeedChainMirror();
@@ -2960,6 +2988,61 @@ export async function handleVitaFeedAction({
         "\n\n" +
         formatVitaFeedCostCard(cost, prepared, { phase: "before" }) +
         "\n\n" + formatVitaFeedBuyInCard(buyIn),
+    };
+  }
+  if (action === "compress") {
+    const { handleCompressionRequest } = await import("./compression/index.js");
+    const out = handleCompressionRequest({
+      body,
+      bytes: compressionBytes,
+      name: compressionName,
+      mime: compressionMime,
+    }, compressionOpts || {});
+    let reply = out.reply || out.reason || "";
+    let staged = false;
+    let prepared = null;
+    let cost = null;
+    let buyIn = null;
+    if (out.stageBody) {
+      prepared = prepareVitaFeed(out.stageBody);
+      if (prepared.ok) {
+        cost = estimateVitaFeedCost(prepared, quotes);
+        buyIn = planVitaFeedBuyIns({ prepared, cost, seats, quotes });
+        stageVitaFeed(chatId, {
+          prepared,
+          cost,
+          body: out.stageBody,
+          quotes,
+          buyIn,
+          seats,
+          compressionKey: out.key || out.entry?.key || null,
+        });
+        staged = true;
+        reply += "\n\n" + formatVitaFeedCostCard(cost, prepared, { phase: "before" });
+        reply += "\n\nInjection staged. Paid path stays off until /vitafeed confirm and VITAFEED_PAID=yes.";
+      } else {
+        reply += "\n\ninject stage refused: " + (prepared.reason || "prepare failed");
+      }
+    }
+    return {
+      ok: out.ok !== false,
+      phase: "compress",
+      call: out.call || (out.verified ? "verified" : out.wantsFile ? "waiting" : "refused"),
+      verified: out.verified === true,
+      answer: out.answer === true,
+      recovered: out.recovered === true,
+      key: out.key || out.entry?.key || "",
+      codec: out.codec || out.entry?.codec || "",
+      staged,
+      prepared,
+      cost,
+      buyIn,
+      wantsFile: out.wantsFile === true,
+      chainStatus: "availability",
+      locations: [],
+      neverInventHashes: true,
+      reply,
+      keyboard: out.keyboard,
     };
   }
   if (action === "preview") {
