@@ -63,6 +63,9 @@
 //   GET  /vita/os-builder   — DOS brain builder CRT (IFTTT · follow-leader · sandbox)
 //   GET  /vita/os-builder/state — public JSON session + anchors + lexicon
 //   POST /vita/os-builder/action — wizard step (boot/name/lobes/triggers/sandbox/seal)
+//   GET  /vita/wave-robin   — WAVE-ROBIN agent state (energy · accum · SIM queue)
+//   POST /vita/wave-robin/action — /waveai tick|sandbox|accum|confirm
+//   POST /vita/wave-robin/run — inject Robinhood quotes/historicals/portfolio → tick
 //   GET  /vita/soundboard   — DJ pad board HTML + catalog JSON
 //   GET  /vita/soundboard/play — pad WAV reconstruct
 //   GET  /vita/soundboard/locs — LOCAL_OK vs MATCH vs CLASS_PROOF (not pad body)
@@ -222,6 +225,11 @@ import {
   publicOsBuilderState,
   handleOsBuilderAction,
 } from "./vita/os-builder.js";
+import {
+  publicWaveRobinState,
+  handleWaveRobinAction,
+  runWaveRobinOnRhPayload,
+} from "./vita/wave-robin-agent.js";
 import { handleWaveTestAction } from "./vita/wave-wrap.js";
 import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
 import { handleChainLayerAction } from "./vita/chain-layer.js";
@@ -922,6 +930,27 @@ async function handleVitaRequest(req, res) {
       const out = handleOsBuilderAction({
         action: String(body.action || url.searchParams.get("action") || "home"),
         body: String(body.body || body.text || url.searchParams.get("body") || ""),
+      });
+      return json(res, out);
+    }
+    if ((path === "/vita/wave-robin" || path === "/vita/wave-robin/") && req.method === "GET") {
+      return json(res, publicWaveRobinState());
+    }
+    if ((path === "/vita/wave-robin/action" || path === "/vita/wave-robin/action/") && req.method === "POST") {
+      const body = (await readBody(req).catch(() => ({}))) || {};
+      const out = handleWaveRobinAction({
+        action: String(body.action || "home"),
+        body: String(body.body || body.text || ""),
+      });
+      return json(res, out);
+    }
+    if ((path === "/vita/wave-robin/run" || path === "/vita/wave-robin/run/") && req.method === "POST") {
+      const body = (await readBody(req).catch(() => ({}))) || {};
+      const out = runWaveRobinOnRhPayload({
+        quotes: body.quotes || [],
+        historicals: body.historicals || [],
+        portfolio: body.portfolio || null,
+        positions: body.positions || [],
       });
       return json(res, out);
     }

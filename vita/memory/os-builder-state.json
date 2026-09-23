@@ -5,11 +5,11 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-23T22:33:21.296Z",
-  "updatedAt": "2026-09-23T22:33:21.303Z",
+  "updatedAt": "2026-09-23T23:10:55.706Z",
   "session": {
-    "agentId": "watcher-eureka",
+    "agentId": "wave-robin",
     "step": "seal",
-    "startedAt": "2026-09-23T22:33:21.297Z"
+    "startedAt": "2026-09-23T23:10:55.694Z"
   },
   "agents": {
     "watcher-eureka": {
@@ -62,6 +62,73 @@
       "updatedAt": "2026-09-23T22:33:21.302Z",
       "formula": "original-message-first",
       "neverInventHashes": true
+    },
+    "wave-robin": {
+      "agentId": "wave-robin",
+      "magic": "§VITAAGENT§",
+      "step": "seal",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "followSteps": [
+        {
+          "chunkId": 1,
+          "label": "boot-wave-math",
+          "cellHash": "e2c86ea439deec54b14022f1507081366ebafc9b34ca803853b812207737a40e"
+        },
+        {
+          "chunkId": 2,
+          "label": "wire-robinhood",
+          "cellHash": "f275965cec679a0c3382f54899887b4276685c74661957b66422468165c1e5e6"
+        },
+        {
+          "chunkId": 3,
+          "label": "cascade-grow",
+          "cellHash": "271facee445dc8fed4e13a9623817a78a6b93d3a8516b0caa20c8a28ed734125"
+        },
+        {
+          "chunkId": 4,
+          "label": "boot-wave-math",
+          "cellHash": "f3a7e8825076c0205fe2a3281199393cbb54dc6980ebeb23da18823de244a2bf"
+        },
+        {
+          "chunkId": 5,
+          "label": "wire-robinhood",
+          "cellHash": "d2c0213ad5263c26cf621d598fa13c478419683d9fb1dc92056978269b5976ec"
+        },
+        {
+          "chunkId": 6,
+          "label": "cascade-grow",
+          "cellHash": "925816364fb467dcf439699b5fa9b42bca83b15ee30dd5546a6c5340cf45bbfa"
+        }
+      ],
+      "sandbox": {
+        "lastRunId": null,
+        "passed": 0,
+        "failed": 0
+      },
+      "lexiconRefined": 0,
+      "publicKey": "VITAOPEN.OS.wave-robin.8d5e61dceeb6",
+      "publicKeyHex": "8d5e61dceeb6b53844f0ba3e0398773094ec6a6fa353731e7f5c80592b24e9e3",
+      "sealedLocs": [],
+      "contentCommit": "d4bf0b848b898f7e37afc08ada615428b7d98f4a35868775723223e76fd3de7f",
+      "status": "staged",
+      "createdAt": "2026-09-23T23:10:55.694Z",
+      "updatedAt": "2026-09-23T23:10:55.705Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
     }
   },
   "followHead": {
@@ -92,6 +159,60 @@
           "cellHash": "c28c17e19a003062c76c10124f42c598ef0358afe5483ef8881487c6415263c9",
           "prevHash": "68e643a7cacc40d009415ec4e7a747654184b11b8734130178d2d88cab49a666",
           "committedAt": "2026-09-23T22:33:21.301Z"
+        }
+      ]
+    },
+    "wave-robin": {
+      "head": 6,
+      "latestHash": "925816364fb467dcf439699b5fa9b42bca83b15ee30dd5546a6c5340cf45bbfa",
+      "steps": [
+        {
+          "chunkId": 1,
+          "label": "boot-wave-math",
+          "payload": "phase=sin(π·rangePos)",
+          "cellHash": "e2c86ea439deec54b14022f1507081366ebafc9b34ca803853b812207737a40e",
+          "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "committedAt": "2026-09-23T23:10:55.696Z"
+        },
+        {
+          "chunkId": 2,
+          "label": "wire-robinhood",
+          "payload": "SIM-default RH_WAVE_LIVE=off",
+          "cellHash": "f275965cec679a0c3382f54899887b4276685c74661957b66422468165c1e5e6",
+          "prevHash": "e2c86ea439deec54b14022f1507081366ebafc9b34ca803853b812207737a40e",
+          "committedAt": "2026-09-23T23:10:55.697Z"
+        },
+        {
+          "chunkId": 3,
+          "label": "cascade-grow",
+          "payload": "hops≥8/15m dust=$0.05",
+          "cellHash": "271facee445dc8fed4e13a9623817a78a6b93d3a8516b0caa20c8a28ed734125",
+          "prevHash": "f275965cec679a0c3382f54899887b4276685c74661957b66422468165c1e5e6",
+          "committedAt": "2026-09-23T23:10:55.697Z"
+        },
+        {
+          "chunkId": 4,
+          "label": "boot-wave-math",
+          "payload": "phase=sin(π·rangePos)",
+          "cellHash": "f3a7e8825076c0205fe2a3281199393cbb54dc6980ebeb23da18823de244a2bf",
+          "prevHash": "271facee445dc8fed4e13a9623817a78a6b93d3a8516b0caa20c8a28ed734125",
+          "committedAt": "2026-09-23T23:10:55.704Z"
+        },
+        {
+          "chunkId": 5,
+          "label": "wire-robinhood",
+          "payload": "SIM-default RH_WAVE_LIVE=off",
+          "cellHash": "d2c0213ad5263c26cf621d598fa13c478419683d9fb1dc92056978269b5976ec",
+          "prevHash": "f3a7e8825076c0205fe2a3281199393cbb54dc6980ebeb23da18823de244a2bf",
+          "committedAt": "2026-09-23T23:10:55.704Z"
+        },
+        {
+          "chunkId": 6,
+          "label": "cascade-grow",
+          "payload": "hops≥8/15m dust=$0.05",
+          "cellHash": "925816364fb467dcf439699b5fa9b42bca83b15ee30dd5546a6c5340cf45bbfa",
+          "prevHash": "d2c0213ad5263c26cf621d598fa13c478419683d9fb1dc92056978269b5976ec",
+          "committedAt": "2026-09-23T23:10:55.705Z"
         }
       ]
     }

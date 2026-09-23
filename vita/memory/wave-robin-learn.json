@@ -1,0 +1,626 @@
+{
+  "id": "wave-robin-learn-v1",
+  "filingLabel": "WAVE_ROBIN",
+  "events": [
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "0e74471e-069a-4052-b299-8f225b514462",
+      "accountNumber": "813839826",
+      "symbol": "TROUGH",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1",
+      "quantity": null,
+      "reason": "cheap-band trough rangePos=0.000",
+      "stagedAt": "2026-09-23T23:09:03.818Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:09:03.819Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:09:03.819Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "abb86c9f-96bd-4551-a61e-18693e3d61a9",
+      "accountNumber": "813839826",
+      "symbol": "PEAK",
+      "side": "sell",
+      "type": "limit",
+      "dollarAmount": null,
+      "quantity": "2",
+      "reason": "move-up pre-arm at peak exit≈122.95337538381078",
+      "stagedAt": "2026-09-23T23:09:03.819Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:09:03.819Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:09:03.819Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "TROUGH",
+        "PEAK"
+      ],
+      "fires": 6,
+      "staged": 2,
+      "waveEnergy": 0.13051879722130255,
+      "hopCount": 1,
+      "at": "2026-09-23T23:09:03.820Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "5b7635f7-df01-40b0-89ae-530f91cdc303",
+      "accountNumber": "813839826",
+      "symbol": "TROUGH",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1",
+      "quantity": null,
+      "reason": "cheap-band trough rangePos=0.000",
+      "stagedAt": "2026-09-23T23:10:36.924Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:10:36.925Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:10:36.925Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "e118fcb2-aabe-4f24-bde1-1c2c269dd1e8",
+      "accountNumber": "813839826",
+      "symbol": "PEAK",
+      "side": "sell",
+      "type": "limit",
+      "dollarAmount": null,
+      "quantity": "2",
+      "reason": "move-up pre-arm at peak exit≈122.95337538381078",
+      "stagedAt": "2026-09-23T23:10:36.925Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:10:36.925Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:10:36.925Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "TROUGH",
+        "PEAK"
+      ],
+      "fires": 6,
+      "staged": 2,
+      "waveEnergy": 0.13051879722130255,
+      "hopCount": 1,
+      "at": "2026-09-23T23:10:36.926Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "d30e0f50484c",
+      "at": "2026-09-23T23:10:36.931Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -0.4327712399019994,
+      "fromBaselineUsd": -0.4327712399019994,
+      "totalValueUsd": 19.067228760098,
+      "proofId": null,
+      "at": "2026-09-23T23:10:36.931Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "SPY",
+        "HOOD",
+        "QQQ"
+      ],
+      "fires": 5,
+      "staged": 0,
+      "waveEnergy": 0.18051879722130254,
+      "hopCount": 2,
+      "at": "2026-09-23T23:10:36.932Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 1.4327712399019994,
+      "fromBaselineUsd": 1,
+      "totalValueUsd": 20.5,
+      "proofId": "accum-74306ea7350a",
+      "at": "2026-09-23T23:10:36.932Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "380b283c-44c3-4553-97a2-b4ecff3d2872",
+      "accountNumber": "813839826",
+      "symbol": "HOOD",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1.00",
+      "quantity": null,
+      "reason": "test",
+      "stagedAt": "2026-09-23T23:10:36.932Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:10:36.932Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "d4bf0b848b89",
+      "at": "2026-09-23T23:10:36.935Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "4d945f9c-31cf-413b-86b8-c5a48cd68cda",
+      "accountNumber": "813839826",
+      "symbol": "TROUGH",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1",
+      "quantity": null,
+      "reason": "cheap-band trough rangePos=0.000",
+      "stagedAt": "2026-09-23T23:10:42.521Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:10:42.521Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -1,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:10:42.522Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "833db392-e8a4-4493-89e2-ddf21d3b9b86",
+      "accountNumber": "813839826",
+      "symbol": "PEAK",
+      "side": "sell",
+      "type": "limit",
+      "dollarAmount": null,
+      "quantity": "2",
+      "reason": "move-up pre-arm at peak exit≈122.95337538381078",
+      "stagedAt": "2026-09-23T23:10:42.522Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:10:42.522Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:10:42.522Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "TROUGH",
+        "PEAK"
+      ],
+      "fires": 6,
+      "staged": 2,
+      "waveEnergy": 0.13051879722130255,
+      "hopCount": 1,
+      "at": "2026-09-23T23:10:42.523Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "d30e0f50484c",
+      "at": "2026-09-23T23:10:42.528Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -0.4327712399019994,
+      "fromBaselineUsd": -0.4327712399019994,
+      "totalValueUsd": 19.067228760098,
+      "proofId": null,
+      "at": "2026-09-23T23:10:42.528Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "SPY",
+        "HOOD",
+        "QQQ"
+      ],
+      "fires": 5,
+      "staged": 0,
+      "waveEnergy": 0.18051879722130254,
+      "hopCount": 2,
+      "at": "2026-09-23T23:10:42.529Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 1.4327712399019994,
+      "fromBaselineUsd": 1,
+      "totalValueUsd": 20.5,
+      "proofId": "accum-773dc1caa926",
+      "at": "2026-09-23T23:10:42.529Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "1e68e0a9-746f-4feb-8c19-f8b070ef5a55",
+      "accountNumber": "813839826",
+      "symbol": "HOOD",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1.00",
+      "quantity": null,
+      "reason": "test",
+      "stagedAt": "2026-09-23T23:10:42.530Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:10:42.530Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "d4bf0b848b89",
+      "at": "2026-09-23T23:10:42.533Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "d30e0f50484c",
+      "at": "2026-09-23T23:10:55.699Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -1.4327712399019994,
+      "fromBaselineUsd": -0.4327712399019994,
+      "totalValueUsd": 19.067228760098,
+      "proofId": null,
+      "at": "2026-09-23T23:10:55.700Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "SPY",
+        "HOOD",
+        "QQQ"
+      ],
+      "fires": 5,
+      "staged": 0,
+      "waveEnergy": 0.18051879722130254,
+      "hopCount": 2,
+      "at": "2026-09-23T23:10:55.701Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "d4bf0b848b89",
+      "at": "2026-09-23T23:10:55.706Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 1.1827712399019994,
+      "fromBaselineUsd": 0.75,
+      "totalValueUsd": 20.25,
+      "proofId": "accum-2796f2c2e192",
+      "at": "2026-09-23T23:10:55.707Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0.75,
+      "totalValueUsd": 20.25,
+      "proofId": "accum-92917f08728d",
+      "at": "2026-09-23T23:10:55.707Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0.75,
+      "totalValueUsd": 20.25,
+      "proofId": "accum-92917f08728d",
+      "at": "2026-09-23T23:10:55.707Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0.75,
+      "totalValueUsd": 20.25,
+      "proofId": "accum-92917f08728d",
+      "at": "2026-09-23T23:10:55.708Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "SPY",
+        "HOOD",
+        "QQQ"
+      ],
+      "fires": 8,
+      "staged": 0,
+      "waveEnergy": 0.23051879722130253,
+      "hopCount": 3,
+      "at": "2026-09-23T23:10:55.708Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "aab00e57-888c-4346-8c87-22676632f514",
+      "accountNumber": "813839826",
+      "symbol": "TROUGH",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1",
+      "quantity": null,
+      "reason": "cheap-band trough rangePos=0.000",
+      "stagedAt": "2026-09-23T23:13:50.446Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:13:50.447Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -0.75,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:13:50.447Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "83c2e0b4-591f-4539-9a9a-82a77ca50076",
+      "accountNumber": "813839826",
+      "symbol": "PEAK",
+      "side": "sell",
+      "type": "limit",
+      "dollarAmount": null,
+      "quantity": "2",
+      "reason": "move-up pre-arm at peak exit≈122.95337538381078",
+      "stagedAt": "2026-09-23T23:13:50.447Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:13:50.448Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:13:50.448Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "TROUGH",
+        "PEAK"
+      ],
+      "fires": 6,
+      "staged": 2,
+      "waveEnergy": 0.13051879722130255,
+      "hopCount": 1,
+      "at": "2026-09-23T23:13:50.448Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "ce719a45f3bc",
+      "at": "2026-09-23T23:13:50.458Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -0.4327712399019994,
+      "fromBaselineUsd": -0.4327712399019994,
+      "totalValueUsd": 19.067228760098,
+      "proofId": null,
+      "at": "2026-09-23T23:13:50.459Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "SPY",
+        "HOOD",
+        "QQQ"
+      ],
+      "fires": 5,
+      "staged": 0,
+      "waveEnergy": 0.18051879722130254,
+      "hopCount": 2,
+      "at": "2026-09-23T23:13:50.459Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 1.4327712399019994,
+      "fromBaselineUsd": 1,
+      "totalValueUsd": 20.5,
+      "proofId": "accum-0e3f96872758",
+      "at": "2026-09-23T23:13:50.460Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "7967390b-f758-46d7-bee9-79cb87505d3b",
+      "accountNumber": "813839826",
+      "symbol": "HOOD",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1.00",
+      "quantity": null,
+      "reason": "test",
+      "stagedAt": "2026-09-23T23:13:50.461Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:13:50.461Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "b7fe3541a117",
+      "at": "2026-09-23T23:13:50.466Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "122eb27c-2b5c-427c-902c-4d9b73af1c66",
+      "accountNumber": "813839826",
+      "symbol": "TROUGH",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1",
+      "quantity": null,
+      "reason": "cheap-band trough rangePos=0.000",
+      "stagedAt": "2026-09-23T23:14:12.236Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:14:12.236Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -1,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:14:12.237Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "0ab9f11e-08ef-4cf2-a0e5-0f0b87692996",
+      "accountNumber": "813839826",
+      "symbol": "PEAK",
+      "side": "sell",
+      "type": "limit",
+      "dollarAmount": null,
+      "quantity": "2",
+      "reason": "move-up pre-arm at peak exit≈122.95337538381078",
+      "stagedAt": "2026-09-23T23:14:12.237Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:14:12.237Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 0,
+      "fromBaselineUsd": 0,
+      "totalValueUsd": 19.5,
+      "proofId": null,
+      "at": "2026-09-23T23:14:12.237Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "TROUGH",
+        "PEAK"
+      ],
+      "fires": 6,
+      "staged": 2,
+      "waveEnergy": 0.13051879722130255,
+      "hopCount": 1,
+      "at": "2026-09-23T23:14:12.238Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "ce719a45f3bc",
+      "at": "2026-09-23T23:14:12.246Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": -0.4327712399019994,
+      "fromBaselineUsd": -0.4327712399019994,
+      "totalValueUsd": 19.067228760098,
+      "proofId": null,
+      "at": "2026-09-23T23:14:12.246Z"
+    },
+    {
+      "kind": "tick",
+      "seats": [
+        "SPY",
+        "HOOD",
+        "QQQ"
+      ],
+      "fires": 5,
+      "staged": 0,
+      "waveEnergy": 0.18051879722130254,
+      "hopCount": 2,
+      "at": "2026-09-23T23:14:12.247Z"
+    },
+    {
+      "kind": "accumulation",
+      "deltaUsd": 1.4327712399019994,
+      "fromBaselineUsd": 1,
+      "totalValueUsd": 20.5,
+      "proofId": "accum-8f4c2ed047b2",
+      "at": "2026-09-23T23:14:12.247Z"
+    },
+    {
+      "kind": "stage_sim",
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "171fe165-0831-4d3c-8231-08db48ea5442",
+      "accountNumber": "813839826",
+      "symbol": "HOOD",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1.00",
+      "quantity": null,
+      "reason": "test",
+      "stagedAt": "2026-09-23T23:14:12.248Z",
+      "neverAutoSpend": true,
+      "at": "2026-09-23T23:14:12.248Z"
+    },
+    {
+      "kind": "bootstrap",
+      "agentId": "wave-robin",
+      "commit": "b7fe3541a117",
+      "at": "2026-09-23T23:14:12.254Z"
+    }
+  ]
+}

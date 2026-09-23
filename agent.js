@@ -633,6 +633,10 @@ import {
   parseOsBuilderCommand,
 } from "./vita/os-builder.js";
 import {
+  handleWaveRobinAction,
+  parseWaveRobinCommand,
+} from "./vita/wave-robin-agent.js";
+import {
   handleHelpAction,
   parseHelpCommand,
   parsePickCommand,
@@ -10784,6 +10788,35 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           );
         } catch (e) {
           await tg("❌ os builder failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/waveai" ||
+        text === "/rhwave" ||
+        text === "/waverobin" ||
+        text === "/waveagent" ||
+        (text && (
+          text.startsWith("/waveai ") ||
+          text.startsWith("/rhwave ") ||
+          text.startsWith("/waverobin ") ||
+          text.startsWith("/waveagent ")
+        ))
+      ) {
+        try {
+          const parsed = parseWaveRobinCommand(raw);
+          const out = handleWaveRobinAction({
+            action: parsed.action || "home",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🌊 <b>WAVE-ROBIN</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ wave-robin failed: " + (e.message || e) + "\nNothing invented.");
         }
 
       } else if (text === "/status") {

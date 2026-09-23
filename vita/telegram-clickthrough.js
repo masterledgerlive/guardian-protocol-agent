@@ -148,6 +148,7 @@ export function buildVitaFeedRootKeyboard() {
       [
         btn("🧠 Brain", "/vitafeed brain"),
         btn("🖥 OS", "/os"),
+        btn("🌊 Wave AI", "/waveai"),
         btn("📦 Backlog", "/vitafeed backlog"),
         btn("▶️ Next", "/vitafeed next"),
       ],

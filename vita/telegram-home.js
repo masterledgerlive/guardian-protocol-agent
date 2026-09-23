@@ -285,6 +285,7 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Proven locs", cmd: "/agents proven" },
       { label: "Path map", cmd: "/agents path" },
       { label: "OS build", cmd: "/os" },
+      { label: "Wave AI", cmd: "/waveai" },
     ],
   },
   {
@@ -301,6 +302,9 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Language", cmd: "/os language" },
       { label: "Seal", cmd: "/os seal" },
       { label: "Status", cmd: "/os status" },
+      { label: "Wave AI", cmd: "/waveai" },
+      { label: "Wave sand", cmd: "/waveai sandbox" },
+      { label: "Wave accum", cmd: "/waveai accum" },
       { label: "Dir OS", cmd: "/vitafeed dir OS" },
       { label: "CRT", cmd: "/os boot" },
       { label: "Help", cmd: "/os help" },
