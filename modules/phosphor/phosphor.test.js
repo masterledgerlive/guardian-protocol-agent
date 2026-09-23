@@ -5,7 +5,15 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { readInjectLog, verifyFiling, walkBlocks, BLOCK_CAP, dataFieldRoom, packBlocks } from "./blocks.js";
+import {
+  readInjectLog,
+  verifyFiling,
+  walkBlocks,
+  BLOCK_CAP,
+  dataFieldRoom,
+  packBlocks,
+  recallPlain,
+} from "./blocks.js";
 import { PACKET_MAX, parseWire, sha256Hex, squash, expand } from "./codec.js";
 import { displayOpenKey } from "./keys.js";
 import { ipfsAdd } from "./ipfs-outlet.js";
@@ -514,6 +522,105 @@ test("library pong plays from the recalled snark imprint", async () => {
     assert.match(recovered.html, /recovered 14 bytes/);
     assert.equal(recovered.result.basescan, null);
     assert.equal(recovered.result.baseLocation, null);
+  } finally {
+    started.server.close();
+    rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("leader block alone carries utc|local|unix|filing; trailing stay lean", async () => {
+  const stateDir = scratch();
+  const fixedAt = "2026-09-23T22:06:00.000Z";
+  const source = Buffer.alloc(220);
+  for (let i = 0; i < source.length; i++) source[i] = (i * 17 + 9) & 255;
+  const written = await writeBytes({
+    bytes: source,
+    name: "stamp.bin",
+    stateDir,
+    tryIpfs: false,
+    blockCount: 5,
+    timestamp: fixedAt,
+  });
+  const blocks = written.receipt.blocks;
+  const leader = blocks[0];
+  assert.equal(leader.prev, "GENESIS");
+  assert.equal(leader.leader, true);
+  assert.equal(leader.utc, fixedAt);
+  assert.equal(leader.unix, Math.floor(Date.parse(fixedAt) / 1000));
+  assert.match(String(leader.local), /[+-]\d{2}:\d{2}$/);
+  assert.equal(leader.filing, written.receipt.filingLoc);
+  assert.match(leader.machine.split("\n")[0], /\|utc=/);
+  assert.match(leader.machine.split("\n")[0], /\|local=/);
+  assert.match(leader.machine.split("\n")[0], /\|unix=/);
+  assert.match(leader.machine.split("\n")[0], /\|filing=stark:\/\//);
+  for (let i = 1; i < blocks.length; i++) {
+    assert.equal(blocks[i].leader, undefined);
+    assert.equal(blocks[i].utc, undefined);
+    assert.equal(blocks[i].unix, undefined);
+    assert.doesNotMatch(blocks[i].machine.split("\n")[0], /\|utc=/);
+    assert.doesNotMatch(blocks[i].machine.split("\n")[0], /\|filing=/);
+  }
+  const { parseLeaderStamp, connectedPathsFromBlocks, pathsFromKnown, findByLeaderTime, resolveConnectedPaths } =
+    await import("./blocks.js");
+  const parsed = parseLeaderStamp(leader.machine);
+  assert.equal(parsed.utc, fixedAt);
+  assert.equal(parsed.unix, leader.unix);
+  assert.equal(parsed.filing, written.receipt.filingLoc);
+  const connected = connectedPathsFromBlocks(blocks);
+  assert.equal(connected.ok, true);
+  assert.equal(connected.blockCount, 5);
+  assert.equal(connected.locs.length, 5);
+  assert.ok(connected.paths.includes(written.receipt.filingLoc));
+  const fromMid = pathsFromKnown(blocks, blocks[2].loc);
+  assert.equal(fromMid.matched, true);
+  assert.deepEqual(fromMid.locs, connected.locs);
+  const byUnix = findByLeaderTime(stateDir, { unix: leader.unix });
+  assert.equal(byUnix.count, 1);
+  assert.equal(byUnix.hits[0].filingLoc, written.receipt.filingLoc);
+  const byDay = findByLeaderTime(stateDir, { day: "2026-09-23" });
+  assert.ok(byDay.count >= 1);
+  const fromFiling = resolveConnectedPaths(stateDir, written.receipt.filingLoc);
+  assert.equal(fromFiling.ok, true);
+  assert.equal(fromFiling.matched, true);
+  assert.equal(fromFiling.locs.length, 5);
+  const fromBlock = resolveConnectedPaths(stateDir, blocks[3].loc);
+  assert.equal(fromBlock.ok, true);
+  assert.deepEqual(fromBlock.locs, connected.locs);
+  assert.deepEqual(recallPlain(written.header, blocks, displayOpenKey(written.header.keyMeta)), source);
+  rmSync(stateDir, { recursive: true, force: true });
+});
+
+test("find-time and connected HTTP APIs surface leader stamp paths", async () => {
+  const stateDir = scratch();
+  const started = await startPhosphorServer({ port: 0, host: "127.0.0.1", stateDir });
+  const origin = "http://127.0.0.1:" + started.port;
+  try {
+    const fixedAt = "2026-09-23T22:15:30.000Z";
+    const written = await writeBytes({
+      bytes: Buffer.from("time-locate-note"),
+      name: "locate.txt",
+      stateDir,
+      tryIpfs: false,
+      blockCount: 1,
+      timestamp: fixedAt,
+    });
+    const unix = Math.floor(Date.parse(fixedAt) / 1000);
+    const found = await fetch(origin + "/phosphor/api/find-time?unix=" + unix);
+    const foundJson = await found.json();
+    assert.equal(foundJson.count, 1);
+    assert.equal(foundJson.hits[0].commit, written.commit);
+    const connected = await fetch(
+      origin + "/phosphor/api/connected?path=" + encodeURIComponent(written.receipt.blocks[0].loc),
+    );
+    const connJson = await connected.json();
+    assert.equal(connJson.ok, true);
+    assert.ok(connJson.paths.includes(written.receipt.filingLoc));
+    assert.equal(connJson.utc, fixedAt);
+    const page = await fetch(origin + written.receipt.blocks[0].href);
+    const html = await page.text();
+    assert.match(html, /LEADER/);
+    assert.match(html, /utc/);
+    assert.match(html, /unix/);
   } finally {
     started.server.close();
     rmSync(stateDir, { recursive: true, force: true });
