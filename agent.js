@@ -629,6 +629,10 @@ import {
   parseAgentChatCommand,
 } from "./vita/agent-chat.js";
 import {
+  handleOsBuilderAction,
+  parseOsBuilderCommand,
+} from "./vita/os-builder.js";
+import {
   handleHelpAction,
   parseHelpCommand,
   parsePickCommand,
@@ -10749,6 +10753,37 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           );
         } catch (e) {
           await tg("❌ agents failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/os" ||
+        text === "/brainos" ||
+        text === "/osbuilder" ||
+        text === "/buildbrain" ||
+        text === "/build" ||
+        (text && (
+          text.startsWith("/os ") ||
+          text.startsWith("/brainos ") ||
+          text.startsWith("/osbuilder ") ||
+          text.startsWith("/buildbrain ") ||
+          text.startsWith("/build ")
+        ))
+      ) {
+        try {
+          const parsed = parseOsBuilderCommand(raw);
+          const out = handleOsBuilderAction({
+            action: parsed.action || "home",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🖥 <b>VITA OS BUILDER</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ os builder failed: " + (e.message || e) + "\nNothing invented.");
         }
 
       } else if (text === "/status") {

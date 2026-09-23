@@ -284,6 +284,26 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Dual", cmd: "/agents dual" },
       { label: "Proven locs", cmd: "/agents proven" },
       { label: "Path map", cmd: "/agents path" },
+      { label: "OS build", cmd: "/os" },
+    ],
+  },
+  {
+    id: "os",
+    title: "OS",
+    emoji: "🖥",
+    blurb: "DOS brain builder · IFTTT triggers · follow-leader · sandbox vs Base anchors",
+    buttons: [
+      { label: "Boot", cmd: "/os boot" },
+      { label: "Wizard", cmd: "/os" },
+      { label: "Demo", cmd: "/os demo" },
+      { label: "Sandbox", cmd: "/os sandbox" },
+      { label: "Follow", cmd: "/os follow boot" },
+      { label: "Language", cmd: "/os language" },
+      { label: "Seal", cmd: "/os seal" },
+      { label: "Status", cmd: "/os status" },
+      { label: "Dir OS", cmd: "/vitafeed dir OS" },
+      { label: "CRT", cmd: "/os boot" },
+      { label: "Help", cmd: "/os help" },
     ],
   },
   {
@@ -436,7 +456,7 @@ export function formatHomeCard() {
     lines.push("   routes: " + sec.buttons.map((b) => b.label).join(" · "));
   }
   lines.push("");
-  lines.push("Commands: /home · /home search · /home agents · /home sim · /home engines · /menu");
+  lines.push("Commands: /home · /home search · /home agents · /home os · /home sim · /home engines · /menu");
   const locs = homeIdmLocations();
   lines.push("IDM anchors: " + locs.map((l) => shortHex(l.location, 8)).join(" · "));
   return lines.join("\n");

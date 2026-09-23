@@ -156,6 +156,13 @@ findable.
 | `vita/memory/proof-log-trail.json` | `PROOFLOG` | Append-only rolling verification trail (message-out proofs) |
 | `vita/memory/proof-log-learn.json` | `PROOFLOG` | Append-only learn events for trail growth |
 | `vita/strands/proof-log.json` | `PROOFLOG` | Sparse strand: file → verify → race → chain seats → seal |
+| `vita/os-builder.js` | `OS_BUILDER` | DOS brain/agent builder · guided wizard · IFTTT triggers on Base kinds · follow-the-leader registry · sandbox vs hardcoded anchors · human↔machine lexicon · seal → /vitafeed |
+| `public/vita-os-builder.html` | `OS_BUILDER` | Green CRT wizard · Telegram Mini App popup · FULL DEMO use case |
+| `vita/os-builder/AgentTriggerRegistry.sol` | `OS_BUILDER` | On-chain follow-leader + IFTTT digests mirror — no deployed address |
+| `vita/memory/os-builder-state.json` | `OS_BUILDER` | Draft agents · follow heads · sandbox runs (locs empty until seal) |
+| `vita/memory/os-builder-learn.json` | `OS_BUILDER` | Append-only learn: session / lobes / triggers / sandbox / seal |
+| `vita/memory/os-builder-lexicon.json` | `OS_BUILDER` | Human↔machine language pairs refined together |
+| `vita/strands/os-builder.json` | `OS_BUILDER` | Sparse strand: boot → IFTTT → follow → sandbox → seal |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
 | `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play; live HUMAN+MACHINE SNARK caption layers synced to audio |
@@ -224,6 +231,7 @@ findable.
 | `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
 | `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; unwrap shows HUMAN plain from MACHINE wire; Telegram buttons on HOME/Feed/dir COMPRESS; key directory stages into `/vitafeed` injection; availability until a real seal |
 | `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
+| `OS_BUILDER` | DOS brain builder (`§VITAOS§` / `§VITAAGENT§` / `§VITATRIGGER§` / `§VITAFOLLOW§`) — guided human↔machine wizard; IFTTT on Base kinds; follow-the-leader cells; sandbox cites hardcoded anchors only; seal stages /vitafeed; availability until real seal |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
