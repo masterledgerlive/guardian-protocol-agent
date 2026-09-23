@@ -175,7 +175,13 @@ import {
   publicVerifyCompression,
   handleCompressionRequest,
   addCompressionFile,
+  verifyCompressionKey,
 } from "./vita/compression/index.js";
+import {
+  publicProofLogState,
+  getProofLogEntry,
+  formatProofLogEntryCard,
+} from "./vita/proof-log.js";
 import {
   publicFreeMusicState,
   publicFreeMusicPlay,
@@ -261,6 +267,7 @@ const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
 const VITA_SPATIAL_HTML = join(ROOT, "public", "vita-spatial.html");
 const VITA_COMPRESSION_HTML = join(ROOT, "public", "vita-compression.html");
+const VITA_PROOF_LOG_HTML = join(ROOT, "public", "vita-proof-log.html");
 const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
 const VITA_PLAYERS_PROVEN_HTML = join(ROOT, "public", "players", "proven.html");
 const VITA_CHAIN_BOX_JS = join(ROOT, "public", "players", "chain-box.js");
@@ -990,6 +997,44 @@ async function handleVitaRequest(req, res) {
         return json(res, publicCompressionState());
       }
       return servePublicHtml(res, VITA_COMPRESSION_HTML, "vita compression");
+    }
+    if ((path === "/vita/proof-log" || path === "/vita/proof-log/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      const n = String(url.searchParams.get("n") || "").trim();
+      const tab = String(url.searchParams.get("tab") || "open").trim();
+      if (n) {
+        const found = getProofLogEntry(n);
+        if (!found.ok) return json(res, { ok: false, reason: found.reason }, 404);
+        return json(res, {
+          ok: true,
+          entry: found.entry,
+          card: formatProofLogEntryCard(found.entry, { tab }),
+          neverInventHashes: true,
+        });
+      }
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, publicProofLogState());
+      }
+      return servePublicHtml(res, VITA_PROOF_LOG_HTML, "vita proof-log");
+    }
+    if ((path === "/vita/proof-log/download" || path === "/vita/proof-log/download/") && req.method === "GET") {
+      const n = String(url.searchParams.get("n") || "").trim();
+      const found = getProofLogEntry(n);
+      if (!found.ok) return json(res, { ok: false, reason: found.reason }, 404);
+      const checked = verifyCompressionKey(found.entry.key);
+      if (!checked.ok || !checked.bytes) {
+        return json(res, { ok: false, reason: checked.reason || "recover refused" }, 404);
+      }
+      const name = found.entry.name || ("proof-" + found.entry.n + ".bin");
+      const mime = found.entry.mime || "application/octet-stream";
+      res.writeHead(200, {
+        "content-type": mime,
+        "content-disposition": 'attachment; filename="' + String(name).replace(/"/g, "") + '"',
+        "content-length": checked.bytes.length,
+        "cache-control": "no-store",
+      });
+      res.end(checked.bytes);
+      return true;
     }
     if ((path === "/vita/compression/verify" || path === "/vita/compression/verify/") && req.method === "GET") {
       const key = String(url.searchParams.get("key") || "").trim();

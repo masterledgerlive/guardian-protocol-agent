@@ -36,6 +36,10 @@ import {
   codecPriority,
   listCodecProjects,
 } from "./codecs.js";
+import {
+  logCompressionFiled,
+  logCompressionVerified,
+} from "../proof-log.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const VITA = join(HERE, "..");
@@ -51,6 +55,37 @@ export const KEY_PREFIX = "VITACOMP";
 
 const KINDS = new Set(["personal", "program", "video", "audio", "image", "text", "file"]);
 const PAYLOAD_INLINE_MAX = 120_000;
+
+function proofLogOptsFrom(opts = {}) {
+  if (opts.proofLog && typeof opts.proofLog === "object") return opts.proofLog;
+  if (opts.directoryPath) {
+    const dir = dirname(opts.directoryPath);
+    return {
+      trailPath: join(dir, "proof-log-trail.json"),
+      learnPath: join(dir, "proof-log-learn.json"),
+      strandPath: join(dir, "proof-log-strand.json"),
+    };
+  }
+  return {};
+}
+
+function noteProofFiled(filed, { rootPath = "", storePath = "" } = {}, opts = {}) {
+  if (!filed?.ok || !filed.key) return null;
+  try {
+    return logCompressionFiled(filed, { rootPath, storePath }, proofLogOptsFrom(opts));
+  } catch {
+    return null;
+  }
+}
+
+function noteProofVerified(checked, { rootPath = "" } = {}, opts = {}) {
+  if (!checked?.key) return null;
+  try {
+    return logCompressionVerified(checked, { rootPath }, proofLogOptsFrom(opts));
+  } catch {
+    return null;
+  }
+}
 
 function sha256Hex(buf) {
   return createHash("sha256").update(buf).digest("hex");
@@ -474,6 +509,12 @@ export function fileCompression({
   for (const row of bench.rows) delete row.payload;
   const growth = recommendForKind(fileKind, opts);
   const call = verifyCall(entry);
+  const storePath = storeFile(key, opts);
+  const trail = noteProofFiled(
+    { ...call, ok: true, entry, key },
+    { rootPath: entry.name, storePath },
+    opts,
+  );
   return {
     ...call,
     ok: true,
@@ -483,6 +524,7 @@ export function fileCompression({
     payload: packed.payload,
     stageBody: buildFileInjectBody(entry, packed.payload),
     directoryBody: buildDirectoryInjectBody(directory),
+    proofLog: trail?.entry || null,
   };
 }
 
@@ -706,7 +748,11 @@ export function addCompressionFile({ name, mime, kind, bytes, source = "add", in
     includePython: includePython != null ? includePython : opts.includePython !== false,
     extraCodecs: opts.extraCodecs || [],
   }, opts);
-  return { ...filed, inboxPath: dest };
+  // Re-bind root path to the inbox absolute location (trace to root).
+  if (filed.ok && filed.key) {
+    noteProofFiled(filed, { rootPath: dest, storePath: storeFile(filed.key, opts) }, opts);
+  }
+  return { ...filed, inboxPath: dest, proofLog: filed.proofLog || null };
 }
 
 function formatRow(row) {
@@ -1006,7 +1052,11 @@ export function buildCompressionKeyboard({ key = "", n = null } = {}) {
     ],
     [
       { text: "📂 Keys", callback_data: "/vitafeed compress dir" },
+      { text: "📜 Trail", callback_data: "/vitafeed trail" },
+    ],
+    [
       { text: "📁 COMPRESS", callback_data: "/vitafeed dir COMPRESS" },
+      { text: "📁 PROOFLOG", callback_data: "/vitafeed dir PROOFLOG" },
     ],
     [
       { text: "👁 Unwrap", callback_data: unwrapCmd },
@@ -1186,13 +1236,30 @@ export function handleCompressionRequest({
     };
     const files = Object.values(readCompressionDirectory(opts).files || {});
     const n = files.findIndex((f) => f.key === checked.key) + 1 || null;
+    const trail = noteProofVerified(
+      checked,
+      { rootPath: entry?.name || checked.name || "" },
+      opts,
+    );
+    let reply = formatCompressionUnwrapCard(checked, { timing, entry });
+    if (trail?.entry) {
+      reply +=
+        "\n\nPROOFLOG #" +
+        trail.entry.n +
+        " · race=#" +
+        (trail.entry.race?.slot ?? "—") +
+        (trail.entry.race?.proofedFirst ? " FIRST" : "") +
+        " · /vitafeed log " +
+        trail.entry.n;
+    }
     return {
       ...checked,
       phase: "compress",
       unwrap: true,
       entry,
       timing,
-      reply: formatCompressionUnwrapCard(checked, { timing, entry }),
+      proofLog: trail?.entry || null,
+      reply,
       keyboard: buildCompressionKeyboard({ key: checked.key || "", n: n || null }),
     };
   }

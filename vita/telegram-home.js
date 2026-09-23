@@ -112,6 +112,8 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Comp add", cmd: "/vitafeed compress add" },
       { label: "Comp dir", cmd: "/vitafeed compress dir" },
       { label: "Comp unwrap", cmd: "/vitafeed compress unwrap" },
+      { label: "Trail", cmd: "/vitafeed trail" },
+      { label: "Proof log", cmd: "/vitafeed log" },
       { label: "Phosphor", cmd: "/phosphor" },
       { label: "Phos dir", cmd: "/phosphor dir" },
       { label: "Demo play", cmd: "/vitafeed play demo" },
@@ -134,8 +136,24 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Unwrap", cmd: "/vitafeed compress unwrap" },
       { label: "Inject", cmd: "/vitafeed compress inject" },
       { label: "Learn", cmd: "/vitafeed compress learn" },
+      { label: "Trail", cmd: "/vitafeed trail" },
       { label: "Dir COMPRESS", cmd: "/vitafeed dir COMPRESS" },
+      { label: "Dir PROOFLOG", cmd: "/vitafeed dir PROOFLOG" },
       { label: "Confirm", cmd: "/vitafeed confirm" },
+    ],
+  },
+  {
+    id: "prooflog",
+    title: "Proof log",
+    emoji: "📜",
+    blurb: "Creation-order trail · key+root · Plain|Machine|Original tabs · race 1–3 · chain credit",
+    buttons: [
+      { label: "Trail", cmd: "/vitafeed trail" },
+      { label: "Open latest", cmd: "/vitafeed log 1" },
+      { label: "Dir", cmd: "/vitafeed dir PROOFLOG" },
+      { label: "Compress", cmd: "/vitafeed compress" },
+      { label: "Add file", cmd: "/vitafeed compress add" },
+      { label: "Unwrap", cmd: "/vitafeed compress unwrap" },
     ],
   },
   {
@@ -183,6 +201,7 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Board dir", cmd: "/vitafeed dir BOARD" },
       { label: "Voxel dir", cmd: "/vitafeed dir VOXEL" },
       { label: "Compress dir", cmd: "/vitafeed dir COMPRESS" },
+      { label: "Prooflog dir", cmd: "/vitafeed dir PROOFLOG" },
       { label: "Phos dir", cmd: "/vitafeed dir PHOS" },
       { label: "Unlock", cmd: "/vitafeed unlock CODEX\\math-euler.txt" },
       { label: "Cipher", cmd: "/vitafeed cipher" },
@@ -312,7 +331,6 @@ export const HOME_SECTIONS = Object.freeze([
     ],
   },
 ]);
-
 export function homeSectionById(id) {
   return HOME_SECTIONS.find((s) => s.id === String(id || "").toLowerCase()) || null;
 }
