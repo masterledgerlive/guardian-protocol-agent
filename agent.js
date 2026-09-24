@@ -135,6 +135,15 @@ import {
   saveWaveHlLedger,
 } from "./vita/wave-hl-ledger.js";
 import {
+  applyWavePebbles,
+  buildWaveAgentDesk,
+  formatLullTelegram,
+  formatWaveAgentsTelegram,
+  formatWaveClickCard,
+  pullWavePebbles,
+  CHAIN_PULL_TTL_MS,
+} from "./vita/wave-agent-bank.js";
+import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
@@ -3496,6 +3505,8 @@ const waveState    = {};
 /** Durable highs/lows. The 8-swing window is not the memory. */
 let waveHlLedger = createWaveHlLedger();
 let waveHlFromPositions = null;
+let waveChainCache = { at: 0, anchors: 0, trails: 0, whl: 0, error: null };
+let waveChainScan = null;
 const tradeLog     = [];
 let netPositions   = {};
 /** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
@@ -3544,6 +3555,79 @@ function collectWaveBoardRows() {
     rows.push({ ...assessed, plan, balance: bal });
   }
   return rows;
+}
+
+function liveWaveDesk() {
+  const rows = collectWaveBoardRows();
+  const { balances, prices } = waveBalanceMaps();
+  return buildWaveAgentDesk({
+    rows,
+    trades: tradeLog,
+    balances,
+    prices,
+    chain: waveChainCache,
+    symbols: tokens.map((t) => t.symbol),
+  });
+}
+
+function waveBalanceMaps() {
+  const balances = {};
+  const prices = {};
+  for (const t of tokens) {
+    balances[t.symbol] = getCachedBalance(t.symbol) || 0;
+    prices[t.symbol] = history[t.symbol]?.lastPrice || 0;
+  }
+  return { balances, prices };
+}
+
+function waveClickCard(symbol) {
+  const sym = String(symbol || "").toUpperCase();
+  const row = collectWaveBoardRows().find((r) => r.symbol === sym) || null;
+  const { balances, prices } = waveBalanceMaps();
+  return formatWaveClickCard({
+    symbol: sym,
+    row,
+    chain: waveChainCache,
+    trades: tradeLog,
+    balances,
+    prices,
+  });
+}
+
+function refreshWaveChainPebbles() {
+  if (waveChainScan) return waveChainScan;
+  if (waveChainCache.at && Date.now() - waveChainCache.at < CHAIN_PULL_TTL_MS) {
+    return Promise.resolve(waveChainCache);
+  }
+  waveChainScan = pullWavePebbles({ limit: 40 }).then((pull) => {
+    const applied = applyWavePebbles(waveHlLedger, pull.pebbles);
+    if (applied.accepted > 0 || applied.ridesSealed > 0) {
+      try { saveWaveHlLedger(waveHlLedger); }
+      catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+    }
+    waveChainCache = {
+      at: Date.now(),
+      anchors: pull.anchors,
+      trails: pull.trails,
+      whl: pull.whl,
+      error: null,
+    };
+    console.log(`🌊 WHL pebbles: ${pull.whl} on ${pull.anchors} anchors + ${pull.trails} trails`);
+    return waveChainCache;
+  }).catch((e) => {
+    waveChainCache = {
+      at: Date.now(),
+      anchors: waveChainCache.anchors || 0,
+      trails: waveChainCache.trails || 0,
+      whl: waveChainCache.whl || 0,
+      error: e.message || String(e),
+    };
+    console.log(`⚠️  wave pebble pull: ${waveChainCache.error}`);
+    return waveChainCache;
+  }).finally(() => {
+    waveChainScan = null;
+  });
+  return waveChainScan;
 }
 
 function captureWavePrintsFromBoot() {
@@ -10882,8 +10966,13 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           } else if (out.symbol && out.symbol !== "ETH" && (out.action === "token" || out.action === "dex" || out.action === "legit")) {
             markup = buildTokenActionKeyboard(out.symbol);
           }
+          let body = out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>";
+          if (parsedTok.symbol && out.action === "token") {
+            body += "\n\n" + waveClickCard(out.symbol || parsedTok.symbol);
+            refreshWaveChainPebbles().catch(() => {});
+          }
           await tg(
-            "🪙 <b>TOKENS</b>\n" + (out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>"),
+            "🪙 <b>TOKENS</b>\n" + body,
             { reply_markup: markup, disable_web_page_preview: true },
           );
         } catch (e) {
@@ -11152,10 +11241,17 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `\n<i>Use /fib SYMBOL for the full ladder map</i>`;
           await tg(msg);
         }
+      } else if (text === "/lull") {
+        refreshWaveChainPebbles().catch(() => {});
+        await tg(formatLullTelegram(liveWaveDesk()));
+      } else if (text === "/waveagents") {
+        refreshWaveChainPebbles().catch(() => {});
+        await tg(formatWaveAgentsTelegram(liveWaveDesk()));
       } else if (text === "/waveboard" || text.startsWith("/waveboard ")) {
         const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
         const rows = collectWaveBoardRows();
         const cascade = pickCascadeToken(rows);
+        refreshWaveChainPebbles().catch(() => {});
         if (sym) {
           const row = rows.find((r) => r.symbol === sym);
           if (!row) {
@@ -11164,7 +11260,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             await tg(formatWaveTokenTelegram(row, {
               ride: lastWaveHlRide(waveHlLedger, sym),
               cascade,
-            }));
+            }) + "\n\n" + waveClickCard(sym));
           }
         } else {
           await tg(formatWaveBoardTelegram(rows, { cascade }));
@@ -14943,6 +15039,7 @@ async function main() {
   await bootstrapWavesFromLedger();
   bootstrapWavesFromCandles();
   captureWavePrintsFromBoot();
+  refreshWaveChainPebbles().catch(() => {});
 
   // ── ON-CHAIN POSITION RECOVERY — PURE BLOCKCHAIN TRUTH ──────────────────
   // Every restart: scan wallet on Base directly for all token balances

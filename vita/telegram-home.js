@@ -219,6 +219,8 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Waveproof", cmd: "/waveproof" },
       { label: "Wavefull", cmd: "/wavefull" },
       { label: "Wave board", cmd: "/waveboard" },
+      { label: "Lull", cmd: "/lull" },
+      { label: "Wave agents", cmd: "/waveagents" },
       { label: "Hitch tip", cmd: "/wavetest hitch" },
     ],
   },

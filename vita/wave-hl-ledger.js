@@ -172,10 +172,13 @@ export function recordWaveExtreme(ledger, {
   const arr = sd === "high" ? slot.highs : slot.lows;
   const when = Number.isFinite(num(at)) ? num(at) : Date.now();
   const src = String(source || "live");
+  const fromChain = src === "chain";
   touchExtreme(slot, sd, px);
   const near = (x) => Math.abs(x.p - px) / px < minMove;
-  if (src.startsWith("boot")) {
-    if (arr.some(near)) return { accepted: false, reason: "boot-dupe", symbol: sym, side: sd };
+  if (src.startsWith("boot") || fromChain) {
+    if (arr.some(near)) {
+      return { accepted: false, reason: fromChain ? "chain-dupe" : "boot-dupe", symbol: sym, side: sd };
+    }
   } else if (arr.some((x) => x.t === when && near(x))) {
     return { accepted: false, reason: "time-dupe", symbol: sym, side: sd };
   } else {
@@ -186,8 +189,10 @@ export function recordWaveExtreme(ledger, {
   }
   arr.push({ p: px, t: when, src });
   arr.sort((a, b) => a.t - b.t);
-  if (sd === "high") slot.highCount += 1;
-  else slot.lowCount += 1;
+  if (!fromChain) {
+    if (sd === "high") slot.highCount += 1;
+    else slot.lowCount += 1;
+  }
   while (arr.length > MAX_PRINTS) arr.shift();
   ledger.updatedAt = new Date().toISOString();
   return { accepted: true, symbol: sym, side: sd, price: px, at: when };

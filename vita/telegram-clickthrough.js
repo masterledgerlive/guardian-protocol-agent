@@ -460,6 +460,10 @@ export function buildTokenActionKeyboard(symbol) {
         btn("📊 Status", "/status"),
       ],
       [
+        btn("🌊 Wave", "/waveboard " + sym),
+        btn("💸 Dividend", "/dividend " + sym),
+      ],
+      [
         btn("📡 DEX", "/dex " + sym),
         btn("⚖️ Legit", "/legit " + sym),
         btn("⬅️ Tokens", "/tokens"),
