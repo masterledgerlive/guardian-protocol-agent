@@ -75,8 +75,12 @@
 //   GET  /vita/spatial/loc  — exact §VITASPATIAL§ VIN UTF-8
 //   GET  /vita/spatial/soundtrack — agentic neighborhood soundtrack
 //   GET  /vita/photos       — Photos Drive HTML + catalog JSON
+//   GET  /vita/photos/viewer — DOS blockchain inject stream (not blackout)
+//   GET  /vita/photos/unwrap — per-VIN inject plan + receipt paths
 //   GET  /vita/photos/media — picture bytes by open-catalog id
 //   GET  /vita/photos/locs  — LOCAL_OK vs MATCH · sealed inject click-through
+//   GET  /vita/photos/loc   — exact VIN UTF-8 data field (JSON)
+//   GET  /vita/photos/receipt — READ PROOF HTML · Input Data → UTF-8
 //   POST /vita/photos/source — bind Drive / folder / URL as new Google Drive
 //   POST /vita/photos/scan · /next · /all · /add · /test · /enqueue
 //   GET  /vita/compression  — codec bake-off page + key directory JSON
@@ -208,6 +212,7 @@ import {
   publicPhotosState,
   publicPhotosMedia,
   publicPhotosLocs,
+  publicPhotosLoc,
   publicPhotosUnwrap,
   publicPhotosGroup,
   setPhotoSource,
@@ -220,6 +225,7 @@ import {
   filePhoto,
   enqueuePhoto,
   formatPhotosCard,
+  formatPhotoReceiptHtml,
 } from "./vita/photos.js";
 import { enqueueFeedBacklogItem } from "./vita/vita-feed-backlog.js";
 import {
@@ -1023,6 +1029,25 @@ async function handleVitaRequest(req, res) {
       const id = String(url.searchParams.get("id") || "earthrise").trim();
       const g = Number(url.searchParams.get("g") || 1) || 1;
       return json(res, publicPhotosGroup(id, g));
+    }
+    if ((path === "/vita/photos/loc" || path === "/vita/photos/loc/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "earthrise").trim();
+      const g = url.searchParams.get("g") || url.searchParams.get("group") || "1";
+      const i = url.searchParams.get("i") || url.searchParams.get("index") || "1";
+      return json(res, publicPhotosLoc(id, g, i));
+    }
+    if ((path === "/vita/photos/receipt" || path === "/vita/photos/receipt/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "earthrise").trim();
+      const g = url.searchParams.get("g") || url.searchParams.get("group") || "1";
+      const i = url.searchParams.get("i") || url.searchParams.get("index") || "1";
+      const inspected = publicPhotosLoc(id, g, i);
+      const html = formatPhotoReceiptHtml(inspected);
+      res.writeHead(inspected?.ok ? 200 : 404, {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+      });
+      res.end(html);
+      return true;
     }
     if ((path === "/vita/photos/media" || path === "/vita/photos/media/") && req.method === "GET") {
       const id = String(url.searchParams.get("id") || "earthrise").trim();
@@ -1978,7 +2003,8 @@ export function startVitaWebhook() {
     console.log("   /vita/wavefull  — WAVE 28-shard quote (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/vitafeed  — exact plain feed (GET SIM; POST live+force auth)");
     console.log("   /vita/photos — Photos Drive · Earthrise/MLK hope tests · open-picture key");
-    console.log("   /vita/photos/viewer — DOS unwrap pop-out · stream locs → populate picture");
+    console.log("   /vita/photos/viewer — blockchain inject stream · READ PROOF receipts (not blackout)");
+    console.log("   /vita/photos/loc · /receipt — exact VIN UTF-8 + Basescan Input Data click-through");
     console.log("   /vita/compression — codec bake-off page + verified key directory");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");

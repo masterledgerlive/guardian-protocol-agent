@@ -17,6 +17,8 @@ import {
   parsePhotoSource,
   packetizePhoto,
   buildUnwrapPlan,
+  inspectPhotoLoc,
+  formatPhotoReceiptHtml,
   listPhotosOrdered,
   photosEntriesFor,
   isPhotoEnqueueSelector,
@@ -70,11 +72,31 @@ describe("vita photos drive", () => {
     assert.equal(plan.ok, true);
     assert.ok(plan.blocks.length >= 1);
     assert.equal(plan.blocks[0].match, "LOCAL_OK");
+    assert.ok(plan.blocks[0].dataField);
+    assert.ok(plan.blocks[0].calldataHex.startsWith("0x"));
+    assert.match(plan.blocks[0].receiptPath, /\/vita\/photos\/receipt\?/);
+    assert.match(plan.blocks[0].inspectPath, /\/vita\/photos\/loc\?/);
+    assert.match(plan.proof, /BLOCKCHAIN INJECT/i);
     assert.ok(plan.viewerPath.includes(PHOTOS_VIEWER_PATH));
     assert.ok(plan.dos.path.includes("PHOTOS"));
+
+    const ins = inspectPhotoLoc({
+      id: "earthrise",
+      groupN: plan.blocks[0].groupN,
+      index: plan.blocks[0].index,
+    });
+    assert.equal(ins.ok, true);
+    assert.equal(ins.trueToBlock, true);
+    assert.equal(ins.dataFieldCommit, plan.blocks[0].dataFieldCommit);
+    assert.equal(ins.dataField, plan.blocks[0].dataField);
+    assert.equal(ins.proof, "INJECT_PREVIEW");
+    const html = formatPhotoReceiptHtml(ins);
+    assert.match(html, /EXACT INPUT DATA FIELD/);
+    assert.match(html, /CALLDATA HEX/);
+    assert.ok(html.includes(ins.dataFieldCommit));
   });
 
-  it("MLK historical uplift files + unwrap stream plan", () => {
+  it("MLK historical uplift files + blockchain inject plan", () => {
     assert.ok(existsSync(MLK), "MLK fixture must exist");
     const tested = runMlkTest({ compress: true });
     assert.equal(tested.ok, true);
@@ -85,8 +107,10 @@ describe("vita photos drive", () => {
     const plan = buildUnwrapPlan("mlk");
     assert.equal(plan.ok, true);
     assert.ok(plan.blocks.length >= 1);
+    assert.ok(plan.injectCount >= 1);
     assert.ok(plan.packetCount >= 1);
     assert.match(plan.zeroOpenKey, /mlk/i);
+    assert.ok(plan.blocks.every((b) => b.receiptPath && b.dataField));
   });
 
   it("ordered searchable catalog", () => {

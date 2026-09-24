@@ -880,7 +880,7 @@ export function vitaFeedUsageText() {
     "  /vitafeed photos add       — send one picture (open key = the picture)",
     "  /vitafeed photos test      — Earthrise (NASA PD) hope full-system test",
     "  /vitafeed photos test mlk  — MLK historical uplift full-system test",
-    "  /vitafeed photos unwrap [id] — DOS pop-out unwrap viewer (stream locs → picture)",
+    "  /vitafeed photos unwrap [id] — blockchain inject stream + READ PROOF receipts",
     "  /vitafeed dir PHOTOS       — DOS list · open-picture unlock",
     "  /vitafeed enqueue photo <id> — queue picture §VITAFILE§ groups for confirm|override",
     "  /vitafeed enqueue photos   — bank every catalog picture",

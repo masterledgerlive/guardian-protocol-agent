@@ -144,7 +144,7 @@ findable.
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
 | `vita/photos.js` | `PHOTOS` | Photos Drive — Google Drive/folder/URL → open-picture key → compress → §VITAFILE§ → inject; slow-copy queue; Earthrise PD hope test |
 | `public/vita-photos.html` | `PHOTOS` | Photos Drive UI · bind source · scan · slow-copy · gallery click → unwrap pop-out |
-| `public/vita-photos-viewer.html` | `PHOTOS` | DOS CRT unwrap viewer · searchable library · stream loc rail → populate picture · clickable Basescan |
+| `public/vita-photos-viewer.html` | `PHOTOS` | DOS CRT blockchain inject stream · searchable library · VIN data-field rail · READ PROOF receipts · Basescan Input Data → UTF-8 |
 | `vita/photos/inbox/` | `PHOTOS` | Drop pictures here for batch ingest |
 | `vita/memory/photos/` | `PHOTOS` | Filed picture bytes (Earthrise seed + user photos) |
 | `vita/memory/photos-catalog.json` | `PHOTOS` | Picture catalog · sha256 · zeroOpenKey · compression · locs empty until seal |
