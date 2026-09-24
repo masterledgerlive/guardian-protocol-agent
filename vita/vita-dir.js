@@ -8,7 +8,7 @@
  *     REF_LIB\   CODEX\     MG_RECALL\
  *     LIBRARY\   PROVEN\   KIDS\
  *     PLAYERS\   MUSIC\     BOARD\    CHAIN\    X404\
- *     AGENTS\    OS\        COMPRESS\  PHOS\
+ *     AGENTS\    OS\        COMPRESS\  PHOTOS\  PHOS\
  *
  * Unlock key is OPEN SOURCE — file name + content digest. Never a private key.
  * Machine-short (ZK-style squash) unwraps instantly to English + machine blocks
@@ -33,6 +33,7 @@ import { spatialEntriesFor } from "./spatial-sound.js";
 import { listX404DirEntries, lookupX404Tag, provenX404Locs } from "./x404-dir.js";
 import { playerDirEntriesFor } from "./players/index.js";
 import { compressionDirEntries, verifyCompressionKey, plainTextFromBytes, machineLineFromEntry } from "./compression/index.js";
+import { photosEntriesFor } from "./photos.js";
 import { proofLogDirEntries, getProofLogEntry } from "./proof-log.js";
 import { osBuilderDirEntries } from "./os-builder.js";
 
@@ -69,6 +70,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
   { name: "OS", role: "DOS brain builder · IFTTT · follow-leader · sandbox", filing: "OS_BUILDER" },
   { name: "COMPRESS", role: "codec bake-off · verified key directory · then inject", filing: "COMPRESS" },
+  { name: "PHOTOS", role: "Google Drive / folder / URL pictures · open-picture key · slow-copy → inject", filing: "PHOTOS" },
   { name: "PROOFLOG", role: "creation-order proof-of-logs trail · key+root · race 1–3", filing: "PROOFLOG" },
   { name: "PHOS", role: "PHOSPHOR CRT · wire store · PLAY/PICTURE library", filing: "PHOSPHOR" },
 ]);
@@ -392,6 +394,8 @@ function dirEntriesFor(subdir) {
     listX404DirEntries().forEach((e) => out.push(e));
   } else if (name === "COMPRESS" || name === "COMPRESSION" || name === "CODEC") {
     compressionDirEntries().forEach((e) => out.push(e));
+  } else if (name === "PHOTOS" || name === "PHOTO" || name === "PICTURES" || name === "GDRIVE") {
+    photosEntriesFor().forEach((e) => out.push(e));
   } else if (name === "PROOFLOG" || name === "PROOF" || name === "TRAIL") {
     proofLogDirEntries().forEach((e) => out.push(e));
   } else if (name === "PHOS" || name === "PHOSPHOR") {

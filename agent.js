@@ -10757,6 +10757,31 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           }
           continue;
         }
+        if (awaitingVitaFile.purpose === "photos") {
+          takeVitaFeedFileAwait(msgChatId);
+          try {
+            const dl = await downloadTelegramFileBytes(mediaOnMessage.fileId);
+            if (!dl.ok) {
+              await tg("❌ photo read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            const out = await handleVitaFeedAction({
+              action: "photos",
+              body: "add",
+              chatId: msgChatId,
+              photoBytes: dl.bytes,
+              photoName: mediaOnMessage.name,
+              photoMime: mediaOnMessage.mime,
+            });
+            let msg = "📷 <b>PHOTOS DRIVE</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+            msg += "Enqueue: <code>/vitafeed enqueue photo " + (out.id || out.filed?.id || "") + "</code> → confirm|override.";
+            await tg(msg, { reply_markup: out.keyboard || buildVitaFeedStagedKeyboard() });
+          } catch (e) {
+            await tg("❌ photos add failed: " + (e.message || e));
+          }
+          continue;
+        }
         takeVitaFeedFileAwait(msgChatId);
         await tg(
           "📡 <b>VITAFEED FILE</b> — got <code>" + mediaOnMessage.name + "</code> (" +
@@ -13674,6 +13699,17 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           continue;
         }
 
+        if (parsed.ok && parsed.action === "photos" && parsed.wantsFile && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command", purpose: "photos" });
+          await tg(
+            "📷 <b>PHOTOS DRIVE</b>\n" +
+            "Please send a picture (jpg/png/webp/gif).\n" +
+            "Open key = the picture (name+sha256). Compression bake-off runs next.\n" +
+            "Then <code>/vitafeed enqueue photo &lt;id&gt;</code> → confirm|override. Locs empty until seal.",
+          );
+          continue;
+        }
+
         if (parsed.ok && parsed.action === "file" && !mediaHint.ok) {
           beginVitaFeedFileAwait(msgChatId, { via: "command" });
           await tg(
@@ -13844,6 +13880,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           let compressionBytes = null;
           let compressionName = "";
           let compressionMime = "";
+          let photoBytes = null;
+          let photoName = "";
+          let photoMime = "";
           if (parsed.action === "compress" && mediaHint.ok && mediaSourceMsg) {
             const dl = await downloadTelegramFileBytes(mediaHint.fileId);
             if (!dl.ok) {
@@ -13853,6 +13892,16 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             compressionBytes = dl.bytes;
             compressionName = mediaHint.name;
             compressionMime = mediaHint.mime;
+          }
+          if (parsed.action === "photos" && mediaHint.ok && mediaSourceMsg) {
+            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
+            if (!dl.ok) {
+              await tg("❌ photo read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            photoBytes = dl.bytes;
+            photoName = mediaHint.name;
+            photoMime = mediaHint.mime;
           }
 
           const isPaidConfirm =
@@ -14074,6 +14123,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               compressionBytes,
               compressionName,
               compressionMime,
+              photoBytes,
+              photoName,
+              photoMime,
             });
             // Brain activate → queue §TOKEN§ learn for next /vitasave (bank path).
             if (parsed.action === "brain" && out.brainLearn?.vitaSave?.tokenPacket) {

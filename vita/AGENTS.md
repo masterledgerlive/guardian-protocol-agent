@@ -228,6 +228,17 @@ step is a button (HOME → Compress, Feed → Comp add,
 `/vitafeed dir COMPRESS`). Next module is `/vitafeed` injection
 (confirm|override). Chain stays availability until a real seal. Never invent
 hashes. See `vita/compression/`.
+**Photos Drive (new Google Drive for pictures):** `/vitafeed photos` ·
+`/vitafeed photos source <drive-url|folder|https>` · `/vitafeed photos scan` ·
+`/vitafeed photos next` · `/vitafeed photos all` · `/vitafeed photos add` ·
+`/vitafeed photos test` · `/vitafeed enqueue photo <id>` ·
+`/vitafeed enqueue photos` · `/vitafeed dir PHOTOS` · `/vita/photos` —
+bind a public Google Drive share, local folder, or URL as the picture source;
+slow-copy one-by-one or batch; open key is the picture itself (`VITAOPEN…`);
+compression bake-off then §VITAFILE§ VIN; Earthrise (NASA PD) hope full test
+seeds `VITA:\PHOTOS\`. LOCK private locate/decode waits until you grant encode
+permissions. Locs empty until confirm|override. Never invent hashes. See
+`vita/photos.js`.
 **Proof-of-logs trail:** `/vitafeed trail` · `/vitafeed log <n>` ·
 `/vitafeed log plain|machine|original|race <n>` ·
 `/vitafeed log chains <n> base,ethereum,…` · `/vitafeed dir PROOFLOG` —

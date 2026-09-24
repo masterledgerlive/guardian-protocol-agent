@@ -142,6 +142,16 @@ findable.
 | `vita/memory/filing-labels-learned.json` | `FILING` (refined) | Self-refining label map (PEER_REVIEW, ZERO_PROOF, …) |
 | `vita/memory/brain-learn-log.json` | `ZERO_PROOF` | Append-only learn cycles + hash-chain roots |
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
+| `vita/photos.js` | `PHOTOS` | Photos Drive — Google Drive/folder/URL → open-picture key → compress → §VITAFILE§ → inject; slow-copy queue; Earthrise PD hope test |
+| `public/vita-photos.html` | `PHOTOS` | Photos Drive UI · bind source · scan · slow-copy · gallery · Earthrise test |
+| `vita/photos/inbox/` | `PHOTOS` | Drop pictures here for batch ingest |
+| `vita/memory/photos/` | `PHOTOS` | Filed picture bytes (Earthrise seed + user photos) |
+| `vita/memory/photos-catalog.json` | `PHOTOS` | Picture catalog · sha256 · zeroOpenKey · compression · locs empty until seal |
+| `vita/memory/photos-sources.json` | `PHOTOS` | Bound Drive / folder / URL sources (new Google Drive) |
+| `vita/memory/photos-queue.json` | `PHOTOS` | Slow-copy queue (pending→filed) |
+| `vita/memory/photos-learn.json` | `PHOTOS` | Append-only learn: source / scan / file / earthrise / enqueue |
+| `vita/memory/photos-seals.json` | `PHOTOS` | Real sealed photo locs only — never invented hashes |
+| `vita/strands/photos.json` | `PHOTOS` | Sparse strand: source → compress → open key → inject |
 | `vita/compression/index.js` | `COMPRESS` | Bake-off every codec · verified open key · HUMAN unwrap from machine wire · key directory · stage injection |
 | `vita/compression/codecs.js` | `COMPRESS` | Codec projects (gemini zlib, zlib, deflate, gzip, brotli, identity). Add one object. |
 | `vita/compression/projects/gemini-zlib.py` | `COMPRESS` | Uploaded Gemini zlib.compress → 0x hex calldata project |
@@ -230,6 +240,7 @@ findable.
 | `FEED_LOADER` | Curated pack preload into backlog (`§VITALOAD§`) — cipher/prog hierarchy + did-you-know recall |
 | `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
 | `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; unwrap shows HUMAN plain from MACHINE wire; Telegram buttons on HOME/Feed/dir COMPRESS; key directory stages into `/vitafeed` injection; availability until a real seal |
+| `PHOTOS` | Photos Drive (`§VITAPHOTO§` / `§VITAPHOTODIR§`) — Google Drive/folder/URL as new picture drive; open key = the picture (VITAOPEN name+sha); compress bake-off; slow-copy queue; Earthrise PD hope test; `/vitafeed photos` · `dir PHOTOS`; locs empty until confirm\|override |
 | `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
 | `OS_BUILDER` | DOS brain builder (`§VITAOS§` / `§VITAAGENT§` / `§VITATRIGGER§` / `§VITAFOLLOW§`) — guided human↔machine wizard; IFTTT on Base kinds; follow-the-leader cells; sandbox cites hardcoded anchors only; seal stages /vitafeed; availability until real seal |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |
