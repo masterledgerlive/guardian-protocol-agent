@@ -24,7 +24,7 @@
       "locations": [],
       "chainStatus": "LOCAL_OK",
       "lock": false,
-      "filedAt": "2026-09-24T02:46:25.890Z",
+      "filedAt": "2026-09-24T03:33:19.932Z",
       "aliases": [
         "earth-rise",
         "apollo8",
@@ -57,8 +57,40 @@
       "locations": [],
       "chainStatus": "LOCAL_OK",
       "lock": false,
-      "filedAt": "2026-09-24T02:46:25.919Z"
+      "filedAt": "2026-09-24T03:33:20.122Z"
+    },
+    "mlk": {
+      "id": "mlk",
+      "title": "Martin Luther King Jr.",
+      "fileName": "mlk-i-have-a-dream.jpg",
+      "blurb": "Dr. Martin Luther King Jr. — historical uplift: nonviolence, dignity, and the dream of justice amid struggle.",
+      "license": "PD-candidate / Wikimedia Commons portrait",
+      "credit": "Wikimedia Commons — File:Martin_Luther_King,_Jr..jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Martin_Luther_King,_Jr..jpg",
+      "mime": "image/jpeg",
+      "playKind": "image",
+      "bytes": 44189,
+      "sha256": "9c2d723a282e0c551a7966f94622fd62737c4e9b359612f652334149f35bfd8f",
+      "zeroOpenKey": "VITAOPEN.mlk-i-have-a-dream.jpg.9c2d723a282e",
+      "contentCommit": "9c2d723a282e0c551a7966f94622fd62737c4e9b359612f652334149f35bfd8f",
+      "storePath": "vita/memory/photos/mlk-i-have-a-dream.jpg",
+      "compressionKey": "VITACOMP.brotli-11-v1.9c2d723a",
+      "compressionCodec": "brotli-11-v1",
+      "compressionVerified": true,
+      "packetCount": null,
+      "chunkBytes": 720,
+      "locations": [],
+      "chainStatus": "LOCAL_OK",
+      "lock": false,
+      "filedAt": "2026-09-24T03:33:20.389Z",
+      "aliases": [
+        "king",
+        "mlkjr",
+        "dream",
+        "i-have-a-dream",
+        "martin"
+      ]
     }
   },
-  "updatedAt": "2026-09-24T02:46:25.919Z"
+  "updatedAt": "2026-09-24T03:33:20.390Z"
 }

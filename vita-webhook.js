@@ -208,12 +208,15 @@ import {
   publicPhotosState,
   publicPhotosMedia,
   publicPhotosLocs,
+  publicPhotosUnwrap,
+  publicPhotosGroup,
   setPhotoSource,
   scanPhotoSource,
   processNextPhoto,
   processPhotoQueue,
   ingestPhotosInbox,
   runEarthriseTest,
+  runMlkTest,
   filePhoto,
   enqueuePhoto,
   formatPhotosCard,
@@ -294,6 +297,7 @@ const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
 const VITA_SPATIAL_HTML = join(ROOT, "public", "vita-spatial.html");
 const VITA_PHOTOS_HTML = join(ROOT, "public", "vita-photos.html");
+const VITA_PHOTOS_VIEWER_HTML = join(ROOT, "public", "vita-photos-viewer.html");
 const VITA_COMPRESSION_HTML = join(ROOT, "public", "vita-compression.html");
 const VITA_PROOF_LOG_HTML = join(ROOT, "public", "vita-proof-log.html");
 const VITA_OS_BUILDER_HTML = join(ROOT, "public", "vita-os-builder.html");
@@ -1000,9 +1004,25 @@ async function handleVitaRequest(req, res) {
       const accept = String(req.headers.accept || "");
       const id = String(url.searchParams.get("id") || "").trim();
       if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
-        return json(res, publicPhotosState(id || null));
+        return json(res, publicPhotosState(id || null, {
+          q: String(url.searchParams.get("q") || ""),
+          sort: String(url.searchParams.get("sort") || "filedAt"),
+          order: String(url.searchParams.get("order") || "asc"),
+        }));
       }
       return servePublicHtml(res, VITA_PHOTOS_HTML, "vita photos");
+    }
+    if ((path === "/vita/photos/viewer" || path === "/vita/photos/viewer/") && req.method === "GET") {
+      return servePublicHtml(res, VITA_PHOTOS_VIEWER_HTML, "vita photos unwrap viewer");
+    }
+    if ((path === "/vita/photos/unwrap" || path === "/vita/photos/unwrap/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "earthrise").trim();
+      return json(res, publicPhotosUnwrap(id));
+    }
+    if ((path === "/vita/photos/group" || path === "/vita/photos/group/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "earthrise").trim();
+      const g = Number(url.searchParams.get("g") || 1) || 1;
+      return json(res, publicPhotosGroup(id, g));
     }
     if ((path === "/vita/photos/media" || path === "/vita/photos/media/") && req.method === "GET") {
       const id = String(url.searchParams.get("id") || "earthrise").trim();
@@ -1063,15 +1083,19 @@ async function handleVitaRequest(req, res) {
       });
     }
     if ((path === "/vita/photos/test" || path === "/vita/photos/test/") && req.method === "POST") {
-      const tested = runEarthriseTest();
+      const body = (await readBody(req)) || {};
+      const which = String(body.id || body.test || body.photo || "").trim().toLowerCase();
+      const tested = which === "mlk" || which === "king" ? runMlkTest() : runEarthriseTest();
       return json(res, {
         ...tested,
         reply: tested.ok
-          ? formatPhotosCard("earthrise") + "\n\n🌍 EARTHRISE TEST PASS"
+          ? formatPhotosCard(tested.filed?.id || which || "earthrise") +
+            (which === "mlk" ? "\n\n🕊️ MLK TEST PASS" : "\n\n🌍 EARTHRISE TEST PASS")
           : tested.reason,
         neverInventHashes: true,
         chainStatus: "availability",
         locations: [],
+        viewerPath: tested.filed?.playerPath || null,
       });
     }
     if ((path === "/vita/photos/add" || path === "/vita/photos/add/") && req.method === "POST") {
@@ -1953,7 +1977,8 @@ export function startVitaWebhook() {
     console.log("   /vita/waveproof — WAVE 3-token proof (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/wavefull  — WAVE 28-shard quote (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/vitafeed  — exact plain feed (GET SIM; POST live+force auth)");
-    console.log("   /vita/photos — Photos Drive · Earthrise hope test · open-picture key");
+    console.log("   /vita/photos — Photos Drive · Earthrise/MLK hope tests · open-picture key");
+    console.log("   /vita/photos/viewer — DOS unwrap pop-out · stream locs → populate picture");
     console.log("   /vita/compression — codec bake-off page + verified key directory");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");

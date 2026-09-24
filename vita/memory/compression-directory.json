@@ -123,12 +123,12 @@
       "savedBytes": 19701,
       "rawHash": "4326e44ea3266c7dd28a65f17117290ca16000f2a719af32b8c79b0e36e8c058",
       "payloadHash": "e7f63dec17f4fa6d553c64f39f110fbf54c38b010b11295d5e798bb3d0da58b2",
-      "compressMs": 1.284,
+      "compressMs": 1.085,
       "calldataPreview": "0xecdb754c1d61173ff8b9b83bc5b9506e71285e5c8abbbbbb",
       "locations": [],
       "chainStatus": "availability",
       "source": "add",
-      "at": "2026-09-24T02:46:25.883Z"
+      "at": "2026-09-24T03:33:19.925Z"
     },
     "VITACOMP.deflate-raw-9-v1.c414cd0e": {
       "key": "VITACOMP.deflate-raw-9-v1.c414cd0e",
@@ -147,14 +147,38 @@
       "savedBytes": 3,
       "rawHash": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77",
       "payloadHash": "6dded381b913544bed418ac6e703d54a922deee023d177cd61dc01c65b604df0",
-      "compressMs": 0.073,
+      "compressMs": 0.03,
       "calldataPreview": "0xeb0cf073e7e592e2626060e0f5f470096260606004610e36",
       "locations": [],
       "chainStatus": "availability",
       "source": "add",
-      "at": "2026-09-24T02:46:25.917Z",
+      "at": "2026-09-24T03:33:20.120Z",
       "payloadBase64": "6wzwc+flkuJiYGDg9fRwCWJgYGAEYQ42BgYGedEjnWAJF8eQilvJf84fCOBnYGllbGhZ2aPIwMDA4Onq57LOKaEJAA=="
+    },
+    "VITACOMP.brotli-11-v1.9c2d723a": {
+      "key": "VITACOMP.brotli-11-v1.9c2d723a",
+      "codec": "brotli-11-v1",
+      "project": "brotli",
+      "name": "mlk-i-have-a-dream.jpg",
+      "mime": "image/jpeg",
+      "kind": "image",
+      "verified": true,
+      "recovered": true,
+      "answer": true,
+      "call": "verified",
+      "rawBytes": 44189,
+      "payloadBytes": 42931,
+      "ratio": 0.9715,
+      "savedBytes": 1258,
+      "rawHash": "9c2d723a282e0c551a7966f94622fd62737c4e9b359612f652334149f35bfd8f",
+      "payloadHash": "51a6eabcaf9fc6f5917ba2b84443fbfbe28c1733de97619a9df268f4b13717fe",
+      "compressMs": 129.278,
+      "calldataPreview": "0x1b9cac51e43c0198d5e6af7e6104f8aac06e76bc010557e1",
+      "locations": [],
+      "chainStatus": "availability",
+      "source": "add",
+      "at": "2026-09-24T03:33:20.384Z"
     }
   },
-  "updatedAt": "2026-09-24T02:46:25.917Z"
+  "updatedAt": "2026-09-24T03:33:20.384Z"
 }
