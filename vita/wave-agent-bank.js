@@ -17,9 +17,11 @@ import {
   fetchRecentWalletTransactions,
   fetchTxCalldataHex,
 } from "../vita-chain-reader.js";
+import { unwrapInjectDataField } from "./inject-route-arm.js";
 import {
   bankWaveHlRide,
   commitWaveHlRideHash,
+  extractWaveHlMachines,
   fmtWavePxDisplay,
   readWaveHlFromHex,
   recordWaveExtreme,
@@ -482,7 +484,18 @@ export function formatWaveAgentsTelegram(desk) {
 
 export function pebblesFromCalldata(hex, txHash) {
   if (!TX_RE.test(String(txHash || ""))) return [];
-  return readWaveHlFromHex(hex).map((p) => ({
+  const h = String(hex || "").replace(/^0x/i, "");
+  let lines = [];
+  if (h && h.length % 2 === 0) {
+    try {
+      const plain = unwrapInjectDataField(Buffer.from(h, "hex").toString("utf8"));
+      lines = extractWaveHlMachines(plain);
+    } catch {
+      lines = [];
+    }
+  }
+  if (!lines.length) lines = readWaveHlFromHex(hex);
+  return lines.map((p) => ({
     ...p,
     txHash: String(txHash),
     source: "chain",
