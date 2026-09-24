@@ -1,0 +1,263 @@
+{
+  "id": "wave-flow-arm-v1",
+  "owner": "vita",
+  "label": "ROBINHOOD_CRYPTO",
+  "watch": [
+    "ETH-USD",
+    "BTC-USD",
+    "LINK-USD",
+    "UNI-USD",
+    "AAVE-USD",
+    "AERO-USD",
+    "BRETT-USD",
+    "VIRTUAL-USD",
+    "MORPHO-USD",
+    "ZORA-USD",
+    "TOSHI-USD",
+    "AIXBT-USD",
+    "KEYCAT-USD",
+    "CLANKER-USD",
+    "VVV-USD",
+    "DOGINME-USD",
+    "USDC-USD"
+  ],
+  "snapshots": [
+    {
+      "source": "robinhood",
+      "at": "2026-09-24T02:02:40.000Z",
+      "unix": 1790215360,
+      "quotes": [
+        {
+          "pair": "ETH-USD",
+          "mark": 2675.246211815,
+          "bid": 2649.95991118,
+          "ask": 2700.53251245,
+          "prevClose": 2773.915,
+          "at": "2026-09-23T22:02:40.2-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "ETH",
+            "WETH"
+          ],
+          "sameToken": false
+        },
+        {
+          "pair": "BTC-USD",
+          "mark": 84091.71802066,
+          "bid": 83296.94604132,
+          "ask": 84886.49,
+          "prevClose": 86706.52,
+          "at": "2026-09-23T22:02:40.206-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "CBBTC"
+          ],
+          "sameToken": false
+        },
+        {
+          "pair": "LINK-USD",
+          "mark": 12.24906504,
+          "bid": 12.13088938,
+          "ask": 12.3672407,
+          "prevClose": 13.153805,
+          "at": "2026-09-23T22:02:40.233-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "LINK"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "UNI-USD",
+          "mark": 9.35726045,
+          "bid": 9.2667409,
+          "ask": 9.44778,
+          "prevClose": 10.709365,
+          "at": "2026-09-23T22:02:40.221-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "UNI"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "AAVE-USD",
+          "mark": 137.2190955,
+          "bid": 135.894,
+          "ask": 138.544191,
+          "prevClose": 152.433,
+          "at": "2026-09-23T22:02:40.223-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "AAVE"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "AERO-USD",
+          "mark": 0.668949205,
+          "bid": 0.6625565,
+          "ask": 0.67534191,
+          "prevClose": 0.728962525,
+          "at": "2026-09-23T22:02:40.159-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "AERO"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "BRETT-USD",
+          "mark": 0.0052518886973937,
+          "bid": 0.00525188869739367,
+          "ask": 0.00525188869739367,
+          "prevClose": 0.0059065596368843,
+          "at": "2026-09-23T22:01:53-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "BRETT"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "VIRTUAL-USD",
+          "mark": 0.6986585,
+          "bid": 0.691577,
+          "ask": 0.70574,
+          "prevClose": 0.7677335,
+          "at": "2026-09-23T22:02:40.207-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "VIRTUAL"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "MORPHO-USD",
+          "mark": 2.578013145,
+          "bid": 2.55103,
+          "ask": 2.60499629,
+          "prevClose": 2.692565,
+          "at": "2026-09-23T22:02:40.196-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "MORPHO"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "ZORA-USD",
+          "mark": 0.0086637,
+          "bid": 0.00857087,
+          "ask": 0.00875653,
+          "prevClose": 0.00916885,
+          "at": "2026-09-23T22:02:40.159-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "ZORA"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "TOSHI-USD",
+          "mark": 0.0001244527706726,
+          "bid": 0.000124452770672604,
+          "ask": 0.000124452770672604,
+          "prevClose": 0.0001364926987349,
+          "at": "2026-09-23T22:02:03-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "TOSHI"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "AIXBT-USD",
+          "mark": 0.0216550529844447,
+          "bid": 0.0216550529844447,
+          "ask": 0.0216550529844447,
+          "prevClose": 0.0239961916943388,
+          "at": "2026-09-23T22:01:49-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "AIXBT"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "KEYCAT-USD",
+          "mark": 0.0006711252856387,
+          "bid": 0.000671125285638674,
+          "ask": 0.000671125285638674,
+          "prevClose": 0.000699985794824587,
+          "at": "2026-09-23T22:01:43-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "KEYCAT"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "CLANKER-USD",
+          "mark": 13.2082242175959,
+          "bid": 13.2082242175959,
+          "ask": 13.2082242175959,
+          "prevClose": 14.71,
+          "at": "2026-09-23T22:01:53-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "CLANKER"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "VVV-USD",
+          "mark": 29.82919904,
+          "bid": 29.535647,
+          "ask": 30.12275108,
+          "prevClose": 32.98678727,
+          "at": "2026-09-23T22:02:40.184-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "VVV"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "DOGINME-USD",
+          "mark": 0.0000783098877804,
+          "bid": 0.0000783098877803929,
+          "ask": 0.0000783098877803929,
+          "prevClose": 0.0000811706226333012,
+          "at": "2026-09-23T22:01:00-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "DOGINME"
+          ],
+          "sameToken": true
+        },
+        {
+          "pair": "USDC-USD",
+          "mark": 1,
+          "bid": 1,
+          "ask": 1,
+          "prevClose": 1,
+          "at": "2026-09-23T22:02:40.254166661-04:00",
+          "routing": "Market Maker Routing",
+          "bookSymbols": [
+            "USDC"
+          ],
+          "sameToken": false
+        }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "line": "§RHD§v1|utc=2026-09-24T02:02:40.000Z|local=2026-09-24T02:02:40.000+00:00|unix=1790215360|label=ROBINHOOD_CRYPTO|owner=vita|src=robinhood|n=17|top=UNI@9.3573:-12.6,BRETT@0.005252:-11.1,CLANKER@13.2082:-10.2,AAVE@137.22:-10.0|wide=-|loc=-|next=END",
+      "at": "2026-09-24T02:02:40.000Z",
+      "txHash": null
+    }
+  ],
+  "updatedAt": "2026-09-24T02:07:34.818Z"
+}
