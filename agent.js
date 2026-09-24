@@ -112,6 +112,29 @@ import {
   ensureWatchSlot,
 } from "./history-slot.js";
 import {
+  assessWaveToken,
+  backfillWaveSwings,
+  bankWaveHlRide,
+  buildWaveHlMachine,
+  commitWaveHlRideHash,
+  createWaveHlLedger,
+  formatDividendMenu,
+  formatWaveBoardTelegram,
+  formatWaveStageSnippet,
+  formatWaveTokenTelegram,
+  ingestPriceList,
+  lastWaveHlRide,
+  loadWaveHlLedger,
+  pickCascadeToken,
+  planDividendWithdraw,
+  planWaveHlRide,
+  recentExtreme,
+  rehydrateWaveWindow,
+  recordWaveExtreme,
+  ridePrevTag,
+  saveWaveHlLedger,
+} from "./vita/wave-hl-ledger.js";
+import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
@@ -3470,6 +3493,9 @@ const lastSellArmed = Object.create(null);
 /** Per-token no-loss succession streaks (wave completes with net > 0). */
 const successionTracker   = createSuccessionTracker();
 const waveState    = {};
+/** Durable highs/lows. The 8-swing window is not the memory. */
+let waveHlLedger = createWaveHlLedger();
+let waveHlFromPositions = null;
 const tradeLog     = [];
 let netPositions   = {};
 /** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
@@ -3483,6 +3509,56 @@ const tokenBalanceCache = {};
 
 function initWaveState(symbol) {
   return ensureWaveSlot(waveState, symbol);
+}
+
+function rememberWaveExtreme(symbol, side, price, source, at) {
+  const rec = recordWaveExtreme(waveHlLedger, { symbol, side, price, source, at });
+  if (rec.accepted && source === "live") {
+    try { saveWaveHlLedger(waveHlLedger); }
+    catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+  }
+  return rec;
+}
+
+function collectWaveBoardRows() {
+  const rows = [];
+  for (const t of tokens) {
+    const price = history[t.symbol]?.lastPrice || 0;
+    const bal = getCachedBalance(t.symbol) || 0;
+    const entry = hasUsableCostBasis(t) ? t.entryPrice : null;
+    const assessed = assessWaveToken(waveHlLedger, {
+      symbol: t.symbol,
+      price,
+      entryPrice: entry,
+    });
+    const plan = planDividendWithdraw({
+      balance: bal,
+      priceUsd: price,
+      dividendPct: assessed.dividendPct,
+      piggyReserve: t.piggyReserve || 0,
+      symbol: t.symbol,
+      savedEarningsUsd: t.savedEarningsUsd || 0,
+      token: t,
+      env: process.env,
+    });
+    rows.push({ ...assessed, plan, balance: bal });
+  }
+  return rows;
+}
+
+function captureWavePrintsFromBoot() {
+  let added = 0;
+  for (const t of tokens) {
+    added += backfillWaveSwings(waveHlLedger, t.symbol, history[t.symbol]?.readings || []).added;
+    const ws = waveState[t.symbol];
+    if (ws?.peaks?.length) added += ingestPriceList(waveHlLedger, t.symbol, ws.peaks, "high", "boot-peak");
+    if (ws?.troughs?.length) added += ingestPriceList(waveHlLedger, t.symbol, ws.troughs, "low", "boot-trough");
+  }
+  rehydrateWaveWindow(waveHlLedger, initWaveState, WAVE_COUNT);
+  try { saveWaveHlLedger(waveHlLedger); }
+  catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+  const n = Object.keys(waveHlLedger.tokens || {}).length;
+  console.log(`📈 Wave HL ledger: ${n} token(s), ${added} new swing(s) — highs/lows kept`);
 }
 
 // ── PERMANENT TRADE LEDGER ────────────────────────────────────────────────────
@@ -4097,6 +4173,7 @@ function updateWaves(symbol, price) {
       const confirmed = ind.score <= -1;
       ws.peaks.push(m);
       if (ws.peaks.length > WAVE_COUNT) ws.peaks.shift();
+      rememberWaveExtreme(symbol, "high", m, "live");
       console.log(`   📈 [${symbol}] New peak: $${m.toFixed(8)} | ind score: ${ind.score} ${confirmed ? "✅CONFIRMED" : "⚠️unconfirmed"} | ${ind.detail}`);
     }
   }
@@ -4110,6 +4187,7 @@ function updateWaves(symbol, price) {
       const confirmed = ind.score >= 1;
       ws.troughs.push(m);
       if (ws.troughs.length > WAVE_COUNT) ws.troughs.shift();
+      rememberWaveExtreme(symbol, "low", m, "live");
       console.log(`   📉 [${symbol}] New trough: $${m.toFixed(8)} | ind score: ${ind.score} ${confirmed ? "✅CONFIRMED" : "⚠️unconfirmed"} | ${ind.detail}`);
 
       // WAVE INVALIDATION: if new trough breaks 5% below existing MIN,
@@ -4277,11 +4355,20 @@ function getNextProjectedPeak(symbol) {
 }
 
 
-function getMaxPeak(symbol)               { const ps = waveState[symbol]?.peaks   || []; return ps.length ? Math.max(...ps) : null; }
-function getMinTrough(symbol, skipLast)   {
+function getMaxPeak(symbol) {
+  const ps = waveState[symbol]?.peaks || [];
+  const fromState = ps.length ? Math.max(...ps) : null;
+  const fromLedger = recentExtreme(waveHlLedger, symbol, "high", { keep: WAVE_COUNT });
+  const vals = [fromState, fromLedger].filter((v) => v > 0);
+  return vals.length ? Math.max(...vals) : null;
+}
+function getMinTrough(symbol, skipLast) {
   let ts = waveState[symbol]?.troughs || [];
   if (skipLast && ts.length > 1) ts = ts.slice(0, -1);
-  return ts.length ? Math.min(...ts) : null;
+  const fromState = ts.length ? Math.min(...ts) : null;
+  const fromLedger = recentExtreme(waveHlLedger, symbol, "low", { keep: WAVE_COUNT, skipLast: !!skipLast });
+  const vals = [fromState, fromLedger].filter((v) => v > 0);
+  return vals.length ? Math.min(...vals) : null;
 }
 function getPeakCount(symbol)             { return (waveState[symbol]?.peaks   || []).length; }
 function getTroughCount(symbol)           { return (waveState[symbol]?.troughs || []).length; }
@@ -7495,6 +7582,70 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     } else if (waveRide.banked) {
       console.log(`   🌊 WAVE leftover banked — ${waveRide.reason}`);
     }
+    // Short §WHL§ ride-along: machine highs/lows + utc|local|unix.
+    // Follow prev= in the line. loc stays empty until this sell tx returns.
+    // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
+    let whlCost = 0;
+    let whlMachine = null;
+    try {
+      const whlRow = assessWaveToken(waveHlLedger, {
+        symbol: token.symbol,
+        price,
+        entryPrice: hasUsableCostBasis(token) ? token.entryPrice : null,
+      });
+      const cascadeSeat = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: token.symbol });
+      const prior = lastWaveHlRide(waveHlLedger, token.symbol);
+      const built = buildWaveHlMachine(whlRow, {
+        prev: ridePrevTag(prior),
+        from: prior?.txHash || "-",
+        loc: "-",
+        cascadeSymbol: cascadeSeat?.symbol || null,
+      });
+      whlMachine = built.line;
+      bankWaveHlRide(waveHlLedger, built, { symbol: token.symbol });
+      const whlBytes = built.bytes || 0;
+      const whlL1 = hitchL1?.ok && wantedHitchBytes > 0 && whlBytes > 0
+        ? (Number(hitchL1.l1FeeEth) || 0) * whlBytes / wantedHitchBytes
+        : 0;
+      whlCost = whlBytes > 0 ? estimateCalldataHitchEth(whlBytes, gwei) + whlL1 : 0;
+      const spent = voiceHitchCost + (sellVoice?.waveHitch ? waveCost : 0);
+      const leftAfter = sellVoice.onChain ? Math.max(0, gateLeftoverEth - spent) : 0;
+      const whlCovered = !sellSkipHitch
+        && !!sellVoice.onChain
+        && leftAfter > 0
+        && whlCost > 0
+        && leftAfter + 1e-18 >= whlCost
+        && plusAfterHitchEth(gateLeftoverEth, spent + whlCost) > 0;
+      const whlPlan = planWaveHlRide({
+        leftoverEth: whlCovered ? leftAfter : 0,
+        hitchCostEth: whlCost > 0 ? whlCost : 1,
+        pairedPlus: true,
+        machine: built.line,
+      });
+      if (whlPlan.hitch && sellVoice?.data) {
+        const packed = appendUtf8Hitch(sellVoice.data, whlPlan.utf8);
+        if (packed.ok && packed.onChain) {
+          sellVoice = {
+            ...sellVoice,
+            data: packed.data,
+            utf8: String(sellVoice.utf8 || "") + packed.utf8,
+            hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+            waveHlHitch: true,
+            waveHlUtf8: packed.utf8,
+          };
+          console.log(`   🌊 WHL ride-along ${packed.hitchBytes} B utc|local|unix — ${whlPlan.reason}`);
+        } else {
+          console.log(`   🌊 WHL ride banked — append refused (${packed.log || whlPlan.reason})`);
+        }
+      } else {
+        console.log(`   🌊 WHL ride banked — ${whlPlan.reason}`);
+      }
+      try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+        console.log(`⚠️  wave HL ledger: ${e.message}`);
+      }
+    } catch (e) {
+      console.log(`   🌊 WHL ride skipped — ${e.message}`);
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -7543,7 +7694,19 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const hitchCostEth = sellVoice?.onChain
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
         + (sellVoice?.waveHitch ? waveCost : 0)
+        + (sellVoice?.waveHlHitch ? whlCost : 0)
       : 0;
+    if (sellVoice?.waveHlHitch && whlMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
+      commitWaveHlRideHash(waveHlLedger, {
+        symbol: token.symbol,
+        machine: whlMachine,
+        txHash: transactionHash,
+      });
+      try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+        console.log(`⚠️  wave HL ledger: ${e.message}`);
+      }
+      console.log(`   🌊 WHL loc ${transactionHash} — utc|local|unix on this sell`);
+    }
     let earn = piggyEarningsAfterMessage({
       netUsd,
       hitchCostUsd: hitchCostEth * ethUsd,
@@ -8100,6 +8263,17 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
 
     // Prefer lowest bottoms first for succession
     const candidates = rankCascadeBottoms(rawCandidates, { excludeSymbol: soldSymbol });
+    try {
+      const prefer = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: soldSymbol });
+      if (prefer?.symbol) {
+        const idx = candidates.findIndex((c) => c.symbol === prefer.symbol);
+        if (idx > 0) {
+          const [hit] = candidates.splice(idx, 1);
+          candidates.unshift(hit);
+          console.log(`  🌊 wave board prefers ${prefer.symbol} ${prefer.arrow} ${prefer.confidence}% ${prefer.stage}`);
+        }
+      }
+    } catch { /* board preference is advisory */ }
     if (!candidates.length) {
       // Fall back to raw primed READY even if band math missed (nearEntry already true)
       candidates.push(...rawCandidates.filter((c) => c.readyNow || c.nearBottom));
@@ -9897,6 +10071,7 @@ async function loadFromGitHub() {
         waveStats[sym] = s;
       }
     }
+    if (pos.waveHlLedger) waveHlFromPositions = pos.waveHlLedger;
     // portfolioPeakUsd intentionally NOT loaded — stale peaks cause false drawdown halts
     if (pos.fifoLots) {
       fifoLots = mergeLotMaps(fifoLots, deserializeFifoLots(pos.fifoLots));
@@ -10005,6 +10180,12 @@ async function loadFromGitHub() {
     }
   } catch { /* optional disk */ }
 
+  waveHlLedger = loadWaveHlLedger({
+    positionsBlob: waveHlFromPositions ? { waveHlLedger: waveHlFromPositions } : null,
+  });
+  const hlTokens = Object.keys(waveHlLedger.tokens || {}).length;
+  if (hlTokens) console.log(`📈 Wave HL ledger restored: ${hlTokens} token(s)`);
+
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
   const pcOpen      = Object.keys(piggyCoPos).length;
@@ -10091,7 +10272,11 @@ async function saveToGitHub() {
       piggyContrib: Object.fromEntries(tokens.map(t => [t.symbol, (waveStats[t.symbol]?.piggyContrib || 0)])),
       tradeLog:   tradeLog.slice(-200),
       fifoLots:   serializeFifoLots(fifoLots),
+      waveHlLedger,
     };
+    try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+      console.log(`⚠️  wave HL ledger: ${e.message}`);
+    }
     try { writeLocalStateJson("positions.runtime.json", positionsPayload); } catch (e) {
       console.log(`⚠️  positions.runtime.json: ${e.message}`);
     }
@@ -10967,10 +11152,61 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `\n<i>Use /fib SYMBOL for the full ladder map</i>`;
           await tg(msg);
         }
+      } else if (text === "/waveboard" || text.startsWith("/waveboard ")) {
+        const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
+        const rows = collectWaveBoardRows();
+        const cascade = pickCascadeToken(rows);
+        if (sym) {
+          const row = rows.find((r) => r.symbol === sym);
+          if (!row) {
+            await tg(`❓ <b>${esc(sym)}</b> is not on the wave board.`);
+          } else {
+            await tg(formatWaveTokenTelegram(row, {
+              ride: lastWaveHlRide(waveHlLedger, sym),
+              cascade,
+            }));
+          }
+        } else {
+          await tg(formatWaveBoardTelegram(rows, { cascade }));
+        }
+      } else if (text === "/dividend" || text.startsWith("/dividend ")) {
+        const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
+        const rows = collectWaveBoardRows();
+        const cascade = pickCascadeToken(rows, { excludeSymbol: sym || null });
+        if (!sym) {
+          await tg(formatDividendMenu(rows, { cascade }));
+        } else if (!tokens.find((t) => t.symbol === sym)) {
+          await tg(`❓ Unknown: ${esc(sym)}\nUsage: /dividend SYMBOL`);
+        } else {
+          const row = rows.find((r) => r.symbol === sym);
+          if (!row || !(row.dividendPct > 0) || !row.plan || row.plan.blocked) {
+            await tg(
+              `⏸ <b>${esc(sym)}</b> dividend withheld\n` +
+              `${esc(row?.exitReason || "no wave row")}\n` +
+              `${row ? formatWaveStageSnippet(row) : ""}`
+            );
+          } else if (manualCommands.some((c) => c.symbol === sym && (c.action === "sell" || c.action === "sellhalf"))) {
+            await tg(`⚠️ SELL ${esc(sym)} already queued`);
+          } else {
+            manualCommands.push({ symbol: sym, action: "sell", pct: row.dividendPct });
+            const into = cascade ? `\nCascade seat: <b>${esc(cascade.symbol)}</b> ${cascade.arrow} ${cascade.confidence}% ${esc(cascade.stage)}` : "";
+            await tg(
+              `💸 <b>DIVIDEND ${esc(sym)} ${(row.dividendPct * 100).toFixed(0)}% queued</b>\n` +
+              `Withdraw ≈ $${row.plan.withdrawUsd.toFixed(2)} gross\n` +
+              `Leave ≈ $${row.plan.leaveUsd.toFixed(2)} in the bag\n` +
+              `${esc(row.exitReason)}` +
+              into +
+              `\nShort §WHL§ ride (utc|local|unix) banks on this sell if leftover covers it.`
+            );
+          }
+        }
       } else if (text === "/waves") {
         const gasCost = await estimateGasCostEth();
+        const board = collectWaveBoardRows();
+        const bySym = new Map(board.map((r) => [r.symbol, r]));
         let msg = `🌊 <b>WAVE STATUS v13 💓</b>\n🕐 ${new Date().toLocaleTimeString()}\n\n`;
-        msg += `<i>Buy MIN trough | Sell MAX peak | Indicators confirm</i>\n\n`;
+        msg += `<i>Buy MIN trough | Sell MAX peak | Arrow is the next move</i>\n`;
+        msg += `<i>/waveboard · /dividend SYMBOL · highs/lows stay logged</i>\n\n`;
         for (const t of tokens) {
           const p   = history[t.symbol]?.lastPrice;
           if (!p) { msg += `⏳ <b>${t.symbol}</b> — loading\n\n`; continue; }
@@ -10983,6 +11219,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `   Buy (MIN): $${minT?.toFixed(8)||"?"} (+${pct}% above)\n`;
           msg += `   Sell (MAX): $${maxP?.toFixed(8)||"?"}\n`;
           msg += `   Waves: ${getPeakCount(t.symbol)}P / ${getTroughCount(t.symbol)}T\n`;
+          msg += `   ${formatWaveStageSnippet(bySym.get(t.symbol))}\n`;
           msg += `   💓 ${ind.detail || "building..."}\n`;
           msg += arm.armed
             ? `   ✅ ARMED ${(arm.net*100).toFixed(2)}% net [${arm.priority}]\n\n`
@@ -11324,7 +11561,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           "   /sell SYMBOL [pct|all] \u2014 manual exit (leaves piggy dust)\n" +
           "   /sellhalf SYMBOL \u2014 sell 50%\n" +
           "   /piggyunlock SYMBOL \u2014 sell the locked dust pile\n" +
-          "   /waves \u2014 detailed levels"
+          "   /waves \u2014 detailed levels\n" +
+          "   /waveboard \u2014 stage, arrow, confidence, exit\n" +
+          "   /dividend SYMBOL \u2014 take 10-30% and leave the bag"
         );
 
       } else if (text === "/bank") {
@@ -14703,6 +14942,7 @@ async function main() {
   bootstrapWavesFromHistory();
   await bootstrapWavesFromLedger();
   bootstrapWavesFromCandles();
+  captureWavePrintsFromBoot();
 
   // ── ON-CHAIN POSITION RECOVERY — PURE BLOCKCHAIN TRUTH ──────────────────
   // Every restart: scan wallet on Base directly for all token balances
