@@ -74,6 +74,11 @@
 //   GET  /vita/spatial/locs — LOCAL_OK vs MATCH · sealed inject click-through
 //   GET  /vita/spatial/loc  — exact §VITASPATIAL§ VIN UTF-8
 //   GET  /vita/spatial/soundtrack — agentic neighborhood soundtrack
+//   GET  /vita/photos       — Photos Drive HTML + catalog JSON
+//   GET  /vita/photos/media — picture bytes by open-catalog id
+//   GET  /vita/photos/locs  — LOCAL_OK vs MATCH · sealed inject click-through
+//   POST /vita/photos/source — bind Drive / folder / URL as new Google Drive
+//   POST /vita/photos/scan · /next · /all · /add · /test · /enqueue
 //   GET  /vita/compression  — codec bake-off page + key directory JSON
 //   POST /vita/compression/add — any file bytes → bench → verified key
 //   GET  /vita/compression/verify — recover with the compression key
@@ -200,6 +205,21 @@ import {
   addUploadedPad,
 } from "./vita/soundboard.js";
 import {
+  publicPhotosState,
+  publicPhotosMedia,
+  publicPhotosLocs,
+  setPhotoSource,
+  scanPhotoSource,
+  processNextPhoto,
+  processPhotoQueue,
+  ingestPhotosInbox,
+  runEarthriseTest,
+  filePhoto,
+  enqueuePhoto,
+  formatPhotosCard,
+} from "./vita/photos.js";
+import { enqueueFeedBacklogItem } from "./vita/vita-feed-backlog.js";
+import {
   publicSpatialState,
   publicSpatialPlay,
   publicSpatialLocs,
@@ -273,6 +293,7 @@ const VITA_PROVEN_PLAYER_VERIFY = join(ROOT, "vita", "proven-player-verify.js");
 const VITA_CHAIN_DIR_HTML = join(ROOT, "public", "vita-chain-dir.html");
 const VITA_SOUNDBOARD_HTML = join(ROOT, "public", "vita-soundboard.html");
 const VITA_SPATIAL_HTML = join(ROOT, "public", "vita-spatial.html");
+const VITA_PHOTOS_HTML = join(ROOT, "public", "vita-photos.html");
 const VITA_COMPRESSION_HTML = join(ROOT, "public", "vita-compression.html");
 const VITA_PROOF_LOG_HTML = join(ROOT, "public", "vita-proof-log.html");
 const VITA_OS_BUILDER_HTML = join(ROOT, "public", "vita-os-builder.html");
@@ -974,6 +995,117 @@ async function handleVitaRequest(req, res) {
         bytes,
         aliases: body.aliases || [],
       }));
+    }
+    if ((path === "/vita/photos" || path === "/vita/photos/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      const id = String(url.searchParams.get("id") || "").trim();
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, publicPhotosState(id || null));
+      }
+      return servePublicHtml(res, VITA_PHOTOS_HTML, "vita photos");
+    }
+    if ((path === "/vita/photos/media" || path === "/vita/photos/media/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "earthrise").trim();
+      const media = publicPhotosMedia(id);
+      if (!media.ok) return json(res, media, 404);
+      res.writeHead(200, {
+        "content-type": media.mime || "image/jpeg",
+        "content-length": media.bytes.length,
+        "cache-control": "public, max-age=60",
+        "x-vita-open-key": media.zeroOpenKey || "",
+      });
+      res.end(media.bytes);
+      return true;
+    }
+    if ((path === "/vita/photos/locs" || path === "/vita/photos/locs/") && req.method === "GET") {
+      const id = String(url.searchParams.get("id") || "earthrise").trim();
+      return json(res, await publicPhotosLocs(id));
+    }
+    if ((path === "/vita/photos/source" || path === "/vita/photos/source/") && req.method === "POST") {
+      const body = (await readBody(req)) || {};
+      const bound = setPhotoSource(body.source || body.url || body.path || "");
+      return json(res, {
+        ...bound,
+        reply: bound.ok ? formatPhotosCard() : bound.reason,
+        neverInventHashes: true,
+      });
+    }
+    if ((path === "/vita/photos/scan" || path === "/vita/photos/scan/") && req.method === "POST") {
+      const body = (await readBody(req)) || {};
+      const scanned = await scanPhotoSource(body.source || body.url || null);
+      return json(res, {
+        ...scanned,
+        reply: scanned.ok
+          ? formatPhotosCard() + "\n\nqueued " + scanned.queued + " · pending " + scanned.pending
+          : scanned.reason,
+        neverInventHashes: true,
+      });
+    }
+    if ((path === "/vita/photos/next" || path === "/vita/photos/next/") && req.method === "POST") {
+      const out = await processNextPhoto();
+      return json(res, {
+        ...out,
+        reply: out.filed
+          ? formatPhotosCard(out.filed.id)
+          : out.reason || formatPhotosCard(),
+        neverInventHashes: true,
+      });
+    }
+    if ((path === "/vita/photos/all" || path === "/vita/photos/all/") && req.method === "POST") {
+      const inbox = ingestPhotosInbox();
+      const batch = await processPhotoQueue({ limit: 50 });
+      return json(res, {
+        ok: true,
+        inbox,
+        batch,
+        reply: formatPhotosCard(),
+        neverInventHashes: true,
+      });
+    }
+    if ((path === "/vita/photos/test" || path === "/vita/photos/test/") && req.method === "POST") {
+      const tested = runEarthriseTest();
+      return json(res, {
+        ...tested,
+        reply: tested.ok
+          ? formatPhotosCard("earthrise") + "\n\n🌍 EARTHRISE TEST PASS"
+          : tested.reason,
+        neverInventHashes: true,
+        chainStatus: "availability",
+        locations: [],
+      });
+    }
+    if ((path === "/vita/photos/add" || path === "/vita/photos/add/") && req.method === "POST") {
+      const body = (await readBody(req, { maxBytes: 8_000_000 })) || {};
+      const b64 = String(body.bytesBase64 || body.b64 || "");
+      if (!b64) return json(res, { ok: false, reason: "bytesBase64 required" }, 400);
+      let bytes;
+      try {
+        bytes = Buffer.from(b64, "base64");
+      } catch {
+        return json(res, { ok: false, reason: "bad base64" }, 400);
+      }
+      const filed = filePhoto({
+        name: body.name || "upload.jpg",
+        mime: body.mime || "",
+        bytes,
+      });
+      return json(res, {
+        ...filed,
+        reply: filed.ok ? formatPhotosCard(filed.id) : filed.reason,
+        neverInventHashes: true,
+        locations: [],
+        chainStatus: "availability",
+      });
+    }
+    if ((path === "/vita/photos/enqueue" || path === "/vita/photos/enqueue/") && req.method === "POST") {
+      const body = (await readBody(req)) || {};
+      const id = String(body.id || "earthrise").trim();
+      const queued = enqueuePhoto({ enqueueFn: enqueueFeedBacklogItem, id });
+      return json(res, {
+        ...queued,
+        reply: queued.note || formatPhotosCard(id),
+        neverInventHashes: true,
+      });
     }
     if ((path === "/vita/spatial" || path === "/vita/spatial/") && req.method === "GET") {
       const accept = String(req.headers.accept || "");
@@ -1821,6 +1953,7 @@ export function startVitaWebhook() {
     console.log("   /vita/waveproof — WAVE 3-token proof (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/wavefull  — WAVE 28-shard quote (GET SIM; POST/?live=1 auth live)");
     console.log("   /vita/vitafeed  — exact plain feed (GET SIM; POST live+force auth)");
+    console.log("   /vita/photos — Photos Drive · Earthrise hope test · open-picture key");
     console.log("   /vita/compression — codec bake-off page + verified key directory");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
