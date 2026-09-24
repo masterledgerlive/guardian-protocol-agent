@@ -226,8 +226,9 @@
       <p class="lede">Your pictures folder on chain — bind a public Drive share, a local folder, or a URL. Open key is the picture itself until you grant locked encode.</p>
       <div class="cta">
         <button type="button" class="accent" id="btn-earthrise">File Earthrise test</button>
+        <button type="button" class="accent" id="btn-mlk">File MLK test</button>
         <button type="button" class="ghost" id="btn-refresh">Refresh</button>
-        <a class="btn ghost" href="/vita/feed-player">Feed player</a>
+        <a class="btn ghost" id="btn-viewer-lib" href="/vita/photos/viewer?unwrap=1">Unwrap viewer</a>
       </div>
     </header>
 
@@ -255,7 +256,16 @@
 
     <section>
       <h2>PHOTOS folder</h2>
-      <p class="sub">Open-source unlock · compression bake-off · availability until seal.</p>
+      <p class="sub">Click any picture → DOS unwrap pop-out streams loc blocks into the image. Search when the library grows.</p>
+      <div class="row" style="margin-bottom:0.75rem;">
+        <input id="q" type="search" placeholder="Search pictures…" />
+        <select id="sort">
+          <option value="filedAt">Filed order</option>
+          <option value="title">Title</option>
+          <option value="bytes">Size</option>
+          <option value="id">Id</option>
+        </select>
+      </div>
       <div class="gallery" id="gallery"></div>
     </section>
 
@@ -265,6 +275,7 @@
         <img id="viewer-img" alt="" />
         <div class="key" id="viewer-key"></div>
         <div class="row">
+          <button type="button" class="accent" id="btn-open-unwrap">Open unwrap viewer</button>
           <button type="button" id="btn-enqueue">Enqueue for inject</button>
           <a class="btn ghost" id="btn-locs" href="#">Loc rail</a>
         </div>
@@ -292,9 +303,30 @@
       logEl.textContent = (typeof msg === "string" ? msg : JSON.stringify(msg, null, 2)) + "\n" + logEl.textContent;
     }
 
+    function unwrapUrl(id) {
+      return "/vita/photos/viewer?id=" + encodeURIComponent(id || "") + "&unwrap=1&popup=1";
+    }
+
+    function openUnwrap(id, { popup = true } = {}) {
+      const url = unwrapUrl(id);
+      if (popup) {
+        window.open(url, "vita-photos-unwrap", "popup=yes,width=920,height=720");
+      } else {
+        location.href = url;
+      }
+    }
+
     async function loadState(id) {
-      const q = id ? ("?id=" + encodeURIComponent(id) + "&json=1") : "?json=1";
-      const res = await fetch("/vita/photos" + q, { headers: { accept: "application/json" } });
+      const params = new URLSearchParams({ json: "1" });
+      if (id) params.set("id", id);
+      const q = document.getElementById("q")?.value?.trim();
+      const sort = document.getElementById("sort")?.value || "filedAt";
+      if (q) params.set("q", q);
+      params.set("sort", sort);
+      params.set("order", "asc");
+      const res = await fetch("/vita/photos?" + params.toString(), {
+        headers: { accept: "application/json" },
+      });
       state = await res.json();
       render();
       return state;
@@ -305,7 +337,8 @@
       const src = state.activeSource;
       document.getElementById("source-meta").textContent = src
         ? ("Active: " + src.display + " [" + src.kind + "] · queue pending " + state.queue.pending)
-        : ("No source bound · queue pending " + (state.queue?.pending || 0));
+        : ("No source bound · queue pending " + (state.queue?.pending || 0) +
+           " · library " + (state.search?.total || state.photos?.length || 0));
       const gal = document.getElementById("gallery");
       gal.innerHTML = "";
       (state.photos || []).forEach((p, i) => {
@@ -313,12 +346,17 @@
         b.type = "button";
         b.className = "thumb";
         b.style.animationDelay = (i * 0.05) + "s";
+        b.title = "Open DOS unwrap viewer";
         b.innerHTML =
           '<img src="' + p.mediaPath + '" alt="" />' +
-          '<span class="cap">' + (p.title || p.id) +
+          '<span class="cap">' + String(p.n || i + 1).padStart(2, "0") + " · " + (p.title || p.id) +
           ' <span class="status ' + (p.chainStatus === "MATCH" ? "match" : "") + '">' +
           p.chainStatus + "</span></span>";
-        b.onclick = () => selectPhoto(p.id);
+        b.onclick = () => {
+          selectedId = p.id;
+          showViewer(p.id);
+          openUnwrap(p.id, { popup: true });
+        };
         gal.appendChild(b);
       });
       if (selectedId) showViewer(selectedId);
@@ -337,11 +375,6 @@
       document.getElementById("btn-locs").href = "/vita/photos/locs?id=" + encodeURIComponent(id);
     }
 
-    async function selectPhoto(id) {
-      await loadState(id);
-      showViewer(id);
-    }
-
     async function post(path, body) {
       const res = await fetch(path, {
         method: "POST",
@@ -357,6 +390,17 @@
       log(out.reply || out);
       selectedId = "earthrise";
       await loadState("earthrise");
+      openUnwrap("earthrise");
+    };
+    document.getElementById("btn-mlk").onclick = async () => {
+      const out = await post("/vita/photos/test", { id: "mlk" });
+      log(out.reply || out);
+      selectedId = "mlk";
+      await loadState("mlk");
+      openUnwrap("mlk");
+    };
+    document.getElementById("btn-open-unwrap").onclick = () => {
+      if (selectedId) openUnwrap(selectedId);
     };
     document.getElementById("btn-source").onclick = async () => {
       const url = document.getElementById("source").value.trim();
@@ -373,7 +417,10 @@
     document.getElementById("btn-next").onclick = async () => {
       const out = await post("/vita/photos/next", {});
       log(out.reply || out);
-      if (out.filed?.id) selectedId = out.filed.id;
+      if (out.filed?.id) {
+        selectedId = out.filed.id;
+        openUnwrap(selectedId);
+      }
       await loadState(selectedId);
     };
     document.getElementById("btn-all").onclick = async () => {
@@ -398,7 +445,10 @@
         bytesBase64: b64,
       });
       log(out.reply || out);
-      if (out.filed?.id) selectedId = out.filed.id;
+      if (out.filed?.id) {
+        selectedId = out.filed.id;
+        openUnwrap(selectedId);
+      }
       await loadState(selectedId);
     };
     document.getElementById("btn-enqueue").onclick = async () => {
@@ -406,6 +456,12 @@
       const out = await post("/vita/photos/enqueue", { id: selectedId });
       log(out.note || out.reply || out);
     };
+    let searchTimer = null;
+    document.getElementById("q").oninput = () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadState(selectedId), 200);
+    };
+    document.getElementById("sort").onchange = () => loadState(selectedId);
 
     const params = new URLSearchParams(location.search);
     selectedId = params.get("id") || null;

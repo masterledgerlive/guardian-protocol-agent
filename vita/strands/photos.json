@@ -8,10 +8,10 @@
     "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
   ],
   "note": "Photos drive → compress bake-off → open-picture key → §VITAFILE§ → inject. Locs empty until real seal.",
-  "photos": 2,
+  "photos": 3,
   "sources": 0,
   "queuePending": 0,
   "sealedIds": 0,
   "neverInventHashes": true,
-  "updatedAt": "2026-09-24T02:46:36.608Z"
+  "updatedAt": "2026-09-24T03:33:20.390Z"
 }

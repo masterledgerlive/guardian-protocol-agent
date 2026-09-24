@@ -4,11 +4,11 @@
   "formula": "original-message-first",
   "neverInventHashes": true,
   "note": {
-    "lastKey": "VITACOMP.deflate-raw-9-v1.c414cd0e",
-    "lastCodec": "deflate-raw-9-v1",
+    "lastKey": "VITACOMP.brotli-11-v1.9c2d723a",
+    "lastCodec": "brotli-11-v1",
     "lastKind": "image",
-    "lastName": "hope-pixel.png",
-    "files": 6
+    "lastName": "mlk-i-have-a-dream.jpg",
+    "files": 7
   },
   "ends": [
     "Add any file (inbox /vitafeed compress add /vita/compression)",
@@ -16,10 +16,10 @@
     "Call verified · key recovers the bytes",
     "Next module: /vitafeed injection (confirm|override, no invented hash)"
   ],
-  "updatedAt": "2026-09-24T02:46:25.917Z",
-  "lastKey": "VITACOMP.deflate-raw-9-v1.c414cd0e",
-  "lastCodec": "deflate-raw-9-v1",
+  "updatedAt": "2026-09-24T03:33:20.385Z",
+  "lastKey": "VITACOMP.brotli-11-v1.9c2d723a",
+  "lastCodec": "brotli-11-v1",
   "lastKind": "image",
-  "lastName": "hope-pixel.png",
-  "files": 6
+  "lastName": "mlk-i-have-a-dream.jpg",
+  "files": 7
 }

@@ -232,13 +232,16 @@ hashes. See `vita/compression/`.
 `/vitafeed photos source <drive-url|folder|https>` · `/vitafeed photos scan` ·
 `/vitafeed photos next` · `/vitafeed photos all` · `/vitafeed photos add` ·
 `/vitafeed photos test` · `/vitafeed enqueue photo <id>` ·
-`/vitafeed enqueue photos` · `/vitafeed dir PHOTOS` · `/vita/photos` —
+`/vitafeed enqueue photos` · `/vitafeed dir PHOTOS` · `/vita/photos` ·
+`/vita/photos/viewer?id=<id>&unwrap=1` —
 bind a public Google Drive share, local folder, or URL as the picture source;
 slow-copy one-by-one or batch; open key is the picture itself (`VITAOPEN…`);
-compression bake-off then §VITAFILE§ VIN; Earthrise (NASA PD) hope full test
-seeds `VITA:\PHOTOS\`. LOCK private locate/decode waits until you grant encode
-permissions. Locs empty until confirm|override. Never invent hashes. See
-`vita/photos.js`.
+compression bake-off then §VITAFILE§ VIN; click a picture to open the DOS
+unwrap pop-out that streams loc blocks into the image (clickable Basescan when
+sealed); catalog is ordered + searchable. Earthrise (NASA PD) and MLK
+historical uplift seed `VITA:\PHOTOS\`. LOCK private locate/decode waits until
+you grant encode permissions. Locs empty until confirm|override. Never invent
+hashes. See `vita/photos.js`.
 **Proof-of-logs trail:** `/vitafeed trail` · `/vitafeed log <n>` ·
 `/vitafeed log plain|machine|original|race <n>` ·
 `/vitafeed log chains <n> base,ethereum,…` · `/vitafeed dir PROOFLOG` —

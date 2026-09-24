@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITA:\\PHOTOS\\ — unwrap viewer</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: #010801;
+      color: #67ff78;
+      font: 13px/1.45 "Courier New", ui-monospace, monospace;
+      text-shadow: 0 0 6px rgba(80, 255, 120, 0.35);
+    }
+    body.popup { font-size: 12px; }
+    .crt {
+      min-height: 100vh;
+      padding: 14px 12px 28px;
+      background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px),
+        radial-gradient(ellipse at center, #04240c 0%, #010801 72%);
+    }
+    h1 { margin: 0; font-size: 16px; letter-spacing: 0.16em; font-weight: normal; }
+    .sub { color: #1f8a3a; margin: 4px 0 10px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(160px, 220px) 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    .panel {
+      border: 1px solid #145c28;
+      background: rgba(0, 12, 0, 0.55);
+      padding: 8px;
+    }
+    .panel h2 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      font-weight: normal;
+      color: #9dffb0;
+    }
+    input, button, select {
+      background: #021a08;
+      color: #67ff78;
+      border: 1px solid #1c7a34;
+      padding: 6px 7px;
+      font: inherit;
+    }
+    button { cursor: pointer; }
+    button:hover, .file:hover { background: #063314; }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+    .files { max-height: 52vh; overflow: auto; display: grid; gap: 4px; }
+    .file {
+      text-align: left;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 6px;
+      align-items: center;
+    }
+    .file.active { outline: 1px solid #b6ff9a; color: #e8ffc4; }
+    .file .n { color: #1f8a3a; }
+    .file .meta { font-size: 11px; color: #1f8a3a; }
+    .stage {
+      position: relative;
+      min-height: 240px;
+      border: 1px solid #1c7a34;
+      background: #010801;
+      overflow: hidden;
+    }
+    .stage img {
+      display: block;
+      width: 100%;
+      max-height: 48vh;
+      object-fit: contain;
+      background: #010801;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .stage img.show { opacity: 1; }
+    .reveal {
+      position: absolute;
+      inset: 0;
+      background: #010801;
+      transform-origin: top;
+      transition: transform 0.35s linear;
+      pointer-events: none;
+    }
+    .loc-rail { display: grid; gap: 6px; margin-top: 8px; }
+    .loc-bar {
+      height: 8px;
+      background: #021a08;
+      border: 1px solid #145c28;
+    }
+    .loc-bar > i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1c7a34, #67ff78);
+      transition: width 0.25s ease;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 6px;
+    }
+    .card {
+      border: 1px solid #145c28;
+      padding: 6px;
+      min-height: 72px;
+      cursor: pointer;
+      position: relative;
+    }
+    .card.active { border-color: #b6ff9a; box-shadow: 0 0 12px rgba(103,255,120,0.25); }
+    .card.loading { border-style: dashed; animation: pulse 1.1s linear infinite; }
+    .card.match { outline: 1px solid rgba(125, 206, 160, 0.5); }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    .kicker { font-size: 10px; color: #1f8a3a; letter-spacing: 0.08em; }
+    .body { margin-top: 2px; word-break: break-all; }
+    .meta { font-size: 10px; color: #1f8a3a; margin-top: 4px; }
+    a.chain {
+      display: inline-block;
+      margin-top: 4px;
+      color: #b6ff9a;
+      text-decoration: none;
+      border: 1px solid #1c7a34;
+      padding: 2px 5px;
+      font-size: 10px;
+    }
+    a.chain:hover { background: #063314; }
+    #log {
+      white-space: pre-wrap;
+      max-height: 140px;
+      overflow: auto;
+      border: 1px solid #145c28;
+      padding: 8px;
+      background: rgba(0,0,0,0.35);
+      margin-top: 8px;
+      font-size: 11px;
+    }
+    .key { word-break: break-all; color: #9dffb0; }
+    .dim { color: #1f8a3a; }
+    .tuck { max-height: 100px; overflow: auto; display: flex; flex-wrap: wrap; gap: 4px; }
+    .tuck button { font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="crt">
+    <h1>VITA:\PHOTOS\ UNWRAP</h1>
+    <div class="sub" id="sub">DOS picture viewer · open-picture key · stream locs → populate</div>
+    <div class="layout">
+      <aside class="panel">
+        <h2>LIBRARY</h2>
+        <div class="row">
+          <input id="q" type="search" placeholder="search…" style="flex:1;min-width:0" />
+          <select id="sort">
+            <option value="filedAt">filed</option>
+            <option value="title">title</option>
+            <option value="bytes">bytes</option>
+            <option value="id">id</option>
+          </select>
+          <select id="order">
+            <option value="asc">asc</option>
+            <option value="desc">desc</option>
+          </select>
+        </div>
+        <div class="files" id="files"></div>
+        <p class="dim" id="libMeta"></p>
+      </aside>
+      <main class="panel">
+        <h2 id="title">Select a picture</h2>
+        <p class="dim" id="blurb"></p>
+        <p class="key" id="key"></p>
+        <div class="row">
+          <button type="button" id="btn-unwrap">UNWRAP STREAM</button>
+          <button type="button" id="btn-reset">RESET</button>
+          <a class="chain" id="mediaLink" href="#" target="_blank" rel="noopener">MEDIA</a>
+        </div>
+        <div class="stage">
+          <img id="pic" alt="" />
+          <div class="reveal" id="reveal"></div>
+        </div>
+        <div class="loc-rail">
+          <div class="loc-progress-label dim" id="progressLabel">0 / 0 blocks</div>
+          <div class="loc-bar"><i id="bar"></i></div>
+          <div class="cards" id="cards"></div>
+          <div class="row">
+            <button type="button" id="btn-tuck">Show remaining blocks</button>
+          </div>
+          <div class="tuck" id="tuck" hidden></div>
+        </div>
+        <div id="inspect" class="dim" style="margin-top:8px;"></div>
+        <pre id="log">Ready.
+Click a file — unwrap streams blockchain blocks into the picture.
+Open key = picture name+sha (VITAOPEN…). Locs click through when sealed.
+Never invent hashes.</pre>
+      </main>
+    </div>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    if (q.get("popup") === "1") document.body.classList.add("popup");
+
+    let catalog = [];
+    let plan = null;
+    let liveIndex = -1;
+    let timer = null;
+    let selectedId = q.get("id") || "";
+
+    const el = (id) => document.getElementById(id);
+    function log(msg) {
+      el("log").textContent = msg + "\n" + el("log").textContent;
+    }
+    function shortHex(h, n) {
+      return String(h || "").replace(/^0x/i, "").slice(0, n || 12);
+    }
+
+    async function loadCatalog() {
+      const params = new URLSearchParams({
+        json: "1",
+        q: el("q").value.trim(),
+        sort: el("sort").value,
+        order: el("order").value,
+      });
+      const res = await fetch("/vita/photos?" + params.toString(), {
+        headers: { accept: "application/json" },
+      });
+      const data = await res.json();
+      catalog = data.photos || [];
+      renderFiles();
+      el("libMeta").textContent =
+        (data.search?.total || catalog.length) + " filed · sort " +
+        (data.search?.sort || "filedAt") + " " + (data.search?.order || "asc");
+      if (selectedId) await openPhoto(selectedId, { auto: q.get("unwrap") === "1" });
+      else if (catalog[0]) await openPhoto(catalog[0].id, { auto: false });
+    }
+
+    function renderFiles() {
+      const box = el("files");
+      box.innerHTML = "";
+      catalog.forEach((p) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "file" + (p.id === selectedId ? " active" : "");
+        b.innerHTML =
+          '<span class="n">' + String(p.n || "").padStart(2, "0") + "</span>" +
+          "<span><div>" + (p.title || p.id) + "</div>" +
+          '<div class="meta">' + (p.chainStatus || "LOCAL_OK") + " · " + (p.bytes || 0) + "B</div></span>";
+        b.onclick = () => openPhoto(p.id, { auto: true });
+        box.appendChild(b);
+      });
+    }
+
+    async function openPhoto(id, { auto = true } = {}) {
+      selectedId = id;
+      renderFiles();
+      stopStream();
+      const res = await fetch("/vita/photos/unwrap?id=" + encodeURIComponent(id));
+      plan = await res.json();
+      if (!plan.ok) {
+        log("UNWRAP refused: " + (plan.reason || "error"));
+        return;
+      }
+      el("title").textContent = "VITA:\\PHOTOS\\" + (plan.fileName || plan.id);
+      el("blurb").textContent = plan.blurb || "";
+      el("key").textContent = "OPEN KEY " + (plan.zeroOpenKey || "—");
+      el("mediaLink").href = plan.mediaPath || "#";
+      el("sub").textContent =
+        (plan.dos?.path || "") + " · " + plan.chainStatus + " · " +
+        plan.groupCount + " groups · " + plan.packetCount + " VIN";
+      const pic = el("pic");
+      pic.classList.remove("show");
+      pic.removeAttribute("src");
+      el("reveal").style.transform = "scaleY(1)";
+      liveIndex = -1;
+      renderRail();
+      paintProgress();
+      log(
+        "OPENED " + plan.id + " · key " + plan.zeroOpenKey +
+        " · " + plan.blocks.length + " stream blocks · status " + plan.chainStatus
+      );
+      if (auto) startStream();
+    }
+
+    function renderRail() {
+      const cards = el("cards");
+      cards.innerHTML = "";
+      if (!plan) return;
+      const total = plan.blocks.length;
+      const idx = Math.max(0, liveIndex);
+      const show = [];
+      for (let i = Math.max(0, idx); i < Math.min(total, idx + 3); i++) show.push(i);
+      if (!show.length && total) show.push(0);
+      show.forEach((i) => {
+        const b = plan.blocks[i];
+        const role = i === liveIndex ? "active" : i === liveIndex + 1 ? "loading" : "";
+        const card = document.createElement("div");
+        card.className = "card" +
+          (role === "active" ? " active" : "") +
+          (role === "loading" ? " loading" : "") +
+          (b.match === "MATCH" ? " match" : "");
+        card.innerHTML =
+          '<div class="kicker">' +
+          (role === "active" ? "LOADED · NOW" : role === "loading" ? "LOADING NEXT" : "NEXT") +
+          "  " + b.label + "  " + b.match + "</div>" +
+          '<div class="body">' + String(b.filingPath || b.name || "").replace(/^vita\/memory\//, "") + "</div>" +
+          '<div class="meta">commit ' + (b.dataFieldCommit8 || "—") +
+          " · " + (b.vinCount || 0) + " VIN · " +
+          (b.location ? ("loc " + shortHex(b.location, 10)) : "pending seal") + "</div>";
+        const a = document.createElement("a");
+        a.className = "chain";
+        a.target = "_blank";
+        a.rel = "noopener";
+        if (b.basescan) {
+          a.href = b.basescan;
+          a.textContent = "CHAIN " + b.label + " · Basescan";
+        } else if (plan.classProof && plan.classProof[0]) {
+          a.href = plan.classProof[0].href;
+          a.textContent = "CLASS_PROOF (≠ body)";
+          a.title = "Formula anchors — not this picture body";
+        } else {
+          a.href = b.inspectPath || "#";
+          a.textContent = "INSPECT " + b.label;
+        }
+        a.onclick = (e) => {
+          if (!b.basescan && b.inspectPath) {
+            e.preventDefault();
+            inspectBlock(i);
+          }
+        };
+        card.appendChild(a);
+        card.onclick = (e) => {
+          if (e.target.closest("a")) return;
+          inspectBlock(i);
+        };
+        cards.appendChild(card);
+      });
+      renderTuck();
+    }
+
+    function renderTuck() {
+      const tuck = el("tuck");
+      const btn = el("btn-tuck");
+      if (!plan) return;
+      const total = plan.blocks.length;
+      const idx = Math.max(0, liveIndex);
+      const hidden = [];
+      for (let i = 0; i < total; i++) {
+        if (i < idx || i > idx + 2) hidden.push(i);
+      }
+      btn.textContent = hidden.length
+        ? ("Show remaining " + hidden.length + " blockchain blocks")
+        : "All blocks on the rail";
+      btn.disabled = hidden.length === 0;
+      tuck.innerHTML = hidden.map((i) => {
+        const b = plan.blocks[i];
+        return '<button type="button" data-i="' + i + '">' + b.label + " " + b.match + "</button>";
+      }).join("");
+      tuck.querySelectorAll("button").forEach((b) => {
+        b.onclick = () => inspectBlock(Number(b.dataset.i));
+      });
+    }
+
+    async function inspectBlock(i) {
+      if (!plan || !plan.blocks[i]) return;
+      const b = plan.blocks[i];
+      const res = await fetch(b.inspectPath);
+      const data = await res.json();
+      el("inspect").innerHTML =
+        "<pre style='white-space:pre-wrap;margin:0;font:inherit'>" +
+        "EXACT VIN GROUP · fed into picture unwrap\n" +
+        "photo " + (data.id || plan.id) + "  block " + (data.groupN || b.n) + "\n" +
+        "match " + (data.match || b.match) + "\n" +
+        "location " + (data.location || "pending seal — never invent hashes") + "\n" +
+        (data.basescan ? ("Basescan " + data.basescan + "\n") : "") +
+        "commit " + (data.contentCommit || b.contentCommit || "—") + "\n" +
+        "preview " + String(data.body || b.bodyPreview || "").slice(0, 120).replace(/</g, "&lt;") +
+        "</pre>";
+      if (data.basescan) {
+        window.open(data.basescan, "_blank", "noopener");
+      }
+      log("INSPECT " + b.label + " · " + (data.match || b.match));
+    }
+
+    function paintProgress() {
+      if (!plan) return;
+      const total = plan.blocks.length || 1;
+      const done = Math.max(0, liveIndex + 1);
+      const pct = Math.min(100, (done / total) * 100);
+      el("bar").style.width = pct + "%";
+      el("progressLabel").textContent =
+        done + " / " + total + " blocks · " +
+        (liveIndex >= total - 1 ? "PICTURE COMPLETE" : "STREAMING");
+      el("reveal").style.transform = "scaleY(" + (1 - done / total) + ")";
+      if (done >= total) {
+        const pic = el("pic");
+        if (!pic.getAttribute("src")) pic.src = plan.mediaPath;
+        pic.classList.add("show");
+      }
+    }
+
+    function startStream() {
+      stopStream();
+      if (!plan || !plan.blocks.length) return;
+      liveIndex = -1;
+      el("pic").classList.remove("show");
+      el("pic").removeAttribute("src");
+      el("reveal").style.transform = "scaleY(1)";
+      const step = () => {
+        liveIndex += 1;
+        const b = plan.blocks[liveIndex];
+        if (!b) {
+          stopStream();
+          return;
+        }
+        log(
+          "PULL " + b.label + " · " + b.match + " · commit=" + (b.dataFieldCommit8 || "—") +
+          (b.basescan ? " · " + b.basescan : " · local reconstruct")
+        );
+        renderRail();
+        paintProgress();
+        if (liveIndex >= plan.blocks.length - 1) {
+          el("pic").src = plan.mediaPath;
+          el("pic").classList.add("show");
+          log("UNWRAP COMPLETE · open key " + plan.zeroOpenKey + " · picture populated");
+          stopStream();
+        }
+      };
+      step();
+      timer = setInterval(step, plan.streamMsPerBlock || 420);
+    }
+
+    function stopStream() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    el("btn-unwrap").onclick = () => startStream();
+    el("btn-reset").onclick = () => {
+      stopStream();
+      liveIndex = -1;
+      if (plan) {
+        el("pic").classList.remove("show");
+        el("pic").removeAttribute("src");
+        el("reveal").style.transform = "scaleY(1)";
+        renderRail();
+        paintProgress();
+      }
+    };
+    el("btn-tuck").onclick = () => {
+      el("tuck").hidden = !el("tuck").hidden;
+    };
+    let searchTimer = null;
+    el("q").oninput = () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadCatalog, 200);
+    };
+    el("sort").onchange = loadCatalog;
+    el("order").onchange = loadCatalog;
+
+    loadCatalog().catch((e) => log(String(e)));
+  </script>
+</body>
+</html>

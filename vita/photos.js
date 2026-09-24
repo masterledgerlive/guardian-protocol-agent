@@ -76,6 +76,7 @@ export const PHOTOS_DIR_MAGIC = "§VITAPHOTODIR§";
 export const PHOTOS_LABEL = "PHOTOS";
 export const PHOTOS_SUBDIR = "PHOTOS";
 export const PHOTOS_PLAYER_PATH = "/vita/photos";
+export const PHOTOS_VIEWER_PATH = "/vita/photos/viewer";
 export const PHOTO_VIN_CAP = 24;
 export const IMAGE_EXTS = new Set([
   ".jpg",
@@ -101,6 +102,19 @@ export const EARTHRISE_TEST = Object.freeze({
   sourceUrl:
     "https://images-assets.nasa.gov/image/as08-14-2383/as08-14-2383~medium.jpg",
   aliases: ["earth-rise", "apollo8", "anders", "hope", "wake"],
+});
+
+/** Historical uplift — Dr. Martin Luther King Jr. (Commons portrait; verify license for reuse). */
+export const MLK_TEST = Object.freeze({
+  id: "mlk",
+  title: "Martin Luther King Jr.",
+  fileName: "mlk-i-have-a-dream.jpg",
+  blurb:
+    "Dr. Martin Luther King Jr. — historical uplift: nonviolence, dignity, and the dream of justice amid struggle.",
+  license: "PD-candidate / Wikimedia Commons portrait",
+  credit: "Wikimedia Commons — File:Martin_Luther_King,_Jr..jpg",
+  sourceUrl: "https://commons.wikimedia.org/wiki/File:Martin_Luther_King,_Jr..jpg",
+  aliases: ["king", "mlkjr", "dream", "i-have-a-dream", "martin"],
 });
 
 function sha256Hex(buf) {
@@ -759,8 +773,8 @@ export function filePhoto({
     compression,
     packed,
     feed: feed?.ok ? feed : null,
-    playerPath: PHOTOS_PLAYER_PATH + "?id=" + photoId,
-    playerHref: vitaPlayerHref(PHOTOS_PLAYER_PATH + "?id=" + photoId),
+    playerPath: PHOTOS_VIEWER_PATH + "?id=" + photoId + "&unwrap=1",
+    playerHref: vitaPlayerHref(PHOTOS_VIEWER_PATH + "?id=" + photoId + "&unwrap=1"),
     note:
       "Filed under VITA:\\PHOTOS\\ · open key is the picture · enqueue photo " +
       photoId +
@@ -795,7 +809,207 @@ export function resolvePhoto(sel = "") {
   for (const a of EARTHRISE_TEST.aliases) {
     if (a === s && cat.photos[EARTHRISE_TEST.id]) return cat.photos[EARTHRISE_TEST.id];
   }
+  for (const a of MLK_TEST.aliases) {
+    if (a === s && cat.photos[MLK_TEST.id]) return cat.photos[MLK_TEST.id];
+  }
   return null;
+}
+
+/** Ordered + searchable catalog for large libraries. */
+export function listPhotosOrdered({
+  q = "",
+  sort = "filedAt",
+  order = "asc",
+  limit = 200,
+  offset = 0,
+} = {}) {
+  const photos = listCatalogPhotos();
+  const query = String(q || "")
+    .trim()
+    .toLowerCase();
+  let rows = Object.values(photos).map((p, i) => ({
+    ...p,
+    n: i + 1,
+    orderIndex: i + 1,
+    chainStatus: sealedLocsForPhoto(p.id).length ? "MATCH" : "LOCAL_OK",
+    locations: sealedLocsForPhoto(p.id),
+    mediaPath: "/vita/photos/media?id=" + encodeURIComponent(p.id),
+    viewerPath: PHOTOS_VIEWER_PATH + "?id=" + encodeURIComponent(p.id) + "&unwrap=1",
+    playerPath: PHOTOS_VIEWER_PATH + "?id=" + encodeURIComponent(p.id) + "&unwrap=1",
+  }));
+  if (query) {
+    rows = rows.filter((p) => {
+      const hay = [
+        p.id,
+        p.title,
+        p.fileName,
+        p.blurb,
+        p.credit,
+        p.license,
+        p.zeroOpenKey,
+        ...(p.aliases || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(query);
+    });
+  }
+  const dir = String(order || "asc").toLowerCase() === "desc" ? -1 : 1;
+  const key = String(sort || "filedAt");
+  rows.sort((a, b) => {
+    let av = a[key];
+    let bv = b[key];
+    if (key === "filedAt") {
+      av = Date.parse(a.filedAt || 0) || 0;
+      bv = Date.parse(b.filedAt || 0) || 0;
+    } else if (key === "bytes" || key === "packetCount") {
+      av = Number(a[key] || 0);
+      bv = Number(b[key] || 0);
+    } else {
+      av = String(av || "").toLowerCase();
+      bv = String(bv || "").toLowerCase();
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return String(a.id).localeCompare(String(b.id));
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  // Stable filing order number after sort
+  rows = rows.map((p, i) => ({ ...p, n: i + 1, orderIndex: offset + i + 1 }));
+  const total = rows.length;
+  const slice = rows.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, limit));
+  return {
+    ok: true,
+    total,
+    q: query || null,
+    sort: key,
+    order: dir === 1 ? "asc" : "desc",
+    offset: Math.max(0, offset),
+    limit: Math.max(1, limit),
+    photos: slice,
+  };
+}
+
+/**
+ * Unwrap plan for DOS picture viewer — ordered VIN groups as streamable blocks.
+ * LOCAL_OK pulls from local store; MATCH uses sealed Basescan locs when present.
+ */
+export function buildUnwrapPlan(idOrSel = "earthrise") {
+  const meta = resolvePhoto(idOrSel);
+  if (!meta) return { ok: false, reason: "unknown photo" };
+  const packed = packetizePhoto(meta.id);
+  if (!packed.ok) return packed;
+  const sealed = sealedLocsForPhoto(meta.id);
+  const basescanTx = MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/";
+  const classProof = (MAINFRAME_ANCHORS.known || []).map((a) => ({
+    tx: a.tx,
+    href: basescanTx + a.tx,
+    kind: a.kind,
+    label: a.label,
+    role: "CLASS_PROOF",
+    note: "Formula anchor — NOT picture body",
+  }));
+
+  const blocks = (packed.groups || []).map((g, i) => {
+    const sealedTx = sealed[i] || null;
+    const match = sealedTx ? "MATCH" : "LOCAL_OK";
+    return {
+      n: g.n,
+      index: g.n,
+      groupN: g.n,
+      label: "g" + String(g.n).padStart(2, "0"),
+      name: g.name,
+      filingPath: g.filingPath || meta.storePath,
+      bytes: g.len || g.bodyBytes,
+      vinCount: g.totalChunks,
+      vinId: g.vinId,
+      readerKey: g.readerKey,
+      contentCommit: g.contentCommit,
+      dataFieldCommit: g.contentCommit,
+      dataFieldCommit8: shortHex(g.contentCommit, 8),
+      bodyPreview: String(g.body || "").slice(0, 64),
+      match,
+      highlight: match === "MATCH",
+      location: sealedTx,
+      basescan: sealedTx ? basescanTx + sealedTx : null,
+      role: sealedTx ? "MATCH" : "LOCAL_OK",
+      inspectPath:
+        "/vita/photos/group?id=" +
+        encodeURIComponent(meta.id) +
+        "&g=" +
+        g.n,
+      note: sealedTx
+        ? "Sealed Input Data — click Basescan"
+        : "Availability reconstruct — class-proof ≠ body until seal",
+    };
+  });
+
+  return {
+    ok: true,
+    id: meta.id,
+    title: meta.title,
+    fileName: meta.fileName,
+    mime: meta.mime,
+    blurb: meta.blurb,
+    credit: meta.credit,
+    license: meta.license,
+    bytes: meta.bytes,
+    sha256: meta.sha256,
+    zeroOpenKey: meta.zeroOpenKey,
+    compressionKey: meta.compressionKey,
+    compressionCodec: meta.compressionCodec,
+    contentCommit: meta.contentCommit,
+    chainStatus: sealed.length ? "MATCH" : "LOCAL_OK",
+    sealedLocs: sealed,
+    groupCount: packed.groupCount,
+    packetCount: packed.packetCount,
+    blocks,
+    classProof,
+    mediaPath: "/vita/photos/media?id=" + encodeURIComponent(meta.id),
+    viewerPath: PHOTOS_VIEWER_PATH + "?id=" + encodeURIComponent(meta.id) + "&unwrap=1",
+    streamMsPerBlock: 420,
+    neverInventHashes: true,
+    dos: {
+      drive: "VITA:\\PHOTOS\\",
+      unlock: meta.zeroOpenKey,
+      path: "VITA:\\PHOTOS\\" + meta.fileName,
+    },
+  };
+}
+
+export function publicPhotosUnwrap(id = "earthrise") {
+  return buildUnwrapPlan(id);
+}
+
+export function publicPhotosGroup(id = "earthrise", groupN = 1) {
+  const packed = packetizePhoto(id);
+  if (!packed.ok) return packed;
+  const g = (packed.groups || []).find((x) => Number(x.n) === Number(groupN));
+  if (!g) return { ok: false, reason: "group not found" };
+  const sealed = sealedLocsForPhoto(packed.id);
+  const sealedTx = sealed[Number(groupN) - 1] || null;
+  return {
+    ok: true,
+    id: packed.id,
+    groupN: g.n,
+    name: g.name,
+    mime: g.mime || packed.mime,
+    vinId: g.vinId,
+    readerKey: g.readerKey,
+    contentCommit: g.contentCommit,
+    totalChunks: g.totalChunks,
+    body: g.body,
+    bodyBytes: g.bodyBytes,
+    location: sealedTx,
+    basescan: sealedTx
+      ? (MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/") + sealedTx
+      : null,
+    match: sealedTx ? "MATCH" : "LOCAL_OK",
+    filingPath: g.filingPath,
+    neverInventHashes: true,
+  };
 }
 
 export function listCatalogPhotos() {
@@ -917,43 +1131,48 @@ export function ingestPhotosInbox({ compress = true } = {}) {
  * compression + VIN plan. Locs stay empty until confirm|override.
  */
 export function runEarthriseTest({ compress = true } = {}) {
+  return runNamedPhotoTest(EARTHRISE_TEST, { compress, learnKind: "earthrise-test" });
+}
+
+/** MLK historical uplift full-system file into PHOTOS. */
+export function runMlkTest({ compress = true } = {}) {
+  return runNamedPhotoTest(MLK_TEST, { compress, learnKind: "mlk-test" });
+}
+
+function runNamedPhotoTest(seed, { compress = true, learnKind = "photo-test" } = {}) {
   ensureDirs();
-  const path = join(PHOTO_DIR, EARTHRISE_TEST.fileName);
+  const path = join(PHOTO_DIR, seed.fileName);
   if (!existsSync(path)) {
     return {
       ok: false,
-      reason:
-        "Missing " +
-        EARTHRISE_TEST.fileName +
-        " — expected at vita/memory/photos/ (NASA PD Earthrise)",
+      reason: "Missing " + seed.fileName + " — expected at vita/memory/photos/",
     };
   }
   const bytes = readFileSync(path);
   const filed = filePhoto({
     bytes,
-    name: EARTHRISE_TEST.fileName,
+    name: seed.fileName,
     mime: "image/jpeg",
-    id: EARTHRISE_TEST.id,
-    title: EARTHRISE_TEST.title,
-    blurb: EARTHRISE_TEST.blurb,
-    license: EARTHRISE_TEST.license,
-    credit: EARTHRISE_TEST.credit,
-    sourceUrl: EARTHRISE_TEST.sourceUrl,
+    id: seed.id,
+    title: seed.title,
+    blurb: seed.blurb,
+    license: seed.license,
+    credit: seed.credit,
+    sourceUrl: seed.sourceUrl,
     compress,
   });
   if (!filed.ok) return filed;
 
-  // Stamp aliases on catalog row
   const cat = loadCatalog();
-  if (cat.photos[EARTHRISE_TEST.id]) {
-    cat.photos[EARTHRISE_TEST.id].aliases = [...EARTHRISE_TEST.aliases];
-    cat.photos[EARTHRISE_TEST.id].nasaId = EARTHRISE_TEST.nasaId;
+  if (cat.photos[seed.id]) {
+    cat.photos[seed.id].aliases = [...(seed.aliases || [])];
+    if (seed.nasaId) cat.photos[seed.id].nasaId = seed.nasaId;
     saveCatalog(cat);
   }
 
   appendLearn({
-    kind: "earthrise-test",
-    id: EARTHRISE_TEST.id,
+    kind: learnKind,
+    id: seed.id,
     bytes: bytes.length,
     key: filed.zeroOpenKey,
     codec: filed.compression?.codec || null,
@@ -961,10 +1180,10 @@ export function runEarthriseTest({ compress = true } = {}) {
 
   return {
     ok: true,
-    test: "earthrise",
+    test: seed.id,
     hope: true,
     filed,
-    reply: formatPhotosCard(EARTHRISE_TEST.id),
+    reply: formatPhotosCard(seed.id),
   };
 }
 
@@ -1265,6 +1484,8 @@ export function formatPhotosCard(id = null) {
   lines.push("  /vitafeed photos all                  — batch drain queue / inbox");
   lines.push("  /vitafeed photos add                  — send one picture");
   lines.push("  /vitafeed photos test                 — Earthrise hope full test");
+  lines.push("  /vitafeed photos test mlk             — MLK historical uplift test");
+  lines.push("  /vitafeed photos unwrap [id]          — DOS pop-out stream viewer");
   lines.push("  /vitafeed dir PHOTOS                  — DOS list");
   lines.push("Never invent hashes. LOCK encode waits until you grant permissions.");
   return lines.join("\n");
@@ -1277,15 +1498,18 @@ export function buildPhotosKeyboard({ highlight = null } = {}) {
     { text: "🌍 Earthrise", callback_data: telegramCallbackData("/vitafeed photos test") },
   ]);
   rows.push([
+    { text: "🕊️ MLK test", callback_data: telegramCallbackData("/vitafeed photos test mlk") },
+    { text: "Dir", callback_data: telegramCallbackData("/vitafeed dir PHOTOS") },
+  ]);
+  rows.push([
     { text: "Scan", callback_data: telegramCallbackData("/vitafeed photos scan") },
     { text: "Next 1", callback_data: telegramCallbackData("/vitafeed photos next") },
     { text: "All", callback_data: telegramCallbackData("/vitafeed photos all") },
   ]);
   rows.push([
     { text: "Add pic", callback_data: telegramCallbackData("/vitafeed photos add") },
-    { text: "Dir", callback_data: telegramCallbackData("/vitafeed dir PHOTOS") },
   ]);
-  const ids = listCatalogPhotoIds().slice(0, 6);
+  const ids = listPhotosOrdered({ sort: "filedAt", order: "asc", limit: 6 }).photos.map((p) => p.id);
   if (ids.length) {
     const row = ids.map((id) => ({
       text: (highlight === id ? "▶ " : "") + id.slice(0, 12),
@@ -1294,12 +1518,27 @@ export function buildPhotosKeyboard({ highlight = null } = {}) {
     rows.push(row.slice(0, 3));
     if (row.length > 3) rows.push(row.slice(3));
   }
-  const earth = resolvePhoto("earthrise");
-  if (earth) {
+  // Pop-out unwrap viewer (Mini App + HTTPS)
+  const viewId = highlight || ids[0] || "earthrise";
+  const unwrapPath = PHOTOS_VIEWER_PATH + "?id=" + encodeURIComponent(viewId) + "&unwrap=1";
+  const href = vitaPlayerHref(unwrapPath);
+  rows.push([
+    { text: "▶ Unwrap popup", web_app: { url: href } },
+    { text: "↗ Viewer", url: href },
+  ]);
+  if (resolvePhoto("earthrise")) {
     rows.push([
       {
         text: "Enqueue Earthrise",
         callback_data: telegramCallbackData("/vitafeed enqueue photo earthrise"),
+      },
+    ]);
+  }
+  if (resolvePhoto("mlk")) {
+    rows.push([
+      {
+        text: "Enqueue MLK",
+        callback_data: telegramCallbackData("/vitafeed enqueue photo mlk"),
       },
     ]);
   }
@@ -1309,9 +1548,10 @@ export function buildPhotosKeyboard({ highlight = null } = {}) {
 export function playPhoto(selector = "earthrise") {
   const meta = resolvePhoto(selector);
   if (!meta) {
-    return { ok: false, reason: "unknown photo — try earthrise or /vitafeed photos test" };
+    return { ok: false, reason: "unknown photo — try earthrise, mlk, or /vitafeed photos test" };
   }
   const locs = sealedLocsForPhoto(meta.id);
+  const viewerPath = PHOTOS_VIEWER_PATH + "?id=" + meta.id + "&unwrap=1";
   return {
     ok: true,
     id: meta.id,
@@ -1326,8 +1566,9 @@ export function playPhoto(selector = "earthrise") {
         ? "Sealed Input Data locs hold picture UTF-8"
         : "Availability only — class-proof anchors ≠ picture body",
     },
-    playerPath: PHOTOS_PLAYER_PATH + "?id=" + meta.id,
-    playerHref: vitaPlayerHref(PHOTOS_PLAYER_PATH + "?id=" + meta.id),
+    playerPath: viewerPath,
+    playerHref: vitaPlayerHref(viewerPath),
+    unwrapPath: viewerPath,
     reply: formatPhotosCard(meta.id),
   };
 }
@@ -1449,11 +1690,57 @@ export function handlePhotosRequest({ body = "", bytes = null, name = "", mime =
     }));
   }
 
-  if (/^(?:test|earthrise|hope)\b/i.test(rest)) {
+  if (/^(?:test|earthrise|hope|mlk|king)\b/i.test(rest)) {
+    const which = /^mlk\b|^king\b|test\s+mlk\b|test\s+king\b/i.test(rest)
+      ? "mlk"
+      : /^test\s*$/i.test(rest)
+        ? "both"
+        : /earthrise|hope/i.test(rest)
+          ? "earthrise"
+          : "earthrise";
+    if (which === "both" || which === "mlk") {
+      const mlk = runMlkTest();
+      if (which === "mlk") {
+        if (!mlk.ok) {
+          return { ok: false, phase: "test", reply: mlk.reason, keyboard: buildPhotosKeyboard() };
+        }
+        const opened = playPhoto("mlk");
+        return {
+          ok: true,
+          phase: "test",
+          photos: true,
+          hope: true,
+          filed: mlk.filed,
+          zeroOpenKey: mlk.filed.zeroOpenKey,
+          playerPath: opened.playerPath,
+          playerHref: opened.playerHref,
+          reply:
+            mlk.reply +
+            "\n\n🕊️ MLK TEST PASS — historical uplift in VITA:\\PHOTOS\\\n" +
+            "Open key: " +
+            mlk.filed.zeroOpenKey +
+            "\nUnwrap popup: " +
+            opened.playerPath +
+            "\nEnqueue: /vitafeed enqueue photo mlk → confirm|override",
+          keyboard: buildPhotosKeyboard({ highlight: "mlk" }),
+        };
+      }
+    }
     const tested = runEarthriseTest();
     if (!tested.ok) {
       return { ok: false, phase: "test", reply: tested.reason, keyboard: buildPhotosKeyboard() };
     }
+    let mlkExtra = "";
+    if (which === "both") {
+      const mlk = runMlkTest();
+      if (mlk.ok) {
+        mlkExtra =
+          "\n\n🕊️ MLK also filed · key " +
+          mlk.filed.zeroOpenKey +
+          " · /vitafeed photos mlk → unwrap popup";
+      }
+    }
+    const opened = playPhoto("earthrise");
     return {
       ok: true,
       phase: "test",
@@ -1461,8 +1748,8 @@ export function handlePhotosRequest({ body = "", bytes = null, name = "", mime =
       hope: true,
       filed: tested.filed,
       zeroOpenKey: tested.filed.zeroOpenKey,
-      playerPath: tested.filed.playerPath,
-      playerHref: tested.filed.playerHref,
+      playerPath: opened.playerPath,
+      playerHref: opened.playerHref,
       reply:
         tested.reply +
         "\n\n🌍 EARTHRISE TEST PASS — hope photo in VITA:\\PHOTOS\\\n" +
@@ -1472,9 +1759,34 @@ export function handlePhotosRequest({ body = "", bytes = null, name = "", mime =
         (tested.filed.compression?.codec || "—") +
         " verified=" +
         (tested.filed.compression?.verified === true) +
+        "\nUnwrap popup auto-opens viewer: " +
+        opened.playerPath +
         "\nStage inject: /vitafeed enqueue photo earthrise → confirm|override\n" +
-        "Locs empty until a real seal. Never invent hashes.",
+        "Locs empty until a real seal. Never invent hashes." +
+        mlkExtra,
       keyboard: buildPhotosKeyboard({ highlight: "earthrise" }),
+    };
+  }
+
+  if (/^(?:unwrap|viewer|view|dos)\b/i.test(rest)) {
+    const sel = rest.replace(/^(?:unwrap|viewer|view|dos)\s*/i, "").trim() || "earthrise";
+    const opened = playPhoto(sel);
+    if (!opened.ok) {
+      return { ok: false, phase: "unwrap", reply: opened.reason, keyboard: buildPhotosKeyboard() };
+    }
+    return {
+      ok: true,
+      phase: "unwrap",
+      photos: true,
+      id: opened.id,
+      playerPath: opened.playerPath,
+      playerHref: opened.playerHref,
+      reply:
+        formatPhotosCard(opened.id) +
+        "\n\n▶ DOS unwrap viewer: " +
+        opened.playerPath +
+        "\nStreams loc blocks → populates picture. Open key unwraps without a wallet secret.",
+      keyboard: buildPhotosKeyboard({ highlight: opened.id }),
     };
   }
 
@@ -1571,54 +1883,40 @@ export function handlePhotosRequest({ body = "", bytes = null, name = "", mime =
   };
 }
 
-export function publicPhotosState(id = null) {
+export function publicPhotosState(id = null, { q = "", sort = "filedAt", order = "asc" } = {}) {
   ensureDirs();
-  const photos = listCatalogPhotos();
+  const listed = listPhotosOrdered({ q, sort, order, limit: 500 });
   const active = getActiveSource();
-  const q = loadQueue();
+  const qState = loadQueue();
   const selected = id ? resolvePhoto(id) : null;
+  const unwrap = selected ? buildUnwrapPlan(selected.id) : null;
   return {
     ok: true,
     id: PHOTOS_ID,
     label: PHOTOS_LABEL,
     playerPath: PHOTOS_PLAYER_PATH,
+    viewerPath: PHOTOS_VIEWER_PATH,
     activeSource: active
       ? { id: active.id, kind: active.kind, display: active.display }
       : null,
     queue: {
-      pending: (q.items || []).filter((i) => i.status === "pending").length,
-      filed: (q.items || []).filter((i) => i.status === "filed").length,
-      failed: (q.items || []).filter((i) => i.status === "failed").length,
+      pending: (qState.items || []).filter((i) => i.status === "pending").length,
+      filed: (qState.items || []).filter((i) => i.status === "filed").length,
+      failed: (qState.items || []).filter((i) => i.status === "failed").length,
     },
-    photos: Object.keys(photos).map((pid) => {
-      const p = photos[pid];
-      const locs = sealedLocsForPhoto(pid);
-      return {
-        id: pid,
-        title: p.title,
-        fileName: p.fileName,
-        bytes: p.bytes,
-        mime: p.mime,
-        zeroOpenKey: p.zeroOpenKey,
-        compressionCodec: p.compressionCodec,
-        compressionKey: p.compressionKey,
-        chainStatus: locs.length ? "MATCH" : "LOCAL_OK",
-        locations: locs,
-        blurb: p.blurb,
-        license: p.license,
-        credit: p.credit,
-        mediaPath: "/vita/photos/media?id=" + encodeURIComponent(pid),
-        playerPath: PHOTOS_PLAYER_PATH + "?id=" + encodeURIComponent(pid),
-      };
-    }),
+    search: { q: listed.q, sort: listed.sort, order: listed.order, total: listed.total },
+    photos: listed.photos,
     selected: selected
       ? {
           ...selected,
           locations: sealedLocsForPhoto(selected.id),
           mediaPath: "/vita/photos/media?id=" + encodeURIComponent(selected.id),
+          viewerPath: PHOTOS_VIEWER_PATH + "?id=" + encodeURIComponent(selected.id) + "&unwrap=1",
+          unwrap: unwrap?.ok ? unwrap : null,
         }
       : null,
     earthrise: EARTHRISE_TEST,
+    mlk: MLK_TEST,
     neverInventHashes: true,
     chainStatus: "availability until seal",
   };
