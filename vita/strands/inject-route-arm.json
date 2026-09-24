@@ -1,0 +1,12 @@
+{
+  "strandId": "inject-route-arm-v1",
+  "sparse": true,
+  "label": "INJECT_ROUTE",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "learn": "Write and read our Data field. Choose the verified codec that is cheapest on the wire. Rank chains by gas and data-field cost after a real quote. Cascade into the cheaper route when the seat is already eligible. Never invent a hash. Never sell red to place the line.",
+  "module": "vita/inject-route-arm.js",
+  "pairMemory": "vita/memory/inject-route-learn.json",
+  "telegram": ["/routes"],
+  "locations": []
+}

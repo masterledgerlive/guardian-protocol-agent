@@ -1,0 +1,8 @@
+{
+  "label": "WAVE_FLOW",
+  "at": "2026-09-24T02:05:00.000Z",
+  "note": "The flow arm reads marks from sources we can reach. Robinhood crypto quotes are the first source. The IDM route is the §RHD§v1 line we author, label ROBINHOOD_CRYPTO, owner vita. Robinhood is the quote source. loc stays empty until our covered leftover sell returns a real hash. A wave at least 8% off the prior close is large: a drop shows the crash leg on the tape, a rise shows the counterpart give-back. A spread wider than the move stays a second-scale quote. The arm does not send orders. The Base book still takes a 10–30% dividend and leaves the bag. /flow watch and /flow drop pick the index.",
+  "telegram": ["/flow", "/flow index", "/flow watch SYMBOL", "/flow drop SYMBOL", "/flow route"],
+  "routeOwner": "vita",
+  "neverInventHashes": true
+}

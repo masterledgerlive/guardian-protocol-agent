@@ -221,6 +221,8 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Wave board", cmd: "/waveboard" },
       { label: "Lull", cmd: "/lull" },
       { label: "Wave agents", cmd: "/waveagents" },
+      { label: "Flow", cmd: "/flow" },
+      { label: "Routes", cmd: "/routes" },
       { label: "Hitch tip", cmd: "/wavetest hitch" },
     ],
   },
