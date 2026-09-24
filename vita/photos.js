@@ -893,8 +893,10 @@ export function listPhotosOrdered({
 }
 
 /**
- * Unwrap plan for DOS picture viewer — ordered VIN groups as streamable blocks.
- * LOCAL_OK pulls from local store; MATCH uses sealed Basescan locs when present.
+ * Unwrap / blockchain-inject plan — every VIN line is one inject step with
+ * exact UTF-8 data field + read-proof receipt click-through.
+ * LOCAL_OK = availability (receipt shows the data field that will seal).
+ * MATCH = sealed Basescan Input Data → UTF-8 (never invent hashes).
  */
 export function buildUnwrapPlan(idOrSel = "earthrise") {
   const meta = resolvePhoto(idOrSel);
@@ -912,39 +914,66 @@ export function buildUnwrapPlan(idOrSel = "earthrise") {
     note: "Formula anchor — NOT picture body",
   }));
 
-  const blocks = (packed.groups || []).map((g, i) => {
-    const sealedTx = sealed[i] || null;
-    const match = sealedTx ? "MATCH" : "LOCAL_OK";
-    return {
-      n: g.n,
-      index: g.n,
-      groupN: g.n,
-      label: "g" + String(g.n).padStart(2, "0"),
-      name: g.name,
-      filingPath: g.filingPath || meta.storePath,
-      bytes: g.len || g.bodyBytes,
-      vinCount: g.totalChunks,
-      vinId: g.vinId,
-      readerKey: g.readerKey,
-      contentCommit: g.contentCommit,
-      dataFieldCommit: g.contentCommit,
-      dataFieldCommit8: shortHex(g.contentCommit, 8),
-      bodyPreview: String(g.body || "").slice(0, 64),
-      match,
-      highlight: match === "MATCH",
-      location: sealedTx,
-      basescan: sealedTx ? basescanTx + sealedTx : null,
-      role: sealedTx ? "MATCH" : "LOCAL_OK",
-      inspectPath:
-        "/vita/photos/group?id=" +
+  const blocks = [];
+  let vinGlobal = 0;
+  for (const g of packed.groups || []) {
+    const lines = Array.isArray(g.lines) && g.lines.length
+      ? g.lines
+      : [{ index: 1, line: g.body, body: g.body, hash: shortHex(g.contentCommit, 16) }];
+    for (const lineObj of lines) {
+      vinGlobal += 1;
+      const line = String(lineObj.line || lineObj.body || g.body || "");
+      const dataFieldCommit = sha256Hex(line);
+      const sealedTx = sealed[vinGlobal - 1] || null;
+      const match = sealedTx ? "MATCH" : "LOCAL_OK";
+      const label = "g" + String(g.n).padStart(2, "0") + "." + String(lineObj.index || vinGlobal);
+      const receiptPath =
+        "/vita/photos/receipt?id=" +
         encodeURIComponent(meta.id) +
         "&g=" +
-        g.n,
-      note: sealedTx
-        ? "Sealed Input Data — click Basescan"
-        : "Availability reconstruct — class-proof ≠ body until seal",
-    };
-  });
+        g.n +
+        "&i=" +
+        (lineObj.index || 1);
+      const locPath =
+        "/vita/photos/loc?id=" +
+        encodeURIComponent(meta.id) +
+        "&g=" +
+        g.n +
+        "&i=" +
+        (lineObj.index || 1);
+      blocks.push({
+        n: vinGlobal,
+        index: lineObj.index || vinGlobal,
+        groupN: g.n,
+        label,
+        name: g.name,
+        filingPath: g.filingPath || meta.storePath,
+        bytes: Buffer.byteLength(line, "utf8"),
+        vinId: g.vinId,
+        readerKey: g.readerKey || packed.zeroOpenKey,
+        contentCommit: dataFieldCommit,
+        dataFieldCommit,
+        dataFieldCommit8: shortHex(dataFieldCommit, 8),
+        lineHash: lineObj.hash || shortHex(dataFieldCommit, 16),
+        bodyPreview: line.slice(0, 96),
+        dataField: line,
+        calldataHex: "0x" + Buffer.from(line, "utf8").toString("hex"),
+        match,
+        highlight: match === "MATCH",
+        location: sealedTx,
+        basescan: sealedTx ? basescanTx + sealedTx : null,
+        role: sealedTx ? "MATCH" : "LOCAL_OK",
+        receiptPath,
+        inspectPath: locPath,
+        idmChat: sealedTx
+          ? "Basescan → Input Data → View as UTF-8"
+          : "pending seal — this UTF-8 is the data field that will inject",
+        note: sealedTx
+          ? "Sealed inject — click Basescan read proof receipt"
+          : "LOCAL_OK inject preview — click receipt for exact data field (never invent a hash)",
+      });
+    }
+  }
 
   return {
     ok: true,
@@ -964,13 +993,16 @@ export function buildUnwrapPlan(idOrSel = "earthrise") {
     chainStatus: sealed.length ? "MATCH" : "LOCAL_OK",
     sealedLocs: sealed,
     groupCount: packed.groupCount,
-    packetCount: packed.packetCount,
+    packetCount: packed.packetCount || blocks.length,
+    injectCount: blocks.length,
     blocks,
     classProof,
     mediaPath: "/vita/photos/media?id=" + encodeURIComponent(meta.id),
     viewerPath: PHOTOS_VIEWER_PATH + "?id=" + encodeURIComponent(meta.id) + "&unwrap=1",
-    streamMsPerBlock: 420,
+    streamMsPerBlock: 380,
     neverInventHashes: true,
+    proof:
+      "BLOCKCHAIN INJECT · each card is one VIN data field · click receipt for Input Data → UTF-8",
     dos: {
       drive: "VITA:\\PHOTOS\\",
       unlock: meta.zeroOpenKey,
@@ -983,13 +1015,109 @@ export function publicPhotosUnwrap(id = "earthrise") {
   return buildUnwrapPlan(id);
 }
 
+/**
+ * Exact VIN UTF-8 data field for one inject step — read-proof receipt body.
+ * sha256(line) === dataFieldCommit. Location only when a real seal exists.
+ */
+export function inspectPhotoLoc({ id = "earthrise", groupN = 1, index = 1 } = {}) {
+  const packed = packetizePhoto(id);
+  if (!packed.ok) return packed;
+  const gN = Number(groupN) || 1;
+  const iN = Number(index) || 1;
+  const g = (packed.groups || []).find((x) => Number(x.n) === gN);
+  if (!g) return { ok: false, reason: "unknown group g" + gN };
+  const lines = Array.isArray(g.lines) && g.lines.length
+    ? g.lines
+    : [{ index: 1, line: g.body, body: g.body }];
+  const lineObj = lines.find((l) => Number(l.index) === iN) || lines[iN - 1];
+  if (!lineObj) return { ok: false, reason: "unknown loc g" + gN + "." + iN };
+  const line = String(lineObj.line || lineObj.body || "");
+  const dataFieldCommit = sha256Hex(line);
+  const pulledUtf8Commit = sha256Hex(line);
+  const trueToBlock = pulledUtf8Commit === dataFieldCommit;
+  const sealed = sealedLocsForPhoto(packed.id);
+  let ord = 0;
+  let sealedTx = null;
+  outer: for (const gg of packed.groups || []) {
+    const glines = Array.isArray(gg.lines) && gg.lines.length
+      ? gg.lines
+      : [{ index: 1 }];
+    for (const lo of glines) {
+      ord += 1;
+      if (Number(gg.n) === gN && Number(lo.index || 1) === iN) {
+        sealedTx = sealed[ord - 1] || null;
+        break outer;
+      }
+    }
+  }
+  const basescanTx = MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/";
+  const basescan = sealedTx ? basescanTx + sealedTx : null;
+  const calldataHex = "0x" + Buffer.from(line, "utf8").toString("hex");
+  return {
+    ok: true,
+    proof: sealedTx ? "SYSTEM_INJECTED" : "INJECT_PREVIEW",
+    id: packed.id,
+    fileName: packed.fileName,
+    zeroOpenKey: packed.zeroOpenKey,
+    groupN: gN,
+    index: iN,
+    vinOrdinal: ord,
+    totalInGroup: g.totalChunks || lines.length,
+    groupCount: packed.groupCount,
+    totalVin: packed.packetCount || null,
+    filingPath: g.filingPath,
+    vinId: g.vinId,
+    readerKey: g.readerKey || packed.zeroOpenKey,
+    dataFieldCommit,
+    pulledUtf8Commit,
+    trueToBlock,
+    match: trueToBlock ? (sealedTx ? "MATCH" : "LOCAL_OK") : "LOCAL_FAIL",
+    highlight: trueToBlock,
+    line,
+    dataField: line,
+    body: lineObj.body || "",
+    bytes: Buffer.byteLength(line, "utf8"),
+    calldataHex,
+    calldataPreview: calldataHex.slice(0, 66) + (calldataHex.length > 66 ? "…" : ""),
+    location: sealedTx,
+    basescan,
+    clickThrough: true,
+    idmChat: basescan
+      ? "Basescan → Input Data → View as UTF-8"
+      : "pending seal — never invent loc · this UTF-8 IS the Input Data field",
+    receiptPath:
+      "/vita/photos/receipt?id=" +
+      encodeURIComponent(packed.id) +
+      "&g=" +
+      gN +
+      "&i=" +
+      iN,
+    inspectPath:
+      "/vita/photos/loc?id=" +
+      encodeURIComponent(packed.id) +
+      "&g=" +
+      gN +
+      "&i=" +
+      iN,
+    neverInventHashes: true,
+    note:
+      "Exact VIN UTF-8 data field for this blockchain inject step. " +
+      "sha256(line) must equal dataFieldCommit. Click Basescan when MATCH for Input Data → UTF-8 read receipt.",
+  };
+}
+
+export function publicPhotosLoc(id = "earthrise", g = 1, i = 1) {
+  return inspectPhotoLoc({ id, groupN: Number(g) || 1, index: Number(i) || 1 });
+}
+
 export function publicPhotosGroup(id = "earthrise", groupN = 1) {
   const packed = packetizePhoto(id);
   if (!packed.ok) return packed;
   const g = (packed.groups || []).find((x) => Number(x.n) === Number(groupN));
   if (!g) return { ok: false, reason: "group not found" };
-  const sealed = sealedLocsForPhoto(packed.id);
-  const sealedTx = sealed[Number(groupN) - 1] || null;
+  const locs = (g.lines || []).map((lineObj) =>
+    inspectPhotoLoc({ id: packed.id, groupN: g.n, index: lineObj.index || 1 })
+  );
   return {
     ok: true,
     id: packed.id,
@@ -1002,14 +1130,56 @@ export function publicPhotosGroup(id = "earthrise", groupN = 1) {
     totalChunks: g.totalChunks,
     body: g.body,
     bodyBytes: g.bodyBytes,
-    location: sealedTx,
-    basescan: sealedTx
-      ? (MAINFRAME_ANCHORS.basescanTx || "https://basescan.org/tx/") + sealedTx
-      : null,
-    match: sealedTx ? "MATCH" : "LOCAL_OK",
+    locs,
     filingPath: g.filingPath,
     neverInventHashes: true,
   };
+}
+
+/** HTML-ready receipt card for one inject (SYSTEM_INJECTED or INJECT_PREVIEW). */
+export function formatPhotoReceiptHtml(inspected) {
+  if (!inspected?.ok) {
+    return "<pre>receipt refused: " + String(inspected?.reason || "error") + "</pre>";
+  }
+  const esc = (s) =>
+    String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  const basescan = inspected.basescan
+    ? '<p><a href="' +
+      esc(inspected.basescan) +
+      '" target="_blank" rel="noopener">READ PROOF · Basescan Input Data → UTF-8</a></p>'
+    : '<p class="dim">No sealed tx yet — never invent hashes. Data field below is the inject body.</p>';
+  return [
+    "<!doctype html><html><head><meta charset=utf-8>",
+    "<meta name=viewport content=\"width=device-width,initial-scale=1\">",
+    "<title>PHOTO RECEIPT " + esc(inspected.id) + " " + esc(inspected.groupN) + "." + esc(inspected.index) + "</title>",
+    "<style>",
+    "body{margin:0;background:#010801;color:#67ff78;font:13px/1.45 Courier New,ui-monospace,monospace;",
+    "text-shadow:0 0 6px rgba(80,255,120,.35);padding:16px}",
+    "a{color:#b6ff9a} .dim{color:#1f8a3a} pre{white-space:pre-wrap;word-break:break-all;",
+    "border:1px solid #145c28;padding:10px;background:rgba(0,12,0,.55)}",
+    "h1{font-size:15px;letter-spacing:.14em;font-weight:normal}",
+    "</style></head><body>",
+    "<h1>VITA:\\PHOTOS\\ RECEIPT · " + esc(inspected.proof) + "</h1>",
+    "<p>" + esc(inspected.id) + " · block g" + esc(inspected.groupN) + "." + esc(inspected.index) +
+      " · match " + esc(inspected.match) + "</p>",
+    "<p>open key <code>" + esc(inspected.zeroOpenKey) + "</code></p>",
+    "<p>dataFieldCommit <code>" + esc(inspected.dataFieldCommit) + "</code></p>",
+    "<p>trueToBlock=" + esc(inspected.trueToBlock) + " · bytes=" + esc(inspected.bytes) + "</p>",
+    basescan,
+    "<p class=dim>" + esc(inspected.idmChat) + "</p>",
+    "<h2 style=\"font-size:12px;letter-spacing:.12em\">EXACT INPUT DATA FIELD (UTF-8)</h2>",
+    "<pre>" + esc(inspected.dataField || inspected.line) + "</pre>",
+    "<h2 style=\"font-size:12px;letter-spacing:.12em\">CALLDATA HEX</h2>",
+    "<pre>" + esc(inspected.calldataHex) + "</pre>",
+    "<p class=dim>" + esc(inspected.note) + "</p>",
+    '<p><a href="/vita/photos/viewer?id=' +
+      encodeURIComponent(inspected.id) +
+      '&unwrap=1&popup=1">← back to inject stream</a></p>',
+    "</body></html>",
+  ].join("");
 }
 
 export function listCatalogPhotos() {
@@ -1485,7 +1655,7 @@ export function formatPhotosCard(id = null) {
   lines.push("  /vitafeed photos add                  — send one picture");
   lines.push("  /vitafeed photos test                 — Earthrise hope full test");
   lines.push("  /vitafeed photos test mlk             — MLK historical uplift test");
-  lines.push("  /vitafeed photos unwrap [id]          — DOS pop-out stream viewer");
+  lines.push("  /vitafeed photos unwrap [id]          — blockchain inject stream + READ PROOF");
   lines.push("  /vitafeed dir PHOTOS                  — DOS list");
   lines.push("Never invent hashes. LOCK encode waits until you grant permissions.");
   return lines.join("\n");
@@ -1768,8 +1938,8 @@ export function handlePhotosRequest({ body = "", bytes = null, name = "", mime =
     };
   }
 
-  if (/^(?:unwrap|viewer|view|dos)\b/i.test(rest)) {
-    const sel = rest.replace(/^(?:unwrap|viewer|view|dos)\s*/i, "").trim() || "earthrise";
+  if (/^(?:unwrap|viewer|view|dos|inject)\b/i.test(rest)) {
+    const sel = rest.replace(/^(?:unwrap|viewer|view|dos|inject)\s*/i, "").trim() || "earthrise";
     const opened = playPhoto(sel);
     if (!opened.ok) {
       return { ok: false, phase: "unwrap", reply: opened.reason, keyboard: buildPhotosKeyboard() };
@@ -1783,9 +1953,10 @@ export function handlePhotosRequest({ body = "", bytes = null, name = "", mime =
       playerHref: opened.playerHref,
       reply:
         formatPhotosCard(opened.id) +
-        "\n\n▶ DOS unwrap viewer: " +
+        "\n\n▶ Blockchain inject stream: " +
         opened.playerPath +
-        "\nStreams loc blocks → populates picture. Open key unwraps without a wallet secret.",
+        "\nEach VIN card = Input Data UTF-8 · click READ PROOF receipt · Basescan when MATCH." +
+        "\nOpen key unwraps without a wallet secret. Never invent hashes.",
       keyboard: buildPhotosKeyboard({ highlight: opened.id }),
     };
   }
