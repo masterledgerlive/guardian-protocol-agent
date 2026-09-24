@@ -144,6 +144,20 @@ import {
   CHAIN_PULL_TTL_MS,
 } from "./vita/wave-agent-bank.js";
 import {
+  bankFlowRoute,
+  buildFlowRouteLine,
+  commitFlowRouteHash,
+  dropPair,
+  formatFlowBoard,
+  formatFlowIndex,
+  formatFlowRoute,
+  formatFlowSymbolNote,
+  loadFlowBook,
+  planFlowRouteRide,
+  saveFlowBook,
+  watchPair,
+} from "./vita/wave-flow-arm.js";
+import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
@@ -3507,6 +3521,7 @@ let waveHlLedger = createWaveHlLedger();
 let waveHlFromPositions = null;
 let waveChainCache = { at: 0, anchors: 0, trails: 0, whl: 0, error: null };
 let waveChainScan = null;
+let flowBook = null;
 const tradeLog     = [];
 let netPositions   = {};
 /** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
@@ -3555,6 +3570,16 @@ function collectWaveBoardRows() {
     rows.push({ ...assessed, plan, balance: bal });
   }
   return rows;
+}
+
+function flowArm() {
+  if (!flowBook) flowBook = loadFlowBook();
+  return flowBook;
+}
+
+function saveFlowArm() {
+  try { saveFlowBook(flowArm()); }
+  catch (e) { console.log(`⚠️  flow arm: ${e.message}`); }
 }
 
 function liveWaveDesk() {
@@ -7671,6 +7696,8 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
     let whlCost = 0;
     let whlMachine = null;
+    let flowCost = 0;
+    let flowMachine = null;
     try {
       const whlRow = assessWaveToken(waveHlLedger, {
         symbol: token.symbol,
@@ -7730,6 +7757,55 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     } catch (e) {
       console.log(`   🌊 WHL ride skipped — ${e.message}`);
     }
+    // Our §RHD§ route. Robinhood is only the quote source already filed.
+    // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
+    try {
+      const built = buildFlowRouteLine(flowArm());
+      if (built.line && built.line.includes("top=-") === false && /\|n=[1-9]/.test(built.line)) {
+        flowMachine = built.line;
+        bankFlowRoute(flowArm(), built);
+        const flowBytes = built.bytes || 0;
+        const flowL1 = hitchL1?.ok && wantedHitchBytes > 0 && flowBytes > 0
+          ? (Number(hitchL1.l1FeeEth) || 0) * flowBytes / wantedHitchBytes
+          : 0;
+        flowCost = flowBytes > 0 ? estimateCalldataHitchEth(flowBytes, gwei) + flowL1 : 0;
+        const spent = voiceHitchCost + (sellVoice?.waveHitch ? waveCost : 0) + (sellVoice?.waveHlHitch ? whlCost : 0);
+        const leftAfter = sellVoice.onChain ? Math.max(0, gateLeftoverEth - spent) : 0;
+        const flowCovered = !sellSkipHitch
+          && !!sellVoice.onChain
+          && leftAfter > 0
+          && flowCost > 0
+          && leftAfter + 1e-18 >= flowCost
+          && plusAfterHitchEth(gateLeftoverEth, spent + flowCost) > 0;
+        const flowPlan = planFlowRouteRide({
+          leftoverEth: flowCovered ? leftAfter : 0,
+          hitchCostEth: flowCost > 0 ? flowCost : 1,
+          pairedPlus: true,
+          machine: built.line,
+        });
+        if (flowPlan.hitch && sellVoice?.data) {
+          const packed = appendUtf8Hitch(sellVoice.data, flowPlan.utf8);
+          if (packed.ok && packed.onChain) {
+            sellVoice = {
+              ...sellVoice,
+              data: packed.data,
+              utf8: String(sellVoice.utf8 || "") + packed.utf8,
+              hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+              flowHitch: true,
+              flowUtf8: packed.utf8,
+            };
+            console.log(`   💉 FLOW route ${packed.hitchBytes} B owner vita — ${flowPlan.reason}`);
+          } else {
+            console.log(`   💉 FLOW route banked — append refused (${packed.log || flowPlan.reason})`);
+          }
+        } else {
+          console.log(`   💉 FLOW route banked — ${flowPlan.reason}`);
+        }
+        saveFlowArm();
+      }
+    } catch (e) {
+      console.log(`   💉 FLOW route skipped — ${e.message}`);
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -7779,6 +7855,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
         + (sellVoice?.waveHitch ? waveCost : 0)
         + (sellVoice?.waveHlHitch ? whlCost : 0)
+        + (sellVoice?.flowHitch ? flowCost : 0)
       : 0;
     if (sellVoice?.waveHlHitch && whlMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
       commitWaveHlRideHash(waveHlLedger, {
@@ -7790,6 +7867,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         console.log(`⚠️  wave HL ledger: ${e.message}`);
       }
       console.log(`   🌊 WHL loc ${transactionHash} — utc|local|unix on this sell`);
+    }
+    if (sellVoice?.flowHitch && flowMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
+      commitFlowRouteHash(flowArm(), { line: flowMachine, txHash: transactionHash });
+      saveFlowArm();
+      console.log(`   💉 FLOW loc ${transactionHash} — our §RHD§ route`);
     }
     let earn = piggyEarningsAfterMessage({
       netUsd,
@@ -10969,6 +11051,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           let body = out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>";
           if (parsedTok.symbol && out.action === "token") {
             body += "\n\n" + waveClickCard(out.symbol || parsedTok.symbol);
+            const flowNote = formatFlowSymbolNote(flowArm(), out.symbol || parsedTok.symbol);
+            if (flowNote) body += "\n\n" + flowNote;
             refreshWaveChainPebbles().catch(() => {});
           }
           await tg(
@@ -11240,6 +11324,26 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           if (!any) msg += `No open positions.\n`;
           msg += `\n<i>Use /fib SYMBOL for the full ladder map</i>`;
           await tg(msg);
+        }
+      } else if (text === "/flow" || (text && text.startsWith("/flow "))) {
+        const parts = raw.trim().split(/\s+/);
+        const sub = (parts[1] || "").toLowerCase();
+        const arg = parts[2] || "";
+        const book = flowArm();
+        if (sub === "watch" && arg) {
+          const out = watchPair(book, arg);
+          saveFlowArm();
+          await tg(`● <b>${esc(out.pair)}</b> is on the flow watch.\nA mark appears after the next filed snapshot.`);
+        } else if (sub === "drop" && arg) {
+          const out = dropPair(book, arg);
+          saveFlowArm();
+          await tg(out.ok ? `○ <b>${esc(out.pair)}</b> left the flow watch.` : `❓ <b>${esc(out.pair)}</b> was not on the watch.`);
+        } else if (sub === "index") {
+          await tg(formatFlowIndex(book));
+        } else if (sub === "route") {
+          await tg(formatFlowRoute(book));
+        } else {
+          await tg(formatFlowBoard(book));
         }
       } else if (text === "/lull") {
         refreshWaveChainPebbles().catch(() => {});

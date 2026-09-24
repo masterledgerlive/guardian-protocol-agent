@@ -1,0 +1,12 @@
+{
+  "strandId": "wave-flow-arm-v1",
+  "sparse": true,
+  "label": "WAVE_FLOW",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "learn": "Read marks from sources we choose. Author our own §RHD§ injection, label ROBINHOOD_CRYPTO, owner vita. A big wave shows its crash leg. Leave before the crowd gives a large rise back. Dividend stays on the Base book. Never invent a hash. Never sell red to place the line.",
+  "module": "vita/wave-flow-arm.js",
+  "pairMemory": "vita/memory/wave-flow-learn.json",
+  "telegram": ["/flow", "/flow route"],
+  "locations": []
+}
