@@ -703,6 +703,10 @@ import {
   formatRouteSystemsCheckCard,
   buildRouteCheckKeyboard,
 } from "./vita/telegram-help-routes.js";
+import {
+  handleRhFundAction,
+  parseRhFundCommand,
+} from "./vita/rh-fund.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -11187,6 +11191,64 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           await tg("❌ token player failed: " + (e.message || e) + "\nNothing invented.");
         }
       // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
+      } else if (
+        text === "/rh" ||
+        text === "/rhfund" ||
+        text === "/robinhood" ||
+        (text && (text.startsWith("/rh ") || text.startsWith("/rhfund ") || text.startsWith("/rhconfirm ")))
+      ) {
+        try {
+          const parsed = parseRhFundCommand(raw);
+          const out = handleRhFundAction({
+            action: parsed.action || "root",
+            source: parsed.source || "",
+          });
+          if (Array.isArray(out.queueBuys) && out.queueBuys.length) {
+            for (const qb of out.queueBuys) {
+              const sym = String(qb.symbol || "").toUpperCase();
+              const tok = tokens.find((t) => t.symbol === sym);
+              if (!tok) {
+                await tg(`❓ RH fund: unknown Base token ${sym}`);
+                continue;
+              }
+              if (isCatalogFrozen(tok)) {
+                await tg(`❄️ <b>${sym} is frozen</b> — RH fund Base buy blocked.\n${tok.frozenReason || "Catalog freeze."}`);
+                continue;
+              }
+              const usd = Number(qb.usd) || 1;
+              const below = operatorBuyBelowMin({ symbol: sym, usd, token: tok });
+              if (below) {
+                await tg(`🛑 <b>${sym} min buy $${minBuyUsdForToken(tok).toFixed(2)}</b>\n${below}`);
+                continue;
+              }
+              if (manualCommands.find((c) => c.symbol === sym && c.action === "buy")) {
+                await tg(`⚠️ BUY ${sym} already queued`);
+                continue;
+              }
+              manualCommands.push({
+                symbol: sym,
+                action: "buy",
+                usd,
+                source: qb.source || "RH_FUND",
+              });
+              await tg(operatorBuyQueuedTelegram(sym, usd));
+            }
+            if (cdpClient) {
+              try { await flushPendingOperatorBuys(cdpClient); }
+              catch (e) { console.log(`⚠️  RH fund /buy flush failed: ${e.message} — remains queued`); }
+            }
+          }
+          await tg(
+            "📱 <b>RH → BASE FUND</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ rh fund failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (
         text === "/home" ||
         text === "/menu" ||

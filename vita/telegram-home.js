@@ -279,6 +279,8 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Sell half…", cmd: "/pick sellhalf" },
       { label: "Exit…", cmd: "/pick exit" },
       { label: "Piggy…", cmd: "/pick piggyunlock" },
+      { label: "RH → HOME+AERO", cmd: "/rh" },
+      { label: "RH CHIP $2", cmd: "/rh fund CHIP" },
       { label: "Tokens", cmd: "/tokens" },
       { label: "Player", cmd: "/tokenplayer" },
       { label: "DEX", cmd: "/dex" },
