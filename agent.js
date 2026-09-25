@@ -264,7 +264,6 @@ import {
   shouldBlockSell,
   holdAllSellsStatusLine,
   armHoldAllSells,
-  isHomeSymbol,
 } from "./operator-sell-hold.js";
 import {
   FIFO_LOTS_FILENAME,
