@@ -20,6 +20,7 @@ import {
 } from "./vault-loader.js";
 
 import { maybeFundV4FromV3 } from "./v4-fund-once.js";
+import { maybeBridgeL1EthToBase } from "./l1-bridge-to-base.js";
 
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
 import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot, maybeAutofireVitaFeedOnBoot } from "./vita-webhook.js";
@@ -15263,6 +15264,28 @@ async function main() {
   applyOperatorSellEnv();
   applyOperatorRotateEnv();
   applyOperatorUnwrapEnv();
+  // OPERATOR_BRIDGE_L1_TO_BASE=yes — move unused Ethereum L1 ETH → Base RISK
+  // via OptimismPortal before OPERATOR_BUY (HOME) spends Base ETH/WETH.
+  try {
+    if (String(process.env.OPERATOR_BRIDGE_L1_TO_BASE || "").trim()) {
+      let ethUsdBridge = cachedEthUsd;
+      try { ethUsdBridge = await getLiveEthPrice(); cachedEthUsd = ethUsdBridge; } catch { /* keep */ }
+      await maybeBridgeL1EthToBase({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        ethUsd: ethUsdBridge,
+        log: console.log,
+        tg,
+        waitForBaseMs: 180_000,
+        getBaseNativeEth: async () => {
+          try { return Number(await getEthBalance()) || 0; }
+          catch { return 0; }
+        },
+      });
+    }
+  } catch (bridgeErr) {
+    console.log(`⚠️  L1→Base bridge failed (non-fatal): ${bridgeErr.message}`);
+  }
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
   // HOME OPERATOR_BUY uses Slipstream (same as rotate) — Uni V3 ghost skipped.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.

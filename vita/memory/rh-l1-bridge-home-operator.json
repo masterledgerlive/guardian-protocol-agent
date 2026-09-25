@@ -1,0 +1,28 @@
+{
+  "at": "2026-09-25T02:40:00.000Z",
+  "topic": "rh-guardian-pairs-l1-bridge-home",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Then do a test to see if can find pairs with robinhood and guardian protocol and send a dollar from robinhood to base and then into $home, if have to send eth, figure out how to use in my multichain portfolio the 2.56 in eth is not being used and should be turned into base eth",
+  "locations": [],
+  "hypothesis": {
+    "id": "rh-no-withdraw-l1-other-path-bridge",
+    "status": "tested",
+    "findings": [
+      "Robinhood agentic •••9826: ~$20 (~$19 crypto + $1 BP). Positions: STRK/AVAX/SEI/CHIP/ENA/WLD/ZEC/NEAR — no ETH, no HOME.",
+      "HOME not listed on Robinhood currency pairs (search Defi App HOME empty; Homebrew BREW-USD is unrelated).",
+      "ETH-USD pair exists; $1 market buy preview OK (~0.000364 ETH @ ~$2713, fee $0) — NOT placed (agentic API has no withdraw/bridge to Base).",
+      "Guardian RISK 0x50e1…7915 live: Base ~0.000574 ETH (~$1.54); Ethereum L1 ~0.000948 ETH (~$2.55) = unused other-path.",
+      "Path: OPERATOR_BRIDGE_L1_TO_BASE=yes → OptimismPortal.depositTransaction on ethereum → same address Base ETH → OPERATOR_BUY HOME:2.56 Slipstream.",
+      "Phantom MCP wallet_status/login timed out — not used for this move."
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "env": {
+    "OPERATOR_BRIDGE_L1_TO_BASE": "yes",
+    "OPERATOR_BUY": "HOME:2.56",
+    "HOLD_ALL_SELLS": "yes",
+    "APPROVE_HOME_SELL": "no"
+  }
+}
