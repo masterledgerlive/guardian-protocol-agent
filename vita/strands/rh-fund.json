@@ -1,0 +1,27 @@
+{
+  "id": "vita-rh-fund-v1",
+  "filingLabel": "RH_FUND",
+  "magic": "§RHFUND§",
+  "at": "2026-09-25T12:13:02.984Z",
+  "last": {
+    "at": "2026-09-25T12:13:02.984Z",
+    "source": "CHIP",
+    "pair": "CHIP-USD",
+    "sellUsd": 2,
+    "destinations": [
+      {
+        "symbol": "HOME",
+        "usd": 1,
+        "telegramBuy": "/buy HOME 1"
+      },
+      {
+        "symbol": "AERO",
+        "usd": 1,
+        "telegramBuy": "/buy AERO 1"
+      }
+    ],
+    "rhWithdraw": false,
+    "note": "Base /buy queued; RH sell is agentic/app. No invented hashes."
+  },
+  "learn": "Telegram /rh picks a chosen Robinhood source. Confirm queues Base $1 HOME + $1 AERO. RH sell stays Agentic MCP/app. Never invent hashes. Never sell HOME."
+}

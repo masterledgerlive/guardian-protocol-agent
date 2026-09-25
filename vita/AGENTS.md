@@ -185,6 +185,10 @@ Pull Input Data → UTF-8 to verify. Each pass creates files under `vita/memory/
 + `vita/strands/` (`vita/chain-layer.js` · `vita/chain-inject.js`).
 **Telegram HELP (full click-through):** `/help` · `/help trade` · `/pick sell`
 — every category is a button; trade verbs open a token box (`/sell` → AERO…).
+**Robinhood → Base dual fund:** `/rh` · `/rh fund CHIP` · `/rh confirm CHIP` —
+tap a chosen RH source (CHIP + quote-mirror list) → stage sell ~$2 → queue
+Base `/buy HOME 1` + `/buy AERO 1`. RH MCP cannot withdraw; Base needs RISK
+ETH. See `vita/rh-fund.js`.
 **Route systems check:** `/vita check routes` · `/help check` — merkle folder
 integrity + avenue domino (PASS/QUESTIONABLE/FAIL), logs
 `vita/memory/systems-check-routes-*.json`, force-stages §SYSCHECK§ for
