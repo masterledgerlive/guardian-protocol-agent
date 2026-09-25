@@ -44,7 +44,9 @@ export function encodePortalDepositEth({ to, valueWei, l2GasLimit = L2_DEPOSIT_G
 }
 
 /**
- * Size deposit: leave headroom for L1 gas (estimate × buffer).
+ * Size deposit: leave headroom for L1 gas (estimate × buffer), plus a
+ * hard floor — CDP often prices maxFee far above eth_gasPrice, so thin
+ * L1 bags need ≥~0.00025 ETH left or the send reverts Insufficient balance.
  * @returns {{ ok: boolean, depositWei: bigint, gasEst: bigint, gasReserveWei: bigint, balWei: bigint, reason?: string }}
  */
 export function planL1EthDeposit({
@@ -52,7 +54,9 @@ export function planL1EthDeposit({
   gasEst,
   gasPriceWei,
   gasBufferMult = 1.5,
+  minGasFloorWei = 250_000_000_000_000n, // 0.00025 ETH — CDP maxFee headroom
   minDepositWei = 50_000_000_000_000n, // 0.00005 ETH (~$0.13)
+  depositCapWei = null,
 } = {}) {
   const bal = BigInt(balWei || 0n);
   const gas = BigInt(gasEst || 0n);
@@ -63,7 +67,8 @@ export function planL1EthDeposit({
   }
   const mult = Math.max(1.1, Number(gasBufferMult) || 1.5);
   const numer = BigInt(Math.round(mult * 1000));
-  const gasReserveWei = (gas * price * numer) / 1000n;
+  const estReserve = (gas * price * numer) / 1000n;
+  const gasReserveWei = estReserve > BigInt(minGasFloorWei) ? estReserve : BigInt(minGasFloorWei);
   if (bal <= gasReserveWei + BigInt(minDepositWei)) {
     return {
       ok: false,
@@ -74,7 +79,10 @@ export function planL1EthDeposit({
       reason: `l1-too-thin bal=${formatEther(bal)} reserve=${formatEther(gasReserveWei)}`,
     };
   }
-  const depositWei = bal - gasReserveWei;
+  let depositWei = bal - gasReserveWei;
+  if (depositCapWei != null && BigInt(depositCapWei) > 0n && depositWei > BigInt(depositCapWei)) {
+    depositWei = BigInt(depositCapWei);
+  }
   return { ok: true, depositWei, gasEst: gas, gasReserveWei, balWei: bal };
 }
 
@@ -183,7 +191,21 @@ export async function maybeBridgeL1EthToBase({
     data,
   }]);
   const gasEst = BigInt(gasHex);
-  const plan = planL1EthDeposit({ balWei, gasEst, gasPriceWei });
+  const capRaw = String(envObj.OPERATOR_BRIDGE_L1_ETH || "").trim();
+  let depositCapWei = null;
+  if (capRaw) {
+    const n = Number(capRaw);
+    if (Number.isFinite(n) && n > 0) {
+      depositCapWei = BigInt(Math.floor(n * 1e18));
+    }
+  }
+  let plan = planL1EthDeposit({
+    balWei,
+    gasEst,
+    gasPriceWei,
+    minGasFloorWei: 300_000_000_000_000n, // 0.0003 ETH CDP headroom
+    depositCapWei,
+  });
   if (!plan.ok) {
     log(`[l1-bridge] skip: ${plan.reason}`);
     if (tg) {
@@ -195,23 +217,44 @@ export async function maybeBridgeL1EthToBase({
     return { sent: false, reason: plan.reason, plan };
   }
 
-  const finalData = encodePortalDepositEth({ to: fromAddress, valueWei: plan.depositWei });
-  const depositEth = Number(formatEther(plan.depositWei));
-  const usd = depositEth * (Number(ethUsd) > 0 ? Number(ethUsd) : 2500);
+  async function sendDeposit(depositWei) {
+    const data = encodePortalDepositEth({ to: fromAddress, valueWei: depositWei });
+    return cdp.evm.sendTransaction({
+      address: fromAddress,
+      network: "ethereum",
+      transaction: {
+        to: BASE_L1_OPTIMISM_PORTAL,
+        value: depositWei,
+        data,
+      },
+    });
+  }
+
+  let depositWei = plan.depositWei;
+  let depositEth = Number(formatEther(depositWei));
+  let usd = depositEth * (Number(ethUsd) > 0 ? Number(ethUsd) : 2500);
   log(
     `[l1-bridge] depositing ${depositEth.toFixed(6)} ETH (~$${usd.toFixed(2)}) ` +
       `via OptimismPortal → Base (same address)`,
   );
 
-  const result = await cdp.evm.sendTransaction({
-    address: fromAddress,
-    network: "ethereum",
-    transaction: {
-      to: BASE_L1_OPTIMISM_PORTAL,
-      value: plan.depositWei,
-      data: finalData,
-    },
-  });
+  let result;
+  try {
+    result = await sendDeposit(depositWei);
+  } catch (err) {
+    const msg = String(err?.message || err || "");
+    const half = depositWei / 2n;
+    if (/insufficient/i.test(msg) && half >= 50_000_000_000_000n) {
+      log(`[l1-bridge] CDP insufficient on full size — retry half ${formatEther(half)} ETH`);
+      depositWei = half;
+      plan = { ...plan, depositWei, retriedHalf: true };
+      depositEth = Number(formatEther(depositWei));
+      usd = depositEth * (Number(ethUsd) > 0 ? Number(ethUsd) : 2500);
+      result = await sendDeposit(depositWei);
+    } else {
+      throw err;
+    }
+  }
   const hash = result?.transactionHash || result?.hash || null;
   if (!hash || typeof hash !== "string" || !/^0x[a-fA-F0-9]{64}$/.test(hash)) {
     log(`[l1-bridge] send returned no hash — not latching`);

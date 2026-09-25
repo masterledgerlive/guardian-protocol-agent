@@ -41,8 +41,44 @@ describe("l1-bridge-to-base", () => {
     const gasPriceWei = 163434888n; // ~0.163 gwei
     const plan = planL1EthDeposit({ balWei, gasEst, gasPriceWei });
     assert.equal(plan.ok, true);
-    assert.ok(plan.depositWei > 700000000000000n);
-    assert.ok(plan.depositWei + plan.gasReserveWei === balWei);
+    // CDP maxFee floor 0.00025 dominates tiny eth_gasPrice×gas
+    assert.equal(plan.gasReserveWei, 250_000_000_000_000n);
+    assert.ok(plan.depositWei > 600000000000000n);
+    assert.equal(plan.depositWei + plan.gasReserveWei, balWei);
+  });
+
+  it("retries half deposit when CDP says insufficient balance", async () => {
+    const tmp = `/tmp/l1-bridge-half-${Date.now()}.json`;
+    const RISK = "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915";
+    const bal = 948176024188161n;
+    const fakeHash = "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+    let calls = 0;
+    const r = await maybeBridgeL1EthToBase({
+      cdp: {
+        evm: {
+          sendTransaction: async (args) => {
+            calls++;
+            if (calls === 1) throw new Error("Insufficient balance to execute the transaction.");
+            return { transactionHash: fakeHash };
+          },
+        },
+      },
+      fromAddress: RISK,
+      latchPath: tmp,
+      envObj: { OPERATOR_BRIDGE_L1_TO_BASE: "yes" },
+      ethUsd: 2688,
+      log() {},
+      ethRpcFn: async (method) => {
+        if (method === "eth_getBalance") return "0x" + bal.toString(16);
+        if (method === "eth_gasPrice") return "0x9be15c8";
+        if (method === "eth_estimateGas") return "0x1fef7";
+        throw new Error(method);
+      },
+    });
+    assert.equal(r.sent, true);
+    assert.equal(calls, 2);
+    assert.equal(r.plan?.retriedHalf, true);
+    if (existsSync(tmp)) unlinkSync(tmp);
   });
 
   it("refuses empty / too-thin L1", () => {
