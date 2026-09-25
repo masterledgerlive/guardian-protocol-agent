@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-25T02:08:00.000Z",
+  "topic": "hold-all-sells-home",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Put a hold on $home do not sell any tokens at all until i approve",
+  "locations": [],
+  "hypothesis": {
+    "id": "hold-all-sells-until-approve",
+    "status": "armed",
+    "asks": [
+      "HOLD_ALL_SELLS=yes — block every sell path until operator approves",
+      "$HOME never-sell (APPROVE_HOME_SELL unset) — cascade + piggy holder",
+      "clear OPERATOR_SELL / do not arm rotate sells",
+      "lift only when operator sets HOLD_ALL_SELLS=no (and APPROVE_HOME_SELL=yes only if HOME dump is intentional)"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "env": {
+    "HOLD_ALL_SELLS": "yes",
+    "APPROVE_HOME_SELL": "unset",
+    "OPERATOR_SELL": "empty"
+  }
+}

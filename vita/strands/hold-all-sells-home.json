@@ -1,0 +1,9 @@
+{
+  "strand": "hold-all-sells-home",
+  "at": "2026-09-25T02:08:00.000Z",
+  "summary": "Operator freeze: no token sells until approve; $HOME never-sell.",
+  "module": "operator-sell-hold.js",
+  "gate": "shouldBlockSell → executeSell early return",
+  "telegram": "/hold sells",
+  "lift": "HOLD_ALL_SELLS=no; APPROVE_HOME_SELL=yes only to allow HOME"
+}

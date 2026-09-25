@@ -260,6 +260,12 @@ import {
   applyRotateUnquotedSkip,
 } from "./operator-rotate.js";
 import {
+  isHoldAllSells,
+  shouldBlockSell,
+  holdAllSellsStatusLine,
+  armHoldAllSells,
+} from "./operator-sell-hold.js";
+import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
   EVIDENCE_ADDON_BUY_TXS,
@@ -7201,6 +7207,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // After N buy fails we freeze *new buys* and arm cooldown; leftover exits
     // must still be able to hit a live Uni V3 fee. Blocking sells here is what
     // logged SELL SKIPPED [GAME] while the bag was leftover.
+    // Exception: HOLD_ALL_SELLS / HOME never-sell — operator freeze until approve.
+
+    const sellHold = shouldBlockSell({
+      symbol: token.symbol,
+      reason,
+      env: process.env,
+    });
+    if (sellHold.block) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: ${sellHold.why}`);
+      return null;
+    }
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
@@ -10986,10 +11003,24 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           try { await flushPendingOperatorBuys(cdpClient); }
           catch (e) { console.log(`⚠️  Immediate /buy flush failed: ${e.message} — remains queued`); }
         }
+      } else if (text === "/hold" || text === "/hold sells" || text.startsWith("/hold sells")) {
+        const arg = text.replace(/^\/hold\s*/i, "").trim().toLowerCase();
+        if (arg === "sells" || arg === "sells on" || arg === "on" || arg === "" || text === "/hold") {
+          armHoldAllSells(process.env);
+          await tg(`🛑 <b>HOLD_ALL_SELLS ON</b>\nNo token sells until you approve.\n$HOME never-sell stays on.\nClear Railway <code>HOLD_ALL_SELLS=no</code> when ready.`);
+        } else if (arg === "sells off" || arg === "off" || arg === "approve") {
+          await tg(`⚠️ To lift sells, set Railway <code>HOLD_ALL_SELLS=no</code> (and <code>APPROVE_HOME_SELL=yes</code> only if you want $HOME dumpable).\nStatus: ${holdAllSellsStatusLine()}`);
+        } else {
+          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off (status only — clear env to lift)`);
+        }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);
         const sym = parsed?.symbol;
         if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /sell SYMBOL [pct|all]`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: manualSellReason(parsed.pct), env: process.env });
+          if (hold.block) { await tg(`🛑 <b>SELL blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.some(c => isMatchingManualSell(c, parsed))) { await tg(`⚠️ SELL ${sym} already queued`); continue; }
         if (Math.abs(parsed.pct - 0.5) < 1e-9) {
           manualCommands.push({ symbol: sym, action: "sellhalf" });
@@ -11004,6 +11035,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/sellhalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: manualSellReason(0.5), env: process.env });
+          if (hold.block) { await tg(`🛑 <b>SELL HALF blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.some(c => isMatchingManualSell(c, { symbol: sym, pct: 0.5 }))) { await tg(`⚠️ SELL HALF ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "sellhalf" });
         await tg(`📱 <b>SELL HALF ${sym} queued</b>`);
@@ -11011,6 +11046,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const parsed = parsePiggyUnlockCommand(raw);
         const sym = parsed?.symbol;
         if (!sym || !tokens.find(t => t.symbol === sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /piggyunlock SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "PIGGY UNLOCK", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>PIGGY UNLOCK blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.find(c => c.symbol === sym && c.action === "piggyunlock")) { await tg(`⚠️ PIGGY UNLOCK ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "piggyunlock" });
         await tg(`🐷 <b>PIGGY UNLOCK ${sym} queued</b>\nWill sell the dust pile (reason: PIGGY UNLOCK)`);
@@ -11023,6 +11062,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/exit ") && !text.startsWith("/exitpct") && !text.startsWith("/exithalf")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown token: ${sym}\nUsage: /exit SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         const bal = getCachedBalance(sym);
         // Allow exit even without entry price — just needs a balance
@@ -11043,6 +11086,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/exithalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown token: ${sym}\nUsage: /exithalf SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT HALF", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         const bal = getCachedBalance(sym);
         if (!token.entryPrice && bal < 0.001) { await tg(`❓ <b>${sym}</b> — no position and no balance found`); continue; }
@@ -11065,6 +11112,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const pct   = parseFloat(parts[2]);
         if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Usage: /exitpct SYMBOL 75\nExample: /exitpct BRETT 75 sells 75% to ETH`); continue; }
         if (!pct || isNaN(pct) || pct <= 0 || pct > 100) { await tg(`❓ Percentage must be 1–100\nExample: /exitpct BRETT 75`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT PCT", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         if (!token.entryPrice) { await tg(`❓ <b>${sym}</b> — no open position to exit`); continue; }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
@@ -14898,6 +14949,12 @@ async function flushPendingOperatorBuys(cdp) {
 }
 
 function applyOperatorRotateEnv() {
+  if (isHoldAllSells()) {
+    if (String(process.env.OPERATOR_ROTATE_TO || "").trim()) {
+      console.log(`🛑 HOLD_ALL_SELLS — refusing OPERATOR_ROTATE_TO=${process.env.OPERATOR_ROTATE_TO} (would sell non-HOME bags)`);
+    }
+    return { queued: false, reason: "hold-all-sells" };
+  }
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
@@ -14929,6 +14986,12 @@ function applyOperatorRotateEnv() {
 }
 
 function applyOperatorSellEnv() {
+  if (isHoldAllSells()) {
+    if (String(process.env.OPERATOR_SELL || "").trim()) {
+      console.log(`🛑 HOLD_ALL_SELLS — refusing OPERATOR_SELL=${process.env.OPERATOR_SELL} until operator approves`);
+    }
+    return { queued: false, reason: "hold-all-sells" };
+  }
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
@@ -15107,6 +15170,7 @@ async function main() {
     console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost (or micro-bank when cover cannot fit)");
   }
   console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; message-first=${isOriginalFormulaMessageFirst() ? "on" : "off"} hitch when leftover covers 1× KEY+LOC (HITCH_COST_MULT=${hitchCostMult()}× cushion preferred; VITA_MESSAGE_FIRST=no → skip + bank); never sell red to inject`);
+  console.log(holdAllSellsStatusLine());
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
