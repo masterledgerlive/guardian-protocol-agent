@@ -282,6 +282,18 @@ export function evaluateAddOnFifoRedGate({
   env = process.env,
 } = {}) {
   if (isUnknownCostBlockingAddOn({ unknownEntry, tokenBal, bagUsd })) {
+    // Explicit operator /buy into an unknown-cost bag (e.g. $HOME piggy holder
+    // after rotate) is Game intent — always-plus still gates later sells.
+    if (isManualOperatorBuy(reason)) {
+      return {
+        allow: true,
+        blocked: false,
+        reason: "operator-unknown-add",
+        log:
+          `ADD_ON: allow ${symbol} MANUAL BUY (operator) into unknown-cost bag ` +
+          `(chain balance is truth; sells stay always-plus / HOLD_ALL_SELLS)`,
+      };
+    }
     return {
       allow: false,
       blocked: true,
