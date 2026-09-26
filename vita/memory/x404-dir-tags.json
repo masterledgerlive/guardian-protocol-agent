@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-21T02:40:00.000Z",
+  "topic": "x404-dir-tags",
+  "filingLabel": "X404_DIR",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "text": "x404 directory tags: many same names, different plotted locations (data inputs that mirror the system). Directories = paths for answer keys = direct routes the chain took. Optional sealed Base loc only when proven (hardcoded anchors). Plots wait for a master-location tag.",
+  "schema": "vita/x404-dir.json"
+}

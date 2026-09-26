@@ -8,6 +8,7 @@ import {
   normalizeWaveSeries,
   demoEngineSnapshot,
 } from "./engine-board.js";
+import { classifySellArmedDisplay } from "./sell-armed-display.js";
 
 describe("classifyWavePhase", () => {
   it("marks paddle near predicted trough when flat", () => {
@@ -33,6 +34,42 @@ describe("classifyWavePhase", () => {
       holding: true,
     });
     assert.equal(p.phase, "PEAK");
+  });
+
+  it("paints SELLING green only when sellArmed is sendable PLUS", () => {
+    const green = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "PLUS",
+      allow: true,
+    });
+    const p = classifyWavePhase({
+      price: 11.6,
+      entry: 10,
+      rideHigh: 12,
+      holding: true,
+      sellArmed: green,
+    });
+    assert.equal(p.label, "SELLING");
+    assert.equal(p.armed, true);
+
+    const hold = classifySellArmedDisplay({
+      peakWantsSell: true,
+      quoterExecutable: true,
+      verdict: "HOLD",
+      allow: false,
+      reason: "FIFO red",
+    });
+    const h = classifyWavePhase({
+      price: 11.6,
+      entry: 10,
+      rideHigh: 12,
+      holding: true,
+      sellArmed: hold,
+    });
+    assert.match(h.label, /HOLD FIFO_RED/);
+    assert.equal(h.armed, false);
+    assert.equal(h.holdCode, "FIFO_RED");
   });
 
   it("marks trick when exiting", () => {

@@ -38,6 +38,20 @@ import {
   retrieveXmem,
   xmemHelpText,
 } from "./xmem.js";
+import {
+  formatMotherGenesisReceipt,
+  prepareEncodedMotherGenesis,
+  preparePlainMotherGenesis,
+  revealMotherGenesis,
+  runMotherGenesisInscribe,
+} from "./vita/mother-genesis.js";
+import { parseMotherGenesisOperatorIntent, wrapMotherGenesisSelfCall } from "./vita/feed-wrap.js";
+import { handleVitaFeedAction, parseVitaFeedCommand } from "./vita/vita-feed.js";
+import { handleWaveTestAction, parseWaveTestCommand } from "./vita/wave-wrap.js";
+import { handleWaveProofAction, parseWaveProofCommand } from "./vita/wave-proof.js";
+import { handleWaveFullAction, parseWaveFullCommand } from "./vita/wave-full.js";
+import { handleVitaMirrorAction, parseVitaMirrorCommand } from "./vita/mirror-chain.js";
+import { phosphorHelpHtml } from "./modules/phosphor/telegram.js";
 
 const TX_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const STORE_TAG = "§$STORE§";
@@ -62,6 +76,14 @@ export const VITA_CONSOLE_COMMANDS = Object.freeze([
   "/inject",
   "/zk",
   "/plain",
+  "/vitamothergenesis",
+  "/vitamothergenesisencoded",
+  "/encodegenesisreveal",
+  "/vitafeed",
+  "/wavetest",
+  "/waveproof",
+  "/wavefull",
+  "/phosphor",
 ]);
 
 function shortLoc(location) {
@@ -316,7 +338,18 @@ function helpText() {
     "/xmem [query] — search pulled hitch UTF-8 for XMEM / STORE KEY / tags",
     "/reader — reconstruct output from sealed locations",
     "/vita [question] — answer from local + pulled memory",
+    "/vita read FILE — open file (local + GitHub lanes) + SNARK + Basescan IDM",
+    "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
     "/vitarouter /vitamode /vitacourse /vitascan /vitamemory /vitarecall /vitalearn",
+    "/vitamothergenesis [code…] — bank MGPLAIN hex (CONFIRM + env for Telegram paid path)",
+    "/vitamothergenesis FORCE recall — force-bank layered recall stack (queries last)",
+    "/vitafeed [text|file|brain|backlog|enqueue|next|dir|unlock|kids|music|board|pad|prompt|spatial|soundtrack] — VITAFILE; DOS dir; KIDS url dir; MUSIC grouped song; BOARD DJ pads; VOXEL spatial bird prints; PLAYERS Garden+Proven; open-source unlock; files|play|keys; confirm|override → /vita/players/garden · /vita/players/proven · /vita/feed-player · /vita/kids-player · /vita/soundboard · /vita/spatial · ?music=maple",
+    "/wavetest — WAVE memory-mirror SIM (shards → chain/fixture read-back vs answer key)",
+    "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
+    "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",
+    "/phosphor — green CRT writer/reader. Injector wires are the store. IPFS is the outlet. /phosphor?popup=1",
+    "/vitamotherGenesisencoded [code…] — bank encoded hex; two-part key",
+    "/encodegenesisreveal KEY… — pull locs + decode (MGPLAIN.… or MG1.… MG2.…)",
     "/zk — locations-only preview (future ZK path)",
     "/plain — plaintext open source (default)",
   ].join("\n");
@@ -442,6 +475,181 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
     return reply("learned locally:\n" + topic.slice(0, 280) + "\nNot on chain until /inject pulls or a leftover hitch seals.");
   }
 
+  // /wavetest — WAVE memory-mirror SIM (does not pay; VITAFEED_PAID stays off)
+  if (text === "/wavetest" || text.startsWith("/wavetest")) {
+    const parsed = parseWaveTestCommand(raw);
+    if (parsed.action === "proof") {
+      const out = await handleWaveProofAction({ action: "run", env: process.env, live: false });
+      return reply(
+        out.reply +
+        "\nHTML SIM only — WAVE_PROOF_LIVE live batch is desk POST /vita/waveproof or Telegram. VITAFEED_PAID stays default off." +
+        "\nMother brain (/vitasave) untouched.",
+      );
+    }
+    const out = await handleWaveTestAction({
+      action: parsed.action || "run",
+      env: process.env,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE hitch rides covered leftover; WAVE_MIRROR_PAID / VITAFEED_PAID stay default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
+  }
+
+  // /waveproof — capped 3-token WAVE proof SIM (live send is desk HTTP or Telegram + WAVE_PROOF_LIVE)
+  if (text === "/waveproof" || text.startsWith("/waveproof")) {
+    const parsed = parseWaveProofCommand(raw);
+    const out = await handleWaveProofAction({
+      action: parsed.action || "run",
+      symbols: parsed.symbols || "",
+      env: process.env,
+      live: false,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE_PROOF_LIVE live batch is desk POST /vita/waveproof or Telegram. VITAFEED_PAID stays default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
+  }
+
+  // /wavefull — 28-shard Heraclitus quote SIM (live send is desk HTTP or Telegram + WAVE_FULL_LIVE)
+  if (text === "/wavefull" || text.startsWith("/wavefull")) {
+    const parsed = parseWaveFullCommand(raw);
+    const out = await handleWaveFullAction({
+      action: parsed.action || "run",
+      symbols: parsed.symbols || "",
+      env: process.env,
+      live: false,
+    });
+    return reply(
+      out.reply +
+      "\nHTML SIM only — WAVE_FULL_LIVE live batch is desk POST /vita/wavefull or Telegram. /waveproof stays 3. VITAFEED_PAID stays default off." +
+      "\nMother brain (/vitasave) untouched.",
+    );
+  }
+
+  if (text === "/phosphor" || text.startsWith("/phosphor")) {
+    const plain = phosphorHelpHtml().replace(/<[^>]+>/g, "");
+    return reply(plain + "\nHTML CRT: /phosphor?popup=1 — chain location stays empty until a real seal.");
+  }
+
+  // /vitafeed — Storage Token game preview (paid RISK path is Telegram confirm)
+  if (text === "/vitafeed" || text.startsWith("/vitafeed")) {
+    const parsed = parseVitaFeedCommand(raw);
+    const out = await handleVitaFeedAction({
+      action: parsed.action || "usage",
+      body: parsed.body || parsed.selector || "",
+      chatId: "html-console",
+    });
+    const paidNote =
+      parsed.action === "files" || parsed.action === "play"
+        ? "\nLibrary list/open is local keys chain — content packets stay on Base."
+        : "\nHTML preview only — paid RISK injections run on Telegram /vitafeed confirm." +
+          "\nVITAFEED_PAID default off. Mother brain (/vitasave) untouched. VITA_AUTO_INSCRIBE stays off.";
+    return reply(out.reply + paidNote);
+  }
+
+  // Mother genesis — large dump path (does not touch vitaSave 5-chunk brain)
+  if (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis") {
+    const body = raw.slice("/vitamothergenesis".length).trim();
+    if (/^(?:FORCE\s+)?recall$/i.test(body)) {
+      const { forceInjectMotherGenesisRecall, formatRecallPullCard } =
+        await import("./vita/mg-recall-bank.js");
+      const result = await forceInjectMotherGenesisRecall();
+      return reply(
+        formatRecallPullCard(result) +
+        "\nHTML force-bank — notes + last refined-query layer attached. No invented txs." +
+        "\nMother brain (/vitasave 5-chunk) untouched.",
+      );
+    }
+    if (!body) {
+      return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]");
+    }
+    const parsed = parseMotherGenesisOperatorIntent(body);
+    if (!parsed.body) {
+      return reply("usage: /vitamothergenesis [paste all code — N plain batches as needed]\nDefault HTML bank. Telegram paid path needs CONFIRM + VITA_MOTHER_GENESIS_AUTO=yes.");
+    }
+    const prepared = preparePlainMotherGenesis(parsed.body);
+    const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+      wrapMotherGenesisSelfCall({
+        data: hex,
+        text: line.line,
+        pairedUniswapSell: false,
+        topic: "mgplain",
+      });
+      return null;
+    });
+    state.motherGenesis = state.motherGenesis || [];
+    state.motherGenesis.push({
+      strandId: prepared.strandId,
+      mode: "plain",
+      chunks: prepared.totalChunks,
+      readerKey: prepared.readerKey,
+      at: new Date().toISOString(),
+    });
+    return reply(
+      formatMotherGenesisReceipt(result) +
+      "\nHTML-local bank (never solo-sends MGPLAIN). Hitch on leftover-covered paired sell." +
+      "\nMother brain (/vitasave 5-chunk) untouched.",
+    );
+  }
+
+  if (
+    text.startsWith("/vitamothergenesisencoded ") ||
+    text === "/vitamothergenesisencoded" ||
+    text.startsWith("/vitamothergenesisencoded")
+  ) {
+    const body = raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim();
+    if (!body) {
+      return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
+    }
+    const parsed = parseMotherGenesisOperatorIntent(body);
+    if (!parsed.body) {
+      return reply("usage: /vitamotherGenesisencoded [paste all code — encoded N batches + two-part key]");
+    }
+    const prepared = prepareEncodedMotherGenesis(parsed.body);
+    const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+      wrapMotherGenesisSelfCall({
+        data: hex,
+        text: line.line,
+        pairedUniswapSell: false,
+        topic: "mgenc",
+      });
+      return null;
+    });
+    state.motherGenesis = state.motherGenesis || [];
+    state.motherGenesis.push({
+      strandId: prepared.strandId,
+      mode: "encoded",
+      chunks: prepared.totalChunks,
+      keys: prepared.keys,
+      at: new Date().toISOString(),
+    });
+    return reply(
+      formatMotherGenesisReceipt({ ...result, strand: { ...result.strand, keys: prepared.keys, proof: prepared.provisionalProof } }) +
+      "\nHTML-local bank until chain seal. Reveal with /encodegenesisreveal MG1.… MG2.…" +
+      "\nMother brain untouched.",
+    );
+  }
+
+  if (text.startsWith("/encodegenesisreveal ") || text === "/encodegenesisreveal") {
+    const keyArg = raw.slice("/encodegenesisreveal".length).trim();
+    if (!keyArg) {
+      return reply("usage: /encodegenesisreveal MGPLAIN.<id>   or   /encodegenesisreveal MG1.… MG2.…");
+    }
+    const revealed = await revealMotherGenesis(keyArg, { fetchCalldata });
+    if (!revealed.ok) return reply("reveal failed: " + revealed.reason);
+    return reply(
+      "REVEAL " + revealed.mode + " · " + revealed.strandId +
+      " · chunks " + revealed.totalChunks +
+      " · chars " + revealed.chars +
+      (revealed.locations?.length ? "\nlocs:\n" + revealed.locations.join("\n") : "") +
+      "\n\n" + revealed.body.slice(0, 3500) +
+      (revealed.body.length > 3500 ? "\n…(truncated)" : ""),
+    );
+  }
+
   if (text === "/vitasave") {
     const learned = state.notes.map((n) => n.text).join("|").slice(0, 400);
     const refined = refineVitaPacket(state.packet, {
@@ -533,6 +741,18 @@ export async function handleVitaConsole(state, rawInput, { fetchCalldata = fetch
   }
 
   if (text.startsWith("/vita ")) {
+    const parsed = parseVitaMirrorCommand(raw);
+    if (parsed.action && parsed.action !== "ask") {
+      const out = await handleVitaMirrorAction({
+        action: parsed.action,
+        filename: parsed.filename || null,
+        key: parsed.key || null,
+        kind: parsed.kind || null,
+        chatId: "html-console",
+        cwd: process.cwd(),
+      });
+      return reply(out.reply || "mirror miss");
+    }
     return reply(answerFromMemory(state, raw.slice("/vita ".length)));
   }
 

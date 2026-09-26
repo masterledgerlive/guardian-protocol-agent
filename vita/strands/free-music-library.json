@@ -1,0 +1,21 @@
+{
+  "strandId": "free-music-library",
+  "sparse": true,
+  "source": "vita-free-music",
+  "filingLabel": "FREEMUSIC",
+  "header": "§VITAMUSIC§v1|library§",
+  "learn": "Growing PD library packetizes as grouped §VITAFILE§ VIN (≤24/group). Feed-player is the music source of truth (live loc pull + Basescan IDM MATCH). Kids route ?kids=1 hides proof chrome until Show blockchain. Enqueue library banks every song; enqueue all is still memory seed. Never invent hashes. Never Over the Rainbow Decca.",
+  "commands": [
+    "/vitafeed music",
+    "/vitafeed play <id>",
+    "/vitafeed enqueue <id>",
+    "/vitafeed enqueue library",
+    "/vitafeed dual judy",
+    "/vitafeed dir MUSIC"
+  ],
+  "player": "/vita/feed-player?music=maple",
+  "kids": "/vita/feed-player?music=maple&kids=1",
+  "locs": "/vita/free-music/locs?id=maple",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

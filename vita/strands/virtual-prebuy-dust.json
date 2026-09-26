@@ -1,0 +1,9 @@
+{
+  "strandId": "virtual-prebuy-dust",
+  "sparse": true,
+  "source": "fifo-lot-store",
+  "learn": "After #121, VIRTUAL remain/bought ≈1.02018 (wallet 1.67510 / tokensIn 1.64196) trips unknown-lots. Evidence-latched: fifoKnownLotRemain caps remain to tokensIn inside EVIDENCE_LOT_DUST_BAND 1.025; knownLotSellTokens sells only that qty; dust stays piggy. DRB trough (remain >> tokensIn) still unknown. Default UNKNOWN_LOTS_BAND 1.02 unchanged without evidence. WAVE hitch #119, catalog #120, FIFO latch #121 stay. VITAFEED_PAID / WAVE_MIRROR_PAID / ALLOW_LOSSY_OPERATOR_SELL stay default off. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "knownLotSellTokens"
+}

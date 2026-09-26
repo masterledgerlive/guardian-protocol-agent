@@ -33,6 +33,7 @@ import {
   UNISWAP_SWAP_ROUTER02_BASE,
   UNISWAP_PERMIT2_BASE,
 } from "./swap-minout.js";
+import { encodeSlipstreamExactInputSingle } from "./aero-slipstream.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
 const WETH = "0x4200000000000000000000000000000000000006";
@@ -183,6 +184,21 @@ describe("hitchPreservesSwapPrefix", () => {
     assert.equal(decodeExactInputSingle(hitch).trailingBytes, 4);
   });
 
+  it("allows hitch appended after Aerodrome Slipstream exactInputSingle", () => {
+    const slip = encodeSlipstreamExactInputSingle({
+      tokenIn: WETH,
+      tokenOut: TOSHI,
+      tickSpacing: 200,
+      recipient: RISK,
+      deadline: 1_700_000_000n,
+      amountIn: 1n,
+      amountOutMinimum: 2n,
+    });
+    const hitch = slip + Buffer.from("LIBM", "utf8").toString("hex");
+    const r = hitchPreservesSwapPrefix(slip, hitch);
+    assert.equal(r.ok, true);
+  });
+
   it("refuses hitch that overwrites amountOutMinimum", () => {
     const smashed = encodeExactInputSingle({
       tokenIn: TOSHI,
@@ -215,6 +231,9 @@ describe("UTF-8 §$STORE§ hitch (Genesis voice)", () => {
     assert.match(r.utf8, /§\$STORE§/);
     assert.match(r.utf8, /Eureka! VITA lives/);
     assert.match(r.utf8, /Krystian, Kai & Koda/);
+    assert.match(r.utf8, /Living Network/);
+    assert.match(r.utf8, /IKN/);
+    assert.equal(r.hitchBytes, 229);
     assert.equal(decodeTrailingUtf8(r.data), voice);
     assert.equal(hitchPreservesSwapPrefix(KEYCAT_PLAIN_SWAP, r.data).ok, true);
     assert.equal(decodeExactInputSingle(r.data).amountOutMinimum, decodeExactInputSingle(KEYCAT_PLAIN_SWAP).amountOutMinimum);

@@ -16,7 +16,10 @@
  *   5. High unit-price demotion — CBBTC/AAVE-class need larger floors.
  *
  * Mistakes are recorded so the agent can learn and tighten caps over time.
+ * Each refuse also files into finetune-memory (sixth lobe / hypothesis graph).
  */
+
+import { ingestCostMistake } from "./finetune-memory.js";
 
 export const MAX_HITCH_COST_PCT = 0.08;       // hitch alone ≤ 8% of trade
 export const MAX_ROUND_TRIP_COST_PCT = 0.22;  // full RT ≤ 22% of stake (was 95%!)
@@ -164,6 +167,11 @@ export function evaluateCostEdgeGate({
   isManualOperator = false,
   /** When false, use nearTermEdgeMult as-is (A/B baseline). Default adapts thin+cheap. */
   adaptiveNearTerm = true,
+  /**
+   * Thin-book micro-bank / micro-hitch: 2×gas already dominates a ~$4 stake
+   * so near-term 1.15× would wait forever (live PRIMED none). Hitch%/RT% stay.
+   */
+  skipNearTerm = false,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const fr = costFractions({ tradeEth, hitchCostEth, gasCostEth, feePct, impactPct });
@@ -208,6 +216,7 @@ export function evaluateCostEdgeGate({
     reason = `round-trip ${(fr.roundTripPct * 100).toFixed(1)}% of stake > max ${(maxRoundTripPct * 100).toFixed(0)}%`;
   } else if (
     !isManualOperator &&
+    !skipNearTerm &&
     !(nearUpside + 1e-12 >= needMove * edgeMult)
   ) {
     allow = false;
@@ -271,6 +280,8 @@ export function hasSellableUsd(balance, priceUsd, minUsd = SELLABLE_MIN_USD) {
 
 /**
  * Record a refused or realized bad entry for forward learning.
+ * Also files into the FINETUNE hypothesis graph (sixth lobe) so the next
+ * cycle does not restart from zero — see finetune-memory.js / antpalkin loop.
  */
 export function recordCostMistake(entry = {}) {
   const row = {
@@ -286,6 +297,9 @@ export function recordCostMistake(entry = {}) {
   };
   costMistakeLog.push(row);
   while (costMistakeLog.length > MISTAKE_RING_MAX) costMistakeLog.shift();
+  try {
+    ingestCostMistake(row);
+  } catch { /* finetune optional — never block the gate */ }
   return row;
 }
 

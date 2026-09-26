@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VITA — token player</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c;
+      --lime: #b6f25c;
+      --panel: rgba(255,255,255,.86);
+      --line: rgba(16,35,28,.14);
+      --muted: #3d5a4c;
+      --display: "Syne", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      color: var(--ink);
+      font-family: var(--mono);
+      background:
+        radial-gradient(800px 380px at 8% -10%, rgba(182,242,92,.55), transparent 55%),
+        radial-gradient(640px 360px at 100% 0%, rgba(26,107,255,.14), transparent 50%),
+        linear-gradient(165deg, #f4fbf0, #d9ebe0 48%, #cfe0f5);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+    h1 {
+      font-family: var(--display);
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      margin: 0 0 .2rem;
+      letter-spacing: -.03em;
+    }
+    .lede { margin: 0 0 .8rem; color: var(--muted); font-size: .8rem; max-width: 44rem; }
+    .chrome {
+      display: flex; flex-wrap: wrap; gap: .45rem; align-items: center;
+      margin-bottom: .7rem;
+    }
+    .chrome select, button {
+      font-family: var(--mono);
+      font-size: .75rem;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: .32rem .7rem;
+      background: #fff;
+    }
+    button { cursor: pointer; background: var(--lime); font-weight: 600; }
+    button.ghost { background: #fff; }
+    .grid {
+      display: grid;
+      gap: .8rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: minmax(0, 1.35fr) minmax(240px, .75fr); }
+    }
+    .card {
+      background: var(--panel);
+      border: 2px solid var(--ink);
+      border-radius: 16px;
+      padding: .85rem .95rem;
+    }
+    .k { color: var(--muted); }
+    .v { font-weight: 600; }
+    .row { display: flex; justify-content: space-between; gap: .5rem; padding: .18rem 0; border-bottom: 1px dashed var(--line); font-size: .78rem; }
+    .pill {
+      display: inline-block;
+      font-size: .68rem;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: .12rem .5rem;
+      margin: 0 .25rem .25rem 0;
+      background: #fff;
+    }
+    .pill.pass { background: var(--lime); }
+    .pill.fail { background: #ffb4a8; }
+    .pill.q { background: #ffe08a; }
+    .refs a { display: block; font-size: .72rem; color: #1a6bff; margin: .15rem 0; word-break: break-all; }
+    .opts { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+    .list { max-height: 48vh; overflow: auto; }
+    .list button {
+      display: block; width: 100%; text-align: left; border-radius: 10px; margin: 0 0 .3rem;
+    }
+    .list button.on { background: var(--lime); }
+    html.tg-popup, html.tg-popup body { min-height: var(--tg-viewport-stable-height, 100%); }
+    html.tg-popup .lede { display: none; }
+    html.tg-popup .wrap { padding: .45rem .55rem .8rem; max-width: none; }
+    html.tg-popup h1 { font-size: 1.15rem; }
+    html.tg-popup .grid { grid-template-columns: 1fr; }
+    html.tg-popup .list { max-height: 22vh; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Token player</h1>
+    <p class="lede">
+      Pulldown every catalog seat. Our DexScreener reader + Gecko dual check +
+      Basescan/Dex/Gecko refs. $0.05 seed never sells. Auto buy/sell options are
+      SIM — Telegram confirm|override spends. Ethereum L1 ~$3 (27%) is an
+      other-path (not Base RISK). 32-chain display; empty seats are ready, not
+      invented P&amp;L. Never invent hashes.
+    </p>
+    <div class="chrome">
+      <label>Token
+        <select id="tokenPick" aria-label="Token pulldown"></select>
+      </label>
+      <label>Chain
+        <select id="chainPick" aria-label="32-chain portfolio"></select>
+      </label>
+      <button type="button" id="btnLive">Refresh DEX</button>
+      <button type="button" id="btnPopout" class="ghost">Pop out</button>
+    </div>
+    <div id="chainBar" class="card" style="margin-bottom:.8rem;font-size:.75rem">Loading chains…</div>
+    <div class="grid">
+      <div>
+        <div class="card" id="main">Loading catalog…</div>
+        <div class="card" style="margin-top:.8rem">
+          <div class="k" style="margin-bottom:.35rem">Market triggers (SIM — never auto-spend)</div>
+          <div class="opts" id="opts"></div>
+        </div>
+      </div>
+      <aside>
+        <div class="card list" id="list" aria-label="Token list"></div>
+      </aside>
+    </div>
+  </div>
+  <script>
+    const q = new URLSearchParams(location.search);
+    let state = { tokens: [], current: null, logSeedUsd: 0.05 };
+    let liveDex = {};
+
+    const el = (id) => document.getElementById(id);
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    function usd(n) {
+      const x = Number(n);
+      if (!Number.isFinite(x) || x <= 0) return "miss";
+      if (x >= 1) return "$" + x.toFixed(4);
+      return "$" + x.toPrecision(4);
+    }
+    function pill(verdict) {
+      const v = String(verdict || "?").toUpperCase();
+      const cls = v === "PASS" ? "pass" : v === "FAIL" ? "fail" : "q";
+      return '<span class="pill ' + cls + '">' + esc(v) + "</span>";
+    }
+
+    function bootTelegramPopup() {
+      const popup = q.get("popup") === "1" || q.get("popout") === "1";
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) {
+        try { tg.ready(); } catch (_) {}
+        document.documentElement.classList.add("tg-popup");
+      }
+      if (popup) document.documentElement.classList.add("tg-popup");
+      const btn = el("btnPopout");
+      if (btn) {
+        if (q.get("popout") === "1") btn.style.display = "none";
+        btn.addEventListener("click", () => {
+          const u = new URL(location.href);
+          u.searchParams.set("popup", "1");
+          u.searchParams.set("popout", "1");
+          const w = 520, h = 640;
+          const left = Math.max(0, (screen.availWidth || 900) - w - 16);
+          window.open(
+            u.toString(),
+            "vita-token-player",
+            "popup=yes,width=" + w + ",height=" + h + ",left=" + left + ",top=24,resizable=yes,scrollbars=yes",
+          );
+        });
+      }
+    }
+
+    function currentToken() {
+      const sym = (state.current || "").toUpperCase();
+      return (state.tokens || []).find((t) => t.symbol === sym) || state.tokens[0] || null;
+    }
+
+    function renderChains() {
+      const port = state.portfolio || {};
+      const chains = port.chains || [];
+      const sel = el("chainPick");
+      if (sel && !sel.dataset.bound) {
+        sel.dataset.bound = "1";
+        sel.addEventListener("change", () => {
+          const id = sel.value;
+          if (id === "ethereum") select("ETH");
+        });
+      }
+      if (sel) {
+        sel.innerHTML = chains.map((c) => {
+          const selected = (c.id === "base" && (!state.current || state.current !== "ETH")) ||
+            (c.id === "ethereum" && state.current === "ETH") ? " selected" : "";
+          return "<option value='" + esc(c.id) + "'" + selected + ">" +
+            esc(c.name) + " $" + Number(c.usd || 0).toFixed(2) +
+            " (" + (c.pct || 0) + "%)</option>";
+        }).join("");
+      }
+      const bar = el("chainBar");
+      if (bar) {
+        const eth = port.otherPath || {};
+        bar.innerHTML =
+          "<b>32 chains</b> · Base hitch ~$" + Number(port.base && port.base.usd || 0).toFixed(2) +
+          " (73%) · ETH L1 other ~$" + Number(eth.usd || 0).toFixed(2) +
+          " (27%) <i>not Base RISK</i> · empty seats " +
+          ((port.emptySeats || []).length) +
+          " · $0.05 seed never remove · snapshot not live P&amp;L";
+      }
+    }
+
+    function render() {
+      renderChains();
+      const t = currentToken();
+      const sel = el("tokenPick");
+      if (sel && !sel.dataset.bound) {
+        sel.dataset.bound = "1";
+        sel.addEventListener("change", () => select(sel.value));
+      }
+      if (sel) {
+        sel.innerHTML = (state.tokens || []).map((row) => {
+          const mark = row.purchasable ? "" : " · data";
+          const selected = row.symbol === (t && t.symbol) ? " selected" : "";
+          return "<option value='" + esc(row.symbol) + "'" + selected + ">" + esc(row.symbol) + mark + "</option>";
+        }).join("");
+      }
+      const list = el("list");
+      if (list) {
+        list.innerHTML = (state.tokens || []).map((row) => {
+          const on = t && row.symbol === t.symbol ? " on" : "";
+          const seat = row.purchasable ? "buy" : "data";
+          return "<button type='button' class='" + on + "' data-sym='" + esc(row.symbol) + "'>" +
+            esc(row.symbol) + " <span class='k'>" + seat + "</span> " +
+            pill(row.legit && row.legit.verdict) + "</button>";
+        }).join("");
+        list.querySelectorAll("button").forEach((b) => {
+          b.addEventListener("click", () => select(b.getAttribute("data-sym")));
+        });
+      }
+      const main = el("main");
+      const opts = el("opts");
+      if (!t) {
+        if (main) main.textContent = "No catalog tokens.";
+        return;
+      }
+      const dex = liveDex[t.symbol] || t.dex || {};
+      const legit = t.legit || {};
+      const refs = t.refs || {};
+      const bag = t.bagUsd;
+      const seed = Number(t.logSeedUsd || state.logSeedUsd || 0.05);
+      const hasSeed = Number.isFinite(Number(bag)) && Number(bag) + 1e-12 >= seed;
+      const trig = t.triggers || {};
+      main.innerHTML = [
+        "<div>" + pill(legit.verdict) + (t.purchasable
+          ? '<span class="pill pass">purchasable</span>'
+          : '<span class="pill q">not a new-buy seat</span>') +
+          (t.injectMain ? '<span class="pill pass">inject main</span>' : "") + "</div>",
+        "<h2 style='font-family:var(--display);margin:.35rem 0 .5rem'>" + esc(t.symbol) + "</h2>",
+        row("DEX USD", dex.miss || !dex.priceUsd ? "miss (not $0)" : usd(dex.priceUsd)),
+        row("Liq / 24h vol", (dex.liquidityUsd != null ? usd(dex.liquidityUsd) : "—") + " / " +
+          (dex.volumeUsd24h != null ? usd(dex.volumeUsd24h) : "—")),
+        row("Book", (dex.dexId || "—") + (dex.pairAddress ? " · " + dex.pairAddress.slice(0, 10) + "…" : "")),
+        row("Dual", (dex.dual && dex.dual.verdict) ? dex.dual.verdict + " — " + (dex.dual.reason || "") : "catalog"),
+        row("Min buy", usd(t.minBuyUsd)),
+        row("Piggy", Math.round((t.piggyPct || 0) * 100) + "% / " + usd(t.piggyMinUsd)),
+        row("Log seed $0.05", hasSeed ? "HELD · never remove" : "MISSING · SIM buy $0.05 — never auto-spend"),
+        row("Bag", Number.isFinite(Number(bag)) ? usd(bag) : "unknown"),
+        row("Address", t.address || "—"),
+        "<div class='k' style='margin:.55rem 0 .2rem'>Notes</div><div style='font-size:.75rem'>" + esc(t.notes || "") + "</div>",
+        "<div class='k' style='margin:.55rem 0 .2rem'>3rd-party refs</div><div class='refs'>" +
+          link("Basescan", refs.basescanToken) +
+          link("Wallet bag", refs.basescanWallet) +
+          link("DexScreener", refs.dexscreener) +
+          link("GeckoTerminal", refs.geckoterminal) +
+          link("CoinGecko", refs.coingecko) +
+        "</div>",
+        "<div class='k' style='margin:.55rem 0 .2rem'>Legit flags</div><div style='font-size:.72rem'>" +
+          (legit.green || []).map((g) => "✅ " + esc(g)).join("<br>") +
+          ((legit.green || []).length && (legit.flags || []).length ? "<br>" : "") +
+          (legit.flags || []).map((f) => "🚩 " + esc(f)).join("<br>") +
+        "</div>",
+      ].join("");
+      if (opts) {
+        const options = (trig.options || []).length ? trig.options : [];
+        opts.innerHTML = options.map((o) => {
+          return "<span class='pill' title='" + esc(o.cmd) + "'>" + esc(o.label) +
+            (o.spend === "sim-only" ? " · SIM" : "") + "</span>";
+        }).join("");
+      }
+    }
+
+    function row(k, v) {
+      return "<div class='row'><span class='k'>" + esc(k) + "</span><span class='v'>" + esc(v) + "</span></div>";
+    }
+    function link(label, href) {
+      if (!href) return "";
+      return "<a href='" + esc(href) + "' target='_blank' rel='noreferrer'>" + esc(label) + "</a>";
+    }
+
+    function select(sym) {
+      state.current = String(sym || "").toUpperCase();
+      const u = new URL(location.href);
+      u.searchParams.set("sym", state.current);
+      history.replaceState(null, "", u.pathname + u.search);
+      render();
+      refreshDex(state.current).catch(() => {});
+    }
+
+    async function loadCatalog() {
+      const want = (q.get("sym") || q.get("token") || "").toUpperCase();
+      const data = await fetch("/vita/token-player/api").then((r) => r.json());
+      state = data;
+      if (want && (data.tokens || []).some((t) => t.symbol === want)) state.current = want;
+      else state.current = data.current;
+      render();
+    }
+
+    async function refreshDex(sym) {
+      const s = String(sym || state.current || "").toUpperCase();
+      if (!s) return;
+      try {
+        const data = await fetch("/vita/dex-reader?sym=" + encodeURIComponent(s)).then((r) => r.json());
+        if (data && data.dex) {
+          liveDex[s] = data.dex;
+          const row = (state.tokens || []).find((t) => t.symbol === s);
+          if (row) {
+            row.dex = data.dex;
+            if (data.legit) row.legit = data.legit;
+          }
+          render();
+        }
+      } catch (_) {}
+    }
+
+    bootTelegramPopup();
+    loadCatalog().then(() => refreshDex(state.current)).catch((e) => {
+      el("main").textContent = "Catalog load failed: " + (e && e.message ? e.message : e);
+    });
+    el("btnLive").addEventListener("click", () => refreshDex(state.current));
+  </script>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PHOSPHOR</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #010801;
+    color: #67ff78;
+    font: 14px/1.45 "Courier New", ui-monospace, monospace;
+    text-shadow: 0 0 6px rgba(80, 255, 120, 0.45);
+  }
+  body.popup { font-size: 13px; }
+  .crt {
+    min-height: 100%;
+    padding: 18px 16px 28px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at center, #04240c 0%, #010801 72%);
+  }
+  h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: 0.18em; font-weight: normal; }
+  .sub { color: #1f8a3a; margin-bottom: 12px; }
+  #log {
+    min-height: 42vh;
+    white-space: pre-wrap;
+    border: 1px solid #145c28;
+    padding: 10px;
+    background: rgba(0, 12, 0, 0.55);
+    margin-bottom: 12px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  input, button, select {
+    background: #021a08;
+    color: #67ff78;
+    border: 1px solid #1c7a34;
+    padding: 7px 8px;
+    font: inherit;
+  }
+  button { cursor: pointer; }
+  button:hover { background: #063314; }
+  input[type="file"] { max-width: 100%; }
+  audio { width: min(420px, 100%); margin-top: 8px; filter: sepia(1) hue-rotate(70deg) saturate(3); }
+  a { color: #b6ff9a; }
+  .dim { color: #1f8a3a; }
+  h2 { font-size: 14px; font-weight: normal; letter-spacing: 0.14em; margin: 16px 0 6px; }
+  #court {
+    display: block;
+    width: min(640px, 100%);
+    height: auto;
+    image-rendering: pixelated;
+    background: #010801;
+    border: 1px solid #1c7a34;
+    margin: 8px 0;
+  }
+  #routes { max-height: 200px; overflow: auto; padding-left: 1.2em; margin: 8px 0; }
+  #routes li.active { color: #e8ffc4; }
+  .lib button { text-align: left; }
+</style>
+</head>
+<body>
+  <div class="crt">
+    <h1>PHOSPHOR</h1>
+    <div class="sub" id="sub">C:\PHOSPHOR&gt; injector store online · ipfs outlet · stark fold unwired</div>
+    <div id="log">Ready.
+Drop a file. The CRT squashes it, prints the key, and keeps the bytes as injector wires.
+Open key PHOSOPEN is pre-embedded. A lock passphrase is required to unwrap.
+Chain location stays blank until a real Base seal. No invented tx.</div>
+    <div class="row">
+      <input id="file" type="file">
+      <input id="lock" type="password" placeholder="lock passphrase (blank = open)" autocomplete="off">
+      <button id="write" type="button">WRITE</button>
+      <button id="test" type="button">SELF-TEST</button>
+    </div>
+    <div class="row">
+      <input id="commit" type="text" placeholder="commit prefix" size="28">
+      <input id="unlock" type="password" placeholder="unwrap key if locked" autocomplete="off">
+      <button id="read" type="button">UNWRAP</button>
+      <button id="reader" type="button">READER</button>
+      <a id="bundle" hidden>SEND AS CODE</a>
+      <a id="pull" hidden>PULL</a>
+    </div>
+    <div id="receipt"></div>
+    <h2>LIBRARY</h2>
+    <div id="library" class="dim">loading imprints…</div>
+    <canvas id="court" width="320" height="180" hidden></canvas>
+    <div class="row" id="pad" hidden>
+      <button id="up" type="button">UP</button>
+      <button id="down" type="button">DOWN</button>
+    </div>
+    <ol id="routes" hidden></ol>
+    <audio id="play" controls hidden></audio>
+    <p class="dim">Telegram: open this page from the PHOSPHOR pop-out. Songs play from the wire store after unwrap.</p>
+  </div>
+<script>
+const logEl = document.getElementById("log");
+const q = new URLSearchParams(location.search);
+if (q.get("popup") === "1") document.body.classList.add("popup");
+
+function paint(text) {
+  logEl.textContent = text;
+}
+
+async function typeLines(lines) {
+  let shown = "";
+  for (const line of lines) {
+    shown += (shown ? "\n" : "") + line;
+    paint(shown);
+    await new Promise((r) => setTimeout(r, 40));
+  }
+}
+
+function bytesToB64(bytes) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.ok === false) {
+    const error = new Error(json.reason || ("HTTP " + res.status));
+    error.status = res.status;
+    throw error;
+  }
+  return json;
+}
+
+let openKey = "";
+
+function showWritten(json) {
+  document.getElementById("commit").value = json.commit;
+  openKey = json.openKey || "";
+  const link = document.getElementById("bundle");
+  if (json.bundle) {
+    link.hidden = false;
+    link.href = json.bundle;
+    link.textContent = "SEND AS CODE";
+  } else {
+    link.hidden = true;
+  }
+  const pull = document.getElementById("pull");
+  if (json.pull && openKey) {
+    pull.hidden = false;
+    pull.href = json.pull + "&key=" + encodeURIComponent(openKey);
+    pull.textContent = "PULL";
+  } else {
+    pull.hidden = true;
+  }
+  const audio = document.getElementById("play");
+  if (json.play && (json.mime || "").startsWith("audio/")) {
+    audio.hidden = false;
+    audio.src = json.play;
+    audio.play().catch(() => {});
+  } else {
+    audio.hidden = true;
+    audio.removeAttribute("src");
+  }
+  const box = document.getElementById("receipt");
+  const rec = json.receipt;
+  if (!rec) { box.innerHTML = ""; return; }
+  const links = (rec.blocks || []).map((block) =>
+    '<div>block ' + block.i + ' <a href="' + block.href + '">' + block.loc + '</a> next ' + block.next + '</div>'
+  ).join("");
+  const home = rec.home ? ("HOME " + rec.home.address + " lane " + rec.home.lane + "<br>") : "";
+  const more = rec.blocksExternal ? "<div class=\"dim\">preview of " + rec.blockCount + " blocks</div>" : "";
+  box.innerHTML =
+    '<p>SYSTEM_INJECTED <a href="' + rec.href + '">' + rec.filingLoc + '</a> recall ' +
+    (rec.recalled ? "OK" : "FAIL") + ' · base loc empty<br>' + home + '</p>' + more + links;
+}
+
+document.getElementById("write").onclick = async () => {
+  const file = document.getElementById("file").files[0];
+  if (!file) { paint("C:\\PHOSPHOR> no file"); return; }
+  const partBytes = 200 * 1024;
+  try {
+    paint("C:\\PHOSPHOR> slicing " + file.name + "  " + file.size + " bytes");
+    const opened = await postJson("/phosphor/api/write/open", {
+      name: file.name,
+      mime: file.type || "",
+      lockKey: document.getElementById("lock").value,
+      totalBytes: file.size,
+      tryIpfs: file.size <= 1024 * 1024,
+    });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let index = 0;
+    for (let offset = 0; offset < bytes.length; offset += partBytes) {
+      const slice = bytes.subarray(offset, Math.min(bytes.length, offset + partBytes));
+      paint("C:\\PHOSPHOR> part " + index + "  " + slice.length + " bytes");
+      await postJson("/phosphor/api/write/part", {
+        session: opened.session,
+        index,
+        bytesBase64: bytesToB64(slice),
+      });
+      index += 1;
+    }
+    paint("C:\\PHOSPHOR> sealing " + index + " parts");
+    const json = await postJson("/phosphor/api/write/seal", { session: opened.session });
+    showWritten(json);
+    await typeLines(json.trace || []);
+  } catch (error) {
+    paint("FAIL " + error.message);
+  }
+};
+
+document.getElementById("reader").onclick = async () => {
+  const commit = document.getElementById("commit").value.trim();
+  if (!commit) { paint("C:\\PHOSPHOR> commit required"); return; }
+  const key = document.getElementById("unlock").value || openKey;
+  paint("C:\\PHOSPHOR> READER proving " + commit.slice(0, 12) + " …");
+  try {
+    const json = await postJson("/phosphor/api/proof", { commit, key });
+    await typeLines(json.equation.lines || []);
+  } catch (error) {
+    paint("READER FAIL " + error.message);
+  }
+};
+
+document.getElementById("read").onclick = async () => {
+  const commit = document.getElementById("commit").value.trim();
+  if (!commit) { paint("C:\\PHOSPHOR> commit required"); return; }
+  const res = await fetch("/phosphor/api/unwrap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ commit, lockKey: document.getElementById("unlock").value }),
+  });
+  const json = await res.json();
+  if (!json.ok) { paint("UNWRAP FAIL " + (json.reason || res.status)); return; }
+  paint("UNWRAP OK " + json.name + "  " + json.bytes + " bytes  from " + json.from + "\nlocation blank");
+  if ((json.mime || "").startsWith("audio/")) {
+    const audio = document.getElementById("play");
+    audio.hidden = false;
+    audio.src = "data:" + json.mime + ";base64," + json.bytesBase64;
+  }
+};
+
+document.getElementById("test").onclick = runTest;
+
+async function runTest() {
+  paint("C:\\PHOSPHOR> loading self from injector wires …");
+  const res = await fetch("/phosphor/api/selftest", { method: "POST" });
+  const json = await res.json();
+  paint(json.log || json.reason || "no log");
+}
+
+function esc(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+let currentMatch = null;
+let rally = 0;
+
+function drawMatch(match) {
+  const canvas = document.getElementById("court");
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#010801";
+  ctx.fillRect(0, 0, match.w, match.h);
+  ctx.strokeStyle = "#145c28";
+  ctx.beginPath();
+  ctx.setLineDash([3, 5]);
+  ctx.moveTo(match.w / 2, 0);
+  ctx.lineTo(match.w / 2, match.h);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#67ff78";
+  ctx.fillRect(16, match.leftY - match.paddleH / 2, match.paddleW, match.paddleH);
+  ctx.fillRect(match.w - 16 - match.paddleW, match.rightY - match.paddleH / 2, match.paddleW, match.paddleH);
+  ctx.beginPath();
+  ctx.arc(match.ballX, match.ballY, match.ballR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = "14px Courier New";
+  ctx.fillText(String(match.scoreL) + "    " + String(match.scoreR) + (match.over ? "  GAME" : ""), 8, 16);
+  const rows = document.getElementById("routes").children;
+  for (const row of rows) row.classList.toggle("active", Number(row.dataset.i) === match.routeIndex);
+}
+
+function startRally(match) {
+  currentMatch = match;
+  const canvas = document.getElementById("court");
+  canvas.hidden = false;
+  canvas.width = match.w;
+  canvas.height = match.h;
+  document.getElementById("pad").hidden = false;
+  const ol = document.getElementById("routes");
+  ol.hidden = false;
+  ol.innerHTML = match.program.lines.map((line) =>
+    "<li data-i=\"" + line.i + "\">" + esc(line.text || " ") + "</li>"
+  ).join("");
+  if (rally) cancelAnimationFrame(rally);
+  let last = performance.now();
+  const frame = (now) => {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    window.PHOSPONG.stepMatch(match, dt);
+    drawMatch(match);
+    if (!match.over) rally = requestAnimationFrame(frame);
+  };
+  rally = requestAnimationFrame(frame);
+}
+
+function drawPpm(bytes) {
+  const head = new TextDecoder().decode(bytes.slice(0, 32));
+  const match = head.match(/^P6\n(\d+) (\d+)\n255\n/);
+  if (!match) throw new Error("picture is not a P6 listing");
+  const w = Number(match[1]);
+  const h = Number(match[2]);
+  const canvas = document.getElementById("court");
+  canvas.hidden = false;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  const image = ctx.createImageData(w, h);
+  const body = bytes.subarray(match[0].length);
+  for (let i = 0; i < w * h; i++) {
+    image.data[i * 4] = body[i * 3];
+    image.data[i * 4 + 1] = body[i * 3 + 1];
+    image.data[i * 4 + 2] = body[i * 3 + 2];
+    image.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  document.getElementById("pad").hidden = true;
+  if (rally) cancelAnimationFrame(rally);
+  currentMatch = null;
+}
+
+async function playLibrary(item) {
+  const commit = item.commit;
+  const key = item.openKey || "";
+  paint("C:\\PHOSPHOR> LIBRARY READER " + commit.slice(0, 12) + " …");
+  document.getElementById("commit").value = commit;
+  openKey = key || openKey;
+  try {
+    if (item.keyAttached === false && item.keyMode === "lock" && !document.getElementById("unlock").value) {
+      throw new Error("key required to unwrap snark");
+    }
+    const useKey = document.getElementById("unlock").value || key;
+    const proof = await postJson("/phosphor/api/proof", { commit, key: useKey });
+    const recalled = await postJson("/phosphor/api/recall", { commit, key: useKey });
+    if (!proof.equal || !recalled.bytesBase64) throw new Error("imprint did not return the file");
+    const bytes = Uint8Array.from(atob(recalled.bytesBase64), (ch) => ch.charCodeAt(0));
+    const lines = [
+      ...(proof.equation.lines || []),
+      "directory " + (item.directoryBytes || "?") + " bytes  data field " + (item.dataFieldBytes || "?") + " bytes",
+      "formula " + (item.directory || ""),
+      "final " + (item.filingLoc || ""),
+      item.shorterThanData ? "directory shorter than the data field" : "directory does not fit under the data field",
+      "base loc empty",
+    ];
+    await typeLines(lines);
+    if (item.play === "picture" || (recalled.name || "").endsWith(".ppm")) {
+      drawPpm(bytes);
+      return;
+    }
+    const text = new TextDecoder().decode(bytes);
+    if (!window.PHOSPONG) throw new Error("line router host missing");
+    startRally(window.PHOSPONG.createMatch(text));
+  } catch (error) {
+    paint("LIBRARY FAIL " + error.message);
+  }
+}
+
+async function loadLibrary() {
+  const lib = await fetch("/phosphor/api/library").then((r) => r.json());
+  const box = document.getElementById("library");
+  if (!lib.ok) { box.textContent = "library missing"; return; }
+  const folders = lib.folders || [{ id: "LIBRARY", items: lib.items || [] }];
+  const playable = [];
+  box.innerHTML = folders.map((folder) => {
+    const buttons = (folder.items || []).filter((item) => item.play).map((item) => {
+      playable.push(item);
+      const id = "lib-" + item.commit.slice(0, 12);
+      return "<div class=\"row lib\"><button type=\"button\" id=\"" + id + "\">" + esc(folder.id) + " " + esc(item.name) + "</button>" +
+        "<span>raw " + item.rawBytes + " → payload " + item.payloadBytes + " → directory " + item.directoryBytes +
+        " · data field " + item.dataFieldBytes +
+        " · <a href=\"" + esc(item.href) + "\">" + esc(item.filingLoc) + "</a>" +
+        " · key " + (item.keyAttached ? "attached" : "ask") +
+        " · base loc empty</span></div>";
+    }).join("");
+    return buttons ? "<div><div class=\"dim\">" + esc(folder.id) + "</div>" + buttons + "</div>" : "";
+  }).join("");
+  for (const item of playable) {
+    const button = document.getElementById("lib-" + item.commit.slice(0, 12));
+    if (button) button.onclick = () => playLibrary(item);
+  }
+  const want = q.get("play");
+  if (want) {
+    const hit = playable.find((item) => item.commit.startsWith(want));
+    if (hit) playLibrary(hit);
+  }
+}
+
+document.getElementById("up").addEventListener("pointerdown", () => { if (currentMatch) currentMatch.keys.up = true; });
+document.getElementById("down").addEventListener("pointerdown", () => { if (currentMatch) currentMatch.keys.down = true; });
+window.addEventListener("pointerup", () => {
+  if (!currentMatch) return;
+  currentMatch.keys.up = false;
+  currentMatch.keys.down = false;
+});
+window.addEventListener("keydown", (event) => {
+  if (!currentMatch) return;
+  if (event.key === "ArrowUp") currentMatch.keys.up = true;
+  if (event.key === "ArrowDown") currentMatch.keys.down = true;
+});
+window.addEventListener("keyup", (event) => {
+  if (!currentMatch) return;
+  if (event.key === "ArrowUp") currentMatch.keys.up = false;
+  if (event.key === "ArrowDown") currentMatch.keys.down = false;
+});
+
+if (q.get("test") === "1") runTest();
+loadLibrary().catch(() => {});
+fetch("/phosphor/api/status").then((r) => r.json()).then((s) => {
+  if (!s.ok) return;
+  document.getElementById("sub").textContent =
+    "C:\\PHOSPHOR> objects " + s.objects +
+    "  stark " + (s.starkRoot ? s.starkRoot.slice(0, 12) : "pending") +
+    "  loc —";
+}).catch(() => {});
+</script>
+<script type="module">
+import { createMatch, stepMatch } from "/phosphor/vm.js";
+window.PHOSPONG = { createMatch, stepMatch };
+</script>
+</body>
+</html>

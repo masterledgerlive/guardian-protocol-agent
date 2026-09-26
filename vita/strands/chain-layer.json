@@ -1,0 +1,36 @@
+{
+  "strandId": "chain-layer",
+  "sparse": true,
+  "source": "chain-layer",
+  "filingLabel": "CHAIN_LAYER",
+  "learn": "Always /vita check. SNARK is local until spaced inject seals matching locs. Telegram IDM only for sealed inject txs — formula anchors are class proof only. Pull Input Data → UTF-8 to verify. Never invent hashes.",
+  "formula": "original-message-first",
+  "snarkRoot": "28af210e496df6419caea6ff221e2d9b56452da06a3917eb33289afd09102b70",
+  "recoverMs": 1.989,
+  "agreedModel": "claude-sonnet-4-20250514",
+  "llmCommit": "812e6aaf521048f8f5e3fb35ffee2b7b55b1de84d0a7073f2d6bfdeb9627dafe",
+  "spacedChunks": 338,
+  "sealedInject": 0,
+  "pendingInject": 338,
+  "locations": [],
+  "formulaAnchors": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none",
+      "role": "formula-anchor"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka",
+      "role": "formula-anchor"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita",
+      "role": "formula-anchor"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "strandId": "live-snark-captions",
+  "sparse": true,
+  "source": "vita-feed-player",
+  "filingLabel": "FEED_PLAYER",
+  "learn": "Live HUMAN+MACHINE SNARK caption layers on feed-player — timeupdate pulls next loc from compressed/snark stream with revealed key; click-through Basescan MATCH.",
+  "player": "/vita/feed-player?music=judy",
+  "locs": "/vita/free-music/locs?id=judy",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

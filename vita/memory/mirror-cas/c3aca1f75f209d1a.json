@@ -1,0 +1,30 @@
+{
+  "id": "path-sanitize",
+  "file": "vita/mirror-chain.js",
+  "exportName": "sanitizeMirrorPath",
+  "body": "export function sanitizeMirrorPath(name) {\n  const raw = String(name || \"\").trim().replace(/\\\\/g, \"/\").replace(/^\\/+/, \"\");\n  if (!raw) return { ok: false, reason: \"empty filename\" };\n  if (DENY_RE.test(raw)) return { ok: false, reason: \"denied path\" };\n  if (raw.includes(\"\\0\")) return { ok: false, reason: \"denied path\" };\n  const norm = normalize(raw);\n  if (norm.startsWith(\"..\") || norm.split(sep).includes(\"..\")) {\n    return { ok: false, reason: \"path escape blocked\" };\n  }\n  if (norm.length > 180) return { ok: false, reason: \"filename too long\" };\n  return { ok: true, path: norm.replace(/\\\\/g, \"/\") };\n}",
+  "runnable": "const DENY_RE = /(^|[\\\\/])(\\.env|\\.git|node_modules|\\.pem$|id_rsa|secrets?)/i;\n\nfunction sanitizeMirrorPath(name) {\n  const raw = String(name || \"\").trim().replace(/\\\\/g, \"/\").replace(/^\\/+/, \"\");\n  if (!raw) return { ok: false, reason: \"empty filename\" };\n  if (DENY_RE.test(raw)) return { ok: false, reason: \"denied path\" };\n  if (raw.includes(\"\\0\")) return { ok: false, reason: \"denied path\" };\n  const norm = normalize(raw);\n  if (norm.startsWith(\"..\") || norm.split(sep).includes(\"..\")) {\n    return { ok: false, reason: \"path escape blocked\" };\n  }\n  if (norm.length > 180) return { ok: false, reason: \"filename too long\" };\n  return { ok: true, path: norm.replace(/\\\\/g, \"/\") };\n}\n; this.__fn = sanitizeMirrorPath;",
+  "deps": 1,
+  "contentCommit": "c3aca1f75f209d1a287aac8d836b67637d6dc2aba3c1b16e984b8bade0abe017",
+  "packetCommit": "b3d9edded2a0a3b12a699ec08f89df8f03776c61ed0132d09902d9f1f85ab91b",
+  "fileContentCommit": "19bbe7be8d5257af86f71d30165adebbed039e707c49a8d88a5b696e0663e4de",
+  "snarkShort": "§VITASNARK§b3d9edded2a0|T=vita/mirror-chain.js#sanitizeMi…|B=721|M=SNARK kind=file name=vita/mirror-chain.…",
+  "snarkCommit": "b3d9edded2a0a3b12a699ec08f89df8f03776c61ed0132d09902d9f1f85ab91b",
+  "zeroProof": {
+    "scheme": "vita-open-unlock-v1",
+    "privateKey": false,
+    "openSource": true,
+    "name": "vita/mirror-chain.js#sanitizeMirrorPath",
+    "key": "VITAOPEN.vita_mirror-chain.js_sanitizeMirrorPath.c3aca1f75f20",
+    "contentCommit": "c3aca1f75f209d1a287aac8d836b67637d6dc2aba3c1b16e984b8bade0abe017",
+    "note": "Zero-proof lock+key = file name + contentCommit. Same name as GitHub; chain seal proves truth.",
+    "magic": "§VITAZERO§",
+    "filingLabel": "ZERO_PROOF",
+    "privateWitness": false
+  },
+  "leader": "filing",
+  "note": "CAS runnable includes same-file deps. Filing leader until Base seal matches contentCommit.",
+  "at": "2026-09-21T02:12:50.445Z",
+  "filingLabel": "MIRROR_DUAL",
+  "neverInventHashes": true
+}

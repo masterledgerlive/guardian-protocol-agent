@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-19T03:38:12.624Z",
+  "topic": "zero-proof-cycle-004",
+  "filingLabel": "ZERO_PROOF",
+  "text": "§ZEROPROOF§v1|cycle=4|root=1c9d96ff7d09§\nZERO PROOF · filing=ZERO_PROOF · zero invented hashes\ncycle=4\nprev=b3c3d58b01fa\nroot=1c9d96ff7d096f5119b9f48fe6eb8c135205de2c2ac526390a3ded2f43876ad2\nsquash=d31028f560b84e752c3d3de41789a963812526329679cc958af5867bd16e4c57\nKEY8_topics=024411af,068279f9,090b5e1c,0cbe7c00,15d21ac2,25487ef8,26d61f94,2c446cb5,2c834fed,2e2779aa,34aacadd,355ce347,3f5ccfd2,40a252a5,4104d579,449799d2,4aa01602,54c5e37f,56a17c5f,584374b1,635cdc16,68745967,6c89a8e1,6cd8489d,759e9024,7b32b4b5,82eb5473,861bac1e,8b64b2c8,90ad565a,974bae2e,9d7c721c,9dc1817f,ad1db544,b2a7c1b9,ba94d17b,c93045cc,ce4eeae7,ce639955,d66e6985,d9578fa2,dde52b62,de4711cb,e822aed9,ede38011,f2e2aba9,f771cdd2,fc015573,fcec4837,fd0f1243\nLOC8_sealed=26abb9d4,5c0a93e4,640ed7b8,931d8411,aaaaaaaa,bbbbbbbb,cccccccc,cccccccc,d9827a9c,dddddddd,dddddddd,eeeeeeee,fee4d502\ncounts mem=50 strands=21 lib=7 locs=13\nretrieval=sparse KEY+LOC hitch · VIN feed · library keys · /inject anchors",
+  "root": "1c9d96ff7d096f5119b9f48fe6eb8c135205de2c2ac526390a3ded2f43876ad2",
+  "prevRoot": "b3c3d58b01fa6157286797b272a19048940bb7c7022663af09f0b79082cf0ace",
+  "growth": {
+    "memoryCount": 50,
+    "strandCount": 21,
+    "libraryCount": 7,
+    "sealedLocCount": 13
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

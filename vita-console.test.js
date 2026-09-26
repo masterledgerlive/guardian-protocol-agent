@@ -36,11 +36,14 @@ describe("vita HTML console", () => {
     assert.equal(state.injected, false);
   });
 
-  it("answers from KEY without Anthropic", async () => {
+  it("reads vault-unlock.js from local disk without Anthropic", async () => {
     const state = createVitaConsole();
-    const r = await handleVitaConsole(state, "/vita who is in KEY?");
-    assert.match(r.text, /Krystian/);
-    assert.match(r.text, /Koda/);
+    const r = await handleVitaConsole(state, "/vita read vault-unlock.js");
+    assert.match(r.text, /vault-unlock\.js/);
+    assert.match(r.text, /local=YES/);
+    assert.match(r.text, /VITASESS/);
+    const q = await handleVitaConsole(state, "/vita who is in KEY?");
+    assert.match(q.text, /Krystian/);
   });
 
   it("searches genesis KEY via /xmem without inventing an id", async () => {
@@ -166,6 +169,49 @@ describe("vita HTML console", () => {
     assert.equal(n, 0);
     assert.equal(state.leftoverScan.counts.eureka, 12);
     assert.equal(state.leftoverScan.hitchBytes.eurekaMin, 229);
+  });
+
+  it("/wavetest runs the WAVE memory-mirror SIM without paying", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/wavetest");
+    assert.match(r.text, /WAVE MIRROR/);
+    assert.match(r.text, /PASS/);
+    assert.match(r.text, /VITAFEED_PAID/);
+    assert.match(r.text, /HTML SIM only/);
+  });
+
+  it("/waveproof runs the capped 3-token WAVE proof SIM without paying", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/waveproof");
+    assert.match(r.text, /WAVE PROOF/);
+    assert.match(r.text, /PASS/);
+    assert.match(r.text, /VIRTUAL/);
+    assert.match(r.text, /VITAFEED_PAID/);
+    assert.match(r.text, /HTML SIM only/);
+  });
+
+  it("/wavefull runs the 28-shard Heraclitus quote SIM without paying", async () => {
+    const state = createVitaConsole();
+    const r = await handleVitaConsole(state, "/wavefull");
+    assert.match(r.text, /WAVE FULL/);
+    assert.match(r.text, /PASS/);
+    assert.match(r.text, /VIRTUAL/);
+    assert.match(r.text, /28/);
+    assert.match(r.text, /VITAFEED_PAID/);
+    assert.match(r.text, /HTML SIM only/);
+    assert.match(r.text, /waveproof stays 3/i);
+  });
+
+  it("/vitafeed shows a cost card and confirm gate without paying", async () => {
+    const state = createVitaConsole();
+    const preview = await handleVitaConsole(state, "/vitafeed hello from html");
+    assert.match(preview.text, /COST CARD/);
+    assert.match(preview.text, /CONFIRM required/);
+    assert.match(preview.text, /VITAFEED_MAX_CHUNK_BYTES/);
+    assert.match(preview.text, /HTML preview only/);
+    assert.match(preview.text, /VITAFEED BUY-IN|BUY SKIP/);
+    const confirm = await handleVitaConsole(state, "/vitafeed confirm");
+    assert.match(confirm.text, /VITAFEED BANK|paid confirm is OFF|VITAFEED_PAID|Paid RISK path needs a sender/);
   });
 
   it("ZK preview hides plaintext but keeps KEY internally", async () => {

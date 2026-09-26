@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-19T05:30:00.000Z",
+  "topic": "clanker-force-unwind-inject-fuel",
+  "text": "HARD STOP: mother brain untouched. Vault never. User force: CLANKER ~$3 FIFO-red inject fuel was stale non-movement. Root cause: GAME_FORCE_EXIT_PRIORITY was AERO/DRB/BNKR only — ALLOW_LOSSY_OPERATOR_SELL could not unwind CLANKER. Add CLANKER to GAME_FORCE_EXIT_PRIORITY. INJECT FUEL HOLD path FORCE UNWINDs when canBypassSellLossGate (ALLOW_LOSSY or FORCE_EXIT): hitch SKIP on red sell, cascade redeploys for memory hitch. Railway: ALLOW_LOSSY_OPERATOR_SELL=yes + OPERATOR_SELL=CLANKER:all for one-shot desk queue. Do not invent P&L. VITAFEED_PAID stays default OFF.",
+  "locations": [],
+  "hypothesis": {
+    "id": "clanker-force-exit-priority-lossy-cascade",
+    "status": "operating-rule",
+    "discarded": [
+      "wait forever for PLUS while liquid starved",
+      "FORCE EXIT LOCKED no-cascade for inject fuel",
+      "sell red hitch on the same tx",
+      "invent CLANKER P&L"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

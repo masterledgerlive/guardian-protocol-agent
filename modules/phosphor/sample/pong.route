@@ -1,0 +1,13 @@
+PHOSPONG/1
+court 320 180
+paddle 8 36
+ball 4
+speed 120
+goal 5
+tick input
+tick ai
+tick move
+tick walls
+tick paddle
+tick score
+tick draw

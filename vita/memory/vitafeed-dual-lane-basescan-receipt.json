@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-20T16:59:00.000Z",
+  "topic": "vitafeed-dual-lane-basescan-receipt",
+  "filingLabel": "VITADUAL",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "text": "Dual-lane /vitafeed proof: HUMAN plain UTF-8 and MACHINE ZK-short of the same knowledge, side-by-side costs + file sizes, spaced Basescan locations bunched on the Telegram receipt. Basescan Input Data → View as UTF-8 is the on-chain chat read receipt. /vitafeed translate · /vitafeed dual · /vitafeed restart (exit bags ≥ $0.50 to refill RISK). Money is for proving inject — not the gate.",
+  "commands": [
+    "/vitafeed translate [text]",
+    "/vitafeed dual [text]",
+    "/vitafeed confirm",
+    "/vitafeed restart",
+    "/vitafeed proof"
+  ],
+  "lanes": ["HUMAN", "MACHINE"],
+  "readReceipt": "Basescan → Input Data → View as UTF-8",
+  "restartExitUsd": 0.5,
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}

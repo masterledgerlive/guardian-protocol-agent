@@ -37,6 +37,9 @@ import {
   resetHitchBudget,
   creditHitchBank,
   consumeHitchBankOnSend,
+  TOKEN_LOG_SEED_USD,
+  tokenLogSeedUsd,
+  clampSellLeaveLogSeed,
 } from "./piggy-bank.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -46,6 +49,9 @@ describe("piggy config defaults", () => {
     assert.equal(DEFAULT_PIGGY_BANK_PCT, 0.05);
     assert.equal(DEFAULT_PIGGY_BANK_MIN_USD, 0.15);
     assert.equal(DEFAULT_PIGGY_EARNINGS_BUFFER_PCT, 0.05);
+    assert.equal(TOKEN_LOG_SEED_USD, 0.05);
+    assert.equal(tokenLogSeedUsd({}), 0.05);
+    assert.equal(clampSellLeaveLogSeed({ balance: 10, tokensToSell: 10, priceUsd: 1, seedUsd: 0.05 }), 9.95);
     assert.equal(piggyBankPct({}), 0.05);
     assert.equal(piggyBankMinUsd({}), 0.15);
     assert.equal(piggyEarningsBufferPct({}), 0.05);
@@ -170,7 +176,7 @@ describe("unlock path works", () => {
     assert.equal(PIGGY_UNLOCK_PREFIX, "PIGGY UNLOCK");
   });
 
-  it("unlock sellPct=1 sells the full bag including dust", () => {
+  it("unlock sellPct=1 still leaves the $0.05 logging seed", () => {
     const d = applyPiggyToSell({
       balance: 1000,
       sellPct: 1,
@@ -181,14 +187,14 @@ describe("unlock path works", () => {
     });
     assert.equal(d.unlock, true);
     assert.equal(d.sellable, 1000);
-    assert.equal(d.tokensToSell, 1000);
-    assert.equal(d.remainingBalance, 0);
-    assert.equal(d.remainingReserve, 0);
-    assert.equal(d.soldAll, true);
+    assert.ok(Math.abs(d.tokensToSell - 999.95) < 1e-9);
+    assert.ok(Math.abs(d.remainingBalance - 0.05) < 1e-9);
+    assert.equal(d.soldAll, false);
+    assert.equal(d.logSeedHeld, true);
     assert.equal(d.blocked, false);
   });
 
-  it("forceUnlock sells the full bag for Game FORCE_EXIT / lossy operator unwind", () => {
+  it("forceUnlock still leaves the $0.05 logging seed", () => {
     const d = applyPiggyToSell({
       balance: 1000,
       sellPct: 1,
@@ -199,7 +205,7 @@ describe("unlock path works", () => {
       forceUnlock: true,
     });
     assert.equal(d.unlock, true);
-    assert.equal(d.tokensToSell, 1000);
+    assert.ok(Math.abs(d.tokensToSell - 999.95) < 1e-9);
     const held = applyPiggyToSell({
       balance: 1000,
       sellPct: 1,

@@ -21,14 +21,37 @@ import {
   xmemHelpText,
 } from "/vita/lib/xmem.js";
 
-export const KEYCAT_TX = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
-export const EUREKA_ONCHAIN_TX = "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73";
-export const VITA_STRAND_TX = "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db";
-export const ANCHORS = Object.freeze([
-  { tx: KEYCAT_TX, expect: "none", note: "KEYCAT plain swap — no hitch" },
-  { tx: EUREKA_ONCHAIN_TX, expect: "eureka", note: "Eureka love note on Base" },
-  { tx: VITA_STRAND_TX, expect: "vita", note: "VITA §TOKEN§ strand on Base" },
-]);
+/** Prefer infected HTML mainframe anchors when present; else hardcoded genesis. */
+function readInfectedMainframe() {
+  try {
+    if (typeof document === "undefined") return null;
+    const el = document.getElementById("vita-mainframe");
+    return el ? JSON.parse(el.textContent) : null;
+  } catch {
+    return null;
+  }
+}
+
+const FALLBACK_KEYCAT_TX = "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf";
+const FALLBACK_EUREKA_TX = "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73";
+const FALLBACK_VITA_TX = "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db";
+
+const infected = readInfectedMainframe();
+export const KEYCAT_TX = infected?.anchors?.keycatPlainTx || FALLBACK_KEYCAT_TX;
+export const EUREKA_ONCHAIN_TX = infected?.anchors?.eurekaProveTx || FALLBACK_EUREKA_TX;
+export const VITA_STRAND_TX = infected?.anchors?.vitaStrandTx || FALLBACK_VITA_TX;
+export const MAINFRAME = infected;
+export const ANCHORS = Object.freeze(
+  (infected?.anchors?.known || [
+    { tx: KEYCAT_TX, expect: "none", note: "KEYCAT plain swap — no hitch" },
+    { tx: EUREKA_ONCHAIN_TX, expect: "eureka", note: "Eureka love note on Base" },
+    { tx: VITA_STRAND_TX, expect: "vita", note: "VITA §TOKEN§ strand on Base" },
+  ]).map((a) => ({
+    tx: a.tx,
+    expect: a.expect || a.kind || "vita",
+    note: a.note || a.label || a.id || "",
+  })),
+);
 
 const STORE_TAG = "§$STORE§";
 const TX_RE = /^0x[0-9a-fA-F]{64}$/;
@@ -218,6 +241,21 @@ function helpText() {
     "/xmem [query]     search pulled hitch UTF-8 (XMEM / STORE KEY / tags)",
     "/reader           show reconstructed packet from locations",
     "/vita [question]  answer from KEY / LOC / LEARN",
+    "/vita read FILE   open file + SNARK + IDM locs (no Anthropic)",
+    "/vita files · /vita proof FILE · /vita unwrap · /vita chain · /vita session",
+    "/vita tree · /vita dual FILE · /vita path proven FILE · /vita zero FILE · /vita boot — dual avail|proven + zero-proof + SNARK boot (/vita/mirror)",
+    "/vita check · /vita recover · /vita models · /vita llm — systems check + EVM ms + model ring + LLM spin (library grows files)",
+    "/vitamothergenesis [code]  bank MGPLAIN hex (CONFIRM + env for paid path)",
+    "/vitamothergenesis FORCE recall  layered memory bank; queries are the last layer",
+    "/vitafeed [text|file|compress|photos|brain|learn|proof|load|know|recall|cipher|backlog|enqueue|next|dir|unlock|dual|translate|kids|music|board|pad|prompt|spatial|soundtrack] exact/VITAFILE/mind; Photos Drive (Drive/folder/URL → open-picture key → inject); compression bake-off → verified key → inject; DOS dir; KIDS url directory; PD MUSIC library grouped VIN; DJ soundboard pads; voxel spatial bird prints; dual lanes; loader packs; open-source unlock; files|play|keys; confirm|override; /vita/photos · /vita/players/garden · /vita/players/proven · /vita/feed-player · /vita/kids-player?dir=kids · /vita/soundboard · /vita/spatial · /vita/feed-player?music=maple&kids=1 · /vita/feed-loader",
+    "/wavetest — WAVE memory-mirror SIM (Heraclitus gift → shards → read-back vs answer key)",
+    "/waveproof — capped 3-token WAVE proof SIM (VIRTUAL/CLANKER/AERO 8B; live is desk POST /vita/waveproof or Telegram + WAVE_PROOF_LIVE)",
+    "/wavefull — full 28-shard Heraclitus quote SIM (live is desk POST /vita/wavefull + WAVE_FULL_LIVE; /waveproof stays 3)",
+    "/home · /menu · /start — sectioned clickable Telegram routes (Search/Feed/Players/WAVE/Mirror…)",
+    "/provenplayer · /provenplayer verify · /provenplayer manifest — Proven Player, switch dav1d and AV2 (/vita/proven-player)",
+    "/home sim · /home engines — many route sims + MAIN↔NEW snark cost/speed mirror + IDM",
+    "/vitamotherGenesisencoded [code]  bank encoded hex; two-part key",
+    "/encodegenesisreveal KEY  pull locs + decode",
     "/zk  locations-only preview (future ZK path)",
     "/plain  plaintext open source (default)",
   ].join("\n");
@@ -500,7 +538,31 @@ export async function handleCommand(state, raw) {
     persist(state);
     return say("INJECT\n" + lines.join("\n") + "\n\n" + (state.reveal === "locations" ? locToken(state.nodes) : packed));
   }
-  if (low.startsWith("/vita ")) return say(answer(state, input.slice(6)));
+  if (low.startsWith("/vita ")) {
+    const rest = input.slice(6).trim();
+    const lowRest = rest.toLowerCase();
+    if (
+      /^(read|files|proof|unwrap|chain|session|keys|plugins|open|exist|check|recover|models|model|llm|spin|syscheck|systems|evm|speed)\b/.test(lowRest) ||
+      lowRest === "files" ||
+      lowRest === "chain" ||
+      lowRest === "check" ||
+      lowRest === "recover" ||
+      lowRest === "models" ||
+      lowRest === "llm" ||
+      lowRest === "spin" ||
+      lowRest === "session" ||
+      lowRest === "keys"
+    ) {
+      try {
+        const res = await fetch("/vita/mirror?cmd=" + encodeURIComponent(input.trim()));
+        const data = await res.json();
+        return say(data.reply || data.error || "mirror miss");
+      } catch (e) {
+        return say("mirror fetch failed: " + (e.message || e));
+      }
+    }
+    return say(answer(state, rest));
+  }
   if (low.startsWith("/")) return say("unknown — /help");
   return say(answer(state, input));
 }

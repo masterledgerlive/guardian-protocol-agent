@@ -59,6 +59,12 @@ import {
   persistV4RaceSnapshot,
   sendRaceScoreboardIfDue,
 } from "../race-scoreboard.js";
+import {
+  planRaceStartEureka,
+  markRaceEurekaWritten,
+  readRaceEurekaLatch,
+  raceEurekaBytes,
+} from "../race-eureka.js";
 import { resolveV4TradeableUsd } from "./fund-split.js";
 import {
   broadcastV4Swap,
@@ -99,7 +105,7 @@ function estimateHitchCostEth(bytes, gwei = 0.05) {
   return (gas * gwei * 1e-9) * HITCH_COST_MULT;
 }
 
-function buildDemoInject(token, { tradeEth = 0.002 } = {}) {
+function buildDemoInject(token, { tradeEth = 0.002, purchasedFirstOrder = false } = {}) {
   const amountIn = BigInt(Math.floor(tradeEth * 1e18));
   const tokenIn = token.quoteAddress || NATIVE_ETH;
   const tokenOut = token.address;
@@ -115,13 +121,50 @@ function buildDemoInject(token, { tradeEth = 0.002 } = {}) {
   const planned = planSecondaryHitch({ maxBytes: 400 });
   const hitchCost = estimateHitchCostEth(planned.hitchBytes || utf8ByteLength(planned.utf8));
   const leftoverEth = hitchCost * 1.25;
-  const hitched = hitchSwapIfCovered({
-    swapData: encoded.data,
-    leftoverEth,
-    hitchCostEth: hitchCost,
-    utf8: planned.utf8,
+
+  // Race-start first order: full Eureka when opportune; otherwise leave KEY+LOC alone.
+  const eurekaBytes = raceEurekaBytes();
+  const eurekaCost = estimateHitchCostEth(eurekaBytes);
+  const racePlan = planRaceStartEureka({
+    raceStarted: true,
+    purchasedFirstOrder,
+    leftoverEth: Math.max(leftoverEth, eurekaCost * 1.25),
+    hitchCostEth: eurekaCost,
   });
-  return { encoded, hitched, hitchCost, leftoverEth, voice: planned.utf8, tradeEth };
+  let hitched;
+  if (racePlan.attempt && racePlan.utf8) {
+    hitched = hitchSwapIfCovered({
+      swapData: encoded.data,
+      leftoverEth: Math.max(leftoverEth, eurekaCost * 1.25),
+      hitchCostEth: eurekaCost,
+      utf8: racePlan.utf8,
+    });
+    if (hitched.onChain) {
+      hitched = { ...hitched, raceStartEureka: true };
+    } else {
+      hitched = hitchSwapIfCovered({
+        swapData: encoded.data,
+        leftoverEth,
+        hitchCostEth: hitchCost,
+        utf8: planned.utf8,
+      });
+    }
+  } else {
+    hitched = hitchSwapIfCovered({
+      swapData: encoded.data,
+      leftoverEth,
+      hitchCostEth: hitchCost,
+      utf8: planned.utf8,
+    });
+  }
+  return {
+    encoded,
+    hitched,
+    hitchCost: hitched.raceStartEureka ? eurekaCost : hitchCost,
+    leftoverEth: hitched.raceStartEureka ? Math.max(leftoverEth, eurekaCost * 1.25) : leftoverEth,
+    voice: hitched.utf8 || planned.utf8,
+    tradeEth,
+  };
 }
 
 function printAvenueBoard() {
@@ -182,20 +225,28 @@ async function cycleOnce(tradeableUsdOpt = null) {
 
   for (const token of ranked.primed) {
     const ethUsd = Number(env("ETH_USD", "2500")) || 2500;
+    const raceLatch = readRaceEurekaLatch();
     const demo = buildDemoInject(token, {
       tradeEth: book.injectAll
         ? Math.max(0.0008, Math.min(0.002, tradeableUsd / ethUsd))
         : 0.0015,
+      // First-order purchase of the race — full Eureka only when opportune + not already written.
+      purchasedFirstOrder: !raceLatch.written,
     });
     if (demo.hitched.onChain) {
       hitchInjectCount += 1;
       hitchInjectProfitUsd += MIN_NET_MARGIN * (demo.tradeEth * ethUsd) * 0.05;
       if (demo.hitched.utf8) ingestSealedUtf8(demo.hitched.utf8);
     }
+    const hitchPreview = demo.hitched.onChain
+      ? (demo.hitched.raceStartEureka
+        ? `"${demo.hitched.utf8}"`
+        : `"${demo.hitched.utf8.slice(0, 48)}…"`)
+      : demo.hitched.reason;
     log(
       `  inject ${token.symbol}: to=${demo.encoded.to.slice(0, 10)}… value=${demo.encoded.value} ` +
         `hitch=${demo.hitched.onChain ? `${demo.hitched.hitchBytes}B` : "SKIP"} ` +
-        `${demo.hitched.onChain ? `"${demo.hitched.utf8.slice(0, 48)}…"` : demo.hitched.reason}`,
+        hitchPreview,
     );
 
     let txHash = null;
@@ -215,6 +266,15 @@ async function cycleOnce(tradeableUsdOpt = null) {
       } else {
         log(`  LIVE skip — ${sent.reason}`);
       }
+    }
+
+    if (demo.hitched.raceStartEureka && demo.hitched.onChain) {
+      // Latch after first opportune race Eureka (dry-run or live) so later cycles leave alone.
+      markRaceEurekaWritten({
+        txHash: txHash || (DRY_RUN ? "dry-run-race-eureka" : null),
+        track: DRY_RUN ? "v4-dry" : "v4",
+      });
+      log("  💌 Race-start Eureka latched (full IKN love note)");
     }
 
     // Dry-run still Telegrams Game — planned calldata / hitch skip-bank / skip reasons.

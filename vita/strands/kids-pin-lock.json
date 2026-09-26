@@ -1,0 +1,11 @@
+{
+  "strandId": "kids-pin-lock",
+  "sparse": true,
+  "source": "vita-kids-player",
+  "filingLabel": "URLDIR",
+  "learn": "Kids PIN lock on /vita/kids-player — default 0000, set+confirm, traps YouTube/phone escape; only play pause next prev + list when locked.",
+  "player": "/vita/kids-player?dir=kids",
+  "pinDefault": "0000",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

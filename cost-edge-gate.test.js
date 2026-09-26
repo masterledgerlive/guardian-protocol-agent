@@ -79,6 +79,35 @@ describe("cost-edge-gate: CBBTC-class refuse", () => {
     assert.equal(d.code, "high_unit_thin_book");
   });
 
+  it("skipNearTerm still enforces hitch%/RT% but not wait-forever", () => {
+    const blocked = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      hitchCostEth: 0,
+      gasCostEth: 0.00005,
+      feePct: 0.006,
+      price: 18,
+      recentHigh: 18.1,
+      ethUsd: 2490,
+      tradeableUsd: 3.81,
+    });
+    assert.equal(blocked.allow, false);
+    assert.equal(blocked.code, "near_term");
+    const micro = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      hitchCostEth: 0,
+      gasCostEth: 0.00005,
+      feePct: 0.006,
+      price: 18,
+      recentHigh: 18.1,
+      ethUsd: 2490,
+      tradeableUsd: 3.81,
+      skipNearTerm: true,
+    });
+    assert.equal(micro.allow, true);
+  });
+
   it("allows a liquid meme with real near-term upside and small hitch%", () => {
     const d = evaluateCostEdgeGate({
       symbol: "KEYCAT",
@@ -112,8 +141,10 @@ describe("cost-edge-gate: USD bag exits", () => {
 });
 
 describe("cost-edge-gate: mistake learning", () => {
-  it("records and summarizes refusals", () => {
+  it("records and summarizes refusals", async () => {
+    const { resetHypothesisGraph, queryHypotheses } = await import("./finetune-memory.js");
     costMistakeLog.length = 0;
+    resetHypothesisGraph();
     recordCostMistake({
       symbol: "CBBTC",
       code: "hitch_pct",
@@ -125,6 +156,7 @@ describe("cost-edge-gate: mistake learning", () => {
     assert.equal(s.count, 1);
     assert.equal(s.topSymbol, "CBBTC");
     assert.ok(s.message.includes("CBBTC"));
+    assert.ok(queryHypotheses({ symbol: "CBBTC", status: "failed" }).length >= 1);
   });
 });
 
@@ -264,12 +296,13 @@ describe("cost-edge-gate: operator /buy bypasses near-term; auto still gated", (
     const nextFn = agentSrc.indexOf("\nasync function ", buyFn + 1);
     const body = agentSrc.slice(buyFn, nextFn > 0 ? nextFn : buyFn + 8000);
     assert.ok(body.includes("evaluateCostEdgeGate"), "auto path must still call COST_EDGE");
+    assert.ok(body.includes("skipNearTerm"), "thin micro-bank must not wait forever on COST_EDGE near-term");
     assert.ok(body.includes("COST_EDGE blocked"), "auto path must still skipBuy on COST_EDGE");
     const edgeIdx = body.indexOf("evaluateCostEdgeGate");
     const prelude = body.slice(Math.max(0, edgeIdx - 600), edgeIdx);
     assert.match(
       prelude,
-      /if\s*\(\s*!isManualOperatorBuy\(reason\)\s*\)/,
+      /if\s*\(\s*!isManualOperatorBuy\(reason\)(?:\s*&&\s*!isVitaFeedBuyIn\(reason\))?\s*\)/,
       "operator / Telegram /buy must bypass COST_EDGE",
     );
     assert.ok(

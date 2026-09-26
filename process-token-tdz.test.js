@@ -67,6 +67,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("fifoRemainingCostEth"), "boot must recover FIFO remaining, not cash-flow leftover");
     assert.ok(src.includes("applySellPlusFloorMinOut"), "executeSell must raise minOut to FIFO plus floor");
     assert.ok(src.includes("canBypassSellLossGate"), "lossy / FORCE_EXIT must bypass plus floor");
+    assert.ok(src.includes("consumeAllowLossyOperatorSell"), "ALLOW_LOSSY is one-shot after the sell");
+    assert.ok(src.includes("dustRecycleMustHoldFifoRed"), "DUST RECYCLE HOLDs FIFO-red without ALLOW_LOSSY");
     assert.ok(src.includes("clampAmountInToLiveBalance"), "amountIn must clamp to live ERC20 wei");
     assert.ok(src.includes("getTokenBalanceWei"), "sell size must read live balanceOf wei");
     assert.ok(src.includes("needsSpenderApprove"), "approve must compare live allowance to amountIn");
@@ -76,6 +78,7 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(src.includes("latchFreshLot"), "operator fill must latch remaining cost");
     assert.ok(src.includes("persistFifoLotsNow"), "operator fill must persist FIFO lots before restart");
     assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
+    assert.ok(src.includes("recycleSellCopy"), "never label unknown when FIFO lots exist");
     assert.ok(src.includes("blendUsdEntryOnAddOnBuy"), "add-on buy must not blend missing USD as 0");
     assert.ok(src.includes("lotFromBuyReceipt") || src.includes("tryRebuildLotFromReceipts"), "boot must rebuild lots from buy hash");
     assert.ok(src.includes("mergeBuyReceiptIntoLots"), "DRB trough add-on must merge onto first FIFO lot");
@@ -99,6 +102,20 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(sellBody.includes("earningsEth: 0"), "earnings must not add hitch fuel on top of leftover");
     assert.ok(sellBody.includes("sellSkipHitch"), "orch must not re-embed hitch after plus strip");
     assert.ok(sellBody.includes("leftoverEth"), "KEY+LOC planner must see leftover, not hitch-force");
+    assert.ok(sellBody.includes("hitchWaveOnSellLeftover"), "sell leftover hitch must call WAVE wrap");
+    assert.ok(sellBody.includes("attachWaveOnCoveredLeftover"), "WAVE hitch caller must be attachWaveOnCoveredLeftover");
+    assert.ok(sellBody.indexOf("hitchWaveOnSellLeftover") > sellBody.indexOf("planVoiceHitch"));
+    assert.ok(!sellBody.includes("oneShot: true"), "WAVE_MIRROR_PAID one-shot must stay off the sell path");
+    assert.ok(sellBody.includes("knownLotSellTokens"), "evidence-latched sell caps to known lot qty");
+    assert.ok(sellBody.includes("gateLeftoverEth"), "WAVE leftover binding must not shadow fill leftoverEth");
+    assert.ok(sellBody.includes("applyLotToToken"), "executeSell must apply FIFO lot before entrySold");
+    assert.ok(sellBody.includes("tryRebuildLotFromReceipts"), "VIRTUAL evidence buy must rebuild at sell");
+    const processFn = src.indexOf("async function processToken(");
+    const processEnd = src.indexOf("\nasync function ", processFn + 1);
+    const processBody = src.slice(processFn, processEnd > 0 ? processEnd : processFn + 12000);
+    const rebuild = processBody.indexOf("tryRebuildLotFromReceipts");
+    const unknown = processBody.indexOf("applyUnknownChainHolding");
+    assert.ok(rebuild >= 0 && unknown > rebuild, "evidence FIFO rebuild before unknown stamp");
   });
 
   it("still reaches buy / MANUAL SELL / sellhalf after the armed-idle log", () => {
@@ -147,6 +164,11 @@ describe("processToken hasPosition TDZ", () => {
     assert.ok(body.includes("isManualOperatorBuy"), "operator /buy is the leftover+edge test bypass");
     assert.ok(body.includes("evaluateAddOnFifoRedGate"), "executeBuy must block add-on into FIFO-red lots");
     assert.ok(body.includes("addOnRemainingFifoEth"), "add-on FIFO must be remaining bag cost, not sell lot floor");
+    assert.ok(body.includes("bagUsd"), "add-on must treat USD-dust flatten leftover as empty");
+    assert.ok(body.includes("isSkipHoldDeadRoute"), "USDG / dead V4-only dust must skip");
+    assert.ok(body.includes("resolveMinEntryForBook"), "T1 slot must fit spendable / micro-bank hitch");
+    assert.ok(body.includes("microSpendableEth"), "thin book must use unified ETH+WETH after gas keep");
+    assert.ok(body.includes("allowBankHitch"), "inject cover miss must bank hitch not refuse all avenues");
     const addOn = body.indexOf("evaluateAddOnFifoRedGate");
     const encode = body.indexOf("encodeSwap(");
     assert.ok(addOn >= 0 && encode > addOn, "FIFO-red add-on gate must skip before encodeSwap");
@@ -199,9 +221,8 @@ describe("processToken hasPosition TDZ", () => {
     assert.match(src, /symbol: "VELVET"[\s\S]*?frozen: true/);
     assert.match(src, /symbol: "KTA"[\s\S]{0,400}?frozen: true/);
     assert.ok(src.includes('address: "0xc0634090F2Fe6C6D75e61Be2b949464aBb498973"'), "KTA Base address");
-    assert.match(src, /symbol: "TIBBIR"[\s\S]*?frozen: true/);
     assert.ok(!/\bsymbol: "(BSTONK|FLOCK|HYDX)"/.test(src), "do not add BSTONK/FLOCK/HYDX");
-    for (const sym of ["DRB", "CLANKER", "LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "TOSHI", "DEGEN", "BRETT", "VIRTUAL", "MORPHO", "DOGINME"]) {
+    for (const sym of ["DRB", "CLANKER", "TIBBIR", "LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "TOSHI", "DEGEN", "BRETT", "VIRTUAL", "MORPHO", "DOGINME"]) {
       const base = src.indexOf(`symbol: "${sym}"`);
       assert.ok(base >= 0, `${sym} must remain in catalog`);
       const next = src.indexOf("{ symbol:", base + 1);
@@ -227,6 +248,32 @@ describe("processToken hasPosition TDZ", () => {
       const row = src.slice(base, next > 0 ? next : base + 500);
       assert.ok(row.includes("frozen: true"), `${sym} must stay frozen (locked majors / #60 GAME)`);
     }
+  });
+
+  it("unfreezes TIBBIR for Base RISK and leaves BASECAT/GAME cut frozen", () => {
+    const tibbir = src.indexOf('symbol: "TIBBIR"');
+    assert.ok(tibbir >= 0, "TIBBIR must remain in catalog");
+    const tibbirNext = src.indexOf("{ symbol:", tibbir + 1);
+    const tibbirRow = src.slice(tibbir, tibbirNext > 0 ? tibbirNext : tibbir + 500);
+    assert.ok(tibbirRow.includes("frozen: false"), "TIBBIR catalog frozen:false");
+    assert.ok(!tibbirRow.includes("frozen: true"), "TIBBIR must be tradeable for cascade after CLANKER");
+    for (const sym of ["BASECAT", "GAME"]) {
+      const base = src.indexOf(`symbol: "${sym}"`);
+      const next = src.indexOf("{ symbol:", base + 1);
+      const row = src.slice(base, next > 0 ? next : base + 500);
+      assert.ok(row.includes("frozen: true"), `${sym} stays CUT frozen`);
+    }
+  });
+
+  it("wires UNFREEZE_SYMBOLS so comma-separated symbols clear catalog freeze at runtime", () => {
+    assert.ok(src.includes("applyUnfreezeSymbols"), "hydrate catalog through applyUnfreezeSymbols");
+    assert.ok(src.includes("parseUnfreezeSymbols"), "boot banner reads UNFREEZE_SYMBOLS");
+    assert.ok(src.includes("UNFREEZE_SYMBOLS"), "agent.js must name the env so it is not inert");
+    assert.ok(src.includes("hydrateCatalogToken"), "WETH-dead then UNFREEZE_SYMBOLS hydrate");
+    const gate = readFileSync(join(root, "lose-zero-gate.js"), "utf8");
+    assert.match(gate, /env\?\.UNFREEZE_SYMBOLS/, "process.env reader for UNFREEZE_SYMBOLS");
+    assert.ok(gate.includes("export function parseUnfreezeSymbols"), "parser is exported");
+    assert.ok(gate.includes("export function applyUnfreezeSymbols"), "runtime apply is exported");
   });
 
   it("documents the TDZ error the live logs showed", () => {

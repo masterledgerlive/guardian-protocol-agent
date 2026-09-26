@@ -1,0 +1,27 @@
+{
+  "strandId": "feed-flow",
+  "sparse": true,
+  "source": "feed-flow",
+  "filingLabel": "FEED_FLOW",
+  "learn": "Append-only feed-flow ledger records every memory feed with Basescan Input Data → UTF-8 chat of blockchain locations (anchors + sealed).",
+  "formula": "original-message-first",
+  "locations": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    }
+  ],
+  "eventCount": 20,
+  "lastRoot": "c377ad2e3bd96b754c1749726525a7dab445c760bf15f7c0ea2e287b67fd7b14"
+}

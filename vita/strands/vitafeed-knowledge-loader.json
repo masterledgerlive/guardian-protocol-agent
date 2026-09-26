@@ -1,0 +1,11 @@
+{
+  "id": "vitafeed-knowledge-loader",
+  "at": "2026-09-20T17:29:00.000Z",
+  "filingLabel": "FEED_LOADER",
+  "hypothesis": "Curated FEED_LOADER packs (cipher/prog/LLM/dual-cost) preload into the existing backlog with dual-lane cost mirrors and Telegram did-you-know/capability recall — growing hierarchical recursive memory without forking a second queue.",
+  "module": "vita/vita-feed-loader.js",
+  "ui": "/vita/feed-loader",
+  "commands": ["/vitafeed load", "/vitafeed know", "/vitafeed recall", "/vitafeed cipher"],
+  "overlapThought": true,
+  "neverInventHashes": true
+}

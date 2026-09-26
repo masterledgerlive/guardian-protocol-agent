@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-18T00:44:00.000Z",
+  "topic": "wave-full-resume-retry",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID / WAVE_MIRROR_PAID default OFF. /waveproof stays 3. Live WAVE_FULL on 29c5833 autofire sealed 5/28 VIN-5785B9B4E1 then CDP Service unavailable; finally marked LIVE spent so mid-batch could not continue. Ship retry (3 attempts, backoff on Service unavailable/429/5xx) and resume (desk POST vinId+fromIndex+txHashes or WAVE_FULL_RESUME_VIN). Mark LIVE spent only on full 28. Autofire never resumes (new VIN only). Reconstruct PASS only when all 28 hashes join to fde449b7…b08f and each LOC8 matches. Never invent hashes.",
+  "locations": [],
+  "hypothesis": {
+    "id": "wave-full-resume-after-cdp-blip",
+    "status": "operating-rule",
+    "discarded": [
+      "mark LIVE spent in finally after partial",
+      "second autofire of all 28",
+      "reuse 01/03 thrift VIN",
+      "invent tx hashes"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

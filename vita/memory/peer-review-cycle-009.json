@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-20T19:52:44.047Z",
+  "topic": "peer-review-cycle-009",
+  "filingLabel": "PEER_REVIEW",
+  "text": "§PEERREVIEW§v1|verdict=PASS|formula=original-message-first§\nPEER REVIEW · one pass · filing=PEER_REVIEW\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zero-proof-chained\nfail=none\nanchors=keycat-plain,eureka-prove,vita-strand\nsealedLocs=7\nlibrary=0\nmemory=90\naddedTopics=aero-lose-zero-oneshot,clanker-force-unwind-inject-fuel,clanker-inject-fuel-memory-arm,dharma-6g-vitafeed-force,loader-pack-cipher-aes-gcm,loader-pack-dual-lane-cost-mirror,loader-pack-prog-architecture-refine,loader-pack-recursive-llm-memory,message-cascade-operator,mg-recall-bank,morpho-fifo-latch,proven-test-calculator\nresearch=append-only content-addressed ledger + proof-carrying retrieval",
+  "hypothesis": {
+    "id": "peer-review-9",
+    "status": "passed",
+    "note": "One peer review per activate — separate from BRAIN_LEARN."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "contentCommit": "635273a13b0546287dd9bda2636885f04382c07c4f5b2dd86b13e3ff28d5eb66"
+}

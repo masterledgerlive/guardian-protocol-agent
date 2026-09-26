@@ -15,6 +15,12 @@ import {
   githubReadAuthFailed,
   shouldRetryGithubRead,
   decodeGithubContentsJson,
+  decodeGithubContentsUtf8,
+  githubBlobHtmlUrl,
+  preferRemoteOrKeep,
+  isFreshLocalState,
+  latestHistoryReadingMs,
+  readLocalStateJson,
 } from "./github-contents.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -72,6 +78,13 @@ describe("github-contents — token / branch / header", () => {
     const wrapped = b64.replace(/(.{20})/g, "$1\n");
     assert.deepEqual(decodeGithubContentsJson({ content: wrapped, sha: "abc" }), blob);
     assert.equal(decodeGithubContentsJson({}), null);
+    const js = "export const x = 1;\n";
+    const jsB64 = Buffer.from(js, "utf8").toString("base64");
+    assert.equal(decodeGithubContentsUtf8({ content: jsB64 }), js);
+    assert.equal(
+      githubBlobHtmlUrl({ repo: "owner/repo", filename: "vault-unlock.js", branch: "main" }),
+      "https://github.com/owner/repo/blob/main/vault-unlock.js",
+    );
   });
 
   it("agent.js ledger/fifo-lots path uses live token + no Bearer", () => {
@@ -93,5 +106,36 @@ describe("github-contents — token / branch / header", () => {
     assert.ok(cacheFill >= 0 && seeded > cacheFill, "seeded rebuild must run after balance cache fill");
     assert.ok(!src.includes("Bearer ${process.env.GITHUB_TOKEN}"));
     assert.ok(!src.includes("const [owner, repo] = (process.env.GITHUB_REPO || \"\").split(\"/\")"));
+    assert.ok(src.includes("preferRemoteOrKeep"));
+    assert.ok(src.includes("history.runtime.json"));
+    assert.ok(src.includes("positions.runtime.json"));
+    assert.ok(src.includes("not loading stale committed"));
+  });
+
+  it("401 keeps memory and skips stale local", () => {
+    const kept = preferRemoteOrKeep({
+      remote: null,
+      status: 401,
+      current: { AERO: { readings: [{ price: 1, time: Date.now() }] } },
+      local: { lastSaved: "2026-03-12T17:18:00.092Z" },
+      allowLocal: true,
+      localFresh: false,
+    });
+    assert.equal(kept.source, "memory");
+    assert.equal(kept.kept, true);
+    const empty = preferRemoteOrKeep({
+      remote: {},
+      status: 401,
+      current: {},
+      local: { lastSaved: "2026-03-12T17:18:00.092Z", piggyBank: 1 },
+      allowLocal: true,
+      localFresh: false,
+    });
+    assert.equal(empty.source, "empty");
+    assert.equal(empty.wiped, false);
+    assert.equal(isFreshLocalState({ lastSaved: "2026-03-12T17:18:00.092Z" }, { now: Date.parse("2026-09-13T00:00:00Z") }), false);
+    assert.equal(isFreshLocalState({ lastSaved: new Date().toISOString() }), true);
+    assert.ok(latestHistoryReadingMs({ AERO: { readings: [{ time: 1e12 }] } }) === 1e12);
+    assert.equal(readLocalStateJson("does-not-exist-guardian.json"), null);
   });
 });

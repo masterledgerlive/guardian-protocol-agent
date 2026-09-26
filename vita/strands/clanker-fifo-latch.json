@@ -1,0 +1,9 @@
+{
+  "strandId": "clanker-fifo-latch",
+  "sparse": true,
+  "source": "fifo-lot-store",
+  "learn": "EVIDENCE_BUY_TXS.CLANKER = [0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b, 0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5] so isEvidenceSiblingBuyTx latches the second fill. EVIDENCE_ADDON_BUY_TXS.CLANKER = second hash so isSeededAddonBuyTx also merges. Live LOT_REBUILD_TXS env-only failed: boot latched VIRTUAL, CLANKER stayed UNKNOWN ENTRY / entrySold=0 / HOLD unknown cost because after first hash latches, remain>bought*1.02 is unreachable. executeSell and processToken rebuild both hashes before unknown stamp even when first-slice lot is usable. Desk book fills do not seed Railway. VIRTUAL sell 0x88105ec16606a924c2fe0e0dd6987f4fffa2639a9c183a5da06fbaf79049d1b8 auto-appends from persist/ledger. Live rem matches bought — dust piggy 0. HOURLY_BALANCE_CATALOG.CLANKER. VITAFEED_PAID / WAVE_MIRROR_PAID / ALLOW_LOSSY_OPERATOR_SELL stay default off. Mother brain untouched. Vault never. Do not invent P&L.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "tryRebuildLotFromReceipts"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "vitafeed-dual-lane-basescan-receipt",
+  "at": "2026-09-20T16:59:00.000Z",
+  "filingLabel": "VITADUAL",
+  "hypothesis": "Same knowledge can ride two /vitafeed lanes (HUMAN plain + MACHINE §VITADUAL§ ZK-short) with side-by-side cost/size math and bunched Basescan spaced locations so Telegram shows cross-comparison plus Input Data → UTF-8 read receipts without inventing hashes.",
+  "module": "vita/vita-feed-dual.js",
+  "proof": [
+    "formatBasescanReadReceipt",
+    "formatDualLaneSideBySideCard",
+    "formatDualLaneReceipt",
+    "formatRestartMoneyExitHint"
+  ],
+  "neverInventHashes": true
+}

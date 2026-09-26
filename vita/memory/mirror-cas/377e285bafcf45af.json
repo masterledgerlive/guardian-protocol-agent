@@ -1,0 +1,30 @@
+{
+  "id": "open-unlock",
+  "file": "vita/vita-dir.js",
+  "exportName": "openSourceUnlockKey",
+  "body": "export function openSourceUnlockKey({ name, content = \"\", contentCommit = null } = {}) {\n  const commit = contentCommit || sha256Hex(String(content || name || \"\"));\n  return {\n    scheme: \"vita-open-unlock-v1\",\n    privateKey: false,\n    openSource: true,\n    name: String(name || \"untitled\"),\n    key: \"VITAOPEN.\" + sanitizeDosName(name) + \".\" + shortHex(commit, 12),\n    contentCommit: commit,\n    note: \"File name unlocks. No wallet secret. Instant unwrap of ZK-short machine form.\",\n  };\n}",
+  "runnable": "function sha256Hex(text) {\n  return createHash(\"sha256\").update(String(text || \"\"), \"utf8\").digest(\"hex\");\n}\n\nfunction sanitizeDosName(name) {\n  return String(name || \"FILE\")\n    .replace(/[^\\w.\\-]+/g, \"_\")\n    .replace(/_+/g, \"_\")\n    .slice(0, 64) || \"FILE\";\n}\n\nfunction shortHex(hex, n = 8) {\n  return String(hex || \"\").replace(/^0x/i, \"\").toLowerCase().slice(0, n);\n}\n\nfunction openSourceUnlockKey({ name, content = \"\", contentCommit = null } = {}) {\n  const commit = contentCommit || sha256Hex(String(content || name || \"\"));\n  return {\n    scheme: \"vita-open-unlock-v1\",\n    privateKey: false,\n    openSource: true,\n    name: String(name || \"untitled\"),\n    key: \"VITAOPEN.\" + sanitizeDosName(name) + \".\" + shortHex(commit, 12),\n    contentCommit: commit,\n    note: \"File name unlocks. No wallet secret. Instant unwrap of ZK-short machine form.\",\n  };\n}\n; this.__fn = openSourceUnlockKey;",
+  "deps": 3,
+  "contentCommit": "377e285bafcf45af774599b5aceac21f84444bd9720b28e232e44417b27bfcaf",
+  "packetCommit": "4103a5ebd90e5d9e73c31dd9af41eb02367f8af921a30462283f81d13fe01594",
+  "fileContentCommit": "015e951a7568afbfc84736f221942c061ceb1d637f33eec5cd2702ac31986227",
+  "snarkShort": "§VITASNARK§4103a5ebd90e|T=vita/vita-dir.js#openSourceUnlo…|B=894|M=SNARK kind=file name=vita/vita-dir.js#o…",
+  "snarkCommit": "4103a5ebd90e5d9e73c31dd9af41eb02367f8af921a30462283f81d13fe01594",
+  "zeroProof": {
+    "scheme": "vita-open-unlock-v1",
+    "privateKey": false,
+    "openSource": true,
+    "name": "vita/vita-dir.js#openSourceUnlockKey",
+    "key": "VITAOPEN.vita_vita-dir.js_openSourceUnlockKey.377e285bafcf",
+    "contentCommit": "377e285bafcf45af774599b5aceac21f84444bd9720b28e232e44417b27bfcaf",
+    "note": "Zero-proof lock+key = file name + contentCommit. Same name as GitHub; chain seal proves truth.",
+    "magic": "§VITAZERO§",
+    "filingLabel": "ZERO_PROOF",
+    "privateWitness": false
+  },
+  "leader": "filing",
+  "note": "CAS runnable includes same-file deps. Filing leader until Base seal matches contentCommit.",
+  "at": "2026-09-21T02:12:50.435Z",
+  "filingLabel": "MIRROR_DUAL",
+  "neverInventHashes": true
+}

@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-18T00:00:00.000Z",
+  "topic": "wave-full-quote-28",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. /waveproof stays capped at exactly 3 (thrift VIN 01/03 is not the full quote). Ship gated full-quote WAVE inject: all 28 least-size Heraclitus shards on a NEW VIN as 0-ETH gas-only self-txs. SYM rotates VIRTUAL/CLANKER/AERO. WAVE_FULL_LIVE default off; WAVE_FULL_AUTOFIRE one-shot boot then self-clear + disable LIVE. Desk POST /vita/wavefull or GET ?live=1 with VITA_WEBHOOK_SECRET. Public reconstruct: join calldata bodies after stripping [W:v1:SYM|VIN|ii/28|prev=|next=|KEY8|LOC8]; PASS only if sha256(joined)=fde449b78f5ba78bbe12671dfea87bf958de6b03980824c0ca3b1b0e2f77b08f AND each LOC8 matches the answer-key loc8 (KEY8=fde449b7). Hitch continues: attachWaveOnCoveredLeftover on covered leftover for remaining banked WAVE/learn shards. Never invent hashes. Vault never spends.",
+  "locations": [],
+  "hypothesis": {
+    "id": "wave-full-quote-28-desk",
+    "status": "operating-rule",
+    "discarded": [
+      "reuse 01/03 thrift VIN as 28",
+      "raise /waveproof cap",
+      "re-enable VITAFEED_PAID / WAVE_MIRROR_PAID",
+      "invent tx hashes",
+      "tear mother brain"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

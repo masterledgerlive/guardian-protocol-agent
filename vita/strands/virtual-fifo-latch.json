@@ -1,0 +1,9 @@
+{
+  "strandId": "virtual-fifo-latch",
+  "sparse": true,
+  "source": "fifo-lot-store",
+  "learn": "EVIDENCE_BUY_TXS.VIRTUAL = 0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879. Native-ETH SwapRouter02: parse WETH Deposit / router-out when wallet-WETH + tx.value are empty. Cycle processToken and executeSell rebuild+apply the lot before unknown stamp / entrySold. DRB trough merge pattern unchanged. WAVE hitch #119 and hourly catalog #120 stay. VITAFEED_PAID / WAVE_MIRROR_PAID / ALLOW_LOSSY_OPERATOR_SELL stay default off. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "tryRebuildLotFromReceipts"
+}

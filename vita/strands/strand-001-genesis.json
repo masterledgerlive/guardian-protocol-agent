@@ -1,0 +1,24 @@
+{
+  "strandId": "strand-001",
+  "sparse": true,
+  "source": "hardcoded-anchor",
+  "locations": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    }
+  ],
+  "learn": "Pull these first on every /inject \u2014 mainframe never forgets genesis.",
+  "formula": "original-message-first"
+}

@@ -25,7 +25,7 @@ export const STALE_TROUGH_GAP = 0.18; // 90d min >18% below mark → ignore for 
 export const INJECT_FUEL_MIN_USD = 0.75;
 /** Velocity names that historically compounded on thin Base books. */
 export const INJECT_VELOCITY_SYMBOLS = Object.freeze([
-  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT",
+  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT", "CLANKER",
 ]);
 
 /**
@@ -126,18 +126,41 @@ export function classifyRecycleBag({
   entryPrice = null,
   hasUsdBasis = false,
   operatorLotEth = 0,
+  fifoLotKnown = false,
 } = {}) {
   const fifoEth = Number(totalInvestedEth) > 0
     ? Number(totalInvestedEth)
     : (Number(operatorLotEth) > 0 ? Number(operatorLotEth) : 0);
-  const fifoKnown = unknownEntry !== true && fifoEth > 0;
+  // Proven FIFO lots are known cost even if the unknownEntry stamp is stale.
+  // Never label a sell "unknown cost basis" when FIFO lots exist.
+  const fifoKnown = fifoEth > 0 || fifoLotKnown === true;
   const usdKnown = unknownEntry !== true && !!hasUsdBasis && Number(entryPrice) > 0;
   const hasKnownPos = fifoKnown || usdKnown;
   return {
     unknownBag: !hasKnownPos,
     hasKnownPos,
     fifoKnown,
-    fifoEth: fifoKnown ? fifoEth : 0,
+    fifoEth: fifoEth > 0 ? fifoEth : 0,
+  };
+}
+
+/** Recycle copy — never "unknown cost basis" when FIFO lots exist. */
+export function recycleSellCopy({ recycleKnown = false, recycleUnknown = false, fifoKnown = false } = {}) {
+  if (recycleKnown || fifoKnown) {
+    return {
+      label: "INJECT FUEL",
+      reason: "🌙 INJECT FUEL — recycle known bag for cascade",
+    };
+  }
+  if (recycleUnknown) {
+    return {
+      label: "DUST RECYCLE",
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+    };
+  }
+  return {
+    label: "MOONSHOT TRIM",
+    reason: "🌙 MOONSHOT TRIM — not in active tiers",
   };
 }
 

@@ -2,6 +2,8 @@
 wallet_data.json
 fifo-lots.json
 fifo-lots.json.tmp
+history.runtime.json
+positions.runtime.json
 turn-recall.json
 turn-recall.json.tmp
 node_modules
@@ -10,5 +12,7 @@ node_modules/
 artifacts/
 guardian-arena-player/state/
 guardian-v4/state/*.latch.json
-guardian-arena-player/state/
-guardian-v4/state/*.latch.json
+modules/phosphor/state/
+vita/compression/store/
+vita/compression/inbox/*
+!vita/compression/inbox/.gitkeep

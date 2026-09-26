@@ -420,7 +420,7 @@
       const grid = document.getElementById("waveGrid");
       grid.innerHTML = waves.slice(0, 8).map((w, i) => `
         <div class="wave-tile">
-          <div class="meta"><strong>${w.symbol}</strong><span>${w.phase?.phase || w.phase?.label || ""}</span></div>
+          <div class="meta"><strong>${w.symbol}</strong><span>${w.phase?.label || w.phase?.phase || ""}</span></div>
           <canvas id="wv${i}" height="64"></canvas>
           <div class="meta"><span>${money(w.price)}</span><span>piggy ${pct(w.piggyPct)}</span></div>
         </div>`).join("") || "<p class='hint'>No waves yet.</p>";

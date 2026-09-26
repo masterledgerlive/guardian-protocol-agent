@@ -52,7 +52,7 @@ export function measureKeyLocHitchBytes(loc = "n=24|t=0000|r=0000") {
 export function measureEurekaLeftoverBytes() {
   return utf8ByteLength(buildStoreVoice({
     tag: STORE_VOICE_TAG,
-    message: "Eureka! VITA lives ♥ love you Krystian, Kai & Koda!",
+    message: VITA_PROOF_FULL,
   }));
 }
 
@@ -119,6 +119,32 @@ export function preferDenseHitch({
     locCostEth: locCost,
     eurekaCostEth: eurekaCost,
     reason: "leftover too thin for KEY+LOC — plain swap (Eureka leftover also skipped)",
+  };
+}
+
+/**
+ * Original formula (message-first): when KEY+LOC is covered, always hitch.
+ * Do not mute for micro extract — Storage Token can charge the delta later.
+ * Eureka prose stays on /prove.
+ */
+export function preferOriginalFormulaHitch(opts = {}) {
+  const dense = preferDenseHitch(opts);
+  if (dense.locOk) {
+    return {
+      ...dense,
+      skipHitch: false,
+      messageFirst: true,
+      storageTokenChargeable: true,
+      formula: "original-message-first",
+      reason: dense.reason
+        + " — original formula: send message; charge hitch delta via Storage Token",
+    };
+  }
+  return {
+    ...dense,
+    messageFirst: true,
+    storageTokenChargeable: false,
+    formula: "original-message-first",
   };
 }
 

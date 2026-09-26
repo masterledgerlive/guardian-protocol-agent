@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CHAINDIR — completion directory</title>
+  <style>
+    :root { --ink: #0f1f2e; --ok: #2a9d8f; --wait: #c9a227; --mono: "IBM Plex Mono", ui-monospace, monospace; }
+    body { margin: 0; font-family: var(--mono); background: #f4efe6; color: var(--ink); }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 1rem; }
+    h1 { font-size: 1.35rem; margin: 0 0 .35rem; }
+    .lede { font-size: .8rem; color: #3d5566; margin: 0 0 1rem; }
+    h2 { font-size: .85rem; margin: 1.1rem 0 .4rem; letter-spacing: .04em; }
+    .line { border: 1px solid rgba(15,31,46,.16); background: #fff; padding: .55rem .7rem; margin: 0 0 .4rem; font-size: .75rem; }
+    .line.complete { border-color: var(--ok); }
+    .line.waiting, .line.routing { border-color: var(--wait); }
+    a { color: #1a6b8a; word-break: break-all; }
+    .meta { color: #5a7182; font-size: .68rem; margin-top: .25rem; }
+    nav a { margin-right: .8rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CHAIN DIRECTORY</h1>
+    <p class="lede">
+      Line-for-line in order of completion. Top = transmissions still routing /
+      waiting for the other lane’s location proof. Bottom = complete at an
+      absolute moment — click Basescan Input Data → UTF-8. HUMAN plain and
+      MACHINE ZK-short are the two ends. Never invent hashes.
+    </p>
+    <nav>
+      <a href="/vita/kids-player?dir=kids&amp;popup=1">KIDS player</a>
+      <a href="/vita/feed-player?demo=1&amp;popup=1">Demo player</a>
+    </nav>
+    <h2 id="top">TOP ACTIVE — routing / waiting</h2>
+    <div id="active"></div>
+    <h2 id="bottom">BOTTOM COMPLETE — clickable Input Data</h2>
+    <div id="complete"></div>
+    <pre id="card" class="line" style="white-space:pre-wrap"></pre>
+  </div>
+  <script>
+    function lineHtml(l) {
+      const proofs = (l.proofs || []).map((p) =>
+        "<div><a href=\"" + p.basescan + "\" target=\"_blank\" rel=\"noopener\">" +
+        p.lane + " Input Data</a> <span class='meta'>" + p.tx.slice(0, 12) + "…</span></div>"
+      ).join("");
+      return "<div class='line " + l.status + "'><strong>#" + l.n + " " + l.name +
+        "</strong> · " + l.status +
+        (l.completedAt ? " @" + l.completedAt : "") +
+        "<div class='meta'>HUMAN " + l.human.status + " · MACHINE " + l.machine.status +
+        (l.twoEndsTalking ? " · two ends talking" : "") + "</div>" +
+        (proofs || "<div class='meta'>no loc yet — still routing</div>") +
+        "</div>";
+    }
+    (async function () {
+      const data = await fetch("/vita/chain-dir").then((r) => r.json());
+      document.getElementById("active").innerHTML =
+        (data.active || []).map(lineHtml).join("") || "<div class='line'>none routing</div>";
+      document.getElementById("complete").innerHTML =
+        (data.complete || []).map(lineHtml).join("") || "<div class='line'>none complete</div>";
+      document.getElementById("card").textContent = data.card || "";
+    })().catch((e) => {
+      document.getElementById("card").textContent = String(e.message || e);
+    });
+  </script>
+</body>
+</html>

@@ -283,7 +283,7 @@ describe("verification: operator /buy is honest and chain is the ledger", () => 
     const buyFn = src.indexOf("async function executeBuy(");
     const body = src.slice(buyFn, src.indexOf("\nasync function executeSell", buyFn));
     assert.ok(body.includes("evaluateCostEdgeGate"));
-    assert.match(body, /if\s*\(\s*!isManualOperatorBuy\(reason\)\s*\)/);
+    assert.match(body, /if\s*\(\s*!isManualOperatorBuy\(reason\)(?:\s*&&\s*!isVitaFeedBuyIn\(reason\))?\s*\)/);
     assert.ok(body.includes("COST_EDGE blocked"));
     assert.ok(src.includes("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"));
   });

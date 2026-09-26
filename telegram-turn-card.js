@@ -20,8 +20,67 @@ const MIN_PLUS_ETH = 1e-18;
 export const DEFAULT_RECALL_N = 8;
 export const MAX_RECALL_N = 20;
 export const MAX_TURN_HISTORY = 50;
-export const RECALL_SLEEVES = Object.freeze(["AERO", "DRB", "BNKR"]);
+/**
+ * Hourly / bag-report token inventory — symbol → Base ERC-20.
+ * Separate from DEFAULT_TOKENS so a live bag is polled even when the
+ * injector catalog is a superset (or a saved tokens.json subset).
+ * VIRTUAL stays tradeable; this map does not freeze. CLANKER is polled so
+ * the ~0.289 rem bag is on hourly /bag even if the injector list omitted it.
+ * MORPHO rem ~0.1469 is the same class — poll even if injector omitted it.
+ */
+export const HOURLY_BALANCE_CATALOG = Object.freeze({
+  AERO: "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+  DRB: "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2",
+  BNKR: "0x22aF33FE49fD1Fa80c7149773dDe5890D3c76F3b",
+  VIRTUAL: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+  CLANKER: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb",
+  MORPHO: "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+});
+export const RECALL_SLEEVES = Object.freeze(Object.keys(HOURLY_BALANCE_CATALOG));
 export const TURN_RECALL_FILENAME = "turn-recall.json";
+
+export function catalogAddress(symbol) {
+  const key = String(symbol || "").toUpperCase();
+  return HOURLY_BALANCE_CATALOG[key] || "";
+}
+
+/** Union injector tokens with the hourly inventory so VIRTUAL is never dropped. */
+export function hourlyBalancePollRows(tokens = []) {
+  const seen = new Set();
+  const rows = [];
+  for (const t of Array.isArray(tokens) ? tokens : []) {
+    const symbol = String(t?.symbol || "").toUpperCase();
+    const address = String(t?.address || catalogAddress(symbol) || "").trim();
+    if (!symbol || !address || seen.has(symbol)) continue;
+    seen.add(symbol);
+    rows.push({ symbol, address, token: t });
+  }
+  for (const [symbol, address] of Object.entries(HOURLY_BALANCE_CATALOG)) {
+    if (seen.has(symbol)) continue;
+    seen.add(symbol);
+    rows.push({ symbol, address, token: null });
+  }
+  return rows;
+}
+
+/** Report loop tokens: injector list plus any hourly-catalog name it omitted. */
+export function hourlyReportTokens(tokens = []) {
+  const list = Array.isArray(tokens) ? tokens.slice() : [];
+  const have = new Set(list.map((t) => String(t?.symbol || "").toUpperCase()).filter(Boolean));
+  for (const [symbol, address] of Object.entries(HOURLY_BALANCE_CATALOG)) {
+    if (have.has(symbol)) continue;
+    list.push({
+      symbol,
+      address,
+      entryPrice: null,
+      totalInvestedEth: 0,
+      unknownEntry: true,
+      frozen: false,
+      disabled: false,
+    });
+  }
+  return list;
+}
 
 export function finiteEth(value) {
   if (value == null || value === "") return null;

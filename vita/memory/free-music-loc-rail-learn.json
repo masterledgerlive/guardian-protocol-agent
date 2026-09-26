@@ -1,0 +1,20 @@
+{
+  "id": "free-music-loc-rail-learn",
+  "filingLabel": "FREEMUSIC",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "at": "2026-09-21T16:20:00.000Z",
+  "learn": "Loc pull UI is a reserved-height rail: currently loaded VIN block + loading bar + next 1–2 blockchain packets. Remaining packets tuck behind a button (max-height list) so playback never scrollIntoView-jumps the page. Click a block → GET /vita/free-music/loc?id=&g=&i= returns the exact VIN UTF-8 data field fed into the player; sha256(line) equals dataFieldCommit (LOCAL_OK until a real sealed 0x loc). Catalog v4 adds The Entertainer (Commons PD), Stars and Stripes Forever (Navy Band PD-USGov), Let Me Call You Sweetheart 1911 National Jukebox, After the Ball 1893 Edison. afterball does not steal ballgame. joplin still maple; entertainer is its own id. VITAFEED_PAID stays default OFF. Never invent hashes. Never Over the Rainbow Decca.",
+  "commands": [
+    "/vitafeed play entertainer",
+    "/vitafeed play stripes",
+    "/vitafeed play sweetheart",
+    "/vitafeed play afterball",
+    "/vitafeed enqueue library"
+  ],
+  "player": "/vita/feed-player?music=entertainer",
+  "kidsPlayer": "/vita/feed-player?music=entertainer&kids=1",
+  "locs": "/vita/free-music/locs?id=entertainer",
+  "inspect": "/vita/free-music/loc?id=entertainer&g=1&i=1",
+  "songs": ["entertainer", "stripes", "sweetheart", "afterball"]
+}

@@ -1,0 +1,61 @@
+{
+  "id": "os-builder-lexicon-v1",
+  "filingLabel": "OS_BUILDER",
+  "pairs": [
+    {
+      "human": "never invent a hash",
+      "machine": "neverInventHashes=true",
+      "refined": false,
+      "at": null
+    },
+    {
+      "human": "HTML holds memory until inject",
+      "machine": "htmlIsMemoryUntilInject=true",
+      "refined": false,
+      "at": null
+    },
+    {
+      "human": "message-first when KEY+LOC covered",
+      "machine": "messageFirstWhenKeyLocCovered=true",
+      "refined": false,
+      "at": null
+    },
+    {
+      "human": "follow the leader",
+      "machine": "followLeader=sequential+1",
+      "refined": false,
+      "at": null
+    },
+    {
+      "human": "if this then that on chain",
+      "machine": "trigger=IFTTT|field|op|value→action",
+      "refined": false,
+      "at": null
+    },
+    {
+      "human": "build a brain together",
+      "machine": "osBuilder=wizard|lobes|sandbox|seal",
+      "refined": false,
+      "at": null
+    },
+    {
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "refined": true,
+      "at": "2026-09-26T06:41:38.568Z"
+    },
+    {
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "refined": true,
+      "at": "2026-09-26T06:41:38.546Z"
+    },
+    {
+      "human": "build together",
+      "machine": "osBuilder=co-construct",
+      "refined": true,
+      "at": "2026-09-26T06:41:38.557Z"
+    }
+  ],
+  "refinedCount": 3
+}

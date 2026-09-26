@@ -1,0 +1,10 @@
+{
+  "strandId": "vitafeed-thrift-killswitch",
+  "sparse": true,
+  "source": "vitafeed-helper",
+  "learn": "Paid /vitafeed confirm|override is default-off (VITAFEED_PAID / VITAFEED_ENABLED yes|true|1). Override cannot bypass paid-off unless VITAFEED_FORCE=yes (then also skips rate limit; liquid floor already bypassed). VITAFEED_AUTOFIRE + VITAFEED_AUTOFIRE_BODY one-shot seals plain body with no BL- id then self-clears. Liquid floor $5. Cooldown 60s/chat + 24 chunks/hour. Stale Telegram confirm refused (getUpdates replay). File await is preview-only. Mother brain untouched.",
+  "formula": "original-message-first",
+  "payer": "RISK",
+  "neverSoloSendUnlessPaidEnv": true,
+  "forceLatch": "VITAFEED_FORCE"
+}

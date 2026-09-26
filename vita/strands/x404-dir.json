@@ -1,0 +1,32 @@
+{
+  "strandId": "x404-dir",
+  "sparse": true,
+  "source": "x404-dir",
+  "filingLabel": "X404_DIR",
+  "header": "§X404§v1|style=x404|tag=<name>",
+  "learn": "x404 directory tags: same display name maps to many plotted locations (telegram/filing/strand/base). Directories are answer-key routes — the path the chain took. Sealed Base loc optional and only when proven. Plots wait for a master-location tag. Never invent hashes.",
+  "formula": "original-message-first",
+  "telegram": [
+    "/agents dir",
+    "/agents path",
+    "/vitafeed dir X404",
+    "/vitafeed dir KIDS"
+  ],
+  "locations": [
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    },
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    }
+  ]
+}

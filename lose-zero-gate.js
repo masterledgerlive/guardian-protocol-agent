@@ -1,5 +1,11 @@
 import { formatHitchFeeSplit } from "./l1-fee-oracle.js";
 import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
+import {
+  isOperatorRotateArmed,
+  isOperatorRotateReason,
+  rotateAllowsLossySell,
+  shouldHoldAllowLossyForRotate,
+} from "./operator-rotate.js";
 
 /**
  * LOSE-ZERO / inject-cover gate for speculative buys AND lose-zero sells.
@@ -14,31 +20,53 @@ import { forceExitLockedEnabled, forceExitSymbols } from "./forced-exit.js";
  * (`ALLOW_ADD_ON_FIFO_RED`); first buy into empty/flat is OK.
  * Sell always-plus (hard rule): expected net proceeds must beat
  *   entry_basis_for_sold_frac + fees
- * even by 1 wei (micro extract). Hitch is optional: attach only when leftover
- * after that micro floor also covers hitch_cost × HITCH_COST_MULT (default 2×
- * Eureka cushion once piggy banking is reserved). Otherwise SKIP_HITCH and
- * bank the unused hitch room toward the next worth-sending message — do not
- * HOLD a green exit waiting for a fat wave, and do not invent P&L.
+ * even by 1 wei (micro extract). Hitch: **original message-first** (default)
+ * sends when leftover covers 1× hitch and still plus — Storage Token can
+ * charge the transmission delta. The 2× HITCH_COST_MULT cushion is preferred
+ * when available; when only 1× covers, still hitch (do not mute for micro
+ * skim). Opt out with VITA_MESSAGE_FIRST=no to restore SKIP_HITCH + bank.
+ * Never HOLD a green exit waiting for a fat wave, and do not invent P&L.
  * inject_hitch_cost = L2 calldata-char gas + live Base L1 data fee (GasPriceOracle
  * getL1Fee / getL1FeeUpperBound) + provider/value fee + optional BTP inscription.
  * L1 is preferred when quoted; oracle failure → SKIP_HITCH (plain plus sale).
  *
  * If hitch would push net ≤ 0: SKIP_HITCH and sell plain only when plain is
  * still plus; else HOLD. Never sell red to place code. Unknown-cost bags
- * cannot prove plus vs entry → HOLD (no fake-green recycle). Piggy dust is
+ * cannot prove plus vs entry → HOLD (no fake-green recycle). Never label a
+ * sell "unknown cost basis" when FIFO lots exist. Piggy dust is
  * never sold; soldFrac must match tokens actually sold.
  * Remaining cost is FIFO/average of lots still on chain
  * (`ethIn × remainingTokens / tokensIn`), never cash-flow `ethIn − ethOut`.
  * After a plus partial sell, cash-flow leftover understates the leftover pile
  * and the plus gate would paint a later FIFO-red exit green. Exits-only /
- * frozen names still obey this gate. Underwater exceptions (hitch SKIP):
+ * frozen names still obey this gate. Underwater exceptions (hitch SKIP on red):
  * FORCE EXIT LOCKED, FORCE_EXIT_SYMBOLS (when force-exit is on), and
  * ALLOW_LOSSY_OPERATOR_SELL=yes for MANUAL SELL (operator) / OPERATOR_SELL
- * listed names. Auto sells stay HOLD when those flags are off.
+ * listed names. ALLOW_LOSSY is **one-shot**: the first sell that uses it
+ * consumes the in-process flag (`no`). Further red sells HOLD until Game
+ * re-arms. Railway env must be set back to `no` (or clear OPERATOR_SELL) —
+ * a restart reloads the dashboard value. OPERATOR_ROTATE_TO=HOME holds
+ * ALLOW_LOSSY until every non-HOME sell + HOME buy finish, then consumes.
+ * DUST RECYCLE / piggy 95% HOLDs FIFO-red unless that one-shot is currently
+ * armed. Green FORCE EXIT / lossy
+ * plus still hitch when message-first leftover covers 1× KEY+LOC — do not
+ * mute the chain on a recovery unwind. Auto sells stay HOLD when those
+ * flags are off.
  */
 
 export const STORE_HITCH_TAG = "§$STORE§";
 export const STORE_HITCH_BYTES = 10;               // UTF-8 length of §$STORE§
+
+/**
+ * Original VITA formula: when leftover covers KEY+LOC (1×), send the hitch.
+ * Default on. Set VITA_MESSAGE_FIRST=no (or VITA_ORIGINAL_FORMULA=no) to
+ * restore micro-extract SKIP_HITCH + bank when below the 2× cushion.
+ */
+export function isOriginalFormulaMessageFirst(env = process.env) {
+  const raw = env?.VITA_MESSAGE_FIRST ?? env?.VITA_ORIGINAL_FORMULA ?? "yes";
+  const v = String(raw).trim().toLowerCase();
+  return v !== "no" && v !== "0" && v !== "false" && v !== "off";
+}
 export const CALLDATA_GAS_PER_NONZERO_BYTE = 16;   // EIP-2028
 export const BTP_INSCRIBE_GAS_UNITS = 50_000;      // separate BTP self-send inscription tx
 export const DEFAULT_HITCH_COST_MULT = 2;          // hitch-floor / size cushion leftover/mult; micro extract ignores this
@@ -155,6 +183,19 @@ export function usdMarkBelowBreakeven({ markProceedsEth = 0, entrySoldEth = 0 } 
  * First buy into empty/flat is OK. Unknown bags are not "known FIFO red."
  */
 export const ADD_ON_BAG_MIN_TOKENS = 0.001;
+/**
+ * Flatten / lottery leftover is not a "known bag." Token-count 0.001 of AERO
+ * is ~$0.0005 and still trips ADD_ON after ETH flatten while persist FIFO
+ * stays red. USD dust → treat as empty (first buy OK).
+ */
+export const ADD_ON_BAG_MIN_USD = 0.08;
+
+/** Uni V4-only dust — worthless as V3 cash. Never route / operator-sell. */
+export const SKIP_HOLD_DEAD_ROUTES = Object.freeze(["USDG"]);
+
+export function isSkipHoldDeadRoute(symbol) {
+  return SKIP_HOLD_DEAD_ROUTES.includes(String(symbol || "").toUpperCase());
+}
 
 export function isAllowAddOnFifoRed(env = process.env) {
   return envFlagOn("ALLOW_ADD_ON_FIFO_RED", env);
@@ -186,8 +227,12 @@ export function isExistingKnownFifoBag({
   tokenBal = 0,
   remainingFifoEth = 0,
   unknownEntry = false,
+  bagUsd,
 } = {}) {
   if (unknownEntry === true) return false;
+  if (bagUsd !== undefined && Number.isFinite(Number(bagUsd)) && Number(bagUsd) < ADD_ON_BAG_MIN_USD) {
+    return false;
+  }
   const bal = Number(tokenBal);
   const fifo = Number(remainingFifoEth);
   return Number.isFinite(bal) && bal > ADD_ON_BAG_MIN_TOKENS
@@ -209,6 +254,23 @@ export function isFifoRedLot({
  * when the existing known FIFO lot is already red (mark < remaining FIFO).
  * @returns {{ allow: boolean, blocked: boolean, reason: string, log: string|null }}
  */
+/**
+ * Unknown-cost bag that is not USD-dust. Always-plus cannot prove a sell,
+ * so do not stack more RISK into it. Dust / empty names stay first-buy OK.
+ * Never latches live mark as cost basis (that invents P&L).
+ */
+export function isUnknownCostBlockingAddOn({
+  unknownEntry = false,
+  tokenBal = 0,
+  bagUsd,
+} = {}) {
+  if (unknownEntry !== true) return false;
+  if (bagUsd !== undefined && Number.isFinite(Number(bagUsd))) {
+    return Number(bagUsd) >= ADD_ON_BAG_MIN_USD;
+  }
+  return Number(tokenBal) > ADD_ON_BAG_MIN_TOKENS;
+}
+
 export function evaluateAddOnFifoRedGate({
   symbol = "?",
   tokenBal = 0,
@@ -216,10 +278,32 @@ export function evaluateAddOnFifoRedGate({
   markProceedsEth = 0,
   unknownEntry = false,
   reason = "",
+  bagUsd,
   env = process.env,
 } = {}) {
-  void reason;
-  const existing = isExistingKnownFifoBag({ tokenBal, remainingFifoEth, unknownEntry });
+  if (isUnknownCostBlockingAddOn({ unknownEntry, tokenBal, bagUsd })) {
+    // Explicit operator /buy into an unknown-cost bag (e.g. $HOME piggy holder
+    // after rotate) is Game intent — always-plus still gates later sells.
+    if (isManualOperatorBuy(reason)) {
+      return {
+        allow: true,
+        blocked: false,
+        reason: "operator-unknown-add",
+        log:
+          `ADD_ON: allow ${symbol} MANUAL BUY (operator) into unknown-cost bag ` +
+          `(chain balance is truth; sells stay always-plus / HOLD_ALL_SELLS)`,
+      };
+    }
+    return {
+      allow: false,
+      blocked: true,
+      reason: "unknown-cost",
+      log:
+        `ADD_ON: skip ${symbol} — unknown cost basis on existing bag; ` +
+        `HOLD (always-plus). First buy empty / USD-dust names only.`,
+    };
+  }
+  const existing = isExistingKnownFifoBag({ tokenBal, remainingFifoEth, unknownEntry, bagUsd });
   if (!existing) {
     return { allow: true, blocked: false, reason: "flat-or-empty", log: null };
   }
@@ -230,6 +314,16 @@ export function evaluateAddOnFifoRedGate({
   const mark = Number(markProceedsEth);
   const fifo = Number(remainingFifoEth);
   const cmp = `mark ${mark.toExponential(2)} < remaining FIFO ${fifo.toExponential(2)}`;
+  // /vitafeed buy-in is deliberately red (low-3% bottoms) — add-on into an
+  // existing red bag is the product, not a Game override of always-plus sells.
+  if (isVitaFeedBuyIn(reason)) {
+    return {
+      allow: true,
+      blocked: false,
+      reason: "vitafeed-buyin",
+      log: `ADD_ON_FIFO_RED: allow add-on ${symbol} VITAFEED BUYIN transmission seat (${cmp})`,
+    };
+  }
   if (isAllowAddOnFifoRed(env)) {
     return {
       allow: true,
@@ -328,6 +422,38 @@ export function leftoverCoversInject(leftover) {
 }
 
 /**
+ * First-buy / flatten / peak≈mark: price-space leftover (max-peak − fairExit
+ * − hitch spread) is 0 even when armed net already pays 1× hitch in ETH.
+ * That is the sterile loop after bags were flattened to ETH.
+ * covers when tradeEth × net > hitch (1×). Hitch cost 0 → not a cover
+ * (plain path is decided by skipHitch / L1 unknown, not a fake cover).
+ */
+export function ethEdgeCoversHitch({
+  tradeEth = 0,
+  net = 0,
+  hitchCostEth = 0,
+} = {}) {
+  const trade = Number(tradeEth);
+  const edge = Number(net);
+  const hitch = Math.max(0, Number(hitchCostEth) || 0);
+  if (!(trade > 0) || !(edge > 0)) return false;
+  if (!(hitch > 0)) return false;
+  return trade * edge > hitch;
+}
+
+export function ethEdgeLeftoverEth({
+  tradeEth = 0,
+  net = 0,
+  hitchCostEth = 0,
+} = {}) {
+  const trade = Number(tradeEth);
+  const edge = Number(net);
+  const hitch = Math.max(0, Number(hitchCostEth) || 0);
+  if (!(trade > 0) || !(edge > 0)) return 0;
+  return Math.max(0, trade * edge - hitch);
+}
+
+/**
  * Catalog freeze — buy-side only.
  *
  * `token.frozen === true` (or string/number equivalents: "true" / "1" / "yes").
@@ -337,8 +463,13 @@ export function leftoverCoversInject(leftover) {
  * This is the shared predicate for executeBuy — do not rely on UI, Telegram
  * /frozenlist, or processToken early-return (those miss cascade/ripple and
  * frozen names that already have entryPrice).
+ *
+ * Railway `UNFREEZE_SYMBOLS=TIBBIR` (comma / semicolon / whitespace list)
+ * clears catalog freeze at runtime for those symbols. Telegram `/unfreeze`
+ * is a separate in-memory flip + runtime buy-freeze clear; it does not
+ * rewrite DEFAULT_TOKENS, so a restart re-applies catalog `frozen`.
  */
-export function isCatalogFrozen(token) {
+function catalogFrozenFlag(token) {
   const flag = token?.frozen;
   if (flag === true || flag === 1) return true;
   if (typeof flag === "string") {
@@ -346,6 +477,41 @@ export function isCatalogFrozen(token) {
     return s === "true" || s === "1" || s === "yes";
   }
   return false;
+}
+
+/**
+ * Native Railway env: `UNFREEZE_SYMBOLS=TIBBIR` or `TIBBIR,VVV`.
+ * Empty / unset → no override. Does not persist into DEFAULT_TOKENS.
+ */
+export function parseUnfreezeSymbols(env = process.env) {
+  const raw = env?.UNFREEZE_SYMBOLS;
+  if (raw == null || String(raw).trim() === "") return [];
+  return [...new Set(
+    String(raw)
+      .split(/[,;\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean),
+  )];
+}
+
+export function isUnfreezeSymbol(symbol, env = process.env) {
+  const sym = String(symbol || "").toUpperCase();
+  if (!sym) return false;
+  return parseUnfreezeSymbols(env).includes(sym);
+}
+
+/** Clear catalog freeze on a token row when UNFREEZE_SYMBOLS lists it. */
+export function applyUnfreezeSymbols(token, env = process.env) {
+  if (!token || !isUnfreezeSymbol(token.symbol, env)) return token;
+  if (!catalogFrozenFlag(token)) return token;
+  const next = { ...token, frozen: false };
+  delete next.frozenReason;
+  return next;
+}
+
+export function isCatalogFrozen(token, env = process.env) {
+  if (isUnfreezeSymbol(token?.symbol, env)) return false;
+  return catalogFrozenFlag(token);
 }
 
 /** Console line when a buy is skipped because the catalog name is frozen. */
@@ -360,6 +526,24 @@ export const MANUAL_BUY_OPERATOR_PREFIX = "MANUAL BUY (operator)";
 
 export function isManualOperatorBuy(reason = "") {
   return String(reason || "").startsWith(MANUAL_BUY_OPERATOR_PREFIX);
+}
+
+/**
+ * /vitafeed transmission buy-in — NOT an operator /buy.
+ * Must not weaken leftover/edge for MANUAL BUY or auto paths; this is a
+ * separate allow so each message can still buy ≥$0.25 leave-behind + cost.
+ */
+export const VITAFEED_BUYIN_PREFIX = "VITAFEED BUYIN";
+
+export function isVitaFeedBuyIn(reason = "") {
+  return String(reason || "").toUpperCase().startsWith(VITAFEED_BUYIN_PREFIX);
+}
+
+export function vitaFeedBuyInReason(usd = 0) {
+  const n = Number(usd);
+  return Number.isFinite(n) && n > 0
+    ? `${VITAFEED_BUYIN_PREFIX} $${n.toFixed(2)}`
+    : VITAFEED_BUYIN_PREFIX;
 }
 
 /** Parse optional USD size: `3`, `$3`, `$3.50`. Invalid / missing → 0. */
@@ -419,6 +603,9 @@ export function queueOperatorBuyOnce(commands, rawEnv, knownSymbols, state = { d
   }
   if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
     return { queued: false, reason: "unknown-symbol", symbol: parsed.symbol, usd: parsed.usd };
+  }
+  if (isSkipHoldDeadRoute(parsed.symbol)) {
+    return { queued: false, reason: "skip-hold", symbol: parsed.symbol, usd: parsed.usd };
   }
   if (frozenSymbols?.has(parsed.symbol)) {
     return { queued: false, reason: "frozen", symbol: parsed.symbol, usd: parsed.usd };
@@ -582,8 +769,10 @@ export function isListedForceExitSymbol(symbol, env = process.env) {
   return forceExitSymbols(env).includes(sym);
 }
 
-/** Game/desk FORCE_EXIT priority — bags >$0.30. Dust names are not this unwind. */
-export const GAME_FORCE_EXIT_PRIORITY = Object.freeze(["AERO", "DRB", "BNKR"]);
+/** Game/desk FORCE_EXIT priority — bags >$0.30. Dust names are not this unwind.
+ * CLANKER (~$3 inject-fuel bag) joins AERO/DRB/BNKR so ALLOW_LOSSY / FORCE_EXIT
+ * can free stale FIFO-red capital for cascade + memory hitch. */
+export const GAME_FORCE_EXIT_PRIORITY = Object.freeze(["AERO", "DRB", "BNKR", "CLANKER"]);
 
 export function isGameForceExitPriority(symbol) {
   return GAME_FORCE_EXIT_PRIORITY.includes(String(symbol || "").toUpperCase());
@@ -650,6 +839,7 @@ export function queueOperatorSellOnce(commands, rawEnv, knownSymbols, state = { 
   let already;
   for (const parsed of list) {
     if (state.doneBySymbol[parsed.symbol]) continue;
+    if (isSkipHoldDeadRoute(parsed.symbol)) continue;
     if (knownSymbols && !knownSymbols.has(parsed.symbol)) {
       unknown = parsed;
       continue;
@@ -759,11 +949,20 @@ export function evaluateBuyGate({
   hasEdge = false,
   symbol = "?",
   reason = "",
+  tradeEth = 0,
+  net = 0,
+  hitchCostEth = 0,
+  allowBankHitch = false,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
   const injectReq = isInjectCoverRequired(env);
-  const covers = leftoverCoversInject(leftover);
+  const peakCovers = leftoverCoversInject(leftover);
+  const ethCovers = ethEdgeCoversHitch({ tradeEth, net, hitchCostEth });
+  const covers = peakCovers || ethCovers;
+  const effectiveLeftover = peakCovers
+    ? leftover
+    : (ethCovers ? ethEdgeLeftoverEth({ tradeEth, net, hitchCostEth }) : leftover);
   const tag = loseZero ? "LOSE_ZERO" : "REQUIRE_INJECT_COVER";
 
   // Cascade / ripple are capital redeploys, not a silent bypass — same
@@ -784,22 +983,46 @@ export function evaluateBuyGate({
     };
   }
 
+  // /vitafeed buy-in: transmission revenue seat (red low-3% + predicted up).
+  // Separate from operator — does not weaken leftover/edge for other buys.
+  if (isVitaFeedBuyIn(reason)) {
+    const covers = leftoverCoversInject(leftover);
+    return {
+      allow: true,
+      leftover,
+      skipHitch: !covers,
+      log: `${tag}: allow buy ${symbol} VITAFEED BUYIN (transmission seat; leftover/edge waived for message cost recovery)`,
+      reason: covers ? "vitafeed-hitch" : "vitafeed-plain",
+    };
+  }
+
   if (!loseZero && !injectReq) {
     return { allow: true, log: null, leftover, reason: "gate-off" };
   }
 
   if (loseZero) {
     if (hasEdge && covers) {
+      const via = peakCovers ? "leftover covers inject" : "armed net covers 1× hitch (first-buy / flatten)";
       return {
         allow: true,
-        log: `${tag}: allow buy ${symbol} leftover covers inject`,
+        log: `${tag}: allow buy ${symbol} ${via}`,
+        leftover: effectiveLeftover,
+        skipHitch: !covers,
+        reason: peakCovers ? "edge+cover" : "edge+eth-cover",
+      };
+    }
+    if (hasEdge && allowBankHitch) {
+      return {
+        allow: true,
+        log: `${tag}: allow buy ${symbol} micro-bank hitch (inject cover does not fit; trade-only #89)`,
         leftover,
-        reason: "edge+cover",
+        skipHitch: true,
+        reason: "edge+bank-hitch",
       };
     }
     const why = !hasEdge
       ? "no clear edge"
-      : Number(leftover) === 0
+      : Number(leftover) === 0 && !ethCovers
         ? "leftover is 0"
         : "leftover does not cover inject";
     return {
@@ -812,6 +1035,15 @@ export function evaluateBuyGate({
 
   // REQUIRE_INJECT_COVER only
   if (!covers) {
+    if (hasEdge && allowBankHitch) {
+      return {
+        allow: true,
+        log: `${tag}: allow buy ${symbol} micro-bank hitch (inject cover does not fit; trade-only #89)`,
+        leftover,
+        skipHitch: true,
+        reason: "edge+bank-hitch",
+      };
+    }
     const why = Number(leftover) === 0 ? "leftover is 0" : "leftover does not cover inject";
     return {
       allow: false,
@@ -822,9 +1054,10 @@ export function evaluateBuyGate({
   }
   return {
     allow: true,
-    log: `${tag}: allow buy ${symbol} leftover covers inject`,
-    leftover,
-    reason: "cover",
+    log: `${tag}: allow buy ${symbol} ${peakCovers ? "leftover covers inject" : "armed net covers 1× hitch (first-buy / flatten)"}`,
+    leftover: effectiveLeftover,
+    skipHitch: !covers,
+    reason: peakCovers ? "cover" : "eth-cover",
   };
 }
 
@@ -844,6 +1077,7 @@ export function buildBuyGateDecision({
   net = 0,
   isCascade = false,
   hitchBytes = STORE_HITCH_BYTES,
+  allowBankHitch = false,
   env = process.env,
 } = {}) {
   const loseZero = isLoseZeroMode(env);
@@ -852,6 +1086,7 @@ export function buildBuyGateDecision({
   const spread = injectCostSpread(price, tradeEth, gwei, l1FeeEth, hitchBytes);
   const leftover = computeLeftover(existingSellTarget, fairExit, spread);
   const edge = hasClearEdge({ reason, armed, net });
+  const hitchCostEth = estimateInjectCostEth(gwei, l1FeeEth, hitchBytes);
   const l2Bytes = Math.max(STORE_HITCH_BYTES, Math.floor(Number(hitchBytes) || 0) || STORE_HITCH_BYTES);
   const l2FeeEth = estimateCalldataHitchEth(l2Bytes, gwei);
   const source = hasLiveL1Fee(l1FeeEth) ? "oracle" : "fallback";
@@ -859,17 +1094,30 @@ export function buildBuyGateDecision({
     l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
     l2FeeEth,
     hitchFeeSource: source,
+    hitchCostEth,
     feeSplitLog: formatHitchFeeSplit({
       l1FeeEth: hasLiveL1Fee(l1FeeEth) ? Number(l1FeeEth) : 0,
       l2FeeEth,
       source,
     }),
   };
+  const gateArgs = {
+    isCascade,
+    leftover,
+    hasEdge: edge,
+    symbol,
+    reason,
+    tradeEth,
+    net,
+    hitchCostEth,
+    allowBankHitch,
+    env,
+  };
 
   // Operator /buy always computes leftover so hitch can ride when covered.
   if (isManualOperatorBuy(reason)) {
     return {
-      ...evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env }),
+      ...evaluateBuyGate(gateArgs),
       leftover,
       ...feeFields,
     };
@@ -886,7 +1134,7 @@ export function buildBuyGateDecision({
     };
   }
 
-  const decision = evaluateBuyGate({ isCascade, leftover, hasEdge: edge, symbol, reason, env });
+  const decision = evaluateBuyGate(gateArgs);
   return {
     ...decision,
     skipHitch: decision.skipHitch ?? false,
@@ -909,15 +1157,57 @@ export function isAllowLossyOperatorSell(env = process.env) {
   return envFlagYes("ALLOW_LOSSY_OPERATOR_SELL", env);
 }
 
+/**
+ * Consume the Game one-shot. After any sell that used ALLOW_LOSSY, set the
+ * in-process env to `no` so a later DUST RECYCLE / piggy 95% cannot keep
+ * selling red. Railway dashboard must also be set back to `no` (or clear
+ * OPERATOR_SELL) — restart reloads the stored value.
+ * @returns {boolean} true if the flag was armed before consume
+ */
+export function consumeAllowLossyOperatorSell(env = process.env) {
+  if (!env || typeof env !== "object") return false;
+  // Empty-to-HOME rotate must not consume mid-bag (#140 one-shot).
+  if (shouldHoldAllowLossyForRotate(env)) return false;
+  const was = envFlagYes("ALLOW_LOSSY_OPERATOR_SELL", env);
+  env.ALLOW_LOSSY_OPERATOR_SELL = "no";
+  return was;
+}
+
+/** True when the bypass is ALLOW_LOSSY (not FORCE EXIT LOCKED / listed symbols). */
+export function usedAllowLossyOperatorSellBypass(reason = "", env = process.env, symbol = "") {
+  if (!isAllowLossyOperatorSell(env)) return false;
+  if (isForceExitLockedReason(reason)) return false;
+  if (isListedForceExitSymbol(symbol, env)) return false;
+  if (rotateAllowsLossySell(symbol, env) && (isManualOperatorSell(reason) || isOperatorRotateReason(reason))) {
+    return true;
+  }
+  return isGameForceExitPriority(symbol);
+}
+
 export function isForceExitLockedReason(reason = "") {
   return /FORCE EXIT LOCKED/i.test(String(reason || ""));
 }
 
 export function canBypassSellLossGate(reason = "", env = process.env, symbol = "") {
   if (isForceExitLockedReason(reason)) return true;
+  if (rotateAllowsLossySell(symbol, env) && (isManualOperatorSell(reason) || isOperatorRotateReason(reason))) {
+    return true;
+  }
   if (!isGameForceExitPriority(symbol)) return false;
   if (isListedForceExitSymbol(symbol, env)) return true;
   return isAllowLossyOperatorSell(env);
+}
+
+export function isDustRecycleReason(reason = "") {
+  return /DUST RECYCLE/i.test(String(reason || ""));
+}
+
+/** DUST RECYCLE / piggy 95% HOLDs FIFO-red unless one-shot ALLOW_LOSSY is armed. */
+export function dustRecycleMustHoldFifoRed({
+  fifoRed = false,
+  allowLossyArmed = false,
+} = {}) {
+  return !!fifoRed && !allowLossyArmed;
 }
 
 export function isStopLossReason(reason = "") {
@@ -1214,19 +1504,96 @@ export function cashFlowNetEth(ethIn = 0, ethOut = 0) {
  * → unknown (do not sell red to discover). Persisted `totalInvestedEth` is
  * not trusted when lots cannot be allocated — that figure can still be
  * cash-flow leftover from a prior boot.
+ *
+ * Evidence-latched lots (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5 class):
+ * pre-buy dust just over the 2% band is not a missing add-on. Exclude that
+ * dust from remain/bought (cost = recorded tokensIn) and sell only the known
+ * lot qty. Missing lots (DRB trough, CLANKER first-slice vs ~0.289 rem)
+ * still unknown until the add-on merges. Do not invent P&L.
  */
+/** Default unknown-lots band: remain > tokensIn × this → missing lots. */
+export const UNKNOWN_LOTS_BAND = 1.02;
+/**
+ * Evidence FIFO only. Live VIRTUAL remain/bought ≈ 1.02018 (> 1.02 by
+ * ≈0.00030 tokens). Keep tight — DRB trough (remain >> tokensIn) still unknown.
+ */
+export const EVIDENCE_LOT_DUST_BAND = 1.025;
+
+export function fifoUnknownLots({
+  remainingTokens = 0,
+  tokensIn = 0,
+  evidenceLot = false,
+  originalTokensIn = 0,
+  piggyDustTokens = 0,
+} = {}) {
+  const remain = Number(remainingTokens);
+  const bought = Number(tokensIn);
+  if (!Number.isFinite(remain) || !Number.isFinite(bought) || bought <= 0) return false;
+  if (remain <= bought + 1e-9) return false;
+  const extra = remain - bought;
+  const dust = Math.max(0, Number(piggyDustTokens) || 0);
+  if (dust > 0 && extra <= dust + 1e-9) return false;
+  // Pre-buy dust is an absolute leftover of the *original* buy, not a % of
+  // the remaining known lot. After a partial sell, tokensIn shrinks and the
+  // same ~0.033 dust would trip remain/bought > 1.025. Compare extra to
+  // originalTokensIn × (band − 1) so rem lots stay known.
+  const original = Number(originalTokensIn) > 0 ? Number(originalTokensIn) : bought;
+  const band = evidenceLot ? EVIDENCE_LOT_DUST_BAND : UNKNOWN_LOTS_BAND;
+  return extra > original * (band - 1) + 1e-9;
+}
+
+/**
+ * Remain used for FIFO cost / known-lot sell cap.
+ * Evidence-latched pre-buy dust (within EVIDENCE_LOT_DUST_BAND of the
+ * original buy) is excluded so remain/bought does not trip unknown-lots;
+ * extra stays unsold / piggy. Persisted piggyDustTokens is the same carve-out
+ * after a partial (tokensIn already shrank).
+ */
+export function fifoKnownLotRemain(remainingTokens, tokensIn, {
+  evidenceLot = false,
+  originalTokensIn = 0,
+  piggyDustTokens = 0,
+} = {}) {
+  const remain = Number(remainingTokens);
+  const bought = Number(tokensIn);
+  if (!Number.isFinite(remain) || remain <= 0) return remain;
+  if (!Number.isFinite(bought) || bought <= 0) return remain;
+  const dust = Math.max(0, Number(piggyDustTokens) || 0);
+  if (dust > 0 && remain > bought && remain <= bought + dust + 1e-9) {
+    return bought;
+  }
+  if (
+    remain > bought
+    && !fifoUnknownLots({
+      remainingTokens: remain,
+      tokensIn: bought,
+      evidenceLot,
+      originalTokensIn,
+      piggyDustTokens: dust,
+    })
+  ) {
+    return bought;
+  }
+  return remain;
+}
+
 export function fifoRemainingCostEth({
   ethIn = 0,
   tokensIn = 0,
   remainingTokens = 0,
   persistedInvestedEth = 0,
+  evidenceLot = false,
+  originalTokensIn = 0,
+  piggyDustTokens = 0,
 } = {}) {
-  const remain = Number(remainingTokens);
+  const remainRaw = Number(remainingTokens);
   const spent = Number(ethIn);
   const bought = Number(tokensIn);
   const persisted = Number(persistedInvestedEth);
+  const original = Number(originalTokensIn) > 0 ? Number(originalTokensIn) : bought;
+  const dust = Math.max(0, Number(piggyDustTokens) || 0);
 
-  if (!Number.isFinite(remain) || remain <= 0) {
+  if (!Number.isFinite(remainRaw) || remainRaw <= 0) {
     return { unknown: false, investedEth: 0, reason: "empty", proportional: 0 };
   }
   if (!Number.isFinite(spent) || spent <= 0) {
@@ -1235,9 +1602,20 @@ export function fifoRemainingCostEth({
   if (!Number.isFinite(bought) || bought <= 0) {
     return { unknown: true, investedEth: 0, reason: "unknown-cost", proportional: 0 };
   }
-  if (remain > bought * 1.02 + 1e-9) {
+  if (fifoUnknownLots({
+    remainingTokens: remainRaw,
+    tokensIn: bought,
+    evidenceLot,
+    originalTokensIn: original,
+    piggyDustTokens: dust,
+  })) {
     return { unknown: true, investedEth: 0, reason: "unknown-lots", proportional: 0 };
   }
+  const remain = fifoKnownLotRemain(remainRaw, bought, {
+    evidenceLot,
+    originalTokensIn: original,
+    piggyDustTokens: dust,
+  });
   const proportional = spent * Math.min(1, remain / bought);
   const investedEth = Math.max(
     proportional,
@@ -1449,14 +1827,17 @@ export function sizeHitchForSell({
 /**
  * LOSE-ZERO sell gate. Always on.
  *
- * Micro extract: leftover after entry_sold + fees must be > 0. Hitch is
- * optional — attach only when leftover after piggy buffer also covers
- * hitch_cost × HITCH_COST_MULT (default 2× Eureka cushion). Otherwise
- * SKIP_HITCH, sell plain, and bank unused hitch room. Never HOLD a green
+ * Micro extract: leftover after entry_sold + fees must be > 0. Hitch rides
+ * under original message-first when leftover covers 1× hitch and still plus
+ * (default). The 2× HITCH_COST_MULT cushion is preferred when met; below that
+ * but above 1×, still hitch (Storage Token can charge delta). Set
+ * VITA_MESSAGE_FIRST=no to SKIP_HITCH + bank instead. Never HOLD a green
  * leftover waiting for hitch. STOP LOSS is NOT a loss bypass. Unknown-cost
  * is HOLD. Auto cannot sell red. Game unwind (hitch SKIP): FORCE EXIT LOCKED,
- * FORCE_EXIT_SYMBOLS, or ALLOW_LOSSY_OPERATOR_SELL=yes on operator /
- * OPERATOR_SELL names. Flags off → always-plus HOLD stays.
+ * FORCE_EXIT_SYMBOLS, or one-shot ALLOW_LOSSY_OPERATOR_SELL=yes on operator /
+ * OPERATOR_SELL names. First sell that uses ALLOW_LOSSY consumes it
+ * in-process (`no`); further red sells HOLD until re-armed. Railway env
+ * must be set back to `no`. Flags off → always-plus HOLD stays.
  */
 export function evaluateSellGate({
   projectedProceedsEth = 0,
@@ -1525,6 +1906,8 @@ export function evaluateSellGate({
   const hitchBudget = leftover - earningsBuf;
   const forceExit = isForceExitLockedReason(reason);
   const overrideSell = canBypassSellLossGate(reason, env, symbol);
+  const viaForceListed = forceExit || isListedForceExitSymbol(symbol, env);
+  const viaAllowLossy = overrideSell && !viaForceListed && isAllowLossyOperatorSell(env);
   const treatUnknown = !!unknownEntry || !(Number(entryEth) > 0);
 
   const wanted = Math.max(0, Number(wantedHitchBytes) || 0);
@@ -1665,35 +2048,80 @@ export function evaluateSellGate({
       }),
       log: extra.log ?? `LOSE_ZERO: ${allow ? "allow" : "hold"} sell ${symbol} ${why}`,
       reason: why,
+      usedAllowLossy: extra.usedAllowLossy === true,
     };
   };
 
-  // FORCE EXIT / lossy operator / listed unwind — hitch SKIP. Never HOLD red
-  // when Game armed ALLOW_LOSSY_OPERATOR_SELL or FORCE_EXIT_SYMBOLS.
+  // FORCE EXIT / lossy operator / listed unwind. Never HOLD red when Game
+  // armed ALLOW_LOSSY_OPERATOR_SELL or FORCE_EXIT_SYMBOLS. Red → hitch SKIP
+  // (recovery). Green + message-first KEY+LOC cover → hitch so code goes
+  // down-range; otherwise plain PLUS (skip hitch). ALLOW_LOSSY is one-shot:
+  // caller (executeSell) consumes after this path is used.
   if (overrideSell) {
     const red = leftover <= 0;
-    const viaForce = forceExit || isListedForceExitSymbol(symbol, env);
-    const why = viaForce
-      ? (red ? "FORCE EXIT LOCKED" : "FORCE EXIT LOCKED plus")
-      : (red ? "lossy operator unwind" : "lossy operator plus");
+    const viaForce = viaForceListed;
+    if (red) {
+      const why = viaForce ? "FORCE EXIT LOCKED" : "lossy operator unwind";
+      return pack(true, why, {
+        hitchBytes: 0,
+        btpInscribe: false,
+        skipHitch: true,
+        hitchBankedEth: 0,
+        injectCostEth: 0,
+        hitchCoverEth: reservedCover.hitchCoverEth,
+        edge: leftover,
+        minSellProceedsEth: reservedCover.minSellProceedsEth,
+        verdict: viaForce ? "FORCE_EXIT" : "LOSSY_OPERATOR",
+        netEth: leftover,
+        usedAllowLossy: viaAllowLossy,
+        log: viaForce
+          ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
+          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL — FIFO red operator unwind (hitch SKIP)`,
+      });
+    }
+
+    const messageFirstOverride = isOriginalFormulaMessageFirst(env);
+    const canHitchOverride = messageFirstOverride
+      && !l1OracleFailed
+      && !sized.skipHitch
+      && hitchThis > 0
+      && plusNet > 0
+      && hitchBudget > 0;
+    if (canHitchOverride) {
+      const why = viaForce ? "FORCE EXIT LOCKED plus hitch" : "lossy operator plus hitch";
+      return pack(true, why, {
+        sellNow: true,
+        verdict: "PLUS",
+        netEth: plusNet,
+        hitchBankedEth: 0,
+        hitchCostMult: 1,
+        hitchCoverEth: reservedCover.hitchCoverEth,
+        edge: leftover,
+        minSellProceedsEth: reservedCover.minSellProceedsEth,
+        usedAllowLossy: viaAllowLossy,
+        log: viaForce
+          ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — message-first hitch ${sized.hitchBytes || 0}B`
+          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — message-first hitch ${sized.hitchBytes || 0}B`,
+      });
+    }
+
+    const why = viaForce ? "FORCE EXIT LOCKED plus" : "lossy operator plus";
     return pack(true, why, {
       hitchBytes: 0,
       btpInscribe: false,
       skipHitch: true,
-      hitchBankedEth: 0,
+      hitchBankedEth: hitchBanked,
       injectCostEth: 0,
       hitchCoverEth: reservedCover.hitchCoverEth,
       edge: leftover,
       minSellProceedsEth: reservedCover.minSellProceedsEth,
-      verdict: viaForce ? (red ? "FORCE_EXIT" : "PLUS") : (red ? "LOSSY_OPERATOR" : "PLUS"),
+      verdict: "PLUS",
       netEth: leftover,
-      log: red
-        ? (viaForce
-          ? `LOSE_ZERO: FORCE_EXIT sell ${symbol} leftover after fees ≤ 0 — recovery (no hitch)`
-          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL — FIFO red operator unwind (hitch SKIP)`)
-        : (viaForce
-          ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — skip hitch (recovery)`
-          : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — skip hitch`),
+      hitchWouldEth: hitchWould || hitchThis || sized.injectCostEth || reservedHitch,
+      usedAllowLossy: viaAllowLossy,
+      log: viaForce
+        ? `LOSE_ZERO: PLUS sell ${symbol} FORCE EXIT LOCKED leftover=${leftover.toExponential(2)} — plain (hitch not covered / L1 unknown)`
+        : `LOSE_ZERO: allow sell ${symbol} ALLOW_LOSSY_OPERATOR_SELL leftover=${leftover.toExponential(2)} — plain (hitch not covered / L1 unknown)`,
     });
   }
 
@@ -1778,8 +2206,24 @@ export function evaluateSellGate({
     });
   }
 
-  // Hitch floor miss (or piggy buffer / size skip) — micro extract, bank hitch.
-  if (!coversHitchFloor || sized.skipHitch || hitchThis <= 0 || hitchBudget <= 0 || plusNet <= 0) {
+  // Message-first (original formula): 1× KEY+LOC cover + still-plus → hitch.
+  // Do not mute for micro skim when the packet fits; Storage Token can charge
+  // the delta vs waiting for a 2× cushion. Opt out: VITA_MESSAGE_FIRST=no.
+  const messageFirst = isOriginalFormulaMessageFirst(env);
+  const keyLocCoveredAt1x = !sized.skipHitch
+    && hitchThis > 0
+    && plusNet > 0
+    && hitchBudget > 0;
+
+  // Hitch floor miss (or piggy buffer / size skip) — micro extract, bank hitch
+  // unless original message-first already covers 1×.
+  if (
+    (!coversHitchFloor && !(messageFirst && keyLocCoveredAt1x))
+    || sized.skipHitch
+    || hitchThis <= 0
+    || hitchBudget <= 0
+    || plusNet <= 0
+  ) {
     const whyBuf = hitchBudget <= 0
       ? "piggy earnings buffer + hitch floor"
       : !coversHitchFloor
@@ -1799,6 +2243,19 @@ export function evaluateSellGate({
       hitchWouldEth: hitchWould || hitchThis || sized.injectCostEth || reservedHitch,
       hitchBankedEth: hitchBanked,
       log: `LOSE_ZERO: allow sell ${symbol} plain — leftover covers fees (micro extract) but not ${whyBuf}; hitch skipped + banked toward next message`,
+    });
+  }
+
+  // 1× covered under original formula (2× cushion not met) — still send.
+  if (!coversHitchFloor && messageFirst && keyLocCoveredAt1x) {
+    void check;
+    return pack(true, "original message-first hitch", {
+      sellNow: true,
+      verdict: "PLUS",
+      netEth: plusNet,
+      hitchBankedEth: 0,
+      hitchCostMult: 1,
+      log: `LOSE_ZERO: allow sell ${symbol} leftover covers KEY+LOC 1× — original message-first hitch (Storage Token can charge delta; 2× cushion waived)`,
     });
   }
 

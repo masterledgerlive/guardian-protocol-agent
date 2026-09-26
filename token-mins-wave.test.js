@@ -30,6 +30,8 @@ describe("token mins", () => {
     assert.equal(DEFAULT_MIN_BUY_USD, 0.50);
     assert.equal(minBuyUsdForToken("UNI"), 0.50);
     assert.equal(minBuyUsdForToken("TOSHI"), 0.50);
+    assert.equal(minBuyUsdForToken("HOME"), 0.50);
+    assert.equal(TOKEN_MIN_BUY_USD.HOME, 0.50);
     assert.ok(TOKEN_MIN_BUY_USD.XCN >= 25);
   });
 

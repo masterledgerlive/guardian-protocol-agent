@@ -1,0 +1,31 @@
+{
+  "id": "telegram-clickthrough-all-options",
+  "label": "VITACLICK",
+  "at": "2026-09-23T20:45:00.000Z",
+  "summary": "Telegram click-through: every category and subcategory is an inline button. Dir→subdir→file unlock shows SNARK/static name first, then Human plain + Machine key with timing. COMPRESS: Add/Bench/Keys/Unwrap/Inject. PHOS: CRT/Library/PLAY/PICTURE. Token catalog → buy/sell/exit/piggy/dual/track. /vitafeed track stages inject/message proof for Confirm|Override. Plain text proves; SNARK unlocks denser lane for player assemble (picture/song/movie/code).",
+  "commands": [
+    "/vitafeed",
+    "/vitafeed dir",
+    "/vitafeed dir COMPRESS",
+    "/vitafeed dir PHOS",
+    "/vitafeed compress add",
+    "/vitafeed compress unwrap",
+    "/vitafeed unlock COMPRESS\\1",
+    "/vitafeed unlock CODEX\\math-euler.txt",
+    "/phosphor",
+    "/phosphor dir",
+    "/home compress",
+    "/home phosphor",
+    "/vitafeed track",
+    "/vitafeed files",
+    "/tokens",
+    "/tok AERO"
+  ],
+  "invariants": [
+    "never invent tx hashes",
+    "callback_data ≤ 64 bytes",
+    "open-source unlock — no private key",
+    "message-first formula untouched"
+  ],
+  "module": "vita/telegram-clickthrough.js"
+}

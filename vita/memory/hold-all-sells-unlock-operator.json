@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-26T04:15:00.000Z",
+  "topic": "hold-all-sells-unlock",
+  "role": "operator",
+  "alternation": "message",
+  "text": "use $home token money now and unlock the sell barrier",
+  "locations": [],
+  "hypothesis": {
+    "id": "unlock-sell-barrier-keep-home",
+    "status": "approved",
+    "asks": [
+      "HOLD_ALL_SELLS=no — lift global freeze so cascade/auto/Telegram sells can fire when gated green",
+      "APPROVE_HOME_SELL stays unset — $HOME never-sell (piggy/fuel)",
+      "AERO and lower tokens may cascade in/out on Base rail",
+      "Telegram /hold sells off and /cascade unlock clear in-process; Railway HOLD_ALL_SELLS=no persists"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "env": {
+    "HOLD_ALL_SELLS": "no",
+    "APPROVE_HOME_SELL": "unset"
+  },
+  "supersedes": "vita/memory/hold-all-sells-home-operator.json"
+}

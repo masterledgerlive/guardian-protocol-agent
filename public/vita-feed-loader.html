@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITAFEED Loader — curated knowledge preload</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #12263a;
+      --foam: #e8f4f8;
+      --tide: #0d6e7a;
+      --sand: #f6efe6;
+      --ember: #c45c26;
+      --ok: #1f8a70;
+      --display: "Syne", sans-serif;
+      --mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: var(--mono);
+      background:
+        radial-gradient(800px 360px at 90% 0%, rgba(13,110,122,.22), transparent 55%),
+        radial-gradient(640px 320px at 0% 20%, rgba(196,92,38,.16), transparent 50%),
+        linear-gradient(165deg, #f8f4ee 0%, #e7f0f3 52%, #d5e6ea 100%);
+    }
+    .stage {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: clamp(1.2rem, 4vw, 2.4rem);
+    }
+    .brand {
+      font-family: var(--display);
+      font-size: clamp(2.2rem, 7vw, 3.8rem);
+      letter-spacing: -.04em;
+      line-height: .95;
+      margin: 0 0 .4rem;
+      animation: rise .75s ease-out both;
+    }
+    .lede {
+      max-width: 34rem;
+      color: #3a5566;
+      font-size: .92rem;
+      margin: 0 0 1.5rem;
+      animation: rise .75s .1s ease-out both;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes stackIn {
+      from { opacity: 0; transform: translateY(18px) scale(.96); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 100% 50%; }
+    }
+    @keyframes spinDot {
+      to { transform: rotate(360deg); }
+    }
+    h2 {
+      font-family: var(--display);
+      font-size: 1.15rem;
+      margin: 0 0 .55rem;
+      letter-spacing: -.02em;
+    }
+    .hint { color: #3a5566; font-size: .8rem; margin: 0 0 .9rem; }
+    .stack {
+      display: grid;
+      gap: .55rem;
+      margin: 0 0 1.4rem;
+    }
+    .file {
+      position: relative;
+      padding: .75rem .9rem .75rem 2.6rem;
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(18,38,58,.1);
+      border-radius: 2px;
+      opacity: 0;
+      animation: stackIn .55s ease-out both;
+    }
+    .file::before {
+      content: "";
+      position: absolute;
+      left: .75rem;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin-top: -6px;
+      border: 2px solid var(--tide);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spinDot .9s linear infinite;
+    }
+    .file.ready::before {
+      border: none;
+      background: var(--ok);
+      border-radius: 2px;
+      animation: none;
+    }
+    .file .hier {
+      font-family: var(--display);
+      font-size: .95rem;
+      letter-spacing: -.01em;
+    }
+    .file .meta {
+      font-size: .72rem;
+      color: #4a6575;
+      margin-top: .2rem;
+    }
+    .bar {
+      height: 4px;
+      margin-top: .55rem;
+      background: rgba(18,38,58,.08);
+      overflow: hidden;
+    }
+    .bar i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--tide), var(--ember), var(--tide));
+      background-size: 200% 100%;
+      animation: shimmer 1.4s linear infinite;
+      transition: width .45s ease;
+    }
+    .frame {
+      min-height: 5.5rem;
+      padding: .85rem 1rem;
+      background: rgba(18,38,58,.88);
+      color: #d8eef2;
+      font-size: .78rem;
+      white-space: pre-wrap;
+      border-radius: 2px;
+      margin: 0 0 1.2rem;
+    }
+    .dual {
+      display: grid;
+      gap: .75rem;
+      grid-template-columns: 1fr;
+      margin-bottom: 1.4rem;
+    }
+    @media (min-width: 720px) {
+      .dual { grid-template-columns: 1fr 1fr; }
+    }
+    .lane {
+      padding: .85rem 1rem;
+      background: rgba(255,255,255,.5);
+      border-top: 3px solid var(--tide);
+    }
+    .lane.machine { border-top-color: var(--ember); }
+    .lane h3 {
+      font-family: var(--display);
+      margin: 0 0 .4rem;
+      font-size: 1rem;
+    }
+    .lane p { margin: 0; font-size: .78rem; color: #334d5c; line-height: 1.45; }
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin: 0 0 1.2rem;
+    }
+    button, a.btn {
+      font-family: var(--mono);
+      font-size: .78rem;
+      padding: .55rem .85rem;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--foam);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.ghost, a.ghost {
+      background: transparent;
+      color: var(--ink);
+    }
+    .thought {
+      font-size: .75rem;
+      color: #4a6575;
+      border-top: 1px solid rgba(18,38,58,.12);
+      padding-top: .9rem;
+      line-height: 1.45;
+    }
+    code { font-size: .85em; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1 class="brand">VITAFEED<br />Loader</h1>
+    <p class="lede">
+      Curated knowledge packs preload into the existing backlog — human plain mirrored
+      with machine language, costs side by side, ready for batch now or later.
+      Cipher + programming hierarchy grows the library recursive memory can cite.
+    </p>
+
+    <div class="cta">
+      <button type="button" id="btnAnim">Play preload</button>
+      <button type="button" id="btnRefresh" class="ghost">Refresh packs</button>
+      <a class="btn ghost" href="/vita/feed-player">Feed player</a>
+      <a class="btn ghost" href="/vita">VITA console</a>
+    </div>
+
+    <h2>Preload animation</h2>
+    <p class="hint">Telegram: <code>/vitafeed load</code> · drain <code>/vitafeed next</code> · know <code>/vitafeed know</code></p>
+    <pre class="frame" id="frameCard">Press Play preload…</pre>
+    <div class="stack" id="stack" aria-live="polite"></div>
+
+    <h2>Human ↔ machine mirror</h2>
+    <div class="dual" id="dual"></div>
+
+    <p class="thought" id="thought"></p>
+  </div>
+
+  <script type="module">
+    const el = (id) => document.getElementById(id);
+    let state = null;
+    let animTimer = null;
+
+    async function loadState() {
+      const res = await fetch("/vita/feed-loader", {
+        headers: { Accept: "application/json" },
+      });
+      state = await res.json();
+      renderStatic();
+    }
+
+    function renderStatic() {
+      if (!state?.ok && !state?.packs) return;
+      el("thought").textContent = "THOUGHT: " + (state.thought || "");
+      const dual = el("dual");
+      dual.innerHTML = "";
+      for (const p of state.packs || []) {
+        const h = document.createElement("div");
+        h.className = "lane";
+        h.innerHTML =
+          "<h3>HUMAN · " + escapeHtml(p.hierarchy) + "</h3>" +
+          "<p>" + escapeHtml(p.humanPreview || "") + "</p>" +
+          (p.dual
+            ? "<p style='margin-top:.45rem'>≈$" +
+              Number(p.dual.totalUsd).toFixed(4) +
+              " · " +
+              p.dual.injections +
+              " inj · H " +
+              p.dual.humanBytes +
+              "B / M " +
+              p.dual.machineBytes +
+              "B</p>"
+            : "");
+        dual.appendChild(h);
+        const m = document.createElement("div");
+        m.className = "lane machine";
+        m.innerHTML =
+          "<h3>MACHINE · " + escapeHtml(p.id) + "</h3>" +
+          "<p>" + escapeHtml(p.machine || "") + "</p>";
+        dual.appendChild(m);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function playAnim() {
+      if (!state) return;
+      clearInterval(animTimer);
+      const frames = state.animation?.frames || ["(no frames)"];
+      const packs = state.packs || [];
+      const stack = el("stack");
+      stack.innerHTML = "";
+      packs.forEach((p, i) => {
+        const d = document.createElement("div");
+        d.className = "file";
+        d.style.animationDelay = (0.08 * i) + "s";
+        d.innerHTML =
+          "<div class='hier'>" + escapeHtml(p.hierarchy) + "</div>" +
+          "<div class='meta'>" + escapeHtml(p.title) + " · " + escapeHtml(p.kind) + "</div>" +
+          "<div class='bar'><i style='width:0'></i></div>";
+        stack.appendChild(d);
+      });
+      let i = 0;
+      el("frameCard").textContent = frames[0] || "";
+      animTimer = setInterval(() => {
+        i += 1;
+        if (i >= frames.length) {
+          clearInterval(animTimer);
+          stack.querySelectorAll(".file").forEach((n) => {
+            n.classList.add("ready");
+            const bar = n.querySelector(".bar i");
+            if (bar) bar.style.width = "100%";
+          });
+          return;
+        }
+        el("frameCard").textContent = frames[i];
+        const file = stack.children[Math.min(i - 1, stack.children.length - 1)];
+        if (file) {
+          const bar = file.querySelector(".bar i");
+          if (bar) bar.style.width = Math.min(100, (i / frames.length) * 100) + "%";
+        }
+      }, 420);
+    }
+
+    el("btnAnim").addEventListener("click", playAnim);
+    el("btnRefresh").addEventListener("click", () => loadState().then(playAnim));
+    loadState().then(() => {
+      // auto-play once so the page feels alive
+      setTimeout(playAnim, 400);
+    }).catch((e) => {
+      el("frameCard").textContent = "load failed: " + e.message;
+    });
+  </script>
+</body>
+</html>

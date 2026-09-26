@@ -1,0 +1,18 @@
+{
+  "id": "vita-proof-log-v1",
+  "filingLabel": "PROOFLOG",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "note": "Rolling proof-of-logs · key+root on every row · race 1–3 · multi-chain credit seats",
+  "ends": [
+    "File compress → trail row with key + original path",
+    "Verify/unwrap → timed verification · message-out proof",
+    "Race slots 1–3 justify who proofed/injected first",
+    "Chain seats request memory credit; locs empty until real seal",
+    "Telegram tabs: Plain · Machine · Original · Unwrap"
+  ],
+  "updatedAt": "2026-09-24T03:33:20.387Z",
+  "lastSeq": 4,
+  "rootCommit": "95461dd4bbf1dd242b5357728eb3e6b1572e9dccac0eabae48ae98b2e384c37e",
+  "entryCount": 4
+}

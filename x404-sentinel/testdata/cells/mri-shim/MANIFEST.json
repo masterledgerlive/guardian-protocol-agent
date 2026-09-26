@@ -1,0 +1,22 @@
+{
+  "id": "mri-shim",
+  "sha256": "94dc73a0f462e6ed63bb4b4c14da4c0d6022775728cca045a597dfe9bcb8afd2",
+  "size": 197,
+  "cell_bytes": 4096,
+  "origin": "synthetic-not-phi",
+  "phi": false,
+  "synthetic": true,
+  "classification": "NOT-PHI",
+  "cells": [
+    {
+      "index": 0,
+      "offset": 0,
+      "length": 197,
+      "sha256": "94dc73a0f462e6ed63bb4b4c14da4c0d6022775728cca045a597dfe9bcb8afd2",
+      "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+      "stacked": "ab5c73fff2dd9616a04e0adc4b53c030bcd70b23741c0e6297220c415a62323b",
+      "key_sha256": "525534774e3a2fca41707c67811f886beebbb1639c162f1fe90b604fd15d604f"
+    }
+  ],
+  "seal_sha256": "aad6269c078653f20cc11cfb0ebde47c817c8676e9076d890cf726d115db0a7d"
+}

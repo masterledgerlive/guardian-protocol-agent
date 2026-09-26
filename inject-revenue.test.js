@@ -14,6 +14,7 @@ import {
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
   classifyRecycleBag,
+  recycleSellCopy,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
@@ -125,6 +126,23 @@ describe("inject-revenue: unknown dust recycle", () => {
       classifyRecycleBag({ unknownEntry: true, totalInvestedEth: 0 }).unknownBag,
       true,
     );
+    const staleStamp = classifyRecycleBag({
+      unknownEntry: true,
+      totalInvestedEth: 0.000271,
+      entryPrice: null,
+      hasUsdBasis: false,
+    });
+    assert.equal(staleStamp.unknownBag, false, "FIFO eth exists — never unknown");
+    assert.equal(staleStamp.fifoKnown, true);
+    assert.equal(
+      classifyRecycleBag({ unknownEntry: true, fifoLotKnown: true }).unknownBag,
+      false,
+    );
+    assert.ok(!/unknown cost basis/.test(recycleSellCopy({
+      recycleUnknown: true,
+      fifoKnown: true,
+    }).reason));
+    assert.match(recycleSellCopy({ recycleUnknown: true }).reason, /unknown cost basis/);
   });
 });
 
@@ -259,6 +277,8 @@ describe("inject-revenue: capital velocity snowball", () => {
   it("boosts velocity names on inject-all and sorts largest bags first", () => {
     assert.ok(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: true }) >
       injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
+    assert.ok(injectVelocityScoreBoost({ symbol: "CLANKER", injectAll: true }) >
+      injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
     assert.equal(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: false, liquidStarved: false }), 0);
     const sorted = sortRecycleCandidatesByUsd([
       { posUsd: 1.98, symbol: "MORPHO" },
@@ -288,6 +308,7 @@ describe("inject-revenue: wired into agent.js", () => {
     assert.ok(src.includes("shouldRecycleUnknownDust"));
     assert.ok(src.includes("unknownEntry") && src.includes("MOONSHOT"));
     assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
+    assert.ok(src.includes("recycleSellCopy"), "never label unknown when FIFO lots exist");
   });
 
   it("wires inject fuel recycle + piggy-aligned sell gate", () => {

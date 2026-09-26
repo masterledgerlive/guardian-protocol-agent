@@ -20,6 +20,7 @@ import {
   formatEthAmt,
   TURN_RECALL_FILENAME,
 } from "./telegram-turn-card.js";
+import { formatRaceEurekaLeadHtml, raceEurekaUtf8 } from "./race-eureka.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -294,14 +295,15 @@ function formatSideBlock(side) {
   return lines;
 }
 
-/** Telegram HTML — header + [V3]/[V4] halves + winner. No invented P&L. */
-export function formatRaceScoreboardHtml({ v3, v4 } = {}) {
+/** Telegram HTML — full Eureka love note first, then [V3]/[V4] + winner. */
+export function formatRaceScoreboardHtml({ v3, v4, includeEureka = true } = {}) {
   const left = v3 && typeof v3 === "object" ? v3 : summarizeRaceSide({ tag: "[V3]", available: false });
   const right = v4 && typeof v4 === "object" ? v4 : summarizeRaceSide({ tag: "[V4]", available: false });
   const win = pickRaceWinner(left, right);
+  const lead = includeEureka !== false ? formatRaceEurekaLeadHtml(raceEurekaUtf8()) : "";
   return [
     `🏁 <b>${RACE_HEADER}</b>`,
-    `━━━━━━━━━━━━━━━━━━━━`,
+    ...(lead ? [lead, `━━━━━━━━━━━━━━━━━━━━`] : []),
     ...formatSideBlock(left),
     `━━━━━━━━━━━━━━━━━━━━`,
     ...formatSideBlock(right),

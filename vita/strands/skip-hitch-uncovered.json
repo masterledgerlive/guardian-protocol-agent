@@ -1,0 +1,9 @@
+{
+  "strandId": "skip-hitch-uncovered",
+  "sparse": true,
+  "source": "vita/skip-hitch-learn",
+  "learn": "SKIP_HITCH leftover too thin → bank hitch + learn shard. Never unpaired burn. Hitch when leftover covers KEY+LOC unchanged. Mother brain untouched. VITAFEED_PAID off.",
+  "formula": "original-message-first",
+  "telegram": [],
+  "caller": "bankSkipHitchLearnShard"
+}

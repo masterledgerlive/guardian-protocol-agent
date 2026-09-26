@@ -1,0 +1,53 @@
+{
+  "at": "2026-09-19T21:40:00.000Z",
+  "topic": "ref-lib-translator-codex",
+  "filingLabel": "TRANSLATOR_CODEX",
+  "trueName": "calculator",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "free": true,
+  "available": true,
+  "text": "Free translator codex packaged in the memory tree — multilingual aliases for calculator true name. Instantly available so blockchain-packaged memory already speaks calc/calculadora/calculatrice/taschenrechner/電卓/计算器/калькулятор/حاسبة/계산기/…. Part of building the reference library itself.",
+  "aliases": [
+    "calculator",
+    "calc",
+    "calculadora",
+    "calculatrice",
+    "taschenrechner",
+    "calcolatrice",
+    "rekenmachine",
+    "kalkulator",
+    "калькулятор",
+    "حاسبة",
+    "计算器",
+    "計算器",
+    "電卓",
+    "계산기",
+    "कैलकुलेटर",
+    "hesap makinesi",
+    "räknare",
+    "lommeregner"
+  ],
+  "entries": [
+    {
+      "id": "REF-TRANS-DISK",
+      "trueName": "calculator",
+      "label": "ask",
+      "title": "Translator codex disk seal",
+      "text": "Free available codex — read once, never forget.",
+      "locations": [
+        "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+        "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+      ],
+      "filingLabel": "TRANSLATOR_CODEX",
+      "kind": "translator-codex"
+    }
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}

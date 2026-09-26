@@ -1,0 +1,22 @@
+{
+  "at": "2026-09-21T02:40:00.000Z",
+  "topic": "agent-chat-v0",
+  "filingLabel": "AGENT_CHAT",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "text": "Agent-owned message chat channel v0. storage-token gets dedicated always-on path agent-chat:storage-token. Hex-only §KEY§…§LOC§ dual with public open key. Telegram /home → Agents → Chat. Proven locs land in x404 directory waiting for master-location tag. Bank hex when gas thin; hitch when leftover covers. VITAFEED_PAID stays gated. Mother brain wrap-only via feed-wrap.",
+  "commands": [
+    "/home agents",
+    "/agents chat",
+    "/agents dir",
+    "/agents dual",
+    "/agents proven",
+    "/agents path"
+  ],
+  "hypothesis": {
+    "id": "wrap-telegram-home-dual-vitadir",
+    "status": "operating",
+    "note": "Build on telegram-home + dual + vita-dir rather than a new Telegram stack."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-20T23:30:00.000Z",
+  "topic": "mirror-chain-github",
+  "filingLabel": "MIRROR_CHAIN",
+  "text": "GitHub Contents is the availability ledger (repo=chain, branch=lane, blob SHA=object, tree=Merkle dir, Actions=plugins). CODE lane = main + Railway disk. STATE lane = bot-state (vita-registry.json, ledger). Base leftover hitch + /prove is settlement — never invent tx hashes. Telegram /vita read failed because githubGet always hit bot-state and JSON.parsed .js files. Fix: local disk first, then CODE, then STATE, UTF-8 decode, SNARK-short unwrap with Railway-style session keys (permanent / ttl / destroy-on-unwrap). IDM chat = Basescan Input Data → UTF-8 of batched sealed locs. Anthropic not required to open a file.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+    "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+    "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+  ],
+  "hypothesis": {
+    "id": "github-mirror-as-chain",
+    "status": "operating",
+    "note": "Click-through Telegram + HTML /vita/read works out of the box from Railway checkout. State files still need bot-state Contents API. Session keys are open-source content commitments, not wallet secrets."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

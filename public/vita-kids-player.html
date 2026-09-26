@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>KIDS — VITA closed-garden player</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="/vita/players/chain-box.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1b2a4a;
+      --sky: #7ec8e3;
+      --sun: #ffd166;
+      --leaf: #2a9d8f;
+      --paper: #fff8ef;
+      --coral: #e07a5f;
+      --display: "Nunito", sans-serif;
+      --mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      color: var(--ink);
+      font-family: var(--mono);
+      background:
+        radial-gradient(900px 420px at 90% -10%, rgba(255, 209, 102, .45), transparent 55%),
+        radial-gradient(700px 380px at 0% 0%, rgba(126, 200, 227, .4), transparent 50%),
+        linear-gradient(165deg, #fff8ef 0%, #e8f6fb 55%, #d9efe8 100%);
+      overscroll-behavior: none;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1rem 1rem 2rem;
+    }
+    h1 {
+      font-family: var(--display);
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      margin: 0 0 .25rem;
+      letter-spacing: -.03em;
+    }
+    .lede {
+      margin: 0 0 1rem;
+      color: #3d5566;
+      font-size: .85rem;
+      max-width: 42rem;
+    }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: minmax(0, 1.45fr) minmax(240px, .8fr); }
+    }
+    .screen {
+      background: #0b1220;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 3px solid var(--ink);
+      min-height: 220px;
+      position: relative;
+      touch-action: manipulation;
+    }
+    .screen iframe, .screen .yt {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 0;
+      display: block;
+      background: #000;
+      pointer-events: none;
+    }
+    /* When unlocked, allow YT chrome; when locked, shield blocks taps into YouTube */
+    html:not(.kids-locked) .screen iframe,
+    html:not(.kids-locked) .screen .yt {
+      pointer-events: auto;
+    }
+    .yt-shield {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      background: transparent;
+      touch-action: none;
+      cursor: default;
+    }
+    html.kids-locked .yt-shield { display: block; }
+    .endcard {
+      position: absolute;
+      inset: 0;
+      display: none;
+      place-items: center;
+      text-align: center;
+      color: #fff;
+      background: rgba(11, 18, 32, .92);
+      padding: 1.5rem;
+      font-family: var(--display);
+      z-index: 3;
+    }
+    .endcard.show { display: grid; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      margin: .75rem 0 0;
+    }
+    button {
+      font-family: var(--display);
+      font-weight: 800;
+      border: 2px solid var(--ink);
+      background: var(--sun);
+      color: var(--ink);
+      padding: .45rem .8rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    button.ghost { background: transparent; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .now {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin: .6rem 0 .2rem;
+    }
+    .count { color: #3d5566; font-size: .78rem; }
+    .list {
+      background: rgba(255,255,255,.72);
+      border: 2px solid rgba(27,42,74,.16);
+      border-radius: 16px;
+      max-height: min(70vh, 640px);
+      overflow: auto;
+      padding: .4rem;
+      -webkit-overflow-scrolling: touch;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 2.2rem 1fr;
+      gap: .4rem;
+      padding: .45rem .5rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: .78rem;
+      line-height: 1.25;
+    }
+    .row:hover { background: rgba(126, 200, 227, .28); }
+    .row.on { background: var(--leaf); color: #fff; }
+    .row span.n { font-family: var(--display); font-weight: 800; }
+    .pill {
+      display: inline-block;
+      background: var(--leaf);
+      color: #fff;
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: .72rem;
+      padding: .2rem .55rem;
+      border-radius: 999px;
+      margin-bottom: .55rem;
+    }
+    a { color: #1a6b8a; }
+    .chrome {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem;
+      align-items: center;
+      margin: 0 0 .75rem;
+    }
+    .chrome label {
+      display: flex;
+      gap: .35rem;
+      align-items: center;
+      font-size: .75rem;
+      color: #3d5566;
+    }
+    .chrome select {
+      font-family: var(--mono);
+      font-size: .75rem;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      padding: .3rem .6rem;
+      background: #fff;
+      max-width: min(100%, 280px);
+    }
+    html.tg-popup, html.tg-popup body {
+      min-height: var(--tg-viewport-stable-height, 100%);
+      background: #fff8ef;
+    }
+    html.tg-popup .lede,
+    html.tg-popup .pill { display: none; }
+    html.tg-popup .wrap { padding: .45rem .55rem .8rem; max-width: none; }
+    html.tg-popup h1 { font-size: 1.15rem; margin: 0 0 .35rem; }
+    html.tg-popup .grid { grid-template-columns: 1fr; gap: .55rem; }
+    html.tg-popup .list { max-height: 22vh; }
+    html.tg-popup .screen iframe,
+    html.tg-popup .screen .yt { max-height: 42vh; aspect-ratio: 16 / 9; }
+    html.tg-popup .now { font-size: .92rem; }
+    .proof { font-size: .72rem; color: #3d5566; margin: 0 0 .55rem; max-width: 42rem; }
+    .proof a { color: #1a6b8a; }
+    #chainMount { display: inline-flex; margin: 0 0 .55rem; pointer-events: auto !important; z-index: 40; position: relative; }
+    .vita-chain-box {
+      display: inline-flex; align-items: center; gap: .45rem;
+      position: relative; z-index: 40; pointer-events: auto !important; cursor: pointer;
+      text-decoration: none; color: inherit; border: 2px solid currentColor; background: #fff;
+      padding: .38rem .7rem; font-family: var(--mono); font-size: .72rem; line-height: 1.2;
+    }
+    .vita-chain-box:hover, .vita-chain-box:focus { outline: 2px solid var(--leaf); outline-offset: 2px; }
+    .vita-chain-box .cb-name { font-weight: 800; }
+    .vita-chain-box .cb-id i { font-style: normal; opacity: .7; }
+    .vita-chain-box .cb-kind { font-size: .62rem; padding: .1rem .35rem; background: #1a6b8a; color: #fff; font-weight: 700; }
+    html.kids-locked .vita-chain-box { display: none !important; }
+    html.tg-popup .proof { font-size: .65rem; }
+
+    /* Kids lock — out-of-the-way control + trap chrome */
+    .lock-fab {
+      position: fixed;
+      right: .55rem;
+      bottom: .55rem;
+      z-index: 40;
+      width: 2.1rem;
+      height: 2.1rem;
+      padding: 0;
+      border-radius: 50%;
+      font-size: .85rem;
+      line-height: 1;
+      opacity: .42;
+      background: rgba(255,248,239,.85);
+      border: 1.5px solid rgba(27,42,74,.35);
+      box-shadow: none;
+    }
+    .lock-fab:hover, .lock-fab:focus { opacity: 1; }
+    html.kids-locked .lock-fab {
+      opacity: .55;
+      background: var(--leaf);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    html.kids-locked .lock-hide,
+    html.kids-locked .chrome,
+    html.kids-locked .proof,
+    html.kids-locked .lede,
+    html.kids-locked .pill,
+    html.kids-locked #btnReplay,
+    html.kids-locked #btnPopout {
+      display: none !important;
+    }
+    html.kids-locked body {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html.kids-locked .wrap {
+      height: 100%;
+      overflow: hidden;
+      padding-bottom: 3rem;
+    }
+    html.kids-locked .list {
+      max-height: min(28vh, 220px);
+      touch-action: pan-y;
+    }
+    html.kids-locked .controls,
+    html.kids-locked .list,
+    html.kids-locked .lock-fab {
+      touch-action: manipulation;
+      pointer-events: auto;
+    }
+    .lock-banner {
+      display: none;
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: .78rem;
+      background: var(--leaf);
+      color: #fff;
+      padding: .35rem .65rem;
+      border-radius: 999px;
+      margin: 0 0 .55rem;
+      width: fit-content;
+    }
+    html.kids-locked .lock-banner { display: inline-block; }
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(11, 18, 32, .55);
+      place-items: center;
+      padding: 1rem;
+    }
+    .modal-backdrop.show { display: grid; }
+    .modal {
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      border-radius: 18px;
+      padding: 1.1rem 1.2rem;
+      max-width: 320px;
+      width: 100%;
+      font-family: var(--display);
+    }
+    .modal h2 {
+      margin: 0 0 .35rem;
+      font-size: 1.25rem;
+    }
+    .modal p {
+      margin: 0 0 .7rem;
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: #3d5566;
+    }
+    .modal input {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      letter-spacing: .35em;
+      text-align: center;
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      padding: .45rem;
+      margin-bottom: .65rem;
+    }
+    .modal .err {
+      color: var(--coral);
+      font-size: .72rem;
+      min-height: 1rem;
+      margin: 0 0 .4rem;
+      font-family: var(--mono);
+    }
+    .modal .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="pill lock-hide">closed garden · KIDS directory only</span>
+    <h1>KIDS player</h1>
+    <div id="chainMount" data-player="garden" aria-label="Chain box — click through to Base">
+      <a class="vita-chain-box class-proof" id="vitaChainBox"
+         href="https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         target="_blank" rel="noopener"
+         data-player="garden" data-kind="class-proof"
+         data-loc="0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db"
+         title="Click opens a real Base loc (class proof of Garden Player). Song/video body seals replace this when present.">
+        <span class="cb-name">Garden Player</span>
+        <span class="cb-id" aria-label="block identity"><b>931d</b><i>·</i><b>145b</b><i>·</i><b>19db</b></span>
+        <span class="cb-kind">CLASS PROOF</span>
+      </a>
+    </div>
+    <p class="lede lock-hide">
+      Only the URLs in our KIDS directory play here. No YouTube search, no other
+      channels, no recommended videos. Next and previous stay inside this list.
+      Use the small lock (bottom-right) so kids only get play / pause / next / back + list picks.
+    </p>
+    <div class="lock-banner" id="lockBanner" aria-live="polite">🔒 Kids lock on · play · pause · next · back · list only</div>
+    <div class="proof lock-hide" id="chainProof">Checking Input Data loc proofs…</div>
+    <div class="chrome lock-hide">
+      <label>Playlist
+        <select id="playlistPick" aria-label="System playlists"></select>
+      </label>
+      <button type="button" id="btnPopout" class="ghost">Pop out</button>
+      <button type="button" id="btnSetPin" class="ghost">Set kids PIN</button>
+    </div>
+    <div class="grid">
+      <div>
+        <div class="screen" id="screen">
+          <div id="player" class="yt"></div>
+          <div class="yt-shield" id="ytShield" title="Kids lock — use buttons below" aria-hidden="true"></div>
+          <div class="endcard" id="endCard">
+            <div>
+              <div>End of KIDS list</div>
+              <p style="opacity:.8;font-family:var(--mono);font-size:.8rem">Replay from the start, or pick a title on the right.</p>
+            </div>
+          </div>
+        </div>
+        <div class="now" id="nowTitle">Loading KIDS directory…</div>
+        <div class="count" id="nowCount"></div>
+        <div class="controls">
+          <button type="button" id="btnPrev">◀ Prev</button>
+          <button type="button" id="btnPlay">Play</button>
+          <button type="button" id="btnPause">Pause</button>
+          <button type="button" id="btnNext">Next ▶</button>
+          <button type="button" id="btnReplay" class="ghost lock-hide">Replay list</button>
+        </div>
+      </div>
+      <aside>
+        <div class="list" id="list" aria-label="KIDS playlist"></div>
+      </aside>
+    </div>
+  </div>
+
+  <button type="button" class="lock-fab" id="lockFab" title="Kids lock" aria-label="Kids lock">🔒</button>
+
+  <div class="modal-backdrop" id="pinModal" role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+    <div class="modal">
+      <h2 id="pinTitle">Kids PIN</h2>
+      <p id="pinHint">Enter 4 digits (default 0000).</p>
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="4" autocomplete="off" pattern="[0-9]*" />
+      <input id="pinConfirm" type="password" inputmode="numeric" maxlength="4" autocomplete="off" pattern="[0-9]*" hidden />
+      <div class="err" id="pinErr"></div>
+      <div class="cta">
+        <button type="button" id="pinOk">OK</button>
+        <button type="button" id="pinCancel" class="ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const q = new URLSearchParams(location.search);
+    const dirId = (q.get("dir") || q.get("playlist") || "kids").toLowerCase();
+    const startN = Math.max(1, Number(q.get("i") || q.get("n") || 1) || 1);
+
+    // Music library lives on the feed-player (loc proof + kids proof toggle).
+    if (q.get("music") || q.get("song")) {
+      const extra = [];
+      extra.push("kids=1");
+      if (q.get("popup") === "1") extra.push("popup=1");
+      const id = q.get("music") || "maple";
+      location.replace("/vita/feed-player?music=" + encodeURIComponent(id) + "&" + extra.join("&"));
+    }
+    const PIN_KEY = "vitaKidsPin";
+    const LOCK_KEY = "vitaKidsLocked";
+    const DEFAULT_PIN = "0000";
+
+    let items = [];
+    let index = 0;
+    let ytPlayer = null;
+    let apiReady = false;
+    let pendingPlay = false;
+    let kidsLocked = false;
+    let pinMode = "unlock"; // unlock | lock | set | confirm-set
+    let pendingNewPin = "";
+
+    const el = (id) => document.getElementById(id);
+
+    function getPin() {
+      try {
+        const p = localStorage.getItem(PIN_KEY);
+        if (p && /^\d{4}$/.test(p)) return p;
+      } catch (_) {}
+      return DEFAULT_PIN;
+    }
+
+    function setPin(pin) {
+      try { localStorage.setItem(PIN_KEY, pin); } catch (_) {}
+    }
+
+    function readLockedPref() {
+      try { return localStorage.getItem(LOCK_KEY) === "1"; } catch (_) { return false; }
+    }
+
+    function writeLockedPref(on) {
+      try { localStorage.setItem(LOCK_KEY, on ? "1" : "0"); } catch (_) {}
+    }
+
+    function openPinModal(mode) {
+      pinMode = mode;
+      const title = el("pinTitle");
+      const hint = el("pinHint");
+      const conf = el("pinConfirm");
+      const inp = el("pinInput");
+      const err = el("pinErr");
+      err.textContent = "";
+      inp.value = "";
+      conf.value = "";
+      if (mode === "set") {
+        title.textContent = "Set kids PIN";
+        hint.textContent = "Choose a 4-digit code (or leave 0000). Confirm on next step.";
+        conf.hidden = true;
+      } else if (mode === "confirm-set") {
+        title.textContent = "Confirm PIN";
+        hint.textContent = "Enter the same 4 digits again.";
+        conf.hidden = true;
+      } else if (mode === "lock") {
+        title.textContent = "Lock for kids";
+        hint.textContent = "Enter PIN to lock (default 0000). Only play / pause / next / back + list stay active.";
+        conf.hidden = true;
+      } else {
+        title.textContent = "Unlock";
+        hint.textContent = "Enter PIN to unlock (default 0000).";
+        conf.hidden = true;
+      }
+      el("pinModal").classList.add("show");
+      setTimeout(() => inp.focus(), 50);
+    }
+
+    function closePinModal() {
+      el("pinModal").classList.remove("show");
+      el("pinInput").value = "";
+      el("pinConfirm").value = "";
+      el("pinErr").textContent = "";
+    }
+
+    function applyLockUi(on) {
+      kidsLocked = !!on;
+      document.documentElement.classList.toggle("kids-locked", kidsLocked);
+      el("lockFab").textContent = kidsLocked ? "🔓" : "🔒";
+      el("lockFab").title = kidsLocked ? "Unlock kids lock" : "Lock for kids";
+      el("lockFab").setAttribute("aria-label", kidsLocked ? "Unlock" : "Lock for kids");
+      writeLockedPref(kidsLocked);
+      // Remount player with locked YT vars (no FS / keyboard / chrome when locked)
+      if (ytPlayer && items.length) {
+        try {
+          if (typeof ytPlayer.destroy === "function") ytPlayer.destroy();
+        } catch (_) {}
+        ytPlayer = null;
+        const host = el("player");
+        if (host) {
+          host.outerHTML = '<div id="player" class="yt"></div>';
+        }
+        pendingPlay = true;
+        mountPlayer();
+      }
+      if (kidsLocked) trapNavigation(true);
+      else trapNavigation(false);
+    }
+
+    let trapInstalled = false;
+    function trapNavigation(on) {
+      if (on && !trapInstalled) {
+        history.pushState({ kidsLock: 1 }, "", location.href);
+        window.addEventListener("popstate", onPopTrap);
+        document.addEventListener("touchmove", onTouchBlock, { passive: false });
+        document.addEventListener("gesturestart", onGestureBlock, { passive: false });
+        trapInstalled = true;
+      } else if (!on && trapInstalled) {
+        window.removeEventListener("popstate", onPopTrap);
+        document.removeEventListener("touchmove", onTouchBlock);
+        document.removeEventListener("gesturestart", onGestureBlock);
+        trapInstalled = false;
+      }
+    }
+
+    function onPopTrap(e) {
+      if (!kidsLocked) return;
+      history.pushState({ kidsLock: 1 }, "", location.href);
+    }
+
+    function onTouchBlock(e) {
+      if (!kidsLocked) return;
+      const t = e.target;
+      if (t && (t.closest(".controls") || t.closest(".list") || t.closest(".lock-fab") || t.closest(".modal-backdrop"))) {
+        return;
+      }
+      e.preventDefault();
+    }
+
+    function onGestureBlock(e) {
+      if (kidsLocked) e.preventDefault();
+    }
+
+    function bootTelegramPopup() {
+      const popup = q.get("popup") === "1" || q.get("popout") === "1";
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) {
+        try { tg.ready(); } catch (_) {}
+        document.documentElement.classList.add("tg-popup");
+      }
+      if (popup) document.documentElement.classList.add("tg-popup");
+      const btn = el("btnPopout");
+      if (btn) {
+        if (q.get("popout") === "1") btn.style.display = "none";
+        btn.addEventListener("click", () => {
+          if (kidsLocked) return;
+          const u = new URL(location.href);
+          u.searchParams.set("popup", "1");
+          u.searchParams.set("popout", "1");
+          const w = 480, h = 380;
+          const left = Math.max(0, (screen.availWidth || 900) - w - 16);
+          window.open(
+            u.toString(),
+            "vita-player",
+            "popup=yes,width=" + w + ",height=" + h + ",left=" + left + ",top=24,resizable=yes,scrollbars=yes",
+          );
+        });
+      }
+    }
+
+    async function fillPlaylists() {
+      const sel = el("playlistPick");
+      if (!sel) return;
+      const opts = [];
+      try {
+        const cat = await fetch("/vita/free-music").then((r) => r.json());
+        for (const p of cat.playlists || []) {
+          opts.push({
+            id: p.id,
+            title: p.title || p.id,
+            href: "/vita/feed-player?music=" + encodeURIComponent(p.id) + "&kids=1&popup=1",
+          });
+        }
+      } catch (_) {
+        opts.push(
+          { id: "judy", title: "I'm Always Chasing Rainbows (Judy lane)", href: "/vita/feed-player?music=judy&kids=1&popup=1" },
+          { id: "maple", title: "Maple Leaf Rag (Scott Joplin)", href: "/vita/feed-player?music=maple&kids=1&popup=1" },
+        );
+      }
+      opts.push({ id: "demo", title: "Demo beep (WAV)", href: "/vita/feed-player?demo=1&popup=1" });
+      try {
+        const data = await fetch("/vita/url-dir").then((r) => r.json());
+        const lists = data.playlists || data.dirs || (data.dir ? [data.dir] : []);
+        for (const d of lists) {
+          if (!d || opts.some((o) => o.id === d.id)) continue;
+          opts.push({
+            id: String(d.id),
+            title: (d.title || d.label || d.id) + (d.count ? " (" + d.count + ")" : ""),
+            href: d.player || ("/vita/kids-player?dir=" + encodeURIComponent(d.id)),
+          });
+        }
+      } catch (_) {}
+      try {
+        const lib = await fetch("/vita/feed-library").then((r) => r.json());
+        for (const e of lib.entries || []) {
+          opts.push({
+            id: "lib-" + e.n,
+            title: "LIB #" + e.n + " " + (e.name || ""),
+            href: "/vita/feed-player?lib=" + encodeURIComponent(String(e.n)),
+          });
+        }
+      } catch (_) {}
+      const current = dirId || "kids";
+      sel.innerHTML = opts.map((o) => {
+        const href = String(o.href || "").replace(/'/g, "");
+        const selected = o.id === current ? " selected" : "";
+        return "<option value='" + href + "'" + selected + ">" + String(o.title).replace(/</g, "") + "</option>";
+      }).join("");
+      sel.addEventListener("change", () => {
+        if (kidsLocked) return;
+        const href = sel.value;
+        if (!href) return;
+        const u = new URL(href, location.origin);
+        if (document.documentElement.classList.contains("tg-popup")) u.searchParams.set("popup", "1");
+        location.href = u.pathname + u.search;
+      });
+    }
+
+    bootTelegramPopup();
+    fillPlaylists();
+    if (window.VitaChainBox) window.VitaChainBox.mount("#chainMount", { player: "garden" });
+    (async function chainProof() {
+      const box = el("chainProof");
+      if (!box) return;
+      try {
+        const data = await fetch("/vita/chain-dir").then((r) => r.json());
+        const k = data.kids || {};
+        if (k.proven) {
+          const links = (k.proofs || []).slice(0, 4).map((p) =>
+            "<a class='loc-link' href='" + p.basescan + "' target='_blank' rel='noopener'>" + p.lane + " Input Data</a>"
+          ).join(" · ");
+          box.innerHTML = "PROVEN on-chain @" + (k.completedAt || "") + " — " + links;
+          if (window.VitaChainBox) window.VitaChainBox.bindAll(box);
+        } else {
+          box.innerHTML = (k.note || "availability (local catalog) — not in Input Data yet.") +
+            " <a class='loc-link' href='/vita/chain-dir.html'>chain directory</a>";
+        }
+      } catch (_) {
+        box.textContent = "availability — chain directory unreachable";
+      }
+    })();
+
+    function clip(s, n) {
+      const t = String(s || "");
+      return t.length <= n ? t : t.slice(0, n - 1) + "…";
+    }
+
+    function renderList() {
+      const box = el("list");
+      box.innerHTML = items.map((it, i) =>
+        "<div class='row" + (i === index ? " on" : "") + "' data-i='" + i + "'>" +
+        "<span class='n'>" + String(it.n).padStart(2, "0") + "</span>" +
+        "<span>" + clip(it.title, 72) + "</span></div>"
+      ).join("");
+      box.querySelectorAll(".row").forEach((row) => {
+        row.addEventListener("click", () => playAt(Number(row.dataset.i), true));
+      });
+    }
+
+    function setNow() {
+      const it = items[index];
+      if (!it) return;
+      el("nowTitle").textContent = it.title;
+      el("nowCount").textContent = "#" + it.n + " / " + items.length + " · closed garden" +
+        (kidsLocked ? " · locked" : "");
+      el("endCard").classList.remove("show");
+      renderList();
+      const row = el("list").querySelector(".row.on");
+      if (row) row.scrollIntoView({ block: "nearest" });
+    }
+
+    function playAt(i, autoplay) {
+      if (!items.length) return;
+      index = Math.max(0, Math.min(items.length - 1, i));
+      setNow();
+      const it = items[index];
+      const start = autoplay !== false;
+      if (ytPlayer && typeof ytPlayer.loadVideoById === "function") {
+        if (start) ytPlayer.loadVideoById({ videoId: it.videoId });
+        else ytPlayer.cueVideoById({ videoId: it.videoId });
+        return;
+      }
+      pendingPlay = start;
+      if (apiReady) mountPlayer();
+    }
+
+    function next() { playAt(index + 1, true); }
+    function prev() { playAt(index - 1, true); }
+
+    function togglePlayPause() {
+      if (!ytPlayer) {
+        playAt(index, true);
+        return;
+      }
+      try {
+        const st = ytPlayer.getPlayerState && ytPlayer.getPlayerState();
+        if (st === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+        else ytPlayer.playVideo();
+      } catch (_) {
+        playAt(index, true);
+      }
+    }
+
+    function onEnded() {
+      if (index + 1 < items.length) {
+        playAt(index + 1, true);
+        return;
+      }
+      el("endCard").classList.add("show");
+      if (ytPlayer && typeof ytPlayer.stopVideo === "function") ytPlayer.stopVideo();
+    }
+
+    function mountPlayer() {
+      if (!items.length || !window.YT || !window.YT.Player) return;
+      const it = items[index];
+      if (ytPlayer) {
+        playAt(index, pendingPlay);
+        return;
+      }
+      const locked = kidsLocked;
+      ytPlayer = new YT.Player("player", {
+        host: "https://www.youtube-nocookie.com",
+        videoId: it.videoId,
+        playerVars: {
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          iv_load_policy: 3,
+          fs: locked ? 0 : 1,
+          controls: locked ? 0 : 1,
+          disablekb: locked ? 1 : 0,
+          autoplay: pendingPlay ? 1 : 0,
+          origin: location.origin,
+        },
+        events: {
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.ENDED) onEnded();
+          },
+        },
+      });
+    }
+
+    window.onYouTubeIframeAPIReady = function () {
+      apiReady = true;
+      if (items.length) mountPlayer();
+    };
+
+    el("btnNext").addEventListener("click", next);
+    el("btnPrev").addEventListener("click", prev);
+    el("btnPlay").addEventListener("click", () => {
+      if (ytPlayer && typeof ytPlayer.playVideo === "function") {
+        try { ytPlayer.playVideo(); return; } catch (_) {}
+      }
+      playAt(index, true);
+    });
+    el("btnPause").addEventListener("click", () => {
+      if (ytPlayer && typeof ytPlayer.pauseVideo === "function") {
+        try { ytPlayer.pauseVideo(); } catch (_) {}
+      }
+    });
+    el("btnReplay").addEventListener("click", () => {
+      if (kidsLocked) return;
+      playAt(0, true);
+    });
+
+    el("lockFab").addEventListener("click", () => {
+      if (kidsLocked) openPinModal("unlock");
+      else openPinModal("lock");
+    });
+    el("btnSetPin").addEventListener("click", () => {
+      if (kidsLocked) return;
+      openPinModal("set");
+    });
+    el("pinCancel").addEventListener("click", closePinModal);
+    el("pinOk").addEventListener("click", () => {
+      const v = String(el("pinInput").value || "").replace(/\D/g, "").slice(0, 4);
+      const err = el("pinErr");
+      if (v.length !== 4) {
+        err.textContent = "Need exactly 4 digits.";
+        return;
+      }
+      if (pinMode === "set") {
+        pendingNewPin = v;
+        closePinModal();
+        openPinModal("confirm-set");
+        return;
+      }
+      if (pinMode === "confirm-set") {
+        if (v !== pendingNewPin) {
+          err.textContent = "Pins do not match.";
+          return;
+        }
+        setPin(v);
+        pendingNewPin = "";
+        closePinModal();
+        return;
+      }
+      if (v !== getPin()) {
+        err.textContent = "Wrong PIN.";
+        return;
+      }
+      if (pinMode === "lock") {
+        closePinModal();
+        applyLockUi(true);
+      } else {
+        closePinModal();
+        applyLockUi(false);
+      }
+    });
+    el("pinInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") el("pinOk").click();
+    });
+    // Block accidental YouTube link taps when locked
+    el("ytShield").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      togglePlayPause();
+    });
+
+    (async function boot() {
+      if (readLockedPref() || q.get("lock") === "1") {
+        applyLockUi(true);
+      }
+      const res = await fetch("/vita/url-dir/" + encodeURIComponent(dirId));
+      const data = await res.json();
+      if (!data?.ok || !data.dir?.items?.length) {
+        el("nowTitle").textContent = "Could not load KIDS directory";
+        el("nowCount").textContent = data?.error || res.status;
+        return;
+      }
+      items = data.dir.items;
+      index = Math.max(0, items.findIndex((it) => it.n === startN));
+      if (index < 0) index = 0;
+      pendingPlay = true;
+      setNow();
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+      if (window.YT && window.YT.Player) {
+        apiReady = true;
+        mountPlayer();
+      }
+    })().catch((e) => {
+      el("nowTitle").textContent = "Load failed";
+      el("nowCount").textContent = String(e?.message || e);
+    });
+  </script>
+</body>
+</html>

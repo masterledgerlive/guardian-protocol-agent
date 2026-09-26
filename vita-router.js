@@ -44,6 +44,12 @@ import {
   squashLocations,
 } from "./vita-locations.js";
 import { leftoverStillEureka } from "./vita-course.js";
+import {
+  buildFinetuneInjectContext,
+  finetuneLearnSnippet,
+  serializeFinetuneState,
+  restoreFinetuneState,
+} from "./finetune-memory.js";
 
 export const HITCH_MODES = Object.freeze(["eureka", "vita", "hat", "auto"]);
 
@@ -191,6 +197,7 @@ export function serializeVitaRouterState() {
     hitchModeOverride,
     leftoverReadyHitch,
     locations: serializeLocationDepository(),
+    finetune: serializeFinetuneState(),
     savedAt: new Date().toISOString(),
   };
 }
@@ -206,6 +213,7 @@ export function restoreVitaRouterState(data) {
   }
   if (typeof data.leftoverReadyHitch === "string") leftoverReadyHitch = data.leftoverReadyHitch;
   if (data.locations) setLocationDepository(data.locations);
+  if (data.finetune) restoreFinetuneState(data.finetune);
   if (!lastVitaPacket || vitaQuality(lastVitaPacket).lossy) {
     reconstructVitaMemoryFromLocations();
   }
@@ -275,17 +283,24 @@ export function stampLocIntoPacket() {
 }
 
 /**
- * Session-start inject: the last recursive packet + squashed locations.
+ * Session-start inject: the last recursive packet + squashed locations +
+ * FINETUNE hypothesis graph (sixth lobe — antpalkin fine-tune / FOMO brain).
  * This is what new VITA sessions paste — not the Eureka prose letter.
  */
 export function buildVitaInjectContext() {
   if (!lastVitaPacket || vitaQuality(lastVitaPacket).lossy) {
     reconstructVitaMemoryFromLocations();
   }
+  const learnBit = finetuneLearnSnippet({ maxChars: 160 });
+  if (learnBit) {
+    const refined = refineVitaPacket(ensureGenesisMemory(), { LEARN: learnBit });
+    lastVitaPacket = refined.packed;
+  }
   const packet = ensureGenesisMemory();
   const parsed = parseVitaPacket(packet);
   const loc = locDepositoryStatus();
   const quality = vitaQuality(packet);
+  const finetune = buildFinetuneInjectContext({ limit: 8 });
   const context = [
     "═══ VITA INJECT — recursive §TOKEN§ memory (paste at session start) ═══",
     "Generated: " + new Date().toISOString(),
@@ -294,6 +309,8 @@ export function buildVitaInjectContext() {
     "Quality: " + quality.score + " chars=" + quality.chars + " KEY=" + (quality.hasKey ? "yes" : "LOSS"),
     "",
     packet,
+    "",
+    finetune.context,
     "═══════════════════════════════════════════════════════════════════",
   ].join("\n");
   return {
@@ -302,6 +319,7 @@ export function buildVitaInjectContext() {
     fields: parsed.fields,
     loc,
     quality,
+    finetune,
     context,
   };
 }

@@ -1,0 +1,49 @@
+{
+  "id": "x404-dir-ledger-v1",
+  "filingLabel": "X404_DIR",
+  "events": [
+    {
+      "at": "2026-09-21T02:48:25.947Z",
+      "topic": "attach-proven-loc",
+      "plotId": "storage-token:telegram-agents-chat",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "status": "waiting-master-tag",
+      "masterLocationTag": null,
+      "locations": [
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:49:26.790Z",
+      "topic": "attach-proven-loc",
+      "plotId": "storage-token:telegram-agents-chat",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "status": "waiting-master-tag",
+      "masterLocationTag": null,
+      "locations": [
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-21T02:50:47.612Z",
+      "topic": "attach-proven-loc",
+      "plotId": "storage-token:telegram-agents-chat",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "status": "waiting-master-tag",
+      "masterLocationTag": null,
+      "locations": [
+        "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73"
+      ],
+      "formula": "original-message-first",
+      "neverForget": true,
+      "neverInventHashes": true
+    }
+  ],
+  "updatedAt": "2026-09-21T02:50:47.612Z"
+}

@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-17T23:30:00.000Z",
+  "topic": "wave-3-token-proof-desk-http",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. Desk cannot fire Telegram (no plaintext bot token; vault never). GET /vita/waveproof stayed SIM-only even when WAVE_PROOF_LIVE=yes. Ship desk HTTP live: POST /vita/waveproof and GET ?live=1 require VITA_WEBHOOK_SECRET (x-vita-secret or x-vita-webhook-secret). Same capped 3 gas-only self-txs as Telegram /waveproof. WAVE_PROOF_AUTOFIRE=yes one-shot on boot then disable. Max 3 sends. Liquid floor $1. SYM VIRTUAL/CLANKER/AERO. Never invent hashes. Public GET stays SIM. Unauthed live is 401.",
+  "locations": [],
+  "hypothesis": {
+    "id": "wave-proof-desk-http-live",
+    "status": "operating-rule",
+    "discarded": [
+      "Telegram-only live fire",
+      "public unauth live spend",
+      "re-enable VITAFEED_PAID",
+      "invent tx hashes"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
