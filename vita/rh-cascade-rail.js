@@ -548,7 +548,7 @@ export function formatRhCascadeCard(plan) {
       `Wave seats ${plan.seatCount} · trail <code>${esc(plan.trail?.commit8 || "")}</code>`,
       "",
     ].filter(Boolean);
-    return `${head.join("\n")}${formatBaseCascadeProgramCard(plan.program)}`;
+    return `${head.join("\n")}\n${formatBaseCascadeProgramCard(plan.program)}`;
   }
   return formatBaseCascadeProgramCard(plan);
 }
