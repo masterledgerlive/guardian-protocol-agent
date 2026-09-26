@@ -1,0 +1,881 @@
+{
+  "id": "rh-cascade-rail-v1",
+  "filingLabel": "RH_CASCADE_RAIL",
+  "magic": "§CASCTRAIL§v1",
+  "entries": [
+    {
+      "at": "2026-09-26T04:15:00.000Z",
+      "line": "§CASCTRAIL§v1|utc=2026-09-26T04:15:00.000Z|local=2026-09-26T04:15:00.000+00:00|unix=1790396100|label=RH_CASCADE_RAIL|src=robinhood|rail=base|hubs=HOME,AERO|n=4|in=-|out=AERO@0.8965,VIRTUAL@0.7789,BRETT@0.005710|loc=-|next=END",
+      "commit8": "ee4b91f1",
+      "bytes": 227,
+      "txHash": "0xabababababababababababababababababababababababababababababababab",
+      "seats": [
+        {
+          "symbol": "AERO",
+          "price": 0.8965,
+          "rhPair": "AERO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.5194717136876859
+        },
+        {
+          "symbol": "BRETT",
+          "price": 0.00571,
+          "rhPair": "BRETT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3792128723635553
+        },
+        {
+          "symbol": "VIRTUAL",
+          "price": 0.7789,
+          "rhPair": "VIRTUAL-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3564910628348621
+        },
+        {
+          "symbol": "CLANKER",
+          "price": 13.55,
+          "rhPair": "CLANKER-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4173922390626701
+        }
+      ],
+      "outcomes": {
+        "enter": [],
+        "exit": [
+          {
+            "symbol": "AERO",
+            "price": 0.8965,
+            "rangePos": 0.5194717136876859,
+            "rhLeg": "rise",
+            "rhAmp": 0.01494396014943959,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.91443,
+            "aeroMain": true,
+            "home": false,
+            "action": "aero-cascade-out"
+          },
+          {
+            "symbol": "VIRTUAL",
+            "price": 0.7789,
+            "rangePos": 0.3564910628348621,
+            "rhLeg": "rise",
+            "rhAmp": 0.004125306175067799,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.794478,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "BRETT",
+            "price": 0.00571,
+            "rangePos": 0.3792128723635553,
+            "rhLeg": "rise",
+            "rhAmp": 0.005281690140845008,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.0058242,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "CLANKER",
+            "price": 13.55,
+            "rangePos": 0.4173922390626701,
+            "rhLeg": "rise",
+            "rhAmp": 0.007434944237918322,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 13.821000000000002,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          }
+        ],
+        "hold": [],
+        "readyCount": 4
+      },
+      "availability": "proven",
+      "proven": true
+    },
+    {
+      "at": "2026-09-26T04:18:50.184Z",
+      "line": "§CASCTRAIL§v1|utc=2026-09-26T04:18:50.174Z|local=2026-09-26T04:18:50.174+00:00|unix=1790396330|label=RH_CASCADE_RAIL|src=robinhood|rail=base|hubs=HOME,AERO|n=16|in=-|out=AERO@0.8965,AAVE@154.33,VVV@30.2123|loc=-|next=END",
+      "commit8": "31bc407f",
+      "bytes": 222,
+      "txHash": null,
+      "seats": [
+        {
+          "symbol": "ETH",
+          "price": 2688.831086555,
+          "rhPair": "ETH-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.2702497647388956
+        },
+        {
+          "symbol": "WETH",
+          "price": 2688.831086555,
+          "rhPair": "ETH-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.2702497647388956
+        },
+        {
+          "symbol": "LINK",
+          "price": 14.10023235,
+          "rhPair": "LINK-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3706707573107492
+        },
+        {
+          "symbol": "UNI",
+          "price": 9.6290183,
+          "rhPair": "UNI-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.42542783869211853
+        },
+        {
+          "symbol": "AAVE",
+          "price": 154.328953225,
+          "rhPair": "AAVE-USD",
+          "rhLeg": "crash",
+          "rangePos": 0.24371543983032523
+        },
+        {
+          "symbol": "AERO",
+          "price": 0.896519315,
+          "rhPair": "AERO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.5200906224749269
+        },
+        {
+          "symbol": "BRETT",
+          "price": 0.0057133424611424,
+          "rhPair": "BRETT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3803602810551624
+        },
+        {
+          "symbol": "VIRTUAL",
+          "price": 0.7789235,
+          "rhPair": "VIRTUAL-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3558411634436134
+        },
+        {
+          "symbol": "MORPHO",
+          "price": 2.71523417,
+          "rhPair": "MORPHO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.32557252488976834
+        },
+        {
+          "symbol": "ZORA",
+          "price": 0.00901629,
+          "rhPair": "ZORA-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4028299426510674
+        },
+        {
+          "symbol": "TOSHI",
+          "price": 0.0001297858858171,
+          "rhPair": "TOSHI-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3945527717673959
+        },
+        {
+          "symbol": "AIXBT",
+          "price": 0.0239774306014496,
+          "rhPair": "AIXBT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.43503019072272114
+        },
+        {
+          "symbol": "KEYCAT",
+          "price": 0.0007201388041789,
+          "rhPair": "KEYCAT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3170811500416676
+        },
+        {
+          "symbol": "CLANKER",
+          "price": 13.5515607766036,
+          "rhPair": "CLANKER-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4148054258020894
+        },
+        {
+          "symbol": "VVV",
+          "price": 30.21226584,
+          "rhPair": "VVV-USD",
+          "rhLeg": "crash",
+          "rangePos": 0.25878422239363136
+        },
+        {
+          "symbol": "DOGINME",
+          "price": 0.0000825632336257,
+          "rhPair": "DOGINME-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.39993938333655926
+        }
+      ],
+      "outcomes": {
+        "enter": [],
+        "exit": [
+          {
+            "symbol": "AERO",
+            "price": 0.896519315,
+            "rangePos": 0.5200906224749269,
+            "rhLeg": "rise",
+            "rhAmp": 0.014999645012513054,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.9144497013,
+            "aeroMain": true,
+            "home": false,
+            "action": "aero-cascade-out"
+          },
+          {
+            "symbol": "AAVE",
+            "price": 154.328953225,
+            "rangePos": 0.24371543983032523,
+            "rhLeg": "crash",
+            "rhAmp": 0.001685410555050599,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 157.68129,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "VVV",
+            "price": 30.21226584,
+            "rangePos": 0.25878422239363136,
+            "rhLeg": "crash",
+            "rhAmp": 0.000048588334234756343,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 30.8180085525,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "ETH",
+            "price": 2688.831086555,
+            "rangePos": 0.2702497647388956,
+            "rhLeg": "rise",
+            "rhAmp": 0.0004096715648521858,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 2742.6077082861,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "WETH",
+            "price": 2688.831086555,
+            "rangePos": 0.2702497647388956,
+            "rhLeg": "rise",
+            "rhAmp": 0.0004096715648521858,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 2742.6077082861,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "KEYCAT",
+            "price": 0.0007201388041789,
+            "rangePos": 0.3170811500416676,
+            "rhLeg": "rise",
+            "rhAmp": 0.002307483889378796,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.000734541580262478,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "MORPHO",
+            "price": 2.71523417,
+            "rangePos": 0.32557252488976834,
+            "rhLeg": "rise",
+            "rhAmp": 0.002680663595491171,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 2.7695388534,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "VIRTUAL",
+            "price": 0.7789235,
+            "rangePos": 0.3558411634436134,
+            "rhLeg": "rise",
+            "rhAmp": 0.004093468497501763,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.79450197,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "LINK",
+            "price": 14.10023235,
+            "rangePos": 0.3706707573107492,
+            "rhLeg": "rise",
+            "rhAmp": 0.004836844978321538,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 14.382236997000001,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "BRETT",
+            "price": 0.0057133424611424,
+            "rangePos": 0.3803602810551624,
+            "rhLeg": "rise",
+            "rhAmp": 0.005342408315422107,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.005827609310365248,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "TOSHI",
+            "price": 0.0001297858858171,
+            "rangePos": 0.3945527717673959,
+            "rhLeg": "rise",
+            "rhAmp": 0.006113107024934131,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.000132381603533442,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "DOGINME",
+            "price": 0.0000825632336257,
+            "rangePos": 0.39993938333655926,
+            "rhLeg": "rise",
+            "rhAmp": 0.006415484268802965,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.000084214498298214,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "ZORA",
+            "price": 0.00901629,
+            "rangePos": 0.4028299426510674,
+            "rhLeg": "rise",
+            "rhAmp": 0.006580071114782875,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.0091966158,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "CLANKER",
+            "price": 13.5515607766036,
+            "rangePos": 0.4148054258020894,
+            "rhLeg": "rise",
+            "rhAmp": 0.007279871149756802,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 13.822591992135672,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "UNI",
+            "price": 9.6290183,
+            "rangePos": 0.42542783869211853,
+            "rhLeg": "rise",
+            "rhAmp": 0.00792587901562812,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 9.821598666,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "AIXBT",
+            "price": 0.0239774306014496,
+            "rangePos": 0.43503019072272114,
+            "rhLeg": "rise",
+            "rhAmp": 0.008531507951379197,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.024456979213478593,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          }
+        ],
+        "hold": [],
+        "readyCount": 16
+      },
+      "availability": "local",
+      "proven": false
+    },
+    {
+      "at": "2026-09-26T04:15:00.000Z",
+      "line": "§CASCTRAIL§v1|utc=2026-09-26T04:15:00.000Z|local=2026-09-26T04:15:00.000+00:00|unix=1790396100|label=RH_CASCADE_RAIL|src=robinhood|rail=base|hubs=HOME,AERO|n=4|in=-|out=AERO@0.8965,VIRTUAL@0.7789,BRETT@0.005710|loc=-|next=END",
+      "commit8": "ee4b91f1",
+      "bytes": 227,
+      "txHash": "0xabababababababababababababababababababababababababababababababab",
+      "seats": [
+        {
+          "symbol": "AERO",
+          "price": 0.8965,
+          "rhPair": "AERO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.5194717136876859
+        },
+        {
+          "symbol": "BRETT",
+          "price": 0.00571,
+          "rhPair": "BRETT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3792128723635553
+        },
+        {
+          "symbol": "VIRTUAL",
+          "price": 0.7789,
+          "rhPair": "VIRTUAL-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3564910628348621
+        },
+        {
+          "symbol": "CLANKER",
+          "price": 13.55,
+          "rhPair": "CLANKER-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4173922390626701
+        }
+      ],
+      "outcomes": {
+        "enter": [],
+        "exit": [
+          {
+            "symbol": "AERO",
+            "price": 0.8965,
+            "rangePos": 0.5194717136876859,
+            "rhLeg": "rise",
+            "rhAmp": 0.01494396014943959,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.91443,
+            "aeroMain": true,
+            "home": false,
+            "action": "aero-cascade-out"
+          },
+          {
+            "symbol": "VIRTUAL",
+            "price": 0.7789,
+            "rangePos": 0.3564910628348621,
+            "rhLeg": "rise",
+            "rhAmp": 0.004125306175067799,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.794478,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "BRETT",
+            "price": 0.00571,
+            "rangePos": 0.3792128723635553,
+            "rhLeg": "rise",
+            "rhAmp": 0.005281690140845008,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 0.0058242,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          },
+          {
+            "symbol": "CLANKER",
+            "price": 13.55,
+            "rangePos": 0.4173922390626701,
+            "rhLeg": "rise",
+            "rhAmp": 0.007434944237918322,
+            "waitingUp": false,
+            "sellArmed": true,
+            "exitAt": 13.821000000000002,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-out"
+          }
+        ],
+        "hold": [],
+        "readyCount": 4
+      },
+      "availability": "proven",
+      "proven": true
+    },
+    {
+      "at": "2026-09-26T04:19:49.029Z",
+      "line": "§CASCTRAIL§v1|utc=2026-09-26T04:19:49.020Z|local=2026-09-26T04:19:49.020+00:00|unix=1790396389|label=RH_CASCADE_RAIL|src=robinhood|rail=base|hubs=HOME,AERO|n=16|in=AAVE@154.33,VVV@30.2123|out=-|loc=-|next=END",
+      "commit8": "2c6bb8c1",
+      "bytes": 210,
+      "txHash": null,
+      "seats": [
+        {
+          "symbol": "ETH",
+          "price": 2688.831086555,
+          "rhPair": "ETH-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.2702497647388956
+        },
+        {
+          "symbol": "WETH",
+          "price": 2688.831086555,
+          "rhPair": "ETH-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.2702497647388956
+        },
+        {
+          "symbol": "LINK",
+          "price": 14.10023235,
+          "rhPair": "LINK-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3706707573107492
+        },
+        {
+          "symbol": "UNI",
+          "price": 9.6290183,
+          "rhPair": "UNI-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.42542783869211853
+        },
+        {
+          "symbol": "AAVE",
+          "price": 154.328953225,
+          "rhPair": "AAVE-USD",
+          "rhLeg": "crash",
+          "rangePos": 0.24371543983032523
+        },
+        {
+          "symbol": "AERO",
+          "price": 0.896519315,
+          "rhPair": "AERO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.5200906224749269
+        },
+        {
+          "symbol": "BRETT",
+          "price": 0.0057133424611424,
+          "rhPair": "BRETT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3803602810551624
+        },
+        {
+          "symbol": "VIRTUAL",
+          "price": 0.7789235,
+          "rhPair": "VIRTUAL-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3558411634436134
+        },
+        {
+          "symbol": "MORPHO",
+          "price": 2.71523417,
+          "rhPair": "MORPHO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.32557252488976834
+        },
+        {
+          "symbol": "ZORA",
+          "price": 0.00901629,
+          "rhPair": "ZORA-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4028299426510674
+        },
+        {
+          "symbol": "TOSHI",
+          "price": 0.0001297858858171,
+          "rhPair": "TOSHI-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3945527717673959
+        },
+        {
+          "symbol": "AIXBT",
+          "price": 0.0239774306014496,
+          "rhPair": "AIXBT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.43503019072272114
+        },
+        {
+          "symbol": "KEYCAT",
+          "price": 0.0007201388041789,
+          "rhPair": "KEYCAT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3170811500416676
+        },
+        {
+          "symbol": "CLANKER",
+          "price": 13.5515607766036,
+          "rhPair": "CLANKER-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4148054258020894
+        },
+        {
+          "symbol": "VVV",
+          "price": 30.21226584,
+          "rhPair": "VVV-USD",
+          "rhLeg": "crash",
+          "rangePos": 0.25878422239363136
+        },
+        {
+          "symbol": "DOGINME",
+          "price": 0.0000825632336257,
+          "rhPair": "DOGINME-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.39993938333655926
+        }
+      ],
+      "outcomes": {
+        "enter": [
+          {
+            "symbol": "AAVE",
+            "price": 154.328953225,
+            "rangePos": 0.24371543983032523,
+            "rhLeg": "crash",
+            "rhAmp": 0.001685410555050599,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-in"
+          },
+          {
+            "symbol": "VVV",
+            "price": 30.21226584,
+            "rangePos": 0.25878422239363136,
+            "rhLeg": "crash",
+            "rhAmp": 0.000048588334234756343,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "cascade-in"
+          }
+        ],
+        "exit": [],
+        "hold": [
+          {
+            "symbol": "ETH",
+            "price": 2688.831086555,
+            "rangePos": 0.2702497647388956,
+            "rhLeg": "rise",
+            "rhAmp": 0.0004096715648521858,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "WETH",
+            "price": 2688.831086555,
+            "rangePos": 0.2702497647388956,
+            "rhLeg": "rise",
+            "rhAmp": 0.0004096715648521858,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "LINK",
+            "price": 14.10023235,
+            "rangePos": 0.3706707573107492,
+            "rhLeg": "rise",
+            "rhAmp": 0.004836844978321538,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "UNI",
+            "price": 9.6290183,
+            "rangePos": 0.42542783869211853,
+            "rhLeg": "rise",
+            "rhAmp": 0.00792587901562812,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "AERO",
+            "price": 0.896519315,
+            "rangePos": 0.5200906224749269,
+            "rhLeg": "rise",
+            "rhAmp": 0.014999645012513054,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": true,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "BRETT",
+            "price": 0.0057133424611424,
+            "rangePos": 0.3803602810551624,
+            "rhLeg": "rise",
+            "rhAmp": 0.005342408315422107,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "VIRTUAL",
+            "price": 0.7789235,
+            "rangePos": 0.3558411634436134,
+            "rhLeg": "rise",
+            "rhAmp": 0.004093468497501763,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "MORPHO",
+            "price": 2.71523417,
+            "rangePos": 0.32557252488976834,
+            "rhLeg": "rise",
+            "rhAmp": 0.002680663595491171,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "ZORA",
+            "price": 0.00901629,
+            "rangePos": 0.4028299426510674,
+            "rhLeg": "rise",
+            "rhAmp": 0.006580071114782875,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "TOSHI",
+            "price": 0.0001297858858171,
+            "rangePos": 0.3945527717673959,
+            "rhLeg": "rise",
+            "rhAmp": 0.006113107024934131,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "AIXBT",
+            "price": 0.0239774306014496,
+            "rangePos": 0.43503019072272114,
+            "rhLeg": "rise",
+            "rhAmp": 0.008531507951379197,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "KEYCAT",
+            "price": 0.0007201388041789,
+            "rangePos": 0.3170811500416676,
+            "rhLeg": "rise",
+            "rhAmp": 0.002307483889378796,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "CLANKER",
+            "price": 13.5515607766036,
+            "rangePos": 0.4148054258020894,
+            "rhLeg": "rise",
+            "rhAmp": 0.007279871149756802,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          },
+          {
+            "symbol": "DOGINME",
+            "price": 0.0000825632336257,
+            "rangePos": 0.39993938333655926,
+            "rhLeg": "rise",
+            "rhAmp": 0.006415484268802965,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch"
+          }
+        ],
+        "readyCount": 2
+      },
+      "availability": "local",
+      "proven": false
+    }
+  ],
+  "updatedAt": "2026-09-26T04:19:49.029Z"
+}

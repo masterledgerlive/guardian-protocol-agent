@@ -106,7 +106,12 @@ findable.
 | `vita/memory/telegram-home-learn.json` | `TELEGRAM_HOME` | Append-only learn: cheaper/faster engine + route sim seeds |
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
-| `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up |
+| `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up; HOME piggy + AERO main in/out |
+| `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | Robinhood quotes → Base cascade seats; auto-populate wave; AERO in/out; §CASCTRAIL§ hitch (loc after seal); unlock HOLD_ALL_SELLS |
+| `vita/memory/rh-cascade-rail-learn.json` | `RH_CASCADE_RAIL` | Append-only learn: RH→Base cascade + unlock |
+| `vita/memory/rh-cascade-rail-ledger.json` | `RH_CASCADE_RAIL` | Append-only ledger of trail commits |
+| `vita/memory/rh-cascade-trail.json` | `RH_CASCADE_RAIL` | Cascade trail lines; loc empty until real Base hash |
+| `vita/strands/rh-cascade-rail.json` | `RH_CASCADE_RAIL` | Sparse strand: RH data → Base rail → AERO in/out → trail |
 | `vita/dex-reader.js` | `DEX_READER` | Per-token DexScreener reader + Gecko dual check + Basescan/Dex/Gecko/CoinGecko refs; miss ≠ $0 |
 | `vita/token-player.js` | `TOKEN_PLAYER` / `TOKEN_LEGIT` | Token pulldown player · $0.05 never-remove log seed · market-trigger SIM values · legit PASS/FLAG/FAIL |
 | `vita/multichain-portfolio.js` | `MULTICHAIN` | 32-chain display; Base hitch vs Ethereum L1 other-path (~$3 / 27% — never mix into Base RISK) |
