@@ -20,6 +20,7 @@ import {
 } from "./vault-loader.js";
 
 import { maybeFundV4FromV3 } from "./v4-fund-once.js";
+import { maybeBridgeL1EthToBase } from "./l1-bridge-to-base.js";
 
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
 import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot, maybeAutofireVitaFeedOnBoot } from "./vita-webhook.js";
@@ -2328,7 +2329,7 @@ const DEFAULT_TOKENS = [
 
   { symbol: "HOME",    address: VERIFIED_HOME_ADDRESS, feeTier: HOME_FEE_TIER, poolFeePct: HOME_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:8, waveQuality:6, fundamentals:8, coinbaseFit:10, community:7, total:39 },
-    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… tickSpacing 200. Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). OPERATOR_ROTATE_TO buy uses Slipstream quoter+router, not Uni QuoterV2. Do not sell HOME. Vault never." },
+    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… tickSpacing 200. Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). OPERATOR_ROTATE_TO + OPERATOR_BUY / Telegram /buy HOME use Slipstream quoter+router, not Uni QuoterV2. Do not sell HOME. Vault never." },
 
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -6773,7 +6774,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (rotateHomeBuy) {
       slipstreamBuy = rotateHomeSlipstreamBuyPath();
       console.log(
-        `🏠 ROTATE HOME — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
+        `🏠 HOME Slipstream — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
         `tickSpacing ${slipstreamBuy.tickSpacing} (not Uni QuoterV2)`,
       );
     } else {
@@ -15411,7 +15412,30 @@ async function main() {
   applyOperatorSellEnv();
   applyOperatorRotateEnv();
   applyOperatorUnwrapEnv();
+  // OPERATOR_BRIDGE_L1_TO_BASE=yes — move unused Ethereum L1 ETH → Base RISK
+  // via OptimismPortal before OPERATOR_BUY (HOME) spends Base ETH/WETH.
+  try {
+    if (String(process.env.OPERATOR_BRIDGE_L1_TO_BASE || "").trim()) {
+      let ethUsdBridge = cachedEthUsd;
+      try { ethUsdBridge = await getLiveEthPrice(); cachedEthUsd = ethUsdBridge; } catch { /* keep */ }
+      await maybeBridgeL1EthToBase({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        ethUsd: ethUsdBridge,
+        log: console.log,
+        tg,
+        waitForBaseMs: 180_000,
+        getBaseNativeEth: async () => {
+          try { return Number(await getEthBalance()) || 0; }
+          catch { return 0; }
+        },
+      });
+    }
+  } catch (bridgeErr) {
+    console.log(`⚠️  L1→Base bridge failed (non-fatal): ${bridgeErr.message}`);
+  }
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
+  // HOME OPERATOR_BUY uses Slipstream (same as rotate) — Uni V3 ghost skipped.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.
   await flushPendingOperatorBuys(cdpClient);
   // Balances may still be cold at boot — main loop re-queues after refresh.

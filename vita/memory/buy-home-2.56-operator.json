@@ -1,0 +1,24 @@
+{
+  "at": "2026-09-25T02:14:00.000Z",
+  "topic": "buy-home-2.56-eth",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Also can we take the 2.56 in eth and buy more $home",
+  "locations": [],
+  "hypothesis": {
+    "id": "operator-buy-home-2.56-slipstream",
+    "status": "armed",
+    "asks": [
+      "OPERATOR_BUY=HOME:2.56 — spend ~$2.56 ETH/WETH into verified Defi App $HOME",
+      "fill Aerodrome Slipstream HOME/WETH 0.3% (not Uni ghost 1%)",
+      "HOLD_ALL_SELLS stays yes — buys allowed, no sells until approve"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "env": {
+    "OPERATOR_BUY": "HOME:2.56",
+    "HOLD_ALL_SELLS": "yes",
+    "APPROVE_HOME_SELL": "no"
+  }
+}

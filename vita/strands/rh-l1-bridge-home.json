@@ -1,0 +1,12 @@
+{
+  "id": "rh-l1-bridge-home",
+  "kind": "strand",
+  "formula": "original-message-first",
+  "ends": [
+    "robinhood-agentic-no-withdraw",
+    "risk-l1-other-path-eth",
+    "optimism-portal-base-credit",
+    "operator-buy-home-slipstream"
+  ],
+  "note": "RH cannot pipe $1→Base→HOME via agentic tools. Unused ~$2.56 is RISK L1 ETH; bridge via OPERATOR_BRIDGE_L1_TO_BASE then Slipstream HOME buy. Never invent hashes."
+}

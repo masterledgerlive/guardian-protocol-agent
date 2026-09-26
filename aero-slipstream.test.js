@@ -56,6 +56,9 @@ describe("Aerodrome Slipstream HOME buy path", () => {
     assert.equal(path.pool.toLowerCase(), HOME_AERO_SLIPSTREAM_POOL.toLowerCase());
     assert.equal(path.uniQuoterV2, null);
     assert.equal(rotateHomeBuyUsesSlipstream(OPERATOR_ROTATE_BUY_REASON, "HOME"), true);
+    assert.equal(rotateHomeBuyUsesSlipstream("MANUAL BUY (operator) $2.56", "HOME"), true);
+    assert.equal(rotateHomeBuyUsesSlipstream("MANUAL BUY (operator) $2.56", "AERO"), false);
+    assert.equal(rotateHomeBuyUsesSlipstream("WAVE BUY", "HOME"), false);
     assert.deepEqual(slipstreamApproveSpenders(), [SLIPSTREAM_SWAP_ROUTER]);
   });
 

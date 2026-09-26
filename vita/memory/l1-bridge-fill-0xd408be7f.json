@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-25T02:55:00.000Z",
+  "topic": "l1-bridge-first-fill",
+  "role": "machine",
+  "alternation": "location",
+  "text": "OptimismPortal deposit L1→Base RISK",
+  "locations": [
+    "0xd408be7f89b0fdebed372a7bcdc67c36586ebe099c832b8c1bf49b218c65c0cf"
+  ],
+  "chain": "ethereum",
+  "portal": "0x49048044D57e1C92A77f79988d21Fa8fAF74E97e",
+  "depositEth": 0.00055,
+  "depositUsdApprox": 1.47,
+  "baseCreditObserved": true,
+  "baseEthAfter": 0.001123683706886772,
+  "l1EthAfter": 0.000384940413709283,
+  "note": "Real Etherscan loc — never invented. First CDP full-bag attempt insufficient; capped 0.00055 succeeded. Boot wait missed Base credit; second slice + HOME buy armed."
+}
