@@ -107,7 +107,8 @@ findable.
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
 | `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up; HOME piggy + AERO main in/out |
-| `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | Robinhood quotes → Base cascade seats; auto-populate wave; AERO in/out; §CASCTRAIL§ hitch (loc after seal); unlock HOLD_ALL_SELLS |
+| `vita/base-cascade-program.js` | `BASE_CASCADE_PROGRAM` | Original Base path: LOWER snowball → dividend 10–30% → MAIN goal; viable USD + prediction; HOME piggy locked |
+| `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | RH wave-data overlay only → feeds Base program; §CASCTRAIL§ hitch (loc after seal); never RH-executes |
 | `vita/memory/rh-cascade-rail-learn.json` | `RH_CASCADE_RAIL` | Append-only learn: RH→Base cascade + unlock |
 | `vita/memory/rh-cascade-rail-ledger.json` | `RH_CASCADE_RAIL` | Append-only ledger of trail commits |
 | `vita/memory/rh-cascade-trail.json` | `RH_CASCADE_RAIL` | Cascade trail lines; loc empty until real Base hash |

@@ -208,7 +208,7 @@ describe("message cascade — love Eureka into each token", () => {
     assert.equal(plan.home.address, VERIFIED_HOME_ADDRESS);
     assert.equal(plan.home.feeTier, HOME_FEE_TIER);
     assert.equal(plan.home.cascadeAvailable, true);
-    assert.equal(plan.home.role, "cascade-piggy-holder");
+    assert.equal(plan.home.role, "cascade-main-inout");
     assert.equal(plan.piggyHolder.symbol, "HOME");
     assert.equal(plan.piggyHolder.parkDustOnHome, true);
     assert.ok(plan.home.capabilitiesWhileHolding.length >= 5);

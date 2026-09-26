@@ -85,13 +85,17 @@ describe("rh-cascade-rail — RH data, Base rail", () => {
       at: Date.parse("2026-09-26T04:15:00.000Z"),
     });
     assert.equal(plan.id, RH_CASCADE_RAIL_ID);
-    assert.equal(plan.dataSource, "robinhood");
+    assert.equal(plan.dataSource, "robinhood-wave-only");
     assert.equal(plan.rail, "base");
+    assert.equal(plan.execution, "base-risk-original-path");
     assert.equal(plan.unlock.ok, true);
     assert.equal(plan.neverSellHome, true);
     assert.equal(plan.hubs.aero.symbol, "AERO");
     assert.ok(plan.seatCount >= 8);
-    assert.ok(plan.cascade.hopCount >= 8);
+    assert.ok(plan.program);
+    assert.ok(plan.capital.homeSpendable === false);
+    assert.ok(plan.prediction);
+    assert.ok(plan.cascade.hopCount >= 1);
     assert.ok(plan.trail.line.startsWith(RH_CASCADE_MAGIC));
     assert.match(plan.trail.line, /loc=-/);
     assert.match(plan.trail.line, /hubs=HOME,AERO/);
@@ -100,10 +104,9 @@ describe("rh-cascade-rail — RH data, Base rail", () => {
     const aeroHop = plan.cascade.hops.find((h) => h.symbol === "AERO");
     assert.ok(aeroHop);
     assert.equal(aeroHop.aeroMain, true);
-    assert.match(aeroHop.action, /cascade-aero-/);
     assert.ok(book.snapshots.length >= 1);
-    assert.match(formatRhCascadeCard(plan), /RH → BASE CASCADE/);
-    assert.match(formatRhCascadeOutcomes(plan), /NEXT CASCADE OUTCOMES/);
+    assert.match(formatRhCascadeCard(plan), /BASE CASCADE PROGRAM/);
+    assert.match(formatRhCascadeOutcomes(plan), /CASCADE PREDICTION/);
   });
 
   it("next outcomes separate enter vs exit lanes", () => {

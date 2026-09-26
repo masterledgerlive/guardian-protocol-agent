@@ -272,6 +272,8 @@ import {
   planRhBaseCascade,
   formatRhCascadeCard,
   formatRhCascadeOutcomes,
+  formatCascadePredictionCard,
+  formatCascadeHierarchyCard,
   fileRhCascadeLearn,
   unlockSellBarrier,
 } from "./vita/rh-cascade-rail.js";
@@ -11030,7 +11032,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             `$HOME stays never-sell (APPROVE_HOME_SELL unset).\n` +
             `Other bags may sell when gated green.\n` +
             `Persist: Railway <code>HOLD_ALL_SELLS=no</code>.\n` +
-            `RH→Base cascade: /cascade`,
+            `Base cascade program: /cascade`,
           );
         } else {
           await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off`);
@@ -11041,8 +11043,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           const unlocked = unlockSellBarrier(process.env);
           await tg(
             `✅ <b>CASCADE SELLS UNLOCKED</b>\n${esc(unlocked.status)}\n` +
-            `$HOME never-sell on. AERO main in/out. /cascade`,
+            `$HOME never-sell · Base rail LOWER→dividend→MAIN · /cascade`,
           );
+        } else if (cmd.action === "hierarchy") {
+          await tg(formatCascadeHierarchyCard());
         } else {
           const book = flowArm();
           const snap = latestSnapshot(book);
@@ -11054,36 +11058,49 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             open_price: q.prevClose != null ? String(q.prevClose) : undefined,
             updated_at: q.at || undefined,
           }));
-          if (!rhRows.length) {
+          // Base program runs on catalog even without RH; RH only overlays wave marks.
+          const ethPx = Number(cachedEthUsd) > 0 ? Number(cachedEthUsd) : 2700;
+          const ethBal = Number.isFinite(lastEthBalance) ? lastEthBalance : 0;
+          const wethBal = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
+          const liquidUsd = (ethBal + wethBal) * ethPx;
+          const homeTok = tokens.find((t) => String(t.symbol).toUpperCase() === "HOME");
+          const homePx = Number(homeTok?.price || homeTok?.lastPrice || 0);
+          const homeBal = Number(homeTok?.balance || homeTok?.units || 0);
+          const homeBagUsd = homeBal > 0 && homePx > 0 ? homeBal * homePx : 11;
+          let bagsDividendUsd = 0;
+          try {
+            for (const row of collectWaveBoardRows()) {
+              if (row?.dividendPct > 0 && row?.plan?.withdrawUsd > 0) {
+                bagsDividendUsd += Number(row.plan.withdrawUsd) || 0;
+              }
+            }
+          } catch { /* board optional */ }
+          const plan = planRhBaseCascade({
+            rhRows,
+            catalog: tokens,
+            flowBook: book,
+            unlockSells: false,
+            maxHops: 8,
+            liquidUsd,
+            homeBagUsd,
+            ethUsd: ethPx,
+            bagsDividendUsd,
+          });
+          if (rhRows.length) saveFlowArm();
+          try { fileRhCascadeLearn(plan); } catch (e) { console.log(`⚠️  cascade learn: ${e.message}`); }
+          if (cmd.action === "predict") {
+            await tg(formatCascadePredictionCard(plan));
+          } else if (cmd.action === "outcomes") {
+            await tg(formatRhCascadeOutcomes(plan));
+          } else if (cmd.action === "trail") {
             await tg(
-              `⚡ <b>RH → BASE CASCADE</b>\n` +
-              `No Robinhood snapshot filed yet.\n` +
-              `File marks via /flow (or agent RH ingest), then /cascade.\n` +
-              `Hubs: 🏠 HOME piggy · ✈ AERO main in/out\n` +
-              `${holdAllSellsStatusLine()}`,
+              `💉 <b>CASCADE TRAIL</b> (Base hitch)\n` +
+              `commit <code>${esc(plan.trail.commit8)}</code>\n` +
+              `<code>${esc(plan.trail.line)}</code>\n` +
+              `RH = wave data only · loc empty until a real Base sell seals it.`,
             );
           } else {
-            const plan = planRhBaseCascade({
-              rhRows,
-              catalog: tokens,
-              flowBook: book,
-              unlockSells: false,
-              maxHops: 8,
-            });
-            saveFlowArm();
-            try { fileRhCascadeLearn(plan); } catch (e) { console.log(`⚠️  cascade learn: ${e.message}`); }
-            if (cmd.action === "outcomes") {
-              await tg(formatRhCascadeOutcomes(plan));
-            } else if (cmd.action === "trail") {
-              await tg(
-                `💉 <b>CASCADE TRAIL</b>\n` +
-                `commit <code>${esc(plan.trail.commit8)}</code>\n` +
-                `<code>${esc(plan.trail.line)}</code>\n` +
-                `loc empty until a real Base sell seals it.`,
-              );
-            } else {
-              await tg(formatRhCascadeCard(plan));
-            }
+            await tg(formatRhCascadeCard(plan));
           }
         }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {

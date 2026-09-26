@@ -58,15 +58,20 @@ export const CASCADE_MOVE_UP_RANGE_POS = 0.55;
 /** USD per UTF-8 character for spot character buy (transmission class). */
 export const CASCADE_CHAR_USD = 0.00008;
 
-/** $HOME is the piggy-bank / fuel holder (never rotate-sell). */
+/**
+ * Dual main in/out hubs on Base: $HOME + AERO.
+ * HOME also parks piggy/dust; rotate never sells HOME (APPROVE_HOME_SELL unset).
+ */
 export const HOME_CASCADE_PIGGY_HOLDER = Object.freeze({
   symbol: VERIFIED_HOME_SYMBOL,
   address: VERIFIED_HOME_ADDRESS,
   feeTier: HOME_FEE_TIER,
-  role: "cascade-piggy-holder",
+  role: "cascade-main-inout",
+  mainInOut: true,
   rotateNeverSells: true,
   cascadeAvailable: true,
   capabilitiesWhileHolding: Object.freeze([
+    "main-inout — HOME is a primary Base cascade in/out hub with AERO",
     "wave-hold — instant peak/trough envelope without cold scan",
     "piggy-dust-seat — park $0.05 cascade dust + saved earnings on HOME bag",
     "rotate-target — OPERATOR_ROTATE sweeps other bags → HOME (never sells HOME)",
@@ -78,21 +83,28 @@ export const HOME_CASCADE_PIGGY_HOLDER = Object.freeze({
   ]),
 });
 
-/** AERO is the main in/out cascade hub on the Base rail (RH-quoted). */
+/** AERO pairs with HOME as the other main in/out cascade hub on Base. */
 export const AERO_CASCADE_INOUT = Object.freeze({
   symbol: "AERO",
   role: "cascade-main-inout",
+  mainInOut: true,
   rotateNeverSells: false,
   cascadeAvailable: true,
   dataSource: "robinhood",
   rail: "base",
   capabilities: Object.freeze([
-    "main-inout — cascade buy on waiting-up + sell when move-up armed",
+    "main-inout — AERO + HOME are the primary Base cascade in/out hubs",
     "rh-quote — AERO-USD mark feeds instant wave HL",
     "base-rail — RISK swaps only; RH never executes Base bags",
     "trail — cascade data trails toward §CASCTRAIL§ hitch (loc after seal)",
   ]),
 });
+
+/** Ordered dual hub: HOME then AERO. */
+export const CASCADE_MAIN_INOUT_HUBS = Object.freeze([
+  VERIFIED_HOME_SYMBOL,
+  "AERO",
+]);
 
 export const DEFAULT_CASCADE_MESSAGE = VITA_PROOF_FULL;
 
@@ -500,14 +512,14 @@ export function planMessageCascade({
       cascadeAvailable: ranked.home?.cascadeAvailable !== false,
       waveReady: ranked.home?.wave?.ready === true,
       inPlan: hops.some((h) => h.home),
-      note: "verified Defi App $HOME — piggy/fuel holder; rotate never sells HOME; RH data feeds Base rail",
+      note: "verified Defi App $HOME — main in/out hub with AERO; rotate never sells HOME; RH data feeds Base rail",
     },
     aero: {
       ...AERO_CASCADE_INOUT,
       cascadeAvailable: ranked.aero?.cascadeAvailable !== false,
       waveReady: ranked.aero?.wave?.ready === true,
       inPlan: hops.some((h) => h.aeroMain),
-      note: "AERO — main in/out cascade on Base; RH AERO-USD wave; sell when move-up armed",
+      note: "AERO — main in/out hub with HOME on Base; RH AERO-USD wave; sell when move-up armed",
     },
     piggyHolder: {
       ...HOME_CASCADE_PIGGY_HOLDER,

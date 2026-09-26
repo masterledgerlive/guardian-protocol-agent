@@ -245,6 +245,8 @@ export const HOME_SECTIONS = Object.freeze([
       { label: "Wave agents", cmd: "/waveagents" },
       { label: "Flow", cmd: "/flow" },
       { label: "Cascade", cmd: "/cascade" },
+      { label: "Predict", cmd: "/cascade predict" },
+      { label: "Hierarchy", cmd: "/cascade hierarchy" },
       { label: "Casc next", cmd: "/cascade outcomes" },
       { label: "Casc trail", cmd: "/cascade trail" },
       { label: "Unlock sells", cmd: "/cascade unlock" },
