@@ -1,0 +1,41 @@
+{
+  "at": "2026-09-26T23:54:58.764Z",
+  "topic": "brain-learn-cycle-013",
+  "filingLabel": "BRAIN_LEARN",
+  "text": "Brain activate cycle #13. Old→new from prior cycle. Peer PASS. Mother-brain pulse self-read — old→new + peer + zero-proof without Cursor agent",
+  "hypothesis": {
+    "id": "brain-learn-cycle-13",
+    "status": "operating",
+    "note": "Distinct labels BRAIN_LEARN/PEER_REVIEW/ZERO_PROOF/VITA_SAVE_LEARN."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "diff": {
+    "addedTopics": [
+      "mother-brain-pulse-learn",
+      "mother-brain-pulse-ledger",
+      "vita-save-learn-cycle-012",
+      "zero-proof-cycle-012"
+    ],
+    "removedTopics": [],
+    "addedLocs": [
+      "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "0x573ab0902ce93f34bcb32fa35c5e7db6199b5302c47631c9e2e853061be04acf",
+      "0xd408be7f89b0fdebed372a7bcdc67c36586ebe099c832b8c1bf49b218c65c0cf",
+      "0x5055c85037b362cc0e83967c0878bfa4e14cf942164b3959bb083fbebe9e8535",
+      "0xb8b76dd2b86eedcccb088b79f1f0b0e4bb184b2dcd9ab6d76500883362270705",
+      "0x640ed7b8fd1a94475db9c7129d3034bfe45166674d57bb6e3995c9e2b00f4ca2",
+      "0xfee4d5022bddcaa36ccfcb4f2e6453abe860950add1191e12d0ef350880ec9b1",
+      "0x26abb9d41c650ed0966c5dd569c6cc413b7e290188937d774a8a750ab227d6c4"
+    ],
+    "addedLib": [],
+    "memoryDelta": 4,
+    "strandDelta": 0,
+    "libraryDelta": 0,
+    "sealedLocDelta": 0,
+    "squashChanged": true
+  },
+  "peerVerdict": "PASS"
+}

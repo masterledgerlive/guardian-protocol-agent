@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-26T23:54:58.764Z",
+  "topic": "peer-review-cycle-013",
+  "filingLabel": "PEER_REVIEW",
+  "text": "§PEERREVIEW§v1|verdict=PASS|formula=original-message-first§\nPEER REVIEW · one pass · filing=PEER_REVIEW\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zero-proof-chained\nfail=none\nanchors=keycat-plain,eureka-prove,vita-strand\nsealedLocs=10\nlibrary=0\nmemory=204\naddedTopics=mother-brain-pulse-learn,mother-brain-pulse-ledger,vita-save-learn-cycle-012,zero-proof-cycle-012\nresearch=append-only content-addressed ledger + proof-carrying retrieval",
+  "hypothesis": {
+    "id": "peer-review-13",
+    "status": "passed",
+    "note": "One peer review per activate — separate from BRAIN_LEARN."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "contentCommit": "4d4c31f547569f8a42923a7e5dfb18076a363f0e04bf83b895a163dd4a851fe6"
+}

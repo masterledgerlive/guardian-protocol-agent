@@ -584,6 +584,21 @@ export function formatRhCascadeOutcomes(plan) {
 
 /** Prefer Base program parser; keep RH alias. */
 export function parseRhCascadeCommand(raw) {
+  const pulse = String(raw || "").trim().toLowerCase();
+  if (
+    pulse === "/cascade pulse" || pulse === "/cascade tick" ||
+    pulse === "/mother" || pulse === "/mother pulse" ||
+    pulse === "/motherbrain" || pulse === "/mother brain" ||
+    pulse === "/cascade arm" || pulse === "/mother arm" ||
+    pulse === "/cascade disarm" || pulse === "/mother disarm" ||
+    pulse === "/mother unlock"
+  ) {
+    // Handled by mother-brain-pulse parser in agent.js — keep ok for aliases.
+    if (pulse.includes("arm") && !pulse.includes("disarm")) return { ok: true, action: "arm" };
+    if (pulse.includes("disarm")) return { ok: true, action: "disarm" };
+    if (pulse.includes("unlock")) return { ok: true, action: "unlock" };
+    return { ok: true, action: "pulse" };
+  }
   const base = parseBaseCascadeCommand(raw);
   if (base.ok) {
     if (base.action === "program") return { ok: true, action: "board" };

@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-26T23:50:00.000Z",
+  "topic": "mother-brain-pulse-operator",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Can we make sure we are running mother brain fully unlocked to start trading on base guardian protocol and unlock $home our main cascade token along with the others we decided, all coded avenues that are to test and inject own versions of brain code that it can read for itself and create new ideas and for the brain to refine its many llms agentic agents it is making for selves, our system should be very active, nothing is triggering anything to cascade continuously without an agent to guide it",
+  "locations": [],
+  "hypothesis": {
+    "id": "mother-brain-pulse-continuous",
+    "status": "operating-brief",
+    "asks": [
+      "Mother brain trading path fully unlocked (HOLD_ALL_SELLS=no)",
+      "$HOME = main cascade hub + piggy (never-sell)",
+      "Unlock decided cascade seats: HOME+AERO hubs, MAIN, LOWER",
+      "Coded avenues for brain self-read inject (backlog + learn cycles)",
+      "Brain refines OS/LLM agent drafts against anchors",
+      "Continuous cascade pulse in trading loop — no Cursor agent required",
+      "MOTHER_BRAIN_PULSE=yes default; MOTHER_BRAIN_PULSE_LIVE=yes to stage buys"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "env": {
+    "HOLD_ALL_SELLS": "no",
+    "APPROVE_HOME_SELL": "unset",
+    "MOTHER_BRAIN_PULSE": "yes",
+    "MOTHER_BRAIN_PULSE_LIVE": "yes"
+  }
+}

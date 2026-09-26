@@ -1,16 +1,16 @@
 {
-  "at": "2026-09-20T19:53:21.243Z",
+  "at": "2026-09-26T23:55:15.074Z",
   "topic": "feed-flow-growth",
   "filingLabel": "FEED_FLOW",
-  "text": "§VITAFLOW§v1|growth|events=20§\nFEED FLOW GROWTH · filing=FEED_FLOW\nevents=20\nmemory=105 files / 356869 B\nstrands=37 files / 28659 B\nlast=idm-chat-proof · feed-flow-idm-chat-proof\ncommit=82198547df36d972\nidm locs=3 (anchors+sealed · never invent)\nformula=original-message-first\nneverInvent=true\nread: Basescan → Input Data → View as UTF-8  (on-chain chat of what is fed)",
+  "text": "§VITAFLOW§v1|growth|events=60§\nFEED FLOW GROWTH · filing=FEED_FLOW\nevents=60\nmemory=216 files / 1455253 B\nstrands=83 files / 65552 B\nlast=backlog-enqueue · hold-all-sells-home-operator\ncommit=61cb1436a0c9cd5b\nidm locs=3 (anchors+sealed · never invent)\nformula=original-message-first\nneverInvent=true\nread: Basescan → Input Data → View as UTF-8  (on-chain chat of what is fed)",
   "growth": {
-    "eventCount": 20,
-    "memoryCount": 105,
-    "strandCount": 37,
-    "memoryBytes": 356869,
-    "strandBytes": 28659
+    "eventCount": 60,
+    "memoryCount": 216,
+    "strandCount": 83,
+    "memoryBytes": 1455253,
+    "strandBytes": 65552
   },
-  "lastEventId": "FF-82198547",
+  "lastEventId": "FF-61CB1436",
   "locations": [
     "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
     "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",

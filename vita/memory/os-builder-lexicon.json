@@ -55,7 +55,13 @@
       "machine": "osBuilder=co-construct",
       "refined": true,
       "at": "2026-09-26T06:41:38.557Z"
+    },
+    {
+      "human": "cascade continuously without a Cursor agent",
+      "machine": "motherBrainPulse=tick|unlock|stage|brainSelfRead",
+      "refined": true,
+      "at": "2026-09-26T23:55:15.080Z"
     }
   ],
-  "refinedCount": 3
+  "refinedCount": 4
 }

@@ -1,9 +1,9 @@
 {
-  "strandId": "feed-flow",
+  "strandId": "brain-learn-014",
   "sparse": true,
-  "source": "feed-flow",
-  "filingLabel": "FEED_FLOW",
-  "learn": "Append-only feed-flow ledger records every memory feed with Basescan Input Data → UTF-8 chat of blockchain locations (anchors + sealed).",
+  "source": "brain-learn",
+  "filingLabel": "BRAIN_LEARN",
+  "learn": "Brain activate cycle #14. Old→new from prior cycle. Peer PASS. Mother-brain pulse self-read — old→new + peer + zero-proof without Cursor agent",
   "formula": "original-message-first",
   "locations": [
     {
@@ -21,7 +21,5 @@
       "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
       "kind": "vita"
     }
-  ],
-  "eventCount": 60,
-  "lastRoot": "f11d03d88f07a3af559f6049e0d25b45116dee94be102634222ae370cef5f97c"
+  ]
 }

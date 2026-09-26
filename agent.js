@@ -279,6 +279,15 @@ import {
   unlockSellBarrier,
 } from "./vita/rh-cascade-rail.js";
 import {
+  parseMotherBrainPulseCommand,
+  tickMotherBrainPulse,
+  unlockMotherBrainForTrading,
+  armMotherBrainPulse,
+  disarmMotherBrainPulse,
+  formatMotherBrainPulseCard,
+  formatMotherBrainUnlockCard,
+} from "./vita/mother-brain-pulse.js";
+import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
   EVIDENCE_ADDON_BUY_TXS,
@@ -11077,14 +11086,56 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         } else {
           await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off`);
         }
-      } else if (parseRhCascadeCommand(raw).ok) {
-        const cmd = parseRhCascadeCommand(raw);
+      } else if (parseMotherBrainPulseCommand(raw).ok || parseRhCascadeCommand(raw).ok) {
+        const pulseCmd = parseMotherBrainPulseCommand(raw);
+        const cmd = pulseCmd.ok ? pulseCmd : parseRhCascadeCommand(raw);
         if (cmd.action === "unlock") {
-          const unlocked = unlockSellBarrier(process.env);
+          const unlocked = unlockMotherBrainForTrading(process.env);
+          await tg(formatMotherBrainUnlockCard(unlocked));
+        } else if (cmd.action === "arm") {
+          const a = armMotherBrainPulse(process.env);
           await tg(
-            `✅ <b>CASCADE SELLS UNLOCKED</b>\n${esc(unlocked.status)}\n` +
-            `$HOME never-sell · Base rail LOWER→dividend→MAIN · /cascade`,
+            `💓 <b>MOTHER PULSE ARMED</b>\n` +
+            `interval ${a.ms}ms · live=${a.live ? "yes" : "SIM"}\n` +
+            `Continuous cascade ticks without a Cursor agent.\n` +
+            `Set Railway <code>MOTHER_BRAIN_PULSE_LIVE=yes</code> to stage buys.`,
           );
+        } else if (cmd.action === "disarm") {
+          disarmMotherBrainPulse(process.env);
+          await tg(`💤 Mother pulse disarmed — /cascade arm to resume`);
+        } else if (cmd.action === "pulse") {
+          const ethPx = Number(cachedEthUsd) > 0 ? Number(cachedEthUsd) : 2700;
+          const ethBal = Number.isFinite(lastEthBalance) ? lastEthBalance : 0;
+          const wethBal = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
+          const liquidUsd = (ethBal + wethBal) * ethPx;
+          const homeTok = tokens.find((t) => String(t.symbol).toUpperCase() === "HOME");
+          const homePx = Number(homeTok?.price || homeTok?.lastPrice || 0);
+          const homeBal = Number(homeTok?.balance || homeTok?.units || 0);
+          const homeBagUsd = homeBal > 0 && homePx > 0 ? homeBal * homePx : 11;
+          let bagsDividendUsd = 0;
+          try {
+            for (const row of collectWaveBoardRows()) {
+              if (row?.dividendPct > 0 && row?.plan?.withdrawUsd > 0) {
+                bagsDividendUsd += Number(row.plan.withdrawUsd) || 0;
+              }
+            }
+          } catch { /* board optional */ }
+          const pulse = tickMotherBrainPulse({
+            catalog: tokens,
+            liquidUsd,
+            homeBagUsd,
+            ethUsd: ethPx,
+            bagsDividendUsd,
+            env: process.env,
+            force: true,
+          });
+          if (pulse.command?.symbol) {
+            const already = manualCommands.some(
+              (c) => c.symbol === pulse.command.symbol && c.action === "buy" && c.source === "MOTHER_BRAIN_PULSE",
+            );
+            if (!already) manualCommands.push(pulse.command);
+          }
+          await tg(formatMotherBrainPulseCard(pulse));
         } else if (cmd.action === "hierarchy") {
           await tg(formatCascadeHierarchyCard());
         } else {
@@ -16375,6 +16426,19 @@ async function main() {
   // Poller already started after vault/CDP — this is a no-op guard
   startTelegramPoller();
 
+  // Mother-brain unlock on boot — continuous cascade without Cursor agent nudge.
+  try {
+    const bootUnlock = unlockMotherBrainForTrading(process.env);
+    console.log(
+      `💓 Mother brain unlocked · ${bootUnlock.status} · pulse=${bootUnlock.pulseArmed ? "ARMED" : "off"} · live=${bootUnlock.pulseLive ? "yes" : "SIM"}`,
+    );
+    console.log(
+      `   Hubs ${bootUnlock.hubs.join("+")} · LOWER ${bootUnlock.lower.slice(0, 6).join(" ")}…`,
+    );
+  } catch (e) {
+    console.log(`⚠️  Mother brain unlock: ${e.message}`);
+  }
+
   // Last chance before the live loop: queued operator buys must not wait
   // for a processToken early-out (NO QUOTE / dead-wave) to eat the cycle.
   await flushPendingOperatorBuys(cdpClient);
@@ -16441,6 +16505,62 @@ async function main() {
         console.log(`🏄 ${activeSurfers.length} surfers: ${riding} riding | ${waiting} waiting`);
       }
       console.log();
+
+      // ── MOTHER BRAIN PULSE — continuous cascade + brain avenues (no Cursor agent) ──
+      // Unlock $HOME hub + decided seats; plan next hop; stage LIVE buys when armed.
+      // Self-read brain backlog + OS agent refine tick without Telegram nudge.
+      try {
+        const homeTokP = tokens.find((t) => String(t.symbol).toUpperCase() === "HOME");
+        const homePxP = Number(homeTokP?.price || homeTokP?.lastPrice || history.HOME?.lastPrice || 0);
+        const homeBalP = Number(getCachedBalance("HOME") || homeTokP?.balance || 0);
+        const homeBagUsdP = homeBalP > 0 && homePxP > 0 ? homeBalP * homePxP : 11;
+        const liquidUsdP = ((bal.eth || 0) + (bal.weth || 0)) * ethUsd;
+        let bagsDivP = 0;
+        try {
+          for (const row of collectWaveBoardRows()) {
+            if (row?.dividendPct > 0 && row?.plan?.withdrawUsd > 0) {
+              bagsDivP += Number(row.plan.withdrawUsd) || 0;
+            }
+          }
+        } catch { /* optional */ }
+        const pulse = tickMotherBrainPulse({
+          catalog: tokens.map((t) => ({
+            ...t,
+            price: history[t.symbol]?.lastPrice || t.price || t.lastPrice,
+            balance: getCachedBalance(t.symbol),
+            bagUsd: (getCachedBalance(t.symbol) || 0) * (history[t.symbol]?.lastPrice || t.price || 0),
+          })),
+          liquidUsd: liquidUsdP,
+          homeBagUsd: homeBagUsdP,
+          ethUsd,
+          bagsDividendUsd: bagsDivP,
+          env: process.env,
+          force: false,
+        });
+        if (pulse?.ok && !pulse.skipped) {
+          const nextSym = pulse.stage?.next?.symbol || "—";
+          console.log(
+            `💓 Mother pulse #${pulse.tick?.tickCount || "?"} · ` +
+            `phase=${pulse.plan?.prediction?.phase || "—"} · next=${nextSym} · ` +
+            `${pulse.command ? "LIVE STAGE " + pulse.command.symbol : "SIM"}`,
+          );
+          if (pulse.command?.symbol) {
+            const already = manualCommands.some(
+              (c) => c.symbol === pulse.command.symbol
+                && c.action === "buy"
+                && c.source === "MOTHER_BRAIN_PULSE",
+            );
+            if (!already) {
+              manualCommands.push(pulse.command);
+              console.log(
+                `💓 Queued cascade hop ${pulse.command.symbol} $${pulse.command.usd} (MOTHER_BRAIN_PULSE)`,
+              );
+            }
+          }
+        }
+      } catch (pulseErr) {
+        console.log(`⚠️  Mother pulse: ${pulseErr.message}`);
+      }
 
       // ── AUTO GAS TOP-UP: thrift partial WETH→ETH toward cascade floor ────────
       // Gas on Base ALWAYS requires native ETH. WETH cannot pay gas.
