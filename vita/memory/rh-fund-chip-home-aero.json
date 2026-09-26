@@ -1,0 +1,52 @@
+{
+  "at": "2026-09-25T12:11:00.000Z",
+  "topic": "rh-fund-chip-home-aero",
+  "text": "HARD STOP: mother brain untouched. Vault never. Never invent hashes. Agentic RH •••9826 (crypto •••1661): sold CHIP (USD.AI) $2 market → filled 41.9 CHIP @ 0.047745 (order 6ab663fa-637c-465f-b112-831540d72f10). Bought AERO $1 market → filled 1.25 AERO @ 0.7942602 (order 6ab66494-5941-4a80-96a5-6236649d072d). Bought ETH $1 market → filled 0.000363 ETH @ 2747.9925507 (order 6ab664d4-d1f1-4bcd-92b3-8499da27fb0a) as Base withdraw staging. Robinhood MCP has no withdraw/bridge — ETH+AERO stay custodial until app withdraw to RISK 0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915. $HOME is Base-only (defi.app 0x4BfAa776… Slipstream). Telegram /rh · /rh fund CHIP · /rh confirm CHIP queues Base /buy HOME 1 + /buy AERO 1 after RISK ETH is topped. HOLD_ALL_SELLS does not block buys; HOME never-sell stays.",
+  "orders": {
+    "chipSell": {
+      "id": "6ab663fa-637c-465f-b112-831540d72f10",
+      "ref_id": "c8e4f1a2-9b3d-4e67-a1c0-5d8f2e6b4a71",
+      "side": "sell",
+      "symbol": "CHIP",
+      "dollar": 2,
+      "quantity": "41.9",
+      "average_price": "0.047745",
+      "state": "filled"
+    },
+    "aeroBuy": {
+      "id": "6ab66494-5941-4a80-96a5-6236649d072d",
+      "ref_id": "a7c3e915-2d4f-4b8a-9e01-6f5d8c3b2a14",
+      "side": "buy",
+      "symbol": "AERO",
+      "dollar": 1,
+      "quantity": "1.25",
+      "average_price": "0.7942602",
+      "state": "filled"
+    },
+    "ethBuy": {
+      "id": "6ab664d4-d1f1-4bcd-92b3-8499da27fb0a",
+      "ref_id": "e1f2a3b4-c5d6-4789-90ab-cdef12345678",
+      "side": "buy",
+      "symbol": "ETH",
+      "dollar": 1,
+      "quantity": "0.000363",
+      "average_price": "2747.9925507",
+      "state": "filled"
+    }
+  },
+  "locations": [],
+  "hypothesis": {
+    "id": "rh-fund-dual-home-aero",
+    "status": "operating-rule",
+    "discarded": [
+      "invent RH→Base withdraw via MCP",
+      "buy $HOME on Robinhood (not listed)",
+      "invent Base fill hashes",
+      "sell HOME",
+      "touch mother brain",
+      "spend vault"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

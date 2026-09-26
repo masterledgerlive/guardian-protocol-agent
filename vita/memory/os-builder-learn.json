@@ -580,6 +580,1142 @@
       "contentCommit": "cbc2a47f9cf6",
       "bytes": 1716,
       "at": "2026-09-23T22:33:21.303Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "boot",
+      "at": "2026-09-23T23:10:36.927Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:10:36.928Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:10:36.928Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:10:36.928Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 1,
+      "cellHash": "e2c86ea439de",
+      "at": "2026-09-23T23:10:36.929Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 2,
+      "cellHash": "f275965cec67",
+      "at": "2026-09-23T23:10:36.929Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 3,
+      "cellHash": "271facee445d",
+      "at": "2026-09-23T23:10:36.929Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:10:36.930Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "d30e0f50484c",
+      "bytes": 1657,
+      "at": "2026-09-23T23:10:36.931Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "seal",
+      "at": "2026-09-23T23:10:36.933Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:10:36.933Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:10:36.934Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:10:36.934Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 4,
+      "cellHash": "f3a7e8825076",
+      "at": "2026-09-23T23:10:36.934Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 5,
+      "cellHash": "d2c0213ad526",
+      "at": "2026-09-23T23:10:36.934Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 6,
+      "cellHash": "925816364fb4",
+      "at": "2026-09-23T23:10:36.935Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:10:36.935Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "d4bf0b848b89",
+      "bytes": 1754,
+      "at": "2026-09-23T23:10:36.935Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "boot",
+      "at": "2026-09-23T23:10:42.525Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:10:42.525Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:10:42.525Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:10:42.526Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 1,
+      "cellHash": "e2c86ea439de",
+      "at": "2026-09-23T23:10:42.526Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 2,
+      "cellHash": "f275965cec67",
+      "at": "2026-09-23T23:10:42.526Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 3,
+      "cellHash": "271facee445d",
+      "at": "2026-09-23T23:10:42.527Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:10:42.527Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "d30e0f50484c",
+      "bytes": 1657,
+      "at": "2026-09-23T23:10:42.528Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "seal",
+      "at": "2026-09-23T23:10:42.531Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:10:42.531Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:10:42.531Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:10:42.532Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 4,
+      "cellHash": "f3a7e8825076",
+      "at": "2026-09-23T23:10:42.532Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 5,
+      "cellHash": "d2c0213ad526",
+      "at": "2026-09-23T23:10:42.532Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 6,
+      "cellHash": "925816364fb4",
+      "at": "2026-09-23T23:10:42.532Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:10:42.533Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "d4bf0b848b89",
+      "bytes": 1754,
+      "at": "2026-09-23T23:10:42.533Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "boot",
+      "at": "2026-09-23T23:10:55.694Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:10:55.695Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:10:55.695Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:10:55.696Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 1,
+      "cellHash": "e2c86ea439de",
+      "at": "2026-09-23T23:10:55.697Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 2,
+      "cellHash": "f275965cec67",
+      "at": "2026-09-23T23:10:55.697Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 3,
+      "cellHash": "271facee445d",
+      "at": "2026-09-23T23:10:55.697Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:10:55.698Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "d30e0f50484c",
+      "bytes": 1657,
+      "at": "2026-09-23T23:10:55.699Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "seal",
+      "at": "2026-09-23T23:10:55.702Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:10:55.703Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:10:55.703Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:10:55.704Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 4,
+      "cellHash": "f3a7e8825076",
+      "at": "2026-09-23T23:10:55.704Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 5,
+      "cellHash": "d2c0213ad526",
+      "at": "2026-09-23T23:10:55.705Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 6,
+      "cellHash": "925816364fb4",
+      "at": "2026-09-23T23:10:55.705Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:10:55.705Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "d4bf0b848b89",
+      "bytes": 1754,
+      "at": "2026-09-23T23:10:55.706Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "watcher-eureka",
+      "step": "boot",
+      "at": "2026-09-23T23:13:50.422Z"
+    },
+    {
+      "kind": "rename",
+      "from": "watcher-eureka",
+      "to": "watcher-eureka",
+      "at": "2026-09-23T23:13:50.423Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "watcher-eureka",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon"
+      ],
+      "at": "2026-09-23T23:13:50.424Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "watcher-eureka",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:13:50.424Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 1,
+      "cellHash": "5a1d387316ef",
+      "at": "2026-09-23T23:13:50.425Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 2,
+      "cellHash": "68e643a7cacc",
+      "at": "2026-09-23T23:13:50.425Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 3,
+      "cellHash": "c28c17e19a00",
+      "at": "2026-09-23T23:13:50.426Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "at": "2026-09-23T23:13:50.426Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "watcher-eureka",
+      "runId": "os-run-b2f6fda98e",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T23:13:50.427Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "watcher-eureka",
+      "contentCommit": "4ebe26000812",
+      "bytes": 1763,
+      "at": "2026-09-23T23:13:50.429Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T23:13:50.431Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 1,
+      "cellHash": "08370de12fce",
+      "at": "2026-09-23T23:13:50.431Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 2,
+      "cellHash": "c0d24fd5fd0a",
+      "at": "2026-09-23T23:13:50.432Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "sandbox",
+      "at": "2026-09-23T23:13:50.433Z"
+    },
+    {
+      "kind": "step",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-23T23:13:50.434Z"
+    },
+    {
+      "kind": "rename",
+      "from": "lex-brain",
+      "to": "lex-brain",
+      "at": "2026-09-23T23:13:50.436Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "lex-brain",
+      "lobes": [
+        "formula",
+        "lexicon"
+      ],
+      "at": "2026-09-23T23:13:50.436Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "lex-brain",
+      "triggers": [
+        "eureka-learn",
+        "plain-refuse-claim"
+      ],
+      "at": "2026-09-23T23:13:50.437Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "lex-brain",
+      "chunkId": 1,
+      "cellHash": "a6c573809ad3",
+      "at": "2026-09-23T23:13:50.437Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "build together",
+      "machine": "osBuilder=co-construct",
+      "at": "2026-09-23T23:13:50.438Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "lex-brain",
+      "runId": "os-run-199678e068",
+      "passed": 3,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-23T23:13:50.438Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "lex-brain",
+      "contentCommit": "0ec88628feee",
+      "bytes": 1525,
+      "at": "2026-09-23T23:13:50.439Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "boot",
+      "at": "2026-09-23T23:13:50.450Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:13:50.451Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:13:50.451Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:13:50.452Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 1,
+      "cellHash": "e2c86ea439de",
+      "at": "2026-09-23T23:13:50.452Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 2,
+      "cellHash": "f275965cec67",
+      "at": "2026-09-23T23:13:50.453Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 3,
+      "cellHash": "271facee445d",
+      "at": "2026-09-23T23:13:50.453Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:13:50.457Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "ce719a45f3bc",
+      "bytes": 1754,
+      "at": "2026-09-23T23:13:50.458Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "seal",
+      "at": "2026-09-23T23:13:50.461Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:13:50.462Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:13:50.462Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:13:50.463Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 4,
+      "cellHash": "f3a7e8825076",
+      "at": "2026-09-23T23:13:50.463Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 5,
+      "cellHash": "d2c0213ad526",
+      "at": "2026-09-23T23:13:50.464Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 6,
+      "cellHash": "925816364fb4",
+      "at": "2026-09-23T23:13:50.464Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:13:50.465Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "b7fe3541a117",
+      "bytes": 1851,
+      "at": "2026-09-23T23:13:50.465Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "boot",
+      "at": "2026-09-23T23:14:12.240Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:14:12.241Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:14:12.241Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:14:12.242Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 1,
+      "cellHash": "e2c86ea439de",
+      "at": "2026-09-23T23:14:12.242Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 2,
+      "cellHash": "f275965cec67",
+      "at": "2026-09-23T23:14:12.243Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 3,
+      "cellHash": "271facee445d",
+      "at": "2026-09-23T23:14:12.244Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:14:12.245Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "ce719a45f3bc",
+      "bytes": 1754,
+      "at": "2026-09-23T23:14:12.246Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "seal",
+      "at": "2026-09-23T23:14:12.249Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-23T23:14:12.249Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-23T23:14:12.250Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-23T23:14:12.250Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 4,
+      "cellHash": "f3a7e8825076",
+      "at": "2026-09-23T23:14:12.250Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 5,
+      "cellHash": "d2c0213ad526",
+      "at": "2026-09-23T23:14:12.251Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 6,
+      "cellHash": "925816364fb4",
+      "at": "2026-09-23T23:14:12.251Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-23T23:14:12.253Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "b7fe3541a117",
+      "bytes": 1851,
+      "at": "2026-09-23T23:14:12.253Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "watcher-eureka",
+      "step": "boot",
+      "at": "2026-09-26T06:41:38.540Z"
+    },
+    {
+      "kind": "rename",
+      "from": "watcher-eureka",
+      "to": "watcher-eureka",
+      "at": "2026-09-26T06:41:38.542Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "watcher-eureka",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon"
+      ],
+      "at": "2026-09-26T06:41:38.543Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "watcher-eureka",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-26T06:41:38.544Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 1,
+      "cellHash": "5a1d387316ef",
+      "at": "2026-09-26T06:41:38.544Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 2,
+      "cellHash": "68e643a7cacc",
+      "at": "2026-09-26T06:41:38.545Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "watcher-eureka",
+      "chunkId": 3,
+      "cellHash": "c28c17e19a00",
+      "at": "2026-09-26T06:41:38.546Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "eureka love becomes learn",
+      "machine": "IF kind=eureka THEN append_learn topic=eureka-love",
+      "at": "2026-09-26T06:41:38.547Z"
+    },
+    {
+      "kind": "sandbox",
+      "agentId": "watcher-eureka",
+      "runId": "os-run-d32a8450b2",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "at": "2026-09-26T06:41:38.548Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "watcher-eureka",
+      "contentCommit": "70d16220162b",
+      "bytes": 1763,
+      "at": "2026-09-26T06:41:38.549Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-26T06:41:38.551Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 1,
+      "cellHash": "08370de12fce",
+      "at": "2026-09-26T06:41:38.552Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "seq-brain",
+      "chunkId": 2,
+      "cellHash": "c0d24fd5fd0a",
+      "at": "2026-09-26T06:41:38.552Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "seq-brain",
+      "step": "sandbox",
+      "at": "2026-09-26T06:41:38.554Z"
+    },
+    {
+      "kind": "step",
+      "agentId": "seq-brain",
+      "step": "boot",
+      "at": "2026-09-26T06:41:38.554Z"
+    },
+    {
+      "kind": "rename",
+      "from": "lex-brain",
+      "to": "lex-brain",
+      "at": "2026-09-26T06:41:38.556Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "lex-brain",
+      "lobes": [
+        "formula",
+        "lexicon"
+      ],
+      "at": "2026-09-26T06:41:38.556Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-26T06:41:38.557Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-26T06:41:38.557Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-26T06:41:38.558Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 1,
+      "cellHash": "e2c86ea439de",
+      "at": "2026-09-26T06:41:38.559Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 2,
+      "cellHash": "f275965cec67",
+      "at": "2026-09-26T06:41:38.559Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 3,
+      "cellHash": "271facee445d",
+      "at": "2026-09-26T06:41:38.560Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-26T06:41:38.560Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "ce719a45f3bc",
+      "bytes": 1754,
+      "at": "2026-09-26T06:41:38.561Z"
+    },
+    {
+      "kind": "session_start",
+      "agentId": "wave-robin",
+      "step": "seal",
+      "at": "2026-09-26T06:41:38.564Z"
+    },
+    {
+      "kind": "rename",
+      "from": "wave-robin",
+      "to": "wave-robin",
+      "at": "2026-09-26T06:41:38.565Z"
+    },
+    {
+      "kind": "lobes",
+      "agentId": "wave-robin",
+      "lobes": [
+        "formula",
+        "anchors",
+        "triggers",
+        "follow",
+        "memory",
+        "lexicon",
+        "dual"
+      ],
+      "at": "2026-09-26T06:41:38.566Z"
+    },
+    {
+      "kind": "triggers",
+      "agentId": "wave-robin",
+      "triggers": [
+        "eureka-learn",
+        "vita-sparse",
+        "plain-refuse-claim",
+        "keyloc-hitch"
+      ],
+      "at": "2026-09-26T06:41:38.567Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 4,
+      "cellHash": "f3a7e8825076",
+      "at": "2026-09-26T06:41:38.567Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 5,
+      "cellHash": "d2c0213ad526",
+      "at": "2026-09-26T06:41:38.568Z"
+    },
+    {
+      "kind": "follow",
+      "agentId": "wave-robin",
+      "chunkId": 6,
+      "cellHash": "925816364fb4",
+      "at": "2026-09-26T06:41:38.568Z"
+    },
+    {
+      "kind": "lexicon_refine",
+      "human": "growing wave cascade on Robinhood",
+      "machine": "waveRobin=IFTTT|phaseSin|cascadeHop|accumProof|SIM",
+      "at": "2026-09-26T06:41:38.569Z"
+    },
+    {
+      "kind": "stage_seal",
+      "agentId": "wave-robin",
+      "contentCommit": "b7fe3541a117",
+      "bytes": 1851,
+      "at": "2026-09-26T06:41:38.570Z"
     }
   ]
 }

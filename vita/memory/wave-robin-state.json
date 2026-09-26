@@ -1,0 +1,97 @@
+{
+  "id": "vita-wave-robin-v1",
+  "filingLabel": "WAVE_ROBIN",
+  "formula": "original-message-first",
+  "agentId": "wave-robin",
+  "neverInventHashes": true,
+  "neverAutoSpend": true,
+  "createdAt": "2026-09-23T23:09:03.818Z",
+  "updatedAt": "2026-09-23T23:10:55.708Z",
+  "waveEnergy": 0.23051879722130253,
+  "hopCount": 3,
+  "windowStartedAt": "2026-09-23T23:09:03.818Z",
+  "seats": {
+    "TROUGH": {
+      "symbol": "TROUGH",
+      "price": 82,
+      "rangePos": 0,
+      "phaseSin": 0,
+      "cascadeScore": 100,
+      "updatedAt": "2026-09-23T23:09:03.819Z"
+    },
+    "PEAK": {
+      "symbol": "PEAK",
+      "price": 117,
+      "rangePos": 0.7706126738518805,
+      "phaseSin": 0.6598668486815062,
+      "cascadeScore": 61.24921669576038,
+      "updatedAt": "2026-09-23T23:09:03.820Z"
+    },
+    "SPY": {
+      "symbol": "SPY",
+      "price": 768.03,
+      "rangePos": 0.7740445191096175,
+      "phaseSin": 0.6517276537400895,
+      "cascadeScore": 53.03455307480179,
+      "updatedAt": "2026-09-23T23:10:55.707Z"
+    },
+    "HOOD": {
+      "symbol": "HOOD",
+      "price": 123.133,
+      "rangePos": 0.9094751381215469,
+      "phaseSin": 0.2805741564419274,
+      "cascadeScore": 45.61148312883855,
+      "updatedAt": "2026-09-23T23:10:55.707Z"
+    },
+    "QQQ": {
+      "symbol": "QQQ",
+      "price": 741.711,
+      "rangePos": 1,
+      "phaseSin": 1.2246467991473532e-16,
+      "cascadeScore": 2.453272774531738e-15,
+      "updatedAt": "2026-09-23T23:10:55.708Z"
+    }
+  },
+  "lastTick": {
+    "at": "2026-09-23T23:10:55.708Z",
+    "seats": 3,
+    "fires": 8,
+    "staged": 0,
+    "hopCount": 3,
+    "waveEnergy": 0.23051879722130253
+  },
+  "stagedOrders": [
+    {
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "0e74471e-069a-4052-b299-8f225b514462",
+      "accountNumber": "813839826",
+      "symbol": "TROUGH",
+      "side": "buy",
+      "type": "market",
+      "dollarAmount": "1",
+      "quantity": null,
+      "reason": "cheap-band trough rangePos=0.000",
+      "stagedAt": "2026-09-23T23:09:03.818Z",
+      "neverAutoSpend": true
+    },
+    {
+      "sim": true,
+      "live": false,
+      "placed": false,
+      "refId": "abb86c9f-96bd-4551-a61e-18693e3d61a9",
+      "accountNumber": "813839826",
+      "symbol": "PEAK",
+      "side": "sell",
+      "type": "limit",
+      "dollarAmount": null,
+      "quantity": "2",
+      "reason": "move-up pre-arm at peak exit≈122.95337538381078",
+      "stagedAt": "2026-09-23T23:09:03.819Z",
+      "neverAutoSpend": true,
+      "limitPriceHint": 122.95337538381078
+    }
+  ],
+  "liveLatch": false
+}

@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-26T04:15:00.000Z",
+  "topic": "rh-cascade-base-rail",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Ok i added more $home so now you can get into all the lower tokens that are making trades and cascade in and out when all the highs and lows already showed and ready to go in the positive or negative position’s i to cascades, going into the main ones in and out adding AERO as a main in and out cascade, but we want to start going into all tokens and getting data on each one with cascade data trailing and entering into blockchain like discussed so we always are referring to data as well as data we should auto populating from robin hood data also since have access to show our wave data and next outcomes to cascade into, use $home token money now and unlock the sell barrier. Use robin hood for data we are using the base rail.",
+  "locations": [],
+  "hypothesis": {
+    "id": "rh-data-base-rail-cascade",
+    "status": "operating-brief",
+    "asks": [
+      "Robinhood = quote/wave data source only",
+      "Base rail = cascade buy/sell execution",
+      "AERO = main in/out cascade hub",
+      "HOME = piggy/fuel (never-sell); unlock HOLD_ALL_SELLS for other bags",
+      "auto-populate all RH-mirrored tokens with wave HL",
+      "cascade trail §CASCTRAIL§ → blockchain hitch (loc after real seal)",
+      "show wave data + next outcomes to cascade into"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "env": {
+    "HOLD_ALL_SELLS": "no",
+    "APPROVE_HOME_SELL": "unset"
+  }
+}
