@@ -10,6 +10,8 @@ node_modules
 node_modules/
 node_modules/
 artifacts/
+guardian-arena-player/state/
+guardian-v4/state/*.latch.json
 modules/phosphor/state/
 vita/compression/store/
 vita/compression/inbox/*
