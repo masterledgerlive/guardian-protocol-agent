@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   BASE_CASCADE_PROGRAM_ID,
+  CASCADE_MAIN_INOUT_HUBS,
   CASCADE_MAIN_SYMBOLS,
   CASCADE_LOWER_SYMBOLS,
   CASCADE_DEFERRED_MAJORS,
@@ -39,13 +40,13 @@ const SEATS = [
 ];
 
 describe("base-cascade-program hierarchy", () => {
-  it("tiers MAIN / LOWER / HOME / DEFERRED / AERO bridge", () => {
+  it("tiers MAIN_INOUT (HOME+AERO) / MAIN / LOWER / DEFERRED", () => {
+    assert.equal(cascadeTierOf("HOME"), "MAIN_INOUT");
+    assert.equal(cascadeTierOf("AERO"), "MAIN_INOUT");
     assert.equal(cascadeTierOf("LINK"), "MAIN");
     assert.equal(cascadeTierOf("BRETT"), "LOWER");
-    assert.equal(cascadeTierOf("HOME"), "HOME");
     assert.equal(cascadeTierOf("AAVE"), "DEFERRED");
-    assert.equal(cascadeTierOf("AERO"), "BRIDGE");
-    assert.ok(CASCADE_MAIN_SYMBOLS.includes("AERO"));
+    assert.equal(CASCADE_MAIN_SYMBOLS.includes("AERO"), false);
     assert.ok(CASCADE_LOWER_SYMBOLS.includes("BRETT"));
     assert.ok(CASCADE_DEFERRED_MAJORS.includes("CBBTC"));
   });
@@ -74,7 +75,7 @@ describe("base-cascade-program hierarchy", () => {
     });
     assert.equal(pred.phase, PHASES.SNOWBALL_SMALL);
     assert.ok(pred.next);
-    assert.ok(["LOWER", "BRIDGE"].includes(pred.next.tier));
+    assert.ok(["LOWER", "MAIN_INOUT"].includes(pred.next.tier));
     assert.ok(pred.next.usd > 0);
     assert.ok(pred.goal);
     // $3 liquid − gas floor ≈ under min hop — still show predicted seat
@@ -128,7 +129,10 @@ describe("base-cascade-program hierarchy", () => {
     assert.match(card, /Wave data: RH overlay only/);
     assert.match(card, /deployable/);
     assert.match(formatCascadePredictionCard(plan), /CASCADE PREDICTION/);
-    assert.match(formatCascadeHierarchyCard(), /MAIN/);
+    assert.match(formatCascadeHierarchyCard(), /MAIN IN\/OUT/);
+    assert.match(formatCascadeHierarchyCard(), /HOME/);
+    assert.match(formatCascadeHierarchyCard(), /AERO/);
+    assert.deepEqual(CASCADE_MAIN_INOUT_HUBS.slice(), ["HOME", "AERO"]);
   });
 
   it("parse commands", () => {

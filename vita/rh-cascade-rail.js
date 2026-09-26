@@ -7,8 +7,8 @@
  * Locs stay empty until a real covered leftover sell seals the trail.
  *
  * Hubs:
- *   $HOME — piggy / fuel (rotate never sells; APPROVE_HOME_SELL unset)
- *   AERO  — main in/out bridge on Base
+ *   $HOME + AERO — dual MAIN IN/OUT hubs on Base
+ *   HOME rotate-never-sells unless APPROVE_HOME_SELL=yes
  *
  * Never invents tx hashes. Never sells red to place code.
  * Mother brain untouched.
@@ -256,11 +256,11 @@ export function nextCascadeOutcomes(seats = []) {
       hold.push(row);
     }
   }
-  // Prefer LOWER snowball then AERO bridge (Base hierarchy — not RH rank)
+  // Prefer LOWER snowball then HOME+AERO in/out (Base hierarchy — not RH rank)
   const tierRank = (r) => {
     const t = cascadeTierOf(r.symbol);
     if (t === "LOWER") return 0;
-    if (t === "BRIDGE") return 1;
+    if (t === "MAIN_INOUT") return 1;
     if (t === "MAIN") return 2;
     return 3;
   };
@@ -533,8 +533,8 @@ export function fileRhCascadeLearn(plan, { at = new Date().toISOString(), operat
     hubs: ["HOME", "AERO"],
     lastCommit8: plan.trail?.commit8 || null,
     learn:
-      "Robinhood is wave data only. Base original path runs LOWER snowball → dividend 10–30% → MAIN goal. " +
-      "AERO bridges in/out; HOME is piggy never-sell. §CASCTRAIL§ loc empty until real Base hash. " +
+      "Robinhood is wave data only. Base original path runs LOWER snowball → dividend 10–30% → HOME+AERO main in/out. " +
+      "HOME+AERO are dual hubs; HOME rotate-never-sells unless approved. §CASCTRAIL§ loc empty until real Base hash. " +
       "Never invent hashes. Never sell red to place code.",
   });
   return { ok: true };

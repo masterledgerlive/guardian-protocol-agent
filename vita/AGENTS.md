@@ -262,7 +262,7 @@ download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank
 revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
-15 min. HOME = piggy/fuel (rotate never sells). AERO = main in/out cascade.
+15 min. HOME + AERO = dual main in/out hubs (HOME rotate never sells).
 **Base cascade program (original path):** `/cascade` · `/cascade predict` ·
 `/cascade hierarchy` · `/cascade outcomes` · `/cascade trail` ·
 `/cascade unlock` — LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy

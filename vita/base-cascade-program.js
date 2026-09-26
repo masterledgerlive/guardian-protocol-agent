@@ -5,12 +5,12 @@
  * (avenue bottoms → velocity snowball → dividend pool → inject mains).
  *
  * Hierarchy:
- *   HOME     — piggy / fuel (~$11 park); never sold for hops
- *   LOWER    — velocity snowball starters (small book inject-all)
- *   MAIN     — inject mains (goal when dividend/pooled size clears)
- *   AERO     — bridges lower↔main (main in/out on Base)
+ *   HOME+AERO — dual MAIN IN/OUT hubs (top of cascade)
+ *   LOWER     — velocity snowball starters (small book inject-all)
+ *   MAIN      — other inject mains (goal when dividend/pooled size clears)
  *
- * Thin book (&lt; $12): one seat, 100% tradeable into LOWER first.
+ * Thin book (&lt; $12): one seat, 100% tradeable into LOWER first, then
+ * goal into HOME/AERO in/out. HOME rotate-never-sells unless approved.
  * Dividend floor 10% / cap 30% — least withdraw that still seeds next hop.
  * Never invents hashes. Never sells red to place code. Mother brain untouched.
  */
@@ -28,6 +28,7 @@ import { DIVIDEND_FLOOR, DIVIDEND_CAP } from "./wave-hl-ledger.js";
 import {
   HOME_CASCADE_PIGGY_HOLDER,
   AERO_CASCADE_INOUT,
+  CASCADE_MAIN_INOUT_HUBS,
   loadWavePointsFromToken,
   planMessageCascade,
   formatMessageCascadeCard,
@@ -38,9 +39,12 @@ import { VERIFIED_HOME_SYMBOL } from "../operator-rotate.js";
 export const BASE_CASCADE_PROGRAM_ID = "base-cascade-program-v1";
 export const BASE_CASCADE_LABEL = "BASE_CASCADE_PROGRAM";
 
-/** Top of main cascade — inject / hitch surfaces (original agent path). */
+/** Dual main in/out hubs — HOME + AERO (top of cascade). */
+export { CASCADE_MAIN_INOUT_HUBS };
+
+/** Other inject / hitch surfaces (below HOME+AERO in/out). */
 export const CASCADE_MAIN_SYMBOLS = Object.freeze([
-  "LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO",
+  "LINK", "UNI", "VVV", "ZORA", "BNKR", "MORPHO",
 ]);
 
 /** Lower / velocity — snowball starters on thin Base books. */
@@ -73,11 +77,14 @@ function esc(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export function isMainInOutHub(symbol) {
+  return CASCADE_MAIN_INOUT_HUBS.includes(normSym(symbol));
+}
+
 export function cascadeTierOf(symbol) {
   const sym = normSym(symbol);
-  if (sym === VERIFIED_HOME_SYMBOL) return "HOME";
   if (CASCADE_DEFERRED_MAJORS.includes(sym)) return "DEFERRED";
-  if (sym === "AERO") return "BRIDGE"; // main in/out + velocity
+  if (isMainInOutHub(sym)) return "MAIN_INOUT";
   if (CASCADE_MAIN_SYMBOLS.includes(sym)) return "MAIN";
   if (CASCADE_LOWER_SYMBOLS.includes(sym) || INJECT_VELOCITY_SYMBOLS.includes(sym)) return "LOWER";
   return "OTHER";
@@ -140,15 +147,18 @@ export function tagCascadeHierarchy(seats = []) {
     const sym = normSym(s.symbol);
     const tier = cascadeTierOf(sym);
     const wave = loadWavePointsFromToken(s);
+    const mainInOut = tier === "MAIN_INOUT" || isMainInOutHub(sym);
     return {
       ...s,
       symbol: sym,
       tier,
-      isMain: tier === "MAIN" || tier === "BRIDGE",
-      isLower: tier === "LOWER" || tier === "BRIDGE",
-      isHome: tier === "HOME",
+      isMain: tier === "MAIN" || mainInOut,
+      isMainInOut: mainInOut,
+      isLower: tier === "LOWER",
+      isHome: sym === VERIFIED_HOME_SYMBOL,
       deferred: tier === "DEFERRED",
       aeroMain: sym === "AERO" || s.aeroMain === true,
+      homeMain: sym === VERIFIED_HOME_SYMBOL,
       minBuyUsd: minBuyUsdFor(sym),
       wave,
       rangePos: wave.rangePos,
@@ -171,22 +181,35 @@ export function predictCascadeHops({
   bagsDividendUsd = 0,
 } = {}) {
   const cap = capital || viableCascadeCapital({ liquidUsd, homeBagUsd, ethUsd, bagsDividendUsd });
-  const tagged = tagCascadeHierarchy(seats).filter((s) => !s.frozen && !s.deferred && !s.isHome);
+  const allTagged = tagCascadeHierarchy(seats).filter((s) => !s.frozen && !s.deferred);
+  // HOME stays in hub goals (buy-in) but is not a LOWER snowball sell seat.
+  const tagged = allTagged.filter((s) => !s.isHome);
   const deploy = cap.deployableUsd;
 
   const lowerReady = tagged
     .filter((s) => s.isLower && s.waveReady && (s.predictedUp || (s.rangePos != null && s.rangePos <= CASCADE_CHEAP_RANGE_MAX)))
     .sort((a, b) => (a.rangePos ?? 1) - (b.rangePos ?? 1) || a.symbol.localeCompare(b.symbol));
 
-  const mainReady = tagged
-    .filter((s) => (s.tier === "MAIN" || s.tier === "BRIDGE") && s.waveReady
+  const hubRank = (s) => {
+    if (s.isHome || s.homeMain) return 0; // HOME first among dual hubs
+    if (s.aeroMain) return 1;
+    if (s.isMainInOut) return 2;
+    return 3;
+  };
+
+  const mainInOutReady = allTagged
+    .filter((s) => s.isMainInOut && s.waveReady
       && (s.predictedUp || (s.rangePos != null && s.rangePos <= CASCADE_CHEAP_RANGE_MAX)))
-    .sort((a, b) => {
-      // AERO bridge preferred among mains when thin; else cheaper rangePos
-      if (a.aeroMain && !b.aeroMain) return -1;
-      if (b.aeroMain && !a.aeroMain) return 1;
-      return (a.rangePos ?? 1) - (b.rangePos ?? 1) || a.symbol.localeCompare(b.symbol);
-    });
+    .sort((a, b) => hubRank(a) - hubRank(b)
+      || (a.rangePos ?? 1) - (b.rangePos ?? 1)
+      || a.symbol.localeCompare(b.symbol));
+
+  const mainReady = tagged
+    .filter((s) => (s.tier === "MAIN" || s.isMainInOut) && s.waveReady
+      && (s.predictedUp || (s.rangePos != null && s.rangePos <= CASCADE_CHEAP_RANGE_MAX)))
+    .sort((a, b) => hubRank(a) - hubRank(b)
+      || (a.rangePos ?? 1) - (b.rangePos ?? 1)
+      || a.symbol.localeCompare(b.symbol));
 
   const dividendReady = tagged
     .filter((s) => num(s.dividendPct, 0) >= DIVIDEND_FLOOR && num(s.bagUsd, 0) > 0)
@@ -213,7 +236,7 @@ export function predictCascadeHops({
 
   if (cap.thinBook || deploy < INJECT_ALL_USD) {
     phase = PHASES.SNOWBALL_SMALL;
-    const pick = lowerReady[0] || (mainReady.find((s) => s.aeroMain) || null);
+    const pick = lowerReady[0] || mainReady.find((s) => s.aeroMain) || null;
     if (pick) {
       const need = Math.max(cap.minHopUsd, pick.minBuyUsd);
       const funded = deploy >= need;
@@ -231,54 +254,76 @@ export function predictCascadeHops({
         waveDataSource: pick.waveDataSource,
         reason: funded
           ? "thin book — inject-all into lower/velocity snowball seat"
-          : `snowball seat ready — need $${need.toFixed(2)} deployable (have $${deploy.toFixed(2)}; HOME $${cap.homeBagUsd.toFixed(2)} locked)`,
+          : `snowball seat ready — need $${need.toFixed(2)} deployable (have $${deploy.toFixed(2)}; HOME+AERO hubs)`,
       };
     }
-    goal = mainReady[0] || tagged.find((s) => s.tier === "MAIN") || null;
+    // Goal = dual main in/out (HOME then AERO) then other mains
+    goal = mainInOutReady[0]
+      || mainReady.find((s) => s.aeroMain)
+      || mainReady[0]
+      || allTagged.find((s) => s.isMainInOut)
+      || null;
   }
 
   if (dividendReady.some((d) => d.viableNextHop)) {
     phase = PHASES.DIVIDEND_POOL;
     const d = dividendReady.find((x) => x.viableNextHop);
-    const target = mainReady[0] || lowerReady[0];
+    const target = mainInOutReady.find((s) => s.aeroMain)
+      || mainInOutReady[0]
+      || mainReady[0]
+      || lowerReady[0];
     if (d && target) {
+      const hubAction = target.isHome
+        ? "cascade-home-in"
+        : target.aeroMain
+          ? "cascade-aero-in"
+          : target.isMainInOut || target.tier === "MAIN"
+            ? "cascade-main-in"
+            : "cascade-lower-in";
       next = {
         symbol: target.symbol,
         tier: target.tier,
-        action: target.tier === "MAIN" || target.aeroMain ? "cascade-main-in" : "cascade-lower-in",
+        action: hubAction,
         usd: Math.round(Math.min(d.withdrawUsd, deploy + d.withdrawUsd) * 100) / 100,
         fromDividend: d.symbol,
         dividendPct: d.dividendPct,
         rangePos: target.rangePos,
         waveDataSource: target.waveDataSource,
-        reason: `dividend ${(d.dividendPct * 100).toFixed(0)}% from ${d.symbol} → pool toward ${target.symbol}`,
+        reason: `dividend ${(d.dividendPct * 100).toFixed(0)}% from ${d.symbol} → HOME/AERO in/out or main (${target.symbol})`,
       };
       goal = target;
     }
   }
 
-  // Goal main when deployable clears a main min (snowball grown)
-  const mainTarget = mainReady[0];
-  if (mainTarget && deploy >= Math.max(INJECT_ALL_USD * 0.5, mainTarget.minBuyUsd, 2)) {
-    if (phase === PHASES.SNOWBALL_SMALL && deploy >= mainTarget.minBuyUsd * 2) {
+  // Goal HOME/AERO in/out when snowball grown
+  const hubTarget = mainInOutReady.find((s) => s.aeroMain) || mainInOutReady[0] || mainReady[0];
+  if (hubTarget && deploy >= Math.max(INJECT_ALL_USD * 0.5, hubTarget.minBuyUsd, 2)) {
+    if (phase === PHASES.SNOWBALL_SMALL && deploy >= hubTarget.minBuyUsd * 2) {
       phase = PHASES.GOAL_MAIN;
       next = {
-        symbol: mainTarget.symbol,
-        tier: mainTarget.tier,
-        action: mainTarget.aeroMain ? "cascade-aero-in" : "cascade-main-in",
+        symbol: hubTarget.symbol,
+        tier: hubTarget.tier,
+        action: hubTarget.isHome
+          ? "cascade-home-in"
+          : hubTarget.aeroMain
+            ? "cascade-aero-in"
+            : "cascade-main-in",
         usd: Math.round(Math.min(deploy * 0.65, deploy) * 100) / 100,
-        rangePos: mainTarget.rangePos,
-        waveDataSource: mainTarget.waveDataSource,
-        reason: "snowball cleared main entry — goal into inject main",
+        rangePos: hubTarget.rangePos,
+        waveDataSource: hubTarget.waveDataSource,
+        reason: "snowball cleared — goal into HOME/AERO main in/out",
       };
-      goal = mainTarget;
+      goal = hubTarget;
     } else if (!goal) {
-      goal = mainTarget;
+      goal = hubTarget;
     }
   }
 
-  if (!goal && tagged.length) {
-    goal = tagged.find((s) => s.tier === "MAIN") || tagged.find((s) => s.aeroMain) || null;
+  if (!goal && allTagged.length) {
+    goal = allTagged.find((s) => s.isMainInOut)
+      || tagged.find((s) => s.tier === "MAIN")
+      || tagged.find((s) => s.aeroMain)
+      || null;
   }
 
   return {
@@ -292,6 +337,8 @@ export function predictCascadeHops({
           minBuyUsd: goal.minBuyUsd,
           rangePos: goal.rangePos,
           aeroMain: goal.aeroMain === true,
+          homeMain: goal.homeMain === true || goal.isHome === true,
+          mainInOut: goal.isMainInOut === true,
         }
       : null,
     lowerReady: lowerReady.map((s) => ({
@@ -300,6 +347,16 @@ export function predictCascadeHops({
       price: s.price,
       rangePos: s.rangePos,
       minBuyUsd: s.minBuyUsd,
+      waveDataSource: s.waveDataSource,
+    })),
+    mainInOutReady: mainInOutReady.map((s) => ({
+      symbol: s.symbol,
+      tier: s.tier,
+      price: s.price,
+      rangePos: s.rangePos,
+      minBuyUsd: s.minBuyUsd,
+      aeroMain: s.aeroMain === true,
+      homeMain: s.isHome === true,
       waveDataSource: s.waveDataSource,
     })),
     mainReady: mainReady.map((s) => ({
@@ -313,6 +370,7 @@ export function predictCascadeHops({
     })),
     dividendReady,
     hierarchy: {
+      mainInOut: CASCADE_MAIN_INOUT_HUBS.slice(),
       home: HOME_CASCADE_PIGGY_HOLDER,
       aero: AERO_CASCADE_INOUT,
       main: CASCADE_MAIN_SYMBOLS.slice(),
@@ -342,33 +400,31 @@ export function planBaseCascadeProgram({
     capital,
   });
 
-  // Order tokens for message-cascade: LOWER first on thin book, else mains boosted later
+  // Order: thin → LOWER snowball; grown → HOME/AERO in/out then other mains
   const ordered = tagged.slice().sort((a, b) => {
-    if (a.isHome && !b.isHome) return 1;
-    if (b.isHome && !a.isHome) return -1;
     if (a.deferred && !b.deferred) return 1;
     if (b.deferred && !a.deferred) return -1;
     if (capital.thinBook) {
-      // snowball: lower/bridge before pure mains
-      const ar = a.isLower ? 0 : a.isMain ? 1 : 2;
-      const br = b.isLower ? 0 : b.isMain ? 1 : 2;
+      const ar = a.isLower ? 0 : a.isMainInOut ? 1 : a.isMain ? 2 : 3;
+      const br = b.isLower ? 0 : b.isMainInOut ? 1 : b.isMain ? 2 : 3;
       if (ar !== br) return ar - br;
       return (a.rangePos ?? 1) - (b.rangePos ?? 1);
     }
-    // grown book: mains first
-    const ar = a.isMain ? 0 : a.isLower ? 1 : 2;
-    const br = b.isMain ? 0 : b.isLower ? 1 : 2;
+    const ar = a.isMainInOut ? 0 : a.isMain ? 1 : a.isLower ? 2 : 3;
+    const br = b.isMainInOut ? 0 : b.isMain ? 1 : b.isLower ? 2 : 3;
     if (ar !== br) return ar - br;
+    // HOME before AERO among dual hubs
+    if (a.isHome && b.aeroMain) return -1;
+    if (b.isHome && a.aeroMain) return 1;
     return (a.rangePos ?? 1) - (b.rangePos ?? 1);
   });
 
-  // Bias revenue score so ranking matches phase
   const forPlan = ordered.map((s) => ({
     ...s,
     revenueUsd: num(s.revenueUsd, 0) + (
       capital.thinBook
-        ? (s.isLower ? 0.5 : s.isMain ? 0.1 : 0)
-        : (s.isMain ? 0.5 : s.isLower ? 0.2 : 0)
+        ? (s.isLower ? 0.5 : s.isMainInOut ? 0.35 : s.isMain ? 0.1 : 0)
+        : (s.isMainInOut ? 0.8 : s.isMain ? 0.4 : s.isLower ? 0.2 : 0)
     ),
   }));
 
@@ -382,7 +438,13 @@ export function planBaseCascadeProgram({
   for (const hop of cascade.hops || []) {
     const tier = cascadeTierOf(hop.symbol);
     hop.tier = tier;
-    if (normSym(hop.symbol) === "AERO") {
+    hop.mainInOut = tier === "MAIN_INOUT";
+    if (normSym(hop.symbol) === VERIFIED_HOME_SYMBOL) {
+      hop.homeMain = true;
+      hop.action = hop.waitingUp || hop.cheap
+        ? "cascade-home-in"
+        : "cascade-home-inout-hold";
+    } else if (normSym(hop.symbol) === "AERO") {
       hop.aeroMain = true;
       hop.action = hop.sellArm?.armed
         ? "cascade-aero-out"
@@ -424,13 +486,15 @@ export function formatBaseCascadeProgramCard(plan) {
     `Phase: <b>${esc(p.phase)}</b>`,
     "",
     `💰 <b>Viable capital</b>`,
-    `HOME piggy $${c.homeBagUsd.toFixed(2)} (never spend) · liquid $${c.liquidUsd.toFixed(2)}`,
+    `🏠✈ MAIN IN/OUT: HOME + AERO`,
+    `HOME bag $${c.homeBagUsd.toFixed(2)} (rotate never-sell) · liquid $${c.liquidUsd.toFixed(2)}`,
     `Gas floor ~$${c.gasFloorUsd.toFixed(2)} · tradeable $${c.tradeableUsd.toFixed(2)}`,
     `Dividend pool $${c.dividendPoolUsd.toFixed(2)} · <b>deployable $${c.deployableUsd.toFixed(2)}</b>`,
     `Thin/inject-all: ${c.thinBook ? "YES" : "no"} · min hop $${c.minHopUsd.toFixed(2)} · hops≈${c.hopsAffordable}`,
     `Dividend band ${(c.dividendFloorPct * 100).toFixed(0)}–${(c.dividendCapPct * 100).toFixed(0)}% · dust $${c.leaveDustUsd.toFixed(2)}`,
     "",
-    `🏷 MAIN: ${CASCADE_MAIN_SYMBOLS.join(" ")}`,
+    `🏠✈ IN/OUT: ${CASCADE_MAIN_INOUT_HUBS.join(" + ")}`,
+    `⬆ MAIN: ${CASCADE_MAIN_SYMBOLS.join(" ")}`,
     `❄ LOWER: ${CASCADE_LOWER_SYMBOLS.join(" ")}`,
     `⏸ DEFERRED: ${CASCADE_DEFERRED_MAJORS.join(" ")}`,
     "",
@@ -448,6 +512,9 @@ export function formatBaseCascadeProgramCard(plan) {
     lines.push(
       `🎯 GOAL <b>${esc(p.goal.symbol)}</b> [${esc(p.goal.tier)}] min $${Number(p.goal.minBuyUsd).toFixed(2)}`,
     );
+  }
+  if (p.mainInOutReady?.length) {
+    lines.push(`IN/OUT ready: ${p.mainInOutReady.slice(0, 4).map((s) => s.symbol).join(" ")}`);
   }
   if (p.lowerReady.length) {
     lines.push(`LOWER ready: ${p.lowerReady.slice(0, 6).map((s) => s.symbol).join(" ")}`);
@@ -488,7 +555,7 @@ export function formatCascadePredictionCard(plan) {
   }
   lines.push(
     "",
-    `Model: snowball LOWER → dividend ${(DIVIDEND_FLOOR * 100).toFixed(0)}–${(DIVIDEND_CAP * 100).toFixed(0)}% → GOAL MAIN`,
+    `Model: snowball LOWER → dividend ${(DIVIDEND_FLOOR * 100).toFixed(0)}–${(DIVIDEND_CAP * 100).toFixed(0)}% → HOME+AERO in/out`,
     `RH marks feed wave only · swaps stay Base`,
   );
   return lines.join("\n");
@@ -524,13 +591,13 @@ export function parseBaseCascadeCommand(raw) {
 export function formatCascadeHierarchyCard() {
   return [
     `🏷 <b>CASCADE HIERARCHY</b> (Base rail)`,
-    `🏠 HOME — piggy/fuel, never sell`,
-    `✈ AERO — main in/out bridge`,
+    `🏠✈ MAIN IN/OUT — ${CASCADE_MAIN_INOUT_HUBS.join(" + ")}`,
     `⬆ MAIN — ${CASCADE_MAIN_SYMBOLS.join(" ")}`,
     `❄ LOWER — ${CASCADE_LOWER_SYMBOLS.join(" ")}`,
     `⏸ DEFERRED — ${CASCADE_DEFERRED_MAJORS.join(" ")} (not for $11 snowball)`,
     "",
-    `Path: LOWER snowball → dividend 10–30% → MAIN goal`,
+    `Path: LOWER snowball → dividend 10–30% → HOME+AERO in/out`,
+    `HOME rotate-never-sells unless APPROVE_HOME_SELL=yes.`,
     `Wave data may come from Robinhood; execution never leaves Base.`,
   ].join("\n");
 }
