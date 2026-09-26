@@ -211,6 +211,12 @@ SANDBOX (prove against hardcoded anchors only) → LANGUAGE refine → SEAL
 `watcher-eureka`. Directory: `/vitafeed dir OS`. Solidity mirror
 `vita/os-builder/AgentTriggerRegistry.sol` (no deployed address). Never
 invent hashes. See `vita/os-builder.js`.
+**WAVE-ROBIN (first agentic AI):** `/waveai` · `/rhwave` · `/home os` → Wave AI —
+pure wave math `phase=sin(π·rangePos)` + IFTTT cascade on Robinhood
+quotes/historicals. Growing-wave hops (≥8/15m spirit), $0.05 dust, accumulation
+proof ledger. SIM orders by default — `RH_WAVE_LIVE=yes` + `/waveai confirm`
+required to place. Never auto-spend. Fixture: `vita/memory/wave-robin-fixture.js`.
+See `vita/wave-robin-agent.js`.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.

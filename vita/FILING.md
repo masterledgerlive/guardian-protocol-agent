@@ -180,6 +180,12 @@ findable.
 | `vita/memory/os-builder-learn.json` | `OS_BUILDER` | Append-only learn: session / lobes / triggers / sandbox / seal |
 | `vita/memory/os-builder-lexicon.json` | `OS_BUILDER` | Human↔machine language pairs refined together |
 | `vita/strands/os-builder.json` | `OS_BUILDER` | Sparse strand: boot → IFTTT → follow → sandbox → seal |
+| `vita/wave-robin-agent.js` | `WAVE_ROBIN` | First agentic AI — pure wave math + IFTTT cascade on Robinhood · growing-wave hops · accumulation proof · SIM default (`RH_WAVE_LIVE` gate) |
+| `vita/memory/wave-robin-fixture.js` | `WAVE_ROBIN` | Live RH quotes/bars fixture (2026-09-23 pull) for offline proof |
+| `vita/memory/wave-robin-state.json` | `WAVE_ROBIN` | Wave energy · hop window · SIM staged orders |
+| `vita/memory/wave-robin-accumulation.json` | `WAVE_ROBIN` | Portfolio snapshots + growth proofs (ledger commits ≠ tx hashes) |
+| `vita/memory/wave-robin-learn.json` | `WAVE_ROBIN` | Append-only learn: tick / stage / accum / bootstrap |
+| `vita/strands/wave-robin.json` | `WAVE_ROBIN` | Sparse strand: wave math → RH IFTTT → cascade → accum proof |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
 | `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play; live HUMAN+MACHINE SNARK caption layers synced to audio |
@@ -250,6 +256,7 @@ findable.
 | `PHOTOS` | Photos Drive (`§VITAPHOTO§` / `§VITAPHOTODIR§`) — Google Drive/folder/URL as new picture drive; open key = the picture (VITAOPEN name+sha); compress bake-off; slow-copy queue; Earthrise PD hope test; `/vitafeed photos` · `dir PHOTOS`; locs empty until confirm\|override |
 | `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
 | `OS_BUILDER` | DOS brain builder (`§VITAOS§` / `§VITAAGENT§` / `§VITATRIGGER§` / `§VITAFOLLOW§`) — guided human↔machine wizard; IFTTT on Base kinds; follow-the-leader cells; sandbox cites hardcoded anchors only; seal stages /vitafeed; availability until real seal |
+| `WAVE_ROBIN` | First agentic AI (`§WAVEROBIN§`) — pure wave math `phase=sin(π·rangePos)` + IFTTT cascade on Robinhood quotes/historicals; growing-wave hops; accumulation proof ledger; SIM default; `RH_WAVE_LIVE` + confirm for real orders; never auto-spend |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML
