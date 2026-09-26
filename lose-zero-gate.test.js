@@ -2628,11 +2628,24 @@ describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
       markProceedsEth: 0.0002,
       bagUsd: 0.38,
       unknownEntry: true,
-      reason: "MANUAL BUY (operator) $2",
+      reason: "WAVE BUY",
       env: {},
     });
     assert.equal(unknownBag.allow, false);
     assert.equal(unknownBag.reason, "unknown-cost");
+    const unknownOperator = evaluateAddOnFifoRedGate({
+      symbol: "HOME",
+      tokenBal: 762,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.0018,
+      bagUsd: 4.91,
+      unknownEntry: true,
+      reason: "MANUAL BUY (operator) $2.56",
+      env: {},
+    });
+    assert.equal(unknownOperator.allow, true);
+    assert.equal(unknownOperator.reason, "operator-unknown-add");
+    assert.match(unknownOperator.log, /MANUAL BUY \(operator\)/);
     assert.equal(isUnknownCostBlockingAddOn({
       unknownEntry: true,
       tokenBal: 2844,

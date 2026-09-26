@@ -1,19 +1,16 @@
 {
-  "at": "2026-09-20T19:52:53.293Z",
+  "at": "2026-09-24T02:46:36.606Z",
   "topic": "vitafeed-backlog-growth",
   "filingLabel": "FEED_BACKLOG",
-  "text": "§VITABACKLOG§v1|growth§\npending=29 sealed=0 partial=0 locs=0 enqueued=29\nformula=original-message-first\nneverInvent=true\nagentAi=not-required\ndrain=/vitafeed next → confirm|override\n",
+  "text": "§VITABACKLOG§v1|growth§\npending=35 sealed=0 partial=0 locs=0 enqueued=35\nformula=original-message-first\nneverInvent=true\nagentAi=not-required\ndrain=/vitafeed next → confirm|override\n",
   "growth": {
-    "enqueued": 29,
+    "enqueued": 35,
     "sealed": 0,
     "partial": 0,
     "skipped": 0,
-    "pending": 29,
+    "pending": 35,
     "sealedLocCount": 0,
     "roots": [
-      "fe63758a1e4a057c4570800b585d44a5506fd63e7d841d7d5760bc646241a4b2",
-      "813b79bfb44ef169249b337dcd615b6e28ed470f0b92c7ead5fcf1f196bd447f",
-      "4c390da9af64f8ba1410d687f1eef3d6d2152b1dd1a085fdbb5d8db8e4943ca5",
       "c08aec8eec2bd88d176209d70d9bc86705049e5eab5d7cb385f36a729a0d7935",
       "48d3cd9e37735bc0cc80a460da644d6bb96f14a8d73f68b501bf1be0e4da03ec",
       "9e63aa8e896048102edd540961dc269f91c427269be1a11a5105e372f0da0a62",
@@ -39,7 +36,13 @@
       "31f591d6552d2ac840b289c84ea33c8623363edd59274aa8ab735d956edb2aef",
       "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c",
       "bf844484532cabdbe523a9b9c1d9764e661b2ee74d40dbbedff39a86782ebe33",
-      "49190e892affd1b5b63bad10740bb5f68ffbc34cc99855c48b34e024ef25e555"
+      "49190e892affd1b5b63bad10740bb5f68ffbc34cc99855c48b34e024ef25e555",
+      "3677acd7096bba180282916a348c44639c974957523484f1e3a157433189380e",
+      "8d67ff0a52a3527d923e10ac5808d8b53ce9701fc62309871ce44c1a8ff39d39",
+      "b9480eee6149fd1ee4dd2acf7907981c8e923009138741ddb983f12302de751c",
+      "6a890d49b62ce50a641c9aa6dca0d2df604dec1a6d965b45ffba5e4124539d00",
+      "263f4047c113e150920d36b33202d259eb0c283f8c01b888d654e389c157913b",
+      "2d958016507fccf0f0c1c116947d43bec31bc0abfce0db40d5971aabc6030f1e"
     ]
   },
   "formula": "original-message-first",

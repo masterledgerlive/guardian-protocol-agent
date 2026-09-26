@@ -691,6 +691,18 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
       source: "music",
     };
   }
+  // Photos drive — Google Drive / folder / URL → PHOTOS → chain.
+  if (/^(?:photos?|pictures?|gallery|gdrive|gphotos)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:photos?|pictures?|gallery|gdrive|gphotos)\s*/i, "").trim();
+    const wantsFile = /^(?:add|file|upload|drop)$/i.test(rest);
+    return {
+      ok: true,
+      action: "photos",
+      body: rest,
+      source: "photos",
+      wantsFile,
+    };
+  }
   // DJ soundboard — pads, prompted bites, uploads.
   if (/^(?:board|soundboard|pads|dj)(?:\s|$)/i.test(trimmed)) {
     const rest = trimmed.replace(/^(?:board|soundboard|pads|dj)\s*/i, "").trim();
@@ -860,6 +872,18 @@ export function vitaFeedUsageText() {
     "  /vitafeed play maple|judy|grace|daisy|ballgame|auld|lining|susanna|entertainer|stripes|sweetheart|afterball",
     "  /vitafeed music            — growing PD library card (Maple, Judy rainbow lane, …)",
     "  /vitafeed music <id>       — one-song grouped inject plan + loc proof",
+    "  /vitafeed photos           — Photos Drive (new Google Drive for pictures)",
+    "  /vitafeed photos source <url|folder> — bind public Drive / local / https",
+    "  /vitafeed photos scan      — queue pictures from source (slow-copy ready)",
+    "  /vitafeed photos next      — copy one picture into VITA:\\PHOTOS\\",
+    "  /vitafeed photos all       — batch drain queue + inbox",
+    "  /vitafeed photos add       — send one picture (open key = the picture)",
+    "  /vitafeed photos test      — Earthrise (NASA PD) hope full-system test",
+    "  /vitafeed photos test mlk  — MLK historical uplift full-system test",
+    "  /vitafeed photos unwrap [id] — blockchain inject stream + READ PROOF receipts",
+    "  /vitafeed dir PHOTOS       — DOS list · open-picture unlock",
+    "  /vitafeed enqueue photo <id> — queue picture §VITAFILE§ groups for confirm|override",
+    "  /vitafeed enqueue photos   — bank every catalog picture",
     "  /vitafeed board            — DJ soundboard pad grid (Telegram buttons)",
     "  /vitafeed pad <id>         — hit a pad · play + zero-open-key + loc rail",
     "  /vitafeed prompt <recipe>  — prompted music bite → catalog → inject",
@@ -881,9 +905,10 @@ export function vitaFeedUsageText() {
     "  /vitafeed dual kids        — HUMAN url list + MACHINE ids (Telegram dual path)",
     "  Telegram: tap Watch popup (Mini App + HTTPS) — small window while you work",
     "  Player: /vita/kids-player?dir=kids&popup=1  ·  /vita/feed-player?demo=1&popup=1",
+    "  Photos: /vita/photos · viewer /vita/photos/viewer?id=<id>&unwrap=1 · media · locs",
     "  Board: /vita/soundboard · locs /vita/soundboard/locs?id=<id> · inspect ?i=1&g=1",
     "  Spatial: /vita/spatial · locs /vita/spatial/locs?id=<id> · soundtrack ?voxel=0,0,0",
-    "  CLASS_PROOF anchors ≠ pad/spatial body — new Inputs only after seal MATCH",
+    "  CLASS_PROOF anchors ≠ photo/pad/spatial body — new Inputs only after seal MATCH",
     "  Inject click-through appears ONLY after confirm|override seals real tx (VITAFEED_PAID=yes)",
     "  Loc proof: /vita/free-music/locs?id=<id> — click-through Basescan · data-field MATCH",
     "  Inspect: /vita/free-music/loc?id=<id>&g=1&i=1 — exact VIN UTF-8 fed into the player",
@@ -931,6 +956,7 @@ export function vitaFeedUsageText() {
     "  or /vita/feed-player?lib=<n> after /vitafeed files.",
     "  or /vita/feed-player?music=<id> — PD library · click-through loc MATCH.",
     "  or /vita/feed-player?music=<id>&kids=1 — clean play UI; Proof toggle shows blockchain.",
+    "  or /vita/photos?id=<id> — Photos Drive · open-picture key · Earthrise hope test.",
     "  or /vita/soundboard?pad=<id> — DJ soundboard · waveform · zero-open-key loc rail.",
     "  or /vita/spatial?id=<id> — voxel spatial bird prints · one-block SNARK filing goal.",
     "Does not touch /vitasave mother brain. Does not set VITA_AUTO_INSCRIBE.",
@@ -1587,6 +1613,10 @@ export async function handleVitaFeedAction({
   compressionMime = "",
   /** Isolated dirs for tests. Production uses vita/memory + vita/compression. */
   compressionOpts = null,
+  /** Picture bytes for /vitafeed photos add */
+  photoBytes = null,
+  photoName = "",
+  photoMime = "",
 } = {}) {
   if (action === "check") {
     const audit = auditVitaFeedChainMirror();
@@ -2153,6 +2183,34 @@ export async function handleVitaFeedAction({
       keyboard: buildPlayerPopupKeyboard({ playerPath }),
     };
   }
+  if (action === "photos" || action === "photo" || action === "pictures") {
+    const { handlePhotosRequest, PHOTOS_PLAYER_PATH } = await import("./photos.js");
+    const { vitaPlayerHref } = await import("./url-dir.js");
+    const picBytes = photoBytes || compressionBytes;
+    const picName = photoName || compressionName || "";
+    const picMime = photoMime || compressionMime || "";
+    const out = await handlePhotosRequest({
+      body,
+      bytes: picBytes,
+      name: picName,
+      mime: picMime,
+    });
+    if (out?.wantsFile) {
+      return {
+        ...out,
+        awaitUpload: true,
+        photos: true,
+        playerPath: out.playerPath || PHOTOS_PLAYER_PATH,
+        playerHref: out.playerHref || vitaPlayerHref(out.playerPath || PHOTOS_PLAYER_PATH),
+      };
+    }
+    return {
+      ...out,
+      photos: true,
+      playerPath: out.playerPath || PHOTOS_PLAYER_PATH,
+      playerHref: out.playerHref || vitaPlayerHref(out.playerPath || PHOTOS_PLAYER_PATH),
+    };
+  }
   if (action === "board" || action === "pad" || action === "prompt") {
     const {
       formatSoundboardCard,
@@ -2565,6 +2623,57 @@ export async function handleVitaFeedAction({
           "\n\nNext: /vitafeed next → /vitafeed confirm|override (one group per hourly cap)." +
           "\nVITAFEED_PAID stays default OFF. /vitafeed enqueue all is still memory seed.",
       };
+    }
+    {
+      const {
+        resolvePhotoEnqueueTarget,
+        enqueuePhoto,
+        enqueuePhotosLibrary,
+      } = await import("./photos.js");
+      const photoTarget = resolvePhotoEnqueueTarget(arg);
+      if (photoTarget?.kind === "library") {
+        const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+        const queued = enqueuePhotosLibrary({ enqueueFn: enqueueFeedBacklogItem });
+        return {
+          ok: queued.ok !== false,
+          phase: "enqueue",
+          photos: true,
+          library: true,
+          added: queued.added || 0,
+          ids: queued.ids,
+          reply:
+            formatFeedBacklogCard() +
+            "\n\nPHOTOS library enqueue +" +
+            (queued.added || 0) +
+            " pictures\nNext: /vitafeed next → confirm|override — NEW photo Input Data (class-proof ≠ body)",
+        };
+      }
+      if (photoTarget?.kind === "photo") {
+        const { enqueueFeedBacklogItem, formatFeedBacklogCard } = await import("./vita-feed-backlog.js");
+        const queued = enqueuePhoto({
+          enqueueFn: enqueueFeedBacklogItem,
+          id: photoTarget.id,
+        });
+        return {
+          ok: queued.ok !== false,
+          phase: "enqueue",
+          photos: true,
+          id: photoTarget.id,
+          added: queued.added || 0,
+          zeroOpenKey: queued.packed?.zeroOpenKey,
+          reply:
+            formatFeedBacklogCard() +
+            "\n\nPHOTO " +
+            photoTarget.id +
+            " enqueue +" +
+            (queued.added || 0) +
+            " group(s)\nOpen key: " +
+            (queued.packed?.zeroOpenKey || "—") +
+            "\n" +
+            (queued.note || "") +
+            "\nNext: /vitafeed next → confirm|override. Locs empty until real seal.",
+        };
+      }
     }
     {
       const {

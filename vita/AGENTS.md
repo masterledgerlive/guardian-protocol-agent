@@ -146,7 +146,9 @@ passphrase wraps AES-256-GCM. Startup reconstructs the module from wires and
 runs that copy against a note and a beep. Each inject logs a SYSTEM_INJECTED
 receipt: click `/phosphor/receipt` and `/phosphor/block` for the exact machine
 data field. The header `next=` loc chains the blocks (one-block and five-block
-recalls). Filing location is the compressed stark root. A large file is
+recalls). Leader block 0 alone stamps `utc|local|unix|filing` so date/time/
+location are never lost; trailing blocks lean follow-the-leader. Find-by-time
+and one-path→all-connected train agent recall. Filing location is the compressed stark root. A large file is
 chunked into the injector, filed on the internal HOME seat, and proved by
 READER (`joined = payloadHash`, `recall = rawHash`, snark commit recomputed).
 The CRT LIBRARY imprints `sample/pong.route` and a tiled picture. The unwrap
@@ -183,6 +185,10 @@ Pull Input Data → UTF-8 to verify. Each pass creates files under `vita/memory/
 + `vita/strands/` (`vita/chain-layer.js` · `vita/chain-inject.js`).
 **Telegram HELP (full click-through):** `/help` · `/help trade` · `/pick sell`
 — every category is a button; trade verbs open a token box (`/sell` → AERO…).
+**Robinhood → Base dual fund:** `/rh` · `/rh fund CHIP` · `/rh confirm CHIP` —
+tap a chosen RH source (CHIP + quote-mirror list) → stage sell ~$2 → queue
+Base `/buy HOME 1` + `/buy AERO 1`. RH MCP cannot withdraw; Base needs RISK
+ETH. See `vita/rh-fund.js`.
 **Route systems check:** `/vita check routes` · `/help check` — merkle folder
 integrity + avenue domino (PASS/QUESTIONABLE/FAIL), logs
 `vita/memory/systems-check-routes-*.json`, force-stages §SYSCHECK§ for
@@ -214,6 +220,9 @@ See `vita/wave-robin-agent.js`.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
+`playKind` includes `html` (`text/html`) — after unlock the feed player runs
+sealed pages in a sandboxed iframe (`srcdoc` + open-in-new-tab data URL).
+Plain `.txt` / text kinds render in `<pre>` from the same recovered UTF-8.
 **Compression bake-off:** `/vitafeed compress` · `/vitafeed compress add` ·
 `/vitafeed compress <path>` · `/vitafeed compress dir` ·
 `/vitafeed compress unwrap [key]` · `/vitafeed compress verify <key>` ·
@@ -222,11 +231,29 @@ personal, program, video, or any other file. Drop a file in
 `vita/compression/inbox/` or on `/vita/compression`. Every codec runs
 (including the Gemini zlib project). The call is `verified` with the open
 key that recovers the bytes. **Unwrap** shows HUMAN plain text recovered
-from the machine wire (plus MACHINE denser lane). That key is the directory
-row. Telegram: every step is a button (HOME → Compress, Feed → Comp add,
+from the machine wire (plus MACHINE denser lane) — tap **Unwrap** / Trail
+**Plain** / `/vitafeed compress unwrap` after a `.txt` compress to see the
+original again (lossless). That key is the directory row. Telegram: every
+step is a button (HOME → Compress, Feed → Comp add,
 `/vitafeed dir COMPRESS`). Next module is `/vitafeed` injection
 (confirm|override). Chain stays availability until a real seal. Never invent
 hashes. See `vita/compression/`.
+**Photos Drive (new Google Drive for pictures):** `/vitafeed photos` ·
+`/vitafeed photos source <drive-url|folder|https>` · `/vitafeed photos scan` ·
+`/vitafeed photos next` · `/vitafeed photos all` · `/vitafeed photos add` ·
+`/vitafeed photos test` · `/vitafeed enqueue photo <id>` ·
+`/vitafeed enqueue photos` · `/vitafeed dir PHOTOS` · `/vita/photos` ·
+`/vita/photos/viewer?id=<id>&unwrap=1` · `/vita/photos/loc` ·
+`/vita/photos/receipt` —
+bind a public Google Drive share, local folder, or URL as the picture source;
+slow-copy one-by-one or batch; open key is the picture itself (`VITAOPEN…`);
+compression bake-off then §VITAFILE§ VIN; click a picture to open the DOS
+blockchain inject stream (not blackout) — each VIN is a data-field card with
+READ PROOF receipt (exact Input Data UTF-8) and Basescan when MATCH; catalog
+is ordered + searchable. Earthrise (NASA PD) and MLK historical uplift seed
+`VITA:\PHOTOS\`. LOCK private locate/decode waits until you grant encode
+permissions. Locs empty until confirm|override. Never invent hashes. See
+`vita/photos.js`.
 **Proof-of-logs trail:** `/vitafeed trail` · `/vitafeed log <n>` ·
 `/vitafeed log plain|machine|original|race <n>` ·
 `/vitafeed log chains <n> base,ethereum,…` · `/vitafeed dir PROOFLOG` —
@@ -241,8 +268,14 @@ download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank
 revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
-15 min. HOME cascade-available (rotate never sells). File operator
-message then agentic knowledge under `vita/memory/` + `vita/strands/`.
+15 min. HOME + AERO = dual main in/out hubs (HOME rotate never sells).
+**Base cascade program (original path):** `/cascade` · `/cascade predict` ·
+`/cascade hierarchy` · `/cascade outcomes` · `/cascade trail` ·
+`/cascade unlock` — LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy
+locked (~$11). Robinhood is **wave data only** (`vita/rh-cascade-rail.js`);
+execution stays Base RISK (`vita/base-cascade-program.js`). §CASCTRAIL§ loc
+empty until seal. `/hold sells off` lifts HOLD_ALL_SELLS (HOME never-sell).
+File operator message then agentic knowledge under `vita/memory/` + `vita/strands/`.
 
 ## Merge stance
 

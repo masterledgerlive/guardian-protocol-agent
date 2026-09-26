@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITA Photos Drive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a2332;
+      --paper: #e8eef4;
+      --sky: #4a7c9b;
+      --earth: #c45c26;
+      --lunar: #d4c4a8;
+      --glow: rgba(74, 124, 155, 0.35);
+      --ok: #2d6a4f;
+      --avail: #6b7280;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 90% 60% at 20% 10%, rgba(212, 196, 168, 0.55), transparent 55%),
+        radial-gradient(ellipse 70% 50% at 90% 80%, rgba(74, 124, 155, 0.28), transparent 50%),
+        linear-gradient(165deg, #0f1724 0%, #1a2a3a 40%, #243447 100%);
+      color: #e8eef4;
+    }
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3rem;
+    }
+    header.hero {
+      position: relative;
+      min-height: min(72vh, 560px);
+      display: grid;
+      align-content: end;
+      gap: 0.75rem;
+      padding: 2rem 0 1.5rem;
+      overflow: hidden;
+    }
+    header.hero::before {
+      content: "";
+      position: absolute;
+      inset: -8% -4% 20%;
+      background:
+        url("/vita/photos/media?id=earthrise") center / cover no-repeat;
+      opacity: 0.55;
+      filter: saturate(1.1) contrast(1.05);
+      animation: rise 18s ease-in-out infinite alternate;
+      z-index: 0;
+      mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    }
+    @keyframes rise {
+      from { transform: scale(1.05) translateY(2%); }
+      to { transform: scale(1.12) translateY(-2%); }
+    }
+    .brand, .lede, .cta, .meta {
+      position: relative;
+      z-index: 1;
+    }
+    .brand {
+      font-family: "Fraunces", serif;
+      font-size: clamp(2.4rem, 7vw, 4.2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      margin: 0;
+      text-shadow: 0 2px 24px rgba(0,0,0,0.45);
+      animation: fadeUp 0.9s ease both;
+    }
+    .lede {
+      max-width: 34rem;
+      font-size: 1.05rem;
+      line-height: 1.45;
+      opacity: 0.92;
+      animation: fadeUp 1s 0.12s ease both;
+    }
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.4rem;
+      animation: fadeUp 1s 0.22s ease both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
+    button, .btn {
+      font: inherit;
+      font-weight: 600;
+      border: 0;
+      cursor: pointer;
+      padding: 0.7rem 1.1rem;
+      background: var(--lunar);
+      color: var(--ink);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    button:hover, .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px var(--glow);
+    }
+    button.ghost, .btn.ghost {
+      background: transparent;
+      color: var(--lunar);
+      outline: 1px solid rgba(212, 196, 168, 0.45);
+    }
+    button.accent {
+      background: var(--earth);
+      color: #fff;
+    }
+    section {
+      margin-top: 2.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid rgba(232, 238, 244, 0.12);
+    }
+    section h2 {
+      font-family: "Fraunces", serif;
+      font-size: 1.45rem;
+      font-weight: 600;
+      margin: 0 0 0.35rem;
+    }
+    section p.sub {
+      margin: 0 0 1rem;
+      opacity: 0.75;
+      font-size: 0.95rem;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    input[type="text"], input[type="file"] {
+      font: inherit;
+      padding: 0.65rem 0.8rem;
+      border: 1px solid rgba(232, 238, 244, 0.25);
+      background: rgba(15, 23, 36, 0.55);
+      color: #e8eef4;
+      min-width: min(100%, 280px);
+      flex: 1;
+    }
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+    .thumb {
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .thumb img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+      background: #0a1018;
+      animation: fadeUp 0.8s ease both;
+    }
+    .thumb .cap {
+      font-size: 0.8rem;
+      opacity: 0.85;
+    }
+    .status {
+      display: inline-block;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--avail);
+    }
+    .status.match { color: #7dcea0; }
+    .viewer {
+      display: grid;
+      gap: 0.75rem;
+    }
+    .viewer img {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      background: #0a1018;
+    }
+    .key {
+      font-family: ui-monospace, monospace;
+      font-size: 0.82rem;
+      word-break: break-all;
+      opacity: 0.9;
+    }
+    .log {
+      white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      background: rgba(0,0,0,0.35);
+      padding: 0.9rem;
+      max-height: 220px;
+      overflow: auto;
+    }
+    nav.links {
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+    nav.links a { color: var(--lunar); }
+    @media (max-width: 600px) {
+      header.hero { min-height: 52vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1 class="brand">VITA Photos</h1>
+      <p class="lede">Your pictures folder on chain — bind a public Drive share, a local folder, or a URL. Open key is the picture itself until you grant locked encode.</p>
+      <div class="cta">
+        <button type="button" class="accent" id="btn-earthrise">File Earthrise test</button>
+        <button type="button" class="accent" id="btn-mlk">File MLK test</button>
+        <button type="button" class="ghost" id="btn-refresh">Refresh</button>
+        <a class="btn ghost" id="btn-viewer-lib" href="/vita/photos/viewer?unwrap=1">Unwrap viewer</a>
+      </div>
+    </header>
+
+    <section>
+      <h2>New drive source</h2>
+      <p class="sub">Google Drive share · local path · https image. Then scan and slow-copy one-by-one or all.</p>
+      <div class="row">
+        <input id="source" type="text" placeholder="https://drive.google.com/… or /path/to/pics" />
+        <button type="button" id="btn-source">Bind source</button>
+        <button type="button" id="btn-scan">Scan</button>
+        <button type="button" id="btn-next">Copy next</button>
+        <button type="button" id="btn-all">Copy all</button>
+      </div>
+      <p class="meta" id="source-meta" style="margin-top:0.75rem;opacity:0.75;font-size:0.9rem;"></p>
+    </section>
+
+    <section>
+      <h2>Add one picture</h2>
+      <p class="sub">Or drop files into <code>vita/photos/inbox/</code> and tap Copy all.</p>
+      <div class="row">
+        <input id="file" type="file" accept="image/*" />
+        <button type="button" id="btn-upload">File into PHOTOS</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>PHOTOS folder</h2>
+      <p class="sub">Click any picture → blockchain inject stream with READ PROOF receipts (exact Input Data UTF-8). Search when the library grows.</p>
+      <div class="row" style="margin-bottom:0.75rem;">
+        <input id="q" type="search" placeholder="Search pictures…" />
+        <select id="sort">
+          <option value="filedAt">Filed order</option>
+          <option value="title">Title</option>
+          <option value="bytes">Size</option>
+          <option value="id">Id</option>
+        </select>
+      </div>
+      <div class="gallery" id="gallery"></div>
+    </section>
+
+    <section id="viewer-sec" hidden>
+      <h2 id="viewer-title">Selected</h2>
+      <div class="viewer">
+        <img id="viewer-img" alt="" />
+        <div class="key" id="viewer-key"></div>
+        <div class="row">
+          <button type="button" class="accent" id="btn-open-unwrap">Open unwrap viewer</button>
+          <button type="button" id="btn-enqueue">Enqueue for inject</button>
+          <a class="btn ghost" id="btn-locs" href="#">Loc rail</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Log</h2>
+      <pre class="log" id="log"></pre>
+    </section>
+
+    <nav class="links">
+      <a href="/vita">Console</a> ·
+      <a href="/vita/compression">Compress</a> ·
+      Telegram <code>/vitafeed photos</code> ·
+      <code>/vitafeed dir PHOTOS</code>
+    </nav>
+  </div>
+  <script>
+    let state = null;
+    let selectedId = null;
+    const logEl = document.getElementById("log");
+
+    function log(msg) {
+      logEl.textContent = (typeof msg === "string" ? msg : JSON.stringify(msg, null, 2)) + "\n" + logEl.textContent;
+    }
+
+    function unwrapUrl(id) {
+      return "/vita/photos/viewer?id=" + encodeURIComponent(id || "") + "&unwrap=1&popup=1";
+    }
+
+    function openUnwrap(id, { popup = true } = {}) {
+      const url = unwrapUrl(id);
+      if (popup) {
+        window.open(url, "vita-photos-unwrap", "popup=yes,width=920,height=720");
+      } else {
+        location.href = url;
+      }
+    }
+
+    async function loadState(id) {
+      const params = new URLSearchParams({ json: "1" });
+      if (id) params.set("id", id);
+      const q = document.getElementById("q")?.value?.trim();
+      const sort = document.getElementById("sort")?.value || "filedAt";
+      if (q) params.set("q", q);
+      params.set("sort", sort);
+      params.set("order", "asc");
+      const res = await fetch("/vita/photos?" + params.toString(), {
+        headers: { accept: "application/json" },
+      });
+      state = await res.json();
+      render();
+      return state;
+    }
+
+    function render() {
+      if (!state || !state.ok) return;
+      const src = state.activeSource;
+      document.getElementById("source-meta").textContent = src
+        ? ("Active: " + src.display + " [" + src.kind + "] · queue pending " + state.queue.pending)
+        : ("No source bound · queue pending " + (state.queue?.pending || 0) +
+           " · library " + (state.search?.total || state.photos?.length || 0));
+      const gal = document.getElementById("gallery");
+      gal.innerHTML = "";
+      (state.photos || []).forEach((p, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "thumb";
+        b.style.animationDelay = (i * 0.05) + "s";
+        b.title = "Open DOS unwrap viewer";
+        b.innerHTML =
+          '<img src="' + p.mediaPath + '" alt="" />' +
+          '<span class="cap">' + String(p.n || i + 1).padStart(2, "0") + " · " + (p.title || p.id) +
+          ' <span class="status ' + (p.chainStatus === "MATCH" ? "match" : "") + '">' +
+          p.chainStatus + "</span></span>";
+        b.onclick = () => {
+          selectedId = p.id;
+          showViewer(p.id);
+          openUnwrap(p.id, { popup: true });
+        };
+        gal.appendChild(b);
+      });
+      if (selectedId) showViewer(selectedId);
+    }
+
+    function showViewer(id) {
+      selectedId = id;
+      const p = (state.photos || []).find((x) => x.id === id) || state.selected;
+      if (!p) return;
+      document.getElementById("viewer-sec").hidden = false;
+      document.getElementById("viewer-title").textContent = p.title || p.id;
+      document.getElementById("viewer-img").src = p.mediaPath || ("/vita/photos/media?id=" + encodeURIComponent(id));
+      document.getElementById("viewer-key").textContent =
+        "Open key: " + (p.zeroOpenKey || "—") +
+        (p.compressionCodec ? " · codec " + p.compressionCodec : "");
+      document.getElementById("btn-locs").href = "/vita/photos/locs?id=" + encodeURIComponent(id);
+    }
+
+    async function post(path, body) {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      return res.json();
+    }
+
+    document.getElementById("btn-refresh").onclick = () => loadState(selectedId);
+    document.getElementById("btn-earthrise").onclick = async () => {
+      const out = await post("/vita/photos/test", {});
+      log(out.reply || out);
+      selectedId = "earthrise";
+      await loadState("earthrise");
+      openUnwrap("earthrise");
+    };
+    document.getElementById("btn-mlk").onclick = async () => {
+      const out = await post("/vita/photos/test", { id: "mlk" });
+      log(out.reply || out);
+      selectedId = "mlk";
+      await loadState("mlk");
+      openUnwrap("mlk");
+    };
+    document.getElementById("btn-open-unwrap").onclick = () => {
+      if (selectedId) openUnwrap(selectedId);
+    };
+    document.getElementById("btn-source").onclick = async () => {
+      const url = document.getElementById("source").value.trim();
+      const out = await post("/vita/photos/source", { source: url });
+      log(out.reply || out);
+      await loadState();
+    };
+    document.getElementById("btn-scan").onclick = async () => {
+      const url = document.getElementById("source").value.trim();
+      const out = await post("/vita/photos/scan", url ? { source: url } : {});
+      log(out.reply || out);
+      await loadState();
+    };
+    document.getElementById("btn-next").onclick = async () => {
+      const out = await post("/vita/photos/next", {});
+      log(out.reply || out);
+      if (out.filed?.id) {
+        selectedId = out.filed.id;
+        openUnwrap(selectedId);
+      }
+      await loadState(selectedId);
+    };
+    document.getElementById("btn-all").onclick = async () => {
+      const out = await post("/vita/photos/all", {});
+      log(out.reply || out);
+      await loadState();
+    };
+    document.getElementById("btn-upload").onclick = async () => {
+      const f = document.getElementById("file").files[0];
+      if (!f) return log("Pick an image first");
+      const buf = await f.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let b64 = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        b64 += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      b64 = btoa(b64);
+      const out = await post("/vita/photos/add", {
+        name: f.name,
+        mime: f.type,
+        bytesBase64: b64,
+      });
+      log(out.reply || out);
+      if (out.filed?.id) {
+        selectedId = out.filed.id;
+        openUnwrap(selectedId);
+      }
+      await loadState(selectedId);
+    };
+    document.getElementById("btn-enqueue").onclick = async () => {
+      if (!selectedId) return;
+      const out = await post("/vita/photos/enqueue", { id: selectedId });
+      log(out.note || out.reply || out);
+    };
+    let searchTimer = null;
+    document.getElementById("q").oninput = () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadState(selectedId), 200);
+    };
+    document.getElementById("sort").onchange = () => loadState(selectedId);
+
+    const params = new URLSearchParams(location.search);
+    selectedId = params.get("id") || null;
+    loadState(selectedId).catch((e) => log(String(e)));
+  </script>
+</body>
+</html>

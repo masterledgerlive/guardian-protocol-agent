@@ -161,22 +161,31 @@ export const ROTATE_HOME_THIN_V3_CODES = Object.freeze([
 
 /**
  * OPERATOR_ROTATE HOME buy only — bypass isBuyFrozen / THIN_V3_WETH.
- * Does not unfreeze GAME or any other token. Normal HOME /buy still freezes.
+ * Does not unfreeze GAME or any other token.
  */
 export function rotateHomeBuyBypassesV3Freeze(reason, symbol) {
   return isOperatorRotateBuyReason(reason) && normSym(symbol) === VERIFIED_HOME_SYMBOL;
 }
 
-export function rotateHomeBuyAllowsRouteCode(code) {
-  return ROTATE_HOME_THIN_V3_CODES.includes(String(code || ""));
+/**
+ * True for MANUAL BUY (operator) — includes OPERATOR_BUY env and Telegram /buy.
+ * Rotate HOME buy also uses this prefix.
+ */
+function isManualOperatorBuyReason(reason = "") {
+  return String(reason || "").startsWith("MANUAL BUY (operator)");
 }
 
 /**
- * Rotate HOME buy fills Aero Slipstream, not Uni QuoterV2.
- * Same gate as the THIN_V3 freeze bypass — HOME + OPERATOR_ROTATE buy only.
+ * HOME fills Aero Slipstream (not Uni QuoterV2 ghost 1%).
+ * OPERATOR_ROTATE HOME buy + OPERATOR_BUY / Telegram /buy HOME.
  */
 export function rotateHomeBuyUsesSlipstream(reason, symbol) {
-  return rotateHomeBuyBypassesV3Freeze(reason, symbol);
+  if (normSym(symbol) !== VERIFIED_HOME_SYMBOL) return false;
+  return isOperatorRotateBuyReason(reason) || isManualOperatorBuyReason(reason);
+}
+
+export function rotateHomeBuyAllowsRouteCode(code) {
+  return ROTATE_HOME_THIN_V3_CODES.includes(String(code || ""));
 }
 
 /** Existing QuoterV2 miss cooldown must not block this rotate HOME buy. */

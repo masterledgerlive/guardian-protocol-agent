@@ -1,0 +1,9 @@
+{
+  "label": "INJECT_ROUTE",
+  "at": "2026-09-24T02:20:00.000Z",
+  "note": "Injection is our Data field on a swap we already send. The bake-off picks a verified codec only when the UTF-8 wire is smaller than the raw line. Identity stays when compression does not pay. A chain enters the rank only with a chain id and a filed gwei quote. Contest is the quote divided by the median of at least three earlier quotes on that chain. Cascade order changes only when one seat's chain is cheaper. loc stays empty until our sell returns a hash. Nothing on this board is sent.",
+  "telegram": ["/routes"],
+  "method": "data-field",
+  "owner": "vita",
+  "neverInventHashes": true
+}

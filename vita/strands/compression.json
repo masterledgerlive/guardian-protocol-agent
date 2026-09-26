@@ -3,23 +3,23 @@
   "filingLabel": "COMPRESS",
   "formula": "original-message-first",
   "neverInventHashes": true,
-  "note": "Telegram unwrap + full button path matched to VITA:\\COMPRESS\\",
+  "note": {
+    "lastKey": "VITACOMP.brotli-11-v1.9c2d723a",
+    "lastCodec": "brotli-11-v1",
+    "lastKind": "image",
+    "lastName": "mlk-i-have-a-dream.jpg",
+    "files": 7
+  },
   "ends": [
-    "Add any file (button Add · /vitafeed compress add · inbox · /vita/compression)",
+    "Add any file (inbox /vitafeed compress add /vita/compression)",
     "Bake-off every codec · recommend the verified winner",
-    "Unwrap HUMAN plain from MACHINE wire (button Unwrap · unlock COMPRESS\\n)",
     "Call verified · key recovers the bytes",
     "Next module: /vitafeed injection (confirm|override, no invented hash)"
   ],
-  "updatedAt": "2026-09-23T20:45:00.000Z",
-  "lastKey": "VITACOMP.identity-v1.7c8f4586",
-  "lastCodec": "identity-v1",
-  "lastKind": "video",
-  "lastName": "clip.mp4",
-  "files": 4,
-  "telegram": {
-    "homeSection": "compress",
-    "dir": "COMPRESS",
-    "buttons": ["Add", "Bench", "Keys", "Unwrap", "Inject", "Confirm"]
-  }
+  "updatedAt": "2026-09-24T03:33:20.385Z",
+  "lastKey": "VITACOMP.brotli-11-v1.9c2d723a",
+  "lastCodec": "brotli-11-v1",
+  "lastKind": "image",
+  "lastName": "mlk-i-have-a-dream.jpg",
+  "files": 7
 }

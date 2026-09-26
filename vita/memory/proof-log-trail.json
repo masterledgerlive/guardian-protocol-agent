@@ -5,19 +5,19 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-23T21:08:48.006Z",
-  "updatedAt": "2026-09-23T21:08:48.006Z",
-  "seq": 1,
+  "updatedAt": "2026-09-24T03:33:20.387Z",
+  "seq": 4,
   "header": {
     "version": "v1",
-    "rootCommit": "6e2f4a7ac0b5661020c1cc6218cfc5ed49a640e8e23496d0c6a08796d664f647",
-    "lastSeq": 1,
+    "rootCommit": "95461dd4bbf1dd242b5357728eb3e6b1572e9dccac0eabae48ae98b2e384c37e",
+    "lastSeq": 4,
     "raceSlots": 3,
-    "entryCount": 1,
-    "verifiedCount": 1,
+    "entryCount": 4,
+    "verifiedCount": 4,
     "messageOutCount": 0,
     "sealedCount": 0,
     "note": "Main proof-of-logs header. Child labels refine the tree. Keys attach every row to root path.",
-    "updatedAt": "2026-09-23T21:08:48.006Z"
+    "updatedAt": "2026-09-24T03:33:20.387Z"
   },
   "entries": [
     {
@@ -75,6 +75,291 @@
           "messageOut": false
         }
       ]
+    },
+    {
+      "n": 2,
+      "at": "2026-09-24T02:45:53.920Z",
+      "phase": "filed",
+      "key": "VITACOMP.deflate-raw-9-v1.4326e44e",
+      "name": "earthrise-apollo8.jpg",
+      "kind": "image",
+      "mime": "image/jpeg",
+      "codec": "deflate-raw-9-v1",
+      "rootPath": "earthrise-apollo8.jpg",
+      "storePath": "vita/compression/store/VITACOMP.deflate-raw-9-v1.4326e44e.json",
+      "rawHash": "4326e44ea3266c7dd28a65f17117290ca16000f2a719af32b8c79b0e36e8c058",
+      "payloadHash": "e7f63dec17f4fa6d553c64f39f110fbf54c38b010b11295d5e798bb3d0da58b2",
+      "rawBytes": 67035,
+      "payloadBytes": 47334,
+      "verified": true,
+      "messageOut": false,
+      "timing": {
+        "filedMs": 1.085,
+        "at": "2026-09-24T03:33:19.925Z"
+      },
+      "machine": "COMPRESS key=VITACOMP.deflate-raw-9-v1.4326e44e codec=deflate-raw-9-v1 ratio=0.7061",
+      "plainPreview": "",
+      "locations": [],
+      "chainCredits": [
+        {
+          "chain": "base",
+          "chainId": 8453,
+          "name": "Base",
+          "role": "hitch-trade",
+          "status": "requested",
+          "location": null,
+          "basescan": null,
+          "memoryCredit": true,
+          "note": "Credit seat reserved — loc empty until a real seal on this chain"
+        }
+      ],
+      "race": {
+        "slot": null,
+        "injectSlot": null,
+        "who": "operator",
+        "proofedFirst": false,
+        "injectedFirst": false
+      },
+      "parentLogN": null,
+      "label": "",
+      "source": "add",
+      "history": [
+        {
+          "at": "2026-09-24T02:45:53.920Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:45:53.921Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:06.427Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:06.428Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:25.689Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:25.690Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:25.885Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:25.886Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:19.928Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:19.929Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        }
+      ],
+      "updatedAt": "2026-09-24T03:33:19.929Z"
+    },
+    {
+      "n": 3,
+      "at": "2026-09-24T02:45:53.950Z",
+      "phase": "filed",
+      "key": "VITACOMP.deflate-raw-9-v1.c414cd0e",
+      "name": "hope-pixel.png",
+      "kind": "image",
+      "mime": "image/png",
+      "codec": "deflate-raw-9-v1",
+      "rootPath": "hope-pixel.png",
+      "storePath": "vita/compression/store/VITACOMP.deflate-raw-9-v1.c414cd0e.json",
+      "rawHash": "c414cd0e204de974f73753c7e28d7638e7b3691bb8b1a2bab6b25bb7fed7ce77",
+      "payloadHash": "6dded381b913544bed418ac6e703d54a922deee023d177cd61dc01c65b604df0",
+      "rawBytes": 70,
+      "payloadBytes": 67,
+      "verified": true,
+      "messageOut": false,
+      "timing": {
+        "filedMs": 0.03,
+        "at": "2026-09-24T03:33:20.120Z"
+      },
+      "machine": "COMPRESS key=VITACOMP.deflate-raw-9-v1.c414cd0e codec=deflate-raw-9-v1 ratio=0.9571",
+      "plainPreview": "",
+      "locations": [],
+      "chainCredits": [
+        {
+          "chain": "base",
+          "chainId": 8453,
+          "name": "Base",
+          "role": "hitch-trade",
+          "status": "requested",
+          "location": null,
+          "basescan": null,
+          "memoryCredit": true,
+          "note": "Credit seat reserved — loc empty until a real seal on this chain"
+        }
+      ],
+      "race": {
+        "slot": null,
+        "injectSlot": null,
+        "who": "operator",
+        "proofedFirst": false,
+        "injectedFirst": false
+      },
+      "parentLogN": null,
+      "label": "",
+      "source": "add",
+      "history": [
+        {
+          "at": "2026-09-24T02:45:53.950Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:45:53.950Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:06.452Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:06.452Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:25.918Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T02:46:25.918Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:20.121Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:20.122Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        }
+      ],
+      "updatedAt": "2026-09-24T03:33:20.122Z"
+    },
+    {
+      "n": 4,
+      "at": "2026-09-24T03:33:20.094Z",
+      "phase": "filed",
+      "key": "VITACOMP.brotli-11-v1.9c2d723a",
+      "name": "mlk-i-have-a-dream.jpg",
+      "kind": "image",
+      "mime": "image/jpeg",
+      "codec": "brotli-11-v1",
+      "rootPath": "mlk-i-have-a-dream.jpg",
+      "storePath": "vita/compression/store/VITACOMP.brotli-11-v1.9c2d723a.json",
+      "rawHash": "9c2d723a282e0c551a7966f94622fd62737c4e9b359612f652334149f35bfd8f",
+      "payloadHash": "51a6eabcaf9fc6f5917ba2b84443fbfbe28c1733de97619a9df268f4b13717fe",
+      "rawBytes": 44189,
+      "payloadBytes": 42931,
+      "verified": true,
+      "messageOut": false,
+      "timing": {
+        "filedMs": 129.278,
+        "at": "2026-09-24T03:33:20.384Z"
+      },
+      "machine": "COMPRESS key=VITACOMP.brotli-11-v1.9c2d723a codec=brotli-11-v1 ratio=0.9715",
+      "plainPreview": "",
+      "locations": [],
+      "chainCredits": [
+        {
+          "chain": "base",
+          "chainId": 8453,
+          "name": "Base",
+          "role": "hitch-trade",
+          "status": "requested",
+          "location": null,
+          "basescan": null,
+          "memoryCredit": true,
+          "note": "Credit seat reserved — loc empty until a real seal on this chain"
+        }
+      ],
+      "race": {
+        "slot": null,
+        "injectSlot": null,
+        "who": "operator",
+        "proofedFirst": false,
+        "injectedFirst": false
+      },
+      "parentLogN": null,
+      "label": "",
+      "source": "add",
+      "history": [
+        {
+          "at": "2026-09-24T03:33:20.094Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:20.095Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:20.386Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        },
+        {
+          "at": "2026-09-24T03:33:20.387Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        }
+      ],
+      "updatedAt": "2026-09-24T03:33:20.387Z"
     }
   ],
   "tree": [
@@ -83,6 +368,30 @@
       "label": "#1",
       "phase": "filed",
       "key": "VITACOMP.deflate-raw-9-v1.94fc5a26",
+      "depth": 0,
+      "children": []
+    },
+    {
+      "n": 2,
+      "label": "#2",
+      "phase": "filed",
+      "key": "VITACOMP.deflate-raw-9-v1.4326e44e",
+      "depth": 0,
+      "children": []
+    },
+    {
+      "n": 3,
+      "label": "#3",
+      "phase": "filed",
+      "key": "VITACOMP.deflate-raw-9-v1.c414cd0e",
+      "depth": 0,
+      "children": []
+    },
+    {
+      "n": 4,
+      "label": "#4",
+      "phase": "filed",
+      "key": "VITACOMP.brotli-11-v1.9c2d723a",
       "depth": 0,
       "children": []
     }

@@ -1,0 +1,12 @@
+{
+  "strandId": "wave-hl-ledger-v1",
+  "sparse": true,
+  "label": "WAVE_HL",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "learn": "Log every high and low. Show stage, arrow, confidence, and a 10–30% dividend that leaves tokens. Ride a short §WHL§ machine line tagged utc|local|unix on covered leftover. Follow prev=. Grab the swings from Basescan Input Data only after a real sell hash. Uncovered lines stay banked. Never solo-send. Never invent hashes. Never sell red to place code.",
+  "module": "vita/wave-hl-ledger.js",
+  "pairMemory": "vita/memory/wave-hl-learn.json",
+  "telegram": ["/waveboard", "/dividend"],
+  "locations": []
+}

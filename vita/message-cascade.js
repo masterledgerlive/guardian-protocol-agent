@@ -12,7 +12,9 @@
  * When moving up, pre-arm the sell (profit already known). Buy character
  * spot cost regardless of later use so the message always triggers.
  *
- * HOME is the main cascade + piggy-bank holder (wave + hold + dust seat).
+ * HOME is the piggy-bank / fuel holder (wave + hold + dust seat).
+ * AERO is the main in/out cascade hub (buy + pre-arm sell when wave ready).
+ * Robinhood quotes feed wave data; Base rail executes hops.
  * Rotate never sells HOME. Never invent tx hashes. Never sell red to place
  * code. Mother brain untouched. Storage Token may charge hitch transmission.
  */
@@ -56,15 +58,20 @@ export const CASCADE_MOVE_UP_RANGE_POS = 0.55;
 /** USD per UTF-8 character for spot character buy (transmission class). */
 export const CASCADE_CHAR_USD = 0.00008;
 
-/** $HOME is the primary cascade hub + piggy-bank holder (never rotate-sell). */
+/**
+ * Dual main in/out hubs on Base: $HOME + AERO.
+ * HOME also parks piggy/dust; rotate never sells HOME (APPROVE_HOME_SELL unset).
+ */
 export const HOME_CASCADE_PIGGY_HOLDER = Object.freeze({
   symbol: VERIFIED_HOME_SYMBOL,
   address: VERIFIED_HOME_ADDRESS,
   feeTier: HOME_FEE_TIER,
-  role: "cascade-piggy-holder",
+  role: "cascade-main-inout",
+  mainInOut: true,
   rotateNeverSells: true,
   cascadeAvailable: true,
   capabilitiesWhileHolding: Object.freeze([
+    "main-inout — HOME is a primary Base cascade in/out hub with AERO",
     "wave-hold — instant peak/trough envelope without cold scan",
     "piggy-dust-seat — park $0.05 cascade dust + saved earnings on HOME bag",
     "rotate-target — OPERATOR_ROTATE sweeps other bags → HOME (never sells HOME)",
@@ -72,8 +79,32 @@ export const HOME_CASCADE_PIGGY_HOLDER = Object.freeze({
     "message-hop — Eureka love may hitch into HOME when leftover covers KEY+LOC",
     "storage-token-charge — hitch transmission delta billable to Storage Token / piggy",
     "anti-stagnant-hub — HOME stays ranked even when other seats freeze",
+    "fuel — HOME capital funds lower-token cascade; sell barrier may lift for others",
   ]),
 });
+
+/** AERO pairs with HOME as the other main in/out cascade hub on Base. */
+export const AERO_CASCADE_INOUT = Object.freeze({
+  symbol: "AERO",
+  role: "cascade-main-inout",
+  mainInOut: true,
+  rotateNeverSells: false,
+  cascadeAvailable: true,
+  dataSource: "robinhood",
+  rail: "base",
+  capabilities: Object.freeze([
+    "main-inout — AERO + HOME are the primary Base cascade in/out hubs",
+    "rh-quote — AERO-USD mark feeds instant wave HL",
+    "base-rail — RISK swaps only; RH never executes Base bags",
+    "trail — cascade data trails toward §CASCTRAIL§ hitch (loc after seal)",
+  ]),
+});
+
+/** Ordered dual hub: HOME then AERO. */
+export const CASCADE_MAIN_INOUT_HUBS = Object.freeze([
+  VERIFIED_HOME_SYMBOL,
+  "AERO",
+]);
 
 export const DEFAULT_CASCADE_MESSAGE = VITA_PROOF_FULL;
 
@@ -224,12 +255,17 @@ export function scoreCascadeSeat(seat = {}) {
   if (wave.ready) score += 1;
   if (stagnant) score -= 4;
   if (frozen) score -= 100;
-  if (normSym(seat.symbol) === VERIFIED_HOME_SYMBOL) {
-    // HOME: main cascade + piggy holder — boost rank; never force-sell HOME.
+  const sym = normSym(seat.symbol);
+  if (sym === VERIFIED_HOME_SYMBOL) {
+    // HOME: piggy / fuel — boost rank; never force-sell HOME.
     score += 3.5;
   }
+  if (sym === AERO_CASCADE_INOUT.symbol || seat.aeroMain === true) {
+    // AERO: main in/out cascade hub — prefer for hops when scores close.
+    score += 4.0;
+  }
   return {
-    symbol: normSym(seat.symbol),
+    symbol: sym,
     score,
     revenueUsd: revenue,
     rangePos,
@@ -239,8 +275,9 @@ export function scoreCascadeSeat(seat = {}) {
     frozen,
     predictedUp,
     waveReady: wave.ready,
-    home: normSym(seat.symbol) === VERIFIED_HOME_SYMBOL,
-    piggyHolder: normSym(seat.symbol) === VERIFIED_HOME_SYMBOL,
+    home: sym === VERIFIED_HOME_SYMBOL,
+    piggyHolder: sym === VERIFIED_HOME_SYMBOL,
+    aeroMain: sym === AERO_CASCADE_INOUT.symbol || seat.aeroMain === true,
   };
 }
 
@@ -271,10 +308,13 @@ export function rankCascadeTokens(tokens = []) {
         cascadeAvailable: scored.frozen !== true,
         home: scored.home,
         piggyHolder: scored.piggyHolder === true,
+        aeroMain: scored.aeroMain === true,
       };
     })
     .sort((a, b) => {
-      // HOME piggy holder floats toward top when scores close; still revenue-first.
+      // AERO main in/out + HOME piggy float toward top when scores close.
+      if (a.aeroMain && !b.aeroMain && Math.abs(a.score - b.score) < 6) return -1;
+      if (b.aeroMain && !a.aeroMain && Math.abs(a.score - b.score) < 6) return 1;
       if (a.piggyHolder && !b.piggyHolder && Math.abs(a.score - b.score) < 5) return -1;
       if (b.piggyHolder && !a.piggyHolder && Math.abs(a.score - b.score) < 5) return 1;
       return b.score - a.score || a.symbol.localeCompare(b.symbol);
@@ -290,6 +330,7 @@ export function rankCascadeTokens(tokens = []) {
     waitingUp: available.filter((r) => r.waitingUp),
     home: available.find((r) => r.home) || rows.find((r) => r.home) || null,
     piggyHolder: available.find((r) => r.piggyHolder) || rows.find((r) => r.piggyHolder) || null,
+    aero: available.find((r) => r.aeroMain) || rows.find((r) => r.aeroMain) || null,
   };
 }
 
@@ -415,6 +456,7 @@ export function planMessageCascade({
       stagnant: seat.stagnant,
       home: seat.home,
       piggyHolder: seat.piggyHolder === true,
+      aeroMain: seat.aeroMain === true,
       wave: seat.wave,
       sellArm: sell,
       shard,
@@ -422,11 +464,17 @@ export function planMessageCascade({
       leaveDustUsd: Math.max(0, num(leaveDustUsd, CASCADE_LEAVE_DUST_USD)),
       action: seat.home || seat.piggyHolder
         ? "cascade-home-piggy-hold"
-        : seat.waitingUp || seat.cheap
-          ? "cascade-buy-cheap-waiting-up"
-          : sell.armed
-            ? "cascade-hold-sell-armed"
-            : "cascade-message-hop",
+        : seat.aeroMain
+          ? (sell.armed
+            ? "cascade-aero-out"
+            : seat.waitingUp || seat.cheap
+              ? "cascade-aero-in"
+              : "cascade-aero-hop")
+          : seat.waitingUp || seat.cheap
+            ? "cascade-buy-cheap-waiting-up"
+            : sell.armed
+              ? "cascade-hold-sell-armed"
+              : "cascade-message-hop",
     };
   });
 
@@ -451,6 +499,7 @@ export function planMessageCascade({
       cascadeAvailable: r.cascadeAvailable,
       home: r.home,
       piggyHolder: r.piggyHolder,
+      aeroMain: r.aeroMain,
       rangePos: r.rangePos,
     })),
     hops,
@@ -463,7 +512,14 @@ export function planMessageCascade({
       cascadeAvailable: ranked.home?.cascadeAvailable !== false,
       waveReady: ranked.home?.wave?.ready === true,
       inPlan: hops.some((h) => h.home),
-      note: "verified Defi App $HOME — main cascade + piggy-bank holder; rotate never sells HOME",
+      note: "verified Defi App $HOME — main in/out hub with AERO; rotate never sells HOME; RH data feeds Base rail",
+    },
+    aero: {
+      ...AERO_CASCADE_INOUT,
+      cascadeAvailable: ranked.aero?.cascadeAvailable !== false,
+      waveReady: ranked.aero?.wave?.ready === true,
+      inPlan: hops.some((h) => h.aeroMain),
+      note: "AERO — main in/out hub with HOME on Base; RH AERO-USD wave; sell when move-up armed",
     },
     piggyHolder: {
       ...HOME_CASCADE_PIGGY_HOLDER,
@@ -476,6 +532,8 @@ export function planMessageCascade({
     neverSellRedToInject: true,
     cheaperRate: true,
     antiStagnant: ranked.stagnant.length > 0,
+    dataSource: "robinhood-or-token-embedded",
+    rail: "base",
   };
 }
 
@@ -527,7 +585,8 @@ export function defaultCascadeKnowledge() {
     `Cadence ≥${CASCADE_TARGET_HOPS} tokens / ${CASCADE_WINDOW_MS / 60_000} min; leave $${CASCADE_LEAVE_DUST_USD} dust each exit.`,
     "Rank top→bottom by revenue + lowered waiting-to-rise; pre-arm sell when moving up.",
     "Buy all character spot cost so message always triggers; cascade into cheap lowered seats.",
-    `$HOME ${VERIFIED_HOME_ADDRESS} fee ${HOME_FEE_TIER}: MAIN cascade + piggy-bank holder — wave/hold, park dust, rotate never sells HOME; Slipstream book; Storage Token can charge hitch delta.`,
+    `$HOME ${VERIFIED_HOME_ADDRESS} fee ${HOME_FEE_TIER}: piggy/fuel holder — wave/hold, park dust, rotate never sells HOME; Slipstream book; Storage Token can charge hitch delta.`,
+    "AERO: main in/out cascade hub — RH AERO-USD data, Base rail buys/sells when wave ready.",
     "Holding HOME enables: " + HOME_CASCADE_PIGGY_HOLDER.capabilitiesWhileHolding.join("; ") + ".",
     "Message-first: do not mute hitch for micro extract; Storage Token can charge delta. Never invent hashes. Never sell red to place code.",
   ].join(" ");
@@ -540,13 +599,15 @@ export function formatMessageCascadeCard(plan) {
     `Cadence: ${plan.cadence.hops}/${plan.cadence.target} in ${plan.cadence.windowMs / 60_000}m ${plan.cadence.onPace ? "✅" : "⚡ need " + plan.cadence.shortfall}`,
     `Chars spot: $${plan.characterBuy.spotBuyUsd.toFixed(4)} (${plan.characterBuy.chars} chars)`,
     `Waiting-up: ${plan.waitingUpCount} · Stagnant: ${plan.stagnantCount} · Available: ${plan.availableCount}`,
-    `$HOME piggy holder: ${plan.home.address.slice(0, 10)}… wave=${plan.home.waveReady ? "ready" : "pending"} · park dust $${Number(plan.leaveDustUsd).toFixed(2)}`,
+    `$HOME piggy: ${plan.home.address.slice(0, 10)}… wave=${plan.home.waveReady ? "ready" : "pending"} · park dust $${Number(plan.leaveDustUsd).toFixed(2)}`,
+    `AERO main in/out: wave=${plan.aero?.waveReady ? "ready" : "pending"} · inPlan=${plan.aero?.inPlan ? "yes" : "no"}`,
   ];
   for (const h of plan.hops.slice(0, 12)) {
     const arm = h.sellArm?.armed ? ` sell@${Number(h.sellArm.exitAt).toFixed(6)}` : "";
     const homeMark = h.piggyHolder || h.home ? " 🏠" : "";
+    const aeroMark = h.aeroMain ? " ✈" : "";
     lines.push(
-      `${String(h.order).padStart(2, "0")}. ${h.symbol}${homeMark} score=${h.score.toFixed(2)} ${h.action}${arm}`,
+      `${String(h.order).padStart(2, "0")}. ${h.symbol}${homeMark}${aeroMark} score=${h.score.toFixed(2)} ${h.action}${arm}`,
     );
   }
   return lines.join("\n");

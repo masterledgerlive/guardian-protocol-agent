@@ -43,7 +43,59 @@
       "createdAt": "2026-09-21T02:48:25.793Z",
       "formula": "original-message-first",
       "neverInventHashes": true
+    },
+    "watcher-eureka": {
+      "agentId": "watcher-eureka",
+      "channelId": "agent-chat:watcher-eureka",
+      "publicKey": "VITAOPEN.AGENT.watcher-eureka.558a229de323",
+      "publicKeyHex": "558a229de323a4cd8991729a002dfde4ce466100c7504602c03336ce818f514b",
+      "peers": [],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-26T06:41:38.569Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
+    },
+    "seq-brain": {
+      "agentId": "seq-brain",
+      "channelId": "agent-chat:seq-brain",
+      "publicKey": "VITAOPEN.AGENT.seq-brain.f40f070822f5",
+      "publicKeyHex": "f40f070822f569d29adc0386dbf45a33db6d239e41cd8f2897394c5411e1bfe5",
+      "peers": [],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-26T06:41:38.569Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
+    },
+    "lex-brain": {
+      "agentId": "lex-brain",
+      "channelId": "agent-chat:lex-brain",
+      "publicKey": "VITAOPEN.AGENT.lex-brain.6c66ffb9df74",
+      "publicKeyHex": "6c66ffb9df74e450f3c21ffdcf5b69345b64baa8ebf14ae08014eabf0f6e2bdc",
+      "peers": [],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-26T06:41:38.570Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
+    },
+    "wave-robin": {
+      "agentId": "wave-robin",
+      "channelId": "agent-chat:wave-robin",
+      "publicKey": "VITAOPEN.AGENT.wave-robin.6a17b27a3bb8",
+      "publicKeyHex": "6a17b27a3bb820d7acb611f97a231f21705109ef7270ca4fe00ef211ed5975b6",
+      "peers": [],
+      "alwaysOn": true,
+      "indexed": true,
+      "hexOnlyDual": true,
+      "createdAt": "2026-09-26T06:41:38.581Z",
+      "formula": "original-message-first",
+      "neverInventHashes": true
     }
   },
-  "updatedAt": "2026-09-21T02:50:47.524Z"
+  "updatedAt": "2026-09-26T06:41:38.581Z"
 }

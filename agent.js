@@ -20,6 +20,7 @@ import {
 } from "./vault-loader.js";
 
 import { maybeFundV4FromV3 } from "./v4-fund-once.js";
+import { maybeBridgeL1EthToBase } from "./l1-bridge-to-base.js";
 
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
 import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot, maybeAutofireVitaFeedOnBoot } from "./vita-webhook.js";
@@ -112,6 +113,64 @@ import {
   ensureWatchSlot,
 } from "./history-slot.js";
 import {
+  assessWaveToken,
+  backfillWaveSwings,
+  bankWaveHlRide,
+  buildWaveHlMachine,
+  commitWaveHlRideHash,
+  createWaveHlLedger,
+  formatDividendMenu,
+  formatWaveBoardTelegram,
+  formatWaveStageSnippet,
+  formatWaveTokenTelegram,
+  ingestPriceList,
+  lastWaveHlRide,
+  loadWaveHlLedger,
+  pickCascadeToken,
+  planDividendWithdraw,
+  planWaveHlRide,
+  recentExtreme,
+  rehydrateWaveWindow,
+  recordWaveExtreme,
+  ridePrevTag,
+  saveWaveHlLedger,
+} from "./vita/wave-hl-ledger.js";
+import {
+  applyWavePebbles,
+  buildWaveAgentDesk,
+  formatLullTelegram,
+  formatWaveAgentsTelegram,
+  formatWaveClickCard,
+  pullWavePebbles,
+  CHAIN_PULL_TTL_MS,
+} from "./vita/wave-agent-bank.js";
+import {
+  bankFlowRoute,
+  buildFlowRouteLine,
+  commitFlowRouteHash,
+  dropPair,
+  formatFlowBoard,
+  formatFlowIndex,
+  formatFlowRoute,
+  formatFlowSymbolNote,
+  latestSnapshot,
+  loadFlowBook,
+  planFlowRouteRide,
+  saveFlowBook,
+  watchPair,
+} from "./vita/wave-flow-arm.js";
+import {
+  applyRouteOrder,
+  chooseInjectWire,
+  fileRouteQuote,
+  formatInjectRoutes,
+  latestQuotes,
+  loadInjectRouteBook,
+  rankCascadeByDataRoute,
+  rankInjectRoutes,
+  saveInjectRouteBook,
+} from "./vita/inject-route-arm.js";
+import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
@@ -202,6 +261,23 @@ import {
   applyRotateQuoterMiss,
   applyRotateUnquotedSkip,
 } from "./operator-rotate.js";
+import {
+  isHoldAllSells,
+  shouldBlockSell,
+  holdAllSellsStatusLine,
+  armHoldAllSells,
+  clearHoldAllSells,
+} from "./operator-sell-hold.js";
+import {
+  parseRhCascadeCommand,
+  planRhBaseCascade,
+  formatRhCascadeCard,
+  formatRhCascadeOutcomes,
+  formatCascadePredictionCard,
+  formatCascadeHierarchyCard,
+  fileRhCascadeLearn,
+  unlockSellBarrier,
+} from "./vita/rh-cascade-rail.js";
 import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
@@ -644,6 +720,10 @@ import {
   formatRouteSystemsCheckCard,
   buildRouteCheckKeyboard,
 } from "./vita/telegram-help-routes.js";
+import {
+  handleRhFundAction,
+  parseRhFundCommand,
+} from "./vita/rh-fund.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -2253,7 +2333,7 @@ const DEFAULT_TOKENS = [
 
   { symbol: "HOME",    address: VERIFIED_HOME_ADDRESS, feeTier: HOME_FEE_TIER, poolFeePct: HOME_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:8, waveQuality:6, fundamentals:8, coinbaseFit:10, community:7, total:39 },
-    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… tickSpacing 200. Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). OPERATOR_ROTATE_TO buy uses Slipstream quoter+router, not Uni QuoterV2. Do not sell HOME. Vault never." },
+    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… tickSpacing 200. Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). OPERATOR_ROTATE_TO + OPERATOR_BUY / Telegram /buy HOME use Slipstream quoter+router, not Uni QuoterV2. Do not sell HOME. Vault never." },
 
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -3474,6 +3554,13 @@ const lastSellArmed = Object.create(null);
 /** Per-token no-loss succession streaks (wave completes with net > 0). */
 const successionTracker   = createSuccessionTracker();
 const waveState    = {};
+/** Durable highs/lows. The 8-swing window is not the memory. */
+let waveHlLedger = createWaveHlLedger();
+let waveHlFromPositions = null;
+let waveChainCache = { at: 0, anchors: 0, trails: 0, whl: 0, error: null };
+let waveChainScan = null;
+let flowBook = null;
+let injectRouteBook = null;
 const tradeLog     = [];
 let netPositions   = {};
 /** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
@@ -3487,6 +3574,149 @@ const tokenBalanceCache = {};
 
 function initWaveState(symbol) {
   return ensureWaveSlot(waveState, symbol);
+}
+
+function rememberWaveExtreme(symbol, side, price, source, at) {
+  const rec = recordWaveExtreme(waveHlLedger, { symbol, side, price, source, at });
+  if (rec.accepted && source === "live") {
+    try { saveWaveHlLedger(waveHlLedger); }
+    catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+  }
+  return rec;
+}
+
+function collectWaveBoardRows() {
+  const rows = [];
+  for (const t of tokens) {
+    const price = history[t.symbol]?.lastPrice || 0;
+    const bal = getCachedBalance(t.symbol) || 0;
+    const entry = hasUsableCostBasis(t) ? t.entryPrice : null;
+    const assessed = assessWaveToken(waveHlLedger, {
+      symbol: t.symbol,
+      price,
+      entryPrice: entry,
+    });
+    const plan = planDividendWithdraw({
+      balance: bal,
+      priceUsd: price,
+      dividendPct: assessed.dividendPct,
+      piggyReserve: t.piggyReserve || 0,
+      symbol: t.symbol,
+      savedEarningsUsd: t.savedEarningsUsd || 0,
+      token: t,
+      env: process.env,
+    });
+    rows.push({ ...assessed, plan, balance: bal });
+  }
+  return rows;
+}
+
+function injectRoutes() {
+  if (!injectRouteBook) injectRouteBook = loadInjectRouteBook();
+  return injectRouteBook;
+}
+
+function saveInjectRoutes() {
+  try { saveInjectRouteBook(injectRoutes()); }
+  catch (e) { console.log(`⚠️  inject routes: ${e.message}`); }
+}
+
+function flowArm() {
+  if (!flowBook) flowBook = loadFlowBook();
+  return flowBook;
+}
+
+function saveFlowArm() {
+  try { saveFlowBook(flowArm()); }
+  catch (e) { console.log(`⚠️  flow arm: ${e.message}`); }
+}
+
+function liveWaveDesk() {
+  const rows = collectWaveBoardRows();
+  const { balances, prices } = waveBalanceMaps();
+  return buildWaveAgentDesk({
+    rows,
+    trades: tradeLog,
+    balances,
+    prices,
+    chain: waveChainCache,
+    symbols: tokens.map((t) => t.symbol),
+  });
+}
+
+function waveBalanceMaps() {
+  const balances = {};
+  const prices = {};
+  for (const t of tokens) {
+    balances[t.symbol] = getCachedBalance(t.symbol) || 0;
+    prices[t.symbol] = history[t.symbol]?.lastPrice || 0;
+  }
+  return { balances, prices };
+}
+
+function waveClickCard(symbol) {
+  const sym = String(symbol || "").toUpperCase();
+  const row = collectWaveBoardRows().find((r) => r.symbol === sym) || null;
+  const { balances, prices } = waveBalanceMaps();
+  return formatWaveClickCard({
+    symbol: sym,
+    row,
+    chain: waveChainCache,
+    trades: tradeLog,
+    balances,
+    prices,
+  });
+}
+
+function refreshWaveChainPebbles() {
+  if (waveChainScan) return waveChainScan;
+  if (waveChainCache.at && Date.now() - waveChainCache.at < CHAIN_PULL_TTL_MS) {
+    return Promise.resolve(waveChainCache);
+  }
+  waveChainScan = pullWavePebbles({ limit: 40 }).then((pull) => {
+    const applied = applyWavePebbles(waveHlLedger, pull.pebbles);
+    if (applied.accepted > 0 || applied.ridesSealed > 0) {
+      try { saveWaveHlLedger(waveHlLedger); }
+      catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+    }
+    waveChainCache = {
+      at: Date.now(),
+      anchors: pull.anchors,
+      trails: pull.trails,
+      whl: pull.whl,
+      error: null,
+    };
+    console.log(`🌊 WHL pebbles: ${pull.whl} on ${pull.anchors} anchors + ${pull.trails} trails`);
+    return waveChainCache;
+  }).catch((e) => {
+    waveChainCache = {
+      at: Date.now(),
+      anchors: waveChainCache.anchors || 0,
+      trails: waveChainCache.trails || 0,
+      whl: waveChainCache.whl || 0,
+      error: e.message || String(e),
+    };
+    console.log(`⚠️  wave pebble pull: ${waveChainCache.error}`);
+    return waveChainCache;
+  }).finally(() => {
+    waveChainScan = null;
+  });
+  return waveChainScan;
+}
+
+function captureWavePrintsFromBoot() {
+  let added = 0;
+  for (const t of tokens) {
+    added += backfillWaveSwings(waveHlLedger, t.symbol, history[t.symbol]?.readings || []).added;
+    const ws = waveState[t.symbol];
+    if (ws?.peaks?.length) added += ingestPriceList(waveHlLedger, t.symbol, ws.peaks, "high", "boot-peak");
+    if (ws?.troughs?.length) added += ingestPriceList(waveHlLedger, t.symbol, ws.troughs, "low", "boot-trough");
+  }
+  rehydrateWaveWindow(waveHlLedger, initWaveState, WAVE_COUNT);
+  try { saveWaveHlLedger(waveHlLedger); }
+  catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+  const n = Object.keys(waveHlLedger.tokens || {}).length;
+  console.log(`📈 Wave HL ledger: ${n} token(s), ${added} new swing(s) — highs/lows kept`);
 }
 
 // ── PERMANENT TRADE LEDGER ────────────────────────────────────────────────────
@@ -4101,6 +4331,7 @@ function updateWaves(symbol, price) {
       const confirmed = ind.score <= -1;
       ws.peaks.push(m);
       if (ws.peaks.length > WAVE_COUNT) ws.peaks.shift();
+      rememberWaveExtreme(symbol, "high", m, "live");
       console.log(`   📈 [${symbol}] New peak: $${m.toFixed(8)} | ind score: ${ind.score} ${confirmed ? "✅CONFIRMED" : "⚠️unconfirmed"} | ${ind.detail}`);
     }
   }
@@ -4114,6 +4345,7 @@ function updateWaves(symbol, price) {
       const confirmed = ind.score >= 1;
       ws.troughs.push(m);
       if (ws.troughs.length > WAVE_COUNT) ws.troughs.shift();
+      rememberWaveExtreme(symbol, "low", m, "live");
       console.log(`   📉 [${symbol}] New trough: $${m.toFixed(8)} | ind score: ${ind.score} ${confirmed ? "✅CONFIRMED" : "⚠️unconfirmed"} | ${ind.detail}`);
 
       // WAVE INVALIDATION: if new trough breaks 5% below existing MIN,
@@ -4281,11 +4513,20 @@ function getNextProjectedPeak(symbol) {
 }
 
 
-function getMaxPeak(symbol)               { const ps = waveState[symbol]?.peaks   || []; return ps.length ? Math.max(...ps) : null; }
-function getMinTrough(symbol, skipLast)   {
+function getMaxPeak(symbol) {
+  const ps = waveState[symbol]?.peaks || [];
+  const fromState = ps.length ? Math.max(...ps) : null;
+  const fromLedger = recentExtreme(waveHlLedger, symbol, "high", { keep: WAVE_COUNT });
+  const vals = [fromState, fromLedger].filter((v) => v > 0);
+  return vals.length ? Math.max(...vals) : null;
+}
+function getMinTrough(symbol, skipLast) {
   let ts = waveState[symbol]?.troughs || [];
   if (skipLast && ts.length > 1) ts = ts.slice(0, -1);
-  return ts.length ? Math.min(...ts) : null;
+  const fromState = ts.length ? Math.min(...ts) : null;
+  const fromLedger = recentExtreme(waveHlLedger, symbol, "low", { keep: WAVE_COUNT, skipLast: !!skipLast });
+  const vals = [fromState, fromLedger].filter((v) => v > 0);
+  return vals.length ? Math.min(...vals) : null;
 }
 function getPeakCount(symbol)             { return (waveState[symbol]?.peaks   || []).length; }
 function getTroughCount(symbol)           { return (waveState[symbol]?.troughs || []).length; }
@@ -6537,7 +6778,7 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (rotateHomeBuy) {
       slipstreamBuy = rotateHomeSlipstreamBuyPath();
       console.log(
-        `🏠 ROTATE HOME — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
+        `🏠 HOME Slipstream — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
         `tickSpacing ${slipstreamBuy.tickSpacing} (not Uni QuoterV2)`,
       );
     } else {
@@ -6987,6 +7228,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // After N buy fails we freeze *new buys* and arm cooldown; leftover exits
     // must still be able to hit a live Uni V3 fee. Blocking sells here is what
     // logged SELL SKIPPED [GAME] while the bag was leftover.
+    // Exception: HOLD_ALL_SELLS / HOME never-sell — operator freeze until approve.
+
+    const sellHold = shouldBlockSell({
+      symbol: token.symbol,
+      reason,
+      env: process.env,
+    });
+    if (sellHold.block) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: ${sellHold.why}`);
+      return null;
+    }
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
@@ -7499,6 +7751,123 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     } else if (waveRide.banked) {
       console.log(`   🌊 WAVE leftover banked — ${waveRide.reason}`);
     }
+    // Short §WHL§ ride-along: machine highs/lows + utc|local|unix.
+    // Follow prev= in the line. loc stays empty until this sell tx returns.
+    // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
+    let whlCost = 0;
+    let whlMachine = null;
+    let flowCost = 0;
+    let flowMachine = null;
+    try {
+      const whlRow = assessWaveToken(waveHlLedger, {
+        symbol: token.symbol,
+        price,
+        entryPrice: hasUsableCostBasis(token) ? token.entryPrice : null,
+      });
+      const cascadeSeat = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: token.symbol });
+      const prior = lastWaveHlRide(waveHlLedger, token.symbol);
+      const built = buildWaveHlMachine(whlRow, {
+        prev: ridePrevTag(prior),
+        from: prior?.txHash || "-",
+        loc: "-",
+        cascadeSymbol: cascadeSeat?.symbol || null,
+      });
+      whlMachine = built.line;
+      bankWaveHlRide(waveHlLedger, built, { symbol: token.symbol });
+      const whlWire = chooseInjectWire(built.line);
+      const whlBytes = whlWire.wireBytes || 0;
+      const whlL1 = hitchL1?.ok && wantedHitchBytes > 0 && whlBytes > 0
+        ? (Number(hitchL1.l1FeeEth) || 0) * whlBytes / wantedHitchBytes
+        : 0;
+      whlCost = whlBytes > 0 ? estimateCalldataHitchEth(whlBytes, gwei) + whlL1 : 0;
+      const spent = voiceHitchCost + (sellVoice?.waveHitch ? waveCost : 0);
+      const leftAfter = sellVoice.onChain ? Math.max(0, gateLeftoverEth - spent) : 0;
+      const whlCovered = !sellSkipHitch
+        && !!sellVoice.onChain
+        && leftAfter > 0
+        && whlCost > 0
+        && leftAfter + 1e-18 >= whlCost
+        && plusAfterHitchEth(gateLeftoverEth, spent + whlCost) > 0;
+      const whlPlan = planWaveHlRide({
+        leftoverEth: whlCovered ? leftAfter : 0,
+        hitchCostEth: whlCost > 0 ? whlCost : 1,
+        pairedPlus: true,
+        machine: whlWire.wire,
+      });
+      if (whlPlan.hitch && sellVoice?.data) {
+        const packed = appendUtf8Hitch(sellVoice.data, whlPlan.utf8);
+        if (packed.ok && packed.onChain) {
+          sellVoice = {
+            ...sellVoice,
+            data: packed.data,
+            utf8: String(sellVoice.utf8 || "") + packed.utf8,
+            hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+            waveHlHitch: true,
+            waveHlUtf8: packed.utf8,
+          };
+          console.log(`   🌊 WHL ride-along ${packed.hitchBytes} B utc|local|unix — ${whlPlan.reason}`);
+        } else {
+          console.log(`   🌊 WHL ride banked — append refused (${packed.log || whlPlan.reason})`);
+        }
+      } else {
+        console.log(`   🌊 WHL ride banked — ${whlPlan.reason}`);
+      }
+      try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+        console.log(`⚠️  wave HL ledger: ${e.message}`);
+      }
+    } catch (e) {
+      console.log(`   🌊 WHL ride skipped — ${e.message}`);
+    }
+    // Our §RHD§ route. Robinhood is only the quote source already filed.
+    // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
+    try {
+      const built = buildFlowRouteLine(flowArm());
+      if (built.line && built.line.includes("top=-") === false && /\|n=[1-9]/.test(built.line)) {
+        const flowWire = chooseInjectWire(built.line);
+        flowMachine = built.line;
+        bankFlowRoute(flowArm(), built);
+        const flowBytes = flowWire.wireBytes || 0;
+        const flowL1 = hitchL1?.ok && wantedHitchBytes > 0 && flowBytes > 0
+          ? (Number(hitchL1.l1FeeEth) || 0) * flowBytes / wantedHitchBytes
+          : 0;
+        flowCost = flowBytes > 0 ? estimateCalldataHitchEth(flowBytes, gwei) + flowL1 : 0;
+        const spent = voiceHitchCost + (sellVoice?.waveHitch ? waveCost : 0) + (sellVoice?.waveHlHitch ? whlCost : 0);
+        const leftAfter = sellVoice.onChain ? Math.max(0, gateLeftoverEth - spent) : 0;
+        const flowCovered = !sellSkipHitch
+          && !!sellVoice.onChain
+          && leftAfter > 0
+          && flowCost > 0
+          && leftAfter + 1e-18 >= flowCost
+          && plusAfterHitchEth(gateLeftoverEth, spent + flowCost) > 0;
+        const flowPlan = planFlowRouteRide({
+          leftoverEth: flowCovered ? leftAfter : 0,
+          hitchCostEth: flowCost > 0 ? flowCost : 1,
+          pairedPlus: true,
+          machine: flowWire.wire,
+        });
+        if (flowPlan.hitch && sellVoice?.data) {
+          const packed = appendUtf8Hitch(sellVoice.data, flowPlan.utf8);
+          if (packed.ok && packed.onChain) {
+            sellVoice = {
+              ...sellVoice,
+              data: packed.data,
+              utf8: String(sellVoice.utf8 || "") + packed.utf8,
+              hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+              flowHitch: true,
+              flowUtf8: packed.utf8,
+            };
+            console.log(`   💉 FLOW route ${packed.hitchBytes} B owner vita — ${flowPlan.reason}`);
+          } else {
+            console.log(`   💉 FLOW route banked — append refused (${packed.log || flowPlan.reason})`);
+          }
+        } else {
+          console.log(`   💉 FLOW route banked — ${flowPlan.reason}`);
+        }
+        saveFlowArm();
+      }
+    } catch (e) {
+      console.log(`   💉 FLOW route skipped — ${e.message}`);
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -7547,7 +7916,25 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const hitchCostEth = sellVoice?.onChain
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
         + (sellVoice?.waveHitch ? waveCost : 0)
+        + (sellVoice?.waveHlHitch ? whlCost : 0)
+        + (sellVoice?.flowHitch ? flowCost : 0)
       : 0;
+    if (sellVoice?.waveHlHitch && whlMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
+      commitWaveHlRideHash(waveHlLedger, {
+        symbol: token.symbol,
+        machine: whlMachine,
+        txHash: transactionHash,
+      });
+      try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+        console.log(`⚠️  wave HL ledger: ${e.message}`);
+      }
+      console.log(`   🌊 WHL loc ${transactionHash} — utc|local|unix on this sell`);
+    }
+    if (sellVoice?.flowHitch && flowMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
+      commitFlowRouteHash(flowArm(), { line: flowMachine, txHash: transactionHash });
+      saveFlowArm();
+      console.log(`   💉 FLOW loc ${transactionHash} — our §RHD§ route`);
+    }
     let earn = piggyEarningsAfterMessage({
       netUsd,
       hitchCostUsd: hitchCostEth * ethUsd,
@@ -8104,6 +8491,41 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
 
     // Prefer lowest bottoms first for succession
     const candidates = rankCascadeBottoms(rawCandidates, { excludeSymbol: soldSymbol });
+    try {
+      const prefer = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: soldSymbol });
+      if (prefer?.symbol) {
+        const idx = candidates.findIndex((c) => c.symbol === prefer.symbol);
+        if (idx > 0) {
+          const [hit] = candidates.splice(idx, 1);
+          candidates.unshift(hit);
+          console.log(`  🌊 wave board prefers ${prefer.symbol} ${prefer.arrow} ${prefer.confidence}% ${prefer.stage}`);
+        }
+      }
+    } catch { /* board preference is advisory */ }
+    try {
+      if (Number(gweiC) > 0) {
+        const book = injectRoutes();
+        fileRouteQuote(book, { chain: "base", gwei: gweiC });
+        saveInjectRoutes();
+        const sample = candidates[0]?.symbol
+          ? `cascade ${candidates.map((c) => c.symbol).join(",")}`
+          : "cascade";
+        const wire = chooseInjectWire(sample);
+        const plan = rankCascadeByDataRoute(
+          candidates.map((c) => ({
+            symbol: c.symbol,
+            score: c.cascadeBottomScore,
+            chain: c.token?.chain || "base",
+          })),
+          { wireBytes: wire.wireBytes, quotes: latestQuotes(book), history: book.quotes },
+        );
+        const next = applyRouteOrder(candidates, plan.rows);
+        if (next[0] && candidates[0] && next[0].symbol !== candidates[0].symbol) {
+          candidates.splice(0, candidates.length, ...next);
+          console.log(`  💉 data-field route prefers ${next[0].symbol} on a cheaper chain`);
+        }
+      }
+    } catch { /* route preference waits for a real gas quote */ }
     if (!candidates.length) {
       // Fall back to raw primed READY even if band math missed (nearEntry already true)
       candidates.push(...rawCandidates.filter((c) => c.readyNow || c.nearBottom));
@@ -9901,6 +10323,7 @@ async function loadFromGitHub() {
         waveStats[sym] = s;
       }
     }
+    if (pos.waveHlLedger) waveHlFromPositions = pos.waveHlLedger;
     // portfolioPeakUsd intentionally NOT loaded — stale peaks cause false drawdown halts
     if (pos.fifoLots) {
       fifoLots = mergeLotMaps(fifoLots, deserializeFifoLots(pos.fifoLots));
@@ -10009,6 +10432,12 @@ async function loadFromGitHub() {
     }
   } catch { /* optional disk */ }
 
+  waveHlLedger = loadWaveHlLedger({
+    positionsBlob: waveHlFromPositions ? { waveHlLedger: waveHlFromPositions } : null,
+  });
+  const hlTokens = Object.keys(waveHlLedger.tokens || {}).length;
+  if (hlTokens) console.log(`📈 Wave HL ledger restored: ${hlTokens} token(s)`);
+
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
   const pcOpen      = Object.keys(piggyCoPos).length;
@@ -10095,7 +10524,11 @@ async function saveToGitHub() {
       piggyContrib: Object.fromEntries(tokens.map(t => [t.symbol, (waveStats[t.symbol]?.piggyContrib || 0)])),
       tradeLog:   tradeLog.slice(-200),
       fifoLots:   serializeFifoLots(fifoLots),
+      waveHlLedger,
     };
+    try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+      console.log(`⚠️  wave HL ledger: ${e.message}`);
+    }
     try { writeLocalStateJson("positions.runtime.json", positionsPayload); } catch (e) {
       console.log(`⚠️  positions.runtime.json: ${e.message}`);
     }
@@ -10362,6 +10795,31 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           }
           continue;
         }
+        if (awaitingVitaFile.purpose === "photos") {
+          takeVitaFeedFileAwait(msgChatId);
+          try {
+            const dl = await downloadTelegramFileBytes(mediaOnMessage.fileId);
+            if (!dl.ok) {
+              await tg("❌ photo read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            const out = await handleVitaFeedAction({
+              action: "photos",
+              body: "add",
+              chatId: msgChatId,
+              photoBytes: dl.bytes,
+              photoName: mediaOnMessage.name,
+              photoMime: mediaOnMessage.mime,
+            });
+            let msg = "📷 <b>PHOTOS DRIVE</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+            msg += "Enqueue: <code>/vitafeed enqueue photo " + (out.id || out.filed?.id || "") + "</code> → confirm|override.";
+            await tg(msg, { reply_markup: out.keyboard || buildVitaFeedStagedKeyboard() });
+          } catch (e) {
+            await tg("❌ photos add failed: " + (e.message || e));
+          }
+          continue;
+        }
         takeVitaFeedFileAwait(msgChatId);
         await tg(
           "📡 <b>VITAFEED FILE</b> — got <code>" + mediaOnMessage.name + "</code> (" +
@@ -10566,10 +11024,98 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           try { await flushPendingOperatorBuys(cdpClient); }
           catch (e) { console.log(`⚠️  Immediate /buy flush failed: ${e.message} — remains queued`); }
         }
+      } else if (text === "/hold" || text === "/hold sells" || text.startsWith("/hold sells")) {
+        const arg = text.replace(/^\/hold\s*/i, "").trim().toLowerCase();
+        if (arg === "sells" || arg === "sells on" || arg === "on" || arg === "" || text === "/hold") {
+          armHoldAllSells(process.env);
+          await tg(`🛑 <b>HOLD_ALL_SELLS ON</b>\nNo token sells until you approve.\n$HOME never-sell stays on.\nClear Railway <code>HOLD_ALL_SELLS=no</code> when ready.`);
+        } else if (arg === "sells off" || arg === "off" || arg === "approve") {
+          clearHoldAllSells(process.env);
+          await tg(
+            `✅ <b>SELL BARRIER LIFTED</b>\n` +
+            `${holdAllSellsStatusLine()}\n` +
+            `$HOME stays never-sell (APPROVE_HOME_SELL unset).\n` +
+            `Other bags may sell when gated green.\n` +
+            `Persist: Railway <code>HOLD_ALL_SELLS=no</code>.\n` +
+            `Base cascade program: /cascade`,
+          );
+        } else {
+          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off`);
+        }
+      } else if (parseRhCascadeCommand(raw).ok) {
+        const cmd = parseRhCascadeCommand(raw);
+        if (cmd.action === "unlock") {
+          const unlocked = unlockSellBarrier(process.env);
+          await tg(
+            `✅ <b>CASCADE SELLS UNLOCKED</b>\n${esc(unlocked.status)}\n` +
+            `$HOME never-sell · Base rail LOWER→dividend→MAIN · /cascade`,
+          );
+        } else if (cmd.action === "hierarchy") {
+          await tg(formatCascadeHierarchyCard());
+        } else {
+          const book = flowArm();
+          const snap = latestSnapshot(book);
+          const rhRows = (snap?.quotes || []).map((q) => ({
+            symbol: String(q.pair || "").replace("-", ""),
+            mark_price: String(q.mark),
+            bid_price: q.bid != null ? String(q.bid) : undefined,
+            ask_price: q.ask != null ? String(q.ask) : undefined,
+            open_price: q.prevClose != null ? String(q.prevClose) : undefined,
+            updated_at: q.at || undefined,
+          }));
+          // Base program runs on catalog even without RH; RH only overlays wave marks.
+          const ethPx = Number(cachedEthUsd) > 0 ? Number(cachedEthUsd) : 2700;
+          const ethBal = Number.isFinite(lastEthBalance) ? lastEthBalance : 0;
+          const wethBal = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
+          const liquidUsd = (ethBal + wethBal) * ethPx;
+          const homeTok = tokens.find((t) => String(t.symbol).toUpperCase() === "HOME");
+          const homePx = Number(homeTok?.price || homeTok?.lastPrice || 0);
+          const homeBal = Number(homeTok?.balance || homeTok?.units || 0);
+          const homeBagUsd = homeBal > 0 && homePx > 0 ? homeBal * homePx : 11;
+          let bagsDividendUsd = 0;
+          try {
+            for (const row of collectWaveBoardRows()) {
+              if (row?.dividendPct > 0 && row?.plan?.withdrawUsd > 0) {
+                bagsDividendUsd += Number(row.plan.withdrawUsd) || 0;
+              }
+            }
+          } catch { /* board optional */ }
+          const plan = planRhBaseCascade({
+            rhRows,
+            catalog: tokens,
+            flowBook: book,
+            unlockSells: false,
+            maxHops: 8,
+            liquidUsd,
+            homeBagUsd,
+            ethUsd: ethPx,
+            bagsDividendUsd,
+          });
+          if (rhRows.length) saveFlowArm();
+          try { fileRhCascadeLearn(plan); } catch (e) { console.log(`⚠️  cascade learn: ${e.message}`); }
+          if (cmd.action === "predict") {
+            await tg(formatCascadePredictionCard(plan));
+          } else if (cmd.action === "outcomes") {
+            await tg(formatRhCascadeOutcomes(plan));
+          } else if (cmd.action === "trail") {
+            await tg(
+              `💉 <b>CASCADE TRAIL</b> (Base hitch)\n` +
+              `commit <code>${esc(plan.trail.commit8)}</code>\n` +
+              `<code>${esc(plan.trail.line)}</code>\n` +
+              `RH = wave data only · loc empty until a real Base sell seals it.`,
+            );
+          } else {
+            await tg(formatRhCascadeCard(plan));
+          }
+        }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);
         const sym = parsed?.symbol;
         if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /sell SYMBOL [pct|all]`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: manualSellReason(parsed.pct), env: process.env });
+          if (hold.block) { await tg(`🛑 <b>SELL blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.some(c => isMatchingManualSell(c, parsed))) { await tg(`⚠️ SELL ${sym} already queued`); continue; }
         if (Math.abs(parsed.pct - 0.5) < 1e-9) {
           manualCommands.push({ symbol: sym, action: "sellhalf" });
@@ -10584,6 +11130,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/sellhalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: manualSellReason(0.5), env: process.env });
+          if (hold.block) { await tg(`🛑 <b>SELL HALF blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.some(c => isMatchingManualSell(c, { symbol: sym, pct: 0.5 }))) { await tg(`⚠️ SELL HALF ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "sellhalf" });
         await tg(`📱 <b>SELL HALF ${sym} queued</b>`);
@@ -10591,6 +11141,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const parsed = parsePiggyUnlockCommand(raw);
         const sym = parsed?.symbol;
         if (!sym || !tokens.find(t => t.symbol === sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /piggyunlock SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "PIGGY UNLOCK", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>PIGGY UNLOCK blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.find(c => c.symbol === sym && c.action === "piggyunlock")) { await tg(`⚠️ PIGGY UNLOCK ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "piggyunlock" });
         await tg(`🐷 <b>PIGGY UNLOCK ${sym} queued</b>\nWill sell the dust pile (reason: PIGGY UNLOCK)`);
@@ -10603,6 +11157,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/exit ") && !text.startsWith("/exitpct") && !text.startsWith("/exithalf")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown token: ${sym}\nUsage: /exit SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         const bal = getCachedBalance(sym);
         // Allow exit even without entry price — just needs a balance
@@ -10623,6 +11181,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/exithalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown token: ${sym}\nUsage: /exithalf SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT HALF", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         const bal = getCachedBalance(sym);
         if (!token.entryPrice && bal < 0.001) { await tg(`❓ <b>${sym}</b> — no position and no balance found`); continue; }
@@ -10645,6 +11207,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const pct   = parseFloat(parts[2]);
         if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Usage: /exitpct SYMBOL 75\nExample: /exitpct BRETT 75 sells 75% to ETH`); continue; }
         if (!pct || isNaN(pct) || pct <= 0 || pct > 100) { await tg(`❓ Percentage must be 1–100\nExample: /exitpct BRETT 75`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT PCT", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         if (!token.entryPrice) { await tg(`❓ <b>${sym}</b> — no open position to exit`); continue; }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
@@ -10701,14 +11267,79 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           } else if (out.symbol && out.symbol !== "ETH" && (out.action === "token" || out.action === "dex" || out.action === "legit")) {
             markup = buildTokenActionKeyboard(out.symbol);
           }
+          let body = out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>";
+          if (parsedTok.symbol && out.action === "token") {
+            body += "\n\n" + waveClickCard(out.symbol || parsedTok.symbol);
+            const flowNote = formatFlowSymbolNote(flowArm(), out.symbol || parsedTok.symbol);
+            if (flowNote) body += "\n\n" + flowNote;
+            refreshWaveChainPebbles().catch(() => {});
+          }
           await tg(
-            "🪙 <b>TOKENS</b>\n" + (out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>"),
+            "🪙 <b>TOKENS</b>\n" + body,
             { reply_markup: markup, disable_web_page_preview: true },
           );
         } catch (e) {
           await tg("❌ token player failed: " + (e.message || e) + "\nNothing invented.");
         }
       // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
+      } else if (
+        text === "/rh" ||
+        text === "/rhfund" ||
+        text === "/robinhood" ||
+        (text && (text.startsWith("/rh ") || text.startsWith("/rhfund ") || text.startsWith("/rhconfirm ")))
+      ) {
+        try {
+          const parsed = parseRhFundCommand(raw);
+          const out = handleRhFundAction({
+            action: parsed.action || "root",
+            source: parsed.source || "",
+          });
+          if (Array.isArray(out.queueBuys) && out.queueBuys.length) {
+            for (const qb of out.queueBuys) {
+              const sym = String(qb.symbol || "").toUpperCase();
+              const tok = tokens.find((t) => t.symbol === sym);
+              if (!tok) {
+                await tg(`❓ RH fund: unknown Base token ${sym}`);
+                continue;
+              }
+              if (isCatalogFrozen(tok)) {
+                await tg(`❄️ <b>${sym} is frozen</b> — RH fund Base buy blocked.\n${tok.frozenReason || "Catalog freeze."}`);
+                continue;
+              }
+              const usd = Number(qb.usd) || 1;
+              const below = operatorBuyBelowMin({ symbol: sym, usd, token: tok });
+              if (below) {
+                await tg(`🛑 <b>${sym} min buy $${minBuyUsdForToken(tok).toFixed(2)}</b>\n${below}`);
+                continue;
+              }
+              if (manualCommands.find((c) => c.symbol === sym && c.action === "buy")) {
+                await tg(`⚠️ BUY ${sym} already queued`);
+                continue;
+              }
+              manualCommands.push({
+                symbol: sym,
+                action: "buy",
+                usd,
+                source: qb.source || "RH_FUND",
+              });
+              await tg(operatorBuyQueuedTelegram(sym, usd));
+            }
+            if (cdpClient) {
+              try { await flushPendingOperatorBuys(cdpClient); }
+              catch (e) { console.log(`⚠️  RH fund /buy flush failed: ${e.message} — remains queued`); }
+            }
+          }
+          await tg(
+            "📱 <b>RH → BASE FUND</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ rh fund failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (
         text === "/home" ||
         text === "/menu" ||
@@ -11000,10 +11631,104 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `\n<i>Use /fib SYMBOL for the full ladder map</i>`;
           await tg(msg);
         }
+      } else if (text === "/routes") {
+        let gweiNow = 0;
+        try { gweiNow = await getCurrentGasGwei(); } catch { gweiNow = 0; }
+        const book = injectRoutes();
+        if (Number(gweiNow) > 0) {
+          fileRouteQuote(book, { chain: "base", gwei: gweiNow });
+          saveInjectRoutes();
+        }
+        const built = buildFlowRouteLine(flowArm());
+        const wire = chooseInjectWire(built.line || "vita data-field");
+        const routes = rankInjectRoutes({
+          wireBytes: wire.wireBytes,
+          quotes: latestQuotes(book),
+          history: book.quotes,
+        });
+        await tg(formatInjectRoutes({ wire, routes, book }));
+      } else if (text === "/flow" || (text && text.startsWith("/flow "))) {
+        const parts = raw.trim().split(/\s+/);
+        const sub = (parts[1] || "").toLowerCase();
+        const arg = parts[2] || "";
+        const book = flowArm();
+        if (sub === "watch" && arg) {
+          const out = watchPair(book, arg);
+          saveFlowArm();
+          await tg(`● <b>${esc(out.pair)}</b> is on the flow watch.\nA mark appears after the next filed snapshot.`);
+        } else if (sub === "drop" && arg) {
+          const out = dropPair(book, arg);
+          saveFlowArm();
+          await tg(out.ok ? `○ <b>${esc(out.pair)}</b> left the flow watch.` : `❓ <b>${esc(out.pair)}</b> was not on the watch.`);
+        } else if (sub === "index") {
+          await tg(formatFlowIndex(book));
+        } else if (sub === "route") {
+          await tg(formatFlowRoute(book));
+        } else {
+          await tg(formatFlowBoard(book));
+        }
+      } else if (text === "/lull") {
+        refreshWaveChainPebbles().catch(() => {});
+        await tg(formatLullTelegram(liveWaveDesk()));
+      } else if (text === "/waveagents") {
+        refreshWaveChainPebbles().catch(() => {});
+        await tg(formatWaveAgentsTelegram(liveWaveDesk()));
+      } else if (text === "/waveboard" || text.startsWith("/waveboard ")) {
+        const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
+        const rows = collectWaveBoardRows();
+        const cascade = pickCascadeToken(rows);
+        refreshWaveChainPebbles().catch(() => {});
+        if (sym) {
+          const row = rows.find((r) => r.symbol === sym);
+          if (!row) {
+            await tg(`❓ <b>${esc(sym)}</b> is not on the wave board.`);
+          } else {
+            await tg(formatWaveTokenTelegram(row, {
+              ride: lastWaveHlRide(waveHlLedger, sym),
+              cascade,
+            }) + "\n\n" + waveClickCard(sym));
+          }
+        } else {
+          await tg(formatWaveBoardTelegram(rows, { cascade }));
+        }
+      } else if (text === "/dividend" || text.startsWith("/dividend ")) {
+        const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
+        const rows = collectWaveBoardRows();
+        const cascade = pickCascadeToken(rows, { excludeSymbol: sym || null });
+        if (!sym) {
+          await tg(formatDividendMenu(rows, { cascade }));
+        } else if (!tokens.find((t) => t.symbol === sym)) {
+          await tg(`❓ Unknown: ${esc(sym)}\nUsage: /dividend SYMBOL`);
+        } else {
+          const row = rows.find((r) => r.symbol === sym);
+          if (!row || !(row.dividendPct > 0) || !row.plan || row.plan.blocked) {
+            await tg(
+              `⏸ <b>${esc(sym)}</b> dividend withheld\n` +
+              `${esc(row?.exitReason || "no wave row")}\n` +
+              `${row ? formatWaveStageSnippet(row) : ""}`
+            );
+          } else if (manualCommands.some((c) => c.symbol === sym && (c.action === "sell" || c.action === "sellhalf"))) {
+            await tg(`⚠️ SELL ${esc(sym)} already queued`);
+          } else {
+            manualCommands.push({ symbol: sym, action: "sell", pct: row.dividendPct });
+            const into = cascade ? `\nCascade seat: <b>${esc(cascade.symbol)}</b> ${cascade.arrow} ${cascade.confidence}% ${esc(cascade.stage)}` : "";
+            await tg(
+              `💸 <b>DIVIDEND ${esc(sym)} ${(row.dividendPct * 100).toFixed(0)}% queued</b>\n` +
+              `Withdraw ≈ $${row.plan.withdrawUsd.toFixed(2)} gross\n` +
+              `Leave ≈ $${row.plan.leaveUsd.toFixed(2)} in the bag\n` +
+              `${esc(row.exitReason)}` +
+              into +
+              `\nShort §WHL§ ride (utc|local|unix) banks on this sell if leftover covers it.`
+            );
+          }
+        }
       } else if (text === "/waves") {
         const gasCost = await estimateGasCostEth();
+        const board = collectWaveBoardRows();
+        const bySym = new Map(board.map((r) => [r.symbol, r]));
         let msg = `🌊 <b>WAVE STATUS v13 💓</b>\n🕐 ${new Date().toLocaleTimeString()}\n\n`;
-        msg += `<i>Buy MIN trough | Sell MAX peak | Indicators confirm</i>\n\n`;
+        msg += `<i>Buy MIN trough | Sell MAX peak | Arrow is the next move</i>\n`;
+        msg += `<i>/waveboard · /dividend SYMBOL · highs/lows stay logged</i>\n\n`;
         for (const t of tokens) {
           const p   = history[t.symbol]?.lastPrice;
           if (!p) { msg += `⏳ <b>${t.symbol}</b> — loading\n\n`; continue; }
@@ -11016,6 +11741,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `   Buy (MIN): $${minT?.toFixed(8)||"?"} (+${pct}% above)\n`;
           msg += `   Sell (MAX): $${maxP?.toFixed(8)||"?"}\n`;
           msg += `   Waves: ${getPeakCount(t.symbol)}P / ${getTroughCount(t.symbol)}T\n`;
+          msg += `   ${formatWaveStageSnippet(bySym.get(t.symbol))}\n`;
           msg += `   💓 ${ind.detail || "building..."}\n`;
           msg += arm.armed
             ? `   ✅ ARMED ${(arm.net*100).toFixed(2)}% net [${arm.priority}]\n\n`
@@ -11357,7 +12083,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           "   /sell SYMBOL [pct|all] \u2014 manual exit (leaves piggy dust)\n" +
           "   /sellhalf SYMBOL \u2014 sell 50%\n" +
           "   /piggyunlock SYMBOL \u2014 sell the locked dust pile\n" +
-          "   /waves \u2014 detailed levels"
+          "   /waves \u2014 detailed levels\n" +
+          "   /waveboard \u2014 stage, arrow, confidence, exit\n" +
+          "   /dividend SYMBOL \u2014 take 10-30% and leave the bag"
         );
 
       } else if (text === "/bank") {
@@ -13204,6 +13932,17 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           continue;
         }
 
+        if (parsed.ok && parsed.action === "photos" && parsed.wantsFile && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command", purpose: "photos" });
+          await tg(
+            "📷 <b>PHOTOS DRIVE</b>\n" +
+            "Please send a picture (jpg/png/webp/gif).\n" +
+            "Open key = the picture (name+sha256). Compression bake-off runs next.\n" +
+            "Then <code>/vitafeed enqueue photo &lt;id&gt;</code> → confirm|override. Locs empty until seal.",
+          );
+          continue;
+        }
+
         if (parsed.ok && parsed.action === "file" && !mediaHint.ok) {
           beginVitaFeedFileAwait(msgChatId, { via: "command" });
           await tg(
@@ -13374,6 +14113,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           let compressionBytes = null;
           let compressionName = "";
           let compressionMime = "";
+          let photoBytes = null;
+          let photoName = "";
+          let photoMime = "";
           if (parsed.action === "compress" && mediaHint.ok && mediaSourceMsg) {
             const dl = await downloadTelegramFileBytes(mediaHint.fileId);
             if (!dl.ok) {
@@ -13383,6 +14125,16 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             compressionBytes = dl.bytes;
             compressionName = mediaHint.name;
             compressionMime = mediaHint.mime;
+          }
+          if (parsed.action === "photos" && mediaHint.ok && mediaSourceMsg) {
+            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
+            if (!dl.ok) {
+              await tg("❌ photo read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            photoBytes = dl.bytes;
+            photoName = mediaHint.name;
+            photoMime = mediaHint.mime;
           }
 
           const isPaidConfirm =
@@ -13604,6 +14356,9 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               compressionBytes,
               compressionName,
               compressionMime,
+              photoBytes,
+              photoName,
+              photoMime,
             });
             // Brain activate → queue §TOKEN§ learn for next /vitasave (bank path).
             if (parsed.action === "brain" && out.brainLearn?.vitaSave?.tokenPacket) {
@@ -14376,6 +15131,12 @@ async function flushPendingOperatorBuys(cdp) {
 }
 
 function applyOperatorRotateEnv() {
+  if (isHoldAllSells()) {
+    if (String(process.env.OPERATOR_ROTATE_TO || "").trim()) {
+      console.log(`🛑 HOLD_ALL_SELLS — refusing OPERATOR_ROTATE_TO=${process.env.OPERATOR_ROTATE_TO} (would sell non-HOME bags)`);
+    }
+    return { queued: false, reason: "hold-all-sells" };
+  }
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
@@ -14407,6 +15168,12 @@ function applyOperatorRotateEnv() {
 }
 
 function applyOperatorSellEnv() {
+  if (isHoldAllSells()) {
+    if (String(process.env.OPERATOR_SELL || "").trim()) {
+      console.log(`🛑 HOLD_ALL_SELLS — refusing OPERATOR_SELL=${process.env.OPERATOR_SELL} until operator approves`);
+    }
+    return { queued: false, reason: "hold-all-sells" };
+  }
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
@@ -14585,6 +15352,7 @@ async function main() {
     console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost (or micro-bank when cover cannot fit)");
   }
   console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; message-first=${isOriginalFormulaMessageFirst() ? "on" : "off"} hitch when leftover covers 1× KEY+LOC (HITCH_COST_MULT=${hitchCostMult()}× cushion preferred; VITA_MESSAGE_FIRST=no → skip + bank); never sell red to inject`);
+  console.log(holdAllSellsStatusLine());
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
@@ -14677,7 +15445,30 @@ async function main() {
   applyOperatorSellEnv();
   applyOperatorRotateEnv();
   applyOperatorUnwrapEnv();
+  // OPERATOR_BRIDGE_L1_TO_BASE=yes — move unused Ethereum L1 ETH → Base RISK
+  // via OptimismPortal before OPERATOR_BUY (HOME) spends Base ETH/WETH.
+  try {
+    if (String(process.env.OPERATOR_BRIDGE_L1_TO_BASE || "").trim()) {
+      let ethUsdBridge = cachedEthUsd;
+      try { ethUsdBridge = await getLiveEthPrice(); cachedEthUsd = ethUsdBridge; } catch { /* keep */ }
+      await maybeBridgeL1EthToBase({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        ethUsd: ethUsdBridge,
+        log: console.log,
+        tg,
+        waitForBaseMs: 180_000,
+        getBaseNativeEth: async () => {
+          try { return Number(await getEthBalance()) || 0; }
+          catch { return 0; }
+        },
+      });
+    }
+  } catch (bridgeErr) {
+    console.log(`⚠️  L1→Base bridge failed (non-fatal): ${bridgeErr.message}`);
+  }
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
+  // HOME OPERATOR_BUY uses Slipstream (same as rotate) — Uni V3 ghost skipped.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.
   await flushPendingOperatorBuys(cdpClient);
   // Balances may still be cold at boot — main loop re-queues after refresh.
@@ -14736,6 +15527,8 @@ async function main() {
   bootstrapWavesFromHistory();
   await bootstrapWavesFromLedger();
   bootstrapWavesFromCandles();
+  captureWavePrintsFromBoot();
+  refreshWaveChainPebbles().catch(() => {});
 
   // ── ON-CHAIN POSITION RECOVERY — PURE BLOCKCHAIN TRUTH ──────────────────
   // Every restart: scan wallet on Base directly for all token balances

@@ -54,7 +54,7 @@ findable.
 | `vita/memory/spatial-sound-learn.json` | `SPATIAL_SOUND` | Append-only learn: create / enqueue / seal / soundtrack |
 | `vita/strands/spatial-sound.json` | `SPATIAL_SOUND` | Sparse strand: bird print → voxel → one-block inject → agent mimic |
 | `modules/phosphor/` | `PHOSPHOR` | Chain writer/reader — injector wires are the store (new IPFS); IPFS HTTP is the outlet; open `PHOSOPEN` or AES lock; per-file snark + library stark fold; green CRT `/phosphor`; self-boot from wires |
-| `modules/phosphor/blocks.js` | `PHOSPHOR` | STARK block filing — machine `§PHOSBLOCK§` records, next-block header, compressed `stark://` filing loc, SYSTEM_INJECTED receipt, exact data-field page; wide files use blocks.ndjson |
+| `modules/phosphor/blocks.js` | `PHOSPHOR` | STARK block filing — machine `§PHOSBLOCK§` records; **leader i=0** alone carries `utc\|local\|unix\|filing` (triple time + compressed loc); trailing blocks lean follow-`next=`/`prev=`; one known path → all connected; find-by-time index; SYSTEM_INJECTED receipt; wide files use blocks.ndjson |
 | `modules/phosphor/home.js` | `PHOSPHOR` | Internal HOME filing seat `0x4BfAa776991E85e5f8b1255461cbbd216cFc714f` — not a swap, base location stays empty |
 | `modules/phosphor/public/terminal.html` | `PHOSPHOR` | DOS green CRT — Telegram pop-out `?popup=1`; folder library PLAY / PICTURE; directory formula on READER |
 | `modules/phosphor/directory.js` | `PHOSPHOR` | `§PHOSDIR§v1` location formula — ordered data-field locs, shorter than one data field; final loc is the line hash; LOCK asks for the key |
@@ -106,7 +106,13 @@ findable.
 | `vita/memory/telegram-home-learn.json` | `TELEGRAM_HOME` | Append-only learn: cheaper/faster engine + route sim seeds |
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
-| `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up |
+| `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up; HOME piggy + AERO main in/out |
+| `vita/base-cascade-program.js` | `BASE_CASCADE_PROGRAM` | Original Base path: LOWER snowball → dividend 10–30% → MAIN goal; viable USD + prediction; HOME piggy locked |
+| `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | RH wave-data overlay only → feeds Base program; §CASCTRAIL§ hitch (loc after seal); never RH-executes |
+| `vita/memory/rh-cascade-rail-learn.json` | `RH_CASCADE_RAIL` | Append-only learn: RH→Base cascade + unlock |
+| `vita/memory/rh-cascade-rail-ledger.json` | `RH_CASCADE_RAIL` | Append-only ledger of trail commits |
+| `vita/memory/rh-cascade-trail.json` | `RH_CASCADE_RAIL` | Cascade trail lines; loc empty until real Base hash |
+| `vita/strands/rh-cascade-rail.json` | `RH_CASCADE_RAIL` | Sparse strand: RH data → Base rail → AERO in/out → trail |
 | `vita/dex-reader.js` | `DEX_READER` | Per-token DexScreener reader + Gecko dual check + Basescan/Dex/Gecko/CoinGecko refs; miss ≠ $0 |
 | `vita/token-player.js` | `TOKEN_PLAYER` / `TOKEN_LEGIT` | Token pulldown player · $0.05 never-remove log seed · market-trigger SIM values · legit PASS/FLAG/FAIL |
 | `vita/multichain-portfolio.js` | `MULTICHAIN` | 32-chain display; Base hitch vs Ethereum L1 other-path (~$3 / 27% — never mix into Base RISK) |
@@ -142,6 +148,17 @@ findable.
 | `vita/memory/filing-labels-learned.json` | `FILING` (refined) | Self-refining label map (PEER_REVIEW, ZERO_PROOF, …) |
 | `vita/memory/brain-learn-log.json` | `ZERO_PROOF` | Append-only learn cycles + hash-chain roots |
 | `vita/vita-feed-file.js` | `VITAFILE` | Any bytes → §VITAFILE§ base64 text packets for `/vitafeed` |
+| `vita/photos.js` | `PHOTOS` | Photos Drive — Google Drive/folder/URL → open-picture key → compress → §VITAFILE§ → inject; slow-copy queue; Earthrise PD hope test |
+| `public/vita-photos.html` | `PHOTOS` | Photos Drive UI · bind source · scan · slow-copy · gallery click → unwrap pop-out |
+| `public/vita-photos-viewer.html` | `PHOTOS` | DOS CRT blockchain inject stream · searchable library · VIN data-field rail · READ PROOF receipts · Basescan Input Data → UTF-8 |
+| `vita/photos/inbox/` | `PHOTOS` | Drop pictures here for batch ingest |
+| `vita/memory/photos/` | `PHOTOS` | Filed picture bytes (Earthrise seed + user photos) |
+| `vita/memory/photos-catalog.json` | `PHOTOS` | Picture catalog · sha256 · zeroOpenKey · compression · locs empty until seal |
+| `vita/memory/photos-sources.json` | `PHOTOS` | Bound Drive / folder / URL sources (new Google Drive) |
+| `vita/memory/photos-queue.json` | `PHOTOS` | Slow-copy queue (pending→filed) |
+| `vita/memory/photos-learn.json` | `PHOTOS` | Append-only learn: source / scan / file / earthrise / enqueue |
+| `vita/memory/photos-seals.json` | `PHOTOS` | Real sealed photo locs only — never invented hashes |
+| `vita/strands/photos.json` | `PHOTOS` | Sparse strand: source → compress → open key → inject |
 | `vita/compression/index.js` | `COMPRESS` | Bake-off every codec · verified open key · HUMAN unwrap from machine wire · key directory · stage injection |
 | `vita/compression/codecs.js` | `COMPRESS` | Codec projects (gemini zlib, zlib, deflate, gzip, brotli, identity). Add one object. |
 | `vita/compression/projects/gemini-zlib.py` | `COMPRESS` | Uploaded Gemini zlib.compress → 0x hex calldata project |
@@ -236,6 +253,7 @@ findable.
 | `FEED_LOADER` | Curated pack preload into backlog (`§VITALOAD§`) — cipher/prog hierarchy + did-you-know recall |
 | `CIPHER` | Encode↔decode knowledge hierarchy (AES-GCM / MGENC / open unlock) |
 | `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; unwrap shows HUMAN plain from MACHINE wire; Telegram buttons on HOME/Feed/dir COMPRESS; key directory stages into `/vitafeed` injection; availability until a real seal |
+| `PHOTOS` | Photos Drive (`§VITAPHOTO§` / `§VITAPHOTODIR§`) — Google Drive/folder/URL as new picture drive; open key = the picture (VITAOPEN name+sha); compress bake-off; slow-copy queue; Earthrise PD hope test; `/vitafeed photos` · `dir PHOTOS`; locs empty until confirm\|override |
 | `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
 | `OS_BUILDER` | DOS brain builder (`§VITAOS§` / `§VITAAGENT§` / `§VITATRIGGER§` / `§VITAFOLLOW§`) — guided human↔machine wizard; IFTTT on Base kinds; follow-the-leader cells; sandbox cites hardcoded anchors only; seal stages /vitafeed; availability until real seal |
 | `WAVE_ROBIN` | First agentic AI (`§WAVEROBIN§`) — pure wave math `phase=sin(π·rangePos)` + IFTTT cascade on Robinhood quotes/historicals; growing-wave hops; accumulation proof ledger; SIM default; `RH_WAVE_LIVE` + confirm for real orders; never auto-spend |
