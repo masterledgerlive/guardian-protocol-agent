@@ -263,11 +263,13 @@ download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
 carries Eureka love into a token; instant wave HL from token data; rank
 revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
 15 min. HOME = piggy/fuel (rotate never sells). AERO = main in/out cascade.
-**RH → Base rail:** `/cascade` · `/cascade outcomes` · `/cascade trail` ·
-`/cascade unlock` — Robinhood quotes auto-populate wave envelopes; Base
-executes hops; §CASCTRAIL§ loc empty until seal (`vita/rh-cascade-rail.js`).
-`/hold sells off` lifts HOLD_ALL_SELLS (HOME never-sell stays). File operator
-message then agentic knowledge under `vita/memory/` + `vita/strands/`.
+**Base cascade program (original path):** `/cascade` · `/cascade predict` ·
+`/cascade hierarchy` · `/cascade outcomes` · `/cascade trail` ·
+`/cascade unlock` — LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy
+locked (~$11). Robinhood is **wave data only** (`vita/rh-cascade-rail.js`);
+execution stays Base RISK (`vita/base-cascade-program.js`). §CASCTRAIL§ loc
+empty until seal. `/hold sells off` lifts HOLD_ALL_SELLS (HOME never-sell).
+File operator message then agentic knowledge under `vita/memory/` + `vita/strands/`.
 
 ## Merge stance
 

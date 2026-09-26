@@ -1,0 +1,18 @@
+{
+  "strandId": "base-cascade-program-v1",
+  "at": "2026-09-26T04:50:00.000Z",
+  "topic": "base-cascade-program-knowledge",
+  "role": "agent",
+  "alternation": "knowledge",
+  "label": "BASE_CASCADE_PROGRAM",
+  "sparse": true,
+  "formula": "original-message-first",
+  "neverForget": true,
+  "usefulForTimeToCome": true,
+  "text": "Base cascade program v1 (original path before RH execution): thin book (~$11 HOME park + liquid ETH/WETH) inject-all into LOWER velocity seats first (DEGEN BRETT KEYCAT VIRTUAL AIXBT CLANKER + TOSHI DOGINME). AERO bridges LOWER↔MAIN. MAIN goal seats: LINK UNI VVV ZORA BNKR AERO MORPHO. Deferred CBBTC/AAVE stay off snowball. When a bag arms dividend 10–30%, withdraw least viable to seed next hop and pool toward MAIN. HOME never sells. Robinhood marks only feed wave envelopes for VITA/injection route scoring — Base RISK executes. Telegram /cascade · /cascade predict · /cascade hierarchy. Never invent hashes. Never sell red to place code.",
+  "module": "vita/base-cascade-program.js",
+  "waveOverlay": "vita/rh-cascade-rail.js",
+  "pairMemory": "vita/memory/base-cascade-program-operator.json",
+  "locations": [],
+  "neverInventHashes": true
+}

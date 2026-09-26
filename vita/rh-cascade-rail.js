@@ -1,13 +1,14 @@
 /**
- * Robinhood data → Base cascade rail.
+ * Robinhood WAVE DATA overlay for the Base cascade program.
  *
- * RH (MCP / Agentic quotes) auto-populates marks + wave envelopes.
- * Base rail executes cascade in/out (RISK /buy · /sell). Locs stay empty
- * until a real covered leftover sell seals the trail line.
+ * RH (MCP / Agentic quotes) only auto-populates marks + wave envelopes.
+ * Execution stays on the original Base RISK path
+ * (`vita/base-cascade-program.js` — LOWER snowball → dividend → MAIN).
+ * Locs stay empty until a real covered leftover sell seals the trail.
  *
  * Hubs:
  *   $HOME — piggy / fuel (rotate never sells; APPROVE_HOME_SELL unset)
- *   AERO  — main in/out cascade (buy + pre-arm sell when wave ready)
+ *   AERO  — main in/out bridge on Base
  *
  * Never invents tx hashes. Never sells red to place code.
  * Mother brain untouched.
@@ -33,15 +34,28 @@ import {
 import {
   HOME_CASCADE_PIGGY_HOLDER,
   AERO_CASCADE_INOUT,
-  planMessageCascade,
-  formatMessageCascadeCard,
   loadWavePointsFromToken,
   armSellOnMoveUp,
   CASCADE_CHEAP_RANGE_MAX,
   CASCADE_MOVE_UP_RANGE_POS,
 } from "./message-cascade.js";
+import {
+  planBaseCascadeProgram,
+  formatBaseCascadeProgramCard,
+  formatCascadePredictionCard,
+  formatCascadeHierarchyCard,
+  parseBaseCascadeCommand,
+  cascadeTierOf,
+} from "./base-cascade-program.js";
 
 export { AERO_CASCADE_INOUT };
+export {
+  planBaseCascadeProgram,
+  formatBaseCascadeProgramCard,
+  formatCascadePredictionCard,
+  formatCascadeHierarchyCard,
+  parseBaseCascadeCommand,
+};
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MEMORY_DIR = join(HERE, "memory");
@@ -242,12 +256,22 @@ export function nextCascadeOutcomes(seats = []) {
       hold.push(row);
     }
   }
-  // Prefer AERO first in each lane
-  const aeroFirst = (a, b) => Number(b.aeroMain) - Number(a.aeroMain)
+  // Prefer LOWER snowball then AERO bridge (Base hierarchy — not RH rank)
+  const tierRank = (r) => {
+    const t = cascadeTierOf(r.symbol);
+    if (t === "LOWER") return 0;
+    if (t === "BRIDGE") return 1;
+    if (t === "MAIN") return 2;
+    return 3;
+  };
+  const sortLane = (a, b) => tierRank(a) - tierRank(b)
     || (a.rangePos ?? 1) - (b.rangePos ?? 1)
     || a.symbol.localeCompare(b.symbol);
-  enter.sort(aeroFirst);
-  exit.sort(aeroFirst);
+  for (const row of [...enter, ...exit, ...hold]) {
+    row.tier = cascadeTierOf(row.symbol);
+  }
+  enter.sort(sortLane);
+  exit.sort(sortLane);
   return { enter, exit, hold, readyCount: enter.length + exit.length };
 }
 
@@ -370,7 +394,7 @@ export function commitCascadeTrailHash({ line, txHash }) {
 }
 
 /**
- * Full plan: ingest RH → seats → cascade hops → trail → optional flow book.
+ * Full plan: RH wave overlay → Base program (snowball→dividend→main) → trail.
  */
 export function planRhBaseCascade({
   rhRows = [],
@@ -382,6 +406,10 @@ export function planRhBaseCascade({
   unlockSells = false,
   env = process.env,
   at = Date.now(),
+  liquidUsd = 0,
+  homeBagUsd = 11,
+  ethUsd = 2700,
+  bagsDividendUsd = 0,
 } = {}) {
   const unlock = unlockSells ? unlockSellBarrier(env) : {
     ok: false,
@@ -403,7 +431,24 @@ export function planRhBaseCascade({
   }
 
   const seats = seatsFromRhQuotes(rhRows, { catalog, at });
-  // Ensure AERO seat exists even if RH miss — mark from catalog if any
+  // Merge catalog-only Base seats (velocity/mains missing from RH mirror)
+  if (Array.isArray(catalog)) {
+    const have = new Set(seats.map((s) => normSym(s.symbol)));
+    for (const t of catalog) {
+      const sym = normSym(t.symbol);
+      if (!sym || have.has(sym) || !(t.price > 0)) continue;
+      if (t.frozen === true) continue;
+      seats.push({
+        ...t,
+        symbol: sym,
+        dataSource: "base-catalog",
+        rail: "base",
+        waveDataSource: "token-embedded",
+        predictedUp: t.predictedUp !== false,
+      });
+      have.add(sym);
+    }
+  }
   if (!seats.some((s) => s.symbol === "AERO") && Array.isArray(catalog)) {
     const aero = catalog.find((t) => normSym(t.symbol) === "AERO");
     if (aero?.price > 0) {
@@ -420,31 +465,30 @@ export function planRhBaseCascade({
   }
 
   const outcomes = nextCascadeOutcomes(seats);
-  const cascade = planMessageCascade({
-    tokens: seats,
+  const program = planBaseCascadeProgram({
+    seats,
+    liquidUsd,
+    homeBagUsd,
+    ethUsd,
+    bagsDividendUsd,
     hopTimestamps,
     message,
-    maxHops: maxHops != null ? maxHops : Math.max(8, seats.length),
+    maxHops,
   });
-  // Annotate AERO hops as main in/out
-  for (const hop of cascade.hops || []) {
-    if (normSym(hop.symbol) === "AERO") {
-      hop.aeroMain = true;
-      hop.action = hop.sellArm?.armed
-        ? "cascade-aero-out"
-        : hop.waitingUp || hop.cheap
-          ? "cascade-aero-in"
-          : "cascade-aero-hop";
-    }
-  }
 
-  const trail = buildCascadeTrailLine({ seats, outcomes, at, src: "robinhood" });
+  const trail = buildCascadeTrailLine({
+    seats,
+    outcomes,
+    at,
+    src: "rh-wave+base-program",
+  });
   return {
     id: RH_CASCADE_RAIL_ID,
     magic: RH_CASCADE_MAGIC,
     label: RH_CASCADE_LABEL,
-    dataSource: "robinhood",
+    dataSource: "robinhood-wave-only",
     rail: "base",
+    execution: "base-risk-original-path",
     unlock,
     hubs: {
       home: HOME_CASCADE_PIGGY_HOLDER,
@@ -453,7 +497,10 @@ export function planRhBaseCascade({
     seatCount: seats.length,
     seats,
     outcomes,
-    cascade,
+    program,
+    cascade: program.cascade,
+    capital: program.capital,
+    prediction: program.prediction,
     trail,
     flowFiled,
     neverInventHashes: true,
@@ -464,11 +511,12 @@ export function planRhBaseCascade({
 
 export function fileRhCascadeLearn(plan, { at = new Date().toISOString(), operatorText = "" } = {}) {
   const learn = readJson(LEARN_PATH, { id: "rh-cascade-rail-learn-v1", filingLabel: RH_CASCADE_LABEL, notes: [] });
+  const next = plan.prediction?.next;
   learn.notes.push({
     at,
-    topic: "rh-cascade-rail",
+    topic: "rh-wave-base-program",
     text: operatorText
-      || `RH→Base cascade: ${plan.seatCount} seats · enter ${plan.outcomes.enter.map((r) => r.symbol).join(",") || "-"} · exit ${plan.outcomes.exit.map((r) => r.symbol).join(",") || "-"} · trail ${plan.trail.commit8} loc empty until seal. AERO main in/out. HOME never-sell. HOLD unlock=${plan.unlock?.ok === true}.`,
+      || `RH wave overlay → Base program phase=${plan.prediction?.phase} · deployable $${Number(plan.capital?.deployableUsd || 0).toFixed(2)} · next ${next ? `${next.symbol} $${next.usd}` : "—"} · trail ${plan.trail?.commit8} loc empty. HOME never-sell. RH never executes.`,
     locations: [],
   });
   writeJson(LEARN_PATH, learn);
@@ -479,13 +527,14 @@ export function fileRhCascadeLearn(plan, { at = new Date().toISOString(), operat
     magic: RH_CASCADE_MAGIC,
     at,
     sparse: true,
-    dataSource: "robinhood",
+    dataSource: "robinhood-wave-only",
     rail: "base",
+    execution: "base-risk-original-path",
     hubs: ["HOME", "AERO"],
     lastCommit8: plan.trail?.commit8 || null,
     learn:
-      "Robinhood quotes auto-populate wave envelopes. Base rail cascades in/out. " +
-      "AERO is main in/out; HOME is piggy never-sell. §CASCTRAIL§ loc empty until real Base hash. " +
+      "Robinhood is wave data only. Base original path runs LOWER snowball → dividend 10–30% → MAIN goal. " +
+      "AERO bridges in/out; HOME is piggy never-sell. §CASCTRAIL§ loc empty until real Base hash. " +
       "Never invent hashes. Never sell red to place code.",
   });
   return { ok: true };
@@ -493,59 +542,56 @@ export function fileRhCascadeLearn(plan, { at = new Date().toISOString(), operat
 
 export function formatRhCascadeCard(plan) {
   if (!plan) return "RH_CASCADE_RAIL — empty";
-  const lines = [
-    `⚡ <b>RH → BASE CASCADE</b>`,
-    `Data: Robinhood · Rail: Base · seats ${plan.seatCount}`,
-    esc(plan.unlock?.status || ""),
-    `Hubs: 🏠 HOME piggy · ✈ AERO main in/out`,
-    `Ready in: ${plan.outcomes.enter.slice(0, 6).map((r) => r.symbol).join(" ") || "—"}`,
-    `Ready out: ${plan.outcomes.exit.slice(0, 6).map((r) => r.symbol).join(" ") || "—"}`,
-    `Trail <code>${esc(plan.trail.commit8)}</code> · loc empty until seal`,
-    "",
-    formatMessageCascadeCard(plan.cascade),
-  ];
-  return lines.filter(Boolean).join("\n");
+  if (plan.program) {
+    const head = [
+      esc(plan.unlock?.status || ""),
+      `Wave seats ${plan.seatCount} · trail <code>${esc(plan.trail?.commit8 || "")}</code>`,
+      "",
+    ].filter(Boolean);
+    return `${head.join("\n")}${formatBaseCascadeProgramCard(plan.program)}`;
+  }
+  return formatBaseCascadeProgramCard(plan);
 }
 
-export function formatRhCascadeOutcomes(plan) {
+function formatOutcomesLane(plan) {
   if (!plan?.outcomes) return "No outcomes.";
-  const lines = ["📡 <b>NEXT CASCADE OUTCOMES</b> (RH wave → Base)"];
+  const lines = ["📡 <b>WAVE LANES</b> (RH data · Base act)"];
   for (const r of plan.outcomes.enter.slice(0, 10)) {
-    const mark = r.aeroMain ? " ✈" : "";
+    const tier = r.tier || cascadeTierOf(r.symbol);
     lines.push(
-      `↑ IN  <b>${esc(r.symbol)}</b>${mark} ${px(r.price)} pos=${r.rangePos != null ? r.rangePos.toFixed(2) : "?"} ${esc(r.rhLeg || "")}`,
+      `↑ IN  <b>${esc(r.symbol)}</b> [${esc(tier)}] ${px(r.price)} pos=${r.rangePos != null ? r.rangePos.toFixed(2) : "?"}`,
     );
   }
   for (const r of plan.outcomes.exit.slice(0, 10)) {
-    const mark = r.aeroMain ? " ✈" : "";
+    const tier = r.tier || cascadeTierOf(r.symbol);
     lines.push(
-      `↓ OUT <b>${esc(r.symbol)}</b>${mark} ${px(r.price)} sell@${r.exitAt != null ? px(r.exitAt) : "?"} ${esc(r.rhLeg || "")}`,
+      `↓ OUT <b>${esc(r.symbol)}</b> [${esc(tier)}] ${px(r.price)} sell@${r.exitAt != null ? px(r.exitAt) : "?"}`,
     );
   }
   if (!plan.outcomes.enter.length && !plan.outcomes.exit.length) {
-    lines.push("No ready in/out yet — waiting for RH HL envelope.");
+    lines.push("No ready in/out — waiting wave HL on Base hierarchy seats.");
   }
-  lines.push("", `<code>${esc(plan.trail?.line || "")}</code>`);
+  if (plan.trail?.line) lines.push("", `<code>${esc(plan.trail.line)}</code>`);
   return lines.join("\n");
 }
 
+export function formatRhCascadeOutcomes(plan) {
+  if (plan?.prediction) {
+    return `${formatCascadePredictionCard(plan)}\n\n${formatOutcomesLane(plan)}`;
+  }
+  return formatOutcomesLane(plan);
+}
+
+/** Prefer Base program parser; keep RH alias. */
 export function parseRhCascadeCommand(raw) {
-  const src = String(raw || "").trim();
-  const low = src.toLowerCase();
-  if (low === "/cascade" || low === "/rhcascade" || low === "/cascade rh") {
+  const base = parseBaseCascadeCommand(raw);
+  if (base.ok) {
+    if (base.action === "program") return { ok: true, action: "board" };
+    return base;
+  }
+  const low = String(raw || "").trim().toLowerCase();
+  if (low === "/rhcascade" || low === "/cascade rh") {
     return { ok: true, action: "board" };
-  }
-  if (low === "/cascade outcomes" || low === "/cascade next") {
-    return { ok: true, action: "outcomes" };
-  }
-  if (low === "/cascade trail" || low === "/cascade route") {
-    return { ok: true, action: "trail" };
-  }
-  if (low === "/cascade unlock" || low === "/cascade sells") {
-    return { ok: true, action: "unlock" };
-  }
-  if (low.startsWith("/cascade ")) {
-    return { ok: true, action: "board", arg: src.slice(9).trim() };
   }
   return { ok: false };
 }
