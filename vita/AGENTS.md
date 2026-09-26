@@ -185,6 +185,10 @@ Pull Input Data → UTF-8 to verify. Each pass creates files under `vita/memory/
 + `vita/strands/` (`vita/chain-layer.js` · `vita/chain-inject.js`).
 **Telegram HELP (full click-through):** `/help` · `/help trade` · `/pick sell`
 — every category is a button; trade verbs open a token box (`/sell` → AERO…).
+**Robinhood → Base dual fund:** `/rh` · `/rh fund CHIP` · `/rh confirm CHIP` —
+tap a chosen RH source (CHIP + quote-mirror list) → stage sell ~$2 → queue
+Base `/buy HOME 1` + `/buy AERO 1`. RH MCP cannot withdraw; Base needs RISK
+ETH. See `vita/rh-fund.js`.
 **Route systems check:** `/vita check routes` · `/help check` — merkle folder
 integrity + avenue domino (PASS/QUESTIONABLE/FAIL), logs
 `vita/memory/systems-check-routes-*.json`, force-stages §SYSCHECK§ for
@@ -207,6 +211,12 @@ SANDBOX (prove against hardcoded anchors only) → LANGUAGE refine → SEAL
 `watcher-eureka`. Directory: `/vitafeed dir OS`. Solidity mirror
 `vita/os-builder/AgentTriggerRegistry.sol` (no deployed address). Never
 invent hashes. See `vita/os-builder.js`.
+**WAVE-ROBIN (first agentic AI):** `/waveai` · `/rhwave` · `/home os` → Wave AI —
+pure wave math `phase=sin(π·rangePos)` + IFTTT cascade on Robinhood
+quotes/historicals. Growing-wave hops (≥8/15m spirit), $0.05 dust, accumulation
+proof ledger. SIM orders by default — `RH_WAVE_LIVE=yes` + `/waveai confirm`
+required to place. Never auto-spend. Fixture: `vita/memory/wave-robin-fixture.js`.
+See `vita/wave-robin-agent.js`.
 
 **Any-bytes packets:** `vita/vita-feed-file.js` + Tailwind reader
 `public/vita-feed-player.html` — spaced VIN packets, never invent hashes.
@@ -258,8 +268,14 @@ download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank
 revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
-15 min. HOME cascade-available (rotate never sells). File operator
-message then agentic knowledge under `vita/memory/` + `vita/strands/`.
+15 min. HOME + AERO = dual main in/out hubs (HOME rotate never sells).
+**Base cascade program (original path):** `/cascade` · `/cascade predict` ·
+`/cascade hierarchy` · `/cascade outcomes` · `/cascade trail` ·
+`/cascade unlock` — LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy
+locked (~$11). Robinhood is **wave data only** (`vita/rh-cascade-rail.js`);
+execution stays Base RISK (`vita/base-cascade-program.js`). §CASCTRAIL§ loc
+empty until seal. `/hold sells off` lifts HOLD_ALL_SELLS (HOME never-sell).
+File operator message then agentic knowledge under `vita/memory/` + `vita/strands/`.
 
 ## Merge stance
 

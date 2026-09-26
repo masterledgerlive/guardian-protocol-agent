@@ -1,0 +1,46 @@
+{
+  "id": "vita-rh-fund-v1",
+  "filingLabel": "RH_FUND",
+  "entries": [
+    {
+      "at": "2026-09-25T12:12:05.375Z",
+      "source": "CHIP",
+      "pair": "CHIP-USD",
+      "sellUsd": 2,
+      "destinations": [
+        {
+          "symbol": "HOME",
+          "usd": 1,
+          "telegramBuy": "/buy HOME 1"
+        },
+        {
+          "symbol": "AERO",
+          "usd": 1,
+          "telegramBuy": "/buy AERO 1"
+        }
+      ],
+      "rhWithdraw": false,
+      "note": "Base /buy queued; RH sell is agentic/app. No invented hashes."
+    },
+    {
+      "at": "2026-09-25T12:13:02.984Z",
+      "source": "CHIP",
+      "pair": "CHIP-USD",
+      "sellUsd": 2,
+      "destinations": [
+        {
+          "symbol": "HOME",
+          "usd": 1,
+          "telegramBuy": "/buy HOME 1"
+        },
+        {
+          "symbol": "AERO",
+          "usd": 1,
+          "telegramBuy": "/buy AERO 1"
+        }
+      ],
+      "rhWithdraw": false,
+      "note": "Base /buy queued; RH sell is agentic/app. No invented hashes."
+    }
+  ]
+}

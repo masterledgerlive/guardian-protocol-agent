@@ -85,6 +85,7 @@ export const ETH_L1_OTHER_PATH = Object.freeze({
     "eth-mainnet-dex-reader",
     "log-seed-sim",
     "other-path-confirm-override",
+    "operator-bridge-l1-to-base",
   ]),
   native: true,
   address: "0x0000000000000000000000000000000000000000",

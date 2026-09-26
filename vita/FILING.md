@@ -106,7 +106,13 @@ findable.
 | `vita/memory/telegram-home-learn.json` | `TELEGRAM_HOME` | Append-only learn: cheaper/faster engine + route sim seeds |
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
-| `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up |
+| `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up; HOME piggy + AERO main in/out |
+| `vita/base-cascade-program.js` | `BASE_CASCADE_PROGRAM` | Original Base path: LOWER snowball → dividend 10–30% → MAIN goal; viable USD + prediction; HOME piggy locked |
+| `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | RH wave-data overlay only → feeds Base program; §CASCTRAIL§ hitch (loc after seal); never RH-executes |
+| `vita/memory/rh-cascade-rail-learn.json` | `RH_CASCADE_RAIL` | Append-only learn: RH→Base cascade + unlock |
+| `vita/memory/rh-cascade-rail-ledger.json` | `RH_CASCADE_RAIL` | Append-only ledger of trail commits |
+| `vita/memory/rh-cascade-trail.json` | `RH_CASCADE_RAIL` | Cascade trail lines; loc empty until real Base hash |
+| `vita/strands/rh-cascade-rail.json` | `RH_CASCADE_RAIL` | Sparse strand: RH data → Base rail → AERO in/out → trail |
 | `vita/dex-reader.js` | `DEX_READER` | Per-token DexScreener reader + Gecko dual check + Basescan/Dex/Gecko/CoinGecko refs; miss ≠ $0 |
 | `vita/token-player.js` | `TOKEN_PLAYER` / `TOKEN_LEGIT` | Token pulldown player · $0.05 never-remove log seed · market-trigger SIM values · legit PASS/FLAG/FAIL |
 | `vita/multichain-portfolio.js` | `MULTICHAIN` | 32-chain display; Base hitch vs Ethereum L1 other-path (~$3 / 27% — never mix into Base RISK) |
@@ -174,6 +180,12 @@ findable.
 | `vita/memory/os-builder-learn.json` | `OS_BUILDER` | Append-only learn: session / lobes / triggers / sandbox / seal |
 | `vita/memory/os-builder-lexicon.json` | `OS_BUILDER` | Human↔machine language pairs refined together |
 | `vita/strands/os-builder.json` | `OS_BUILDER` | Sparse strand: boot → IFTTT → follow → sandbox → seal |
+| `vita/wave-robin-agent.js` | `WAVE_ROBIN` | First agentic AI — pure wave math + IFTTT cascade on Robinhood · growing-wave hops · accumulation proof · SIM default (`RH_WAVE_LIVE` gate) |
+| `vita/memory/wave-robin-fixture.js` | `WAVE_ROBIN` | Live RH quotes/bars fixture (2026-09-23 pull) for offline proof |
+| `vita/memory/wave-robin-state.json` | `WAVE_ROBIN` | Wave energy · hop window · SIM staged orders |
+| `vita/memory/wave-robin-accumulation.json` | `WAVE_ROBIN` | Portfolio snapshots + growth proofs (ledger commits ≠ tx hashes) |
+| `vita/memory/wave-robin-learn.json` | `WAVE_ROBIN` | Append-only learn: tick / stage / accum / bootstrap |
+| `vita/strands/wave-robin.json` | `WAVE_ROBIN` | Sparse strand: wave math → RH IFTTT → cascade → accum proof |
 | `vita/vita-feed-library.js` | `VITALIB` | Named save → list → play; §VITALIB§ keys catalog (name→key→locs) |
 | `vita/vita-feed-player.js` | `FEED_PLAYER` | Spaced-location assemble + play proof after seal |
 | `public/vita-feed-player.html` | `FEED_PLAYER_HTML` | Tailwind reader — upload, peace locations, play; live HUMAN+MACHINE SNARK caption layers synced to audio |
@@ -244,6 +256,7 @@ findable.
 | `PHOTOS` | Photos Drive (`§VITAPHOTO§` / `§VITAPHOTODIR§`) — Google Drive/folder/URL as new picture drive; open key = the picture (VITAOPEN name+sha); compress bake-off; slow-copy queue; Earthrise PD hope test; `/vitafeed photos` · `dir PHOTOS`; locs empty until confirm\|override |
 | `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
 | `OS_BUILDER` | DOS brain builder (`§VITAOS§` / `§VITAAGENT§` / `§VITATRIGGER§` / `§VITAFOLLOW§`) — guided human↔machine wizard; IFTTT on Base kinds; follow-the-leader cells; sandbox cites hardcoded anchors only; seal stages /vitafeed; availability until real seal |
+| `WAVE_ROBIN` | First agentic AI (`§WAVEROBIN§`) — pure wave math `phase=sin(π·rangePos)` + IFTTT cascade on Robinhood quotes/historicals; growing-wave hops; accumulation proof ledger; SIM default; `RH_WAVE_LIVE` + confirm for real orders; never auto-spend |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |
 
 Full tx hashes live in `vita/anchors.json` and inside infected HTML

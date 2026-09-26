@@ -115,6 +115,8 @@ export const HELP_SECTIONS = Object.freeze([
       { label: "Piggy…", cmd: "/pick piggyunlock" },
       { label: "Freeze…", cmd: "/pick freeze" },
       { label: "Unfreeze…", cmd: "/pick unfreeze" },
+      { label: "RH → HOME+AERO", cmd: "/rh" },
+      { label: "RH CHIP $2", cmd: "/rh fund CHIP" },
       { label: "Tokens", cmd: "/tokens" },
       { label: "Player", cmd: "/tokenplayer" },
       { label: "DEX", cmd: "/dex" },

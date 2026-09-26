@@ -1,0 +1,18 @@
+{
+  "id": "rh-cascade-rail-learn-v1",
+  "filingLabel": "RH_CASCADE_RAIL",
+  "notes": [
+    {
+      "at": "2026-09-26T04:18:50.184Z",
+      "topic": "rh-cascade-rail",
+      "text": "Live RH snapshot filed 2026-09-26 — Base rail cascade seats + AERO main in/out + sell barrier unlocked. HOME never-sell.",
+      "locations": []
+    },
+    {
+      "at": "2026-09-26T04:19:49.029Z",
+      "topic": "rh-cascade-rail",
+      "text": "RH→Base cascade: 16 seats · enter AAVE,VVV · exit - · trail 2c6bb8c1 loc empty until seal. AERO main in/out. HOME never-sell. HOLD unlock=true.",
+      "locations": []
+    }
+  ]
+}

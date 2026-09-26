@@ -20,6 +20,7 @@ import {
 } from "./vault-loader.js";
 
 import { maybeFundV4FromV3 } from "./v4-fund-once.js";
+import { maybeBridgeL1EthToBase } from "./l1-bridge-to-base.js";
 
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
 import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot, maybeAutofireVitaFeedOnBoot } from "./vita-webhook.js";
@@ -152,6 +153,7 @@ import {
   formatFlowIndex,
   formatFlowRoute,
   formatFlowSymbolNote,
+  latestSnapshot,
   loadFlowBook,
   planFlowRouteRide,
   saveFlowBook,
@@ -264,7 +266,18 @@ import {
   shouldBlockSell,
   holdAllSellsStatusLine,
   armHoldAllSells,
+  clearHoldAllSells,
 } from "./operator-sell-hold.js";
+import {
+  parseRhCascadeCommand,
+  planRhBaseCascade,
+  formatRhCascadeCard,
+  formatRhCascadeOutcomes,
+  formatCascadePredictionCard,
+  formatCascadeHierarchyCard,
+  fileRhCascadeLearn,
+  unlockSellBarrier,
+} from "./vita/rh-cascade-rail.js";
 import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
@@ -696,6 +709,10 @@ import {
   parseOsBuilderCommand,
 } from "./vita/os-builder.js";
 import {
+  handleWaveRobinAction,
+  parseWaveRobinCommand,
+} from "./vita/wave-robin-agent.js";
+import {
   handleHelpAction,
   parseHelpCommand,
   parsePickCommand,
@@ -703,6 +720,10 @@ import {
   formatRouteSystemsCheckCard,
   buildRouteCheckKeyboard,
 } from "./vita/telegram-help-routes.js";
+import {
+  handleRhFundAction,
+  parseRhFundCommand,
+} from "./vita/rh-fund.js";
 import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
 import {
   AGENT_INSTRUCTIONS,
@@ -11009,9 +11030,83 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           armHoldAllSells(process.env);
           await tg(`🛑 <b>HOLD_ALL_SELLS ON</b>\nNo token sells until you approve.\n$HOME never-sell stays on.\nClear Railway <code>HOLD_ALL_SELLS=no</code> when ready.`);
         } else if (arg === "sells off" || arg === "off" || arg === "approve") {
-          await tg(`⚠️ To lift sells, set Railway <code>HOLD_ALL_SELLS=no</code> (and <code>APPROVE_HOME_SELL=yes</code> only if you want $HOME dumpable).\nStatus: ${holdAllSellsStatusLine()}`);
+          clearHoldAllSells(process.env);
+          await tg(
+            `✅ <b>SELL BARRIER LIFTED</b>\n` +
+            `${holdAllSellsStatusLine()}\n` +
+            `$HOME stays never-sell (APPROVE_HOME_SELL unset).\n` +
+            `Other bags may sell when gated green.\n` +
+            `Persist: Railway <code>HOLD_ALL_SELLS=no</code>.\n` +
+            `Base cascade program: /cascade`,
+          );
         } else {
-          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off (status only — clear env to lift)`);
+          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off`);
+        }
+      } else if (parseRhCascadeCommand(raw).ok) {
+        const cmd = parseRhCascadeCommand(raw);
+        if (cmd.action === "unlock") {
+          const unlocked = unlockSellBarrier(process.env);
+          await tg(
+            `✅ <b>CASCADE SELLS UNLOCKED</b>\n${esc(unlocked.status)}\n` +
+            `$HOME never-sell · Base rail LOWER→dividend→MAIN · /cascade`,
+          );
+        } else if (cmd.action === "hierarchy") {
+          await tg(formatCascadeHierarchyCard());
+        } else {
+          const book = flowArm();
+          const snap = latestSnapshot(book);
+          const rhRows = (snap?.quotes || []).map((q) => ({
+            symbol: String(q.pair || "").replace("-", ""),
+            mark_price: String(q.mark),
+            bid_price: q.bid != null ? String(q.bid) : undefined,
+            ask_price: q.ask != null ? String(q.ask) : undefined,
+            open_price: q.prevClose != null ? String(q.prevClose) : undefined,
+            updated_at: q.at || undefined,
+          }));
+          // Base program runs on catalog even without RH; RH only overlays wave marks.
+          const ethPx = Number(cachedEthUsd) > 0 ? Number(cachedEthUsd) : 2700;
+          const ethBal = Number.isFinite(lastEthBalance) ? lastEthBalance : 0;
+          const wethBal = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
+          const liquidUsd = (ethBal + wethBal) * ethPx;
+          const homeTok = tokens.find((t) => String(t.symbol).toUpperCase() === "HOME");
+          const homePx = Number(homeTok?.price || homeTok?.lastPrice || 0);
+          const homeBal = Number(homeTok?.balance || homeTok?.units || 0);
+          const homeBagUsd = homeBal > 0 && homePx > 0 ? homeBal * homePx : 11;
+          let bagsDividendUsd = 0;
+          try {
+            for (const row of collectWaveBoardRows()) {
+              if (row?.dividendPct > 0 && row?.plan?.withdrawUsd > 0) {
+                bagsDividendUsd += Number(row.plan.withdrawUsd) || 0;
+              }
+            }
+          } catch { /* board optional */ }
+          const plan = planRhBaseCascade({
+            rhRows,
+            catalog: tokens,
+            flowBook: book,
+            unlockSells: false,
+            maxHops: 8,
+            liquidUsd,
+            homeBagUsd,
+            ethUsd: ethPx,
+            bagsDividendUsd,
+          });
+          if (rhRows.length) saveFlowArm();
+          try { fileRhCascadeLearn(plan); } catch (e) { console.log(`⚠️  cascade learn: ${e.message}`); }
+          if (cmd.action === "predict") {
+            await tg(formatCascadePredictionCard(plan));
+          } else if (cmd.action === "outcomes") {
+            await tg(formatRhCascadeOutcomes(plan));
+          } else if (cmd.action === "trail") {
+            await tg(
+              `💉 <b>CASCADE TRAIL</b> (Base hitch)\n` +
+              `commit <code>${esc(plan.trail.commit8)}</code>\n` +
+              `<code>${esc(plan.trail.line)}</code>\n` +
+              `RH = wave data only · loc empty until a real Base sell seals it.`,
+            );
+          } else {
+            await tg(formatRhCascadeCard(plan));
+          }
         }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);
@@ -11188,6 +11283,64 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         }
       // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
       } else if (
+        text === "/rh" ||
+        text === "/rhfund" ||
+        text === "/robinhood" ||
+        (text && (text.startsWith("/rh ") || text.startsWith("/rhfund ") || text.startsWith("/rhconfirm ")))
+      ) {
+        try {
+          const parsed = parseRhFundCommand(raw);
+          const out = handleRhFundAction({
+            action: parsed.action || "root",
+            source: parsed.source || "",
+          });
+          if (Array.isArray(out.queueBuys) && out.queueBuys.length) {
+            for (const qb of out.queueBuys) {
+              const sym = String(qb.symbol || "").toUpperCase();
+              const tok = tokens.find((t) => t.symbol === sym);
+              if (!tok) {
+                await tg(`❓ RH fund: unknown Base token ${sym}`);
+                continue;
+              }
+              if (isCatalogFrozen(tok)) {
+                await tg(`❄️ <b>${sym} is frozen</b> — RH fund Base buy blocked.\n${tok.frozenReason || "Catalog freeze."}`);
+                continue;
+              }
+              const usd = Number(qb.usd) || 1;
+              const below = operatorBuyBelowMin({ symbol: sym, usd, token: tok });
+              if (below) {
+                await tg(`🛑 <b>${sym} min buy $${minBuyUsdForToken(tok).toFixed(2)}</b>\n${below}`);
+                continue;
+              }
+              if (manualCommands.find((c) => c.symbol === sym && c.action === "buy")) {
+                await tg(`⚠️ BUY ${sym} already queued`);
+                continue;
+              }
+              manualCommands.push({
+                symbol: sym,
+                action: "buy",
+                usd,
+                source: qb.source || "RH_FUND",
+              });
+              await tg(operatorBuyQueuedTelegram(sym, usd));
+            }
+            if (cdpClient) {
+              try { await flushPendingOperatorBuys(cdpClient); }
+              catch (e) { console.log(`⚠️  RH fund /buy flush failed: ${e.message} — remains queued`); }
+            }
+          }
+          await tg(
+            "📱 <b>RH → BASE FUND</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ rh fund failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
         text === "/home" ||
         text === "/menu" ||
         text === "/start" ||
@@ -11266,6 +11419,35 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           );
         } catch (e) {
           await tg("❌ os builder failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/waveai" ||
+        text === "/rhwave" ||
+        text === "/waverobin" ||
+        text === "/waveagent" ||
+        (text && (
+          text.startsWith("/waveai ") ||
+          text.startsWith("/rhwave ") ||
+          text.startsWith("/waverobin ") ||
+          text.startsWith("/waveagent ")
+        ))
+      ) {
+        try {
+          const parsed = parseWaveRobinCommand(raw);
+          const out = handleWaveRobinAction({
+            action: parsed.action || "home",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🌊 <b>WAVE-ROBIN</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ wave-robin failed: " + (e.message || e) + "\nNothing invented.");
         }
 
       } else if (text === "/status") {
@@ -15263,6 +15445,28 @@ async function main() {
   applyOperatorSellEnv();
   applyOperatorRotateEnv();
   applyOperatorUnwrapEnv();
+  // OPERATOR_BRIDGE_L1_TO_BASE=yes — move unused Ethereum L1 ETH → Base RISK
+  // via OptimismPortal before OPERATOR_BUY (HOME) spends Base ETH/WETH.
+  try {
+    if (String(process.env.OPERATOR_BRIDGE_L1_TO_BASE || "").trim()) {
+      let ethUsdBridge = cachedEthUsd;
+      try { ethUsdBridge = await getLiveEthPrice(); cachedEthUsd = ethUsdBridge; } catch { /* keep */ }
+      await maybeBridgeL1EthToBase({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        ethUsd: ethUsdBridge,
+        log: console.log,
+        tg,
+        waitForBaseMs: 180_000,
+        getBaseNativeEth: async () => {
+          try { return Number(await getEthBalance()) || 0; }
+          catch { return 0; }
+        },
+      });
+    }
+  } catch (bridgeErr) {
+    console.log(`⚠️  L1→Base bridge failed (non-fatal): ${bridgeErr.message}`);
+  }
   // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
   // HOME OPERATOR_BUY uses Slipstream (same as rotate) — Uni V3 ghost skipped.
   // Frozen candle timeouts used to leave the queue sitting and nonce idle.
