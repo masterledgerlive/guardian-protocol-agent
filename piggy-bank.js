@@ -1,3 +1,5 @@
+import { formatTurnCardHtml } from "./telegram-turn-card.js";
+
 /**
  * Per-token piggy-bank dust reserve.
  *
@@ -46,6 +48,58 @@
 
 export const PIGGY_UNLOCK_PREFIX = "PIGGY UNLOCK";
 export const DEFAULT_PIGGY_BANK_PCT = 0.05;
+
+/**
+ * Logging seed — ~five cents USD of every bag that must never be sold,
+ * including piggy unlock / FORCE_EXIT. Agents need that nickel to start
+ * the math log. Distinct from piggy 5% / $0.15 compounding pile.
+ * `TOKEN_LOG_SEED_USD=0` disables. Invalid env falls back to $0.05.
+ */
+export const TOKEN_LOG_SEED_USD = 0.05;
+
+/**
+ * Hitch-budget piggy — skipped message room toward the next worth-sending
+ * hitch. Not token-dust piggy and not invented P&L.
+ */
+let _hitchBudgetEth = 0;
+
+export function hitchBudgetBalanceEth() {
+  return _hitchBudgetEth;
+}
+
+export function resetHitchBudget(eth = 0) {
+  const n = Number(eth);
+  _hitchBudgetEth = Number.isFinite(n) && n > 0 ? n : 0;
+  return _hitchBudgetEth;
+}
+
+export function creditHitchBank(eth, { symbol = "?", reason = "skip" } = {}) {
+  const n = Math.max(0, Number(eth) || 0);
+  _hitchBudgetEth += n;
+  return {
+    credited: n,
+    total: _hitchBudgetEth,
+    reason,
+    symbol,
+    log:
+      `HITCH_BANK: skip ${symbol} credit ${n.toExponential(2)} ETH` +
+      ` → bank ${_hitchBudgetEth.toExponential(2)} (next worth-sending message; not P&L)`,
+  };
+}
+
+export function consumeHitchBankOnSend({ symbol = "?" } = {}) {
+  const spent = _hitchBudgetEth;
+  _hitchBudgetEth = 0;
+  return {
+    spent,
+    total: 0,
+    symbol,
+    log: spent > 0
+      ? `HITCH_BANK: sent ${symbol} cleared bank ${spent.toExponential(2)} ETH`
+      : null,
+  };
+}
+
 export const DEFAULT_PIGGY_BANK_MIN_USD = 0.15;
 /** Fraction of proceeds that must remain as true earnings after fees/skim/hitch. */
 export const DEFAULT_PIGGY_EARNINGS_BUFFER_PCT = 0.05;
@@ -270,6 +324,7 @@ export function formatBuyReceiptHtml({
   hitchOnChain = false,
   txHash = "",
   hitchFooter = "",
+  turnCard = null,
 } = {}) {
   const sym = String(symbol || "?");
   const entry = Number(entryPrice) || 0;
@@ -307,6 +362,7 @@ export function formatBuyReceiptHtml({
       ? `🔗 <a href="https://basescan.org/tx/${txHash}">Basescan ↗</a>`
       : `🔗 <a href="https://basescan.org/tx/${txHash}">Basescan ↗</a>\n⚠️ No UTF-8 hitch on this buy`);
   }
+  if (turnCard) lines.push(formatTurnCardHtml(turnCard));
   return lines.join("\n");
 }
 
@@ -341,7 +397,9 @@ export function formatSellReceiptHtml({
   surfReport = "",
   indDetail = "",
   hitchFooter = "",
+  hatInjectReceipt = "",
   waveBar = "",
+  turnCard = null,
 } = {}) {
   const sym = String(symbol || "?");
   const title = wipeout ? "WIPEOUT" : "WAVE COMPLETE";
@@ -382,6 +440,10 @@ export function formatSellReceiptHtml({
   if (indDetail) lines.push(`💓 ${indDetail}`);
   lines.push(`━━━━━━━━━━━━━━━━━━━━`);
   if (hitchFooter) lines.push(String(hitchFooter).trimEnd());
+  if (hatInjectReceipt) {
+    lines.push(`━━━━━━━━━━━━━━━━━━━━`, String(hatInjectReceipt).trimEnd());
+  }
+  if (turnCard) lines.push(formatTurnCardHtml(turnCard));
   return lines.join("\n");
 }
 
@@ -469,11 +531,50 @@ export function remainingPiggyAfterSell(existingReserve, remainingBalance, { unl
   return Math.min(remain, existing);
 }
 
+export function tokenLogSeedUsd(env = process.env) {
+  const raw = env?.TOKEN_LOG_SEED_USD;
+  if (raw == null || String(raw).trim() === "") return TOKEN_LOG_SEED_USD;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return TOKEN_LOG_SEED_USD;
+  return n;
+}
+
+/**
+ * Token units that must stay on-chain as the logging seed.
+ * When bag USD ≤ seed, the entire bag is the seed (never sell).
+ * Missing / invalid USD price → 0 (do not invent a conversion).
+ */
+export function logSeedTokensFromUsd(priceUsd, bagTokens, seedUsd = TOKEN_LOG_SEED_USD) {
+  const px = Number(priceUsd);
+  const bag = Math.max(0, Number(bagTokens) || 0);
+  const seed = Math.max(0, Number(seedUsd) || 0);
+  if (!(px > 0) || seed <= 0 || bag <= 0) return 0;
+  const bagUsd = bag * px;
+  // Crumbs below the nickel stay on piggy pct — do not 100%-lock a $0.02 bag.
+  if (bagUsd + 1e-12 < seed) return 0;
+  return seed / px;
+}
+
+/** Cap a sell so remaining USD never drops below the logging seed. */
+export function clampSellLeaveLogSeed({
+  balance,
+  tokensToSell,
+  priceUsd,
+  seedUsd = TOKEN_LOG_SEED_USD,
+} = {}) {
+  const bal = Math.max(0, Number(balance) || 0);
+  const want = Math.max(0, Number(tokensToSell) || 0);
+  const seedTok = logSeedTokensFromUsd(priceUsd, bal, seedUsd);
+  return Math.min(want, Math.max(0, bal - seedTok));
+}
+
 /**
  * Single decision used by every sell path.
  *
  * `sellPct` is applied to *sellable* units (not the full bag) so a 100%
- * request still leaves dust unless `reason` is a piggy unlock.
+ * request still leaves piggy dust unless `reason` is a piggy unlock.
+ * After piggy math, the $0.05 logging seed is clamped on — even unlock /
+ * FORCE_EXIT cannot sell the nickel used to start the math log.
  */
 export function applyPiggyToSell({
   balance,
@@ -487,6 +588,7 @@ export function applyPiggyToSell({
   piggyBankMinUsd: catalogMinUsd,
   savedEarningsUsd = 0,
   token,
+  forceUnlock = false,
 } = {}) {
   const opts = piggyOptsFromToken(token || {}, {
     symbol: symbol || token?.symbol,
@@ -496,14 +598,22 @@ export function applyPiggyToSell({
   });
   const bal = Math.max(0, Number(balance) || 0);
   const pct = Math.max(0, Math.min(1, Number(sellPct) || 0));
-  const unlock = isPiggyUnlock(reason);
+  const unlock = !!forceUnlock || isPiggyUnlock(reason);
   const reserve = ratchetPiggyReserve(piggyReserve, bal, priceUsd, env, opts);
   const sellable = computeSellable(bal, reserve, { unlock });
-  const tokensToSell = sellable * pct;
+  const seedUsd = tokenLogSeedUsd(env);
+  const seedTokens = logSeedTokensFromUsd(priceUsd, bal, seedUsd);
+  const tokensToSell = clampSellLeaveLogSeed({
+    balance: bal,
+    tokensToSell: sellable * pct,
+    priceUsd,
+    seedUsd,
+  });
   const remainingBalance = Math.max(0, bal - tokensToSell);
   const remainingReserve = remainingPiggyAfterSell(reserve, remainingBalance, { unlock });
   const px = Number(priceUsd);
   const remainingDustUsd = Number.isFinite(px) && px > 0 ? remainingReserve * px : 0;
+  const remainingLogSeedUsd = Number.isFinite(px) && px > 0 ? remainingBalance * px : 0;
   return {
     unlock,
     reserve,
@@ -512,11 +622,15 @@ export function applyPiggyToSell({
     remainingBalance,
     remainingReserve,
     remainingDustUsd,
+    remainingLogSeedUsd: Math.min(remainingLogSeedUsd, remainingBalance > 0 ? remainingLogSeedUsd : 0),
     savedEarningsUsd: Math.max(0, Number(opts.savedEarningsUsd) || 0),
     blocked: tokensToSell <= 0,
     soldAll: remainingBalance <= 1e-12,
     piggyPct: piggyBankPct(env, opts),
     piggyMinUsd: piggyBankMinUsd(env, opts),
+    logSeedUsd: seedUsd,
+    logSeedTokens: seedTokens,
+    logSeedHeld: remainingBalance + 1e-12 >= seedTokens && seedTokens > 0,
   };
 }
 

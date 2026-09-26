@@ -173,6 +173,32 @@ describe("avenue-prime: top 2–3 ranking", () => {
     assert.ok(afterSell && afterSell.symbol !== "UNI");
   });
 
+  it("micro-bank allows a $3.80 book when inject seed+hitch cannot fit", () => {
+    const a = projectAvenue({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      gasCostEth: 0.00005,
+      hitchCostEth: 0.0015,
+      feePct: 0.006,
+      netMargin: 0.04,
+      minNetMargin: 0.025,
+      armed: true,
+      sessionArm: true,
+      nearEntry: true,
+      injectMain: true,
+      ethUsd: 2490,
+      minPosUsd: 0.5,
+      tokenMinBuyUsd: 0,
+      price: 18,
+      recentHigh: 18.6,
+      tradeableUsd: 3.81,
+    });
+    assert.equal(a.allow, true, a.refuseReason);
+    assert.equal(a.skipHitch, true);
+    assert.equal(a.entryMode, "micro-bank");
+    assert.ok(a.expectedNetEth > 0);
+  });
+
   it("seat count shrinks on thin books", () => {
     assert.equal(primedSeatCount(5, { injectAll: true }), 1);
     assert.equal(primedSeatCount(5), 1); // under inject-all USD → 1 seat

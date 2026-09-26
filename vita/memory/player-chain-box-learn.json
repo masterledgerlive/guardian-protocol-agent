@@ -1,0 +1,23 @@
+{
+  "id": "vita-player-chain-box-learn-v1",
+  "filingLabel": "REFERENCE",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "neverForget": true,
+  "learn": [
+    {
+      "at": "2026-09-21T17:20:00.000Z",
+      "note": "telegram-web-app.js always exposes WebApp.openLink. Calling it outside a Mini App preventDefault'd the chain <a> so Basescan never opened. Fix: native href in HTML (infect) + openLink only when initData is present.",
+      "loc": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "identify": "931d·145b·19db",
+      "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "class-proof",
+      "surfaces": [
+        "public/players/garden.html",
+        "public/players/proven.html",
+        "public/vita-kids-player.html",
+        "public/vita-feed-player.html"
+      ]
+    }
+  ]
+}

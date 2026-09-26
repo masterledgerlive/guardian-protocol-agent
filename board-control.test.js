@@ -9,8 +9,11 @@ import {
   demoBoardSnapshot,
   v4BoardStatus,
   listV3InjectSurfaces,
+  listOutletScoreboard,
+  hitchDensityBoard,
   parseDefaultTokensFromAgentSource,
   leftoverHitchCapacity,
+  leftoverInputsFromEngine,
   modelBotUsagePiggy,
   GROK_BOT_USAGE,
   LOSE_ZERO_INVARIANTS,
@@ -123,6 +126,23 @@ describe("runArenaLearnSim", () => {
     assert.equal(r.endLiquid, r.startLiquid);
     assert.equal(r.endBags, 0);
   });
+
+  it("uses catalog LINK 8% / $0.25 when piggy overrides are omitted", () => {
+    const link = runArenaLearnSim({ seat: "LINK", costEdge: false });
+    assert.equal(link.piggyPct, 0.08);
+    assert.equal(link.dustFloorUsd, 0.25);
+    const uni = runArenaLearnSim({ seat: "UNI", costEdge: false });
+    assert.equal(uni.piggyPct, 0.05);
+    assert.equal(uni.dustFloorUsd, 0.15);
+    const over = runArenaLearnSim({
+      seat: "LINK",
+      piggyPct: 0.05,
+      dustFloorUsd: 0.15,
+      costEdge: false,
+    });
+    assert.equal(over.piggyPct, 0.05);
+    assert.equal(over.dustFloorUsd, 0.15);
+  });
 });
 
 describe("V3/V4 isolation", () => {
@@ -157,9 +177,13 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(h.boards.v4.sameProcess, false);
     assert.equal(h.boards.v4.loadsV4Runtime, false);
     assert.equal(h.boards.v4.path, "/v4");
+    assert.equal(h.boards.vita.path, "/vita");
+    assert.equal(h.boards.vita.public, true);
     assert.equal(h.boards.l1_arena.mounted, false);
     assert.equal(h.apis.sim.mutate, false);
     assert.equal(BOARD_PATHS.hub, "/board");
+    assert.equal(BOARD_PATHS.scoreboard, "/board/api/scoreboard");
+    assert.equal(h.apis.scoreboard.mutate, false);
   });
 
   it("demo snapshot lists V3 inject surfaces, bot-usage piggy DEMO, and deferred V4 stub", () => {
@@ -170,6 +194,7 @@ describe("boardHealth + demo snapshot", () => {
     assert.equal(d.v4.page, "/v4");
     assert.equal(d.v4.sameProcessAsV3, false);
     assert.equal(d.inject.kind, "v3-uniswap-inject-surfaces");
+    assert.equal(d.scoreboard.gameGhost.class, "CUT");
     assert.ok(d.inject.hitchSurfaces.length >= 10);
     assert.equal(d.botPiggy.kind, "demo|example");
     assert.equal(d.botPiggy.grokNowUsdPerMonth, 20);
@@ -227,12 +252,44 @@ describe("V3 inject surfaces (agent.js catalog as text)", () => {
     assert.equal(bySym.LINK.piggyMinUsd, 0.25);
     assert.ok(bySym.TOSHI);
     assert.ok(bySym.UNI);
-    assert.ok(bySym.GAME);
+    assert.ok(bySym.DOGINME);
+    assert.ok(bySym.DRB);
+    assert.ok(bySym.CLANKER);
+    assert.ok(bySym.TIBBIR, "TIBBIR is tradeable Base RISK (WATCH/BATTLE-TEST)");
+    assert.equal(bySym.GAME, undefined);
+    assert.equal(bySym.AIXBT, undefined);
+    assert.equal(bySym.KEYCAT, undefined);
+    assert.equal(bySym.SKI, undefined);
+    assert.equal(bySym.LUNA, undefined);
+    assert.equal(bySym.REI, undefined);
+    assert.equal(bySym.BASECAT, undefined);
     assert.equal(bySym.CBBTC, undefined);
     assert.equal(bySym.WELL, undefined);
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "CBBTC" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "GAME" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "BASECAT" && t.frozen));
+    assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "AIXBT" && t.frozen));
     assert.ok(surf.frozenOrDisabled.find((t) => t.symbol === "WELL" && t.disabled));
-    assert.ok(surf.hitchSurfaces.length >= 15);
+    assert.ok(surf.hitchSurfaces.length >= 14);
+  });
+
+  it("outlet scoreboard marks GAME CUT and never invents hitch P&L", () => {
+    const src = readFileSync(new URL("./agent.js", import.meta.url), "utf8");
+    const board = listOutletScoreboard({ agentSrc: src });
+    assert.equal(board.gameGhost.class, "CUT");
+    assert.ok(board.cut.includes("GAME"));
+    assert.ok(board.cut.includes("WELL"));
+    assert.ok(board.keep.includes("LINK"));
+    const game = board.rows.find((r) => r.symbol === "GAME");
+    assert.equal(game.recommend, "CUT");
+    assert.equal(game.hitchSuccessRate, 0);
+    assert.equal(game.pnlUsd, null);
+    assert.equal(game.alwaysPlusExitOpen, true);
+    assert.equal(board.alwaysPlus.cutClassDoesNotBlockGreenExit, true);
+    const dens = hitchDensityBoard({ bagUsd: 3 });
+    assert.equal(dens.prefer, "key-loc");
+    assert.ok(dens.keyLoc.bytes < dens.eurekaLeftover.bytes);
+    assert.equal(dens.l2Lessons.v4Deferred, true);
   });
 });
 
@@ -244,6 +301,28 @@ describe("leftover / hitch capacity", () => {
     assert.ok(Number.isFinite(cap.leftoverUsd));
     assert.equal(typeof cap.eurekaOk, "boolean");
     assert.equal(cap.lose_zero.never_sell_underwater_to_insert_storage, true);
+    assert.equal(cap.source, "demo-assumptions");
+  });
+
+  it("uses leftover from holding waves only when live engine leftover is supplied", () => {
+    const live = leftoverHitchCapacity(leftoverInputsFromEngine({
+      ethUsd: 2500,
+      waves: [
+        { symbol: "LINK", holding: true, leftoverUsd: 1.25 },
+        { symbol: "UNI", holding: false, leftoverUsd: 2.5 },
+      ],
+    }));
+    assert.equal(live.source, "live-holding-waves");
+    assert.match(live.kind, /live-snapshot/);
+    assert.ok(Math.abs(live.leftoverUsd - 1.25) < 1e-9);
+    assert.equal(live.eurekaOk, true);
+    const empty = leftoverInputsFromEngine({
+      ethUsd: 2500,
+      hitchProve: { profitUsd: 80 },
+      waves: [{ symbol: "UNI", holding: false, leftoverUsd: 2.5 }],
+    });
+    assert.equal(empty.leftoverUsd, undefined);
+    assert.equal(empty.leftoverEth, undefined);
   });
 });
 

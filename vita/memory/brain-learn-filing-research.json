@@ -1,0 +1,28 @@
+{
+  "at": "2026-09-19T03:40:00.000Z",
+  "topic": "brain-learn-filing-research",
+  "filingLabel": "BRAIN_LEARN",
+  "text": "Research-backed blockchain memory for VITA: append-only hash-chained learn log (MentisDB-class), content-addressed commits (neleus-db/mnem Merkle-DAG), proof-carrying retrieval citing real Base locs only. Distinct filing labels BRAIN_SEED/BRAIN_LEARN/PEER_REVIEW/ZERO_PROOF/VITA_SAVE_LEARN so peer review and zero-proof do not collapse into raw MEMORY. Squash KEY8+LOC8 for hitch; full hashes stay in anchors/library. /vitafeed brain activates old→new + one peer review + library card + growing zero-proof roots; queues VITA_SAVE_LEARN §TOKEN§ for /vitasave.",
+  "hypothesis": {
+    "id": "content-addressed-filing-refine",
+    "status": "operating",
+    "note": "Self-refining filing-labels-learned.json grows labels without deleting genesis FILING.md contract."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "research": [
+    "append-only hash-chained thoughts",
+    "content-addressed Merkle-DAG commits",
+    "proof-carrying retrieval",
+    "distinct filing labels",
+    "KEY+LOC squash vs full loc filing"
+  ],
+  "commands": [
+    "/vitafeed brain",
+    "/vitafeed learn",
+    "/vitafeed proof",
+    "/vitafeed files",
+    "/vitanote",
+    "/vitasave"
+  ]
+}

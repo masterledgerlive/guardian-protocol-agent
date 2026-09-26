@@ -283,6 +283,17 @@ export async function fetchDexScreenerToken(address) {
   }
 }
 
+/** Raw DexScreener pairs for SwapRouter route checks (Uni V3 WETH vs V2/Aero). */
+export async function fetchDexScreenerPairs(address) {
+  if (!isValidEvmAddress(address)) return [];
+  try {
+    const data = await fetchJson(DS_TOKEN + address, 6000);
+    return Array.isArray(data?.pairs) ? data.pairs : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchGeckoTerminalToken(address) {
   if (!isValidEvmAddress(address)) return null;
   try {
@@ -355,12 +366,44 @@ export async function fetchTokenUsdQuote(address) {
 
 export function hasUsableCostBasis(token) {
   if (!token || token.unknownEntry) return false;
-  return isValidUsdPrice(token.entryPrice);
+  const invested = Number(token.totalInvestedEth);
+  // Proven FIFO ETH is enough. Do not require a USD entryPrice — storage
+  // hourly / dust-recycle treated DRB/BNKR as unknown after #81 while AERO
+  // only looked "usable" because tokens.json still had a fill USD.
+  // Add-on USD blending is separate: FIFO ETH is not a $0 entryPrice.
+  if (Number.isFinite(invested) && invested > 0) return true;
+  return false;
+}
+
+/**
+ * USD entry after an add-on fill. FIFO ETH without a USD mark must not
+ * blend as entryPrice=0 (that treats old units as free and invents P&L).
+ * First fill (no prior bag) may take the live fill USD. Prior bag with
+ * no USD stays unset.
+ */
+export function blendUsdEntryOnAddOnBuy({
+  prevEntryPrice,
+  prevTokenBal = 0,
+  prevInvestedEth = 0,
+  newTokens = 0,
+  newPrice,
+} = {}) {
+  const prevPx = Number(prevEntryPrice);
+  const fillPx = Number(newPrice);
+  const hadBag = Number(prevInvestedEth) > 0 && Number(prevTokenBal) > 0;
+  if (hadBag && isValidUsdPrice(prevPx) && isValidUsdPrice(fillPx) && Number(newTokens) > 0) {
+    const total = Number(prevTokenBal) + Number(newTokens);
+    if (!(total > 0)) return prevPx;
+    return ((Number(prevTokenBal) * prevPx) + (Number(newTokens) * fillPx)) / total;
+  }
+  if (!hadBag && isValidUsdPrice(fillPx)) return fillPx;
+  return isValidUsdPrice(prevPx) ? prevPx : null;
 }
 
 /**
  * Invested ETH used by leftover / P&L. Unknown bags (chain truth, no fill
  * receipt) contribute 0 — never a live mark invented as "what we paid."
+ * USD entryPrice is optional; FIFO ETH is the cost.
  */
 export function costBasisEth(token) {
   if (!hasUsableCostBasis(token)) return 0;
@@ -369,10 +412,28 @@ export function costBasisEth(token) {
 }
 
 /**
+ * USD per token implied by proven FIFO ETH. Not invented P&L — converts the
+ * on-chain fill cost. Used when peak-ride has FIFO ETH but no fill USD
+ * (live: fake netUsd=1 fired AT MAX PEAK then always-plus HOLD on AERO).
+ */
+export function fifoImpliedEntryUsd({ fifoEth = 0, balance = 0, ethUsd = 0 } = {}) {
+  const fifo = Number(fifoEth);
+  const bal = Number(balance);
+  const px = Number(ethUsd);
+  if (!(fifo > 0) || !(bal > 0) || !(px > 0)) return null;
+  const usd = (fifo * px) / bal;
+  return isValidUsdPrice(usd) ? usd : null;
+}
+
+/**
  * Trust a saved entry only when a fill receipt / ledger buy exists.
  * Live-market "UNKNOWN ENTRY" copies are not cost basis.
  */
-export function shouldTrustSavedCostBasis(token, { net, tradeLog } = {}) {
+export function shouldTrustSavedCostBasis(token, { net, tradeLog, fifoLot } = {}) {
+  if (fifoLot && Number(fifoLot.tokensIn) > 0
+      && (Number(fifoLot.ethIn) > 0 || Number(fifoLot.fillCostEth) > 0)) {
+    return true;
+  }
   if (!token || token.unknownEntry) return false;
   if (!isValidUsdPrice(token.entryPrice)) return false;
   if (Number(net?.lastBuyPrice) > 0) return true;
@@ -428,6 +489,29 @@ export function allowBinanceOhlcSeed(symbol) {
 /** No-pool / wrong-token catalog rows must not burn the 8s OHLC seed budget. */
 export function shouldSkipOhlcSeed(token) {
   return Boolean(token?.noBasePool || token?.brokenQuote);
+}
+
+/**
+ * Railway `SKIP_OHLC_SEED=yes` (also true / 1 / on) skips the 90-day candle
+ * seed entirely — no per-token DexScreener/GT fetch, no frozen 8s timeout path.
+ */
+export function isSkipOhlcSeed(env = process.env) {
+  const v = String(env?.SKIP_OHLC_SEED ?? "").trim().toLowerCase();
+  return v === "yes" || v === "true" || v === "1" || v === "on";
+}
+
+/**
+ * Plan the OHLC seed pass. `skipAll` means do not iterate tokens at all
+ * (no raceTimeout / frozen candle hang).
+ */
+export function planOhlcSeed(tokens, env = process.env) {
+  const rows = Array.isArray(tokens) ? tokens : [];
+  if (isSkipOhlcSeed(env)) {
+    return { skipAll: true, seedTokens: [], skipped: rows.slice(), reason: "SKIP_OHLC_SEED" };
+  }
+  const skipped = rows.filter(shouldSkipOhlcSeed);
+  const seedTokens = rows.filter((t) => !shouldSkipOhlcSeed(t));
+  return { skipAll: false, seedTokens, skipped, reason: null };
 }
 
 /**

@@ -25,7 +25,15 @@ import {
   encodeStoreVoiceCalldata,
   decodeStoreVoiceCalldata,
   encodingDoesNotLoseMoney,
+  clampAmountInToLiveBalance,
+  LOTTERY_SAFE_WEI,
+  needsSpenderApprove,
+  sellApproveSpenders,
+  DRB_STF_FAIL_AMOUNT_IN,
+  UNISWAP_SWAP_ROUTER02_BASE,
+  UNISWAP_PERMIT2_BASE,
 } from "./swap-minout.js";
+import { encodeSlipstreamExactInputSingle } from "./aero-slipstream.js";
 
 const TOSHI = "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4";
 const WETH = "0x4200000000000000000000000000000000000006";
@@ -40,7 +48,71 @@ describe("toWei / spotOutWei", () => {
     assert.equal(toWei(0, 18), 0n);
     assert.equal(toWei(-1, 18), 0n);
   });
+});
 
+describe("amountIn clamp + approve path (live DRB STF)", () => {
+  it("clamps oversize FORCE_EXIT amountIn to live ERC20 wei and leaves 1 wei", () => {
+    const live = DRB_STF_FAIL_AMOUNT_IN - 1n;
+    const sized = clampAmountInToLiveBalance({
+      amountInWei: DRB_STF_FAIL_AMOUNT_IN,
+      liveBalanceWei: live,
+      piggyReserveWei: 0n,
+      unlockPiggy: true,
+    });
+    assert.equal(sized.amountInWei, live - LOTTERY_SAFE_WEI);
+    assert.equal(sized.clamped, true);
+    assert.equal(sized.blocked, false);
+    assert.ok(sized.amountInWei < live);
+  });
+
+  it("piggy-unlock FORCE_EXIT leaves 1 wei on the exact live bag (DRB 0xd78e0001 class)", () => {
+    const live = DRB_STF_FAIL_AMOUNT_IN;
+    const sized = clampAmountInToLiveBalance({
+      amountInWei: live,
+      liveBalanceWei: live,
+      piggyReserveWei: 0n,
+      unlockPiggy: true,
+    });
+    assert.equal(sized.amountInWei, live - 1n);
+    assert.equal(sized.clamped, true);
+    assert.ok(sized.amountInWei <= live);
+  });
+
+  it("subtracts reserved piggy unless unlocked", () => {
+    const live = 1000n;
+    const reserved = 50n;
+    const held = clampAmountInToLiveBalance({
+      amountInWei: 1000n,
+      liveBalanceWei: live,
+      piggyReserveWei: reserved,
+      unlockPiggy: false,
+    });
+    assert.equal(held.amountInWei, 950n);
+    assert.equal(held.spendableWei, 950n);
+    const unlocked = clampAmountInToLiveBalance({
+      amountInWei: 1000n,
+      liveBalanceWei: live,
+      piggyReserveWei: reserved,
+      unlockPiggy: true,
+    });
+    assert.equal(unlocked.amountInWei, 999n);
+    assert.equal(unlocked.piggyReserveWei, 0n);
+  });
+
+  it("approve path fires only when allowance < amountIn", () => {
+    assert.equal(needsSpenderApprove({ allowanceWei: 0n, amountInWei: 1n }), true);
+    assert.equal(needsSpenderApprove({ allowanceWei: 5n, amountInWei: 5n }), false);
+    assert.equal(needsSpenderApprove({ allowanceWei: 4n, amountInWei: 5n }), true);
+    assert.equal(needsSpenderApprove({ allowanceWei: 10n, amountInWei: 0n }), false);
+    const spenders = sellApproveSpenders();
+    assert.ok(spenders.includes(UNISWAP_SWAP_ROUTER02_BASE));
+    assert.ok(spenders.includes(UNISWAP_PERMIT2_BASE));
+    const routerOnly = sellApproveSpenders({ usePermit2: false });
+    assert.deepEqual(routerOnly, [UNISWAP_SWAP_ROUTER02_BASE]);
+  });
+});
+
+describe("toWei / spotOutWei leftover", () => {
   it("spot sell ~4424 TOSHI @ $0.00021 / ETH $3500 is ~0.000265 WETH", () => {
     const spot = spotOutWei({
       amountInHuman: 4424.634735,
@@ -112,6 +184,21 @@ describe("hitchPreservesSwapPrefix", () => {
     assert.equal(decodeExactInputSingle(hitch).trailingBytes, 4);
   });
 
+  it("allows hitch appended after Aerodrome Slipstream exactInputSingle", () => {
+    const slip = encodeSlipstreamExactInputSingle({
+      tokenIn: WETH,
+      tokenOut: TOSHI,
+      tickSpacing: 200,
+      recipient: RISK,
+      deadline: 1_700_000_000n,
+      amountIn: 1n,
+      amountOutMinimum: 2n,
+    });
+    const hitch = slip + Buffer.from("LIBM", "utf8").toString("hex");
+    const r = hitchPreservesSwapPrefix(slip, hitch);
+    assert.equal(r.ok, true);
+  });
+
   it("refuses hitch that overwrites amountOutMinimum", () => {
     const smashed = encodeExactInputSingle({
       tokenIn: TOSHI,
@@ -144,6 +231,9 @@ describe("UTF-8 §$STORE§ hitch (Genesis voice)", () => {
     assert.match(r.utf8, /§\$STORE§/);
     assert.match(r.utf8, /Eureka! VITA lives/);
     assert.match(r.utf8, /Krystian, Kai & Koda/);
+    assert.match(r.utf8, /Living Network/);
+    assert.match(r.utf8, /IKN/);
+    assert.equal(r.hitchBytes, 229);
     assert.equal(decodeTrailingUtf8(r.data), voice);
     assert.equal(hitchPreservesSwapPrefix(KEYCAT_PLAIN_SWAP, r.data).ok, true);
     assert.equal(decodeExactInputSingle(r.data).amountOutMinimum, decodeExactInputSingle(KEYCAT_PLAIN_SWAP).amountOutMinimum);
@@ -263,6 +353,21 @@ describe("sanitizeAmountOutMinimum", () => {
     assert.equal(r.action, "reject");
     assert.equal(r.amountOutMinimum, 0n);
     assert.match(r.log, /refusing to send/);
+  });
+
+  it("requireQuote refuses Aerodrome-spot minOut when Quoter missed (GAME buys)", () => {
+    const aeroSpot = toWei(366, 18);
+    const r = sanitizeAmountOutMinimum({
+      minOut: slippageFloor(aeroSpot, 0.75),
+      expectedOut: null,
+      spotOut: aeroSpot,
+      side: "buy",
+      symbol: "GAME",
+      requireQuote: true,
+    });
+    assert.equal(r.allow, false);
+    assert.equal(r.action, "reject");
+    assert.match(r.log, /no live QuoterV2/);
   });
 
   it("clamps buy minOut that is 1e12× too high (18-dec wei on an 8-dec token)", () => {

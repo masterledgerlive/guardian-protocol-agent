@@ -260,4 +260,17 @@ describe("peak-ride: helpers + agent wiring", () => {
     assert.ok(agentSrc.includes('from "./peak-ride.js"') || agentSrc.includes("peak-ride"));
     assert.ok(agentSrc.includes("evaluatePeakRideExit"));
   });
+
+  it("peak-ride / cascade / ripple cannot send a sell except through executeSell plus gate", () => {
+    const sellFn = agentSrc.indexOf("async function executeSell(");
+    assert.ok(sellFn >= 0);
+    const sellEnd = agentSrc.indexOf("\nasync function ", sellFn + 1);
+    const sellBody = agentSrc.slice(sellFn, sellEnd > 0 ? sellEnd : sellFn + 9000);
+    assert.ok(sellBody.includes("buildSellGateDecision"), "executeSell is the plus gate");
+    const peakCall = agentSrc.indexOf("await executeSell(cdp, token, 0.98, sellReason");
+    assert.ok(peakCall > 0, "peak-ride exit must call executeSell");
+    assert.ok(agentSrc.includes("await executeSell(cdp, src.token, sellPct, label, src.price, false)"), "ripple/kahuna sells go through executeSell");
+    assert.ok(agentSrc.includes("await executeSell(cdpClient, token, starveSellPct, moonReason, price, false)"), "moonshot/cascade fuel goes through executeSell");
+    assert.ok(!/evaluatePeakRideExit[\s\S]{0,200}sendTransaction/.test(agentSrc), "peak-ride must not send txs itself");
+  });
 });

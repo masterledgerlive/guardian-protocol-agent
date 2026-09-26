@@ -13,11 +13,15 @@ import {
   nearEntryScoreBoost,
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
+  classifyRecycleBag,
+  recycleSellCopy,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
   injectVelocityScoreBoost,
   sortRecycleCandidatesByUsd,
+  fillTier1Seats,
+  recycleSkipsActiveTier,
   SMALL_BOOK_USD,
   INJECT_FUEL_MIN_USD,
 } from "./inject-revenue.js";
@@ -106,6 +110,40 @@ describe("inject-revenue: unknown dust recycle", () => {
     assert.equal(shouldRecycleUnknownDust({ unknownEntry: true, posUsd: 0.05, moonshotHoldUsd: 0.5 }), false);
     assert.equal(shouldRecycleUnknownDust({ unknownEntry: false, posUsd: 2 }), false);
   });
+
+  it("treats FIFO ETH as known cost without a USD entryPrice", () => {
+    const kind = classifyRecycleBag({
+      unknownEntry: false,
+      totalInvestedEth: 0.000271,
+      entryPrice: null,
+      hasUsdBasis: false,
+    });
+    assert.equal(kind.unknownBag, false);
+    assert.equal(kind.hasKnownPos, true);
+    assert.equal(kind.fifoKnown, true);
+    assert.equal(kind.fifoEth, 0.000271);
+    assert.equal(
+      classifyRecycleBag({ unknownEntry: true, totalInvestedEth: 0 }).unknownBag,
+      true,
+    );
+    const staleStamp = classifyRecycleBag({
+      unknownEntry: true,
+      totalInvestedEth: 0.000271,
+      entryPrice: null,
+      hasUsdBasis: false,
+    });
+    assert.equal(staleStamp.unknownBag, false, "FIFO eth exists — never unknown");
+    assert.equal(staleStamp.fifoKnown, true);
+    assert.equal(
+      classifyRecycleBag({ unknownEntry: true, fifoLotKnown: true }).unknownBag,
+      false,
+    );
+    assert.ok(!/unknown cost basis/.test(recycleSellCopy({
+      recycleUnknown: true,
+      fifoKnown: true,
+    }).reason));
+    assert.match(recycleSellCopy({ recycleUnknown: true }).reason, /unknown cost basis/);
+  });
 });
 
 describe("inject-revenue: capital velocity snowball", () => {
@@ -183,6 +221,48 @@ describe("inject-revenue: capital velocity snowball", () => {
     assert.equal(injectReserveViable({ tradeableUsd: 20, minEntryUsd: 0, injectAll: false }), true);
   });
 
+  it("does not velocity-fill T1 AERO when inject-all cannot fund the seat", () => {
+    const scored = [{ symbol: "AERO", score: 90 }, { symbol: "DEGEN", score: 80 }];
+    const dead = fillTier1Seats({
+      scored,
+      reservedMain: null,
+      tier1Count: 1,
+      injectAll: true,
+      reserveOk: false,
+    });
+    assert.deepEqual(dead.tier1, []);
+    assert.equal(dead.blocked, true);
+    assert.equal(dead.reason, "sub-min-inject-all");
+    const live = fillTier1Seats({
+      scored,
+      reservedMain: null,
+      tier1Count: 1,
+      injectAll: true,
+      reserveOk: true,
+    });
+    assert.deepEqual(live.tier1, ["AERO"]);
+    assert.equal(live.blocked, false);
+  });
+
+  it("recycles former T1 when starved with no primed/fundable seat", () => {
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: true, injectSeatViable: false, primedAllowCount: 0 }),
+      false,
+    );
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: true, injectSeatViable: true, primedAllowCount: 0 }),
+      false,
+    );
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: false, injectSeatViable: true, primedAllowCount: 0 }),
+      true,
+    );
+    assert.equal(
+      recycleSkipsActiveTier({ liquidStarved: true, injectSeatViable: true, primedAllowCount: 1 }),
+      true,
+    );
+  });
+
   it("shrinks keep floor when recycling inject fuel", () => {
     assert.equal(
       injectFuelKeepUsd({ liquidStarved: true, recycleFuel: true, moonshotHoldUsd: 0.5, piggyMinUsd: 0.05 }),
@@ -196,6 +276,8 @@ describe("inject-revenue: capital velocity snowball", () => {
 
   it("boosts velocity names on inject-all and sorts largest bags first", () => {
     assert.ok(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: true }) >
+      injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
+    assert.ok(injectVelocityScoreBoost({ symbol: "CLANKER", injectAll: true }) >
       injectVelocityScoreBoost({ symbol: "UNI", injectAll: true }));
     assert.equal(injectVelocityScoreBoost({ symbol: "DEGEN", injectAll: false, liquidStarved: false }), 0);
     const sorted = sortRecycleCandidatesByUsd([
@@ -225,13 +307,21 @@ describe("inject-revenue: wired into agent.js", () => {
   it("moonshot / dust recycle covers unknownEntry bags", () => {
     assert.ok(src.includes("shouldRecycleUnknownDust"));
     assert.ok(src.includes("unknownEntry") && src.includes("MOONSHOT"));
+    assert.ok(src.includes("classifyRecycleBag"), "dust-recycle must honor known FIFO eth");
+    assert.ok(src.includes("recycleSellCopy"), "never label unknown when FIFO lots exist");
   });
 
   it("wires inject fuel recycle + piggy-aligned sell gate", () => {
     assert.ok(src.includes("shouldRecycleKnownForInjectFuel"));
     assert.ok(src.includes("sellFractionAfterPiggy"));
     assert.ok(src.includes("injectReserveViable"));
+    assert.ok(src.includes("fillTier1Seats"));
+    assert.ok(src.includes("recycleSkipsActiveTier"));
     assert.ok(src.includes("INJECT FUEL"));
     assert.ok(src.includes("sortRecycleCandidatesByUsd"));
+    assert.ok(src.includes("fifoImpliedEntryUsd"), "ETH-only FIFO must imply USD entry for peak gates");
+    assert.ok(!src.includes("netUsd: 1"), "must not invent $1 profit when USD entry is missing");
+    assert.ok(src.includes("totalBookEth"), "max-position must use liquid+bags");
+    assert.ok(!src.includes("tradeableWithWeth * 0.60"), "starved liquid must not mark every bag maxed");
   });
 });

@@ -309,12 +309,15 @@ export function isSlippageCooledDown(symbol, now = Date.now(), store = slipFails
   return now < row.cooledUntil;
 }
 
-export function slippageCooldownLog(symbol, now = Date.now(), store = slipFails) {
+export function slippageCooldownLog(symbol, now = Date.now(), store = slipFails, {
+  side = "swap",
+} = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const row = store[sym];
   const leftMs = row?.cooledUntil ? Math.max(0, row.cooledUntil - now) : 0;
   const leftMin = (leftMs / 60000).toFixed(1);
-  return `🧊 SELL SKIPPED [${sym}]: Too little received cooldown (${leftMin}m left) — not burning more gas`;
+  const label = side === "buy" ? "BUY SKIPPED" : side === "sell" ? "SELL SKIPPED" : "SWAP SKIPPED";
+  return `🧊 ${label} [${sym}]: quote/swap fail cooldown (${leftMin}m left) — not burning more gas`;
 }
 
 /**
@@ -334,30 +337,83 @@ export function recordSlippageFail(symbol, now = Date.now(), {
   if (row.cooledUntil && now >= row.cooledUntil) {
     row.count = 0;
     row.cooledUntil = 0;
+    // buyFrozen sticks — cooldown lifting must not reopen new buys into a bad pool
   }
   row.count += 1;
   let cooled = false;
   if (row.count >= max) {
     row.cooledUntil = now + cooldownMs;
+    row.buyFrozen = true;
+    row.buyFrozenReason = row.buyFrozenReason
+      || `quote/swap fail ×${row.count} — freeze new buys (exits remain)`;
     cooled = true;
   }
   store[sym] = row;
-  return { count: row.count, cooled, cooledUntil: row.cooledUntil, max, store };
+  return {
+    count: row.count,
+    cooled,
+    cooledUntil: row.cooledUntil,
+    buyFrozen: !!row.buyFrozen,
+    max,
+    store,
+  };
+}
+
+export function isBuyFrozen(symbol, store = slipFails) {
+  return !!store[String(symbol || "").toUpperCase()]?.buyFrozen;
+}
+
+export function freezeNewBuys(symbol, reason, store = slipFails) {
+  const sym = String(symbol || "?").toUpperCase();
+  const row = store[sym] || { count: 0, cooledUntil: 0 };
+  row.buyFrozen = true;
+  row.buyFrozenReason = reason || "freeze new buys";
+  store[sym] = row;
+  return row;
+}
+
+export function clearBuyFreeze(symbol, store = slipFails) {
+  const sym = String(symbol || "").toUpperCase();
+  const row = store[sym];
+  if (!row) return;
+  row.buyFrozen = false;
+  row.buyFrozenReason = null;
+  store[sym] = row;
+}
+
+export function buyFrozenLog(symbol, store = slipFails) {
+  const sym = String(symbol || "?").toUpperCase();
+  const row = store[sym];
+  const why = row?.buyFrozenReason || "new buys frozen after swap fails";
+  return `❄️ BUY FROZEN [${sym}] — ${why}. Exits/sells remain allowed.`;
 }
 
 export function clearSlippageFails(symbol, store = slipFails) {
   const sym = String(symbol || "").toUpperCase();
-  if (sym) delete store[sym];
+  if (!sym) return;
+  const row = store[sym];
+  if (!row) return;
+  if (row.buyFrozen) {
+    store[sym] = {
+      count: 0,
+      cooledUntil: 0,
+      buyFrozen: true,
+      buyFrozenReason: row.buyFrozenReason,
+    };
+    return;
+  }
+  delete store[sym];
 }
 
-export function slippageFailLog(symbol, rec) {
+export function slippageFailLog(symbol, rec, { kind = "quote/swap fail" } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const n = rec?.count || 0;
   const max = rec?.max || SLIP_RETRY_MAX;
+  const label = kind || "quote/swap fail";
   if (rec?.cooled) {
-    return `🧊 [${sym}] Too little received ×${n} — cooldown armed, stop burning gas`;
+    return `🧊 [${sym}] ${label} ×${n} — cooldown armed, stop burning gas`;
   }
-  return `⚠️  [${sym}] Too little received (${n}/${max}) — will cooldown after ${max}`;
+  return `⚠️  [${sym}] ${label} (${n}/${max}) — will cooldown after ${max}`;
 }
 
 /**

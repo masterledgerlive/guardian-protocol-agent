@@ -33,6 +33,13 @@ import {
   creditPiggySavedEarnings,
   formatBuyReceiptHtml,
   formatSellReceiptHtml,
+  hitchBudgetBalanceEth,
+  resetHitchBudget,
+  creditHitchBank,
+  consumeHitchBankOnSend,
+  TOKEN_LOG_SEED_USD,
+  tokenLogSeedUsd,
+  clampSellLeaveLogSeed,
 } from "./piggy-bank.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -42,6 +49,9 @@ describe("piggy config defaults", () => {
     assert.equal(DEFAULT_PIGGY_BANK_PCT, 0.05);
     assert.equal(DEFAULT_PIGGY_BANK_MIN_USD, 0.15);
     assert.equal(DEFAULT_PIGGY_EARNINGS_BUFFER_PCT, 0.05);
+    assert.equal(TOKEN_LOG_SEED_USD, 0.05);
+    assert.equal(tokenLogSeedUsd({}), 0.05);
+    assert.equal(clampSellLeaveLogSeed({ balance: 10, tokensToSell: 10, priceUsd: 1, seedUsd: 0.05 }), 9.95);
     assert.equal(piggyBankPct({}), 0.05);
     assert.equal(piggyBankMinUsd({}), 0.15);
     assert.equal(piggyEarningsBufferPct({}), 0.05);
@@ -166,7 +176,7 @@ describe("unlock path works", () => {
     assert.equal(PIGGY_UNLOCK_PREFIX, "PIGGY UNLOCK");
   });
 
-  it("unlock sellPct=1 sells the full bag including dust", () => {
+  it("unlock sellPct=1 still leaves the $0.05 logging seed", () => {
     const d = applyPiggyToSell({
       balance: 1000,
       sellPct: 1,
@@ -177,11 +187,35 @@ describe("unlock path works", () => {
     });
     assert.equal(d.unlock, true);
     assert.equal(d.sellable, 1000);
-    assert.equal(d.tokensToSell, 1000);
-    assert.equal(d.remainingBalance, 0);
-    assert.equal(d.remainingReserve, 0);
-    assert.equal(d.soldAll, true);
+    assert.ok(Math.abs(d.tokensToSell - 999.95) < 1e-9);
+    assert.ok(Math.abs(d.remainingBalance - 0.05) < 1e-9);
+    assert.equal(d.soldAll, false);
+    assert.equal(d.logSeedHeld, true);
     assert.equal(d.blocked, false);
+  });
+
+  it("forceUnlock still leaves the $0.05 logging seed", () => {
+    const d = applyPiggyToSell({
+      balance: 1000,
+      sellPct: 1,
+      piggyReserve: 20,
+      priceUsd: 1,
+      reason: "MANUAL SELL (operator)",
+      env,
+      forceUnlock: true,
+    });
+    assert.equal(d.unlock, true);
+    assert.ok(Math.abs(d.tokensToSell - 999.95) < 1e-9);
+    const held = applyPiggyToSell({
+      balance: 1000,
+      sellPct: 1,
+      piggyReserve: 20,
+      priceUsd: 1,
+      reason: "MANUAL SELL (operator)",
+      env,
+    });
+    assert.equal(held.unlock, false);
+    assert.equal(held.tokensToSell, 980);
   });
 
   it("unlock partial sell may shrink reserve to remaining units", () => {
@@ -493,6 +527,8 @@ describe("agent.js wires piggy into every sell path", () => {
 
   it("peak gates use previewPiggySellNetUsd so dust cost stays behind", () => {
     assert.ok(src.includes("previewPiggySellNetUsd"), "processToken must preview piggy-aligned net");
+    assert.ok(src.includes("fifoImpliedEntryUsd"), "ETH-only FIFO must not skip the preview");
+    assert.ok(!src.includes("netUsd: 1"), "must not invent $1 profit for missing USD entry");
     assert.ok(src.includes("PIGGY_COINVEST_ENABLED"), "co-invest must be gated for AI reserve");
     assert.ok(src.includes("tokenPiggyLedgers"), "nested per-token piggy ledger required");
     assert.ok(src.includes("piggyCoInvestMarkUsd"), "/piggy must mark co-invest with tokens×price");
@@ -500,7 +536,7 @@ describe("agent.js wires piggy into every sell path", () => {
   });
 
   it("does not skip hitch / minOut / freeze gates", () => {
-    assert.ok(src.includes("buildSellGateDecision"), "2× hitch floor stays");
+    assert.ok(src.includes("buildSellGateDecision"), "always-plus sell gate stays");
     assert.ok(src.includes("estimateHitchL1FeeEth") || src.includes("quoteHitchL1ForGates"), "live L1 hitch fee stays");
     assert.ok(src.includes("sanitizeAmountOutMinimum"), "minOut sanity stays");
     assert.ok(src.includes("SLIPPAGE_GUARD"), "slippage band stays");
@@ -548,5 +584,26 @@ describe("agent.js wires piggy into every sell path", () => {
     assert.ok(body.includes("creditPiggySavedEarnings"), "sell must credit saved earnings ledger");
     assert.ok(body.includes("formatSellReceiptHtml"), "sell Telegram must be a bought→sold receipt");
     assert.ok(body.includes("savedEarningsUsd"), "piggy sizing must include saved earnings target");
+    assert.ok(body.includes("creditHitchBank"), "skip hitch must credit hitch-bank");
+    assert.ok(body.includes("consumeHitchBankOnSend"), "hitch send must clear hitch-bank");
+  });
+});
+
+describe("hitch-bank piggy — skip credits, send clears, not P&L", () => {
+  it("credits skipped hitch room and clears on send without inventing earnings", () => {
+    resetHitchBudget(0);
+    assert.equal(hitchBudgetBalanceEth(), 0);
+    const a = creditHitchBank(0.000004, { symbol: "AERO", reason: "skip" });
+    assert.equal(a.credited, 0.000004);
+    assert.equal(a.total, 0.000004);
+    assert.match(a.log, /HITCH_BANK: skip AERO/);
+    assert.match(a.log, /not P&L/);
+    const b = creditHitchBank(0.000003, { symbol: "DRB" });
+    assert.ok(Math.abs(b.total - 0.000007) < 1e-18);
+    const sent = consumeHitchBankOnSend({ symbol: "BNKR" });
+    assert.ok(Math.abs(sent.spent - 0.000007) < 1e-18);
+    assert.equal(hitchBudgetBalanceEth(), 0);
+    assert.match(sent.log, /cleared bank/);
+    resetHitchBudget(0);
   });
 });

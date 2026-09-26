@@ -1,0 +1,31 @@
+{
+  "at": "2026-09-19T21:40:00.000Z",
+  "topic": "proven-test-calculator",
+  "filingLabel": "PROVEN_TEST",
+  "trueName": "calculator",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "text": "Proven test series for calculator REF_LIB: multilingual ask, self job label, built-in calc eval, refuse-invent on unknown. If asked using VITA memory, answer always comes from packaged blockchain anchors + ref-lib — never invented gloss.",
+  "series": [
+    "PT-CALC-ASK-EN",
+    "PT-CALC-ASK-ALIAS",
+    "PT-CALC-ES",
+    "PT-CALC-JA",
+    "PT-CALC-ZH",
+    "PT-CALC-RU",
+    "PT-CALC-SELF-JOB",
+    "PT-CALC-SELF-EVAL",
+    "PT-CALC-REFUSE-INVENT"
+  ],
+  "commands": [
+    "/vitafeed proven",
+    "/vitafeed ref calculator",
+    "node --test vita/ref-memory.test.js"
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}

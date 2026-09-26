@@ -30,16 +30,31 @@ export const THIN_BOOK_ETH = 0.01;
 
 /**
  * Native ETH that must survive every cascade hop.
- * Base gas is native-only; WETH cannot pay. Default covers ~2 moves beyond the
- * hard GAS_RESERVE (0.0005) so sell→cascade→exit never dies mid-chain.
+ * Documented default is **0.001** (not 0.00125). Reserve + 3×0.00025 would
+ * print 0.00125 and stall a ~$2 book (full unwrap ETH ~0.000904 still under
+ * 0.00125). Cap at this floor so micro-cascade can run without vault top-up.
+ * Thin books still scale toward GAS_RESERVE via effectiveCascadeGasFloor.
  */
 export const CASCADE_GAS_FLOOR_ETH = 0.001;
+/** Thrift floor for ~$2 liquid books — one Base tx of gas, vault never. */
+export const THRIFT_CASCADE_GAS_FLOOR_ETH = 0.0005;
 /** How many future Base txs we always keep fuel for (buy + sell + next cascade). */
 export const CASCADE_MOVES_RESERVE = 3;
 /** Per-move native cushion when live gas quote is missing (conservative Base). */
 export const CASCADE_GAS_PER_MOVE_ETH = 0.00025;
+/** Dust below this is not worth an unwrap tx (gas of withdraw itself). */
+export const MIN_PARTIAL_UNWRAP_ETH = 0.00012;
 /** Prove milestone: successful on-chain hitch injections before capital top-up. */
 export const INJECT_PROVE_TARGET = 20;
+
+/**
+ * Message-cascade cadence (vita/message-cascade.js) — anti-stagnant target.
+ * ≥8 token hops / 15 minutes while building the database; nickel dust each exit.
+ */
+export const CASCADE_TARGET_HOPS = 8;
+export const CASCADE_WINDOW_MS = 15 * 60_000;
+/** Leave ~$0.05 dust each cascade exit — compounds across continuous hops. */
+export const CASCADE_LEAVE_DUST_USD = 0.05;
 
 /**
  * Round-trip floor in ETH so a fill can exit, hitch, and still leave cascade seed.
@@ -111,6 +126,76 @@ export function effectiveMinEntryEth({
 }
 
 /**
+ * Unified ETH+WETH spendable after gas keep (and piggy). Thin books must
+ * not park a 20% + sell-reserve tax that logs T1 ~$3.80 against a ~$5.67
+ * book and then refuse every avenue as below inject min-entry.
+ * Native gas stay; WETH is spendable (unwrap if needed).
+ */
+export function microSpendableEth({
+  eth = 0,
+  weth = 0,
+  gasFloorEth = 0.0005,
+  piggyEth = 0,
+} = {}) {
+  const total = Math.max(0, Number(eth) || 0) + Math.max(0, Number(weth) || 0);
+  const keep = Math.max(0, Number(gasFloorEth) || 0) + Math.max(0, Number(piggyEth) || 0);
+  return Math.max(0, total - keep);
+}
+
+/**
+ * When the full inject floor (hitch + $0.75 cascade seed + 1.35× buffer)
+ * does not fit spendable, drop seed/buffer so a trade-only micro can fire.
+ * Prefer leftover ≥ 1× hitch; if hitch itself cannot fit, bank hitch (#89).
+ *
+ * mode:
+ *   inject — full floor fits
+ *   micro-hitch — seed dropped, hitch still in the floor
+ *   micro-bank — hitch also dropped (SKIP_HITCH / bank)
+ */
+export function resolveMinEntryForBook({
+  gasCostEth,
+  hitchCostEth,
+  feePct,
+  impactPct,
+  ethUsd,
+  tokenMinBuyUsd = 0,
+  minPosUsd = 0.5,
+  cascadeSeedUsd = CASCADE_SEED_USD,
+  buffer = ROUND_TRIP_BUFFER,
+  tradeableEth = 0,
+} = {}) {
+  const spendable = Math.max(0, Number(tradeableEth) || 0);
+  const base = {
+    gasCostEth,
+    hitchCostEth,
+    feePct,
+    impactPct,
+    ethUsd,
+    tokenMinBuyUsd,
+    minPosUsd,
+  };
+  const full = effectiveMinEntryEth({ ...base, cascadeSeedUsd, buffer });
+  if (spendable + 1e-12 >= full) {
+    return { minEntryEth: full, mode: "inject", skipHitch: false, skipCascadeSeed: false };
+  }
+  const hitchOn = effectiveMinEntryEth({
+    ...base,
+    cascadeSeedUsd: 0,
+    buffer: 1,
+  });
+  if (spendable + 1e-12 >= hitchOn) {
+    return { minEntryEth: hitchOn, mode: "micro-hitch", skipHitch: false, skipCascadeSeed: true };
+  }
+  const bank = effectiveMinEntryEth({
+    ...base,
+    hitchCostEth: 0,
+    cascadeSeedUsd: 0,
+    buffer: 1,
+  });
+  return { minEntryEth: bank, mode: "micro-bank", skipHitch: true, skipCascadeSeed: true };
+}
+
+/**
  * Thin-book / inject-all tier params — one seat, 100% of tradeable.
  * Larger books keep the caller defaults (small-book or classic).
  */
@@ -145,7 +230,11 @@ export function cascadeGasFloorEth({
   const moves = Math.max(0, Math.floor(Number(movesReserve) || 0));
   const per = Math.max(0, Number(perMoveEth) || 0);
   const abs = Math.max(0, Number(absoluteFloorEth) || 0);
-  return Math.max(abs, base + moves * per);
+  const raw = base + moves * per;
+  const cap = abs > 0 ? abs : CASCADE_GAS_FLOOR_ETH;
+  // Cap reserve+3×0.00025 (0.00125) at documented 0.001 so a ~$2
+  // full unwrap (~0.000904) can still feed thrift micro-cascade.
+  return Math.max(THRIFT_CASCADE_GAS_FLOOR_ETH, Math.min(raw, cap));
 }
 
 /**
@@ -163,13 +252,23 @@ export function effectiveCascadeGasFloor(totalLiquidEth, opts = {}) {
 
 /**
  * How much WETH→ETH unwrap is needed so native ETH can fund the next moves.
- * Returns 0 when already above floor or WETH cannot cover.
+ *
+ * Thrift partial: if WETH cannot cover the full gap, still unwrap what we
+ * have toward the floor (always-plus / safe — unwrap is not a red sell).
+ * Old gate required avail ≥ need (or WETH > 0.003 in manageEthWethBalance)
+ * and stalled when ETH~0.000904 after a full unwrap sat under 0.00125.
+ *
+ * operatorUnlock: desk/operator one-shot (`OPERATOR_UNWRAP`) may unwrap
+ * even a thin leftover toward the thrift floor.
  */
 export function unwrapForCascadeGas({
   nativeEth = 0,
   weth = 0,
   floorEth = CASCADE_GAS_FLOOR_ETH,
   keepWethMin = 0,
+  allowPartial = true,
+  operatorUnlock = false,
+  minPartialEth = MIN_PARTIAL_UNWRAP_ETH,
 } = {}) {
   const native = Math.max(0, Number(nativeEth) || 0);
   const w = Math.max(0, Number(weth) || 0);
@@ -178,9 +277,78 @@ export function unwrapForCascadeGas({
   if (native + 1e-12 >= floor) return 0;
   const need = floor - native;
   const avail = Math.max(0, w - keep);
-  if (avail + 1e-12 < need) return 0;
-  // Small buffer so the next gwei spike does not immediately re-trip
-  return Math.min(avail, need + 0.00015);
+  if (!(avail > 0)) return 0;
+  const minPartial = Math.max(0, Number(minPartialEth) || 0);
+  if (avail + 1e-12 >= need) {
+    return Math.min(avail, need + 0.00015);
+  }
+  if (!allowPartial && !operatorUnlock) return 0;
+  if (avail + 1e-12 < minPartial && !operatorUnlock) return 0;
+  return avail;
+}
+
+/** Parse desk/operator one-shot unwrap latch. yes/true/1/on or ETH amount. */
+export function parseOperatorUnwrapEnv(raw) {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return { armed: false, amountEth: null };
+  if (s === "yes" || s === "true" || s === "1" || s === "on") {
+    return { armed: true, amountEth: null };
+  }
+  if (s === "no" || s === "false" || s === "0" || s === "off") {
+    return { armed: false, amountEth: null };
+  }
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 0) return { armed: true, amountEth: n };
+  return { armed: false, amountEth: null };
+}
+
+export function isOperatorUnwrapArmed(env = process.env) {
+  return parseOperatorUnwrapEnv(env?.OPERATOR_UNWRAP).armed === true;
+}
+
+/**
+ * Cycle-start auto unwrap — thrift partial toward the cascade floor.
+ * Does **not** require WETH > 0.003 or a full gap (those gates stalled
+ * ETH~0.000904 / ~$2 liquid). Unwrap is not a red sell (always-plus/safe).
+ */
+export function autoUnwrapTowardCascadeFloor({
+  nativeEth = 0,
+  weth = 0,
+  gasReserveEth = 0.0005,
+  allowPartial = true,
+  operatorUnlock = false,
+  minPartialEth = MIN_PARTIAL_UNWRAP_ETH,
+} = {}) {
+  const native = Math.max(0, Number(nativeEth) || 0);
+  const w = Math.max(0, Number(weth) || 0);
+  const floor = effectiveCascadeGasFloor(native + w, { gasReserveEth });
+  return unwrapForCascadeGas({
+    nativeEth: native,
+    weth: w,
+    floorEth: floor,
+    keepWethMin: 0,
+    allowPartial,
+    operatorUnlock,
+    minPartialEth,
+  });
+}
+
+/** After a best-effort unwrap, native ETH can fund the next move. */
+export function cascadeNativeGasOk({
+  nativeEth = 0,
+  floorEth = CASCADE_GAS_FLOOR_ETH,
+  gasReserveEth = 0.0005,
+  thriftFloorEth = THRIFT_CASCADE_GAS_FLOOR_ETH,
+  didPartialUnwrap = false,
+} = {}) {
+  const native = Math.max(0, Number(nativeEth) || 0);
+  const floor = Math.max(0, Number(floorEth) || 0);
+  const reserve = Math.max(0, Number(gasReserveEth) || 0);
+  const thrift = Math.max(0, Number(thriftFloorEth) || 0);
+  if (native + 1e-12 >= Math.min(floor, reserve)) return true;
+  if (native + 1e-12 >= floor) return true;
+  if (didPartialUnwrap && native + 1e-12 >= Math.min(thrift, reserve)) return true;
+  return false;
 }
 
 /**

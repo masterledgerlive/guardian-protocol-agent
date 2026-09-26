@@ -14,22 +14,35 @@ import {
   computePennyPinchSellTarget,
   computeLeftover,
   leftoverCoversInject,
+  ethEdgeCoversHitch,
+  ethEdgeLeftoverEth,
+  isSkipHoldDeadRoute,
+  ADD_ON_BAG_MIN_USD,
   isCatalogFrozen,
   frozenBuySkipLog,
+  parseUnfreezeSymbols,
+  applyUnfreezeSymbols,
+  isUnfreezeSymbol,
   hasClearEdge,
   isManualOperatorBuy,
+  isVitaFeedBuyIn,
+  vitaFeedBuyInReason,
   parseBuyUsdArg,
   parseManualBuyCommand,
   usdToForcedEth,
   manualBuyReason,
   parseOperatorBuyEnv,
   queueOperatorBuyOnce,
+  takeQueuedManualBuys,
+  settleFlushedOperatorBuy,
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
   isManualOperatorSell,
   parseSellPctArg,
   parseManualSellCommand,
   parseOperatorSellEnv,
+  parseOperatorSellList,
+  parseOperatorSellEntry,
   queueOperatorSellOnce,
   markOperatorSellExecuted,
   clearOperatorSellIfNotExecuted,
@@ -44,12 +57,45 @@ import {
   isAllowLossyOperatorBuy,
   canBypassBuyLossGate,
   isAllowLossyOperatorSell,
+  consumeAllowLossyOperatorSell,
+  usedAllowLossyOperatorSellBypass,
+  isDustRecycleReason,
+  dustRecycleMustHoldFifoRed,
   canBypassSellLossGate,
+  isDisableDowBias,
+  applyDowBiasDisable,
+  isFridayCloseWindow,
+  latchFreshLot,
+  clearFreshLot,
+  freshLotCostFloor,
+  sellEntryEthWithLotFloor,
+  usdMarkBelowBreakeven,
+  isAllowAddOnFifoRed,
+  bagMarkProceedsEth,
+  isExistingKnownFifoBag,
+  isFifoRedLot,
+  evaluateAddOnFifoRedGate,
+  isUnknownCostBlockingAddOn,
+  addOnRemainingFifoEth,
   estimateCalldataHitchEth,
   estimateBtpInscribeEth,
   estimateInjectHitchCostEth,
   minSellProceedsEth,
   leftoverAfterFeesEth,
+  plusAfterHitchEth,
+  conservativeSellProceedsEth,
+  wei18ToEth,
+  formatAlwaysPlusLog,
+  MIN_PLUS_ETH,
+  cashFlowNetEth,
+  fifoRemainingCostEth,
+  fifoKnownLotRemain,
+  fifoUnknownLots,
+  UNKNOWN_LOTS_BAND,
+  EVIDENCE_LOT_DUST_BAND,
+  plusFloorOutWei,
+  applySellPlusFloorMinOut,
+  isForceExitLockedReason,
   coversHitchAndEntry,
   maxHitchBytesForLeftover,
   sizeHitchForSell,
@@ -66,7 +112,14 @@ import {
   netUsdAfterSkim,
   netAfterSkimEth,
   UNKNOWN_COST_GAS_EDGE_MULT,
+  EUREKA_LETTER_BYTES,
+  hitchFloorPacketBytes,
+  microExtractFloorEth,
+  hitchAttachNeedEth,
+  hitchAttachFloorEth,
+  hitchBankCreditEth,
 } from "./lose-zero-gate.js";
+import { sizeHatBytesForWave } from "./hat-wave-inject.js";
 
 describe("env flags", () => {
   it("honors yes case-insensitively and ignores other values", () => {
@@ -136,6 +189,15 @@ describe("penny-pinch leftover", () => {
   it("inject_cost_spread scales hitch ETH into token price", () => {
     const spread = injectCostSpread(2, 1, 1);
     assert.equal(spread, estimateInjectCostEth(1) * 2);
+  });
+
+  it("inject_cost_spread leftover uses planned VITA hitch bytes, not only the 10-byte tag", () => {
+    const tag = injectCostSpread(2, 1, 1);
+    const vita = injectCostSpread(2, 1, 1, undefined, 69);
+    assert.equal(tag, estimateInjectCostEth(1) * 2);
+    assert.equal(vita, estimateInjectCostEth(1, undefined, 69) * 2);
+    assert.ok(vita > tag, "names-only KEY+LOC (69B) must cost more L2 than the 10-byte tag");
+    assert.equal(estimateInjectCostEth(1, undefined, 10), estimateInjectCostEth(1));
   });
 });
 
@@ -262,6 +324,83 @@ describe("evaluateBuyGate", () => {
     assert.equal(d.allow, false);
     assert.match(d.log, /^LOSE_ZERO: block buy AERO leftover is 0$/);
   });
+
+  it("first-buy / flatten: armed net covering 1× hitch allows when peak leftover is 0", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "AERO",
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      tradeEth: 0.002,
+      net: 0.04,
+      hitchCostEth: 0.00002,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.reason, "edge+eth-cover");
+    assert.ok(d.leftover > 0);
+    assert.match(d.log, /armed net covers 1× hitch/);
+    assert.equal(d.skipHitch, false);
+  });
+
+  it("first-buy still HOLDs when armed net cannot pay 1× hitch", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "AERO",
+      tradeEth: 0.002,
+      net: 0.04,
+      hitchCostEth: 0.0002,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, false);
+    assert.match(d.log, /leftover is 0/);
+  });
+
+  it("micro-bank hitch allows trade-only when inject cover cannot fit", () => {
+    const d = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: true,
+      symbol: "LINK",
+      tradeEth: 0.0015,
+      net: 0.04,
+      hitchCostEth: 0.0015,
+      allowBankHitch: true,
+      env: { LOSE_ZERO: "yes", REQUIRE_INJECT_COVER: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.reason, "edge+bank-hitch");
+    assert.match(d.log, /micro-bank hitch/);
+  });
+});
+
+describe("ethEdgeCoversHitch — flatten / peak≈mark first buy", () => {
+  it("covers only when trade × net strictly beats 1× hitch", () => {
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0.00002 }), true);
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0.0002 }), false);
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0, net: 0.04, hitchCostEth: 0.00002 }), false);
+    assert.equal(ethEdgeCoversHitch({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0 }), false);
+    assert.ok(ethEdgeLeftoverEth({ tradeEth: 0.002, net: 0.04, hitchCostEth: 0.00002 }) > 0);
+  });
+});
+
+describe("USDG skip-hold — no V3 cash route", () => {
+  it("flags USDG and refuses operator buy/sell queue", () => {
+    assert.equal(isSkipHoldDeadRoute("USDG"), true);
+    assert.equal(isSkipHoldDeadRoute("AERO"), false);
+    const buys = [];
+    const known = new Set(["USDG", "AERO"]);
+    const buy = queueOperatorBuyOnce(buys, "USDG:1", known, { done: false });
+    assert.equal(buy.queued, false);
+    assert.equal(buy.reason, "skip-hold");
+    assert.equal(buys.length, 0);
+    const sells = [];
+    const sell = queueOperatorSellOnce(sells, "USDG:all,AERO:all", known, { done: false });
+    assert.equal(sell.queued, true);
+    assert.equal(sells.some((c) => c.symbol === "USDG"), false);
+    assert.equal(sells.some((c) => c.symbol === "AERO"), true);
+  });
 });
 
 describe("buildBuyGateDecision", () => {
@@ -279,6 +418,29 @@ describe("buildBuyGateDecision", () => {
     assert.equal(d.allow, false);
     assert.equal(d.leftover, 0);
     assert.match(d.log, /LOSE_ZERO: block buy AERO leftover is 0/);
+  });
+
+  it("first-buy with no peak leftover still allows when armed net covers 1× hitch", () => {
+    const d = buildBuyGateDecision({
+      symbol: "AERO",
+      reason: "🔁 PRIMED BOTTOM [PRIORITY]",
+      price: 1,
+      existingSellTarget: null,
+      feePct: 0.006,
+      impactPct: 0.002,
+      gasCostEth: 0,
+      tradeEth: 0.01,
+      gwei: 1,
+      l1FeeEth: 0.00001,
+      hitchBytes: 69,
+      armed: true,
+      net: 0.05,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.reason, "edge+eth-cover");
+    assert.ok(d.leftover > 0);
+    assert.match(d.log, /armed net covers 1× hitch/);
   });
 
   it("allows when max peak sits above fair_exit + hitch spread", () => {
@@ -299,6 +461,28 @@ describe("buildBuyGateDecision", () => {
     assert.equal(d.allow, true);
     assert.ok(d.leftover > 0);
     assert.equal(d.log, "LOSE_ZERO: allow buy AERO leftover covers inject");
+  });
+
+  it("buy L2 hitch fee sizes against planned VITA hitch bytes", () => {
+    const args = {
+      symbol: "AERO",
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      price: 1,
+      existingSellTarget: 1.05,
+      feePct: 0.006,
+      impactPct: 0.002,
+      gasCostEth: 0,
+      tradeEth: 0.01,
+      gwei: 1,
+      armed: true,
+      net: 0.04,
+      env: { LOSE_ZERO: "yes" },
+    };
+    const tag = buildBuyGateDecision({ ...args, hitchBytes: STORE_HITCH_BYTES });
+    const vita = buildBuyGateDecision({ ...args, hitchBytes: 102 });
+    assert.ok(vita.l2FeeEth > tag.l2FeeEth);
+    assert.equal(vita.l2FeeEth, estimateCalldataHitchEth(102, 1));
+    assert.ok(vita.leftover < tag.leftover, "leftover leftover must reserve VITA hitch L2, not only the 10-byte tag");
   });
 
   it("hasClearEdge requires armed/net or a known signal plus positive net", () => {
@@ -324,7 +508,7 @@ describe("buildBuyGateDecision", () => {
     assert.match(d.log, /MANUAL BUY \(operator\) plain swap/);
   });
 
-  it("operator /buy with leftover covering hitch still hitch Eureka", () => {
+  it("operator /buy with leftover covering hitch still hitch VITA leftover", () => {
     const d = buildBuyGateDecision({
       symbol: "TOSHI",
       reason: manualBuyReason(3),
@@ -419,11 +603,14 @@ describe("catalog freeze — buy-side gate", () => {
 
   it("OPERATOR_BUY refuses to queue a frozen catalog name", () => {
     const commands = [];
-    const known = new Set(["STONKEX", "TOSHI"]);
-    const frozen = new Set(["STONKEX"]);
+    const known = new Set(["STONKEX", "TOSHI", "GAME"]);
+    const frozen = new Set(["STONKEX", "GAME"]);
     const result = queueOperatorBuyOnce(commands, "STONKEX:3", known, { done: false }, frozen);
     assert.equal(result.queued, false);
     assert.equal(result.reason, "frozen");
+    const game = queueOperatorBuyOnce(commands, "GAME:3", known, { done: false }, frozen);
+    assert.equal(game.queued, false);
+    assert.equal(game.reason, "frozen");
     assert.equal(commands.length, 0);
   });
 
@@ -434,6 +621,44 @@ describe("catalog freeze — buy-side gate", () => {
     const result = queueOperatorBuyOnce(commands, "BASECAT:3", known, { done: false }, frozen);
     assert.equal(result.queued, true);
     assert.deepEqual(commands, [{ symbol: "BASECAT", action: "buy", usd: 3, source: "OPERATOR_BUY" }]);
+  });
+
+  it("OPERATOR_BUY queues TIBBIR:1.25 once catalog freeze is clear", () => {
+    const commands = [];
+    const known = new Set(["TIBBIR", "GAME", "BASECAT"]);
+    const frozen = new Set(["GAME", "BASECAT"]);
+    const result = queueOperatorBuyOnce(commands, "TIBBIR:1.25", known, { done: false }, frozen);
+    assert.equal(result.queued, true);
+    assert.deepEqual(commands, [{ symbol: "TIBBIR", action: "buy", usd: 1.25, source: "OPERATOR_BUY" }]);
+    const blocked = queueOperatorBuyOnce([], "GAME:1.25", known, { done: false }, frozen);
+    assert.equal(blocked.queued, false);
+    assert.equal(blocked.reason, "frozen");
+  });
+
+  it("UNFREEZE_SYMBOLS parses comma/semicolon/whitespace lists", () => {
+    assert.deepEqual(parseUnfreezeSymbols({}), []);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "" }), []);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "TIBBIR" }), ["TIBBIR"]);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "tibbir, vvv;GAME" }), ["TIBBIR", "VVV", "GAME"]);
+    assert.deepEqual(parseUnfreezeSymbols({ UNFREEZE_SYMBOLS: "TIBBIR TIBBIR" }), ["TIBBIR"]);
+    assert.equal(isUnfreezeSymbol("TIBBIR", { UNFREEZE_SYMBOLS: "TIBBIR" }), true);
+    assert.equal(isUnfreezeSymbol("GAME", { UNFREEZE_SYMBOLS: "TIBBIR" }), false);
+  });
+
+  it("UNFREEZE_SYMBOLS clears isCatalogFrozen for listed names only", () => {
+    const env = { UNFREEZE_SYMBOLS: "TIBBIR" };
+    assert.equal(isCatalogFrozen({ symbol: "TIBBIR", frozen: true }, env), false);
+    assert.equal(isCatalogFrozen({ symbol: "GAME", frozen: true }, env), true);
+    assert.equal(isCatalogFrozen({ symbol: "BASECAT", frozen: true }, env), true);
+    const multi = { UNFREEZE_SYMBOLS: "TIBBIR, VVV" };
+    assert.equal(isCatalogFrozen({ symbol: "VVV", frozen: true }, multi), false);
+    assert.equal(isCatalogFrozen({ symbol: "TIBBIR", frozen: "yes" }, multi), false);
+    const thawed = applyUnfreezeSymbols({ symbol: "TIBBIR", frozen: true, frozenReason: "data-only" }, env);
+    assert.equal(thawed.frozen, false);
+    assert.equal(thawed.frozenReason, undefined);
+    const game = applyUnfreezeSymbols({ symbol: "GAME", frozen: true, frozenReason: "CUT" }, env);
+    assert.equal(game.frozen, true);
+    assert.equal(game.frozenReason, "CUT");
   });
 });
 
@@ -467,6 +692,40 @@ describe("manual /buy parse", () => {
     assert.equal(manualBuyReason(3), "MANUAL BUY (operator) $3");
     assert.equal(isManualOperatorBuy("MANUAL BUY"), false);
     assert.equal(isManualOperatorBuy("🎯 MIN TROUGH [PRIORITY]"), false);
+    assert.equal(isManualOperatorBuy("VITAFEED BUYIN $0.80"), false, "vitafeed must not weaken leftover/edge");
+    assert.equal(isManualOperatorBuy("VITAFEED EXIT"), false);
+    assert.equal(isVitaFeedBuyIn("VITAFEED BUYIN $0.80"), true);
+    assert.equal(isVitaFeedBuyIn(vitaFeedBuyInReason(1.25)), true);
+    assert.equal(isVitaFeedBuyIn(manualBuyReason(3)), false);
+    assert.equal(vitaFeedBuyInReason(1.5), "VITAFEED BUYIN $1.50");
+  });
+
+  it("evaluateBuyGate allows VITAFEED BUYIN without clear edge", () => {
+    const r = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "AERO",
+      reason: "VITAFEED BUYIN $1.00",
+      tradeEth: 0.001,
+      hitchCostEth: 0.0001,
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(r.allow, true);
+    assert.match(r.log, /VITAFEED BUYIN/);
+  });
+
+  it("ADD_ON_FIFO_RED allows VITAFEED BUYIN into an existing red bag", () => {
+    const r = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 10,
+      remainingFifoEth: 0.01,
+      markProceedsEth: 0.005,
+      reason: "VITAFEED BUYIN $1.00",
+      bagUsd: 5,
+      env: {},
+    });
+    assert.equal(r.allow, true);
+    assert.equal(r.reason, "vitafeed-buyin");
   });
 });
 
@@ -512,6 +771,33 @@ describe("OPERATOR_BUY env", () => {
     assert.equal(state.executed, true);
     clearOperatorBuyIfNotExecuted(state);
     assert.equal(state.done, true);
+  });
+
+  it("takeQueuedManualBuys pulls buys and leaves sells", () => {
+    const commands = [
+      { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" },
+      { symbol: "TOSHI", action: "sellhalf", source: "OPERATOR_SELL" },
+      { symbol: "UNI", action: "buy", usd: 3 },
+    ];
+    const buys = takeQueuedManualBuys(commands);
+    assert.deepEqual(buys.map((c) => c.symbol), ["AERO", "UNI"]);
+    assert.equal(commands.length, 1);
+    assert.equal(commands[0].action, "sellhalf");
+  });
+
+  it("settleFlushedOperatorBuy re-queues unspent OPERATOR_BUY and not a fill", () => {
+    const commands = [];
+    const cmd = { symbol: "AERO", action: "buy", usd: 2, source: "OPERATOR_BUY" };
+    const skip = settleFlushedOperatorBuy(commands, cmd, false);
+    assert.equal(skip.requeued, true);
+    assert.equal(skip.reason, "unspent");
+    assert.equal(commands.length, 1);
+    const again = settleFlushedOperatorBuy(commands, cmd, false);
+    assert.equal(again.requeued, false);
+    assert.equal(again.reason, "already-queued");
+    const fill = settleFlushedOperatorBuy([], cmd, 0.0008);
+    assert.equal(fill.requeued, false);
+    assert.equal(fill.reason, "spent");
   });
 });
 
@@ -567,9 +853,28 @@ describe("OPERATOR_SELL env", () => {
     assert.deepEqual(parseOperatorSellEnv("toshi:half"), { symbol: "TOSHI", pct: 0.5 });
     assert.deepEqual(parseOperatorSellEnv("TOSHI:all"), { symbol: "TOSHI", pct: 1 });
     assert.deepEqual(parseOperatorSellEnv("TOSHI:25"), { symbol: "TOSHI", pct: 0.25 });
+    assert.deepEqual(parseOperatorSellEnv("AERO:all"), { symbol: "AERO", pct: 1 });
+    assert.deepEqual(parseOperatorSellEnv("DRB:100"), { symbol: "DRB", pct: 1 });
     assert.equal(parseOperatorSellEnv(""), null);
-    assert.equal(parseOperatorSellEnv("TOSHI"), null);
+    assert.deepEqual(parseOperatorSellEnv("TOSHI"), { symbol: "TOSHI", pct: 1 });
     assert.equal(parseOperatorSellEnv("TOSHI:0"), null);
+  });
+
+  it("parses AERO:all,DRB:100 and bare comma lists", () => {
+    assert.deepEqual(parseOperatorSellEntry("DRB:100"), { symbol: "DRB", pct: 1 });
+    assert.deepEqual(parseOperatorSellList("AERO:all,DRB:100,BNKR"), [
+      { symbol: "AERO", pct: 1 },
+      { symbol: "DRB", pct: 1 },
+      { symbol: "BNKR", pct: 1 },
+    ]);
+    const commands = [];
+    const known = new Set(["AERO", "DRB", "BNKR"]);
+    const r = queueOperatorSellOnce(commands, "AERO:all,DRB:100", known, { done: false });
+    assert.equal(r.queued, true);
+    assert.equal(r.items.length, 2);
+    assert.equal(commands[0].source, "OPERATOR_SELL");
+    assert.equal(resolveManualSellPct({ action: "sell" }, { fullUnwind: true }), 1);
+    assert.equal(resolveManualSellPct({ action: "sell" }), 0.98);
   });
 
   it("TOSHI:50 queues existing sellhalf action (MANUAL SELL HALF-style)", () => {
@@ -742,7 +1047,7 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.match(d.log, /STOP LOSS floor held/);
   });
 
-  it("STOP LOSS allows plain sale when leftover after fees is green", () => {
+  it("STOP LOSS allows plus sale when leftover after fees is green", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const leftover = hitch * 1.2;
     const d = evaluateSellGate({
@@ -755,8 +1060,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       symbol: "DEGEN",
     });
     assert.equal(d.allow, true);
-    assert.equal(d.skipHitch, true);
-    assert.match(d.log, /plain|allow sell DEGEN/);
+    assert.ok(d.plusNetEth > 0, "green STOP LOSS must stay plus after 1× hitch or skip");
+    assert.ok(d.verdict === "PLUS" || d.verdict === "SKIP_HITCH");
+    assert.match(d.log, /allow sell DEGEN|plain|hitch \+ edge/);
   });
 
   it("shouldArmStopLoss requires trusted cost — skips unknown/frozen", () => {
@@ -777,9 +1083,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     }), false);
   });
 
-  it("sell allowed plain when leftover covers 1× hitch but not 2×", () => {
+  it("original message-first: 1.5× hitch covers KEY+LOC → hitch (not mute for micro)", () => {
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
-    // leftover after fees = 1.5× hitch — enough for 1× buy cover, not 2× sell hitch
+    // leftover after fees = 1.5× hitch — below 2× cushion, above 1× cover
     const leftover = hitch * 1.5;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01 + leftover,
@@ -793,8 +1099,40 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       symbol: "TOSHI",
     });
     assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.verdict, "PLUS");
+    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.hitchBankedEth, 0);
+    assert.ok(d.plusNetEth > 0);
+    assert.match(d.log, /message-first|KEY\+LOC 1×/i);
+    assert.match(d.alwaysPlusLog, /PLUS/);
+  });
+
+  it("VITA_MESSAGE_FIRST=no: 1.5× hitch sells plain and banks hitch", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.5;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      reason: "🌙 MOONSHOT TRIM — not in active tiers",
+      symbol: "TOSHI",
+      env: { VITA_MESSAGE_FIRST: "no" },
+    });
+    assert.equal(d.allow, true);
     assert.equal(d.skipHitch, true);
-    assert.match(d.log, /plain/);
+    assert.equal(d.verdict, "SKIP_HITCH");
+    assert.equal(d.hitchBytes, 0);
+    assert.ok(d.plusNetEth > 0);
+    assert.ok(d.hitchBankedEth > 0);
+    assert.ok(d.hitchBankedEth <= leftover + 1e-18);
+    assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    assert.match(d.alwaysPlusLog, /banked=/);
+    assert.match(d.log, /micro extract|hitch skipped \+ banked/);
   });
 
   it("sell allowed when leftover covers hitch + edge (2×)", () => {
@@ -814,8 +1152,11 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.equal(d.allow, true);
     assert.equal(d.sellNow, true);
     assert.ok(d.hitchBytes > 0);
-    assert.match(d.log, /leftover covers hitch \+ edge/);
+    assert.ok(d.plusNetEth > 0);
+    assert.equal(d.verdict, "PLUS");
+    assert.match(d.log, /leftover covers hitch floor|hitch \+ edge/);
     assert.match(d.log, /sell now/);
+    assert.match(d.alwaysPlusLog, /PLUS/);
   });
 
   it("piggy earnings buffer skips hitch so message cannot wipe listed gains", () => {
@@ -852,20 +1193,98 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
     assert.ok(2 * sized.injectCostEth <= leftover + 1e-18);
   });
 
-  it("MANUAL SELL (operator) still gated unless ALLOW_LOSSY_OPERATOR_SELL=yes", () => {
+  it("red FIFO operator sell is allowed only when ALLOW_LOSSY_OPERATOR_SELL=yes", () => {
+    const drbRed = { ...toshiMoonshot, symbol: "DRB" };
     const blocked = evaluateSellGate({
-      ...toshiMoonshot,
+      ...drbRed,
       reason: "MANUAL SELL (operator) 50%",
-      env: {},
+      env: { FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
     assert.equal(blocked.allow, false);
-    const allowed = evaluateSellGate({
+    assert.equal(blocked.verdict, "HOLD");
+    const lossy = evaluateSellGate({
+      ...drbRed,
+      reason: "MANUAL SELL (operator) 50%",
+      operatorLot: true,
+      freshLot: true,
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
+    });
+    assert.equal(lossy.allow, true);
+    assert.equal(lossy.skipHitch, true);
+    assert.equal(lossy.verdict, "LOSSY_OPERATOR");
+    assert.match(lossy.log, /ALLOW_LOSSY_OPERATOR_SELL/);
+    const toshiStillHeld = evaluateSellGate({
       ...toshiMoonshot,
       reason: "MANUAL SELL (operator) 50%",
-      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
     });
-    assert.equal(allowed.allow, true);
-    assert.equal(allowed.reason, "lossy-operator");
+    assert.equal(toshiStillHeld.allow, false);
+    assert.equal(toshiStillHeld.verdict, "HOLD");
+  });
+
+  it("ALLOW_LOSSY allows one red sell then blocks the second until re-armed", () => {
+    const aeroRed = {
+      symbol: "AERO",
+      reason: "MANUAL SELL (operator) 95%",
+      sellPct: 0.95,
+      entryEth: 0.001,
+      lotCostEth: 0.001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00070,
+      usdMarkProceedsEth: 0.00070,
+      feePct: 0.003,
+      gasCostEth: 0.00002,
+      impactPct: 0.003,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+    };
+    const env = { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" };
+    const first = evaluateSellGate({ ...aeroRed, env });
+    assert.equal(first.allow, true);
+    assert.equal(first.verdict, "LOSSY_OPERATOR");
+    assert.equal(first.usedAllowLossy, true);
+    assert.equal(usedAllowLossyOperatorSellBypass(aeroRed.reason, env, "AERO"), true);
+    assert.equal(consumeAllowLossyOperatorSell(env), true);
+    assert.equal(env.ALLOW_LOSSY_OPERATOR_SELL, "no");
+    assert.equal(isAllowLossyOperatorSell(env), false);
+    const second = evaluateSellGate({ ...aeroRed, env });
+    assert.equal(second.allow, false);
+    assert.equal(second.verdict, "HOLD");
+    assert.equal(second.usedAllowLossy, false);
+    env.ALLOW_LOSSY_OPERATOR_SELL = "yes";
+    const rearmed = evaluateSellGate({ ...aeroRed, env });
+    assert.equal(rearmed.allow, true);
+    assert.equal(rearmed.usedAllowLossy, true);
+  });
+
+  it("DUST RECYCLE holds on FIFO red without ALLOW_LOSSY", () => {
+    const env = { ALLOW_LOSSY_OPERATOR_SELL: "no", FORCE_EXIT_LOCKED_MAJORS: "no" };
+    const d = evaluateSellGate({
+      symbol: "AERO",
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+      sellPct: 0.95,
+      entryEth: 0.001,
+      lotCostEth: 0.001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00070,
+      usdMarkProceedsEth: 0.00070,
+      feePct: 0.003,
+      gasCostEth: 0.00002,
+      impactPct: 0.003,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      unknownEntry: false,
+      env,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover <= 0);
+    assert.equal(isDustRecycleReason("🌙 DUST RECYCLE — unknown cost basis"), true);
+    assert.equal(dustRecycleMustHoldFifoRed({ fifoRed: true, allowLossyArmed: false }), true);
+    assert.equal(dustRecycleMustHoldFifoRed({ fifoRed: true, allowLossyArmed: true }), false);
+    assert.equal(dustRecycleMustHoldFifoRed({ fifoRed: false, allowLossyArmed: false }), false);
   });
 
   it("FORCE EXIT LOCKED recovers stranded majors even when underwater", () => {
@@ -875,7 +1294,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       env: {},
     });
     assert.equal(d.allow, true);
-    assert.equal(d.reason, "lossy-operator");
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "FORCE_EXIT");
+    assert.ok(isForceExitLockedReason(d.log) || d.reason.includes("FORCE EXIT"));
   });
 
   it("HITCH_COST_MULT=1 lets a 1× leftover sell through (env override)", () => {
@@ -979,7 +1400,9 @@ describe("LOSE-ZERO sell + 2× hitch cover", () => {
       gwei: 0.05,
       l1FeeEth: 0.01, // spread 0.01 — leftover cannot cover
       armed: true,
-      net: 1,
+      // Realistic net (0.5%) cannot pay 0.01 ETH hitch on this clip.
+      // net:1 used to be a dummy and would now pass ETH-cover after flatten.
+      net: 0.005,
       env: { LOSE_ZERO: "yes" },
     });
     assert.equal(d.allow, false);
@@ -1001,9 +1424,8 @@ describe("never-lose fee/gas leak plugs", () => {
     );
   });
 
-  it("unknown-cost sells hold when leftover cannot clear gas edge", () => {
+  it("unknown-cost sells HOLD — leftover without basis is not plus vs entry", () => {
     const gas = 0.0002;
-    // proceeds barely clear fee+impact+gas → leftover << 2× gas
     const d = evaluateSellGate({
       projectedProceedsEth: 0.00025,
       entryEth: 0, // unknown
@@ -1017,14 +1439,14 @@ describe("never-lose fee/gas leak plugs", () => {
       unknownEntry: true,
     });
     assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
     assert.match(d.log, /unknown cost|lose money|leftover/);
+    assert.match(d.alwaysPlusLog, /HOLD/);
     assert.ok(unknownCostMinLeftoverEth(gas) === gas * UNKNOWN_COST_GAS_EDGE_MULT);
   });
 
-  it("unknown-cost sells allow only when leftover clears 2× gas edge", () => {
+  it("unknown-cost sells HOLD even when leftover would clear 2× gas edge", () => {
     const gas = 0.00002;
-    const fees = 0.01 * 0.006 + 0.01 * 0.003 + gas; // fee+impact+gas on 0.01 proceeds
-    const need = gas * UNKNOWN_COST_GAS_EDGE_MULT;
     const d = evaluateSellGate({
       projectedProceedsEth: 0.01,
       entryEth: 0,
@@ -1037,9 +1459,10 @@ describe("never-lose fee/gas leak plugs", () => {
       reason: "🌙 DUST RECYCLE — unknown cost basis",
       unknownEntry: true,
     });
-    // leftover = 0.01 - fees; should exceed 2× gas on this size
-    assert.ok(0.01 - fees > need);
-    assert.equal(d.allow, true);
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /unknown cost/);
+    assert.match(d.alwaysPlusLog, /HOLD/);
   });
 
   it("oracle fallback forces plain sale (never hitch without live L1)", () => {
@@ -1061,6 +1484,27 @@ describe("never-lose fee/gas leak plugs", () => {
     assert.match(d.log, /L1 fee unknown|plain/);
   });
 
+  it("oracle fallback never hitches even if leftoverWouldCoverHitch (L1 undercover hole)", () => {
+    const l2Hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = l2Hitch * 2 + 1e-12;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      hitchFeeSource: "fallback",
+      leftoverWouldCoverHitch: true,
+      symbol: "AERO",
+      reason: "MAX PEAK",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "SKIP_HITCH");
+    assert.match(d.log, /L1 fee unknown|plain/);
+    assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+  });
+
   it("net after skim never lists a wiped edge as profit", () => {
     const wiped = netUsdAfterSkim({
       receivedEth: 0.01005,
@@ -1080,5 +1524,1337 @@ describe("never-lose fee/gas leak plugs", () => {
     assert.equal(unknown.netUsd, 0);
     assert.equal(unknown.unknownCost, true);
     assert.equal(netAfterSkimEth(0.01, 0.0001), 0.0099);
+  });
+});
+
+describe("always-plus exit — large hitch must not flip a green sell red", () => {
+  it("10KB wanted hitch on a thin leftover skips or shrinks — leftover stays plus", () => {
+    const leftover = 0.0002; // green after fees
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 10_000,
+      l1FeeEth: 0.001, // 10KB L1 would wipe leftover many times over
+      l1FeePerByteEth: 0.001 / 10_000,
+      reservedL1FeeEth: 0.001 * 10 / 10_000,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "GAME",
+    });
+    assert.equal(d.allow, true, "green leftover must still sell");
+    assert.ok(d.leftover > 0);
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.equal(d.injectCostEth, 0);
+      assert.ok(d.leftover > 0);
+      assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    } else {
+      assert.ok(d.hitchBytes < 10_000, "must shrink 10KB wave");
+      assert.ok(d.plusNetEth > 0, "1× hitch this tx must leave plus");
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("HAT earnings fuel cannot size hitch past leftover (would flip green red)", () => {
+    const leftover = 0.0001;
+    const sized = sizeHatBytesForWave({
+      leftoverEth: leftover,
+      earningsEth: 0.002, // used to add 50% as extra hitch fuel
+      gwei: 0.05,
+      wantedBytes: 10_000,
+      hitchCostMult: 1,
+    });
+    assert.ok(
+      sized.skipHitch || plusAfterHitchEth(leftover, sized.injectCostEth) > 0,
+      "hitch cost must not exceed leftover",
+    );
+    assert.ok(sized.spendableEth <= leftover + 1e-18);
+  });
+
+  it("conservative proceeds take min(mark, quote) so Dex cannot paint a Uni fill green", () => {
+    assert.equal(conservativeSellProceedsEth({ markEth: 0.01, quotedEth: 0.008 }), 0.008);
+    assert.equal(conservativeSellProceedsEth({ markEth: 0.008, quotedEth: 0.01 }), 0.008);
+    assert.equal(conservativeSellProceedsEth({ markEth: 0.01, quotedEth: 0 }), 0.01);
+    assert.equal(wei18ToEth(10n ** 15n), 0.001);
+    assert.ok(MIN_PLUS_ETH > 0);
+    assert.match(formatAlwaysPlusLog({
+      verdict: "PLUS", symbol: "GAME", leftover: 1e-5, entrySold: 0.01, feesEth: 1e-6, hitchCostEth: 1e-8, netEth: 9.99e-6, hitchBytes: 69,
+    }), /PLUS sell GAME/);
+  });
+});
+
+describe("always-plus exit — BASECAT/DRB FIFO red-sell classes", () => {
+  // Risk-desk FIFO: 31 red sells (proceeds < buy cost).
+  // BASECAT 12, MORPHO 4, SKI 4, LINK 3, UNI 3, AERO 2, VVV 2, DRB 1.
+  // Worst BASECAT: 0xe53b1f70… 0xd42cca53… 0x753ce264…
+  // DRB hitch-prove 0xb495213f… tiny red (−5.4e-7 ETH).
+  // Numbers below are class mirrors (proceeds < soldFrac×entry, or hitch would
+  // flip a hair of plus red). Not invented live P&L for those hashes.
+  const FIFO_RED_SYMBOLS = ["BASECAT", "MORPHO", "SKI", "LINK", "UNI", "AERO", "VVV", "DRB"];
+  const basecatUnderwater = {
+    symbol: "BASECAT",
+    reason: "🎯 MAX PEAK",
+    sellPct: 0.98, // piggy leave-behind
+    entryEth: 0.001,
+    projectedProceedsEth: 0.00070, // proceeds < soldFrac × entry
+    feePct: 0.010, // catalog BASECAT Uni v3 1%
+    gasCostEth: 0.00002,
+    impactPct: 0.003,
+    gwei: 0.05,
+    wantedHitchBytes: STORE_HITCH_BYTES,
+  };
+
+  it("BASECAT 0xe53b1f70 / 0xd42cca53 / 0x753ce264 class: proceeds < buy cost HOLDs", () => {
+    const d = evaluateSellGate(basecatUnderwater);
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover <= 0);
+    assert.equal(d.skipHitch, true);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("BASECAT STOP LOSS and moonshot still HOLD underwater even when ALLOW_LOSSY is on", () => {
+    for (const reason of ["STOP LOSS", "🌙 MOONSHOT TRIM — not in active tiers"]) {
+      const d = evaluateSellGate({
+        ...basecatUnderwater,
+        reason,
+        env: { ALLOW_LOSSY_OPERATOR_SELL: "yes" },
+      });
+      assert.equal(d.allow, false, reason);
+      assert.equal(d.verdict, "HOLD", reason);
+    }
+    const op = evaluateSellGate({
+      ...basecatUnderwater,
+      reason: "MANUAL SELL (operator) 50%",
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
+    });
+    assert.equal(op.allow, false, "dust BASECAT is not Game FORCE_EXIT priority");
+    assert.equal(op.verdict, "HOLD");
+  });
+
+  it("Dex mark cannot paint BASECAT green when Uni quote is underwater", () => {
+    const markEth = 0.00120; // looks plus vs 0.001 entry
+    const quotedEth = 0.00072; // fill thinner than soldFrac × entry
+    const proc = conservativeSellProceedsEth({ markEth, quotedEth });
+    assert.equal(proc, quotedEth);
+    const d = evaluateSellGate({
+      ...basecatUnderwater,
+      projectedProceedsEth: proc,
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+  });
+
+  it("FIFO red symbols (31 sells) HOLD the same underwater class", () => {
+    for (const symbol of FIFO_RED_SYMBOLS) {
+      const d = evaluateSellGate({ ...basecatUnderwater, symbol });
+      assert.equal(d.allow, false, symbol);
+      assert.equal(d.verdict, "HOLD", symbol);
+    }
+  });
+
+  it("DRB 0xb495213f class: leftover after fees already −5.4e-7 HOLDs", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 - 5.4e-7,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      impactPct: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.ok(d.leftover < 0);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("DRB 0xb495213f hitch-prove: hitch that would print −5.4e-7 sizes DOWN or SKIP", () => {
+    // leftover after fees is a hair of plus; planned VITA packet L1 would flip red.
+    const leftover = 1e-7;
+    const hitchWould = leftover + 5.4e-7;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      impactPct: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400, // planned KEY+LOC packet, not 10-byte §$STORE§
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      reservedL1FeeEth: hitchWould * STORE_HITCH_BYTES / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, true, "must still take the plus — never HOLD a green leftover");
+    assert.ok(d.leftover > 0);
+    assert.ok(d.plusNetEth > 0, "net after 1× this-tx hitch (or skip) must stay plus");
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.equal(d.injectCostEth, 0);
+      assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    } else {
+      // size hitch DOWN so the 400B packet cannot print −5.4e-7
+      assert.ok(d.hitchBytes < 400, "must not send the full packet that would go red");
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("VITA planned packet sizes DOWN to leftover-after-plus (not 10-byte tag floor)", () => {
+    const leftover = 0.00005;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: 0.00002,
+      l1FeePerByteEth: 0.00002 / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 MAX PEAK",
+      symbol: "DRB",
+    });
+    assert.equal(d.allow, true);
+    assert.ok(d.leftover > 0);
+    if (d.skipHitch) {
+      assert.equal(d.verdict, "SKIP_HITCH");
+      assert.ok(d.plusNetEth > 0);
+    } else {
+      assert.ok(d.hitchBytes > 0);
+      assert.ok(d.hitchBytes <= 400);
+      assert.ok(plusAfterHitchEth(d.leftover, d.injectCostEth) > 0);
+      assert.equal(d.verdict, "PLUS");
+    }
+  });
+
+  it("hitch-embedded FIFO red (UNI10/DRB5/BASECAT2/LINK2) cannot send — HOLD or SKIP hitch", () => {
+    // Live tip 977e839 after #62 opened: 19 new reds, all hitch-embedded.
+    // Class mirrors — not invented live P&L for 0xadd3b2e4… 0x1d2a7c29…
+    // 0x4f8c461a… 0xc304e13a…
+    const hitchEmbedded = [
+      { symbol: "BASECAT", hash: "0xadd3b2e4", feePct: 0.010 },
+      { symbol: "UNI", hash: "0x1d2a7c29", feePct: 0.003 },
+      { symbol: "DRB", hash: "0x4f8c461a", feePct: 0.010 },
+      { symbol: "LINK", hash: "0xc304e13a", feePct: 0.003 },
+    ];
+    for (const row of hitchEmbedded) {
+      const underwater = evaluateSellGate({
+        ...basecatUnderwater,
+        symbol: row.symbol,
+        feePct: row.feePct,
+        wantedHitchBytes: 400,
+        reason: "🎯 PEAK RIDE",
+      });
+      assert.equal(underwater.allow, false, `${row.hash} ${row.symbol} proceeds < buy cost`);
+      assert.equal(underwater.verdict, "HOLD", row.hash);
+      assert.equal(underwater.skipHitch, true, `${row.hash} must not hitch-embed a red exit`);
+
+      const leftover = 1e-7;
+      const hitchWould = leftover + 5.4e-7;
+      const thinPlus = evaluateSellGate({
+        projectedProceedsEth: 0.01 + leftover,
+        entryEth: 0.01,
+        sellPct: 1,
+        feePct: 0,
+        gasCostEth: 0,
+        gwei: 0.05,
+        wantedHitchBytes: 400,
+        l1FeeEth: hitchWould,
+        l1FeePerByteEth: hitchWould / 400,
+        hitchFeeSource: "getL1Fee",
+        reason: "🎯 PEAK RIDE",
+        symbol: row.symbol,
+      });
+      assert.equal(thinPlus.allow, true, `${row.hash} plain plus must still sell`);
+      assert.ok(thinPlus.plusNetEth > 0, `${row.hash} net after hitch/skip must stay plus`);
+      if (thinPlus.skipHitch) {
+        assert.equal(thinPlus.verdict, "SKIP_HITCH");
+        assert.equal(thinPlus.injectCostEth, 0);
+      } else {
+        assert.ok(thinPlus.hitchBytes < 400, `${row.hash} must not send full KEY+LOC that would go red`);
+        assert.ok(plusAfterHitchEth(thinPlus.leftover, thinPlus.injectCostEth) > 0);
+      }
+    }
+  });
+});
+
+describe("always-plus harden — FIFO remaining cost + plus floor (defense in depth)", () => {
+  // PRE-#62 Online class (mined before Railway 66158bd6 Online 2026-09-11T16:04:54Z).
+  // Sell times ET: BASECAT 0xef4d… 11:55:07; UNI 0xeca2… 11:56:33;
+  // BASECAT 0x1cb9… 11:58:53; DRB 0x5622… 11:59:01. Not a #62 tip leak after Online.
+  // Class still proves exits-only / HOLD-if-thin / unknown-cost could sell red
+  // on the old tip. Current main already has #62–#64; these tests close leftover
+  // holes (cash-flow leftover as remaining cost, unknown lots, plus-floor minOut).
+
+  it("known-cost red (proceeds < buy cost) HOLDs", () => {
+    const d = evaluateSellGate({
+      symbol: "UNI",
+      reason: "🎯 MAX PEAK",
+      sellPct: 1,
+      entryEth: 0.01,
+      projectedProceedsEth: 0.008,
+      feePct: 0.003,
+      gasCostEth: 0.00002,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /leftover after fees|FIFO red|lose money/i);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+  });
+
+  it("hitch would wipe plus → SKIP_HITCH; still HOLD if leftover is red", () => {
+    const leftover = 1e-7;
+    const hitchWould = leftover + 5.4e-7;
+    const skip = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 PEAK RIDE",
+      symbol: "DRB",
+    });
+    assert.equal(skip.allow, true);
+    assert.ok(skip.verdict === "SKIP_HITCH" || skip.verdict === "PLUS");
+    assert.ok(skip.plusNetEth > 0);
+    if (skip.skipHitch) {
+      assert.equal(skip.verdict, "SKIP_HITCH");
+      assert.equal(skip.injectCostEth, 0);
+    } else {
+      assert.ok(skip.hitchBytes < 400);
+      assert.ok(plusAfterHitchEth(skip.leftover, skip.injectCostEth) > 0);
+    }
+
+    const stillRed = evaluateSellGate({
+      projectedProceedsEth: 0.01 - 5.4e-7,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      wantedHitchBytes: 400,
+      l1FeeEth: hitchWould,
+      l1FeePerByteEth: hitchWould / 400,
+      hitchFeeSource: "getL1Fee",
+      reason: "🎯 PEAK RIDE",
+      symbol: "DRB",
+    });
+    assert.equal(stillRed.allow, false);
+    assert.equal(stillRed.verdict, "HOLD");
+    assert.equal(stillRed.skipHitch, true);
+    assert.match(stillRed.alwaysPlusLog, /HOLD/);
+  });
+
+  it("unknown cost HOLDs — do not sell red to discover", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.004,
+      entryEth: 0,
+      sellPct: 1,
+      unknownEntry: true,
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+      symbol: "BASECAT",
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /unknown cost/);
+  });
+
+  it("exits-only BASECAT cannot bypass always-plus", () => {
+    const d = evaluateSellGate({
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      sellPct: 0.98,
+      entryEth: 0.001,
+      projectedProceedsEth: 0.00070,
+      feePct: 0.010,
+      gasCostEth: 0.00002,
+      impactPct: 0.003,
+      gwei: 0.05,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      exitsOnly: true,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /FIFO red|lose money|unknown cost|exits-only/i);
+
+    const unknownExits = evaluateSellGate({
+      symbol: "BASECAT",
+      reason: "🎯 PEAK RIDE",
+      sellPct: 1,
+      entryEth: 0,
+      projectedProceedsEth: 0.0005,
+      unknownEntry: true,
+      exitsOnly: true,
+      gwei: 0.05,
+    });
+    assert.equal(unknownExits.allow, false);
+    assert.equal(unknownExits.verdict, "HOLD");
+  });
+
+  it("cash-flow leftover after a plus partial must not paint remaining FIFO red as PLUS", () => {
+    const ethIn = 0.01;
+    const tokensIn = 1000;
+    const remaining = 500;
+    const ethOut = 0.008; // sold half for a plus (lot cost 0.005)
+    const lie = cashFlowNetEth(ethIn, ethOut); // 0.002 — understates remaining FIFO 0.005
+    const fifo = fifoRemainingCostEth({ ethIn, tokensIn, remainingTokens: remaining });
+    assert.equal(fifo.unknown, false);
+    assert.ok(Math.abs(fifo.investedEth - 0.005) < 1e-12);
+    assert.ok(lie < fifo.investedEth, "cash-flow leftover is the cheap lie");
+
+    const proceeds = 0.004; // remaining half now below FIFO, above the lie
+    const painted = evaluateSellGate({
+      projectedProceedsEth: proceeds,
+      entryEth: lie,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      exitsOnly: true,
+    });
+    assert.equal(painted.allow, true, "documents the leftover hole: understated cash-flow entry looks PLUS");
+
+    const honest = evaluateSellGate({
+      projectedProceedsEth: proceeds,
+      entryEth: fifo.investedEth,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      exitsOnly: true,
+    });
+    assert.equal(honest.allow, false);
+    assert.equal(honest.verdict, "HOLD");
+    assert.match(honest.log, /FIFO red|leftover after fees|proceeds/);
+  });
+
+  it("missing tokensIn does not trust persisted cash-flow leftover", () => {
+    const persistedLie = 0.002; // old boot ethIn−ethOut after a plus partial
+    const fifo = fifoRemainingCostEth({
+      ethIn: 0.01,
+      tokensIn: 0,
+      remainingTokens: 500,
+      persistedInvestedEth: persistedLie,
+    });
+    assert.equal(fifo.unknown, true);
+    assert.equal(fifo.investedEth, 0);
+    assert.equal(fifo.reason, "unknown-cost");
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.004,
+      entryEth: fifo.investedEth,
+      unknownEntry: fifo.unknown,
+      sellPct: 1,
+      symbol: "BASECAT",
+      reason: "🎯 MAX PEAK",
+      exitsOnly: true,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /unknown cost/);
+  });
+
+  it("unknown lots (remaining > recorded buys) HOLDs", () => {
+    const fifo = fifoRemainingCostEth({
+      ethIn: 0.01,
+      tokensIn: 100,
+      remainingTokens: 250,
+    });
+    assert.equal(fifo.unknown, true);
+    assert.equal(fifo.reason, "unknown-lots");
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.02,
+      entryEth: fifo.investedEth,
+      unknownEntry: fifo.unknown,
+      sellPct: 1,
+      symbol: "UNI",
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+  });
+
+  it("evidence-latched remain/bought just over 1.02 excludes pre-buy dust (VIRTUAL class)", () => {
+    assert.equal(UNKNOWN_LOTS_BAND, 1.02);
+    assert.equal(EVIDENCE_LOT_DUST_BAND, 1.025);
+    const bought = 1.64196;
+    const remain = 1.67510;
+    const dust = remain - bought;
+    assert.ok(Math.abs(dust - 0.03314) < 1e-9);
+    const ratio = remain / bought;
+    assert.ok(ratio > UNKNOWN_LOTS_BAND, "live VIRTUAL trips the default 1.02 band");
+    assert.ok(ratio < EVIDENCE_LOT_DUST_BAND, "still inside evidence dust band");
+    assert.ok(remain - bought * UNKNOWN_LOTS_BAND > 0.00029);
+    assert.ok(remain - bought * UNKNOWN_LOTS_BAND < 0.00032);
+
+    const bare = fifoRemainingCostEth({
+      ethIn: 0.000407,
+      tokensIn: bought,
+      remainingTokens: remain,
+    });
+    assert.equal(bare.unknown, true, "without evidence latch, 1.02018 still unknown-lots");
+    assert.equal(bare.reason, "unknown-lots");
+    assert.equal(fifoUnknownLots({ remainingTokens: remain, tokensIn: bought }), true);
+
+    const latched = fifoRemainingCostEth({
+      ethIn: 0.000407,
+      tokensIn: bought,
+      remainingTokens: remain,
+      evidenceLot: true,
+    });
+    assert.equal(latched.unknown, false);
+    assert.equal(latched.reason, "fifo-remaining");
+    assert.ok(Math.abs(latched.investedEth - 0.000407) < 1e-12, "cost is known lot ethIn, not invented");
+    assert.equal(fifoKnownLotRemain(remain, bought, { evidenceLot: true }), bought);
+    assert.equal(fifoUnknownLots({ remainingTokens: remain, tokensIn: bought, evidenceLot: true }), false);
+
+    const missingAddon = fifoRemainingCostEth({
+      ethIn: 0.000407,
+      tokensIn: bought,
+      remainingTokens: remain * 2,
+      evidenceLot: true,
+    });
+    assert.equal(missingAddon.unknown, true, "remain >> tokensIn still unknown even with evidence");
+    assert.equal(missingAddon.reason, "unknown-lots");
+
+    const green = evaluateSellGate({
+      projectedProceedsEth: 0.000407 + 9.6e-6,
+      entryEth: latched.investedEth,
+      unknownEntry: latched.unknown,
+      sellPct: 1,
+      symbol: "VIRTUAL",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(green.allow, true, "always-plus greens when quote covers known lot cost");
+    assert.ok(green.leftover > 0);
+
+    const red = evaluateSellGate({
+      projectedProceedsEth: 0.000407 * 0.7,
+      entryEth: latched.investedEth,
+      unknownEntry: latched.unknown,
+      sellPct: 1,
+      symbol: "VIRTUAL",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+  });
+
+  it("CLANKER first-slice rem vs both evidence fills: missing add-on unknown, merged known", () => {
+    const firstTok = Number(176300625186131008n) / 1e18;
+    const secondTok = Number(112885574807334430n) / 1e18;
+    const remain = Number(176300625186131008n + 112885574807334430n) / 1e18;
+    const firstEth = Number(812862739997724n) / 1e18;
+    const secondEth = Number(520483887364034n) / 1e18;
+    assert.ok(remain / firstTok > EVIDENCE_LOT_DUST_BAND, "first slice vs live rem is a missing add-on");
+    assert.equal(fifoUnknownLots({
+      remainingTokens: remain,
+      tokensIn: firstTok,
+      evidenceLot: true,
+    }), true);
+    const firstOnly = fifoRemainingCostEth({
+      ethIn: firstEth,
+      tokensIn: firstTok,
+      remainingTokens: remain,
+      evidenceLot: true,
+    });
+    assert.equal(firstOnly.unknown, true);
+    assert.equal(firstOnly.reason, "unknown-lots");
+
+    const merged = fifoRemainingCostEth({
+      ethIn: firstEth + secondEth,
+      tokensIn: firstTok + secondTok,
+      remainingTokens: remain,
+      evidenceLot: true,
+    });
+    assert.equal(merged.unknown, false);
+    assert.equal(merged.reason, "fifo-remaining");
+    assert.ok(Math.abs(merged.investedEth - (firstEth + secondEth)) < 1e-12);
+
+    const green = evaluateSellGate({
+      projectedProceedsEth: merged.investedEth + 9.6e-6,
+      entryEth: merged.investedEth,
+      unknownEntry: merged.unknown,
+      sellPct: 1,
+      symbol: "CLANKER",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(green.allow, true, "always-plus greens when quote covers merged lot cost");
+    const red = evaluateSellGate({
+      projectedProceedsEth: merged.investedEth * 0.7,
+      entryEth: merged.investedEth,
+      unknownEntry: merged.unknown,
+      sellPct: 1,
+      symbol: "CLANKER",
+      reason: "MANUAL SELL (operator)",
+    });
+    assert.equal(red.allow, false);
+    assert.equal(red.verdict, "HOLD");
+  });
+
+  it("after partial sell, same dust vs original buy stays known (not remain/bought of rem lot)", () => {
+    const bought = 1.641959873796611;
+    const sold = 0.34732176459228256;
+    const knownRem = bought - sold;
+    const onChain = 1.3277735025554778;
+    const extra = onChain - knownRem;
+    assert.ok(extra > 0.033 && extra < 0.034);
+    assert.ok(onChain / knownRem > EVIDENCE_LOT_DUST_BAND, "old remain/bought of rem lot trips 1.025");
+
+    const wiped = fifoUnknownLots({
+      remainingTokens: onChain,
+      tokensIn: knownRem,
+      evidenceLot: true,
+    });
+    assert.equal(wiped, true, "without originalTokensIn the rem-lot ratio still trips");
+
+    const ok = fifoUnknownLots({
+      remainingTokens: onChain,
+      tokensIn: knownRem,
+      evidenceLot: true,
+      originalTokensIn: bought,
+      piggyDustTokens: extra,
+    });
+    assert.equal(ok, false, "original buy + dust piggy never unknown the rem lot");
+
+    const cost = fifoRemainingCostEth({
+      ethIn: 0.000407247374272554 * knownRem / bought,
+      tokensIn: knownRem,
+      remainingTokens: onChain,
+      evidenceLot: true,
+      originalTokensIn: bought,
+      piggyDustTokens: extra,
+    });
+    assert.equal(cost.unknown, false);
+    assert.ok(cost.investedEth > 0);
+    const green = evaluateSellGate({
+      projectedProceedsEth: cost.investedEth + 9.6e-6,
+      entryEth: cost.investedEth,
+      unknownEntry: cost.unknown,
+      sellPct: 1,
+      symbol: "VIRTUAL",
+      reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(green.allow, true);
+  });
+
+  it("plus floor HOLDs when quote is below FIFO cost; raises minOut otherwise", () => {
+    const entry = 0.01;
+    const floor = plusFloorOutWei(entry);
+    assert.ok(floor > 0n);
+    const below = applySellPlusFloorMinOut({
+      minOutWei: 1n,
+      quotedWei: floor - 1n,
+      entrySoldEth: entry,
+    });
+    assert.equal(below.allow, false);
+    assert.equal(below.reason, "quote-below-cost");
+
+    const unknown = applySellPlusFloorMinOut({
+      minOutWei: 1n,
+      quotedWei: 10n ** 16n,
+      entrySoldEth: 0,
+    });
+    assert.equal(unknown.allow, false);
+    assert.equal(unknown.reason, "unknown-cost");
+
+    const quote = 12n * 10n ** 15n; // 0.012 ETH
+    const slip = 85n * quote / 100n; // 0.0102 — still above cost
+    const raised = applySellPlusFloorMinOut({
+      minOutWei: slip,
+      quotedWei: quote,
+      entrySoldEth: entry,
+    });
+    assert.equal(raised.allow, true);
+    assert.ok(raised.minOutWei >= floor);
+    assert.ok(raised.minOutWei <= quote);
+  });
+});
+
+describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
+  // Live AERO 0x326f41af / DRB 0x808acc7d: Friday sellMod +0.08 + Fri-close
+  // UTC 19–22 flipped operator lots FIFO red (tiny eth). Desk cannot set an
+  // env that does not exist yet — unset must kill Friday without Railway.
+
+  it("isDisableDowBias is ON when unset (hotfix default)", () => {
+    assert.equal(isDisableDowBias({}), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "yes" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "true" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "1" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "on" }), true);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "no" }), false);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "false" }), false);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "0" }), false);
+    assert.equal(isDisableDowBias({ DISABLE_DOW_BIAS: "off" }), false);
+  });
+
+  it("zeros Friday sellMod +0.08 and skips Fri-close when unset", () => {
+    const friday = { name: "Friday", buyMod: -0.04, sellMod: +0.08, note: "Weekend de-risk" };
+    const killed = applyDowBiasDisable(friday, {});
+    assert.equal(killed.sellMod, 0);
+    assert.equal(killed.buyMod, 0);
+    const restored = applyDowBiasDisable(friday, { DISABLE_DOW_BIAS: "no" });
+    assert.equal(restored.sellMod, 0.08);
+    const friClose = new Date(Date.UTC(2026, 8, 11, 20, 0, 0)); // Fri Sep 11 2026 20:00 UTC
+    assert.equal(friClose.getUTCDay(), 5);
+    assert.equal(isFridayCloseWindow({ now: friClose, env: {} }), false);
+    assert.equal(isFridayCloseWindow({ now: friClose, env: { DISABLE_DOW_BIAS: "no" } }), true);
+  });
+
+  it("operator buy lot that would exit FIFO red HOLDs — Friday de-risk cannot sell", () => {
+    const lot = latchFreshLot({}, {
+      fillCostEth: 0.00045,
+      tokens: 2,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(freshLotCostFloor(lot), 0.00045);
+    const understated = 0.00001; // pre-latch leftover that painted PLUS
+    const entry = sellEntryEthWithLotFloor(understated, lot);
+    assert.equal(entry, 0.00045);
+    const proceeds = 0.00045 - 0.0000036; // live-class tiny FIFO red
+    const d = buildSellGateDecision({
+      symbol: "AERO",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 0.98,
+      entryEth: understated,
+      lotCostEth: freshLotCostFloor(lot),
+      usdMarkProceedsEth: 0.00045 * 0.705, // −29.5% USD-mark
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: proceeds,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /operator\/fresh lot|FIFO red|lose money|USD-mark/i);
+
+    const fifoOnly = evaluateSellGate({
+      symbol: "DRB",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(fifoOnly.allow, false, "tiny FIFO eth red must HOLD with no USD mark");
+    assert.equal(fifoOnly.verdict, "HOLD");
+
+    const lossyDrb = evaluateSellGate({
+      symbol: "DRB",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
+    });
+    assert.equal(lossyDrb.allow, true, "AERO/DRB/BNKR + ALLOW_LOSSY must unwind FIFO-red operator lot");
+    assert.equal(lossyDrb.skipHitch, true);
+    assert.equal(lossyDrb.verdict, "LOSSY_OPERATOR");
+
+    const lossyClanker = evaluateSellGate({
+      symbol: "CLANKER",
+      reason: "🌙 INJECT FUEL — recycle known bag for cascade",
+      sellPct: 0.9,
+      entryEth: 1.335e-3,
+      lotCostEth: 1.335e-3,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 1.16e-3,
+      usdMarkProceedsEth: 1.16e-3,
+      feePct: 0.01,
+      gasCostEth: 1.8e-5,
+      impactPct: 0.003,
+      gwei: 0.05,
+      env: { ALLOW_LOSSY_OPERATOR_SELL: "yes", FORCE_EXIT_LOCKED_MAJORS: "no" },
+    });
+    assert.equal(lossyClanker.allow, true, "CLANKER on GAME_FORCE_EXIT_PRIORITY + ALLOW_LOSSY unwinds FIFO-red inject fuel");
+    assert.equal(lossyClanker.skipHitch, true, "red force unwind hitch SKIP — cascade redeploys for memory");
+    assert.equal(lossyClanker.verdict, "LOSSY_OPERATOR");
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "CLANKER"),
+      true,
+    );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "no" }, "CLANKER"),
+      false,
+    );
+
+    const forceBnkr = evaluateSellGate({
+      symbol: "BNKR",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      env: {
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR",
+      },
+    });
+    assert.equal(forceBnkr.allow, true, "FORCE_EXIT_SYMBOLS AERO/DRB/BNKR must unwind");
+    assert.equal(forceBnkr.skipHitch, true, "red FORCE EXIT recovery never hitch");
+    assert.equal(forceBnkr.verdict, "FORCE_EXIT");
+
+    const forceGreenHitch = evaluateSellGate({
+      symbol: "BNKR",
+      reason: "PIGGY UNLOCK BNKR — FORCE EXIT LOCKED (cash free, no cascade)",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00012,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      l1FeeEth: 1e-8,
+      hitchFeeSource: "oracle",
+      wantedHitchBytes: 69,
+      env: {
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR",
+        VITA_MESSAGE_FIRST: "yes",
+      },
+    });
+    assert.equal(forceGreenHitch.allow, true);
+    assert.equal(forceGreenHitch.verdict, "PLUS");
+    assert.equal(forceGreenHitch.skipHitch, false, "green FORCE EXIT hitch when message-first covers");
+    assert.ok(forceGreenHitch.hitchBytes > 0);
+
+    const forceGreenMute = evaluateSellGate({
+      symbol: "BNKR",
+      reason: "PIGGY UNLOCK BNKR — FORCE EXIT LOCKED (cash free, no cascade)",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00001,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00012,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      l1FeeEth: 1e-8,
+      hitchFeeSource: "oracle",
+      wantedHitchBytes: 69,
+      env: {
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR",
+        VITA_MESSAGE_FIRST: "no",
+      },
+    });
+    assert.equal(forceGreenMute.allow, true);
+    assert.equal(forceGreenMute.verdict, "PLUS");
+    assert.equal(forceGreenMute.skipHitch, true, "VITA_MESSAGE_FIRST=no keeps plain green FORCE EXIT");
+
+    const forceReasonDrb = evaluateSellGate({
+      symbol: "DRB",
+      reason: "PIGGY UNLOCK DRB — FORCE EXIT LOCKED (cash free, no cascade)",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      env: {
+        ALLOW_LOSSY_OPERATOR_SELL: "no",
+        FORCE_EXIT_LOCKED_MAJORS: "no",
+        FORCE_EXIT_SYMBOLS: "",
+      },
+    });
+    assert.equal(forceReasonDrb.allow, true, "FORCE EXIT LOCKED reason must bypass always-plus / FIFO-red");
+    assert.equal(forceReasonDrb.skipHitch, true);
+    assert.equal(forceReasonDrb.verdict, "FORCE_EXIT");
+
+    const dustSkipped = evaluateSellGate({
+      symbol: "BASECAT",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00001,
+      lotCostEth: 0.00045,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00045 - 0.0000036,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+      env: {
+        ALLOW_LOSSY_OPERATOR_SELL: "yes",
+        FORCE_EXIT_LOCKED_MAJORS: "yes",
+        FORCE_EXIT_SYMBOLS: "AERO,DRB,BNKR,BASECAT",
+      },
+    });
+    assert.equal(dustSkipped.allow, false, "dust names are not Game FORCE_EXIT priority");
+
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { FORCE_EXIT_LOCKED_MAJORS: "no" }, "DRB"),
+      false,
+    );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "DRB"),
+      true,
+    );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "TOSHI"),
+      false,
+    );
+  });
+
+  it("USD-mark below breakeven HOLDs even if a quote leftover looks plus", () => {
+    const d = evaluateSellGate({
+      symbol: "DRB",
+      reason: "🎯 PEAK RIDE",
+      sellPct: 1,
+      entryEth: 0.00045,
+      lotCostEth: 0.00045,
+      usdMarkProceedsEth: 0.00045 * 0.705,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00046, // quote looks plus vs fill
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.match(d.log, /USD-mark below breakeven|operator\/fresh lot/i);
+  });
+
+  it("green operator/fresh exit still sells (SKIP_HITCH or PLUS)", () => {
+    const d = evaluateSellGate({
+      symbol: "AERO",
+      reason: "📅 Friday weekend de-risk sell+8%",
+      sellPct: 1,
+      entryEth: 0.00045,
+      lotCostEth: 0.00045,
+      usdMarkProceedsEth: 0.00055,
+      operatorLot: true,
+      freshLot: true,
+      projectedProceedsEth: 0.00055,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 0.05,
+    });
+    assert.equal(d.allow, true);
+    assert.ok(d.verdict === "SKIP_HITCH" || d.verdict === "PLUS");
+    assert.ok(d.leftover > 0);
+    clearFreshLot({ operatorLot: { fillCostEth: 1 } });
+    assert.equal(usdMarkBelowBreakeven({ markProceedsEth: 0.001, entrySoldEth: 0.002 }), true);
+    assert.equal(usdMarkBelowBreakeven({ markProceedsEth: 0.002, entrySoldEth: 0.001 }), false);
+  });
+});
+
+describe("ADD_ON_FIFO_RED — block stacking into a red known FIFO lot", () => {
+  // Live after #83: auto DRB trough add-on filled 0x53a00788… into a
+  // FIFO-red bag. Game wants wait PLUS+hitch only unless override.
+
+  const redBag = {
+    symbol: "DRB",
+    tokenBal: 2844,
+    remainingFifoEth: 0.00045,
+    markProceedsEth: 0.00045 * 0.70,
+    unknownEntry: false,
+  };
+
+  it("ALLOW_ADD_ON_FIFO_RED defaults OFF (unset / no block; yes/true/1/on allow)", () => {
+    assert.equal(isAllowAddOnFifoRed({}), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "no" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "false" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "0" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "off" }), false);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "yes" }), true);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "true" }), true);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "1" }), true);
+    assert.equal(isAllowAddOnFifoRed({ ALLOW_ADD_ON_FIFO_RED: "on" }), true);
+  });
+
+  it("bag mark proceeds is units × USD / ETHUSD (same as executeSell)", () => {
+    assert.equal(bagMarkProceedsEth({ tokenBal: 100, priceUsd: 2, ethUsd: 4000 }), 0.05);
+    assert.equal(bagMarkProceedsEth({ tokenBal: 0, priceUsd: 2, ethUsd: 4000 }), 0);
+    assert.equal(bagMarkProceedsEth({ tokenBal: 100, priceUsd: 0, ethUsd: 4000 }), 0);
+  });
+
+  it("FIFO-red inject-pullback add-on is blocked by default", () => {
+    const d = evaluateAddOnFifoRedGate({
+      ...redBag,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.blocked, true);
+    assert.equal(d.reason, "fifo-red");
+    assert.match(d.log, /ADD_ON_FIFO_RED: skip add-on DRB/);
+    assert.match(d.log, /existing FIFO lot is red/);
+    assert.match(d.log, /wait PLUS\+hitch/);
+    assert.equal(isFifoRedLot({
+      markProceedsEth: redBag.markProceedsEth,
+      remainingFifoEth: redBag.remainingFifoEth,
+    }), true);
+  });
+
+  it("FIFO-red OPERATOR_BUY / Telegram /buy add-on is blocked (operator leftover bypass does not apply)", () => {
+    const d = evaluateAddOnFifoRedGate({
+      ...redBag,
+      reason: "MANUAL BUY (operator) $2",
+      env: {},
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.blocked, true);
+    assert.equal(d.reason, "fifo-red");
+    assert.match(d.log, /skip add-on DRB/);
+    // leftover+edge still allows operator first-buys; this gate is separate.
+    const leftover = evaluateBuyGate({
+      leftover: 0,
+      hasEdge: false,
+      symbol: "DRB",
+      reason: "MANUAL BUY (operator) $2",
+      env: { LOSE_ZERO: "yes" },
+    });
+    assert.equal(leftover.allow, true);
+  });
+
+  it("first buy into empty/flat is allowed", () => {
+    const empty = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0,
+      remainingFifoEth: 0,
+      markProceedsEth: 0,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(empty.allow, true);
+    assert.equal(empty.reason, "flat-or-empty");
+    assert.equal(empty.log, null);
+
+    const dust = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0.0004,
+      remainingFifoEth: 0,
+      markProceedsEth: 0,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(dust.allow, true);
+    assert.equal(dust.reason, "flat-or-empty");
+
+    // Post-flatten AERO leftover: token count > ADD_ON_BAG_MIN_TOKENS but USD dust.
+    // Persist FIFO still red — must not block the first re-entry.
+    const flattenDust = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 0.04,
+      remainingFifoEth: 0.00147,
+      markProceedsEth: 0.000008,
+      bagUsd: 0.02,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(flattenDust.allow, true);
+    assert.equal(flattenDust.reason, "flat-or-empty");
+    assert.ok(0.02 < ADD_ON_BAG_MIN_USD);
+    const stillRedWithoutUsd = evaluateAddOnFifoRedGate({
+      symbol: "AERO",
+      tokenBal: 0.04,
+      remainingFifoEth: 0.00147,
+      markProceedsEth: 0.000008,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(stillRedWithoutUsd.allow, false, "without bagUsd, token-count still sees a known red lot");
+
+    const unknownDust = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 12,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.00001,
+      bagUsd: 0.03,
+      unknownEntry: true,
+      reason: "MANUAL BUY (operator) $2",
+      env: {},
+    });
+    assert.equal(unknownDust.allow, true);
+    assert.equal(unknownDust.reason, "flat-or-empty");
+    const unknownBag = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 2844,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.0002,
+      bagUsd: 0.38,
+      unknownEntry: true,
+      reason: "WAVE BUY",
+      env: {},
+    });
+    assert.equal(unknownBag.allow, false);
+    assert.equal(unknownBag.reason, "unknown-cost");
+    const unknownOperator = evaluateAddOnFifoRedGate({
+      symbol: "HOME",
+      tokenBal: 762,
+      remainingFifoEth: 0,
+      markProceedsEth: 0.0018,
+      bagUsd: 4.91,
+      unknownEntry: true,
+      reason: "MANUAL BUY (operator) $2.56",
+      env: {},
+    });
+    assert.equal(unknownOperator.allow, true);
+    assert.equal(unknownOperator.reason, "operator-unknown-add");
+    assert.match(unknownOperator.log, /MANUAL BUY \(operator\)/);
+    assert.equal(isUnknownCostBlockingAddOn({
+      unknownEntry: true,
+      tokenBal: 2844,
+      bagUsd: 0.38,
+    }), true);
+    assert.equal(isExistingKnownFifoBag({
+      tokenBal: 2844,
+      remainingFifoEth: 0,
+      unknownEntry: true,
+    }), false);
+  });
+
+  it("green / not-red known FIFO lot may still add on", () => {
+    const d = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 2844,
+      remainingFifoEth: 0.00045,
+      markProceedsEth: 0.00055,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.blocked, false);
+    assert.equal(d.reason, "fifo-not-red");
+    assert.equal(d.log, null);
+  });
+
+  it("ALLOW_ADD_ON_FIFO_RED override allows add-on into a red lot", () => {
+    const d = evaluateAddOnFifoRedGate({
+      ...redBag,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: { ALLOW_ADD_ON_FIFO_RED: "yes" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.blocked, false);
+    assert.equal(d.reason, "override");
+    assert.match(d.log, /Game override ALLOW_ADD_ON_FIFO_RED/);
+  });
+
+  it("leftover after plus partial uses remaining FIFO, not unshrunk lot floor", () => {
+    const leftover = latchFreshLot({
+      totalInvestedEth: 0.000045,
+      unknownEntry: false,
+    }, {
+      fillCostEth: 0.00045,
+      tokens: 284,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(sellEntryEthWithLotFloor(leftover.totalInvestedEth, leftover), 0.00045);
+    assert.equal(addOnRemainingFifoEth(leftover), 0.000045);
+    const leftoverMark = 0.00005;
+    const vsFloor = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 284,
+      remainingFifoEth: sellEntryEthWithLotFloor(leftover.totalInvestedEth, leftover),
+      markProceedsEth: leftoverMark,
+      env: {},
+    });
+    assert.equal(vsFloor.allow, false, "unshrunk floor would wrongly paint leftover red");
+    const vsRemain = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 284,
+      remainingFifoEth: addOnRemainingFifoEth(leftover),
+      markProceedsEth: leftoverMark,
+      reason: "💉 INJECT PULLBACK [PRIORITY]",
+      env: {},
+    });
+    assert.equal(vsRemain.allow, true);
+    assert.equal(vsRemain.reason, "fifo-not-red");
+
+    const dustCleared = latchFreshLot({
+      totalInvestedEth: 0,
+      unknownEntry: false,
+    }, {
+      fillCostEth: 0.00045,
+      tokens: 2,
+      reason: "MANUAL BUY (operator) $2",
+    });
+    assert.equal(addOnRemainingFifoEth(dustCleared), 0);
+    const dust = evaluateAddOnFifoRedGate({
+      symbol: "DRB",
+      tokenBal: 0.0004,
+      remainingFifoEth: addOnRemainingFifoEth(dustCleared),
+      markProceedsEth: 1e-6,
+      reason: "🎯 MIN TROUGH [PRIORITY]",
+      env: {},
+    });
+    assert.equal(dust.allow, true);
+    assert.equal(dust.reason, "flat-or-empty");
+  });
+});
+
+describe("micro extract vs hitch floor — hitch optional, red still HOLD", () => {
+  it("splits micro_floor vs hitch_floor; picture 10KB does not raise hitch packet", () => {
+    assert.equal(EUREKA_LETTER_BYTES, 229);
+    assert.equal(hitchFloorPacketBytes(STORE_HITCH_BYTES), STORE_HITCH_BYTES);
+    assert.equal(hitchFloorPacketBytes(69), 69);
+    assert.equal(hitchFloorPacketBytes(400), EUREKA_LETTER_BYTES);
+    assert.equal(hitchFloorPacketBytes(10_000), EUREKA_LETTER_BYTES);
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const micro = microExtractFloorEth({
+      entryEth: 0.01,
+      sellPct: 1,
+      projectedProceedsEth: 0.012,
+      feePct: 0,
+      gasCostEth: 0,
+    });
+    assert.ok(Math.abs(micro - (0.01 + MIN_PLUS_ETH)) < 1e-18);
+    assert.equal(hitchAttachNeedEth(hitch, 2), hitch * 2);
+    const hitchFloor = hitchAttachFloorEth({
+      entryEth: 0.01,
+      sellPct: 1,
+      projectedProceedsEth: 0.012,
+      hitchCostEth: hitch,
+      hitchCostMult: 2,
+    });
+    assert.ok(hitchFloor > micro);
+    assert.ok(Math.abs(hitchFloor - (micro + hitch * 2)) < 1e-18);
+    assert.equal(hitchBankCreditEth(hitch * 0.4, hitch), hitch * 0.4);
+    assert.equal(hitchBankCreditEth(hitch * 3, hitch), hitch);
+    assert.equal(hitchBankCreditEth(0, hitch), 0);
+  });
+
+  it("FIFO-red leftover after fees HOLDs — LOSE_ZERO underwater ban stays", () => {
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.009,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "AERO",
+      reason: "🎯 MAX PEAK",
+    });
+    assert.equal(d.allow, false);
+    assert.equal(d.verdict, "HOLD");
+    assert.equal(d.hitchBankedEth, 0);
+    assert.match(d.alwaysPlusLog, /HOLD/);
+    assert.match(d.log, /leftover after fees|lose money/i);
+  });
+
+  it("message-first: micro-green that covers 1× hitch sends hitch", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.2;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "DRB",
+      reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.verdict, "PLUS");
+    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.hitchBankedEth, 0);
+    assert.match(d.log, /message-first|KEY\+LOC 1×/i);
+    assert.match(d.alwaysPlusLog, /PLUS/);
+  });
+
+  it("VITA_MESSAGE_FIRST=no: micro-green sells without hitch and logs hitch-bank skip", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 1.2;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "DRB",
+      reason: "🎯 PEAK RIDE",
+      env: { VITA_MESSAGE_FIRST: "no" },
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, true);
+    assert.equal(d.verdict, "SKIP_HITCH");
+    assert.ok(d.hitchBankedEth > 0);
+    assert.match(d.alwaysPlusLog, /SKIP_HITCH/);
+    assert.match(d.alwaysPlusLog, /banked=/);
+    assert.match(d.log, /hitch skipped \+ banked|micro extract/);
+  });
+
+  it("hitch rides only when leftover covers hitch × 2 (banking reserved)", () => {
+    const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
+    const leftover = hitch * 2 + 0.0001;
+    const d = evaluateSellGate({
+      projectedProceedsEth: 0.01 + leftover,
+      entryEth: 0.01,
+      sellPct: 1,
+      feePct: 0,
+      gasCostEth: 0,
+      gwei: 1,
+      wantedHitchBytes: STORE_HITCH_BYTES,
+      symbol: "BNKR",
+      reason: "🎯 PEAK RIDE",
+    });
+    assert.equal(d.allow, true);
+    assert.equal(d.skipHitch, false);
+    assert.equal(d.verdict, "PLUS");
+    assert.ok(d.hitchBytes > 0);
+    assert.equal(d.hitchBankedEth, 0);
+    assert.match(d.log, /hitch floor/);
+    assert.match(d.alwaysPlusLog, /PLUS/);
   });
 });

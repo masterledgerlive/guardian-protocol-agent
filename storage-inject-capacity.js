@@ -25,6 +25,13 @@ import {
   INJECT_ALL_USD,
   cascadeGasFloorEth,
 } from "./cascade-rollover.js";
+import {
+  planPreservationMessages,
+  HITCH_BUDGETS,
+  DEFAULT_SITE_PATHS,
+  loadSiteFiles,
+  buildCanonicalSiteBlob,
+} from "./vita-hat.js";
 
 /** Reference media sizes — labeled for horizon math only. */
 export const MEDIA_REF = Object.freeze({
@@ -33,7 +40,20 @@ export const MEDIA_REF = Object.freeze({
   clip_64kib: 64 * 1024,
   movie_720p: 1.5 * 1024 * 1024 * 1024,
   movie_1080p: 4 * 1024 * 1024 * 1024,
+  /** Live site proof surface (arena + engine) — see vita-hat.js; labeled fallback. */
+  site_arena_engine_bytes: 52_981,
+  /** Full public HTML surface (arena+engine+board+v4) — labeled fallback. */
+  site_public_html_bytes: 88_555,
 });
+
+function liveSiteByteCount() {
+  try {
+    const files = loadSiteFiles(DEFAULT_SITE_PATHS);
+    return buildCanonicalSiteBlob(files).length;
+  } catch {
+    return MEDIA_REF.site_public_html_bytes;
+  }
+}
 
 /**
  * @param {object} live — overrides for LIVE_ASSUMPTIONS
@@ -59,6 +79,7 @@ export function reportInjectCapacity(live = {}) {
   const withCallToAdd = a.tradeableUsd + piggyUsd;
   const withBags = withCallToAdd + (a.bagsUsd || 0);
 
+  const siteBytes = liveSiteByteCount();
   const bytesPerCycle = gasPaused ? 0 : Math.min(maxBytes, 10 * 1024);
   const cycles = (size) =>
     bytesPerCycle > 0 ? Math.ceil(size / bytesPerCycle) : null;
@@ -106,9 +127,53 @@ export function reportInjectCapacity(live = {}) {
       clip_64kib_cycles: cycles(MEDIA_REF.clip_64kib),
       movie_720p_cycles: cycles(MEDIA_REF.movie_720p),
       movie_1080p_cycles: cycles(MEDIA_REF.movie_1080p),
+      site_arena_engine_cycles: cycles(siteBytes),
       equation:
         "Slow: piggy locks skim each win. Faster: call-to-add unlocks piggy → more leftover/BITS → larger hitch payloads + more swarm node rewards.",
     },
+    /**
+     * VITA HAT — encoded site preservation (append-only, 1-bit genesis first).
+     * Railway insert mirrors VAULT_*: HAT_ROOT_TX / HAT_STRAND_ID / HAT_CONTENT_HASH.
+     */
+    vita_hat: (() => {
+      const siteBits = siteBytes * 8;
+      const letterPlan = planPreservationMessages({
+        totalBits: siteBits,
+        hitchBudgetBytes: HITCH_BUDGETS.letter,
+      });
+      const livePlan = planPreservationMessages({
+        totalBits: siteBits,
+        hitchBudgetBytes: Math.max(
+          HITCH_BUDGETS.letter,
+          bytesPerCycle || HITCH_BUDGETS.letter
+        ),
+      });
+      return {
+        paths: DEFAULT_SITE_PATHS,
+        site_bytes: siteBytes,
+        site_bits: siteBits,
+        one_bit_genesis_first: true,
+        never_delete: true,
+        encoding: "hat-bitpack-v1 (hex bits — not plaintext HTML)",
+        railway_env: [
+          "HAT_ROOT_TX",
+          "HAT_STRAND_ID",
+          "HAT_CONTENT_HASH",
+          "HAT_K_MASTER",
+        ],
+        messages_at_letter_hitch: letterPlan.minMessages,
+        messages_at_live_leftover: livePlan.minMessages,
+        horizons_by_budget: letterPlan.budgets,
+          reader:
+            "node vita-hat.js → artifacts/hat-preserve-plan.json → reader.locations[]",
+          wave: {
+            note: "Payload grows with leftover+earnings after transmission error buffer; 1-bit is genesis min only",
+            module: "hat-wave-inject.js",
+            confirm_before_claim_sent: true,
+            exit_up_after_seal: true,
+          },
+        };
+      })(),
     lose_zero: {
       never_hitch_when_leftover_nonpositive: true,
       never_sell_underwater_to_insert_storage: true,

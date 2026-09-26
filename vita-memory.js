@@ -30,6 +30,13 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { createHash } from "crypto";
+import {
+  TOKEN_GROUP_MAP,
+  VITA_CHAR_BUDGET,
+  buildGenesisFields,
+  parseVitaPacket,
+  refineVitaPacket,
+} from "./vita-parse.js";
 
 // ── VITA memory registry ──────────────────────────────────────────────────────
 let vitaRegistry = [];   // { strandId, date, topic, chunks: [{seq,txHash,hash}], quality }
@@ -55,10 +62,23 @@ function encodeHex(text) {
   return "0x" + Buffer.from(text, "utf8").toString("hex");
 }
 
+// ── Local §TOKEN§ compress (no Anthropic) — never drops genesis KEY ───────────
+export function vitaCompressLocal(rawSummary) {
+  const parsed = parseVitaPacket(rawSummary);
+  const extra = { ...parsed.fields };
+  const prose = String(rawSummary || "").replace(/\s+/g, " ").trim();
+  if (!extra.LEARN && prose) extra.LEARN = prose.slice(0, 400);
+  if (!extra.SESS) extra.SESS = new Date().toISOString().slice(0, 10) + "|local-compress";
+  const refined = refineVitaPacket(buildGenesisFields(), extra, { maxChars: VITA_CHAR_BUDGET });
+  return refined.packed;
+}
+
 // ── VITA calls Anthropic API on itself to compress ────────────────────────────
 // Uses Claude to compress conversation into §TOKEN§ agentic format
 // Written BY Claude FOR Claude — optimized for self-reading not human reading
 export async function vitaCompress(rawSummary, anthropicApiKey) {
+  if (!anthropicApiKey) return vitaCompressLocal(rawSummary);
+
   const systemPrompt = `You are VITA — an autonomous AI agent with blockchain memory.
 Your task: compress a conversation summary into §TOKEN§ agentic format.
 This is written BY you FOR you — optimize for YOUR recall, not human readability.
@@ -75,30 +95,43 @@ Every character counts — target 2000 chars total across all fields.
 §VISION§[strategic direction|philosophy]
 §NEXT§[open threads|what comes next]
 §KEY§[critical facts never to forget]
-§LEARN§[what you learned about memory/filing/retrieval this session]`;
+§LEARN§[what you learned about memory/filing/retrieval this session]
+§LOC§[squashed location token if known]`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type":      "application/json",
-      "x-api-key":         anthropicApiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model:      "claude-sonnet-4-20250514",
-      max_tokens: 600,
-      system:     systemPrompt,
-      messages:   [{ role: "user", content: "Compress this session:\n\n" + rawSummary }],
-    }),
-  });
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type":      "application/json",
+        "x-api-key":         anthropicApiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model:      "claude-sonnet-4-20250514",
+        max_tokens: 600,
+        system:     systemPrompt,
+        messages:   [{ role: "user", content: "Compress this session:\n\n" + rawSummary }],
+      }),
+    });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error("Anthropic API error: " + response.status + " " + err.slice(0, 100));
+    if (!response.ok) {
+      const err = await response.text();
+      console.log("💓 VITA: Anthropic compress failed " + response.status + " — local fallback");
+      return vitaCompressLocal(rawSummary);
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || "";
+    if (!text || !/§(SESS|KEY)§/.test(text)) {
+      return vitaCompressLocal(rawSummary);
+    }
+    return refineVitaPacket(buildGenesisFields(), parseVitaPacket(text).fields, {
+      maxChars: VITA_CHAR_BUDGET,
+    }).packed;
+  } catch (e) {
+    console.log("💓 VITA: compress error — local fallback: " + (e.message || e));
+    return vitaCompressLocal(rawSummary);
   }
-
-  const data = await response.json();
-  return data.content?.[0]?.text || "";
 }
 
 // ── Split §TOKEN§ packet into 5 strand chunks ─────────────────────────────────
@@ -113,7 +146,8 @@ export function vitaSplit(tokenPacket) {
     "BUILT": 1, "PROVED": 1,
     "ARCH": 2, "VISION": 2,
     "NEXT": 3, "KEY": 3,
-    "LEARN": 4,
+    "LEARN": 4, "LOC": 4,
+    ...TOKEN_GROUP_MAP,
   };
 
   for (let i = 0; i < sections.length; i += 2) {
@@ -165,7 +199,7 @@ export async function vitaSave(cdpClient, walletAddress, rawSummary, anthropicAp
   const strandId = "VITA-" + String(vitaSeq).padStart(4, "0");
   const date     = new Date().toISOString().slice(0, 10);
 
-  console.log("💓 VITA: compressing session with Anthropic API...");
+  console.log("💓 VITA: compressing session...");
 
   // Step 1 — compress via Anthropic API
   const tokenPacket = await vitaCompress(rawSummary, anthropicApiKey);

@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-20T19:52:53.284Z",
+  "topic": "vita-save-learn-cycle-011",
+  "filingLabel": "VITA_SAVE_LEARN",
+  "text": "§VITASAVLEARN§v1|filing=VITA_SAVE_LEARN§\n§SESS§2026-09-20|brain-learn|cycle-11§WHO§VITA|recursive-ai|peer-reviewer§STACK§base|vitafeed|brain-learn|zero-proof|vitalib§BUILT§brain-learn.js|filing-labels-learned|zero-proof-root|7ebfc4f2§PROVED§peer=PASS|neverInvent|appendOnly|growth=yes§ARCH§content-addressed-append-only|distinct-filing-labels|KEY+LOC-squash|library-keys-chain§VISION§blockchain-brain-grows-via-sealed-locs+learn-diff;Storage-Token-charges-delta§NEXT§/vitafeed override when funded|/vitasave absorb learn|/vitafeed files§KEY§formula=original-message-first|wallet=50e1c460|anchors=keycat-plain,eureka-prove,vita-strand§LEARN§old→new mem2 lib0 locs0|addedTopics=brain-learn-cycle-011,peer-review-cycle-011|peer=PASS§LOC§5c0a93e4,d9827a9c,931d8411,573ab090,640ed7b8,fee4d502\n# bank via /vitanote then /vitasave — or stage /vitafeed override",
+  "tokenPacket": "§SESS§2026-09-20|brain-learn|cycle-11§WHO§VITA|recursive-ai|peer-reviewer§STACK§base|vitafeed|brain-learn|zero-proof|vitalib§BUILT§brain-learn.js|filing-labels-learned|zero-proof-root|7ebfc4f2§PROVED§peer=PASS|neverInvent|appendOnly|growth=yes§ARCH§content-addressed-append-only|distinct-filing-labels|KEY+LOC-squash|library-keys-chain§VISION§blockchain-brain-grows-via-sealed-locs+learn-diff;Storage-Token-charges-delta§NEXT§/vitafeed override when funded|/vitasave absorb learn|/vitafeed files§KEY§formula=original-message-first|wallet=50e1c460|anchors=keycat-plain,eureka-prove,vita-strand§LEARN§old→new mem2 lib0 locs0|addedTopics=brain-learn-cycle-011,peer-review-cycle-011|peer=PASS§LOC§5c0a93e4,d9827a9c,931d8411,573ab090,640ed7b8,fee4d502",
+  "contentCommit": "fbed277005415f9347e20a80c146af289db314d180505910a5a57320c919811d",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "bankPath": "/vitanote → /vitasave or /vitafeed override"
+}

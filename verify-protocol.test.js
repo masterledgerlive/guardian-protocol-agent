@@ -46,7 +46,7 @@ describe("verification: math actually covers hitch without losing money", () => 
     assert.equal(leftoverCoversInject(leftoverThin), false);
   });
 
-  it("sell floor defaults to 2× hitch — leftover that only covers 1× skips hitch and still sells", () => {
+  it("sell floor is always-plus: leftover that covers 1× hitch still sells (shrink hitch, do not HOLD)", () => {
     assert.equal(hitchCostMult({}), 2);
     const hitch = estimateInjectHitchCostEth({ hitchBytes: STORE_HITCH_BYTES, gwei: 1 });
     const oneX = evaluateSellGate({
@@ -68,8 +68,10 @@ describe("verification: math actually covers hitch without losing money", () => 
       reason: "🌙 MOONSHOT TRIM — not in active tiers",
     });
     assert.equal(oneX.allow, true);
-    assert.equal(oneX.skipHitch, true);
+    assert.ok(oneX.plusNetEth > 0);
+    assert.ok(oneX.verdict === "PLUS" || oneX.verdict === "SKIP_HITCH");
     assert.equal(twoX.allow, true);
+    assert.ok(twoX.plusNetEth > 0);
     assert.equal(encodingDoesNotLoseMoney({ leftoverEth: hitch, hitchCostEth: hitch * 2 }), false);
     assert.equal(encodingDoesNotLoseMoney({ leftoverEth: hitch * 2, hitchCostEth: hitch * 2 }), true);
   });
@@ -188,14 +190,18 @@ describe("verification: buys are not hallucinated", () => {
 });
 
 describe("verification: new live Uni V3 books are catalogued", () => {
-  it("adds REI and CLANKER as tradeable Uni V3 names", () => {
+  it("keeps CLANKER tradeable and freezes REI exits-only", () => {
     assert.ok(src.includes('symbol: "REI"'));
     assert.ok(src.includes("0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD"));
     assert.ok(src.includes("0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb"));
     const rei = src.indexOf('symbol: "REI"');
     const next = src.indexOf("{ symbol:", rei + 1);
     const row = src.slice(rei, next);
-    assert.ok(!row.includes("frozen: true"), "REI must be tradeable");
+    assert.ok(row.includes("frozen: true"), "REI is thin Uni V3 WETH — exits-only");
+    const clanker = src.indexOf('symbol: "CLANKER"');
+    const clankerNext = src.indexOf("{ symbol:", clanker + 1);
+    const clankerRow = src.slice(clanker, clankerNext);
+    assert.ok(!clankerRow.includes("frozen: true"), "CLANKER stays a deep earner");
   });
 
   it("adds top-100 Uni V3 majors LINK AAVE UNI and thaws VVV ZORA BNKR", () => {
@@ -220,6 +226,9 @@ describe("verification: new live Uni V3 books are catalogued", () => {
     assert.match(src.slice(uni, uni + 200), /feeTier:\s*10000/);
     const vvv = src.indexOf('symbol: "VVV"');
     assert.match(src.slice(vvv, vvv + 200), /feeTier:\s*10000/);
+    const game = src.indexOf('symbol: "GAME"');
+    assert.match(src.slice(game, game + 200), /feeTier:\s*10000/);
+    assert.match(src.slice(game, game + 500), /frozen:\s*true/);
     assert.ok(src.includes('t.symbol === "AAVE"'), "AAVE high unit-price entry sanity");
   });
 
@@ -270,10 +279,24 @@ describe("verification: operator /buy is honest and chain is the ledger", () => 
     assert.ok(body.indexOf("isSuccessfulBuyFill") < body.indexOf("formatBuyReceiptHtml"));
   });
 
+  it("operator /buy bypasses COST_EDGE near-term; auto still evaluates", () => {
+    const buyFn = src.indexOf("async function executeBuy(");
+    const body = src.slice(buyFn, src.indexOf("\nasync function executeSell", buyFn));
+    assert.ok(body.includes("evaluateCostEdgeGate"));
+    assert.match(body, /if\s*\(\s*!isManualOperatorBuy\(reason\)(?:\s*&&\s*!isVitaFeedBuyIn\(reason\))?\s*\)/);
+    assert.ok(body.includes("COST_EDGE blocked"));
+    assert.ok(src.includes("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"));
+  });
+
   it("does not invent invested ETH from a live mark", () => {
     assert.ok(src.includes("applyUnknownChainHolding"));
     assert.ok(src.includes("costBasisEth(token)"));
+    assert.ok(src.includes("fifoRemainingCostEth"));
+    assert.ok(src.includes("fifo-lot-store"));
+    assert.ok(src.includes("persistFifoLotsNow"));
+    assert.ok(src.includes("evaluateAddOnFifoRedGate"), "must not stack into FIFO-red lots");
     assert.ok(!src.includes("UNKNOWN ENTRY resolved from live market"));
+    assert.ok(!src.includes("ethIn - ethOut"), "cash-flow leftover is not remaining FIFO cost");
   });
 
   it("netPositions is module-scoped so processToken and chain recon can read the ledger", () => {

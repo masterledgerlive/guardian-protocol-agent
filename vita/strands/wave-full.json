@@ -1,0 +1,11 @@
+{
+  "strandId": "wave-full-quote-28",
+  "sparse": true,
+  "source": "wave-full-helper",
+  "learn": "Full-quote WAVE inject: plan 28 least-size Heraclitus shards (8B, last 1B) with SYM rotating VIRTUAL/CLANKER/AERO on a new VIN 01/28…28/28. Gas-only self-tx when WAVE_FULL_LIVE=yes. Reconstruct-from-chain-only PASS iff sha256(joined bodies) matches fde449b7…b08f and each LOC8 matches. Desk POST /vita/wavefull or GET ?live=1 with VITA_WEBHOOK_SECRET. WAVE_FULL_AUTOFIRE=yes one-shot on boot then disable LIVE. /waveproof stays 3. Hitch leftover still calls attachWaveOnCoveredLeftover. VITAFEED_PAID / WAVE_MIRROR_PAID stay default off. Mother brain untouched.",
+  "formula": "original-message-first",
+  "telegram": ["/wavefull"],
+  "board": "GET /vita/wavefull",
+  "desk": ["POST /vita/wavefull", "GET /vita/wavefull?live=1"],
+  "neverSoloSendUnlessFullEnv": true
+}

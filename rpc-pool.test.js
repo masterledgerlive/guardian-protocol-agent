@@ -2,9 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEAD_RPC_HOSTS,
+  RATE_LIMITED_RPC_HOSTS,
+  PREFERRED_PUBLIC_RPCS,
+  RATE_LIMITED_PUBLIC_RPCS,
   DEFAULT_PUBLIC_RPCS,
   normalizeRpcUrl,
   isDeadPublicRpc,
+  isRateLimitedPublicRpc,
   collectEnvRpcUrls,
   buildRpcUrls,
   isRpcFailoverError,
@@ -16,6 +20,54 @@ import {
   markOperatorBuyExecuted,
   clearOperatorBuyIfNotExecuted,
 } from "./lose-zero-gate.js";
+
+describe("default Base RPC pool prefers official / demotes 429 hosts", () => {
+  it("puts mainnet.base.org first with or without env", () => {
+    assert.equal(DEFAULT_PUBLIC_RPCS[0], "https://mainnet.base.org");
+    assert.equal(PREFERRED_PUBLIC_RPCS[0], "https://mainnet.base.org");
+    assert.equal(buildRpcUrls({})[0], "https://mainnet.base.org");
+    assert.equal(buildRpcUrls({ BASE_RPC: "https://mainnet.base.org" })[0], "https://mainnet.base.org");
+  });
+
+  it("keeps publicnode / nodies / tenderly ahead of meowrpc and drpc", () => {
+    const urls = buildRpcUrls({});
+    const official = urls.indexOf("https://mainnet.base.org");
+    const publicnode = urls.indexOf("https://base-rpc.publicnode.com");
+    const nodies = urls.indexOf("https://base-pokt.nodies.app");
+    const tenderly = urls.indexOf("https://gateway.tenderly.co/public/base");
+    const meow = urls.findIndex((u) => u.includes("meowrpc"));
+    const drpc = urls.findIndex((u) => u.includes("drpc"));
+
+    assert.equal(official, 0);
+    assert.ok(publicnode > official);
+    assert.ok(nodies > official);
+    assert.ok(tenderly > official);
+    assert.ok(meow < 0 || meow > Math.max(publicnode, nodies, tenderly));
+    assert.ok(drpc < 0 || drpc > Math.max(publicnode, nodies, tenderly));
+  });
+
+  it("appends rate-limited publics last in the default list", () => {
+    const preferred = DEFAULT_PUBLIC_RPCS.filter((u) => !isRateLimitedPublicRpc(u));
+    const limited = DEFAULT_PUBLIC_RPCS.filter((u) => isRateLimitedPublicRpc(u));
+    assert.deepEqual(DEFAULT_PUBLIC_RPCS.slice(0, preferred.length), preferred);
+    assert.deepEqual(DEFAULT_PUBLIC_RPCS.slice(preferred.length), limited);
+    assert.deepEqual(limited, RATE_LIMITED_PUBLIC_RPCS);
+    assert.ok(RATE_LIMITED_RPC_HOSTS.includes("base.meowrpc.com"));
+    assert.ok(RATE_LIMITED_RPC_HOSTS.includes("base.drpc.org"));
+  });
+
+  it("demotes meowrpc/drpc even if env lists them first", () => {
+    const urls = buildRpcUrls({
+      BASE_RPC: "https://base.meowrpc.com,https://base.drpc.org",
+    });
+    assert.equal(urls[0], "https://mainnet.base.org");
+    assert.ok(urls.includes("https://base-rpc.publicnode.com"));
+    const meow = urls.findIndex((u) => u.includes("meowrpc"));
+    const drpc = urls.findIndex((u) => u.includes("drpc"));
+    assert.ok(meow > urls.indexOf("https://base-rpc.publicnode.com"));
+    assert.ok(drpc > urls.indexOf("https://base-rpc.publicnode.com"));
+  });
+});
 
 describe("env RPC preference", () => {
   it("prefers BASE_RPC over RPC_URL over BASE_RPC_URL over public list", () => {

@@ -1,9 +1,10 @@
 /**
- * Uniswap V4 Universal Router encoding + Eureka hitch for Guardian V4.
+ * Uniswap V4 Universal Router encoding + leftover hitch for Guardian V4.
  *
- * Hitch rule (same as V3 live bot): UTF-8 Eureka trailer APPENDS after the
- * complete `execute` calldata. Never overwrite the swap prefix. Only hitch
- * when leftover covers cost — never lose money to insert the love note.
+ * Hitch rule (same as V3 live bot): UTF-8 trailer APPENDS after the complete
+ * `execute` calldata. Never overwrite the swap prefix. Leftover hitch is
+ * VITA §TOKEN§ parse (KEY+LOC). /prove stays the Eureka love-note letter.
+ * Only hitch when leftover covers cost — never lose money to insert.
  */
 
 import { encodeAbiParameters, encodeFunctionData, encodePacked, parseAbiParameters } from "viem";
@@ -14,6 +15,8 @@ import {
   UNIVERSAL_ROUTER,
   WETH,
 } from "./config.js";
+import { detectHitchKind } from "../vita-parse.js";
+import { planSecondaryHitch } from "../vita-router.js";
 
 /** Universal Router Commands */
 export const CMD_V4_SWAP = 0x10;
@@ -317,10 +320,10 @@ export function hitchSwapIfCovered({
   swapData,
   leftoverEth,
   hitchCostEth,
-  message = VITA_PROOF_FULL,
+  message,
   tag = STORE_VOICE_TAG,
+  utf8 = null,
 } = {}) {
-  const voice = buildStoreVoice({ tag, message });
   if (!encodingDoesNotLoseMoney({ leftoverEth, hitchCostEth })) {
     return {
       data: swapData,
@@ -329,6 +332,34 @@ export function hitchSwapIfCovered({
       onChain: false,
       skipped: true,
       reason: "leftover cannot cover hitch — plain swap (letter skipped, no loss)",
+    };
+  }
+  let voice = "";
+  if (utf8 != null && utf8 !== "") voice = String(utf8);
+  else if (message != null && message !== "") voice = buildStoreVoice({ tag, message });
+  else {
+    // Leftover hitch is VITA KEY+LOC. Eureka leftover is /prove (explicit message) only.
+    voice = planSecondaryHitch({ leftoverEth, hitchCostEth, mode: "vita" }).utf8;
+    const kind = detectHitchKind(voice);
+    if (!voice || (kind.eureka && !kind.vita) || !kind.vita || !String(voice).includes("Krystian")) {
+      return {
+        data: swapData,
+        hitchBytes: 0,
+        utf8: "",
+        onChain: false,
+        skipped: true,
+        reason: "leftover hitch refused Eureka — plain swap (KEY+LOC only)",
+      };
+    }
+  }
+  if (!voice) {
+    return {
+      data: swapData,
+      hitchBytes: 0,
+      utf8: "",
+      onChain: false,
+      skipped: true,
+      reason: "leftover hitch empty — plain swap",
     };
   }
   const hitch = appendUtf8Hitch(swapData, voice);

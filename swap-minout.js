@@ -13,6 +13,9 @@
 
 export const EXACT_INPUT_SINGLE_SELECTOR = "04e45aaf";
 export const EXACT_INPUT_SINGLE_BYTES = 228; // 4 + 7*32
+/** Aerodrome Slipstream SwapRouter exactInputSingle (int24 tickSpacing). */
+export const SLIPSTREAM_EXACT_INPUT_SINGLE_SELECTOR = "a026383e";
+export const SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES = 260; // 4 + 8*32
 export const SLIPPAGE_GUARD_DEFAULT = 0.85;
 export const FALLBACK_SLIPPAGE = 0.75;
 
@@ -43,6 +46,71 @@ export function toWei(human, decimals = 18) {
   const d = Number(decimals);
   if (!Number.isFinite(n) || n <= 0 || !Number.isFinite(d) || d < 0 || d > 36) return 0n;
   return BigInt(Math.floor(n * 10 ** d));
+}
+
+/** SwapRouter02 on Base — exactInputSingle transferFrom spender. */
+export const UNISWAP_SWAP_ROUTER02_BASE = "0x2626664c2603336E57B271c5C0b26F421741e481";
+/** Permit2 — only needed if the send path uses Universal Router / permit. */
+export const UNISWAP_PERMIT2_BASE = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+
+/**
+ * Live DRB FORCE_EXIT 0xd78e0001… — packed amountIn from float toWei.
+ * Number(balanceOf)/1e18 then toWei can exceed live wei → SwapRouter02 STF.
+ */
+export const DRB_STF_FAIL_AMOUNT_IN = 16214400904237168984064n;
+export const DRB_STF_FAIL_TX = "0xd78e0001b9b9a36f29f23ef08770e5ba87cebcb82f5881bb4f7e5c01e0251de9";
+
+export function asWei(v) {
+  const n = asBigInt(v);
+  if (n == null || n < 0n) return 0n;
+  return n;
+}
+
+/** Never transferFrom the last wei — lottery-safe; live DRB FORCE_EXIT sold the full bag. */
+export const LOTTERY_SAFE_WEI = 1n;
+
+/**
+ * amountIn must be ≤ live ERC20 balance, minus piggy dust unless unlocked.
+ * Unlocked FORCE_EXIT still leaves 1 wei. Prevents SwapRouter02 STF
+ * (transferFrom) on float-rounded / exact-bag sizes (DRB 0xd78e0001…).
+ */
+export function clampAmountInToLiveBalance({
+  amountInWei = 0n,
+  liveBalanceWei = 0n,
+  piggyReserveWei = 0n,
+  unlockPiggy = false,
+} = {}) {
+  const live = asWei(liveBalanceWei);
+  const want = asWei(amountInWei);
+  const reserved = unlockPiggy ? 0n : asWei(piggyReserveWei);
+  const cappedReserve = reserved > live ? live : reserved;
+  const leave = unlockPiggy
+    ? (live > LOTTERY_SAFE_WEI ? LOTTERY_SAFE_WEI : 0n)
+    : cappedReserve;
+  const spendable = live > leave ? live - leave : 0n;
+  const hardCap = live > LOTTERY_SAFE_WEI ? live - LOTTERY_SAFE_WEI : 0n;
+  const cap = spendable < hardCap ? spendable : hardCap;
+  const amountIn = want < cap ? want : cap;
+  return {
+    amountInWei: amountIn,
+    liveBalanceWei: live,
+    piggyReserveWei: unlockPiggy ? 0n : cappedReserve,
+    spendableWei: cap,
+    clamped: want > cap,
+    blocked: amountIn <= 0n,
+  };
+}
+
+export function needsSpenderApprove({ allowanceWei = 0n, amountInWei = 0n } = {}) {
+  const need = asWei(amountInWei);
+  if (need <= 0n) return false;
+  return asWei(allowanceWei) < need;
+}
+
+export function sellApproveSpenders({ usePermit2 = true } = {}) {
+  const list = [UNISWAP_SWAP_ROUTER02_BASE];
+  if (usePermit2) list.push(UNISWAP_PERMIT2_BASE);
+  return list;
 }
 
 /**
@@ -141,7 +209,7 @@ export function decodeExactInputSingle(data) {
   };
 }
 
-/** Hitch/BTP must APPEND after the 228-byte swap. Overwriting amountOutMinimum is a refuse. */
+/** Hitch/BTP must APPEND after the swap prefix. Overwriting amountOutMinimum is a refuse. */
 export function hitchPreservesSwapPrefix(originalData, injectedData) {
   const norm = (d) => {
     const s = String(d || "").toLowerCase();
@@ -149,15 +217,19 @@ export function hitchPreservesSwapPrefix(originalData, injectedData) {
   };
   const orig = norm(originalData);
   const inj = norm(injectedData);
-  if (orig.length < 2 + EXACT_INPUT_SINGLE_BYTES * 2) {
+  const sel = orig.slice(2, 10);
+  const isUni02 = sel === EXACT_INPUT_SINGLE_SELECTOR;
+  const isSlipstream = sel === SLIPSTREAM_EXACT_INPUT_SINGLE_SELECTOR;
+  const minBytes = isSlipstream ? SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES : EXACT_INPUT_SINGLE_BYTES;
+  if (orig.length < 2 + minBytes * 2) {
     return { ok: false, log: "MINOUT: hitch check — original swap calldata too short" };
   }
-  if (!orig.startsWith("0x" + EXACT_INPUT_SINGLE_SELECTOR)) {
+  if (!isUni02 && !isSlipstream) {
     return { ok: false, log: "MINOUT: hitch check — original is not exactInputSingle" };
   }
   if (!inj.startsWith(orig)) {
-    const decO = decodeExactInputSingle(orig);
-    const decI = decodeExactInputSingle(inj);
+    const decO = isUni02 ? decodeExactInputSingle(orig) : null;
+    const decI = isUni02 ? decodeExactInputSingle(inj) : null;
     const minChanged = decO && decI && decO.amountOutMinimum !== decI.amountOutMinimum;
     const detail = minChanged
       ? ` (amountOutMinimum ${formatWei18(decO.amountOutMinimum)} → ${formatWei18(decI.amountOutMinimum)})`
@@ -218,7 +290,9 @@ export function clipUtf8(text, maxBytes) {
 
 export function buildStoreVoice({
   tag = STORE_VOICE_TAG,
-  message = VITA_PROOF_MESSAGE,
+  // Default = full family love note (IKN Living Network). Short class stays
+  // VITA_PROOF_MESSAGE for leftover density math — pass it explicitly.
+  message = VITA_PROOF_FULL,
   maxBytes,
 } = {}) {
   const body = message ? `${tag} ${message}` : String(tag || "");
@@ -300,7 +374,9 @@ export function encodingDoesNotLoseMoney({ leftoverEth, hitchCostEth } = {}) {
  *
  * @returns {{ allow: boolean, amountOutMinimum: bigint, action: 'ok'|'clamp'|'reject', log: string|null }}
  *
- * - minOut == 0: allow (protective / quote-error path). Does not weaken hitch or LOSE_ZERO.
+ * - requireQuote && no live quote: reject — DexScreener/Aerodrome spot cannot
+ *   clear a Uni V3 pool that QuoterV2 does not fill (live GAME fee-3000 buys).
+ * - minOut == 0 (and a quote is present, or requireQuote is off): allow.
  * - minOut <= trusted expected: allow as-is.
  * - minOut > trusted but we have a quote/spot: clamp to slippage*trusted and allow
  *   (do not send the impossible floor; send the sane one so exits are not bricked).
@@ -313,10 +389,22 @@ export function sanitizeAmountOutMinimum({
   slippage = SLIPPAGE_GUARD_DEFAULT,
   side = "swap",
   symbol = "?",
+  requireQuote = false,
 } = {}) {
   const min = asBigInt(minOut) ?? 0n;
   const quote = asBigInt(expectedOut);
   const spot = asBigInt(spotOut);
+
+  if (requireQuote && (quote == null || quote <= 0n)) {
+    return {
+      allow: false,
+      amountOutMinimum: 0n,
+      action: "reject",
+      log:
+        `MINOUT: reject ${side} ${symbol} — no live QuoterV2 fill; ` +
+        `refusing spot-only minOut (cannot clear a pool that does not quote)`,
+    };
+  }
 
   if (min === 0n) {
     return { allow: true, amountOutMinimum: 0n, action: "ok", log: null };

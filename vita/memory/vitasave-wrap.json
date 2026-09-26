@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-14T23:30:00.000Z",
+  "topic": "wrap-vitasave-after-102-105",
+  "text": "HARD STOP: do not tear VITA mother brain. After #102/#105 Online, live RISK still paid +10 VITA self-calls n5557–5566 (sel 0x5b564954), 0 Uniswap fills. STORE on 0x640ed7b8fd1a94475db9c7129d3034bfe45166674d57bb6e3995c9e2b00f4ca2 (n5561) and 0xfee4d5022bddcaa36ccfcb4f2e6453abe860950add1191e12d0ef350880ec9b1 (n5566). Decoded UTF-8 is [VITA:1:00000000] / [VITA:2:…] inscribeChunk headers plus first /vitasave sessionCtx (SESSION:2026-09-14 WALLET:0x50e1… FILES_IN_REPO:agent.js,vault-loader.js,…). Caller = Telegram /vitasave → vitaSave twice (vitaSeq 1 then 2). Not VITA-KNOW, not MGPLAIN. Wrap both /vitasave handlers + POST /vita/save via wrapVitaSaveSelfCall; VITA_AUTO_INSCRIBE default bank. /vitasave command stays. /prove stays. Never invent hashes.",
+  "locations": [
+    "0x640ed7b8fd1a94475db9c7129d3034bfe45166674d57bb6e3995c9e2b00f4ca2",
+    "0xfee4d5022bddcaa36ccfcb4f2e6453abe860950add1191e12d0ef350880ec9b1",
+    "0x26abb9d41c650ed0966c5dd569c6cc413b7e290188937d774a8a750ab227d6c4",
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "wrap-vitasave-n5557-5566",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis core",
+      "delete /vitasave command",
+      "gate /prove Eureka letter",
+      "invent tx hashes for banked chunks"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

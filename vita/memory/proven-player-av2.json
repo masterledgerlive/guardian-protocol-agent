@@ -1,0 +1,27 @@
+{
+  "topic": "proven-player-av2",
+  "label": "PROVEN_PLAYER",
+  "magic": "§VITAPROVENPLAY§",
+  "at": "2026-09-21T18:02:00.000Z",
+  "formula": "original-message-first",
+  "proofClass": "chunk-binding-v1",
+  "spec": "AV2 v1.0.0",
+  "specDate": "2026-05-28",
+  "encoder": "AVM",
+  "encoderTag": "v1.0.0",
+  "encoderCommit": "966a7d7cd6fcf60360caf5dc413b2aeeb65e144d",
+  "refinement": [
+    "Migrated the Proven Player from SVT-AV1 MP4 to AV2 IVF. Spec is AV2 v1.0.0, 28 May 2026.",
+    "Encoder is AVM v1.0.0 commit 966a7d7cd6fcf60360caf5dc413b2aeeb65e144d, cpu-used 9, qp 43, fourcc AV02.",
+    "Stock browsers have no AV2 decoder. ISO BMFF binding for AV2 is not in this player. After the receipt matches, the page paints the avmdec reference decode.",
+    "dav2d is the intended software decoder and is still tracking the final spec. It is not linked here. The conformance decode for this seal is avmdec from the same tag.",
+    "The 448-byte receipt still binds hashes. The Groth16 slot stays zero.",
+    "Registry address, Base tx, and IPFS CID stay null.",
+    "The player keeps the dav1d path beside AV2. Switch on the page. dav2d is not linked yet."
+  ],
+  "neverInventHashes": true,
+  "baseTx": null,
+  "registryAddress": null,
+  "cid": null,
+  "platformDecoder": false
+}

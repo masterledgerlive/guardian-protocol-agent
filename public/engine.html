@@ -205,6 +205,8 @@
       color: var(--wave);
     }
     .phase.PEAK, .phase.TRICK { color: var(--warn); }
+    .phase.PEAK.armed, .phase.TRICK.armed { color: var(--warn); }
+    .phase.PEAK.hold { color: #8b1e2d; }
     .phase.RIDING, .phase.INJECT { color: var(--ok); }
     .lights {
       display: flex;
@@ -332,6 +334,7 @@
       <button type="button" id="btnRefresh">Refresh engine</button>
       <a class="btn ghost" href="/board">Control Board hub</a>
       <a class="btn ghost" href="/arena">Arena ledger</a>
+      <a class="btn ghost" href="/vita">Talk to VITA</a>
       <a class="btn ghost" href="https://github.com/masterledgerlive/guardian-protocol-agent" target="_blank" rel="noreferrer">Open source</a>
     </div>
   </header>
@@ -645,7 +648,7 @@
         tile.innerHTML = `
           <header>
             <span>${w.symbol}${w.holding ? " · bag" : ""}</span>
-            <span class="phase ${w.phase?.phase || ""}">${w.phase?.label || w.phase?.phase || "—"}</span>
+            <span class="phase ${w.phase?.phase || ""} ${w.phase?.armed ? "armed" : (w.phase?.holdCode ? "hold" : "")}">${w.phase?.label || w.phase?.phase || "—"}</span>
           </header>
           <canvas height="88"></canvas>
           <div class="mono">${money(w.price)} · piggy ${(Number(w.piggyPct || 0) * 100).toFixed(0)}%</div>
@@ -751,7 +754,7 @@
         hitchProve: snap.hitchProve,
         surfers: snap.surfers,
         waves: (snap.waves || []).map((w) => ({
-          symbol: w.symbol, phase: w.phase?.phase, price: w.price, holding: w.holding,
+          symbol: w.symbol, phase: w.phase?.phase, label: w.phase?.label, holdCode: w.phase?.holdCode, armed: w.phase?.armed, price: w.price, holding: w.holding,
         })),
       }, null, 2);
     }

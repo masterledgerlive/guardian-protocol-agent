@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VITA Soundboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0b1020;
+      --foam: #e8f1ff;
+      --neon: #00f5d4;
+      --warn: #ff6b35;
+      --mute: #7a8699;
+      --rail: #141c2e;
+      --pad: #1a2438;
+      --ok: #80ed99;
+      --miss: #ef476f;
+      --class: #9b87f5;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1b3a4b 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #3a0ca3 0%, transparent 50%),
+        linear-gradient(165deg, #070b14 0%, #121a2b 45%, #0a1628 100%);
+      color: var(--foam);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    body {
+      padding: 1.25rem clamp(0.75rem, 3vw, 2rem) 2.5rem;
+    }
+    .brand {
+      font-family: "Bebas Neue", Impact, sans-serif;
+      font-size: clamp(2.8rem, 10vw, 5.5rem);
+      letter-spacing: 0.04em;
+      line-height: 0.9;
+      margin: 0;
+      background: linear-gradient(105deg, var(--foam) 20%, var(--neon) 55%, var(--warn) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: brandIn 0.9s ease-out both;
+    }
+    @keyframes brandIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(4px); }
+      to { opacity: 1; transform: none; filter: none; }
+    }
+    .lede {
+      max-width: 36rem;
+      margin: 0.65rem 0 1.4rem;
+      color: var(--mute);
+      font-size: 0.92rem;
+      line-height: 1.45;
+      animation: fadeUp 0.8s 0.15s ease-out both;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+    .stage {
+      display: grid;
+      gap: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .stage { grid-template-columns: 1.2fr 0.8fr; align-items: start; }
+    }
+    .wave-wrap {
+      position: relative;
+      min-height: 160px;
+      border-radius: 0;
+      overflow: hidden;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 23px,
+          rgba(255,255,255,0.03) 23px,
+          rgba(255,255,255,0.03) 24px
+        ),
+        linear-gradient(180deg, rgba(0,245,212,0.08), transparent 60%),
+        var(--rail);
+      border-bottom: 2px solid rgba(0,245,212,0.35);
+    }
+    canvas#wave {
+      display: block;
+      width: 100%;
+      height: 160px;
+    }
+    .wave-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      margin-top: 0.55rem;
+      font-size: 0.75rem;
+      color: var(--mute);
+    }
+    .wave-meta strong { color: var(--neon); font-weight: 600; }
+    .pads {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.55rem;
+    }
+    @media (max-width: 560px) {
+      .pads { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    .pad {
+      appearance: none;
+      border: 0;
+      margin: 0;
+      padding: 0.85rem 0.4rem 0.7rem;
+      background: var(--pad);
+      color: var(--foam);
+      cursor: pointer;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+      min-height: 72px;
+      transition: transform 0.12s ease, background 0.2s ease;
+      animation: padIn 0.5s ease-out both;
+    }
+    .pad:nth-child(odd) { animation-delay: 0.05s; }
+    .pad:nth-child(even) { animation-delay: 0.12s; }
+    @keyframes padIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: none; }
+    }
+    .pad::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 3px;
+      background: var(--pad-color, var(--neon));
+    }
+    .pad:active, .pad.lit {
+      transform: scale(0.97);
+      background: #24314a;
+    }
+    .pad.lit::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 120%, color-mix(in srgb, var(--pad-color, var(--neon)) 35%, transparent), transparent 60%);
+      pointer-events: none;
+      animation: pulse 0.45s ease-out;
+    }
+    @keyframes pulse {
+      from { opacity: 0.9; }
+      to { opacity: 0; }
+    }
+    .pad .t { display: block; font-family: "Bebas Neue", sans-serif; font-size: 1.35rem; letter-spacing: 0.03em; }
+    .pad .s { display: block; font-size: 0.65rem; color: var(--mute); margin-top: 0.15rem; }
+    .prompt-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .prompt-row input {
+      flex: 1 1 220px;
+      min-width: 0;
+      background: var(--rail);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--foam);
+      padding: 0.7rem 0.8rem;
+      font: inherit;
+      font-size: 0.85rem;
+    }
+    .prompt-row button, .ghost {
+      appearance: none;
+      border: 1px solid rgba(0,245,212,0.45);
+      background: transparent;
+      color: var(--neon);
+      padding: 0.7rem 0.95rem;
+      font: inherit;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .prompt-row button:hover, .ghost:hover {
+      background: rgba(0,245,212,0.1);
+    }
+    .rail {
+      background: var(--rail);
+      padding: 0.9rem 1rem 1.1rem;
+      border-left: 3px solid var(--neon);
+    }
+    .rail h2 {
+      font-family: "Bebas Neue", sans-serif;
+      font-size: 1.55rem;
+      letter-spacing: 0.04em;
+      margin: 0 0 0.35rem;
+      font-weight: 400;
+    }
+    .rail p {
+      margin: 0 0 0.85rem;
+      color: var(--mute);
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+    .loc {
+      display: block;
+      padding: 0.55rem 0.6rem;
+      margin: 0 0 0.4rem;
+      text-decoration: none;
+      color: inherit;
+      background: #0e1524;
+      border-left: 3px solid var(--mute);
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+    .loc.match { border-color: var(--ok); }
+    .loc.local { border-color: var(--neon); }
+    .loc.class { border-color: var(--class); opacity: 0.85; }
+    .loc.miss { border-color: var(--miss); }
+    .loc .k { color: var(--mute); }
+    .loc .v { color: var(--foam); word-break: break-all; }
+    .badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.12rem 0.35rem;
+      margin-right: 0.35rem;
+    }
+    .badge.match { background: rgba(128,237,153,0.15); color: var(--ok); }
+    .badge.local { background: rgba(0,245,212,0.12); color: var(--neon); }
+    .badge.class { background: rgba(155,135,245,0.15); color: var(--class); }
+    .keyline {
+      margin-top: 0.75rem;
+      font-size: 0.72rem;
+      color: var(--mute);
+      word-break: break-all;
+    }
+    .keyline span { color: var(--warn); }
+    .upload {
+      margin-top: 0.85rem;
+      font-size: 0.75rem;
+      color: var(--mute);
+    }
+    .upload input[type="file"] { color: var(--foam); }
+    .inject {
+      margin: 0 0 0.75rem;
+      padding: 0.55rem 0.65rem;
+      border-left: 3px solid var(--warn);
+      background: rgba(255,107,53,0.1);
+      font-size: 0.72rem;
+      line-height: 1.4;
+      color: var(--mute);
+    }
+    .inject.proven {
+      border-left-color: var(--ok);
+      background: rgba(128,237,153,0.12);
+      color: var(--foam);
+    }
+    .inject a { color: var(--neon); }
+  </style>
+</head>
+<body>
+  <h1 class="brand">VITA Soundboard</h1>
+  <p class="lede">
+    DJ pads on Base — procedural bites, prompted synth, uploads → §VITAFILE§ inject.
+    Zero-snark open key = name + contentCommit. Loc rail shows availability vs sealed MATCH;
+    class-proof anchors stay the same forever and are <em>not</em> new pad inputs.
+  </p>
+
+  <div class="stage">
+    <div>
+      <div class="wave-wrap">
+        <canvas id="wave" width="800" height="160" aria-label="waveform"></canvas>
+      </div>
+      <div class="wave-meta">
+        <div>pad <strong id="meta-id">—</strong></div>
+        <div>sha <strong id="meta-sha">—</strong></div>
+        <div>vin <strong id="meta-vin">—</strong></div>
+        <div id="meta-dur">—</div>
+      </div>
+      <div class="pads" id="pads" role="group" aria-label="sound pads"></div>
+      <form class="prompt-row" id="prompt-form">
+        <input id="prompt" name="prompt" placeholder="prompt: saw rise 220→880 0.9s" autocomplete="off" />
+        <button type="submit">Make bite</button>
+        <button type="button" class="ghost" id="btn-enqueue">Enqueue pad</button>
+      </form>
+      <div class="upload">
+        Upload sound → blockchain later via Telegram <code>/vitafeed board add</code> or enqueue.
+        <input type="file" id="file" accept="audio/*" />
+      </div>
+      <p class="keyline">zeroOpenKey <span id="meta-key">—</span></p>
+    </div>
+
+    <aside class="rail" aria-label="location rail">
+      <h2>Loc rail</h2>
+      <div class="inject" id="inject" aria-live="polite">Inject proof: pending until sealed…</div>
+      <p id="rail-note">
+        LOCAL_OK = availability reconstruct. MATCH = sealed Input Data equals VIN commit.
+        CLASS_PROOF = formula hitch class (identical forever — not pad body).
+        Inject CTA only after real /vitafeed confirm|override (VITAFEED_PAID=yes).
+      </p>
+      <div id="locs"></div>
+      <a class="ghost" id="inspect-link" href="#" style="display:inline-block;margin-top:0.5rem;text-decoration:none;">Inspect exact VIN UTF-8 →</a>
+    </aside>
+  </div>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) {
+      try { tg.ready(); tg.expand(); } catch (_) {}
+    }
+
+    const qs = new URLSearchParams(location.search);
+    let currentId = qs.get("pad") || qs.get("id") || "airhorn";
+    let audioCtx = null;
+    let state = null;
+    let lastPlay = null;
+
+    const el = (id) => document.getElementById(id);
+
+    function drawWave(peaks, color) {
+      const c = el("wave");
+      const ctx = c.getContext("2d");
+      const w = c.width;
+      const h = c.height;
+      ctx.clearRect(0, 0, w, h);
+      const arr = peaks && peaks.length ? peaks : new Array(48).fill(0.05);
+      const barW = w / arr.length;
+      const mid = h / 2;
+      ctx.fillStyle = color || "#00f5d4";
+      for (let i = 0; i < arr.length; i++) {
+        const amp = Math.max(0.04, Number(arr[i]) || 0) * (h * 0.42);
+        const x = i * barW + 1;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(x, mid - amp, Math.max(1, barW - 2), amp * 2);
+      }
+      ctx.globalAlpha = 1;
+      // playhead shimmer
+      ctx.strokeStyle = "rgba(255,107,53,0.55)";
+      ctx.beginPath();
+      ctx.moveTo(w * 0.08, 8);
+      ctx.lineTo(w * 0.08, h - 8);
+      ctx.stroke();
+    }
+
+    async function fetchJson(url) {
+      const r = await fetch(url);
+      return r.json();
+    }
+
+    function renderPads(pads) {
+      const box = el("pads");
+      box.innerHTML = "";
+      for (const p of pads) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "pad" + (p.id === currentId ? " lit" : "");
+        b.style.setProperty("--pad-color", p.color || "#00f5d4");
+        b.innerHTML = '<span class="t">' + escapeHtml(p.title || p.id) + '</span><span class="s">' +
+          escapeHtml((p.recipe || p.blurb || "").slice(0, 28)) + "</span>";
+        b.addEventListener("click", () => hitPad(p.id));
+        box.appendChild(b);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderInject(inject) {
+      const box = el("inject");
+      if (!box) return;
+      if (inject && inject.proven && inject.href) {
+        box.className = "inject proven";
+        box.innerHTML =
+          "<strong>INJECT PROOF</strong> — sealed pad body<br/>" +
+          '<a href="' + escapeHtml(inject.href) + '" target="_blank" rel="noopener">' +
+          escapeHtml(inject.location) + "</a>";
+        const a = box.querySelector("a");
+        if (a) {
+          a.addEventListener("click", (ev) => {
+            if (tg && tg.initData && typeof tg.openLink === "function") {
+              ev.preventDefault();
+              tg.openLink(inject.href);
+            }
+          });
+        }
+      } else {
+        box.className = "inject";
+        box.textContent =
+          (inject && inject.note) ||
+          "NO sealed Basescan tx yet — /vitafeed enqueue pad <id> then confirm|override with VITAFEED_PAID=yes. Class-proof is not inject proof.";
+      }
+    }
+
+    function renderLocs(proof) {
+      const box = el("locs");
+      box.innerHTML = "";
+      if (proof && proof.inject) renderInject(proof.inject);
+      const rows = (proof && proof.rows) || [];
+      for (const r of rows) {
+        const a = document.createElement(r.basescan && r.clickThrough && r.match === "MATCH" ? "a" : "div");
+        a.className = "loc " + (
+          r.match === "MATCH" ? "match" :
+          r.match === "CLASS_PROOF" ? "class" :
+          r.match === "MISMATCH" ? "miss" : "local"
+        );
+        if (a.tagName === "A") {
+          a.href = r.basescan;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.addEventListener("click", (ev) => {
+            if (tg && tg.initData && typeof tg.openLink === "function") {
+              ev.preventDefault();
+              tg.openLink(r.basescan);
+            }
+          });
+        }
+        const badge =
+          r.match === "MATCH" ? "match" :
+          r.match === "CLASS_PROOF" ? "class" : "local";
+        a.innerHTML =
+          '<span class="badge ' + badge + '">' + escapeHtml(r.match || r.kind || "?") + "</span>" +
+          '<span class="k">i' + (r.index || "?") + " · </span>" +
+          '<span class="v">' + escapeHtml((r.dataFieldCommit || "").slice(0, 16)) + "</span>" +
+          (r.location
+            ? '<div class="k">' + escapeHtml(String(r.location).slice(0, 18)) + "…</div>"
+            : '<div class="k">no sealed body loc yet</div>') +
+          '<div class="k">' + escapeHtml(r.idmChat || "") + "</div>";
+        box.appendChild(a);
+      }
+      for (const c of (proof && proof.classProof) || []) {
+        const a = document.createElement("a");
+        a.className = "loc class";
+        a.href = c.basescan;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.innerHTML =
+          '<span class="badge class">CLASS_PROOF</span>' +
+          '<span class="v">' + escapeHtml((c.label || "anchor").slice(0, 40)) + "</span>" +
+          '<div class="k">same forever — NOT pad body / no new inputs</div>';
+        box.appendChild(a);
+      }
+      if (proof && proof.note) {
+        el("rail-note").textContent = proof.note;
+      }
+    }
+
+    async function playDataUrl(dataUrl) {
+      try {
+        const res = await fetch(dataUrl);
+        const buf = await res.arrayBuffer();
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+        const audioBuf = await audioCtx.decodeAudioData(buf.slice(0));
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(audioCtx.destination);
+        src.start(0);
+      } catch (e) {
+        const a = new Audio(dataUrl);
+        a.play().catch(() => {});
+      }
+    }
+
+    async function hitPad(id) {
+      currentId = id;
+      document.querySelectorAll(".pad").forEach((p) => p.classList.remove("lit"));
+      const play = await fetchJson("/vita/soundboard/play?id=" + encodeURIComponent(id));
+      lastPlay = play;
+      if (!play.ok) {
+        el("meta-id").textContent = "err";
+        return;
+      }
+      el("meta-id").textContent = play.id;
+      el("meta-sha").textContent = String(play.sha256 || "").slice(0, 12);
+      el("meta-vin").textContent = String((play.locProof && play.locProof.totalVin) || "—");
+      el("meta-dur").textContent = (play.durationSec != null ? play.durationSec.toFixed(2) + "s" : "—");
+      const padMeta = (state && state.pads || []).find((p) => p.id === id);
+      el("meta-key").textContent = play.zeroOpenKey || (padMeta && padMeta.zeroOpenKey) || "—";
+      drawWave(play.waveform || (padMeta && padMeta.waveform), padMeta && padMeta.color);
+      renderPads(state.pads || []);
+      const lit = [...document.querySelectorAll(".pad")].find((b) => b.querySelector(".t")?.textContent === (padMeta?.title || id));
+      if (lit) lit.classList.add("lit");
+      await playDataUrl(play.dataUrl);
+      const locs = await fetchJson("/vita/soundboard/locs?id=" + encodeURIComponent(id));
+      renderLocs(locs);
+      el("inspect-link").href = "/vita/soundboard/loc?id=" + encodeURIComponent(id) + "&i=1";
+      history.replaceState(null, "", "?pad=" + encodeURIComponent(id));
+    }
+
+    async function boot() {
+      state = await fetchJson("/vita/soundboard?json=1");
+      if (!state.ok) {
+        el("rail-note").textContent = state.reason || "board failed";
+        return;
+      }
+      renderPads(state.pads || []);
+      await hitPad(currentId);
+    }
+
+    el("prompt-form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const prompt = el("prompt").value.trim();
+      if (!prompt) return;
+      const r = await fetch("/vita/soundboard/prompt", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      }).then((x) => x.json()).catch((e) => ({ ok: false, reason: String(e) }));
+      if (!r.ok) {
+        el("rail-note").textContent = r.reason || "prompt failed";
+        return;
+      }
+      state = await fetchJson("/vita/soundboard?json=1");
+      renderPads(state.pads || []);
+      await hitPad(r.id);
+    });
+
+    el("btn-enqueue").addEventListener("click", () => {
+      el("rail-note").textContent =
+        "Enqueue from Telegram: /vitafeed enqueue pad " + currentId +
+        " then confirm|override — that creates NEW Input Data (not class-proof).";
+    });
+
+    function bytesToBase64(bytes) {
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      return btoa(binary);
+    }
+
+    el("file").addEventListener("change", async () => {
+      const f = el("file").files && el("file").files[0];
+      if (!f) return;
+      const buf = await f.arrayBuffer();
+      // Browser demo: short bites only — Telegram reply + /vitafeed board add for big files.
+      if (buf.byteLength > 400000) {
+        el("rail-note").textContent = "File too large for browser demo — reply the audio in Telegram with /vitafeed board add";
+        return;
+      }
+      const r = await fetch("/vita/soundboard/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: f.name,
+          mime: f.type || "audio/wav",
+          bytesBase64: bytesToBase64(new Uint8Array(buf)),
+        }),
+      }).then((x) => x.json()).catch((e) => ({ ok: false, reason: String(e) }));
+      if (!r.ok) {
+        el("rail-note").textContent = r.reason || "upload failed";
+        return;
+      }
+      state = await fetchJson("/vita/soundboard?json=1");
+      renderPads(state.pads || []);
+      await hitPad(r.id);
+    });
+
+    boot();
+  </script>
+</body>
+</html>

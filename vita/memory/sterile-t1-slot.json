@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-13T14:40:00.000Z",
+  "topic": "sterile-t1-slot-inject-cover",
+  "text": "Post-redeploy haltNewEntries=false. PRIMED none because T1 INJECT-ALL logged LINK ~$3.80/slot against ETH 0.001500 (~$3.73) + WETH 0.000779 (~$1.94). Inject min-entry (hitch+$0.75 seed+1.35x) refused every avenue. Micro slot = unified after gas keep; when cover cannot fit, bank hitch (#89) so tiny plus buys still fire. Unknown-cost HOLD no add-on. GH 401 must not wipe FIFO.",
+  "locations": [
+    "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf"
+  ],
+  "hypothesis": {
+    "id": "t1-slot-vs-unified-spendable",
+    "status": "confirmed-in-code",
+    "discarded": [
+      "HALT_NEW_ENTRIES still true after redeploy (board haltNewEntries=false)",
+      "need to add cash / spend vault",
+      "re-arm OPERATOR_SELL/USDG",
+      "latch unknown cost from live MTM (invents P&L)"
+    ],
+    "note": "Over-stacked inject floor + reserved slot, not HALT. Session-range covers 401-wiped 2P/2T."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

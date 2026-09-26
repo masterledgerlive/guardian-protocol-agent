@@ -1,0 +1,113 @@
+{
+  "id": "x404-dir-v1",
+  "label": "X404_DIR",
+  "magic": "§X404§",
+  "style": "x404",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "openKey": true,
+  "note": "x404 directory tags: the same display name maps to many plotted locations. Directories are answer-key routes — the path the chain took. Sealed Base loc is optional and only present when proven. Plots wait for a master-location tag. Never invent tx hashes.",
+  "tags": [
+    {
+      "name": "storage-token",
+      "displayName": "storage-token",
+      "kind": "agent-channel",
+      "plots": [
+        {
+          "plotId": "storage-token:telegram-agents-chat",
+          "plottedLocation": "/home → Agents → Chat",
+          "net": "telegram",
+          "answerKeyRoute": ["/home", "/home agents", "/agents chat"],
+          "sealedBaseLoc": null,
+          "masterLocationTag": null,
+          "status": "waiting-master-tag",
+          "input": "agent-owned always-on chat path for storage-token"
+        },
+        {
+          "plotId": "storage-token:filing",
+          "plottedLocation": "vita/agent-chat.js",
+          "net": "filing",
+          "answerKeyRoute": ["vita/FILING.md", "AGENT_CHAT", "vita/agent-chat.js"],
+          "sealedBaseLoc": null,
+          "masterLocationTag": null,
+          "status": "waiting-master-tag",
+          "input": "module that owns the channel factory"
+        },
+        {
+          "plotId": "storage-token:strand",
+          "plottedLocation": "vita/strands/agent-chat.json",
+          "net": "strand",
+          "answerKeyRoute": ["vita/strands/", "agent-chat"],
+          "sealedBaseLoc": null,
+          "masterLocationTag": null,
+          "status": "waiting-master-tag",
+          "input": "sparse strand for the dedicated path"
+        }
+      ]
+    },
+    {
+      "name": "calculator",
+      "displayName": "calculator",
+      "kind": "ref-lib",
+      "plots": [
+        {
+          "plotId": "calculator:eureka-class-proof",
+          "plottedLocation": "vita/anchors.json#eureka-prove",
+          "net": "base",
+          "answerKeyRoute": ["/vitafeed ref calculator", "/vitafeed proven", "Basescan Input Data → UTF-8"],
+          "sealedBaseLoc": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "masterLocationTag": "eureka-prove",
+          "status": "proven",
+          "input": "class proof only — formula anchor, not file body"
+        },
+        {
+          "plotId": "calculator:vita-strand-class-proof",
+          "plottedLocation": "vita/anchors.json#vita-strand",
+          "net": "base",
+          "answerKeyRoute": ["/inject", "/reader", "sparse strand"],
+          "sealedBaseLoc": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "masterLocationTag": "vita-strand",
+          "status": "proven",
+          "input": "class proof only — formula anchor, not file body"
+        },
+        {
+          "plotId": "calculator:codex-file",
+          "plottedLocation": "VITA:\\CODEX\\codex-calculator.txt",
+          "net": "telegram-dir",
+          "answerKeyRoute": ["/vitafeed dir", "/vitafeed dir CODEX", "/vitafeed unlock CODEX\\codex-calculator.txt"],
+          "sealedBaseLoc": null,
+          "masterLocationTag": null,
+          "status": "waiting-master-tag",
+          "input": "open-source file-name unlock — kids dir of CODEX"
+        }
+      ]
+    },
+    {
+      "name": "vita",
+      "displayName": "vita",
+      "kind": "mainframe",
+      "plots": [
+        {
+          "plotId": "vita:keycat-plain",
+          "plottedLocation": "vita/anchors.json#keycat-plain",
+          "net": "base",
+          "answerKeyRoute": ["KEYCAT 228-byte swap", "lesson: never claim UTF-8 hitch without trailer"],
+          "sealedBaseLoc": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "masterLocationTag": "keycat-plain",
+          "status": "proven",
+          "input": "class proof — Telegram letter was NOT on-chain"
+        },
+        {
+          "plotId": "vita:html-memory",
+          "plottedLocation": "public/vita.html#vita-mainframe",
+          "net": "html",
+          "answerKeyRoute": ["infect HTML", "HTML is memory until /inject"],
+          "sealedBaseLoc": null,
+          "masterLocationTag": null,
+          "status": "waiting-master-tag",
+          "input": "infected HTML memory surface"
+        }
+      ]
+    }
+  ]
+}

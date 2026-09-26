@@ -25,7 +25,7 @@ export const STALE_TROUGH_GAP = 0.18; // 90d min >18% below mark → ignore for 
 export const INJECT_FUEL_MIN_USD = 0.75;
 /** Velocity names that historically compounded on thin Base books. */
 export const INJECT_VELOCITY_SYMBOLS = Object.freeze([
-  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT",
+  "DEGEN", "AERO", "BRETT", "KEYCAT", "VIRTUAL", "AIXBT", "CLANKER",
 ]);
 
 /**
@@ -114,6 +114,54 @@ export function isInjectPullbackEntry({
 export function nearEntryScoreBoost({ isInjectMain = false, pullback = false } = {}) {
   if (!isInjectMain) return 0;
   return pullback ? 18 : 6;
+}
+
+/**
+ * Dust-recycle / inject-fuel: proven FIFO ETH is known cost even with no
+ * USD entryPrice. Do not block recycle as "unknown" solely for missing USD.
+ */
+export function classifyRecycleBag({
+  unknownEntry = false,
+  totalInvestedEth = 0,
+  entryPrice = null,
+  hasUsdBasis = false,
+  operatorLotEth = 0,
+  fifoLotKnown = false,
+} = {}) {
+  const fifoEth = Number(totalInvestedEth) > 0
+    ? Number(totalInvestedEth)
+    : (Number(operatorLotEth) > 0 ? Number(operatorLotEth) : 0);
+  // Proven FIFO lots are known cost even if the unknownEntry stamp is stale.
+  // Never label a sell "unknown cost basis" when FIFO lots exist.
+  const fifoKnown = fifoEth > 0 || fifoLotKnown === true;
+  const usdKnown = unknownEntry !== true && !!hasUsdBasis && Number(entryPrice) > 0;
+  const hasKnownPos = fifoKnown || usdKnown;
+  return {
+    unknownBag: !hasKnownPos,
+    hasKnownPos,
+    fifoKnown,
+    fifoEth: fifoEth > 0 ? fifoEth : 0,
+  };
+}
+
+/** Recycle copy — never "unknown cost basis" when FIFO lots exist. */
+export function recycleSellCopy({ recycleKnown = false, recycleUnknown = false, fifoKnown = false } = {}) {
+  if (recycleKnown || fifoKnown) {
+    return {
+      label: "INJECT FUEL",
+      reason: "🌙 INJECT FUEL — recycle known bag for cascade",
+    };
+  }
+  if (recycleUnknown) {
+    return {
+      label: "DUST RECYCLE",
+      reason: "🌙 DUST RECYCLE — unknown cost basis",
+    };
+  }
+  return {
+    label: "MOONSHOT TRIM",
+    reason: "🌙 MOONSHOT TRIM — not in active tiers",
+  };
 }
 
 /**
@@ -212,4 +260,51 @@ export function injectVelocityScoreBoost({
 /** Largest bags first so one recycle can clear min entry. */
 export function sortRecycleCandidatesByUsd(candidates = []) {
   return [...candidates].sort((a, b) => (Number(b?.posUsd) || 0) - (Number(a?.posUsd) || 0));
+}
+
+/**
+ * Fill T1 seats. Sub-min inject-all must not velocity-pick a name we cannot
+ * fund (live: $0.14 liquid → T1 AERO while PRIMED none and FIFO-red HOLD).
+ */
+export function fillTier1Seats({
+  scored = [],
+  reservedMain = null,
+  tier1Count = 1,
+  injectAll = false,
+  reserveOk = true,
+} = {}) {
+  const cap = Math.max(0, Math.floor(Number(tier1Count) || 0));
+  if (injectAll && !reserveOk) {
+    return { tier1: [], blocked: true, reason: "sub-min-inject-all" };
+  }
+  const tier1 = [];
+  const reserved = reservedMain ? String(reservedMain).toUpperCase() : "";
+  const same = (a, b) => String(a || "").toUpperCase() === String(b || "").toUpperCase();
+  if (reserved) {
+    const hit = scored.find((s) => same(s?.symbol, reserved));
+    tier1.push(hit?.symbol || reservedMain);
+  }
+  for (const s of scored) {
+    if (tier1.length >= cap) break;
+    const sym = s?.symbol;
+    if (!sym || tier1.some((x) => same(x, sym))) continue;
+    tier1.push(sym);
+  }
+  return { tier1, blocked: false, reason: null };
+}
+
+/**
+ * Whether recycle should skip bags already seated in T1/T2.
+ * When liquid is starved and there is no fundable / primed inject seat, T1 is
+ * not a real job — PLUS bags (including the former velocity name) must recycle.
+ * FIFO-red still HOLDs at the sell gate. Never sell underwater.
+ */
+export function recycleSkipsActiveTier({
+  liquidStarved = false,
+  injectSeatViable = true,
+  primedAllowCount = 0,
+} = {}) {
+  if (liquidStarved && !injectSeatViable) return false;
+  if (liquidStarved && !(Number(primedAllowCount) > 0)) return false;
+  return true;
 }

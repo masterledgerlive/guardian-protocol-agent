@@ -1,0 +1,12 @@
+{
+  "strandId": "wave-agent-bank-v1",
+  "sparse": true,
+  "label": "WAVE_AGENT_BANK",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "learn": "Click a token and the saved ledger says how many highs and lows are still needed for the next prediction. Rate the book by sector units and by sealed rides versus wipeouts. Pull §WHL§ pebbles from Base trails. Robinhood is a quote mirror. Three classical agents compete on a board the main agent can read. They do not send. Never invent hashes. Never sell red to place code.",
+  "module": "vita/wave-agent-bank.js",
+  "pairMemory": "vita/memory/wave-agent-learn.json",
+  "telegram": ["/lull", "/waveagents", "/waveboard"],
+  "locations": []
+}

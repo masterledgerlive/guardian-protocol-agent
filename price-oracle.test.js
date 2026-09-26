@@ -7,6 +7,8 @@ import {
   selectBestDexScreenerPair,
   parseGeckoTerminalPrices,
   hasUsableCostBasis,
+  fifoImpliedEntryUsd,
+  blendUsdEntryOnAddOnBuy,
   GECKO_TERMINAL_CHUNK,
   costBasisEth,
   shouldTrustSavedCostBasis,
@@ -16,6 +18,8 @@ import {
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
   shouldSkipOhlcSeed,
+  isSkipOhlcSeed,
+  planOhlcSeed,
   isGhostDexPair,
   isTrustedQuoteToken,
   TOSHI_BASE,
@@ -175,15 +179,124 @@ describe("cost basis", () => {
   it("excludes UNKNOWN entries from margin math", () => {
     assert.equal(hasUsableCostBasis({ entryPrice: 0.0026, unknownEntry: true }), false);
     assert.equal(hasUsableCostBasis({ entryPrice: 0, unknownEntry: false }), false);
-    assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false }), true);
-    assert.equal(hasUsableCostBasis({ entryPrice: 2.54 }), true);
+    assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false }), false);
+    assert.equal(hasUsableCostBasis({ entryPrice: 0.000001, unknownEntry: false, totalInvestedEth: 0.0002 }), true);
+    assert.equal(hasUsableCostBasis({ entryPrice: 2.54, totalInvestedEth: 0.01 }), true);
+    assert.equal(hasUsableCostBasis({ entryPrice: 2.54, totalInvestedEth: 0 }), false);
+    // FIFO ETH without USD entryPrice is still usable (DRB/BNKR after #81).
+    assert.equal(hasUsableCostBasis({ entryPrice: null, unknownEntry: false, totalInvestedEth: 0.00027 }), true);
+    assert.equal(costBasisEth({ entryPrice: null, unknownEntry: false, totalInvestedEth: 0.00027 }), 0.00027);
+    assert.equal(
+      fifoImpliedEntryUsd({ fifoEth: 0.000209, balance: 2, ethUsd: 2500 }),
+      (0.000209 * 2500) / 2,
+    );
+    assert.equal(fifoImpliedEntryUsd({ fifoEth: 0, balance: 2, ethUsd: 2500 }), null);
+    assert.equal(fifoImpliedEntryUsd({ fifoEth: 0.000209, balance: 0, ethUsd: 2500 }), null);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: true, totalInvestedEth: 0.0002 }), 0);
     assert.equal(costBasisEth({ entryPrice: 0.000129, unknownEntry: false, totalInvestedEth: 0.0002 }), 0.0002);
     const invented = { symbol: "TOSHI", entryPrice: 0.000129, totalInvestedEth: 0.0002, unknownEntry: false };
     assert.equal(shouldTrustSavedCostBasis(invented, {}), false);
+    assert.equal(shouldTrustSavedCostBasis(invented, {
+      fifoLot: { ethIn: 0.0002, tokensIn: 4514, fillCostEth: 0.0002 },
+    }), true);
     applyUnknownChainHolding(invented, { units: 4514, priceUsd: 0.000129 });
     assert.equal(invented.unknownEntry, true);
     assert.equal(invented.totalInvestedEth, 0);
+  });
+
+  it("ETH-only FIFO add-on does not write $0 / free old tokens into entryPrice / fib / peak", () => {
+    // Live DRB leftover: proven FIFO ETH, no fill USD (Bugbot on #83).
+    const token = {
+      symbol: "DRB",
+      unknownEntry: false,
+      entryPrice: null,
+      totalInvestedEth: 0.000271,
+    };
+    const prevTokenBal = 2844.726394849007;
+    const fillTokens = 1000;
+    const fillPrice = 0.00009;
+    const fillCostEth = 0.00008;
+    const liveMark = fillPrice;
+    const costPct = 0.02;
+
+    assert.equal(hasUsableCostBasis(token), true);
+    const prevInvested = costBasisEth(token);
+    assert.ok(prevInvested > 0);
+
+    // Pre-fix: hasUsableCostBasis after ETH accumulate took the average
+    // branch and multiplied missing entryPrice as 0.
+    const buggyEntry = (
+      (prevTokenBal * (Number(token.entryPrice) || 0)) + (fillTokens * fillPrice)
+    ) / (prevTokenBal + fillTokens);
+    assert.ok(buggyEntry > 0 && buggyEntry < fillPrice * 0.4,
+      "zero-blend pulls USD below the fill — old units look free");
+    const buggyFibBreakeven = buggyEntry * (1 + costPct);
+    const buggyPnlPct = (liveMark - buggyEntry) / buggyEntry;
+    const buggyPeakProfit = liveMark > buggyEntry;
+    assert.ok(buggyFibBreakeven < liveMark * 0.5, "fib would arm far below live");
+    assert.ok(buggyPnlPct > 1, "P&L would invent >100% as if old tokens were free");
+    assert.equal(buggyPeakProfit, true);
+
+    // Same bookkeeping as executeBuy: blend, then latch ETH + unknownEntry.
+    token.totalInvestedEth = prevInvested + fillCostEth;
+    token.entryPrice = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: token.entryPrice,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
+    });
+    token.unknownEntry = false;
+
+    assert.equal(token.entryPrice, null, "must not write blended / $0 USD");
+    assert.ok(token.totalInvestedEth > prevInvested, "FIFO ETH still accumulates");
+    assert.equal(hasUsableCostBasis(token), true);
+    assert.equal(costBasisEth(token), token.totalInvestedEth);
+
+    // agent checkFibTargetHit / P&L / peak-vs-entry skip when entry is unset.
+    const entryForUsd = token.entryPrice;
+    const fibBreakeven = entryForUsd ? entryForUsd * (1 + costPct) : null;
+    const pnlPct = entryForUsd > 0 && liveMark > 0
+      ? (liveMark - entryForUsd) / entryForUsd
+      : null;
+    const peakVsEntry = entryForUsd > 0 ? liveMark > entryForUsd : null;
+    assert.equal(fibBreakeven, null);
+    assert.equal(pnlPct, null);
+    assert.equal(peakVsEntry, null);
+
+    // Explicit $0 / undefined old marks must not become a free-token USD.
+    assert.equal(blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: 0,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
+    }), null);
+    assert.equal(blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: undefined,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: fillTokens,
+      newPrice: fillPrice,
+    }), null);
+
+    // First fill (no prior bag) may take the live USD.
+    assert.equal(blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: null,
+      prevTokenBal: 0,
+      prevInvestedEth: 0,
+      newTokens: 3.42,
+      newPrice: 0.94,
+    }), 0.94);
+    // Known USD + add-on still weighted-averages.
+    const blended = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: 1,
+      prevTokenBal: 10,
+      prevInvestedEth: 0.001,
+      newTokens: 10,
+      newPrice: 3,
+    });
+    assert.equal(blended, 2);
   });
 });
 
@@ -246,5 +359,25 @@ describe("Binance must not overwrite Base", () => {
     assert.equal(shouldSkipOhlcSeed({ symbol: "SIMBA", brokenQuote: true }), true);
     assert.equal(shouldSkipOhlcSeed({ symbol: "TOSHI" }), false);
     assert.equal(shouldSkipOhlcSeed({ symbol: "SEAM", frozen: true }), false);
+  });
+
+  it("SKIP_OHLC_SEED=yes/true/1/on skips the entire seed pass", () => {
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "yes" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "true" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "1" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "on" }), true);
+    assert.equal(isSkipOhlcSeed({ SKIP_OHLC_SEED: "no" }), false);
+    assert.equal(isSkipOhlcSeed({}), false);
+    const tokens = [
+      { symbol: "AERO", address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631" },
+      { symbol: "KITE", noBasePool: true },
+    ];
+    const skipped = planOhlcSeed(tokens, { SKIP_OHLC_SEED: "yes" });
+    assert.equal(skipped.skipAll, true);
+    assert.equal(skipped.seedTokens.length, 0);
+    assert.equal(skipped.reason, "SKIP_OHLC_SEED");
+    const normal = planOhlcSeed(tokens, {});
+    assert.equal(normal.skipAll, false);
+    assert.equal(normal.seedTokens.some((t) => t.symbol === "AERO"), true);
   });
 });

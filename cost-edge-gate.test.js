@@ -79,6 +79,35 @@ describe("cost-edge-gate: CBBTC-class refuse", () => {
     assert.equal(d.code, "high_unit_thin_book");
   });
 
+  it("skipNearTerm still enforces hitch%/RT% but not wait-forever", () => {
+    const blocked = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      hitchCostEth: 0,
+      gasCostEth: 0.00005,
+      feePct: 0.006,
+      price: 18,
+      recentHigh: 18.1,
+      ethUsd: 2490,
+      tradeableUsd: 3.81,
+    });
+    assert.equal(blocked.allow, false);
+    assert.equal(blocked.code, "near_term");
+    const micro = evaluateCostEdgeGate({
+      symbol: "LINK",
+      tradeEth: 0.001529,
+      hitchCostEth: 0,
+      gasCostEth: 0.00005,
+      feePct: 0.006,
+      price: 18,
+      recentHigh: 18.1,
+      ethUsd: 2490,
+      tradeableUsd: 3.81,
+      skipNearTerm: true,
+    });
+    assert.equal(micro.allow, true);
+  });
+
   it("allows a liquid meme with real near-term upside and small hitch%", () => {
     const d = evaluateCostEdgeGate({
       symbol: "KEYCAT",
@@ -112,8 +141,10 @@ describe("cost-edge-gate: USD bag exits", () => {
 });
 
 describe("cost-edge-gate: mistake learning", () => {
-  it("records and summarizes refusals", () => {
+  it("records and summarizes refusals", async () => {
+    const { resetHypothesisGraph, queryHypotheses } = await import("./finetune-memory.js");
     costMistakeLog.length = 0;
+    resetHypothesisGraph();
     recordCostMistake({
       symbol: "CBBTC",
       code: "hitch_pct",
@@ -125,6 +156,7 @@ describe("cost-edge-gate: mistake learning", () => {
     assert.equal(s.count, 1);
     assert.equal(s.topSymbol, "CBBTC");
     assert.ok(s.message.includes("CBBTC"));
+    assert.ok(queryHypotheses({ symbol: "CBBTC", status: "failed" }).length >= 1);
   });
 });
 
@@ -215,5 +247,67 @@ describe("cost-edge-gate: agent never-lose wiring", () => {
     assert.ok(agentSrc.includes('hitchFeeSource: "fallback"'));
     assert.ok(agentSrc.includes("netUsdAfterSkim"));
     assert.ok(agentSrc.includes("DEFAULT_IMPACT_PCT"));
+  });
+});
+
+/** Live after #74: LOSE_ZERO allow then COST_EDGE AERO 3.00% < 1.15× required 2.63%. */
+const AERO_OPERATOR_NEAR_TERM = Object.freeze({
+  symbol: "AERO",
+  tradeEth: 2 / 2481,
+  hitchCostEth: 8e-9,
+  gasCostEth: 0.00001,
+  feePct: 0.003,
+  impactPct: 0.003,
+  price: 0.5886,
+  recentHigh: 0.5886, // flat → 3% short-target fallback
+  ethUsd: 2481,
+  tradeableUsd: 8,
+});
+
+describe("cost-edge-gate: operator /buy bypasses near-term; auto still gated", () => {
+  it("auto / wave refuses live AERO $2 near-term (3% < 1.15× required)", () => {
+    const d = evaluateCostEdgeGate(AERO_OPERATOR_NEAR_TERM);
+    assert.equal(d.allow, false);
+    assert.equal(d.code, "near_term");
+    assert.ok(d.nearTermEdgeMult <= 1.15 + 1e-9);
+    assert.ok(d.log.includes("would wait forever on a far peak"));
+    assert.match(d.log, /3\.00%/);
+  });
+
+  it("OPERATOR_BUY / MANUAL BUY (operator) allows the same AERO $2 book", () => {
+    const d = evaluateCostEdgeGate({ ...AERO_OPERATOR_NEAR_TERM, isManualOperator: true });
+    assert.equal(d.allow, true);
+    assert.equal(d.code, "ok");
+    assert.equal(d.log, null);
+  });
+
+  it("auto still refuses hitch% even when operator would skip near-term", () => {
+    const auto = evaluateCostEdgeGate({
+      ...AERO_OPERATOR_NEAR_TERM,
+      hitchCostEth: 0.0002, // ~25% of $2 stake
+    });
+    assert.equal(auto.allow, false);
+    assert.equal(auto.code, "hitch_pct");
+  });
+
+  it("executeBuy skips COST_EDGE refuse on operator reason; auto still evaluates", () => {
+    const buyFn = agentSrc.indexOf("async function executeBuy(");
+    assert.ok(buyFn >= 0);
+    const nextFn = agentSrc.indexOf("\nasync function ", buyFn + 1);
+    const body = agentSrc.slice(buyFn, nextFn > 0 ? nextFn : buyFn + 8000);
+    assert.ok(body.includes("evaluateCostEdgeGate"), "auto path must still call COST_EDGE");
+    assert.ok(body.includes("skipNearTerm"), "thin micro-bank must not wait forever on COST_EDGE near-term");
+    assert.ok(body.includes("COST_EDGE blocked"), "auto path must still skipBuy on COST_EDGE");
+    const edgeIdx = body.indexOf("evaluateCostEdgeGate");
+    const prelude = body.slice(Math.max(0, edgeIdx - 600), edgeIdx);
+    assert.match(
+      prelude,
+      /if\s*\(\s*!isManualOperatorBuy\(reason\)(?:\s*&&\s*!isVitaFeedBuyIn\(reason\))?\s*\)/,
+      "operator / Telegram /buy must bypass COST_EDGE",
+    );
+    assert.ok(
+      body.includes("AERO_UNI_V3_WETH_POOL") || agentSrc.includes("0x3d5D143381916280ff91407FeBEB52f2b60f33Cf"),
+      "AERO Uni V3 WETH bind stays",
+    );
   });
 });

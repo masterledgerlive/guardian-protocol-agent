@@ -14,6 +14,7 @@ export const LOCK_FILE = path.join(STATE_DIR, "guardian-v4.lock");
 export const TOKENS_STATE = path.join(STATE_DIR, "tokens.json");
 export const POSITIONS_STATE = path.join(STATE_DIR, "positions.json");
 export const HISTORY_STATE = path.join(STATE_DIR, "history.json");
+export const RACE_STATE = path.join(STATE_DIR, "race.json");
 
 /** Env prefix — never read root bot secrets by accident unless mirrored. */
 export const ENV_PREFIX = "GUARDIAN_V4_";
@@ -27,6 +28,59 @@ export function env(name, fallback = undefined) {
     if (v != null && v !== "") return v;
   }
   return fallback;
+}
+
+function firstNonEmpty(...values) {
+  for (const v of values) {
+    if (v != null && String(v) !== "") return v;
+  }
+  return undefined;
+}
+
+/** VAULT_* holds a Base tx hash of ciphertext — never a live Telegram bot token. */
+export function looksLikeVaultTxHash(value) {
+  return /^0x[a-fA-F0-9]{64}$/.test(String(value ?? "").trim());
+}
+
+function usableTelegramSecret(value) {
+  if (value == null || String(value) === "") return undefined;
+  if (looksLikeVaultTxHash(value)) return undefined;
+  return value;
+}
+
+/**
+ * Telegram bot token: prefer GUARDIAN_V4_TELEGRAM_BOT_TOKEN.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to plaintext TELEGRAM_BOT_TOKEN
+ * (after vault-loader decrypt). Never treat VAULT_TELEGRAM_BOT_TOKEN (tx hash)
+ * as the bot token — that caused Telegram "Not Found" on the V4 service.
+ */
+export function telegramBotToken() {
+  const preferred = usableTelegramSecret(env("TELEGRAM_BOT_TOKEN"));
+  if (process.env.GUARDIAN_V4_TELEGRAM_BOT_TOKEN) return preferred;
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
+    return firstNonEmpty(
+      preferred,
+      usableTelegramSecret(process.env.TELEGRAM_BOT_TOKEN),
+    );
+  }
+  return preferred;
+}
+
+/**
+ * Telegram chat id: prefer GUARDIAN_V4_TELEGRAM_CHAT_ID.
+ * When GUARDIAN_V4_SHARE_ROOT_ENV=yes, fall back to TELEGRAM_CHAT_ID
+ * (plaintext after vault load). Skip VAULT_TELEGRAM_CHAT_ID tx hashes.
+ */
+export function telegramChatId() {
+  const preferred = usableTelegramSecret(env("TELEGRAM_CHAT_ID"));
+  if (process.env.GUARDIAN_V4_TELEGRAM_CHAT_ID) return preferred;
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV === "yes") {
+    return firstNonEmpty(
+      preferred,
+      usableTelegramSecret(process.env.TELEGRAM_CHAT_ID),
+    );
+  }
+  return preferred;
 }
 
 export const CHAIN_ID = 8453;
@@ -52,6 +106,7 @@ export const SLIPPAGE = Number(env("SLIPPAGE", "0.85")) || 0.85;
 
 export const DEFAULT_RPCS = [
   env("RPC_URL", "https://mainnet.base.org"),
-  "https://base.llamarpc.com",
-  "https://base.meowrpc.com",
+  "https://base-rpc.publicnode.com",
+  "https://base-pokt.nodies.app",
+  "https://gateway.tenderly.co/public/base",
 ];

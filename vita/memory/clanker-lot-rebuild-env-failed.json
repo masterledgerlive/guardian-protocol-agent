@@ -1,0 +1,16 @@
+{
+  "at": "2026-09-18T06:31:00.000Z",
+  "topic": "clanker-lot-rebuild-txs-env-only-failed",
+  "text": "HARD STOP: mother brain untouched. Vault never. Do not invent P&L. Confirmed live: LOT_REBUILD_TXS alone FAILED on Railway. Boot only latched VIRTUAL. CLANKER still UNKNOWN ENTRY / entrySold=0 / HOLD unknown cost. Root cause: after first hash latches, shouldLatchBuyReceipt refuses the second unless isSeededAddonBuyTx OR evidence sibling; remain>bought*1.02 is unreachable. Durable fix is EVIDENCE_BUY_TXS.CLANKER array [0x23d8a0c5feaf55154abce99f2a395cc23fac26557170acc7b220b83dcf59a87b, 0xcb7dd5a6d9d7ea83f5f42e2e640795fa707c3987e959c57c68a7048ab42415f5] plus EVIDENCE_ADDON_BUY_TXS.CLANKER = second hash so sibling and addon both latch.",
+  "locations": [],
+  "hypothesis": {
+    "id": "lot-rebuild-txs-env-only-cannot-merge-clanker-addon",
+    "status": "operating-rule",
+    "discarded": [
+      "LOT_REBUILD_TXS env-only two hashes as Railway GPA latch",
+      "rely on remain>bought*1.02 after first-slice lot is usable"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

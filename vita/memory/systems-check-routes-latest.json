@@ -1,0 +1,394 @@
+{
+  "at": "2026-09-21T02:50:47.606Z",
+  "topic": "systems-check-routes",
+  "filingLabel": "SYSTEMS_CHECK_ROUTES",
+  "magic": "§SYSCHECK§",
+  "formula": "original-message-first",
+  "verdict": "PASS",
+  "containerGood": true,
+  "containerRoot": "75478d79f9a4b729",
+  "elapsedMs": 41,
+  "domino": {
+    "passed": 34,
+    "questionable": 0,
+    "failed": 0,
+    "total": 34,
+    "minTokensUsed": [
+      "AERO",
+      "VIRTUAL",
+      "BRETT"
+    ]
+  },
+  "merkle": {
+    "verdict": "PASS",
+    "folderFail": 0,
+    "folderQuestionable": 0,
+    "coreFail": 0,
+    "folders": [
+      {
+        "id": "vita",
+        "path": "vita",
+        "status": "PASS",
+        "root": "adadc0038267ae0f",
+        "leafCount": 120,
+        "corruptJson": 0,
+        "errors": []
+      },
+      {
+        "id": "vita-memory",
+        "path": "vita/memory",
+        "status": "PASS",
+        "root": "8d3c61a55524d50c",
+        "leafCount": 120,
+        "corruptJson": 0,
+        "errors": []
+      },
+      {
+        "id": "vita-strands",
+        "path": "vita/strands",
+        "status": "PASS",
+        "root": "5587e9654326ea91",
+        "leafCount": 47,
+        "corruptJson": 0,
+        "errors": []
+      },
+      {
+        "id": "public",
+        "path": "public",
+        "status": "PASS",
+        "root": "9cb695319e8492fc",
+        "leafCount": 10,
+        "corruptJson": 0,
+        "errors": []
+      },
+      {
+        "id": "graft",
+        "path": "graft",
+        "status": "PASS",
+        "root": "d9fd05a93441efda",
+        "leafCount": 21,
+        "corruptJson": 0,
+        "errors": []
+      }
+    ]
+  },
+  "chainLayer": {
+    "ok": true,
+    "passed": 9,
+    "total": 9,
+    "snarkRoot": "b9f5af5466a9b65012d114e9cd2a2d200047d40045f6f5b72a8e40483dc6dcf0",
+    "error": null
+  },
+  "errorLocations": [],
+  "forceInjectBody": "§SYSCHECK§v1|routes|verdict=PASS|root=75478d79f9a4b729|at=2026-09-21T02:50:47.606Z§\nCONTAINER PASS root=75478d79f9a4b729\nDOMINO pass=34 q=0 fail=0/34\nMIN_TOKENS AERO,VIRTUAL,BRETT\nERRORS none — container good\n\nProve: Basescan Input Data → UTF-8 after seal. Never invent tx hashes.\n§VITACLICK§v1|track|SYSCHECK|2026-09-21T02:50:47.647Z§\nHUMAN route domino PASS root=75478d79f9a4b729\nMACHINE TRACK tag=SYSCHECK at=2026-09-21T02:50:47.647Z route=telegram-clickthrough\nProve: Basescan Input Data → UTF-8 after seal. Never invent tx hashes.",
+  "forceInjectStaged": true,
+  "neverInventHashes": true,
+  "nodes": [
+    {
+      "id": "anchors",
+      "avenue": "settlement",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "3 hardcoded locs"
+    },
+    {
+      "id": "vitadir",
+      "avenue": "filing",
+      "cmd": "/vitafeed dir",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "subdirs=14"
+    },
+    {
+      "id": "home-callbacks",
+      "avenue": "telegram-home",
+      "cmd": "/home",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "84 routes fit≤64"
+    },
+    {
+      "id": "home-memory",
+      "avenue": "telegram-home",
+      "cmd": "/home memory",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "8 buttons"
+    },
+    {
+      "id": "home-feed",
+      "avenue": "telegram-home",
+      "cmd": "/home feed",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "12 buttons"
+    },
+    {
+      "id": "home-search",
+      "avenue": "telegram-home",
+      "cmd": "/home search",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "12 buttons"
+    },
+    {
+      "id": "home-wave",
+      "avenue": "telegram-home",
+      "cmd": "/home wave",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "4 buttons"
+    },
+    {
+      "id": "home-mirror",
+      "avenue": "telegram-home",
+      "cmd": "/home mirror",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "11 buttons"
+    },
+    {
+      "id": "home-trade",
+      "avenue": "telegram-home",
+      "cmd": "/home trade",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "8 buttons"
+    },
+    {
+      "id": "home-dual",
+      "avenue": "telegram-home",
+      "cmd": "/home dual",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "4 buttons"
+    },
+    {
+      "id": "home-agents",
+      "avenue": "telegram-home",
+      "cmd": "/home agents",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "5 buttons"
+    },
+    {
+      "id": "home-mother",
+      "avenue": "telegram-home",
+      "cmd": "/home mother",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "3 buttons"
+    },
+    {
+      "id": "home-syscheck",
+      "avenue": "telegram-home",
+      "cmd": "/home syscheck",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "8 buttons"
+    },
+    {
+      "id": "home-status",
+      "avenue": "telegram-home",
+      "cmd": "/home status",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "9 buttons"
+    },
+    {
+      "id": "help-callbacks",
+      "avenue": "telegram-help",
+      "cmd": "/help",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "55 routes fit≤64"
+    },
+    {
+      "id": "token-catalog",
+      "avenue": "trade",
+      "cmd": "/tokens",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "minTokens=3 of 3 (AERO,VIRTUAL,BRETT)"
+    },
+    {
+      "id": "pick-buy",
+      "avenue": "trade",
+      "cmd": "/pick buy",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "picker → /buy AERO"
+    },
+    {
+      "id": "pick-sell",
+      "avenue": "trade",
+      "cmd": "/pick sell",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "picker → /sell AERO"
+    },
+    {
+      "id": "pick-exit",
+      "avenue": "trade",
+      "cmd": "/pick exit",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "picker → /exit AERO"
+    },
+    {
+      "id": "pick-piggyunlock",
+      "avenue": "trade",
+      "cmd": "/pick piggyunlock",
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "picker → /piggyunlock AERO"
+    },
+    {
+      "id": "core:vita/AGENTS.md",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "7244B"
+    },
+    {
+      "id": "core:vita/ORIGINAL_FORMULA.md",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "2160B"
+    },
+    {
+      "id": "core:vita/FILING.md",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "12006B"
+    },
+    {
+      "id": "core:vita/anchors.json",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "1672B"
+    },
+    {
+      "id": "core:vita/mainframe.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "8272B"
+    },
+    {
+      "id": "core:vita/telegram-home.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "29343B"
+    },
+    {
+      "id": "core:vita/telegram-clickthrough.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "14013B"
+    },
+    {
+      "id": "core:vita/telegram-help-routes.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "32596B"
+    },
+    {
+      "id": "core:vita/chain-layer.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "37732B"
+    },
+    {
+      "id": "core:vita/vita-dir.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "25409B"
+    },
+    {
+      "id": "core:vita/vita-feed.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "84326B"
+    },
+    {
+      "id": "core:vita/x404-dir.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "13575B"
+    },
+    {
+      "id": "core:vita/agent-chat.js",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "vita",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "22662B"
+    },
+    {
+      "id": "core:public/vita.html",
+      "avenue": "container",
+      "cmd": null,
+      "parentFolder": "public",
+      "parentStatus": "PASS",
+      "status": "PASS",
+      "detail": "16239B"
+    }
+  ]
+}

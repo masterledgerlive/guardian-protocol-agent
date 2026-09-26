@@ -1,0 +1,25 @@
+{
+  "id": "vita-compression-v1",
+  "filingLabel": "COMPRESS",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "note": {
+    "lastKey": "VITACOMP.brotli-11-v1.9c2d723a",
+    "lastCodec": "brotli-11-v1",
+    "lastKind": "image",
+    "lastName": "mlk-i-have-a-dream.jpg",
+    "files": 7
+  },
+  "ends": [
+    "Add any file (inbox /vitafeed compress add /vita/compression)",
+    "Bake-off every codec · recommend the verified winner",
+    "Call verified · key recovers the bytes",
+    "Next module: /vitafeed injection (confirm|override, no invented hash)"
+  ],
+  "updatedAt": "2026-09-24T03:33:20.385Z",
+  "lastKey": "VITACOMP.brotli-11-v1.9c2d723a",
+  "lastCodec": "brotli-11-v1",
+  "lastKind": "image",
+  "lastName": "mlk-i-have-a-dream.jpg",
+  "files": 7
+}

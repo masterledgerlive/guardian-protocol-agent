@@ -1,0 +1,29 @@
+{
+  "strandId": "vitafeed-override-partial-brain",
+  "sparse": true,
+  "source": "vitafeed-helper",
+  "learn": "Override bypasses liquid floor + RISK REFUSE. Partial seal keeps real locs and restages remainder. /vitafeed brain stages §VITABRAIN§ mind (formula+anchors+recall). Paid kill-switch and rate limit still hold. Mother brain untouched.",
+  "formula": "original-message-first",
+  "payer": "RISK",
+  "overrideBypasses": ["risk-balance-refuse", "liquid-floor"],
+  "overrideCannotBypass": ["VITAFEED_PAID=no", "rate-limit"],
+  "partialSeal": true,
+  "brainSeed": true,
+  "locations": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    }
+  ]
+}

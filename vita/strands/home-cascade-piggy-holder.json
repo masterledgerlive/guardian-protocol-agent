@@ -1,0 +1,46 @@
+{
+  "strandId": "home-cascade-piggy-holder-v1",
+  "at": "2026-09-20T20:21:00.000Z",
+  "topic": "home-cascade-piggy-holder-knowledge",
+  "role": "agent",
+  "alternation": "knowledge",
+  "label": "MESSAGE_CASCADE",
+  "sparse": true,
+  "formula": "original-message-first",
+  "neverForget": true,
+  "usefulForTimeToCome": true,
+  "text": "$HOME 0x4BfAa776991E85e5f8b1255461cbbd216cFc714f fee 3000 is the MAIN cascade + piggy-bank holder. Capabilities while holding: wave-hold (instant peak/trough), park $0.05 cascade dust + saved earnings on HOME bag, OPERATOR_ROTATE sweeps other bags → HOME (never sells HOME), Aero Slipstream liquid book, Eureka hitch when leftover covers KEY+LOC, Storage Token can charge hitch delta, anti-stagnant hub stays ranked. GRAFT side (isolated): /graft raw shows RAW DATA + cas:// loc; /graft inject local|github files rooted libraries into CAS; /graft snark code snark-compresses whole graft code; activate+think works offline without GitHub; agentic think prefers most rooted. Never invent hashes. Mother brain untouched.",
+  "module": "vita/message-cascade.js",
+  "pairMemory": "vita/memory/home-cascade-piggy-holder-operator.json",
+  "home": {
+    "symbol": "HOME",
+    "address": "0x4BfAa776991E85e5f8b1255461cbbd216cFc714f",
+    "feeTier": 3000,
+    "role": "cascade-piggy-holder",
+    "cascadeAvailable": true,
+    "rotateNeverSells": true,
+    "capabilitiesWhileHolding": [
+      "wave-hold",
+      "piggy-dust-seat",
+      "rotate-target",
+      "slipstream-book",
+      "message-hop",
+      "storage-token-charge",
+      "anti-stagnant-hub"
+    ]
+  },
+  "graft": {
+    "commands": [
+      "/graft raw",
+      "/graft inject local",
+      "/graft inject github",
+      "/graft snark code",
+      "/graft libraries",
+      "/graft activate",
+      "/graft think"
+    ],
+    "activateWithoutGithub": true
+  },
+  "locations": [],
+  "neverInventHashes": true
+}

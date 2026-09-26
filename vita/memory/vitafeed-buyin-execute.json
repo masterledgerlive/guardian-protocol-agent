@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-15T04:40:00.000Z",
+  "topic": "vitafeed-buyin-execute-gates",
+  "text": "Bug: /vitafeed confirm paid message self-txs but skipped token buys. VITAFEED BUYIN was not operator /buy, so LOSE_ZERO (no edge), tier OUT, COST_EDGE, min-entry, and ADD_ON_FIFO_RED blocked the character-sized seat. RISK need ignored buy stake; bal was stale after inscription. Fix: isVitaFeedBuyIn allow path (separate from MANUAL BUY), buy seats before inscribe with live getFullBalance, reserve inscription+stake+gas, stake floor ≥$0.25 leave-behind. Message-first intact when NO SEAT.",
+  "commands": ["/vitafeed", "/vitafeed confirm"],
+  "hypothesis": {
+    "id": "vitafeed-buyin-must-clear-auto-gates",
+    "status": "fixed",
+    "note": "Transmission revenue seat must buy ≥$0.25 leave-behind + message cost stack without weakening operator leftover/edge."
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VITA Spatial Sound</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bark: #1a2218;
+      --moss: #2d4a3e;
+      --leaf: #7cb518;
+      --amber: #e8a838;
+      --sky: #a8d5c2;
+      --foam: #eef6ef;
+      --mute: #8aa092;
+      --ok: #7cb518;
+      --pending: #c45c26;
+      --miss: #9b2226;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(900px 480px at 8% 0%, rgba(232,168,56,0.22) 0%, transparent 55%),
+        radial-gradient(700px 420px at 95% 10%, rgba(124,181,24,0.18) 0%, transparent 50%),
+        linear-gradient(168deg, #0f1612 0%, #1a281f 42%, #121a16 100%);
+      color: var(--foam);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    body { padding: 1.2rem clamp(0.75rem, 3vw, 2rem) 2.5rem; }
+    .brand {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: clamp(2.4rem, 8vw, 4.6rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 0.95;
+      margin: 0;
+      color: var(--foam);
+      animation: rise 0.85s ease-out both;
+    }
+    .brand span { color: var(--amber); }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); filter: blur(3px); }
+      to { opacity: 1; transform: none; filter: none; }
+    }
+    .lede {
+      max-width: 38rem;
+      margin: 0.7rem 0 1.3rem;
+      color: var(--mute);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      animation: rise 0.85s 0.12s ease-out both;
+    }
+    .stage {
+      display: grid;
+      gap: 1.2rem;
+    }
+    @media (min-width: 920px) {
+      .stage { grid-template-columns: 1.15fr 0.85fr; align-items: start; }
+    }
+    .voxel-wrap {
+      position: relative;
+      min-height: 280px;
+      overflow: hidden;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 27px,
+          rgba(168,213,194,0.06) 27px,
+          rgba(168,213,194,0.06) 28px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 27px,
+          rgba(168,213,194,0.06) 27px,
+          rgba(168,213,194,0.06) 28px
+        ),
+        linear-gradient(180deg, rgba(45,74,62,0.55), rgba(15,22,18,0.2));
+      border-bottom: 2px solid rgba(232,168,56,0.4);
+      animation: gridPulse 6s ease-in-out infinite;
+    }
+    @keyframes gridPulse {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.08); }
+    }
+    canvas#voxel {
+      display: block;
+      width: 100%;
+      height: 280px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem 1.2rem;
+      margin-top: 0.55rem;
+      font-size: 0.74rem;
+      color: var(--mute);
+    }
+    .meta strong { color: var(--sky); font-weight: 600; }
+    .bites {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+      gap: 0.55rem;
+      margin-top: 0.9rem;
+    }
+    .bite {
+      appearance: none;
+      border: 1px solid rgba(168,213,194,0.25);
+      background: linear-gradient(160deg, rgba(45,74,62,0.85), rgba(26,34,24,0.9));
+      color: var(--foam);
+      padding: 0.7rem 0.55rem;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .bite:hover, .bite.lit {
+      transform: translateY(-2px);
+      border-color: var(--amber);
+      box-shadow: 0 0 0 1px rgba(232,168,56,0.35);
+    }
+    .bite .t { display: block; font-size: 0.82rem; color: var(--amber); }
+    .bite .s { display: block; margin-top: 0.25rem; font-size: 0.65rem; color: var(--mute); }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+    button.cta, a.cta {
+      appearance: none;
+      border: 1px solid rgba(232,168,56,0.55);
+      background: rgba(232,168,56,0.12);
+      color: var(--foam);
+      padding: 0.55rem 0.85rem;
+      font: inherit;
+      font-size: 0.78rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.cta.ghost, a.cta.ghost {
+      border-color: rgba(168,213,194,0.35);
+      background: transparent;
+      color: var(--mute);
+    }
+    .inject {
+      margin-top: 0.9rem;
+      padding: 0.75rem 0.85rem;
+      border-left: 3px solid var(--pending);
+      background: rgba(196,92,38,0.1);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      animation: injectIn 0.5s ease-out both;
+    }
+    .inject.proven {
+      border-left-color: var(--ok);
+      background: rgba(124,181,24,0.12);
+    }
+    .inject a { color: var(--amber); }
+    @keyframes injectIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to { opacity: 1; transform: none; }
+    }
+    .rail h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 1.15rem;
+      margin: 0 0 0.45rem;
+      color: var(--sky);
+    }
+    .rail p { margin: 0 0 0.75rem; font-size: 0.74rem; color: var(--mute); line-height: 1.4; }
+    .loc {
+      display: block;
+      padding: 0.55rem 0.65rem;
+      margin-bottom: 0.4rem;
+      border: 1px solid rgba(168,213,194,0.2);
+      background: rgba(26,34,24,0.65);
+      color: inherit;
+      text-decoration: none;
+      font-size: 0.72rem;
+    }
+    .loc.match { border-color: rgba(124,181,24,0.55); }
+    .loc.local { border-color: rgba(168,213,194,0.25); }
+    .loc .badge {
+      display: inline-block;
+      padding: 0.1rem 0.35rem;
+      margin-right: 0.35rem;
+      font-size: 0.62rem;
+      letter-spacing: 0.04em;
+      background: rgba(168,213,194,0.15);
+    }
+    .loc.match .badge { background: rgba(124,181,24,0.25); color: var(--ok); }
+    .keyline { margin-top: 0.75rem; font-size: 0.7rem; color: var(--mute); word-break: break-all; }
+    .keyline span { color: var(--sky); }
+  </style>
+</head>
+<body>
+  <h1 class="brand">VITA <span>Spatial</span></h1>
+  <p class="lede">
+    Bird/syrinx vocal prints as fine-tuned recipes in xyz voxels — one-block
+    §VITASPATIAL§ filing when ≤720B. Agentic soundtrack mimics nearby sealed
+    data points. Basescan inject click-through appears only after real
+    /vitafeed confirm|override (VITAFEED_PAID=yes). Class-proof ≠ body.
+  </p>
+
+  <div class="stage">
+    <div>
+      <div class="voxel-wrap">
+        <canvas id="voxel" width="900" height="280" aria-label="voxel field"></canvas>
+      </div>
+      <div class="meta">
+        <div>bite <strong id="meta-id">—</strong></div>
+        <div>voxel <strong id="meta-voxel">—</strong></div>
+        <div>block <strong id="meta-block">—</strong></div>
+        <div id="meta-dur">—</div>
+      </div>
+      <div class="bites" id="bites" role="group" aria-label="spatial bites"></div>
+      <div class="actions">
+        <button type="button" class="cta" id="btn-play">Play bite</button>
+        <button type="button" class="cta ghost" id="btn-soundtrack">Soundtrack neighborhood</button>
+        <button type="button" class="cta ghost" id="btn-enqueue">Copy enqueue cmd</button>
+      </div>
+      <div class="inject" id="inject" aria-live="polite">Loading inject status…</div>
+      <p class="keyline">zeroOpenKey <span id="meta-key">—</span></p>
+    </div>
+
+    <aside class="rail" aria-label="location rail">
+      <h2>Loc / inject rail</h2>
+      <p id="rail-note">
+        LOCAL_OK = recipe availability. MATCH = sealed Input Data.
+        Inject CTA only when a real Base tx exists — never invented hashes.
+      </p>
+      <div id="locs"></div>
+      <a class="cta ghost" id="inspect-link" href="#" style="display:inline-block;margin-top:0.5rem;">Inspect exact VIN UTF-8 →</a>
+    </aside>
+  </div>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) { try { tg.ready(); tg.expand(); } catch (_) {} }
+
+    const qs = new URLSearchParams(location.search);
+    let currentId = qs.get("id") || qs.get("pad") || "sparrow-nest";
+    let state = null;
+    let audioCtx = null;
+    let dots = [];
+
+    const el = (id) => document.getElementById(id);
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function fetchJson(url) {
+      const r = await fetch(url);
+      return r.json();
+    }
+
+    function drawVoxel(bites, activeId) {
+      const c = el("voxel");
+      const ctx = c.getContext("2d");
+      const w = c.width;
+      const h = c.height;
+      ctx.clearRect(0, 0, w, h);
+      const cx = w * 0.5;
+      const cy = h * 0.58;
+      const t = performance.now() / 1000;
+      dots = [];
+      for (const b of bites || []) {
+        const v = b.voxel || { vx: 0, vy: 0, vz: 0 };
+        const x = cx + v.vx * 38 + v.vz * 18;
+        const y = cy - v.vy * 32 - v.vz * 12;
+        const pulse = 0.55 + 0.45 * Math.sin(t * 2.2 + (v.vx || 0));
+        const r = (b.id === activeId ? 11 : 7) * pulse;
+        ctx.beginPath();
+        ctx.fillStyle = b.color || "#7cb518";
+        ctx.globalAlpha = b.id === activeId ? 0.95 : 0.55;
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (b.id === activeId) {
+          ctx.strokeStyle = "rgba(232,168,56,0.85)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, r + 6 + Math.sin(t * 4) * 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        dots.push({ id: b.id, x, y, r: r + 8 });
+      }
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(() => drawVoxel(bites, activeId));
+    }
+
+    function renderBites(bites) {
+      const box = el("bites");
+      box.innerHTML = "";
+      for (const b of bites || []) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "bite" + (b.id === currentId ? " lit" : "");
+        btn.innerHTML =
+          '<span class="t">' + escapeHtml(b.title || b.id) + "</span>" +
+          '<span class="s">' + escapeHtml((b.printId || "") + " · " + (b.oneBlock ? "1BLK" : "SPA")) + "</span>";
+        btn.addEventListener("click", () => selectBite(b.id));
+        box.appendChild(btn);
+      }
+    }
+
+    function renderInject(inject) {
+      const box = el("inject");
+      if (!inject) {
+        box.className = "inject";
+        box.textContent = "NO sealed Basescan tx yet — enqueue then confirm|override with VITAFEED_PAID=yes";
+        return;
+      }
+      if (inject.proven && inject.href) {
+        box.className = "inject proven";
+        box.innerHTML =
+          "<strong>INJECT PROOF</strong> — sealed body on Base<br/>" +
+          '<a href="' + escapeHtml(inject.href) + '" target="_blank" rel="noopener">' +
+          escapeHtml(inject.location) + "</a><br/>" +
+          '<span style="color:var(--mute)">Click → Input Data → UTF-8 MATCH</span>';
+        const a = box.querySelector("a");
+        if (a) {
+          a.addEventListener("click", (ev) => {
+            if (tg && tg.initData && typeof tg.openLink === "function") {
+              ev.preventDefault();
+              tg.openLink(inject.href);
+            }
+          });
+        }
+      } else {
+        box.className = "inject";
+        box.textContent = inject.note || "NO sealed Basescan tx yet — nothing to click (class-proof ≠ this body)";
+      }
+    }
+
+    function renderLocs(proof) {
+      const box = el("locs");
+      box.innerHTML = "";
+      for (const r of (proof && proof.rows) || []) {
+        const node = document.createElement(r.basescan && r.clickThrough ? "a" : "div");
+        node.className = "loc " + (r.match === "MATCH" ? "match" : "local");
+        if (node.tagName === "A") {
+          node.href = r.basescan;
+          node.target = "_blank";
+          node.rel = "noopener";
+        }
+        node.innerHTML =
+          '<span class="badge">' + escapeHtml(r.match || r.kind || "?") + "</span>" +
+          escapeHtml((r.dataFieldCommit || "").slice(0, 14)) +
+          (r.location
+            ? '<div style="color:var(--mute);margin-top:0.25rem">' + escapeHtml(String(r.location).slice(0, 22)) + "…</div>"
+            : '<div style="color:var(--mute);margin-top:0.25rem">no sealed body loc</div>');
+        box.appendChild(node);
+      }
+      if (proof && proof.note) el("rail-note").textContent = proof.note;
+      if (proof && proof.inject) renderInject(proof.inject);
+    }
+
+    async function playDataUrl(dataUrl) {
+      try {
+        const res = await fetch(dataUrl);
+        const buf = await res.arrayBuffer();
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") await audioCtx.resume();
+        const audioBuf = await audioCtx.decodeAudioData(buf.slice(0));
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(audioCtx.destination);
+        src.start(0);
+      } catch (_) {
+        const a = new Audio(dataUrl);
+        a.play().catch(() => {});
+      }
+    }
+
+    async function selectBite(id) {
+      currentId = id;
+      document.querySelectorAll(".bite").forEach((b) => b.classList.remove("lit"));
+      const play = await fetchJson("/vita/spatial/play?id=" + encodeURIComponent(id));
+      if (!play.ok) {
+        el("meta-id").textContent = "err";
+        return;
+      }
+      el("meta-id").textContent = play.id;
+      el("meta-voxel").textContent = play.voxel
+        ? [play.voxel.vx, play.voxel.vy, play.voxel.vz].join(",")
+        : "—";
+      el("meta-block").textContent = play.oneBlock ? "ONE-BLOCK" : "spaced";
+      el("meta-dur").textContent = play.durationSec != null ? play.durationSec.toFixed(2) + "s" : "—";
+      el("meta-key").textContent = play.zeroOpenKey || "—";
+      renderInject(play.inject);
+      const locs = await fetchJson("/vita/spatial/locs?id=" + encodeURIComponent(id));
+      renderLocs(locs);
+      el("inspect-link").href = "/vita/spatial/loc?id=" + encodeURIComponent(id) + "&i=1";
+      if (play.dataUrl) await playDataUrl(play.dataUrl);
+      renderBites((state && state.bites) || []);
+    }
+
+    async function playSoundtrack() {
+      const voxel = (state && state.bites && state.bites.find((b) => b.id === currentId)?.voxel) || { vx: 0, vy: 0, vz: 0 };
+      const key = [voxel.vx || 0, voxel.vy || 0, voxel.vz || 0].join(",");
+      const plan = await fetchJson("/vita/spatial/soundtrack?voxel=" + encodeURIComponent(key));
+      if (!plan.ok || !plan.clips) return;
+      for (const clip of plan.clips) {
+        if (clip.dataUrl) {
+          await playDataUrl(clip.dataUrl);
+          await new Promise((r) => setTimeout(r, (clip.delayMs || 120) + 80));
+        }
+      }
+    }
+
+    async function boot() {
+      state = await fetchJson("/vita/spatial?json=1");
+      renderBites(state.bites || []);
+      drawVoxel(state.bites || [], currentId);
+      if (qs.get("soundtrack") === "1") {
+        await playSoundtrack();
+      } else {
+        await selectBite(currentId);
+      }
+    }
+
+    el("btn-play").addEventListener("click", () => selectBite(currentId));
+    el("btn-soundtrack").addEventListener("click", () => playSoundtrack());
+    el("btn-enqueue").addEventListener("click", async () => {
+      const cmd = "/vitafeed enqueue spatial " + currentId;
+      try {
+        await navigator.clipboard.writeText(cmd);
+        el("btn-enqueue").textContent = "Copied: " + cmd;
+      } catch (_) {
+        el("btn-enqueue").textContent = cmd;
+      }
+    });
+
+    boot().catch((e) => {
+      el("inject").textContent = String(e && e.message || e);
+    });
+  </script>
+</body>
+</html>

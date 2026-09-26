@@ -1,0 +1,9 @@
+{
+  "strandId": "virtual-hourly-catalog",
+  "sparse": true,
+  "source": "hourly-balance-catalog",
+  "learn": "Hourly bag inventory is HOURLY_BALANCE_CATALOG (symbol→Base address), not DEFAULT_TOKENS. VIRTUAL 0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b must be polled on boot/cycle/10-min/pulse and listed on RECALL_SLEEVES. Fill-book EVIDENCE_BUY_TXS.VIRTUAL = 0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879. Amounts from receipt only. VIRTUAL stays tradeable. WAVE hitch #119 untouched. VITAFEED_PAID / WAVE_MIRROR_PAID default off.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "refreshTokenBalances"
+}

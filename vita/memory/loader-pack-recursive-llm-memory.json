@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-20T17:32:32.578Z",
+  "topic": "loader-pack-recursive-llm-memory",
+  "filingLabel": "MEMORY",
+  "hierarchy": "MEMORY\\RECURSIVE",
+  "kind": "recall",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "title": "Interact with VITA like an LLM over sealed knowledge",
+  "text": "Recursive memory LLM stance: answers cite sealed Base locs + packaged memory. /vitafeed ref|ask|proven for calculator true-name + translator. /vitafeed know for did-you-know cards. /vitafeed recall for capability proofs. /vitafeed load preloads curated packs into backlog (batch now or later). Language grows: human lane for people, machine lane for agents — same commit.",
+  "machine": "LLM stance=cite-locs | ref|ask|proven | know=didYouKnow | recall=capability | load=preload→backlog | dual=human↔machine",
+  "didYouKnow": "Hey — did you know /vitafeed proof already grows zero-proof roots while the loader only curates *what* to feed next — backlog still owns the queue?",
+  "capability": "NEW with chains: ask the bot like an LLM; it answers from filed hierarchy and points at Basescan chat — learning what recursive memory can do as packs seal.",
+  "sourceFiles": [
+    "vita/ref-memory.js",
+    "vita/brain-learn.js",
+    "vita/vita-feed-loader.js"
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ]
+}

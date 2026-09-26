@@ -1,0 +1,9 @@
+{
+  "strandId": "aero-lose-zero-oneshot",
+  "sparse": true,
+  "source": "lose-zero-gate",
+  "learn": "EVIDENCE_BUY_TXS.AERO = 0x53b9844ca04d920cb9e02e45bb2770610932dac098ec067ba2e8148bb090eb6e. Wallet-WETH SwapRouter02 buy (n6058). Partial FIFO-red sell 0x15ac4a7315e6b7086921cd1c01953b6655a9f8232e29ba431a651d7ff4dd70c5 auto-appends from persist/ledger — do not hardcode invent in EVIDENCE_SELL_TXS. Live rem ≈0.28936 matches buy−sell. consumeAllowLossyOperatorSell after the sell that used ALLOW_LOSSY (one-shot; Railway env must go back to no). DUST RECYCLE / piggy 95% HOLDs FIFO-red unless that one-shot is armed. classifyRecycleBag + recycleSellCopy never label unknown when FIFO lots exist. Cycle processToken and executeSell rebuild+apply the lot before unknown stamp / entrySold. HOURLY_BALANCE_CATALOG.AERO. VITAFEED_PAID / WAVE_MIRROR_PAID / ALLOW_LOSSY_OPERATOR_SELL stay default off after consume. Mother brain untouched. Vault never. Do not invent P&L.",
+  "formula": "original-message-first",
+  "telegram": ["/bag"],
+  "caller": "consumeAllowLossyOperatorSell"
+}

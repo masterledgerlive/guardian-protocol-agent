@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VITA proof-of-logs</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; font: 15px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: #10140f; color: #d7e7c8;
+    }
+    header, main { max-width: 980px; margin: 0 auto; padding: 20px; }
+    h1 { font-size: 1.35rem; margin: 0 0 6px; }
+    a { color: #9dcc6a; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    button, .tab {
+      background: #1c2618; color: #d7e7c8; border: 1px solid #3d5234;
+      padding: 8px 12px; cursor: pointer; text-decoration: none;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #243022; vertical-align: top; }
+    pre { white-space: pre-wrap; background: #0b0e0a; padding: 12px; border: 1px solid #243022; }
+    .note { color: #8aa37a; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>VITA proof-of-logs</h1>
+    <p class="note">Creation-order trail. Every row attaches the open key + original root path. Tabs: Plain · Machine · Original download. Race 1–3 justifies who proofed first. Chain seats are memory credit until a real seal — never invent hashes.</p>
+    <p><a href="/vita">Console</a> · <a href="/vita/compression">Compression</a> · Telegram <code>/vitafeed trail</code></p>
+  </header>
+  <main>
+    <pre id="header">loading…</pre>
+    <div class="tabs" id="tabs"></div>
+    <pre id="panel"></pre>
+    <h2>Trail</h2>
+    <table id="trail"><thead><tr><th>#</th><th>phase</th><th>name</th><th>key</th><th>root</th><th>race</th></tr></thead><tbody></tbody></table>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const n = params.get("n");
+    const headerEl = document.getElementById("header");
+    const tabsEl = document.getElementById("tabs");
+    const panelEl = document.getElementById("panel");
+    const bodyEl = document.querySelector("#trail tbody");
+
+    async function load() {
+      const state = await fetch("/vita/proof-log?json=1").then((r) => r.json());
+      headerEl.textContent = [
+        "rootCommit=" + (state.header?.rootCommit || "—"),
+        "seq=" + (state.header?.lastSeq || 0),
+        "verified=" + (state.header?.verifiedCount || 0),
+        "messageOut=" + (state.header?.messageOutCount || 0),
+        "neverInventHashes=" + state.neverInventHashes,
+      ].join("\n");
+      bodyEl.innerHTML = "";
+      for (const e of state.entries || []) {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td><a href=\"?n=" + e.n + "\">" + e.n + "</a></td>" +
+          "<td>" + e.phase + "</td>" +
+          "<td>" + (e.name || "") + "</td>" +
+          "<td>" + e.key + "</td>" +
+          "<td>" + e.rootPath + "</td>" +
+          "<td>" + (e.race?.slot ?? "—") + "</td>";
+        bodyEl.appendChild(tr);
+      }
+      if (n) {
+        const entry = (state.entries || []).find((e) => String(e.n) === String(n));
+        tabsEl.innerHTML = "";
+        for (const tab of ["plain", "machine", "original", "race"]) {
+          const a = document.createElement("a");
+          a.className = "tab";
+          a.href = "?n=" + n + "&tab=" + tab;
+          a.textContent = tab;
+          tabsEl.appendChild(a);
+        }
+        const dl = document.createElement("a");
+        dl.className = "tab";
+        dl.href = "/vita/proof-log/download?n=" + n;
+        dl.textContent = "download original";
+        tabsEl.appendChild(dl);
+        const tab = params.get("tab") || "plain";
+        const detail = await fetch("/vita/proof-log?n=" + encodeURIComponent(n) + "&tab=" + tab).then((r) => r.json());
+        panelEl.textContent = detail.card || JSON.stringify(detail, null, 2);
+      }
+    }
+    load().catch((e) => { headerEl.textContent = String(e); });
+  </script>
+</body>
+</html>

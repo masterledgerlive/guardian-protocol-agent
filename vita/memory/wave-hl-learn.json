@@ -1,0 +1,8 @@
+{
+  "label": "WAVE_HL",
+  "at": "2026-09-24T01:30:00.000Z",
+  "note": "Highs and lows of every token stay in vita/memory/wave-hl-ledger.json and in positions.json. The live 8-swing window is not the memory. ATH and ATL survive the trim. Telegram /waveboard shows stage, an up or down arrow, confidence, predicted bottom and exit high. /dividend SYMBOL sells 10–30% of the sellable bag and leaves the rest. Below entry, or unknown cost, the slice is withheld. The chain copy is one short §WHL§v1 machine line stamped utc|local|unix. It rides on a covered leftover sell after KEY+LOC. prev= is the prior line's content tag. from= is a prior real tx or -. loc inside the line stays - because the sell hash does not exist until the tx returns; the ride record stores that hash only when sendTransaction returns one. Uncovered leftover banks the line. Never solo-send. Never invent a hash. Never sell red to place the line.",
+  "telegram": ["/waveboard", "/waveboard SYMBOL", "/dividend", "/dividend SYMBOL", "/waves"],
+  "machine": "§WHL§v1|utc=|local=|unix=|SYM|H=|L=|S=|A=|C=|X=|B=|D=|K=|N=|prev=|from=|loc=-|next=END",
+  "neverInventHashes": true
+}

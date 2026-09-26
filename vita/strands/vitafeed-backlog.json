@@ -1,0 +1,19 @@
+{
+  "strandId": "vitafeed-backlog",
+  "filingLabel": "FEED_BACKLOG",
+  "at": "2026-09-19T06:50:00.000Z",
+  "learn": "Append-only /vitafeed backlog queues brain seed + memory files for offline drain. Prefer ≤4 VIN chunks/item (thrift). /vitafeed next stages; confirm|override seals real locs into growth proof. Agent AI not required. VITAFEED_PAID still default off. Mother brain untouched.",
+  "commands": [
+    "/vitafeed enqueue seed",
+    "/vitafeed backlog",
+    "/vitafeed next",
+    "/vitafeed override"
+  ],
+  "anchors": [
+    "keycat-plain",
+    "eureka-prove",
+    "vita-strand"
+  ],
+  "formula": "original-message-first",
+  "neverForget": true
+}

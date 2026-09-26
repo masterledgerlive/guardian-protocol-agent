@@ -88,12 +88,17 @@ describe("unknown cost basis is not invented invested", () => {
     assert.equal(shouldTrustSavedCostBasis(token, {
       tradeLog: [{ type: "BUY", symbol: "KEYCAT", tx: "0xabc" }],
     }), true);
+    assert.equal(shouldTrustSavedCostBasis(token, {
+      fifoLot: { ethIn: 0.0004, tokensIn: 500, fillCostEth: 0.0004 },
+    }), true);
   });
 
   it("agent does not copy live market into totalInvestedEth for UNKNOWN ENTRY", () => {
     assert.ok(!src.includes("UNKNOWN ENTRY resolved from live market"));
     assert.ok(src.includes("applyUnknownChainHolding"));
     assert.ok(src.includes("costBasisEth(token)"));
+    assert.ok(src.includes("fifoRemainingCostEth"));
+    assert.ok(!src.includes("ethIn - ethOut"));
   });
 });
 

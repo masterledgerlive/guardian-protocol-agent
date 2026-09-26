@@ -10,7 +10,10 @@ import {
   minEntryEth,
   cascadeSeedEth,
   effectiveMinEntryEth,
+  resolveMinEntryForBook,
+  microSpendableEth,
   injectAllBookParams,
+  THIN_BOOK_ETH,
   cascadeDeployEth,
   liquidBalanceStatus,
   shouldRecycleForCascadeFuel,
@@ -19,13 +22,21 @@ import {
   cascadeGasFloorEth,
   effectiveCascadeGasFloor,
   unwrapForCascadeGas,
+  autoUnwrapTowardCascadeFloor,
+  cascadeNativeGasOk,
   maxCascadeDeployWithoutDepletion,
   injectProveStatus,
   INJECT_ALL_USD,
   CASCADE_SEED_USD,
   FULL_SELL_RESERVE_ETH,
   CASCADE_GAS_FLOOR_ETH,
+  THRIFT_CASCADE_GAS_FLOOR_ETH,
   INJECT_PROVE_TARGET,
+  CASCADE_TARGET_HOPS,
+  CASCADE_WINDOW_MS,
+  CASCADE_LEAVE_DUST_USD,
+  parseOperatorUnwrapEnv,
+  isOperatorUnwrapArmed,
 } from "./cascade-rollover.js";
 import { tierBookParams } from "./inject-revenue.js";
 
@@ -66,6 +77,52 @@ describe("cascade-rollover: min entry covers costs + seed", () => {
     });
     // $25 / 2500 = 0.01 ETH dominates tiny computed floor
     assert.ok(e >= 0.01 - 1e-9);
+  });
+});
+
+describe("cascade-rollover: micro spendable + min entry", () => {
+  it("unified ETH+WETH after gas keep (no 20% + sell park)", () => {
+    // Live CDP: 0.001500 ETH + 0.000779 WETH, gas floor 0.0005
+    const spend = microSpendableEth({
+      eth: 0.001500,
+      weth: 0.000779,
+      gasFloorEth: 0.0005,
+      piggyEth: 0,
+    });
+    assert.ok(Math.abs(spend - 0.001779) < 1e-12);
+    assert.ok(spend > 0.001529, "must beat the reserved $3.80 slot");
+    assert.ok(0.002279 < THIN_BOOK_ETH);
+  });
+
+  it("drops cascade seed when full inject floor cannot fit the book", () => {
+    const live = {
+      gasCostEth: 0.00005,
+      hitchCostEth: 0.0008,
+      feePct: 0.006,
+      ethUsd: 2490,
+      tokenMinBuyUsd: 0,
+      minPosUsd: 0.5,
+      tradeableEth: 0.001529,
+    };
+    const full = effectiveMinEntryEth(live);
+    assert.ok(full > live.tradeableEth, "fat hitch+seed should exceed the $3.80 slot");
+    const r = resolveMinEntryForBook(live);
+    assert.ok(r.minEntryEth <= live.tradeableEth + 1e-12);
+    assert.ok(r.mode === "micro-hitch" || r.mode === "micro-bank");
+  });
+
+  it("banks hitch when even 1× hitch cannot fit", () => {
+    const r = resolveMinEntryForBook({
+      gasCostEth: 0.00005,
+      hitchCostEth: 0.0015,
+      feePct: 0.006,
+      ethUsd: 2490,
+      minPosUsd: 0.5,
+      tradeableEth: 0.001529,
+    });
+    assert.equal(r.mode, "micro-bank");
+    assert.equal(r.skipHitch, true);
+    assert.ok(r.minEntryEth <= 0.001529);
   });
 });
 
@@ -142,15 +199,17 @@ describe("cascade-rollover: deploy sizing", () => {
 });
 
 describe("cascade-rollover: gas floor + unwrap", () => {
-  it("floor covers reserve + N moves", () => {
+  it("floor covers reserve + N moves but caps at documented 0.001", () => {
     const f = cascadeGasFloorEth({
       gasReserveEth: 0.0005,
       movesReserve: 3,
       perMoveEth: 0.00025,
       absoluteFloorEth: CASCADE_GAS_FLOOR_ETH,
     });
-    assert.ok(f >= CASCADE_GAS_FLOOR_ETH);
-    assert.ok(f >= 0.0005 + 3 * 0.00025 - 1e-12);
+    assert.equal(CASCADE_GAS_FLOOR_ETH, 0.001);
+    assert.ok(f <= CASCADE_GAS_FLOOR_ETH + 1e-12, "must not stall at 0.00125");
+    assert.equal(f, 0.001, "documented default is 0.001 not 0.00125");
+    assert.ok(f >= 0.0005 - 1e-12);
   });
 
   it("thin books shrink cascade gas floor toward reserve", () => {
@@ -165,6 +224,76 @@ describe("cascade-rollover: gas floor + unwrap", () => {
     const amt = unwrapForCascadeGas({ nativeEth: 0.0002, weth: 0.01, floorEth: 0.001 });
     assert.ok(amt >= 0.0008 - 1e-9);
     assert.ok(amt <= 0.0012);
+  });
+
+  it("thrift partial unwrap when WETH cannot cover the full gap", () => {
+    // Risk desk: full unwrap ETH ~0.000904 still under the old 0.00125 floor.
+    const refused = unwrapForCascadeGas({
+      nativeEth: 0,
+      weth: 0.000904,
+      floorEth: 0.00125,
+      allowPartial: false,
+    });
+    assert.equal(refused, 0, "old full-gap gate still refuse-able");
+    const partial = unwrapForCascadeGas({
+      nativeEth: 0,
+      weth: 0.000904,
+      floorEth: 0.00125,
+      allowPartial: true,
+    });
+    assert.ok(Math.abs(partial - 0.000904) < 1e-12);
+    const towardThrift = unwrapForCascadeGas({
+      nativeEth: 0,
+      weth: 0.000904,
+      floorEth: CASCADE_GAS_FLOOR_ETH,
+    });
+    assert.ok(towardThrift > 0);
+    assert.ok(towardThrift <= 0.000904 + 1e-12);
+  });
+
+  it("~$2 liquid (ETH~0.000904) thrift-unwraps without WETH>0.003 and can run cascade", () => {
+    const FULL_UNWRAP_ETH = 0.000904;
+    const OLD_WETH_GATE = 0.003;
+    const OLD_FLOOR = 0.00125;
+    assert.ok(FULL_UNWRAP_ETH < OLD_FLOOR, "risk desk: still under 0.00125");
+    assert.ok(FULL_UNWRAP_ETH < OLD_WETH_GATE, "old auto gate would refuse");
+    const twoDollarUsd = FULL_UNWRAP_ETH * 2212;
+    assert.ok(twoDollarUsd > 1.8 && twoDollarUsd < 2.2, `~$2 liquid got ${twoDollarUsd}`);
+
+    const floor = effectiveCascadeGasFloor(FULL_UNWRAP_ETH, { gasReserveEth: 0.0005 });
+    assert.ok(floor <= CASCADE_GAS_FLOOR_ETH + 1e-12);
+    assert.ok(floor <= THRIFT_CASCADE_GAS_FLOOR_ETH + 1e-12);
+
+    const autoAmt = autoUnwrapTowardCascadeFloor({
+      nativeEth: 0,
+      weth: FULL_UNWRAP_ETH,
+      gasReserveEth: 0.0005,
+      allowPartial: true,
+    });
+    assert.ok(autoAmt > 0, "must unwrap parked WETH toward floor");
+    assert.ok(autoAmt <= FULL_UNWRAP_ETH + 1e-12);
+    assert.equal(
+      cascadeNativeGasOk({
+        nativeEth: autoAmt,
+        floorEth: floor,
+        gasReserveEth: 0.0005,
+        didPartialUnwrap: true,
+      }),
+      true,
+      "0.000904 native clears thrift floor — no vault top-up",
+    );
+    assert.equal(
+      unwrapForCascadeGas({ nativeEth: autoAmt, weth: 0, floorEth: floor }),
+      0,
+    );
+  });
+
+  it("OPERATOR_UNWRAP latch parses desk one-shot", () => {
+    assert.equal(parseOperatorUnwrapEnv("").armed, false);
+    assert.equal(parseOperatorUnwrapEnv("yes").armed, true);
+    assert.equal(parseOperatorUnwrapEnv("0.0004").amountEth, 0.0004);
+    assert.equal(isOperatorUnwrapArmed({ OPERATOR_UNWRAP: "yes" }), true);
+    assert.equal(isOperatorUnwrapArmed({}), false);
   });
 
   it("max deploy leaves gas floor in liquid", () => {
@@ -190,6 +319,14 @@ describe("cascade-rollover: inject prove milestone", () => {
     const done = injectProveStatus({ successfulInjections: 20, netProfitUsd: 3.5 });
     assert.equal(done.ready, true);
     assert.ok(done.message.includes("PROVE MET"));
+  });
+});
+
+describe("cascade-rollover: message-cascade cadence constants", () => {
+  it("targets ≥8 hops / 15 min with $0.05 dust", () => {
+    assert.equal(CASCADE_TARGET_HOPS, 8);
+    assert.equal(CASCADE_WINDOW_MS, 15 * 60_000);
+    assert.equal(CASCADE_LEAVE_DUST_USD, 0.05);
   });
 });
 
@@ -284,8 +421,14 @@ describe("cascade-rollover: wired into agent.js", () => {
     assert.ok(agentSrc.includes("cascadeDeployEth"));
     assert.ok(agentSrc.includes("liquidBalanceStatus"));
     assert.ok(agentSrc.includes("effectiveCascadeGasFloor"));
-    assert.ok(agentSrc.includes("unwrapForCascadeGas"));
+    assert.ok(agentSrc.includes("autoUnwrapTowardCascadeFloor"));
+    assert.ok(agentSrc.includes("cascadeNativeGasOk"));
+    assert.ok(agentSrc.includes("OPERATOR_UNWRAP"));
+    assert.ok(agentSrc.includes("allowPartial: true"));
+    assert.ok(!/bal\.weth > GAS_TOPUP_TARGET/.test(agentSrc), "auto gate must not require WETH>0.003");
     assert.ok(agentSrc.includes("injectProveStatus"));
+    assert.ok(agentSrc.includes("microSpendableEth"));
+    assert.ok(agentSrc.includes("resolveMinEntryForBook"));
   });
 
   it("cascades after dust recycle when proceeds clear min entry", () => {

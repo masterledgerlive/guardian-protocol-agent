@@ -1,0 +1,30 @@
+{
+  "id": "hitch-gate",
+  "file": "vita/mainframe.js",
+  "exportName": "originalFormulaHitchDecision",
+  "body": "export function originalFormulaHitchDecision(input = {}) {\n  const locOk = input.locOk === true\n    || input.keyLocCovered === true\n    || input.encoding === \"key-loc\"\n    || input.skipHitch === false;\n  const keyLocBytes = Number(input.keyLocBytes) > 0\n    ? Number(input.keyLocBytes)\n    : KEY_LOC_HITCH_BYTES_CLASS;\n\n  if (locOk) {\n    return {\n      encoding: \"key-loc\",\n      hitchBytes: keyLocBytes,\n      skipHitch: false,\n      locOk: true,\n      formula: FORMULA_ID,\n      messageFirst: true,\n      storageTokenChargeable: true,\n      keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,\n      eurekaClass: EUREKA_LEFTOVER_BYTES_CLASS,\n      reason: String(input.reason || \"KEY+LOC covered\")\n        + \" — original formula: send message; charge hitch delta via Storage Token\",\n    };\n  }\n  return {\n    encoding: input.encoding || \"plain\",\n    hitchBytes: Number(input.hitchBytes) || 0,\n    skipHitch: true,\n    locOk: false,\n    formula: FORMULA_ID,\n    messageFirst: true,\n    storageTokenChargeable: false,\n    keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,\n    eurekaClass: EUREKA_LEFTOVER_BYTES_CLASS,\n    reason: String(input.reason || \"KEY+LOC not covered — plain swap; Eureka on /prove\"),\n  };\n}",
+  "runnable": "const KEY_LOC_HITCH_BYTES_CLASS = 69;\n\nconst FORMULA_ID = \"original-message-first\";\n\nconst EUREKA_LEFTOVER_BYTES_CLASS = 229;\n\nfunction originalFormulaHitchDecision(input = {}) {\n  const locOk = input.locOk === true\n    || input.keyLocCovered === true\n    || input.encoding === \"key-loc\"\n    || input.skipHitch === false;\n  const keyLocBytes = Number(input.keyLocBytes) > 0\n    ? Number(input.keyLocBytes)\n    : KEY_LOC_HITCH_BYTES_CLASS;\n\n  if (locOk) {\n    return {\n      encoding: \"key-loc\",\n      hitchBytes: keyLocBytes,\n      skipHitch: false,\n      locOk: true,\n      formula: FORMULA_ID,\n      messageFirst: true,\n      storageTokenChargeable: true,\n      keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,\n      eurekaClass: EUREKA_LEFTOVER_BYTES_CLASS,\n      reason: String(input.reason || \"KEY+LOC covered\")\n        + \" — original formula: send message; charge hitch delta via Storage Token\",\n    };\n  }\n  return {\n    encoding: input.encoding || \"plain\",\n    hitchBytes: Number(input.hitchBytes) || 0,\n    skipHitch: true,\n    locOk: false,\n    formula: FORMULA_ID,\n    messageFirst: true,\n    storageTokenChargeable: false,\n    keyLocClass: KEY_LOC_HITCH_BYTES_CLASS,\n    eurekaClass: EUREKA_LEFTOVER_BYTES_CLASS,\n    reason: String(input.reason || \"KEY+LOC not covered — plain swap; Eureka on /prove\"),\n  };\n}\n; this.__fn = originalFormulaHitchDecision;",
+  "deps": 3,
+  "contentCommit": "781d092b1a3e471ca049f5fab6380900027c19fd4ea051f95538600de4b5af77",
+  "packetCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+  "fileContentCommit": "0e454a660f45d4c2ea485315b9d9c719cc15572790fc680d95debb86cfd24237",
+  "snarkShort": "§VITASNARK§477a495ea5e5|T=vita/mainframe.js#originalFormu…|B=1360|M=SNARK kind=file name=vita/mainframe.js#…",
+  "snarkCommit": "477a495ea5e5f916b3f91f0e6e42b641abde5906c702c8901d1e1655e275a43f",
+  "zeroProof": {
+    "scheme": "vita-open-unlock-v1",
+    "privateKey": false,
+    "openSource": true,
+    "name": "vita/mainframe.js#originalFormulaHitchDecision",
+    "key": "VITAOPEN.vita_mainframe.js_originalFormulaHitchDecision.781d092b1a3e",
+    "contentCommit": "781d092b1a3e471ca049f5fab6380900027c19fd4ea051f95538600de4b5af77",
+    "note": "Zero-proof lock+key = file name + contentCommit. Same name as GitHub; chain seal proves truth.",
+    "magic": "§VITAZERO§",
+    "filingLabel": "ZERO_PROOF",
+    "privateWitness": false
+  },
+  "leader": "filing",
+  "note": "CAS runnable includes same-file deps. Filing leader until Base seal matches contentCommit.",
+  "at": "2026-09-21T02:12:50.462Z",
+  "filingLabel": "MIRROR_DUAL",
+  "neverInventHashes": true
+}

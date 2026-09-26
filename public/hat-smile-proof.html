@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HAT Smile Proof — picture on chain before HTML</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #10231c;
+      --lime: #b6f25c;
+      --sand: #e7f2e2;
+      --muted: #3d5a4c;
+      --display: "Syne", sans-serif;
+      --mono: "IBM Plex Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink); font-family: var(--mono);
+      background:
+        radial-gradient(700px 360px at 10% -10%, rgba(182,242,92,.5), transparent 55%),
+        linear-gradient(165deg, #f4fbf0, #d9ebe0 50%, #cfe0f5);
+      min-height: 100vh; padding: 1.5rem;
+    }
+    h1 { font-family: var(--display); font-size: clamp(1.8rem, 5vw, 3rem); margin: 0 0 .4rem; letter-spacing: -.03em; }
+    .lede { color: var(--muted); max-width: 40rem; margin: 0 0 1.5rem; font-size: .95rem; }
+    .ok { display: inline-block; background: var(--lime); padding: .25rem .55rem; font-weight: 600; margin-bottom: 1rem; }
+    .grid {
+      display: grid; grid-template-columns: repeat(8, 1fr);
+      width: min(280px, 70vw); aspect-ratio: 1;
+      gap: 3px; border: 2px solid var(--ink); padding: 4px; background: #fff;
+      image-rendering: pixelated;
+    }
+    .px { width: 100%; height: 100%; }
+    section { margin: 1.75rem 0; }
+    h2 { font-family: var(--display); font-size: 1.15rem; margin: 0 0 .6rem; }
+    table { width: 100%; border-collapse: collapse; font-size: .72rem; }
+    th, td { border-bottom: 1px solid rgba(16,35,28,.15); padding: .45rem .35rem; text-align: left; vertical-align: top; }
+    th { font-family: var(--display); }
+    pre.ascii {
+      font-size: 1.1rem; line-height: 1.15; letter-spacing: .08em;
+      background: rgba(255,255,255,.7); padding: .8rem 1rem; display: inline-block;
+      border: 1px solid rgba(16,35,28,.2);
+    }
+    pre.receipt {
+      white-space: pre-wrap; font-size: .75rem; line-height: 1.35;
+      background: rgba(255,255,255,.75); padding: .8rem 1rem;
+      border: 1px solid rgba(16,35,28,.2); max-width: 40rem;
+    }
+    code { font-size: .7rem; word-break: break-all; }
+    .meta { font-size: .8rem; color: var(--muted); }
+    .stat { font-family: var(--display); font-size: 1.4rem; margin: .2rem 0; }
+  </style>
+</head>
+<body>
+  <h1>HAT smile proof</h1>
+  <p class="lede">Slow-rez <b>8×8 × 8-bit</b> smile encoded as <code>§HAT§</code> bitpack chunks —
+  reader pulls every sealed location and rebuilds the picture. Tiny proof before the huge HTML site.</p>
+  <div class="ok">✓ READER MATCH — picture reconstructed from locations</div>
+
+  <section>
+    <h2>Spaced blockchain proof</h2>
+    <p class="stat">8 spaced locations</p>
+    <p class="meta">8 spaced blockchain locations / 8 blocks → full image</p>
+    <p class="meta">Blocks touched: <b>8</b>
+      · span 21 blocks apart
+      · +3 blocks between each seal</p>
+    <p class="meta">Full image needs <b>8</b> spaced txs — each exit inject seals one.</p>
+  </section>
+
+  <section>
+    <h2>Reconstructed picture</h2>
+    <div class="grid"><div class="px" style="background:#e7f2e2" title="0,0=255"></div><div class="px" style="background:#e7f2e2" title="1,0=255"></div><div class="px" style="background:#e7f2e2" title="2,0=255"></div><div class="px" style="background:#e7f2e2" title="3,0=255"></div><div class="px" style="background:#e7f2e2" title="4,0=255"></div><div class="px" style="background:#e7f2e2" title="5,0=255"></div><div class="px" style="background:#e7f2e2" title="6,0=255"></div><div class="px" style="background:#e7f2e2" title="7,0=255"></div><div class="px" style="background:#e7f2e2" title="0,1=255"></div><div class="px" style="background:#e7f2e2" title="1,1=255"></div><div class="px" style="background:#10231c" title="2,1=0"></div><div class="px" style="background:#e7f2e2" title="3,1=255"></div><div class="px" style="background:#e7f2e2" title="4,1=255"></div><div class="px" style="background:#10231c" title="5,1=0"></div><div class="px" style="background:#e7f2e2" title="6,1=255"></div><div class="px" style="background:#e7f2e2" title="7,1=255"></div><div class="px" style="background:#e7f2e2" title="0,2=255"></div><div class="px" style="background:#e7f2e2" title="1,2=255"></div><div class="px" style="background:#10231c" title="2,2=0"></div><div class="px" style="background:#e7f2e2" title="3,2=255"></div><div class="px" style="background:#e7f2e2" title="4,2=255"></div><div class="px" style="background:#10231c" title="5,2=0"></div><div class="px" style="background:#e7f2e2" title="6,2=255"></div><div class="px" style="background:#e7f2e2" title="7,2=255"></div><div class="px" style="background:#e7f2e2" title="0,3=255"></div><div class="px" style="background:#e7f2e2" title="1,3=255"></div><div class="px" style="background:#e7f2e2" title="2,3=255"></div><div class="px" style="background:#e7f2e2" title="3,3=255"></div><div class="px" style="background:#e7f2e2" title="4,3=255"></div><div class="px" style="background:#e7f2e2" title="5,3=255"></div><div class="px" style="background:#e7f2e2" title="6,3=255"></div><div class="px" style="background:#e7f2e2" title="7,3=255"></div><div class="px" style="background:#e7f2e2" title="0,4=255"></div><div class="px" style="background:#10231c" title="1,4=0"></div><div class="px" style="background:#e7f2e2" title="2,4=255"></div><div class="px" style="background:#e7f2e2" title="3,4=255"></div><div class="px" style="background:#e7f2e2" title="4,4=255"></div><div class="px" style="background:#e7f2e2" title="5,4=255"></div><div class="px" style="background:#10231c" title="6,4=0"></div><div class="px" style="background:#e7f2e2" title="7,4=255"></div><div class="px" style="background:#e7f2e2" title="0,5=255"></div><div class="px" style="background:#e7f2e2" title="1,5=255"></div><div class="px" style="background:#10231c" title="2,5=0"></div><div class="px" style="background:#10231c" title="3,5=0"></div><div class="px" style="background:#10231c" title="4,5=0"></div><div class="px" style="background:#10231c" title="5,5=0"></div><div class="px" style="background:#e7f2e2" title="6,5=255"></div><div class="px" style="background:#e7f2e2" title="7,5=255"></div><div class="px" style="background:#e7f2e2" title="0,6=255"></div><div class="px" style="background:#e7f2e2" title="1,6=255"></div><div class="px" style="background:#e7f2e2" title="2,6=255"></div><div class="px" style="background:#e7f2e2" title="3,6=255"></div><div class="px" style="background:#e7f2e2" title="4,6=255"></div><div class="px" style="background:#e7f2e2" title="5,6=255"></div><div class="px" style="background:#e7f2e2" title="6,6=255"></div><div class="px" style="background:#e7f2e2" title="7,6=255"></div><div class="px" style="background:#e7f2e2" title="0,7=255"></div><div class="px" style="background:#e7f2e2" title="1,7=255"></div><div class="px" style="background:#e7f2e2" title="2,7=255"></div><div class="px" style="background:#e7f2e2" title="3,7=255"></div><div class="px" style="background:#e7f2e2" title="4,7=255"></div><div class="px" style="background:#e7f2e2" title="5,7=255"></div><div class="px" style="background:#e7f2e2" title="6,7=255"></div><div class="px" style="background:#e7f2e2" title="7,7=255"></div></div>
+    <pre class="ascii">········
+··█··█··
+··█··█··
+········
+·█····█·
+··████··
+········
+········</pre>
+    <p class="meta">64 bytes · 512 bits · hash <code>e46914d7b3b7be28…</code> · 8 sealed locations</p>
+  </section>
+
+  <section>
+    <h2>Exit inject receipt (last location)</h2>
+    <pre class="receipt">🎩 HAT EXIT INJECT RECEIPT
+✅ Inject confirmed on exit — location sealed
+📍 This exit = location #7
+🔗 View on Basescan ↗
+📡 Hitch 595 B on-chain (Input Data → UTF-8)
+━━━━━━━━━━━━━━━━━━━━
+SPACED CHAIN PROOF — 8×8×8-bit smile
+🧩 Locations used: 8 spaced txs
+📦 Blocks touched: 8 (span 21 blocks apart)
+📐 Full image needs ~8 spaced locations
+🔢 Bits: 512/512 ✓ COMPLETE
+📖 Picture assembled from 8 spaced blockchain locations across 8 blocks (span 21)
+Reader: pull each location → decodeHat → assemble pixels</pre>
+  </section>
+
+  <section>
+    <h2>Locations (reader pulls these)</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>kind</th><th>bits</th><th>block</th><th>code lines</th><th>location</th><th>how to read</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+      <td>0</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 0–63</td>
+      <td>block 37000000</td>
+      <td>lines 1–9</td>
+      <td><a href="https://basescan.org/tx/0x1e8a305d9de07e36131117b7ba5e83db303f48381d6f5a862d2d6c5fc0425e2e"><code>0x1e8a305d9de0…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>1</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 64–127</td>
+      <td>block 37000003</td>
+      <td>lines 10–18</td>
+      <td><a href="https://basescan.org/tx/0xb2d9f009ed68d17ee6b8506c76a05438c092febdc2077bb1633a29f7622913dd"><code>0xb2d9f009ed68…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>2</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 128–191</td>
+      <td>block 37000006</td>
+      <td>lines 19–27</td>
+      <td><a href="https://basescan.org/tx/0xfd78233da121da6cbfed1f519f24eadc1a9fc970ccc407f0250928abbfe31307"><code>0xfd78233da121…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>3</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 192–255</td>
+      <td>block 37000009</td>
+      <td>lines 28–36</td>
+      <td><a href="https://basescan.org/tx/0x43fc572f33a8e09fa9b09a6845f619d57710697613392227e069ebbcca29b0e9"><code>0x43fc572f33a8…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>4</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 256–319</td>
+      <td>block 37000012</td>
+      <td>lines 37–45</td>
+      <td><a href="https://basescan.org/tx/0x7676341ad40d191736000b421f0c51a8f72ec9d2196620a5691c20850eb3af39"><code>0x7676341ad40d…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>5</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 320–383</td>
+      <td>block 37000015</td>
+      <td>lines 46–54</td>
+      <td><a href="https://basescan.org/tx/0x780a9341887947601b0421cdf7db83adeae36c742b0224b3f7fea144fc313456"><code>0x780a93418879…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>6</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 384–447</td>
+      <td>block 37000018</td>
+      <td>lines 55–63</td>
+      <td><a href="https://basescan.org/tx/0xccac0fc8756779afeb01d32e3511cc8a8f5221688c56af7a4bd1db82d0ac13cd"><code>0xccac0fc87567…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+<tr>
+      <td>7</td>
+      <td><code>CHUNK</code></td>
+      <td>bits 448–511</td>
+      <td>block 37000021</td>
+      <td>lines 64–72</td>
+      <td><a href="https://basescan.org/tx/0x1b138dee21bb4e63a7d54ba4538bee0bf5ef5234b7ec953c3f6c258c6052a421"><code>0x1b138dee21bb…</code></a></td>
+      <td><code>decodeBitSlice({ hex, bitCount }) → place at bitOffset</code></td>
+    </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Reader walk</h2>
+    <ol class="meta">
+      <li>On each inject-capable exit: hitch chunk → wait receipt success → seal location.</li>
+      <li>Start at location #0 (HAT_ROOT_TX once live on Base).</li>
+      <li>Fetch calldata → UTF-8 → <code>parseHatPacket</code>.</li>
+      <li><code>decodeBitSlice</code> → place bits at <code>bitOffset</code>.</li>
+      <li>Walk every sealed location in seq order across spaced blocks (append-only).</li>
+      <li>bits→bytes → 8×8 grayscale → smile. Count of spaced txs = proof.</li>
+    </ol>
+  </section>
+</body>
+</html>

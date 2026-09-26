@@ -9,7 +9,7 @@
  */
 
 import {
-  effectiveMinEntryEth,
+  resolveMinEntryForBook,
   CASCADE_SEED_USD,
   DEFAULT_IMPACT_PCT,
 } from "./cascade-rollover.js";
@@ -107,20 +107,14 @@ export function projectAvenue({
   price = 0,
   recentHigh = 0,
   tradeableUsd = 0,
+  sessionArm = false,
   env = process.env,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const trade = Math.max(0, Number(tradeEth) || 0);
   const net = Number(netMargin) || 0;
   const minNm = Number(minNetMargin) || 0;
-  const costs = projectRoundTripCostEth({
-    tradeEth: trade,
-    gasCostEth,
-    hitchCostEth,
-    feePct,
-    impactPct,
-  });
-  const minEntry = effectiveMinEntryEth({
+  const resolved = resolveMinEntryForBook({
     gasCostEth,
     hitchCostEth,
     feePct,
@@ -129,11 +123,24 @@ export function projectAvenue({
     tokenMinBuyUsd,
     minPosUsd,
     cascadeSeedUsd,
+    tradeableEth: trade,
+  });
+  const minEntry = resolved.minEntryEth;
+  const skipHitch = !!resolved.skipHitch;
+  const microMode = resolved.mode !== "inject";
+  const hitchForCost = skipHitch ? 0 : hitchCostEth;
+  const costs = projectRoundTripCostEth({
+    tradeEth: trade,
+    gasCostEth,
+    hitchCostEth: hitchForCost,
+    feePct,
+    impactPct,
   });
 
   const expectedGrossEth = trade * Math.max(0, net);
   // Net after explicit hitch (arm.net already strips fees/gas; still subtract hitch insert)
-  const expectedNetEth = expectedGrossEth - Math.max(0, Number(hitchCostEth) || 0);
+  // Micro-bank (#89): hitch is banked — do not wipe leftover by charging it.
+  const expectedNetEth = expectedGrossEth - (skipHitch ? 0 : Math.max(0, Number(hitchCostEth) || 0));
   const leftoverAfterCostEth = expectedNetEth;
   const mult = hitchMult != null ? hitchMult : hitchCostMult(env);
   const wanted = Math.max(1, Math.floor(Number(hitchBytesWanted) || STORE_HITCH_BYTES));
@@ -143,12 +150,14 @@ export function projectAvenue({
     hitchCostMult: mult,
     l1FeePerByteEth,
   });
-  const hitchBytesFit = Math.min(wanted, bytesFit === Number.MAX_SAFE_INTEGER ? wanted : bytesFit);
+  const hitchBytesFit = skipHitch
+    ? 0
+    : Math.min(wanted, bytesFit === Number.MAX_SAFE_INTEGER ? wanted : bytesFit);
 
   const costEdge = evaluateCostEdgeGate({
     symbol: sym,
     tradeEth: trade,
-    hitchCostEth,
+    hitchCostEth: hitchForCost,
     gasCostEth,
     feePct,
     impactPct,
@@ -157,6 +166,7 @@ export function projectAvenue({
     ethUsd,
     tradeableUsd: tradeableUsd || trade * (Number(ethUsd) || 0),
     maxRoundTripPct: MAX_ROUND_TRIP_COST_PCT,
+    skipNearTerm: microMode,
   });
 
   let allow = true;
@@ -170,7 +180,7 @@ export function projectAvenue({
   } else if (!armed && !nearEntry) {
     allow = false;
     refuseReason = "not armed / not near entry";
-  } else if (net > 0 && net < minNm && !nearEntry) {
+  } else if (net > 0 && net < minNm && !nearEntry && !sessionArm && !microMode) {
     allow = false;
     refuseReason = "net margin below floor";
   } else if (!(expectedNetEth > 0)) {
@@ -210,6 +220,8 @@ export function projectAvenue({
     refuseReason,
     tradeEth: trade,
     minEntryEth: minEntry,
+    entryMode: resolved.mode,
+    skipHitch,
     projectedCostEth: costs.costEth,
     projectedCostPct: costs.costPct,
     expectedNetEth,

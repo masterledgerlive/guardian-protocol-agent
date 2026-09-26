@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-20T07:20:00.000Z",
+  "topic": "vitadir-dos-master",
+  "filingLabel": "VITADIR",
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true,
+  "text": "DOS-style master directory VITA:\\ with subdirs FORMULA ANCHORS FILING MEMORY STRANDS LEARN REF_LIB CODEX MG_RECALL LIBRARY PROVEN. Telegram /vitafeed dir browses; /vitafeed unlock <path> uses open-source file-name key (never a private key). ZK-style content-commitment short form unwraps instantly to English + machine blocks so html/song/movie/code recover paths are visible. Library seed starts with math formulas + theories + translator codex. Fund after measuring ingest size and recover speed.",
+  "commands": [
+    "/vitafeed dir",
+    "/vitafeed dir CODEX",
+    "/vitafeed unlock CODEX\\math-euler.txt",
+    "/vitafeed unlock calculator"
+  ],
+  "hypothesis": {
+    "id": "dos-dir-open-unlock-prove-filing",
+    "status": "operating",
+    "note": "Selecting a filed name in Telegram proves the directory and reveals what agentic AI stored."
+  }
+}

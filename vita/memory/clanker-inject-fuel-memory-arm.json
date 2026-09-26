@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-19T03:50:00.000Z",
+  "topic": "clanker-inject-fuel-memory-arm",
+  "text": "HARD STOP: mother brain untouched. LOSE-ZERO / always-plus / vault never. Do not use ALLOW_LOSSY_OPERATOR_SELL. VITAFEED_PAID / WAVE_MIRROR_PAID stay default OFF. Live Railway after #129/#130: CLANKER FIFO latched (rem ~0.289 / cost 0.001335 ETH / bag ~$3.35) but INJECT FUEL HOLD — leftover after fees ≤ 0, FIFO red proceeds 1.16e-3 < entrySold 1.20e-3, P&L ~-4.1%. Catalog is NOT frozen. Never sell red to place code. Arm inject-fuel memory hitch: when mark clears fees → PLUS recycle with message-first KEY+LOC; Storage Token can charge transmission delta. CLANKER added to INJECT_VELOCITY_SYMBOLS so starved books prefer it when green. Do not invent P&L.",
+  "locations": [],
+  "hypothesis": {
+    "id": "clanker-inject-fuel-wait-plus-arm-hitch",
+    "status": "operating-rule",
+    "discarded": [
+      "ALLOW_LOSSY_OPERATOR_SELL auto unwind of CLANKER",
+      "catalog freeze CLANKER",
+      "sell red to fund /vitafeed or mother brain",
+      "invent CLANKER P&L"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

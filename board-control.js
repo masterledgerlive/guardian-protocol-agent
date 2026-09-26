@@ -35,6 +35,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { reportInjectCapacity } from "./storage-inject-capacity.js";
 import { LIVE_ASSUMPTIONS } from "./revenue-sim.js";
+import { ALWAYS_PLUS_EXIT } from "./always-plus-exit.js";
+import { buildOutletScoreboard } from "./outlet-scoreboard.js";
+import { maxInjectRateUnderLoseZero, L2_BYTE_LESSONS, preferDenseHitch } from "./hitch-density.js";
 
 /** Display-only V4 names (from guardian-v4/README). No pool IDs, no swap encoder, no V4 imports. */
 const V4_DISPLAY_AVENUES = Object.freeze([
@@ -60,10 +63,12 @@ export const BOARD_PATHS = Object.freeze({
   snapshot: "/board/api/snapshot",
   sim: "/board/api/sim",
   inject: "/board/api/inject",
+  scoreboard: "/board/api/scoreboard",
   v4: "/board/api/v4",
   v4Page: "/v4",
   arena: "/arena",
   engine: "/engine",
+  vita: "/vita",
 });
 
 export const LOSE_ZERO_INVARIANTS = Object.freeze({
@@ -72,6 +77,8 @@ export const LOSE_ZERO_INVARIANTS = Object.freeze({
   piggyNeverSell: true,
   vaultNeverSpend: true,
   noInventedPnl: true,
+  alwaysPlusExit: ALWAYS_PLUS_EXIT.leftoverAfterFeesMustBePositive,
+  cutClassDoesNotBlockGreenExit: ALWAYS_PLUS_EXIT.cutClassDoesNotBlockGreenExit,
 });
 
 const AGENT_JS = join(dirname(fileURLToPath(import.meta.url)), "agent.js");
@@ -110,18 +117,36 @@ export function parseDefaultTokensFromAgentSource(src) {
     const piggyMin = chunk.match(/piggyBankMinUsd:\s*([0-9.]+)/)?.[1];
     const feeTier = Number(chunk.match(/feeTier:\s*(\d+)/)?.[1]) || null;
     const poolFeeRaw = chunk.match(/poolFeePct:\s*([0-9.]+)/)?.[1];
+    const scoreTotalRaw = chunk.match(/score:\s*\{[^}]*\btotal:(\d+)/)?.[1];
+    const fundamentalsRaw = chunk.match(/fundamentals:(\d+)/)?.[1];
+    const liquidityRaw = chunk.match(/liquidity:(\d+)/)?.[1];
+    const coinbaseFitRaw = chunk.match(/coinbaseFit:(\d+)/)?.[1];
+    const communityRaw = chunk.match(/community:(\d+)/)?.[1];
+    const minBuyRaw = chunk.match(/minBuyUsd:\s*([0-9.]+)/)?.[1];
+    const minNetRaw = chunk.match(/minNetMargin:\s*([0-9.]+)/)?.[1];
     rows.push({
       symbol,
       address: chunk.match(/address:\s*"(0x[0-9a-fA-F]+)"/)?.[1] || null,
       injectMain: /injectMain:\s*true/.test(chunk),
       frozen: /frozen:\s*true/.test(chunk),
       disabled: /disabled:\s*true/.test(chunk),
+      noBasePool: /noBasePool:\s*true/.test(chunk),
+      brokenQuote: /brokenQuote:\s*true/.test(chunk),
       piggyBankPct: piggyRaw != null ? Number(piggyRaw) : null,
       piggyBankMinUsd: piggyMin != null ? Number(piggyMin) : null,
       feeTier,
       poolFeePct: poolFeeRaw != null
         ? Number(poolFeeRaw)
         : feeTier === 10000 ? 0.01 : feeTier === 3000 ? 0.003 : null,
+      minBuyUsd: minBuyRaw != null ? Number(minBuyRaw) : null,
+      minNetMargin: minNetRaw != null ? Number(minNetRaw) : null,
+      scoreTotal: scoreTotalRaw != null ? Number(scoreTotalRaw) : null,
+      fundamentals: fundamentalsRaw != null ? Number(fundamentalsRaw) : null,
+      liquidityScore: liquidityRaw != null ? Number(liquidityRaw) : null,
+      coinbaseFit: coinbaseFitRaw != null ? Number(coinbaseFitRaw) : null,
+      community: communityRaw != null ? Number(communityRaw) : null,
+      frozenReason: chunk.match(/frozenReason:\s*"([^"]*)"/)?.[1] || "",
+      disabledReason: chunk.match(/disabledReason:\s*"([^"]*)"/)?.[1] || "",
       notes: chunk.match(/notes:\s*"([^"]*)"/)?.[1] || "",
     });
   }
@@ -214,31 +239,108 @@ export function listV3InjectSurfaces({ env = process.env, agentSrc = null } = {}
       disabled: t.disabled,
     })),
     loseZero: { ...LOSE_ZERO_INVARIANTS },
+    alwaysPlus: ALWAYS_PLUS_EXIT,
+  };
+}
+
+export function listOutletScoreboard({ env = process.env, agentSrc = null } = {}) {
+  const src = agentSrc != null ? agentSrc : fs.readFileSync(AGENT_JS, "utf8");
+  const rows = parseDefaultTokensFromAgentSource(src);
+  const mainsLine = src.match(/const INJECT_MAIN_PLAYERS = \[([^\]]+)\]/)?.[1] || "";
+  const mains = [...mainsLine.matchAll(/"([A-Z0-9]+)"/g)].map((m) => m[1]);
+  return buildOutletScoreboard(rows, { injectMains: mains, env });
+}
+
+export function hitchDensityBoard(live = {}) {
+  const bagUsd = Number(live.bagUsd) > 0 ? Number(live.bagUsd) : 3;
+  const leftoverEth = live.leftoverEth != null ? Number(live.leftoverEth) : undefined;
+  const leftoverPct = leftoverEth != null
+    ? null
+    : (live.leftoverPct != null ? Number(live.leftoverPct) : 0.02);
+  const rate = maxInjectRateUnderLoseZero({
+    bagUsd,
+    leftoverPct: leftoverPct == null ? 0.02 : leftoverPct,
+    leftoverEth,
+    ethUsd: live.ethUsd,
+    gwei: live.gwei,
+    l1FeePerByteEth: live.l1FeePerByteEth,
+  });
+  const pick = preferDenseHitch({
+    leftoverEth: rate.leftoverEth,
+    gwei: live.gwei,
+    l1FeePerByteEth: live.l1FeePerByteEth,
+  });
+  return {
+    ...rate,
+    preferDense: pick,
+    l2Lessons: L2_BYTE_LESSONS,
+    alwaysPlus: ALWAYS_PLUS_EXIT,
   };
 }
 
 export function leftoverHitchCapacity(live = {}) {
-  const report = reportInjectCapacity(live);
+  const ethUsd = Number(live.ethUsd) || LIVE_ASSUMPTIONS.ethUsd;
+  const patched = { ...live, ethUsd };
+  if (
+    patched.leftoverEth == null
+    && patched.leftoverUsd != null
+    && Number.isFinite(Number(patched.leftoverUsd))
+  ) {
+    patched.leftoverEth = Number(patched.leftoverUsd) / ethUsd;
+  }
+  const fromLive = patched.leftoverEth != null;
+  const report = reportInjectCapacity(patched);
   const leftoverEth = report.assumptions?.leftoverEth;
   const hitchTagUsd = report.assumptions?.hitchTagUsd;
   const hitchTagEth = report.assumptions?.hitchTagEth;
-  const ethUsd = report.assumptions?.ethUsd;
   const leftoverUsd =
     leftoverEth != null && Number.isFinite(Number(leftoverEth)) && Number.isFinite(Number(ethUsd))
       ? Number(leftoverEth) * Number(ethUsd)
       : null;
   return {
-    kind: report.kind,
-    label: report.assumptions?.label || LIVE_ASSUMPTIONS.label,
+    kind: fromLive ? "live-snapshot|estimated leftover" : report.kind,
+    source: fromLive ? (live.source || "live-holding-waves") : "demo-assumptions",
+    label: fromLive
+      ? (live.label || "live leftover from holding waves (price vs entry after fees) — estimated, not invented P&L")
+      : (report.assumptions?.label || LIVE_ASSUMPTIONS.label),
     leftoverEth,
     leftoverUsd,
     hitchTagUsd,
     hitchTagEth,
     eurekaOk: report.capacity_now?.eureka_ok,
     maxHitchBytes: report.capacity_now?.max_hitch_bytes_per_swap,
+    hitchDensity: hitchDensityBoard({
+      bagUsd: 3,
+      leftoverEth,
+      ethUsd,
+      gwei: patched.gwei,
+    }),
     note: report.capacity_now?.note,
     funds: report.funds,
     lose_zero: report.lose_zero,
+  };
+}
+
+/**
+ * Map an authorized engine snapshot onto hitch-capacity inputs.
+ * Uses leftover only from *holding* waves (non-holding engine rows default to 2.5 — not live).
+ * Never reads hitchProve.profitUsd (not leftover, not Grok P&L).
+ */
+export function leftoverInputsFromEngine(engine = {}) {
+  const ethUsd = Number(engine.ethUsd) || LIVE_ASSUMPTIONS.ethUsd;
+  const holdingLeft = (engine.waves || [])
+    .filter((w) => w?.holding)
+    .map((w) => Number(w.leftoverUsd))
+    .filter((n) => Number.isFinite(n));
+  const out = { ethUsd };
+  if (!holdingLeft.length) return out;
+  const leftoverUsd = Math.max(...holdingLeft);
+  return {
+    ...out,
+    leftoverUsd,
+    leftoverEth: leftoverUsd / ethUsd,
+    source: "live-holding-waves",
+    label: "live leftover from holding waves (price vs entry after fees) — estimated, not invented P&L",
   };
 }
 
@@ -404,7 +506,7 @@ export function runArenaLearnSim({
   seat = "LINK",
   movePct = 0.06,
   piggyPct = null,
-  dustFloorUsd = DEFAULT_PIGGY_BANK_MIN_USD,
+  dustFloorUsd = null,
   hitchCostMult: hitchMult = DEFAULT_HITCH_COST_MULT,
   hitchUsd = 0.35,
   gasUsd = 0.05,
@@ -633,6 +735,13 @@ export function boardHealth({
         running: !!v4s.running,
         start: v4s.start,
       },
+      vita: {
+        path: BOARD_PATHS.vita,
+        mounted: true,
+        kind: "vita-html-console",
+        public: true,
+        note: "Telegram twin — local memory until inject; reader pulls Base locations",
+      },
       l1_arena: {
         path: "guardian-protocol dashboard :8787",
         mounted: false,
@@ -645,6 +754,7 @@ export function boardHealth({
       snapshot: { path: BOARD_PATHS.snapshot, auth: "optional-live", mutate: false },
       sim: { path: BOARD_PATHS.sim, auth: false, mutate: false },
       inject: { path: BOARD_PATHS.inject, auth: false, mutate: false },
+      scoreboard: { path: BOARD_PATHS.scoreboard, auth: false, mutate: false },
       v4: { path: BOARD_PATHS.v4, auth: false, mutate: false, deferred: true },
       arenaSnapshot: { path: "/arena/api/snapshot", auth: true, mutate: false },
       arenaQueue: { path: "/arena/api/queue", auth: true, mutate: "queue-only" },
@@ -664,6 +774,8 @@ export function demoBoardSnapshot(env = process.env) {
     kind: "control-board-snapshot",
     params: readLiveParamSnapshot(env),
     inject,
+    scoreboard: listOutletScoreboard({ env }),
+    hitchDensity: hitchDensityBoard({ leftoverEth: capacity.leftoverEth, ethUsd: LIVE_ASSUMPTIONS.ethUsd }),
     capacity,
     botPiggy: modelBotUsagePiggy({
       hitchTagUsd: capacity.hitchTagUsd,

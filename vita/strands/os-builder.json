@@ -1,0 +1,11 @@
+{
+  "id": "os-builder",
+  "filingLabel": "OS_BUILDER",
+  "magic": "§VITAOS§",
+  "formula": "original-message-first",
+  "learn": "DOS OS builder: human↔machine guided brain construction. IFTTT triggers on real Base kinds. Follow-the-leader chronological steps. Sandbox proves against hardcoded anchors only. Seal stages /vitafeed — never invent hashes.",
+  "updatedAt": "2026-09-26T06:41:38.570Z",
+  "agentId": "wave-robin",
+  "staged": true,
+  "contentCommit": "b7fe3541a117f964fef3ad27dc50eb5c33b9292c248bf718eae970ee64cfd2f7"
+}

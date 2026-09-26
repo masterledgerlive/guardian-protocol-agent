@@ -1,0 +1,23 @@
+{
+  "id": "telegram-help-route-syscheck",
+  "label": "VITAHELP",
+  "at": "2026-09-21T01:36:00.000Z",
+  "summary": "/help is fully click-through. Trade verbs open token boxes (/sell → AERO…). /vita check routes runs merkle folder integrity + avenue domino (PASS/QUESTIONABLE/FAIL), logs systems-check-routes-*.json, and force-stages §SYSCHECK§ for Confirm|Override seal so the container reads good vs corrupted with error locations.",
+  "commands": [
+    "/help",
+    "/help trade",
+    "/pick sell",
+    "/sell",
+    "/vita check routes",
+    "/help check",
+    "/home trade",
+    "/home syscheck"
+  ],
+  "invariants": [
+    "never invent tx hashes",
+    "callback_data ≤ 64 bytes",
+    "buttons never auto-spend",
+    "forced seal is staged Confirm|Override"
+  ],
+  "module": "vita/telegram-help-routes.js"
+}

@@ -1,0 +1,10 @@
+{
+  "strandId": "vitafeed-vitalib",
+  "sparse": true,
+  "source": "vitafeed-library-helper",
+  "header": "§VITALIB§v1|id=LIBCAT-…|n=N§",
+  "row": "name=…|mime=…|play=audio|key=VITAFEED.VIN-…|vin=VIN-…|locs=0x…,0x…|chunks=N",
+  "learn": "Keys chain holds name + reader key + sealed locations for Telegram quick list/play. Content chain remains §VITAFILE§ VIN packets. Never invent locs. /vitafeed files lists; /vitafeed play N opens /vita/feed-player?lib=N.",
+  "formula": "original-message-first",
+  "payer": "RISK"
+}

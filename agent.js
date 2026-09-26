@@ -19,8 +19,11 @@ import {
   clearVaultSession,
 } from "./vault-loader.js";
 
+import { maybeFundV4FromV3 } from "./v4-fund-once.js";
+import { maybeBridgeL1EthToBase } from "./l1-bridge-to-base.js";
+
 // ── 🌐 VITA WEBHOOK — HTTP endpoint for Claude to pull memory directly ─────────
-import { startVitaWebhook, injectBotState } from "./vita-webhook.js";
+import { startVitaWebhook, injectBotState, maybeAutofireWaveProofOnBoot, maybeAutofireWaveFullOnBoot, maybeAutofireVitaFeedOnBoot } from "./vita-webhook.js";
 
 // ── 🌟 VITA MEMORY — autonomous blockchain memory for Claude/VITA ──────────────
 import {
@@ -33,6 +36,16 @@ import {
   getVitaMemoryMessage,
   getVitaContextMessage,
 } from "./vita-memory.js";
+
+// ── Mother Genesis — N-batch plain/encoded dumps (mother brain untouched) ─────
+import {
+  formatMotherGenesisReceipt,
+  prepareEncodedMotherGenesis,
+  preparePlainMotherGenesis,
+  revealMotherGenesis,
+  runMotherGenesisInscribe,
+} from "./vita/mother-genesis.js";
+import { handlePhosphorCommand } from "./modules/phosphor/telegram.js";
 
 // ── 🧠 IKN MEMORY ENGINE — cliff notes + session summaries ────────────────────
 import {
@@ -79,29 +92,102 @@ import {
   isValidUsdPrice,
   prefetchMarketPrices,
   fetchTokenUsdQuote,
+  fetchDexScreenerPairs,
   hasUsableCostBasis,
   costBasisEth,
+  fifoImpliedEntryUsd,
+  blendUsdEntryOnAddOnBuy,
   shouldTrustSavedCostBasis,
   applyUnknownChainHolding,
   allowBinanceOhlcSeed,
   pickHistoricalSeedSource,
   preferBaseQuoteForLastPrice,
   pickGeckoTerminalPool,
-  shouldSkipOhlcSeed,
+  planOhlcSeed,
 } from "./price-oracle.js";
+import {
+  ensureHistorySlot,
+  hydrateHistoryMap,
+  recordPriceInto,
+  ensureWaveSlot,
+  ensureWatchSlot,
+} from "./history-slot.js";
+import {
+  assessWaveToken,
+  backfillWaveSwings,
+  bankWaveHlRide,
+  buildWaveHlMachine,
+  commitWaveHlRideHash,
+  createWaveHlLedger,
+  formatDividendMenu,
+  formatWaveBoardTelegram,
+  formatWaveStageSnippet,
+  formatWaveTokenTelegram,
+  ingestPriceList,
+  lastWaveHlRide,
+  loadWaveHlLedger,
+  pickCascadeToken,
+  planDividendWithdraw,
+  planWaveHlRide,
+  recentExtreme,
+  rehydrateWaveWindow,
+  recordWaveExtreme,
+  ridePrevTag,
+  saveWaveHlLedger,
+} from "./vita/wave-hl-ledger.js";
+import {
+  applyWavePebbles,
+  buildWaveAgentDesk,
+  formatLullTelegram,
+  formatWaveAgentsTelegram,
+  formatWaveClickCard,
+  pullWavePebbles,
+  CHAIN_PULL_TTL_MS,
+} from "./vita/wave-agent-bank.js";
+import {
+  bankFlowRoute,
+  buildFlowRouteLine,
+  commitFlowRouteHash,
+  dropPair,
+  formatFlowBoard,
+  formatFlowIndex,
+  formatFlowRoute,
+  formatFlowSymbolNote,
+  latestSnapshot,
+  loadFlowBook,
+  planFlowRouteRide,
+  saveFlowBook,
+  watchPair,
+} from "./vita/wave-flow-arm.js";
+import {
+  applyRouteOrder,
+  chooseInjectWire,
+  fileRouteQuote,
+  formatInjectRoutes,
+  latestQuotes,
+  loadInjectRouteBook,
+  rankCascadeByDataRoute,
+  rankInjectRoutes,
+  saveInjectRouteBook,
+} from "./vita/inject-route-arm.js";
 import {
   isLoseZeroMode,
   isInjectCoverRequired,
   isCatalogFrozen,
   frozenBuySkipLog,
+  parseUnfreezeSymbols,
+  applyUnfreezeSymbols,
   buildBuyGateDecision,
   buildSellGateDecision,
   shouldArmStopLoss,
   STORE_HITCH_BYTES,
   STORE_HITCH_TAG,
+  isOriginalFormulaMessageFirst,
   hitchCostMult,
   estimateCalldataHitchEth,
   isManualOperatorBuy,
+  isVitaFeedBuyIn,
+  vitaFeedBuyInReason,
   parseManualBuyCommand,
   usdToForcedEth,
   manualBuyReason,
@@ -117,9 +203,137 @@ import {
   manualSellReason,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
+  takeQueuedManualBuys,
+  settleFlushedOperatorBuy,
   investedEthWithCosts,
   netUsdAfterSkim,
+  conservativeSellProceedsEth,
+  wei18ToEth,
+  plusAfterHitchEth,
+  fifoRemainingCostEth,
+  applySellPlusFloorMinOut,
+  isForceExitLockedReason,
+  canBypassSellLossGate,
+  isAllowLossyOperatorSell,
+  consumeAllowLossyOperatorSell,
+  usedAllowLossyOperatorSellBypass,
+  isFifoRedLot,
+  dustRecycleMustHoldFifoRed,
+  isDisableDowBias,
+  applyDowBiasDisable,
+  isFridayCloseWindow,
+  latchFreshLot,
+  clearFreshLot,
+  freshLotCostFloor,
+  sellEntryEthWithLotFloor,
+  evaluateAddOnFifoRedGate,
+  bagMarkProceedsEth,
+  addOnRemainingFifoEth,
+  isSkipHoldDeadRoute,
 } from "./lose-zero-gate.js";
+import {
+  VERIFIED_HOME_ADDRESS,
+  HOME_FEE_TIER,
+  HOME_POOL_FEE_PCT,
+  OPERATOR_ROTATE_SELL_REASON,
+  OPERATOR_ROTATE_BUY_REASON,
+  ROTATE_MIN_BALANCE,
+  isOperatorRotateArmed,
+  isOperatorRotateCommand,
+  isOperatorRotateReason,
+  rotateHomeBuyBypassesV3Freeze,
+  rotateHomeBuyUsesSlipstream,
+  rotateHomeBuyBypassesQuoterCooldown,
+  rotateHomeBuyIgnoresUniQuoterMiss,
+  clearRotateHomeQuoterCooldown,
+  isRotateTarget,
+  shouldSkipRotateSell,
+  excessWethToSell,
+  queueOperatorRotateOnce,
+  markOperatorRotateSellExecuted,
+  markOperatorRotateHomeBuyExecuted,
+  maybeQueueRotateHomeBuy,
+  finishOperatorRotate,
+  rotateWalletAllowed,
+  rotateBypassesPiggyDustHold,
+  isRotateRemBag,
+  isRotateSellSkipped,
+  applyRotateQuoterMiss,
+  applyRotateUnquotedSkip,
+} from "./operator-rotate.js";
+import {
+  isHoldAllSells,
+  shouldBlockSell,
+  holdAllSellsStatusLine,
+  armHoldAllSells,
+  clearHoldAllSells,
+} from "./operator-sell-hold.js";
+import {
+  parseRhCascadeCommand,
+  planRhBaseCascade,
+  formatRhCascadeCard,
+  formatRhCascadeOutcomes,
+  formatCascadePredictionCard,
+  formatCascadeHierarchyCard,
+  fileRhCascadeLearn,
+  unlockSellBarrier,
+} from "./vita/rh-cascade-rail.js";
+import {
+  FIFO_LOTS_FILENAME,
+  EVIDENCE_BUY_TXS,
+  EVIDENCE_ADDON_BUY_TXS,
+  EVIDENCE_SELL_TXS,
+  isUsableLot,
+  recordBuyFill,
+  recordSellFill,
+  serializeFifoLots,
+  deserializeFifoLots,
+  mergeLotMaps,
+  applyLotToNet,
+  applyLotToToken,
+  seedNetPositionsFromFifoLots,
+  lotFromBuyReceipt,
+  lotFromSellReceipt,
+  ledgerBuyHasLotSizes,
+  collectRebuildTxs,
+  collectRebuildSellTxs,
+  shouldLatchBuyReceipt,
+  mergeBuyReceiptIntoLots,
+  mergeSellReceiptIntoLots,
+  writeFifoLotsSync,
+  readFifoLotsSync,
+  lotAppliedOk,
+  tokenHasKnownFifoCost,
+  bootKnownCostLabel,
+  seededRebuildRemaining,
+  knownLotSellTokens,
+  lotHasSellTx,
+  latchPiggyDust,
+} from "./fifo-lot-store.js";
+import { classifySellArmedDisplay } from "./sell-armed-display.js";
+import { bankSkipHitchLearnShard } from "./vita/skip-hitch-learn.js";
+import {
+  armInjectFuelMemoryHitch,
+  formatInjectFuelHoldArmLog,
+} from "./vita/inject-fuel-arm.js";
+import {
+  liveGithubToken,
+  liveGithubRepo,
+  liveStateBranch,
+  liveGithubBranch,
+  githubAuthHeaders,
+  githubContentsApiUrl,
+  githubContentsUrl,
+  githubReadAuthFailed,
+  shouldRetryGithubRead,
+  decodeGithubContentsJson,
+  decodeGithubContentsUtf8,
+  preferRemoteOrKeep,
+  readLocalStateJson,
+  writeLocalStateJson,
+  isFreshLocalState,
+  latestHistoryReadingMs,
+} from "./github-contents.js";
 import {
   tierBookParams,
   entryTroughForBuy,
@@ -127,25 +341,37 @@ import {
   nearEntryScoreBoost,
   shouldRecycleUnknownDust,
   shouldRecycleKnownForInjectFuel,
+  classifyRecycleBag,
+  recycleSellCopy,
   sellFractionAfterPiggy,
   injectReserveViable,
   injectFuelKeepUsd,
   injectVelocityScoreBoost,
   sortRecycleCandidatesByUsd,
+  fillTier1Seats,
+  recycleSkipsActiveTier,
 } from "./inject-revenue.js";
 import {
   effectiveMinEntryEth,
+  resolveMinEntryForBook,
+  microSpendableEth,
   injectAllBookParams,
+  THIN_BOOK_ETH,
   cascadeDeployEth,
   liquidBalanceStatus,
   shouldRecycleForCascadeFuel,
   belowMinEntrySkip,
   effectiveSellReserve,
   effectiveCascadeGasFloor,
-  unwrapForCascadeGas,
+  autoUnwrapTowardCascadeFloor,
+  cascadeNativeGasOk,
   injectProveStatus,
   INJECT_PROVE_TARGET,
   DEFAULT_IMPACT_PCT,
+  parseOperatorUnwrapEnv,
+  isOperatorUnwrapArmed,
+  CASCADE_GAS_FLOOR_ETH,
+  THRIFT_CASCADE_GAS_FLOOR_ETH,
 } from "./cascade-rollover.js";
 import {
   evaluateCostEdgeGate,
@@ -158,8 +384,20 @@ import {
   SELLABLE_MIN_USD,
 } from "./cost-edge-gate.js";
 import {
+  fileHypothesis,
+  resolveHypothesis,
+  queryHypotheses,
+  buildBrainStatus,
+  formatBrainTelegram,
+  shouldAvoid,
+  hypothesisToXmem,
+  getHypothesisGraph,
+} from "./finetune-memory.js";
+import { vitaQuality } from "./vita-parse.js";
+import {
   queueForcedLockedExits,
   markForcedExitExecuted,
+  latchForcedExitIfDust,
   forceExitLockedEnabled,
   forceExitSymbols,
 } from "./forced-exit.js";
@@ -179,6 +417,7 @@ import {
   isPrimedBottomEntry,
   formatSuccessionPlan,
 } from "./second-inject.js";
+import { sessionRangeCanArm } from "./session-arm.js";
 import {
   evaluatePeakRideExit,
   updateRideHigh,
@@ -232,7 +471,28 @@ import {
   formatBuyReceiptHtml,
   formatSellReceiptHtml,
   piggyCoInvestMarkUsd,
+  creditHitchBank,
+  consumeHitchBankOnSend,
 } from "./piggy-bank.js";
+import {
+  buildTurnRecord,
+  recordTurnFill,
+  loadTurnRecallStore,
+  parseBagOrRecallCommand,
+  buildRecallPayload,
+  formatRecallHtml,
+  sleeveDistanceToPlus,
+  RECALL_SLEEVES,
+  hourlyBalancePollRows,
+  hourlyReportTokens,
+  TURN_RECALL_FILENAME,
+} from "./telegram-turn-card.js";
+import { sendRaceScoreboardIfDue } from "./race-scoreboard.js";
+import {
+  planRaceStartEureka,
+  markRaceEurekaWritten,
+  raceEurekaBytes,
+} from "./race-eureka.js";
 import {
   decodeErc20Balance,
   resolveFailedBalanceRead,
@@ -256,6 +516,9 @@ import {
   slippageFloor,
   toWei,
   formatWei18,
+  clampAmountInToLiveBalance,
+  needsSpenderApprove,
+  sellApproveSpenders,
   hitchPreservesSwapPrefix,
   appendUtf8Hitch,
   buildStoreVoice,
@@ -264,6 +527,31 @@ import {
   VITA_PROOF_FULL,
   utf8ByteLength,
 } from "./swap-minout.js";
+import {
+  rotateHomeSlipstreamBuyPath,
+  encodeSlipstreamExactInputSingle,
+  slipstreamDeadline,
+  slipstreamApproveSpenders,
+  SLIPSTREAM_QUOTER_ABI,
+  SLIPSTREAM_QUOTER_V2,
+  HOME_SLIPSTREAM_TICK_SPACING,
+} from "./aero-slipstream.js";
+import {
+  feeTierCandidates,
+  requireLiveQuoterFill,
+  plainSaleIfHitchTooThin,
+  adoptLivePoolFee,
+  liveFeeWithinGatedCost,
+  pickQuotedPool,
+  poolAddr,
+  isQuoteContractRevert,
+  evaluateSwapRouterRoute,
+  selectUniV3WethUsdcPair,
+  requireFactoryLiquidity,
+  UNISWAP_V3_FACTORY_BASE,
+  AERO_UNI_V3_WETH_POOL,
+  AERO_UNI_V3_WETH_FEE,
+} from "./quote-swap-guard.js";
 import {
   BASE_QUOTER_V2,
   evaluatePriceInsane,
@@ -280,6 +568,10 @@ import {
   clearSlippageFails,
   slippageFailLog,
   isTooLittleReceived,
+  isBuyFrozen,
+  freezeNewBuys,
+  clearBuyFreeze,
+  buyFrozenLog,
   isSuccessfulSellFill,
   failedFillLog,
   isSuccessfulBuyFill,
@@ -298,6 +590,164 @@ import {
   nextVitaModel,
   vitaModelStatusMessage,
 } from "./vita-models.js";
+import {
+  formatRouterMessage,
+  planSecondaryHitch,
+  measurePlannedHitchBytes,
+  parseHitchTrailer,
+  setHitchModeOverride,
+  serializeVitaRouterState,
+  restoreVitaRouterState,
+  ensureGenesisMemory,
+  getLastVitaPacket,
+  setLastVitaPacket,
+  ingestSealedUtf8,
+} from "./vita-router.js";
+import { recordLocation, locDepositoryStatus } from "./vita-locations.js";
+import {
+  autoPaidInscribeEnabled,
+  isTrivialTestInscriptionBody,
+  maySendMotherGenesis,
+  parseMotherGenesisOperatorIntent,
+  wrapAutoSelfCall,
+  wrapMotherGenesisSelfCall,
+  wrapQueueSelfCall,
+  wrapVitaSaveSelfCall,
+} from "./vita/feed-wrap.js";
+import {
+  evaluateVitaFeedThriftGate,
+  handleVitaFeedAction,
+  parseVitaFeedCommand,
+  peekVitaFeed,
+} from "./vita/vita-feed.js";
+import {
+  buildPlayerPopupKeyboard,
+  buildTokenActionKeyboard,
+  buildTokenCatalogKeyboard,
+  buildVitaFeedRootKeyboard,
+  buildVitaFeedStagedKeyboard,
+  formatTokenClickCard,
+  keyboardForVitaFeedResult,
+  parseTokenClickCommand,
+  stripWebAppButtons,
+} from "./vita/telegram-clickthrough.js";
+import {
+  handleTokenPlayerAction,
+} from "./vita/token-player.js";
+import {
+  handleProvenPlayerAction,
+  parseProvenPlayerCommand,
+} from "./vita/proven-player.js";
+import {
+  attachWaveOnCoveredLeftover,
+  commitWaveHitchShard,
+  handleWaveTestAction,
+  hitchWaveOnSellLeftover,
+  parseWaveTestCommand,
+  peekNextWaveHitchShard,
+} from "./vita/wave-wrap.js";
+import {
+  handleWaveProofAction,
+  parseWaveProofCommand,
+  waveProofLiveEnabled,
+} from "./vita/wave-proof.js";
+import {
+  handleWaveFullAction,
+  parseWaveFullCommand,
+  waveFullLiveEnabled,
+} from "./vita/wave-full.js";
+import {
+  beginVitaFeedFileAwait,
+  clearVitaFeedFileAwait,
+  downloadTelegramFileBytes,
+  encodeVitaFile,
+  packetizeTelegramMessageForVitaFeed,
+  peekVitaFeedFileAwait,
+  pickTelegramMedia,
+  takeVitaFeedFileAwait,
+  vitaFeedPleaseInsertFileText,
+} from "./vita/vita-feed-file.js";
+import {
+  playFromLibrary,
+} from "./vita/vita-feed-library.js";
+import {
+  isDemoPlaySelector,
+  isKidsPlaySelector,
+  playKidsDirectory,
+  demoPlayerOpen,
+  vitaPlayerHref,
+} from "./vita/url-dir.js";
+import {
+  isMusicPlaySelector,
+  playFreeMusic,
+} from "./vita/free-music.js";
+import {
+  isSoundboardPlaySelector,
+} from "./vita/soundboard.js";
+import {
+  closeVitaFeedTicket,
+  dueVitaFeedExit,
+  hasOpenVitaFeedTicket,
+  openVitaFeedTicket,
+  vitaFeedExitSellPct,
+} from "./vita/vita-feed-buyin.js";
+import {
+  handleVitaMirrorAction,
+  parseVitaMirrorCommand,
+} from "./vita/mirror-chain.js";
+import {
+  handleHomeAction,
+  parseHomeCommand,
+  withHomeButton,
+} from "./vita/telegram-home.js";
+import {
+  handleAgentChatAction,
+  parseAgentChatCommand,
+} from "./vita/agent-chat.js";
+import {
+  handleOsBuilderAction,
+  parseOsBuilderCommand,
+} from "./vita/os-builder.js";
+import {
+  handleWaveRobinAction,
+  parseWaveRobinCommand,
+} from "./vita/wave-robin-agent.js";
+import {
+  handleHelpAction,
+  parseHelpCommand,
+  parsePickCommand,
+  runRouteSystemsCheck,
+  formatRouteSystemsCheckCard,
+  buildRouteCheckKeyboard,
+} from "./vita/telegram-help-routes.js";
+import {
+  handleRhFundAction,
+  parseRhFundCommand,
+} from "./vita/rh-fund.js";
+import { pullLocationFromChain, pullMissingLocationUtf8, fetchTxCalldataHex, ingestRegistryPackets, injectVitaBlockchainMemory, scanAddressLeftoverHitches, ingestLeftoverScan } from "./vita-chain-reader.js";
+import {
+  AGENT_INSTRUCTIONS,
+  encodeXmem,
+  extractMemoryRecords,
+  formatXmemMatches,
+  parseEncodeCommand,
+  retrieveXmem,
+  xmemHelpText,
+} from "./xmem.js";
+import {
+  evaluateVitaCourse,
+  leftoverWouldCoverVitaHitch,
+  leftoverStillEureka,
+  leftoverCoveredWantedBytes,
+  leftoverCoveredWantBtp,
+  formatCourseMessage,
+  recordHitchAttempt,
+  recordHitchSealed,
+  tickHourlyCourse,
+  shouldTickHourlyCourse,
+  serializeCourseStats,
+  restoreCourseStats,
+} from "./vita-course.js";
 
 // ── 📚 IKN FILING PROTOCOL — boot reader + queue processor ───────────────────
 // Reads vita-registry.json at boot to arm Claude context from chain
@@ -308,6 +758,21 @@ import { runIntegrityCheck, enforceSource } from "./ikn-integrity-agent.js";
 
 // ── BITStorage / ShadowWeave — Mempool Orchestrator ──────────────────────────
 import { MempoolOrchestrator, LANE } from "./bitstorage-orchestrator.js";
+import {
+  buildExitInjectReceiptBundle,
+  formatHatExitInjectReceiptHtml,
+  buildSpacedChainProof,
+  sealedPictureLocations,
+} from "./hat-exit-receipt.js";
+import { getHatRegistry } from "./vita-hat.js";
+import {
+  armVitaTailwindPicture,
+  isVitaPictureArmed,
+  planVitaTailwindOrVoiceHitch,
+  confirmTailwindPictureInject,
+  vitaPictureStatusMessage,
+  getVitaPictureCycle,
+} from "./vita-tailwind-picture.js";
 const orch = new MempoolOrchestrator({
   cdpClient:     null, // set in main() after cdpClient is created
   walletAddress: "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
@@ -317,6 +782,98 @@ const orch = new MempoolOrchestrator({
   bitsBalance:   0,
 });
 let orchReady = false;
+
+async function buildWaveGasOnlyLiveContext({ liveEnabled = false, cdp = cdpClient, bal = null, ethUsd = null } = {}) {
+  const wantLive = liveEnabled === true;
+  if (!wantLive) {
+    return { wantLive: false, sendTx: null, liquidUsd: null, quotes: null, fetchCalldata: null };
+  }
+  let riskBalanceEth = null;
+  try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? lastEthBalance ?? null; }
+  let weth = bal?.weth;
+  if (weth == null) {
+    try { weth = await getWethBalance(); } catch { weth = lastWethBalance ?? 0; }
+  }
+  const mark = Number(ethUsd ?? cachedEthUsd ?? 0);
+  const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0)) + Math.max(0, Number(weth ?? 0));
+  const liquidUsd = liquidEth * mark;
+  let gwei = 0.05;
+  try { gwei = await getCurrentGasGwei(); } catch { /* demo gwei */ }
+  const quotes = { gwei, ethUsd: mark };
+  const client = cdp || cdpClient;
+  let sendTx = null;
+  if (client?.evm?.sendTransaction) {
+    sendTx = async (hex) => {
+      const { transactionHash } = await client.evm.sendTransaction({
+        address: WALLET_ADDRESS,
+        network: "base",
+        transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+      });
+      await new Promise((r) => setTimeout(r, 2000));
+      return transactionHash || null;
+    };
+  }
+  return { wantLive: true, sendTx, liquidUsd, quotes, fetchCalldata: fetchTxCalldataHex };
+}
+
+async function buildWaveProofLiveContext(opts = {}) {
+  return buildWaveGasOnlyLiveContext({
+    ...opts,
+    liveEnabled: waveProofLiveEnabled(process.env),
+  });
+}
+
+async function buildWaveFullLiveContext(opts = {}) {
+  return buildWaveGasOnlyLiveContext({
+    ...opts,
+    liveEnabled: waveFullLiveEnabled(process.env),
+  });
+}
+
+/** Live RISK self-tx context for /vitafeed desk + autofire (plain body, no BL- id). */
+async function buildVitaFeedLiveContext(opts = {}) {
+  const cdp = opts.cdp || cdpClient;
+  const bal = opts.bal || null;
+  const ethUsd = opts.ethUsd;
+  let riskBalanceEth = null;
+  try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? lastEthBalance ?? null; }
+  let weth = bal?.weth;
+  if (weth == null) {
+    try { weth = await getWethBalance(); } catch { weth = lastWethBalance ?? 0; }
+  }
+  const mark = Number(ethUsd ?? cachedEthUsd ?? 0);
+  const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0)) + Math.max(0, Number(weth ?? 0));
+  const liquidUsd = liquidEth * mark;
+  let gwei = 0.05;
+  try { gwei = await getCurrentGasGwei(); } catch { /* demo gwei */ }
+  const quotes = { gwei, ethUsd: mark, live: true, label: "LIVE" };
+  let sendTx = null;
+  if (cdp?.evm?.sendTransaction) {
+    sendTx = async (hex) => {
+      try {
+        const { transactionHash } = await cdp.evm.sendTransaction({
+          address: WALLET_ADDRESS,
+          network: "base",
+          transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+        });
+        if (transactionHash) {
+          recordLocation({
+            location: transactionHash,
+            kind: "vitafeed",
+            sealed: true,
+            hitchKind: "plain",
+          });
+        }
+        await new Promise((r) => setTimeout(r, 2000));
+        return transactionHash || null;
+      } catch (e) {
+        console.warn("vitafeed live sendTx failed:", e?.message || e);
+        return null;
+      }
+    };
+  }
+  return { sendTx, liquidUsd, riskBalanceEth, quotes };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ⚔️💓  GUARDIAN PROTOCOL — HEARTBEAT EDITION v18.0 — CHAIN-FIRST / SURGICAL FIX
@@ -370,6 +927,19 @@ const QUOTER_ABI     = [{
     { name: "initializedTicksCrossed",type: "uint32"  },
     { name: "gasEstimate",            type: "uint256" }
   ]
+}];
+const V3_FACTORY_ABI = [{
+  name: "getPool", type: "function", stateMutability: "view",
+  inputs: [
+    { name: "tokenA", type: "address" },
+    { name: "tokenB", type: "address" },
+    { name: "fee", type: "uint24" },
+  ],
+  outputs: [{ name: "pool", type: "address" }],
+}];
+const V3_POOL_LIQ_ABI = [{
+  name: "liquidity", type: "function", stateMutability: "view",
+  inputs: [], outputs: [{ name: "", type: "uint128" }],
 }];
 
 // ── TIMING ────────────────────────────────────────────────────────────────────
@@ -602,14 +1172,16 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
     }
   }
 
-  const tier1 = [];
-  if (reservedMain) tier1.push(reservedMain);
-  for (const s of scored) {
-    if (tier1.length >= book.tier1Count) break;
-    if (tier1.includes(s.symbol)) continue;
-    // Inject-all: first seat = best scorer (velocity / pullback), not a dead UNI
-    tier1.push(s.symbol);
-  }
+  // Inject-all: first seat = best scorer (velocity / pullback), not a dead UNI.
+  // Sub-min liquid must not still pick AERO — that fake seat skipped recycle.
+  const filled = fillTier1Seats({
+    scored,
+    reservedMain,
+    tier1Count: book.tier1Count,
+    injectAll: !!book.injectAll,
+    reserveOk,
+  });
+  const tier1 = filled.tier1;
 
   // Tier 2: how many slots can we afford?
   const tier2Capital   = totalTradeableUsd * book.tier2Pct;
@@ -617,7 +1189,7 @@ function computeTierAssignments(gasCostEth, tradeEth, totalTradeableUsd) {
   const tier2Candidates = scored.filter(s => !tier1.includes(s.symbol));
   const tier2 = tier2Candidates.slice(0, maxTier2Slots).map(s => s.symbol);
 
-  return { tier1, tier2, scored, reservedMain, book };
+  return { tier1, tier2, scored, reservedMain, book, injectSeatViable: reserveOk, tier1Blocked: !!filled.blocked };
 }
 
 /**
@@ -718,11 +1290,12 @@ function buildPrimedAvenues({
         netMargin: arm.net || 0,
         minNetMargin: t.minNetMargin || MIN_NET_MARGIN,
         armed: !!arm.armed,
+        sessionArm: !!arm.sessionArm,
         nearEntry,
         injectMain: isInjectMainPlayer(t.symbol) || !!t.injectMain,
         tokenScore: scored?.score || 0,
         gwei,
-        hitchBytesWanted: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+        hitchBytesWanted: leftoverVoiceHitchBytes(),
         ethUsd,
         tokenMinBuyUsd: minBuyUsdForToken(t),
         minPosUsd: minPosUsd(),
@@ -780,6 +1353,7 @@ let currentTier1 = [];
 let currentTier2 = [];
 let currentScores = []; // [{ symbol, score }] sorted best first
 let currentPrimedAvenues = []; // top 2–3 cost-projected cascade seats
+let currentDeployedUsd = 0; // bag mark USD this cycle — max-position vs total book, not leftover liquid
 let currentTierBook = tierBookParams(Infinity, {
   tier1Count: TIER1_COUNT,
   tier1Pct: TIER1_PCT,
@@ -793,10 +1367,10 @@ const SLIPPAGE_GUARD    = 0.85;    // min 85% of expected output
 
 // ── AUTO GAS TOP-UP ───────────────────────────────────────────────────────────
 // Native ETH is always required for gas — WETH cannot pay gas directly.
-// When native ETH drops below GAS_TOPUP_THRESHOLD, auto-unwrap WETH to restore it.
-// This keeps the bot trading even when all capital is held as WETH.
-const GAS_TOPUP_THRESHOLD = 0.0015; // unwrap when native ETH < 0.0015 (~$3)
-const GAS_TOPUP_TARGET    = 0.003;  // unwrap enough to reach 0.003 ETH (~$6)
+// Thrift partial unwrap toward cascade floor (0.001 cap / 0.0005 thrift).
+// Do NOT require WETH > 0.003 — that stalled ~$2 books (ETH~0.000904).
+const GAS_TOPUP_THRESHOLD = 0.0015; // rich-book note only — thin books use cascade floor
+const GAS_TOPUP_TARGET    = 0.003;  // rich-book pad (total ≥ 0.01); not the thin auto gate
 
 // ── WAVE RULES ────────────────────────────────────────────────────────────────
 const MIN_PEAKS_TO_TRADE   = 2;      // was 4 — start trading after just 2 confirmed peaks
@@ -1318,7 +1892,7 @@ function computeWavePrediction(symbol, currentPrice, ethUsd) {
   const maxPeak    = getMaxPeak(symbol)    || currentPrice * (1 + amp);
   const now        = new Date();
   const dow        = now.getDay();
-  const dowBias    = DOW_BIAS[dow];
+  const dowBias    = applyDowBiasDisable(DOW_BIAS[dow]);
   const calPress   = getCalendarPressure();
 
   // Adjust amplitude by day-of-week and calendar
@@ -1553,10 +2127,10 @@ const DEFAULT_TOKENS = [
   // ── TIER 1: ALPHA (40-50) ─────────────────────────────────────────────────
   // These are the horses. Deep liquidity, clean waves, real fundamentals.
 
-  { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
+  { symbol: "AERO",    address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", feeTier: AERO_UNI_V3_WETH_FEE,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     injectMain: true,
     score: { liquidity:9, waveQuality:9, fundamentals:8, coinbaseFit:10, community:8, total:44 },
-    notes: "Aerodrome — inject main. DEX backbone of Base. Deep Uni V3 + Aero books. Crown jewel liquidity hub." },
+    notes: "Aerodrome — inject main. DEX backbone of Base. SwapRouter02 fills Uni V3 WETH 0x3d5D143381916280ff91407FeBEB52f2b60f33Cf (~$1.25M), not Aerodrome-primary USDC." },
 
   { symbol: "BRETT",   address: "0x532f27101965dd16442E59d40670FaF5eBB142E4", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     score: { liquidity:8, waveQuality:9, fundamentals:6, coinbaseFit:9, community:9, total:41 },
@@ -1618,8 +2192,9 @@ const DEFAULT_TOKENS = [
     notes: "Seamless Protocol. FROZEN — chronic dead volume on Base." },
 
   { symbol: "AIXBT",   address: "0x4F9Fd6Be4a90f2620860d680c0d4d5Fb53d1A825", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.015,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:7, waveQuality:8, fundamentals:7, coinbaseFit:8, community:8, total:38 },
-    notes: "AI trading agent born from Virtuals. Strong brand, cult following, real product. Volatile but predictable waves." },
+    notes: "AI trading agent born from Virtuals. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "TOSHI",   address: "0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:6, waveQuality:7, fundamentals:5, coinbaseFit:8, community:8, total:34 },
@@ -1635,8 +2210,9 @@ const DEFAULT_TOKENS = [
   // Smaller bets. Learning the wave. Building conviction with real data.
 
   { symbol: "KEYCAT",  address: "0x9a26f5433671751c3276a065f57e5a02d2817973", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:5, waveQuality:6, fundamentals:4, coinbaseFit:7, community:7, total:29 },
-    notes: "Keyboard Cat — Base OG meme. 900k+ holders, Coinbase listed. Wave learning in progress." },
+    notes: "Keyboard Cat — Base OG meme. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "DOGINME", address: "0x6921B130D297cc43754afba22e5EAc0FBf8Db75b", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     score: { liquidity:5, waveQuality:6, fundamentals:4, coinbaseFit:6, community:8, total:29 },
@@ -1649,8 +2225,9 @@ const DEFAULT_TOKENS = [
     notes: "Onyx Protocol — L3 governance + gas token. Coinbase listed. FROZEN for buys — USDC-primary on Base." },
 
   { symbol: "SKI",     address: "0x768BE13e1680b5ebE0024C42c896E3dB59ec0149", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:5, waveQuality:5, fundamentals:4, coinbaseFit:6, community:7, total:27 },
-    notes: "Ski Mask Dog — Base meme culture. Consistent trading volume, solid community. Scout tier." },
+    notes: "Ski Mask Dog — Base meme culture. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ✅ ACTIVE ADDITIONS — 4 high-probability tokens (v18.0)
@@ -1666,29 +2243,33 @@ const DEFAULT_TOKENS = [
     notes: "BASE token. FROZEN — liquidity too thin for RISK bag." },
 
   { symbol: "LUNA",    address: "0x55cD6469F597452B5A7536e2CD98fDE4c1247ee4", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:6, waveQuality:7, fundamentals:7, coinbaseFit:8, community:8, total:36 },
-    notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. ACTIVE." },
+    notes: "Luna by Virtuals — AI agent, Virtuals ecosystem. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
-  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: 0.010,
+  { symbol: "GAME",    address: "0x1C4CcA7C5DB003824208aDDA61Bd749e55F463a3", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "CUT class — ghost Uni V3 WETH. Liquid book is Uni V2 GAME/VIRTUAL 0xD418dfE7670c21F682E041F34250c114DB5D7789 (~$2.14M); Uni V3 GAME/WETH feeTier 3000 0x70fbffe3… liquidity()=0 / ghost (STF buys hit the wrong book). Catalog fee 10000 quotes the live 1% book first. Not a hitch seat. Exits-only (always-plus leftover sells + piggy dust still apply).",
     score: { liquidity:7, waveQuality:7, fundamentals:8, coinbaseFit:8, community:7, total:37 },
-    notes: "GAME by Virtuals — AI gaming agent infra. ACTIVE." },
+    notes: "GAME by Virtuals — CUT class (ghost Uni V3). FROZEN exits-only — thin Uni V3 WETH vs liquid Uni V2 GAME/VIRTUAL." },
 
   // ── GREENLIGHT ADDS — liquid Base Uni/Aero books (DexScreener 2026-09-06) ──
   { symbol: "BASECAT", address: "0xB2000000000000000000004c27f6523082f41D01", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "FIFO 12/31 red sells (worst); CUT new buys until always-plus exit proven — books exist but exit throughput failed under LOSE-ZERO/2× hitch.",
     score: { liquidity:8, waveQuality:6, fundamentals:4, coinbaseFit:7, community:7, total:32 },
-    notes: "Basecat — Uniswap v3 BASECAT/WETH ~$464k / ~$5.2M 24h. Not the low-vol 0xB200…E49B twin." },
+    notes: "Basecat — Uniswap v3 BASECAT/WETH 0xB200…1D01. FROZEN exits-only — screener CAUTION/CUT. FIFO 12/31 red sells; books exist but exit throughput failed under LOSE-ZERO/2× hitch. Not the low-vol 0xB200…E49B twin." },
 
   { symbol: "DRB",     address: "0x3ec2156D4c0A9CBdAB4a016633b7BcF6a8d68Ea2", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:8, waveQuality:6, fundamentals:5, coinbaseFit:7, community:7, total:33 },
     notes: "DebtReliefBot — Uniswap v3 DRB/WETH ~$1.42M / ~$465k 24h." },
 
   { symbol: "REI",     address: "0x6B2504A03ca4D43d0D73776F6aD46dAb2F2a4cFD", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
+    frozen: true, frozenReason: "Thin Uni V3 WETH hitch surface (~$208k / ~$77k) / gas burn vs deep earners. Exits-only (sells + piggy dust still apply).",
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:7, community:7, total:35 },
-    notes: "REI Network — Uniswap v3 REI/WETH 1% ~$208k / ~$77k 24h (2026-09-07). Aero backup ~$1.86M. KEEP: Uni V3 proven." },
+    notes: "REI Network — Uniswap v3 REI/WETH 1% ~$208k / ~$77k 24h (2026-09-07). Aero backup ~$1.86M. FROZEN exits-only — thin Uni V3 WETH hitch surface / gas burn vs deep earners." },
 
   { symbol: "CLANKER", address: "0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     score: { liquidity:8, waveQuality:6, fundamentals:7, coinbaseFit:8, community:7, total:36 },
-    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317." },
+    notes: "tokenbot CLANKER — promoted from watchlist. Uniswap v3 CLANKER/WETH 1% ~$1.49M / ~$30k 24h (2026-09-07). Not CLANKFUN 0x1d00…9317. Inject-velocity + GAME_FORCE_EXIT_PRIORITY: FIFO-red inject fuel may FORCE UNWIND when ALLOW_LOSSY_OPERATOR_SELL is yes (hitch SKIP on red; cascade redeploys for memory hitch). Plus path still message-first KEY+LOC." },
 
   { symbol: "VVV",     address: "0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
     injectMain: true,
@@ -1696,9 +2277,9 @@ const DEFAULT_TOKENS = [
     notes: "Venice Token — inject main. Uni v3 VVV/WETH 1% + VVV/USDC 0.3% deep. Top-100-class hitch surface." },
 
   { symbol: "TIBBIR",  address: "0xA4A2E2ca3fBfE21aed83471D28b6f65A233C6e00", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.010,
-    frozen: true, frozenReason: "Desk greenlight overnight — data-only until Uni V3 proven.",
+    frozen: false,
     score: { liquidity:8, waveQuality:6, fundamentals:6, coinbaseFit:7, community:7, total:34 },
-    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. FROZEN data-only until Uni V3 proven." },
+    notes: "Ribbita by Virtuals — Uni v2 TIBBIR/VIRTUAL ~$3.28M / ~$183k; Aero TIBBIR/WETH ~$385k / ~$929k. Not the Clanker twin. TRADEABLE Base RISK — WATCH/BATTLE-TEST (cascade after CLANKER)." },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ❄️  FROZEN — price/wave data collected, NO capital deployed
@@ -1749,6 +2330,10 @@ const DEFAULT_TOKENS = [
     injectMain: true,
     score: { liquidity:8, waveQuality:7, fundamentals:8, coinbaseFit:8, community:8, total:39 },
     notes: "BankrCoin — inject main. Uni v3 BNKR/WETH 1% ~$1.83M / ~$252k — deep hitch book." },
+
+  { symbol: "HOME",    address: VERIFIED_HOME_ADDRESS, feeTier: HOME_FEE_TIER, poolFeePct: HOME_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
+    score: { liquidity:8, waveQuality:6, fundamentals:8, coinbaseFit:10, community:7, total:39 },
+    notes: "Defi App $HOME — official docs.defi.app + Coinbase. Same address on BNB. Liquid book Aerodrome Slipstream HOME/WETH 0.3% 0x098A4dE9… tickSpacing 200. Uni V3 HOME/WETH 1% 0xd4d6870f… is ghost (~$18). OPERATOR_ROTATE_TO + OPERATOR_BUY / Telegram /buy HOME use Slipstream quoter+router, not Uni QuoterV2. Do not sell HOME. Vault never." },
 
   { symbol: "TYBG",    address: "0x0d97F261b1e88845184f678e2d1e7a98D9FD38dE", feeTier: 10000, poolFeePct: 0.010, minNetMargin: 0.008,
     frozen: true, frozenReason: "Capital concentration",
@@ -1901,8 +2486,7 @@ async function updateWatchlistPrices() {
     try {
       const price = await getTokenPrice(w.address);
       if (!price || price <= 0) continue;
-      if (!watchPrices[w.symbol]) watchPrices[w.symbol] = { prices: [], peaks: [], troughs: [], high24h: 0, low24h: Infinity };
-      const wp = watchPrices[w.symbol];
+      const wp = ensureWatchSlot(watchPrices, w.symbol);
       wp.prices.push({ price, time: Date.now() });
       if (wp.prices.length > 200) wp.prices.shift(); // keep last 200 readings
       wp.lastPrice = price;
@@ -1929,7 +2513,7 @@ const ERC20_ABI = [
 ];
 
 // ── RPC ROTATION ──────────────────────────────────────────────────────────────
-// Env first: BASE_RPC || RPC_URL || BASE_RPC_URL. base.llamarpc.com is dead (CF 521).
+// Env first: BASE_RPC || RPC_URL || BASE_RPC_URL. Official Base first; meowrpc/drpc last (429).
 const RPC_URLS = buildRpcUrls(process.env);
 console.log("🔗 RPC pool: " + RPC_URLS.join(" → "));
 
@@ -1959,6 +2543,17 @@ function nextRpc() {
   // All in cooldown — use the one that's been coolest the longest
   rpcIndex = (rpcIndex + 1) % RPC_URLS.length;
 }
+function raceWithTimeout(promise, ms = 6000, label = "rpc timeout 6s") {
+  let timer;
+  const work = Promise.resolve(promise);
+  // Timeout winning must not leave simulate()/RPC as an unhandled rejection.
+  work.catch(() => {});
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(label)), ms);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function rpcCall(fn) {
   // Rotate through the whole pool. A single 521 / timeout / fetch fail must
   // NOT throw — that used to kill main() on eth_getBalance at boot.
@@ -1966,11 +2561,7 @@ async function rpcCall(fn) {
   return withRpcFailover(ordered, async (url) => {
     const idx = RPC_URLS.indexOf(url);
     if (idx >= 0) rpcIndex = idx;
-    const result = await Promise.race([
-      fn(getClient()),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("rpc timeout 6s")), 6000))
-    ]);
-    return result;
+    return raceWithTimeout(fn(getClient()));
   }, {
     onFail(url, e) {
       console.log(`⚠️  RPC ${url} failed: ${String(e.message || e).slice(0, 80)} — trying next`);
@@ -1983,27 +2574,178 @@ async function rpcCall(fn) {
 // 🔍 ON-CHAIN QUOTE — live pool out before every swap (buy + sell)
 // minOut is then run through sanitizeAmountOutMinimum so an impossible floor
 // (TOSHI→WETH ~93k WETH) cannot be submitted.
+//
+// Quote revert at the catalog fee is a pool miss (GAME empty 3000), not an RPC
+// outage — do not drain the public list. Probe other V3 fees; if none fill,
+// return null and the swap path MUST NOT send (spot cannot clear an empty pool).
 // ═══════════════════════════════════════════════════════════════════════════════
-async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier) {
+async function readV3PoolLiquidity(tokenA, tokenB, fee) {
   try {
-    const result = await rpcCall(c => c.simulateContract({
-      address: QUOTER_V2,
-      abi: QUOTER_ABI,
-      functionName: "quoteExactInputSingle",
-      args: [{ tokenIn, tokenOut, amountIn, fee: feeTier, sqrtPriceLimitX96: 0n }]
+    const pool = await rpcCall((c) => c.readContract({
+      address: UNISWAP_V3_FACTORY_BASE,
+      abi: V3_FACTORY_ABI,
+      functionName: "getPool",
+      args: [tokenA, tokenB, fee],
     }));
+    if (!pool || /^0x0+$/.test(String(pool))) {
+      return { pool: null, liquidity: 0n, empty: true };
+    }
+    try {
+      const liquidity = await rpcCall((c) => c.readContract({
+        address: pool,
+        abi: V3_POOL_LIQ_ABI,
+        functionName: "liquidity",
+      }));
+      const liq = typeof liquidity === "bigint" ? liquidity : 0n;
+      return { pool, liquidity: liq, empty: liq <= 0n };
+    } catch {
+      // Pool exists; liquidity read failed — still let Quoter try.
+      return { pool, liquidity: null, empty: false };
+    }
+  } catch {
+    // Factory RPC flake must not skip every fee as "empty".
+    return { pool: undefined, liquidity: null, empty: false };
+  }
+}
+
+async function quoteAtFee(tokenIn, tokenOut, amountIn, fee) {
+  const simulate = (client) => client.simulateContract({
+    address: QUOTER_V2,
+    abi: QUOTER_ABI,
+    functionName: "quoteExactInputSingle",
+    args: [{ tokenIn, tokenOut, amountIn, fee, sqrtPriceLimitX96: 0n }],
+  });
+  const outOf = (result) => {
     const out = result?.result?.[0];
     return (typeof out === "bigint" && out > 0n) ? out : null;
-  } catch (e) {
-    console.log(`   ⚠️  On-chain quote failed: ${e.message?.slice(0,60)} — using cached price with wider slippage`);
+  };
+  try {
+    return outOf(await raceWithTimeout(simulate(getClient())));
+  } catch {
+    // Pool miss, timeout, or RPC flake — do not walk the public list.
+    // A 6s timeout is failover-class; draining rpcCall would cool every URL.
     return null;
   }
 }
-async function getOnChainSellQuote(tokenAddress, amountIn, feeTier) {
-  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier);
+
+async function quoteSlipstreamExactInputSingle(tokenIn, tokenOut, amountIn, tickSpacing) {
+  const simulate = (client) => client.simulateContract({
+    address: SLIPSTREAM_QUOTER_V2,
+    abi: SLIPSTREAM_QUOTER_ABI,
+    functionName: "quoteExactInputSingle",
+    args: [{
+      tokenIn,
+      tokenOut,
+      amountIn,
+      tickSpacing: Number(tickSpacing),
+      sqrtPriceLimitX96: 0n,
+    }],
+  });
+  const outOf = (result) => {
+    const out = result?.result?.[0];
+    return (typeof out === "bigint" && out > 0n) ? out : null;
+  };
+  try {
+    return outOf(await raceWithTimeout(simulate(getClient())));
+  } catch {
+    return null;
+  }
 }
-async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier) {
-  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier);
+
+async function readSlipstreamPoolLiquidity(pool) {
+  try {
+    const liquidity = await raceWithTimeout(getClient().readContract({
+      address: pool,
+      abi: V3_POOL_LIQ_ABI,
+      functionName: "liquidity",
+    }));
+    const liq = typeof liquidity === "bigint" ? liquidity : 0n;
+    return { pool, liquidity: liq, empty: liq <= 0n };
+  } catch {
+    return { pool, liquidity: null, empty: false };
+  }
+}
+
+/** Rotate HOME WETH→HOME: Slipstream quoter + pool liquidity, never Uni QuoterV2. */
+async function getSlipstreamHomeBuyQuote(amountIn) {
+  const path = rotateHomeSlipstreamBuyPath();
+  const depth = await readSlipstreamPoolLiquidity(path.pool);
+  if (depth.empty) {
+    console.log(`   🛑 EMPTY SLIPSTREAM POOL ${path.pool} — liquidity=0, not sending`);
+    return null;
+  }
+  const amountOut = await quoteSlipstreamExactInputSingle(
+    path.tokenIn,
+    path.tokenOut,
+    amountIn,
+    path.tickSpacing,
+  );
+  if (!amountOut) {
+    console.log(`   ⚠️  Slipstream quote miss tickSpacing ${path.tickSpacing} — not sending (no Uni QuoterV2 fallback)`);
+    return null;
+  }
+  return {
+    amountOut,
+    fee: path.fee,
+    tickSpacing: path.tickSpacing,
+    liquidity: depth.liquidity,
+    pool: path.pool,
+    router: path.router,
+    quoter: path.quoter,
+    venue: path.venue,
+  };
+}
+
+/** @returns {{ amountOut: bigint, fee: number, liquidity: bigint|null, pool: string|null } | null} */
+async function getOnChainQuote(tokenIn, tokenOut, amountIn, feeTier, { preferredPool = null, skipPools = [] } = {}) {
+  const fees = feeTierCandidates(feeTier);
+  const wanted = poolAddr(preferredPool);
+  const skipped = new Set((Array.isArray(skipPools) ? skipPools : []).map(poolAddr).filter(Boolean));
+  const candidates = [];
+  for (const fee of fees) {
+    const depth = await readV3PoolLiquidity(tokenIn, tokenOut, fee);
+    if (depth.empty) {
+      // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 — liquidity()=0.
+      // Do not call QuoterV2 on a ghost pool (STF / Too little received).
+      if (fee === Number(feeTier)) {
+        console.log(`   🛑 EMPTY V3 POOL fee ${fee} — factory liquidity=0, skip quote (ghost)`);
+      }
+      continue;
+    }
+    // Buy path binds to the DexScreener Uni V3 WETH pair. Factory flake
+    // (no pool address) is not proof this fee is that book — skip it.
+    if (wanted && poolAddr(depth.pool) !== wanted) continue;
+    if (skipped.has(poolAddr(depth.pool))) continue;
+    const amountOut = await quoteAtFee(tokenIn, tokenOut, amountIn, fee);
+    if (amountOut && amountOut > 0n) {
+      candidates.push({ amountOut, fee, liquidity: depth.liquidity, pool: depth.pool });
+    }
+  }
+  const picked = pickQuotedPool(candidates, { preferredPool, catalogFee: feeTier });
+  if (!picked) {
+    console.log(`   ⚠️  QuoterV2 miss at fees ${fees.join("/")} — not sending (no live pool fill)`);
+    return null;
+  }
+  if (picked.fee !== Number(feeTier)) {
+    console.log(`   📐 QuoterV2 catalog fee ${feeTier} missed — live fill at fee ${picked.fee} (factory liq ${picked.liquidity})`);
+  }
+  return picked;
+}
+async function getOnChainSellQuote(tokenAddress, amountIn, feeTier, opts) {
+  return getOnChainQuote(tokenAddress, WETH_ADDRESS, amountIn, feeTier, opts);
+}
+async function getOnChainBuyQuote(tokenAddress, amountIn, feeTier, opts) {
+  return getOnChainQuote(WETH_ADDRESS, tokenAddress, amountIn, feeTier, opts);
+}
+
+function noteSwapPathFail(symbol, { kind = "quote/swap fail", freezeBuys = false } = {}) {
+  const rec = recordSlippageFail(symbol);
+  console.log(`   ${slippageFailLog(symbol, rec, { kind })}`);
+  if (freezeBuys) freezeNewBuys(symbol, kind);
+  if (isBuyFrozen(symbol) || rec.buyFrozen) {
+    console.log(`   ${buyFrozenLog(symbol)}`);
+  }
+  return rec;
 }
 
 /**
@@ -2803,18 +3545,178 @@ let telegramPollerStarted = false; // startTelegramPoller() is idempotent
 let telegramPolling       = false; // lock: if one poll takes >3s the next waits
 const operatorBuyState    = { done: false, executed: false }; // done only after swap executes
 const operatorSellState   = { done: false, executed: false }; // OPERATOR_SELL latch after swap
+const operatorRotateState = { done: false, executed: false, doneBySymbol: {}, pendingSells: [] }; // OPERATOR_ROTATE_TO batch
+const operatorUnwrapState = { done: false, executed: false }; // OPERATOR_UNWRAP one-shot
+/** Last QuoterV2 executable flag per symbol — green SELLING only when true. */
+const lastQuoterExecutable = Object.create(null);
+/** Last peak/board armed paint per symbol — snapshot must match console HOLD codes. */
+const lastSellArmed = Object.create(null);
 /** Per-token no-loss succession streaks (wave completes with net > 0). */
 const successionTracker   = createSuccessionTracker();
 const waveState    = {};
+/** Durable highs/lows. The 8-swing window is not the memory. */
+let waveHlLedger = createWaveHlLedger();
+let waveHlFromPositions = null;
+let waveChainCache = { at: 0, anchors: 0, trails: 0, whl: 0, error: null };
+let waveChainScan = null;
+let flowBook = null;
+let injectRouteBook = null;
 const tradeLog     = [];
 let netPositions   = {};
+/** Durable FIFO lots (tokensIn/ethIn) — survives Railway restart via GitHub/disk. */
+let fifoLots       = {};
+let fifoLotsSha    = null;
+/** Ledger trades from bot-state (desk fills). Hash seed only — amounts from receipts. */
+let ledgerRebuildTrades = [];
 const proximityAlerts = {}; // symbol → { lastBuyAlertPct, lastSellAlertPct }
 // Cached token balances — refreshed each main loop cycle, used in Telegram responses
 const tokenBalanceCache = {};
 
 function initWaveState(symbol) {
-  if (!waveState[symbol]) waveState[symbol] = { peaks: [], troughs: [], peakScores: [], troughScores: [] };
-  return waveState[symbol];
+  return ensureWaveSlot(waveState, symbol);
+}
+
+function rememberWaveExtreme(symbol, side, price, source, at) {
+  const rec = recordWaveExtreme(waveHlLedger, { symbol, side, price, source, at });
+  if (rec.accepted && source === "live") {
+    try { saveWaveHlLedger(waveHlLedger); }
+    catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+  }
+  return rec;
+}
+
+function collectWaveBoardRows() {
+  const rows = [];
+  for (const t of tokens) {
+    const price = history[t.symbol]?.lastPrice || 0;
+    const bal = getCachedBalance(t.symbol) || 0;
+    const entry = hasUsableCostBasis(t) ? t.entryPrice : null;
+    const assessed = assessWaveToken(waveHlLedger, {
+      symbol: t.symbol,
+      price,
+      entryPrice: entry,
+    });
+    const plan = planDividendWithdraw({
+      balance: bal,
+      priceUsd: price,
+      dividendPct: assessed.dividendPct,
+      piggyReserve: t.piggyReserve || 0,
+      symbol: t.symbol,
+      savedEarningsUsd: t.savedEarningsUsd || 0,
+      token: t,
+      env: process.env,
+    });
+    rows.push({ ...assessed, plan, balance: bal });
+  }
+  return rows;
+}
+
+function injectRoutes() {
+  if (!injectRouteBook) injectRouteBook = loadInjectRouteBook();
+  return injectRouteBook;
+}
+
+function saveInjectRoutes() {
+  try { saveInjectRouteBook(injectRoutes()); }
+  catch (e) { console.log(`⚠️  inject routes: ${e.message}`); }
+}
+
+function flowArm() {
+  if (!flowBook) flowBook = loadFlowBook();
+  return flowBook;
+}
+
+function saveFlowArm() {
+  try { saveFlowBook(flowArm()); }
+  catch (e) { console.log(`⚠️  flow arm: ${e.message}`); }
+}
+
+function liveWaveDesk() {
+  const rows = collectWaveBoardRows();
+  const { balances, prices } = waveBalanceMaps();
+  return buildWaveAgentDesk({
+    rows,
+    trades: tradeLog,
+    balances,
+    prices,
+    chain: waveChainCache,
+    symbols: tokens.map((t) => t.symbol),
+  });
+}
+
+function waveBalanceMaps() {
+  const balances = {};
+  const prices = {};
+  for (const t of tokens) {
+    balances[t.symbol] = getCachedBalance(t.symbol) || 0;
+    prices[t.symbol] = history[t.symbol]?.lastPrice || 0;
+  }
+  return { balances, prices };
+}
+
+function waveClickCard(symbol) {
+  const sym = String(symbol || "").toUpperCase();
+  const row = collectWaveBoardRows().find((r) => r.symbol === sym) || null;
+  const { balances, prices } = waveBalanceMaps();
+  return formatWaveClickCard({
+    symbol: sym,
+    row,
+    chain: waveChainCache,
+    trades: tradeLog,
+    balances,
+    prices,
+  });
+}
+
+function refreshWaveChainPebbles() {
+  if (waveChainScan) return waveChainScan;
+  if (waveChainCache.at && Date.now() - waveChainCache.at < CHAIN_PULL_TTL_MS) {
+    return Promise.resolve(waveChainCache);
+  }
+  waveChainScan = pullWavePebbles({ limit: 40 }).then((pull) => {
+    const applied = applyWavePebbles(waveHlLedger, pull.pebbles);
+    if (applied.accepted > 0 || applied.ridesSealed > 0) {
+      try { saveWaveHlLedger(waveHlLedger); }
+      catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+    }
+    waveChainCache = {
+      at: Date.now(),
+      anchors: pull.anchors,
+      trails: pull.trails,
+      whl: pull.whl,
+      error: null,
+    };
+    console.log(`🌊 WHL pebbles: ${pull.whl} on ${pull.anchors} anchors + ${pull.trails} trails`);
+    return waveChainCache;
+  }).catch((e) => {
+    waveChainCache = {
+      at: Date.now(),
+      anchors: waveChainCache.anchors || 0,
+      trails: waveChainCache.trails || 0,
+      whl: waveChainCache.whl || 0,
+      error: e.message || String(e),
+    };
+    console.log(`⚠️  wave pebble pull: ${waveChainCache.error}`);
+    return waveChainCache;
+  }).finally(() => {
+    waveChainScan = null;
+  });
+  return waveChainScan;
+}
+
+function captureWavePrintsFromBoot() {
+  let added = 0;
+  for (const t of tokens) {
+    added += backfillWaveSwings(waveHlLedger, t.symbol, history[t.symbol]?.readings || []).added;
+    const ws = waveState[t.symbol];
+    if (ws?.peaks?.length) added += ingestPriceList(waveHlLedger, t.symbol, ws.peaks, "high", "boot-peak");
+    if (ws?.troughs?.length) added += ingestPriceList(waveHlLedger, t.symbol, ws.troughs, "low", "boot-trough");
+  }
+  rehydrateWaveWindow(waveHlLedger, initWaveState, WAVE_COUNT);
+  try { saveWaveHlLedger(waveHlLedger); }
+  catch (e) { console.log(`⚠️  wave HL ledger: ${e.message}`); }
+  const n = Object.keys(waveHlLedger.tokens || {}).length;
+  console.log(`📈 Wave HL ledger: ${n} token(s), ${added} new swing(s) — highs/lows kept`);
 }
 
 // ── PERMANENT TRADE LEDGER ────────────────────────────────────────────────────
@@ -2827,7 +3729,7 @@ async function appendToLedger(entry) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       // Always read fresh from GitHub — never use stale in-memory state
-      const lf     = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+      const lf     = await githubGetFromBranch("ledger.json", liveStateBranch());
       const ledger = lf?.content && lf.content.trades
         ? lf.content
         : { trades: [], created: new Date().toISOString(), wallet: WALLET_ADDRESS };
@@ -2861,31 +3763,31 @@ async function appendToLedger(entry) {
 // Helper: load a file from a specific branch
 async function githubGetFromBranch(filename, branch) {
   try {
-    const [owner, repo] = (process.env.GITHUB_REPO || "").split("/");
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}?ref=${branch}&t=${Date.now()}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json" } });
+    const url = githubContentsUrl({
+      repo: liveGithubRepo(),
+      filename,
+      branch: branch || liveStateBranch(),
+    });
+    const res = await fetch(url, { headers: githubAuthHeaders(liveGithubToken()) });
     if (!res.ok) {
       console.log(`⚠️  githubGetFromBranch(${filename}): HTTP ${res.status}`);
-      return null;
+      return { content: null, sha: null, status: res.status };
     }
     const data = await res.json();
-    // GitHub returns base64 with newlines every 60 chars — must strip them
-    const decoded = Buffer.from(data.content.replace(/\n/g, ""), "base64").toString("utf8");
-    return { content: JSON.parse(decoded), sha: data.sha };
+    return { content: decodeGithubContentsJson(data), sha: data.sha, status: res.status };
   } catch (e) {
     console.log(`⚠️  githubGetFromBranch(${filename}): ${e.message}`);
-    return null;
+    return { content: null, sha: null, status: 0 };
   }
 }
 
 // Helper: save a file to the state branch
 async function githubSaveToState(filename, content, sha) {
   try {
-    const [owner, repo] = (process.env.GITHUB_REPO || "").split("/");
-    const url  = `https://api.github.com/repos/${owner}/${repo}/contents/${filename}`;
-    const body = { message: `ledger: ${new Date().toISOString()}`, content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"), branch: STATE_BRANCH };
+    const url  = githubContentsApiUrl({ repo: liveGithubRepo(), filename });
+    const body = { message: `ledger: ${new Date().toISOString()}`, content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"), branch: liveStateBranch() };
     if (sha) body.sha = sha;
-    const res = await fetch(url, { method: "PUT", headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(url, { method: "PUT", headers: { ...githubAuthHeaders(liveGithubToken()), "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     if (data.content?.sha) ledgerSha = data.content.sha;
   } catch (e) { console.log(`⚠️  Ledger save error: ${e.message}`); }
@@ -3071,9 +3973,6 @@ async function fetchHistoricalCandles(tokenAddress, days = 90, symbol = null) {
 // Pull historical data for every token and pre-load their wave state + indicator data
 // Uses full OHLC candles — real highs/lows for every timeframe, no more waiting
 async function loadHistoricalData(days = 90) {
-  console.log(`📅 Loading ${days}-day historical OHLC data for all tokens...`);
-  let loaded = 0, skipped = 0;
-
   const allTokens = [
     ...DEFAULT_TOKENS,
     ...WATCHLIST.map(w => ({
@@ -3082,7 +3981,17 @@ async function loadHistoricalData(days = 90) {
     }))
   ].filter(t => t.address && t.address !== "PENDING" && t.address.startsWith("0x"));
 
-  const seedSkip = allTokens.filter(shouldSkipOhlcSeed);
+  const seedPlan = planOhlcSeed(allTokens, process.env);
+  if (seedPlan.skipAll) {
+    hydrateHistoryMap(history);
+    console.log("📅 SKIP_OHLC_SEED — skipping 90-day candle seed entirely (no frozen timeout path)");
+    return { loaded: 0, skipped: allTokens.length, skipAll: true };
+  }
+
+  console.log(`📅 Loading ${days}-day historical OHLC data for all tokens...`);
+  let loaded = 0, skipped = 0;
+
+  const seedSkip = seedPlan.skipped;
   if (seedSkip.length) {
     for (const t of seedSkip) {
       const why = t.noBasePool ? "no Base pool" : "broken quote";
@@ -3090,7 +3999,7 @@ async function loadHistoricalData(days = 90) {
     }
     skipped += seedSkip.length;
   }
-  const seedTokens = allTokens.filter(t => !shouldSkipOhlcSeed(t));
+  const seedTokens = seedPlan.seedTokens;
 
   // Process in sequential batches of 3 tokens.
   // Each token fires GT+DS in parallel (2 requests). With 3 tokens per batch
@@ -3155,8 +4064,8 @@ async function loadHistoricalData(days = 90) {
         if (live && isValidUsdPrice(live.priceUsd) && !token._watchlist) {
           const trusted = Boolean(live.trustedQuote || live.verifiedPool);
           if (noteLastSaneUsd(token.symbol, live.priceUsd, undefined, { trusted })) {
-            if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-            history[token.symbol].lastPrice = live.priceUsd;
+            const slot = ensureHistorySlot(history, token.symbol);
+            slot.lastPrice = live.priceUsd;
             console.log(`   ⚠️  ${token.symbol}: no Base OHLC — live ${live.source} $${live.priceUsd} (waves from ticks, not CEX)`);
           } else {
             console.log(`   ⚠️  ${token.symbol}: no Base OHLC — rejected insane ${live.source} $${live.priceUsd} (keep last sane)`);
@@ -3172,8 +4081,8 @@ async function loadHistoricalData(days = 90) {
 
       // ── Seed price history with candle closes for indicator calc ──────────
       if (!token._watchlist) {
-        if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-        if (history[token.symbol].readings.length < candles.length) {
+        const slot = ensureHistorySlot(history, token.symbol);
+        if (slot.readings.length < candles.length) {
           const now   = Date.now();
           const dayMs = 86_400_000;
           const syntheticReadings = candles.map((c, i) => ({
@@ -3181,8 +4090,8 @@ async function loadHistoricalData(days = 90) {
             time:  now - (candles.length - i) * dayMs,
             synthetic: true,
           }));
-          const liveReadings = history[token.symbol].readings.filter(r => !r.synthetic);
-          history[token.symbol].readings = [...syntheticReadings, ...liveReadings].slice(-2000);
+          const liveReadings = slot.readings.filter(r => !r.synthetic);
+          slot.readings = [...syntheticReadings, ...liveReadings].slice(-2000);
           const seedClose = candles[candles.length - 1].c;
           if (picked?.src === "Binance") {
             const liveQuote = await fetchTokenUsdQuote(token.address);
@@ -3202,8 +4111,7 @@ async function loadHistoricalData(days = 90) {
         }
       } else {
         // Watchlist — store in watchPrices
-        if (!watchPrices[token.symbol]) watchPrices[token.symbol] = { prices: [], high24h: 0, low24h: Infinity };
-        watchPrices[token.symbol].lastPrice = candles[candles.length - 1].c;
+        ensureWatchSlot(watchPrices, token.symbol).lastPrice = candles[candles.length - 1].c;
       }
 
       // ── Build full OHLC timeframe summary ─────────────────────────────────
@@ -3249,11 +4157,9 @@ async function loadHistoricalData(days = 90) {
       };
 
       if (!token._watchlist) {
-        if (!history[token.symbol]) history[token.symbol] = { readings: [], lastPrice: null };
-        history[token.symbol].candles = ohlc;
+        ensureHistorySlot(history, token.symbol).candles = ohlc;
       } else {
-        if (!watchPrices[token.symbol]) watchPrices[token.symbol] = { prices: [], high24h: 0, low24h: Infinity };
-        watchPrices[token.symbol].candles = ohlc;
+        ensureWatchSlot(watchPrices, token.symbol).candles = ohlc;
       }
 
       loaded++;
@@ -3338,7 +4244,7 @@ function bootstrapWavesFromHistory() {
 async function bootstrapWavesFromLedger() {
   console.log("📖 Seeding waves from trade ledger...");
   try {
-    const lf = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+    const lf = await githubGetFromBranch("ledger.json", liveStateBranch());
     if (!lf?.content?.trades?.length) {
       console.log("   ⚠️  Ledger empty or unreadable — skipping ledger seed");
       return;
@@ -3401,10 +4307,9 @@ async function bootstrapWavesFromLedger() {
 
 function recordPrice(symbol, price) {
   if (!isValidUsdPrice(price)) return; // never seed waves / prediction with $0
-  if (!history[symbol]) history[symbol] = { readings: [], lastPrice: null };
-  history[symbol].readings.push({ price, time: Date.now() });
-  if (history[symbol].readings.length > 2000) history[symbol].readings.shift(); // keep under GitHub 1MB API limit
-  history[symbol].lastPrice = price;
+  // SKIP_OHLC_SEED / boot quotes may leave { lastPrice } with no readings.
+  // recordPriceInto always initializes the array — never throw on .push.
+  recordPriceInto(history, symbol, price);
 }
 
 // Update waves — now with indicator confirmation scoring
@@ -3426,6 +4331,7 @@ function updateWaves(symbol, price) {
       const confirmed = ind.score <= -1;
       ws.peaks.push(m);
       if (ws.peaks.length > WAVE_COUNT) ws.peaks.shift();
+      rememberWaveExtreme(symbol, "high", m, "live");
       console.log(`   📈 [${symbol}] New peak: $${m.toFixed(8)} | ind score: ${ind.score} ${confirmed ? "✅CONFIRMED" : "⚠️unconfirmed"} | ${ind.detail}`);
     }
   }
@@ -3439,6 +4345,7 @@ function updateWaves(symbol, price) {
       const confirmed = ind.score >= 1;
       ws.troughs.push(m);
       if (ws.troughs.length > WAVE_COUNT) ws.troughs.shift();
+      rememberWaveExtreme(symbol, "low", m, "live");
       console.log(`   📉 [${symbol}] New trough: $${m.toFixed(8)} | ind score: ${ind.score} ${confirmed ? "✅CONFIRMED" : "⚠️unconfirmed"} | ${ind.detail}`);
 
       // WAVE INVALIDATION: if new trough breaks 5% below existing MIN,
@@ -3606,11 +4513,20 @@ function getNextProjectedPeak(symbol) {
 }
 
 
-function getMaxPeak(symbol)               { const ps = waveState[symbol]?.peaks   || []; return ps.length ? Math.max(...ps) : null; }
-function getMinTrough(symbol, skipLast)   {
+function getMaxPeak(symbol) {
+  const ps = waveState[symbol]?.peaks || [];
+  const fromState = ps.length ? Math.max(...ps) : null;
+  const fromLedger = recentExtreme(waveHlLedger, symbol, "high", { keep: WAVE_COUNT });
+  const vals = [fromState, fromLedger].filter((v) => v > 0);
+  return vals.length ? Math.max(...vals) : null;
+}
+function getMinTrough(symbol, skipLast) {
   let ts = waveState[symbol]?.troughs || [];
   if (skipLast && ts.length > 1) ts = ts.slice(0, -1);
-  return ts.length ? Math.min(...ts) : null;
+  const fromState = ts.length ? Math.min(...ts) : null;
+  const fromLedger = recentExtreme(waveHlLedger, symbol, "low", { keep: WAVE_COUNT, skipLast: !!skipLast });
+  const vals = [fromState, fromLedger].filter((v) => v > 0);
+  return vals.length ? Math.min(...vals) : null;
 }
 function getPeakCount(symbol)             { return (waveState[symbol]?.peaks   || []).length; }
 function getTroughCount(symbol)           { return (waveState[symbol]?.troughs || []).length; }
@@ -4285,18 +5201,30 @@ function calcNetMargin(symbol, gasCostEth, tradeEth) {
 
 function getArmStatus(symbol, gasCostEth, tradeEth) {
   const pc = getPeakCount(symbol), tc = getTroughCount(symbol);
-  if (pc < MIN_PEAKS_TO_TRADE || tc < MIN_TROUGHS_TO_TRADE) {
-    return { armed: false, reason: `need ${MIN_PEAKS_TO_TRADE}P/${MIN_TROUGHS_TO_TRADE}T (have ${pc}P/${tc}T)` };
-  }
-  const net   = calcNetMargin(symbol, gasCostEth, tradeEth);
-  if (net === null) return { armed: false, reason: "no wave data" };
   const token = tokens.find(t => t.symbol === symbol);
   const minNM = token?.minNetMargin || MIN_NET_MARGIN;
-  if (net < minNM) {
+  let net = null;
+  let sessionArm = false;
+  if (pc >= MIN_PEAKS_TO_TRADE && tc >= MIN_TROUGHS_TO_TRADE) {
+    net = calcNetMargin(symbol, gasCostEth, tradeEth);
+    if (net === null) return { armed: false, reason: "no wave data" };
+  } else {
+    const session = sessionRangeCanArm(history[symbol]?.readings, {
+      feePct: token?.poolFeePct || 0.006,
+      gasCostEth,
+      tradeEth,
+      impactPct: PRICE_IMPACT_EST * 2,
+    });
+    if (!session.ok) {
+      return { armed: false, reason: `need ${MIN_PEAKS_TO_TRADE}P/${MIN_TROUGHS_TO_TRADE}T (have ${pc}P/${tc}T)` };
+    }
+    net = session.net;
+    sessionArm = true;
+  }
+  if (!sessionArm && net < minNM) {
     // Dead-wave detection: if the GROSS range (peak-to-trough) is smaller than the
     // round-trip fee, this token's wave will NEVER be tradeable at this capital level.
     // Flag it clearly rather than showing a confusing "need 0.5%" message forever.
-    const token = tokens.find(t => t.symbol === symbol);
     const feePct = (token?.poolFeePct || 0.006) * 2;
     const grossPct = (calcNetMargin(symbol, 0, 1) || 0) + feePct; // add fees back to get gross
     if (grossPct < feePct * 1.5) {
@@ -4305,7 +5233,7 @@ function getArmStatus(symbol, gasCostEth, tradeEth) {
     return { armed: false, reason: `net margin ${(net*100).toFixed(2)}% (need ${(minNM*100).toFixed(1)}%)` };
   }
   const priority = net >= PRIORITY_MARGIN ? "PRIORITY" : net >= 0.03 ? "STANDARD" : "THIN";
-  return { armed: true, net, priority };
+  return { armed: true, net, priority, sessionArm };
 }
 
 function getCascadePct(netMargin) {
@@ -4412,6 +5340,21 @@ async function getTokenBalance(address) {
   }
 }
 
+/** Live ERC20 wei — never size amountIn from float/stale human cache. */
+async function getTokenBalanceWei(address) {
+  const addr = String(address || "").toLowerCase();
+  const raw = await rpcCall(c => c.readContract({
+    address: addr,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [WALLET_ADDRESS],
+  }));
+  if (typeof raw === "bigint") return raw >= 0n ? raw : 0n;
+  if (raw == null || raw === "") throw new Error(`balanceOf ${addr.slice(0, 10)}… empty`);
+  const n = BigInt(raw);
+  return n >= 0n ? n : 0n;
+}
+
 // Returns { eth, weth, total, tradeable } — WETH is always included
 async function getFullBalance() {
   let eth = Number.isFinite(lastEthBalance) ? lastEthBalance : 0, weth = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
@@ -4430,7 +5373,14 @@ async function getFullBalance() {
   const gasFloor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
   const reserved   = Math.max(total * ETH_RESERVE_PCT, gasFloor + sellR + piggyBank);
   const tradeable  = Math.max(eth - gasFloor - sellR, 0); // ETH minus gas continuity + sell cushion
-  const tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
+  let tradeableWithWeth = Math.max(total - reserved, 0);           // full spendable
+  // Thin / inject-all: T1 slot = unified ETH+WETH after gas keep, not 20%+sell park.
+  // Live: ETH $3.73 + WETH $1.94 → slot logged $3.80 then every avenue refused.
+  if (total > 0 && total < THIN_BOOK_ETH) {
+    tradeableWithWeth = microSpendableEth({
+      eth, weth, gasFloorEth: gasFloor, piggyEth: piggyBank,
+    });
+  }
   return { eth, weth, total, tradeable, tradeableWithWeth, sellReserve: sellR, gasFloor };
 }
 
@@ -4474,7 +5424,7 @@ async function unwrapWeth(cdp, amountWeth) {
 
 // Unwraps WETH → native ETH so gas fees can be paid.
 // Gas on Base always requires native ETH — WETH cannot pay gas directly.
-// This is called automatically when native ETH drops below GAS_TOPUP_THRESHOLD.
+// Thrift auto unwrap uses cascade floor (not GAS_TOPUP_TARGET 0.003).
 const WETH_ABI_WITHDRAW = [{ name: "withdraw", type: "function", stateMutability: "nonpayable", inputs: [{ name: "wad", type: "uint256" }], outputs: [] }];
 async function unwrapEth(cdp, amountEth) {
   try {
@@ -4498,9 +5448,11 @@ async function unwrapEth(cdp, amountEth) {
 // Refresh all token balances in parallel — reads directly from WALLET_ADDRESS on-chain
 // This is the canonical chain truth. Called once per main loop cycle.
 // ALL tokens refreshed (including frozen) so exit path always works if position exists.
+// Hourly catalog (AERO/DRB/BNKR/VIRTUAL) is unioned so a live bag is polled
+// even if DEFAULT_TOKENS / saved tokens.json omitted it.
 async function refreshTokenBalances() {
   const results = await Promise.allSettled(
-    tokens.map(t => getTokenBalance(t.address).then(bal => ({ symbol: t.symbol, bal })))
+    hourlyBalancePollRows(tokens).map(t => getTokenBalance(t.address).then(bal => ({ symbol: t.symbol, bal })))
   );
   for (const r of results) {
     if (r.status === "fulfilled" && r.value?.symbol) {
@@ -4645,36 +5597,187 @@ function encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOu
 // The router ignores trailing bytes (only reads the first 7 params).
 // Result: inscription is permanently on Base at ZERO extra gas cost.
 // This is how the top MEV bots stamp their identity on every trade.
+function leftoverHitchUtf8() {
+  const prev = getLastVitaPacket();
+  try {
+    const planned = planSecondaryHitch({ leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
+    const utf8 = planned.utf8 || "";
+    const kind = parseHitchTrailer(utf8);
+    if (kind.vita && utf8.includes("Krystian")) return utf8;
+    return "";
+  } finally {
+    setLastVitaPacket(prev);
+  }
+}
+
 function encodeSwapWithReceipt(tokenIn, tokenOut, amountIn, recipient, fee = 3000, amountOutMin = 0n, receiptData = "") {
   const swapCall = encodeSwap(tokenIn, tokenOut, amountIn, recipient, fee, amountOutMin);
-  if (!receiptData || !BTP_INSCRIPTIONS_ENABLED) return swapCall;
-  const hitch = appendUtf8Hitch(swapCall, receiptData);
+  let hitchUtf8 = String(receiptData || "").trim();
+  const kind = parseHitchTrailer(hitchUtf8);
+  // Leftover swap hitch is VITA parse. Eureka leftover via this helper is refused.
+  if (!hitchUtf8 || (kind.eureka && !kind.vita)) hitchUtf8 = leftoverHitchUtf8();
+  if (!hitchUtf8) return swapCall;
+  const hitch = appendUtf8Hitch(swapCall, hitchUtf8);
   return hitch.ok && hitch.onChain ? hitch.data : swapCall;
 }
 
-/** Size-limited §$STORE§ + VITA letter. Telegram may claim this only if onChain. */
-function planVoiceHitch(swapData, { skipHitch = false, maxBytes, enabled = storeVoiceEnabled() } = {}) {
-  if (!enabled || skipHitch || !swapData) {
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+/** Fold a sealed strand packet into recursive §TOKEN§ memory + location depository. */
+function absorbVitaStrandPacket(entry) {
+  const packet = entry?.tokenPacket || "";
+  if (!packet) return;
+  ingestSealedUtf8(packet);
+  const loc = entry.chunks?.[0]?.txHash || entry.txHash;
+  if (loc) {
+    recordLocation({
+      location: loc,
+      kind: "hitch",
+      sealed: true,
+      utf8: packet,
+      hitchKind: "vita",
+    });
   }
-  const text = buildStoreVoice({
-    tag: STORE_HITCH_TAG,
-    message: VITA_PROOF_FULL,
+}
+
+/** Leftover hitch budget = dense VITA §TOKEN§ trailer (KEY+LOC), not the Eureka letter. */
+function leftoverVoiceHitchBytes() {
+  const cap = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+  const frozen = leftoverHitchUtf8();
+  if (frozen) {
+    const n = utf8ByteLength(frozen);
+    if (n > 0 && n <= cap) return n;
+  }
+  try {
+    const n = measurePlannedHitchBytes({ maxBytes: cap, leftoverEth: 1, hitchCostEth: 0, mode: "vita" });
+    return n > 0 && n <= cap ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Size-limited leftover hitch.
+ * When a VITA picture cycle is armed *and* leftover already has a VITA hitch,
+ * pack sparse §HAT§ into leftover (main #58). Picture waits while leftover is
+ * still Eureka so KEY+LOC can land first.
+ * Otherwise leftover hitch is VITA KEY+LOC parse — never leftover Eureka prose.
+ * If leftover cannot cover the names-only KEY+LOC trailer, skip hitch (lose-zero)
+ * rather than clip §KEY§ names off the chain.
+ */
+function planVoiceHitch(swapData, {
+  skipHitch = false,
+  maxBytes,
+  enabled = storeVoiceEnabled(),
+  leftoverEth = 0,
+  earningsEth = 0,
+  gwei = 0,
+  hitchCostMult = 1,
+  /** Race-start first buy — only then may hitch full Eureka when opportune. */
+  purchasedFirstOrder = false,
+  raceStarted = true,
+} = {}) {
+  if (!enabled || skipHitch || !swapData) {
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
+  }
+
+  // Race start + first order: full family Eureka when leftover covers; else leave alone.
+  {
+    const eurekaBytes = raceEurekaBytes();
+    const eurekaCost = Number(gwei) > 0
+      ? estimateCalldataHitchEth(eurekaBytes, gwei) * (Number(hitchCostMult) > 0 ? Number(hitchCostMult) : 1)
+      : 0;
+    const racePlan = planRaceStartEureka({
+      raceStarted,
+      purchasedFirstOrder,
+      leftoverEth,
+      hitchCostEth: eurekaCost,
+    });
+    if (racePlan.attempt && racePlan.utf8) {
+      const hitch = appendUtf8Hitch(swapData, racePlan.utf8);
+      if (hitch.ok && hitch.onChain) {
+        const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
+        if (prefix.ok && hitch.utf8.includes("Living Network") && hitch.utf8.includes("Krystian")) {
+          recordHitchAttempt({});
+          console.log(`   📡 Race-start full Eureka ${hitch.hitchBytes} B — Basescan Input Data → View as UTF-8`);
+          console.log(`      "${hitch.utf8}"`);
+          return {
+            ...hitch,
+            vitaMode: "eureka",
+            vitaKind: "eureka",
+            kind: "eureka",
+            raceStartEureka: true,
+          };
+        }
+      }
+      // Not opportune / pack failed — leave alone (fall through to KEY+LOC).
+      console.log(`   💌 Race Eureka leave-alone: ${racePlan.reason || "pack miss"} — KEY+LOC if covered`);
+    }
+  }
+
+  if (isVitaPictureArmed() && !leftoverStillEureka()) {
+    const pic = planVitaTailwindOrVoiceHitch(swapData, {
+      skipHitch,
+      maxBytes,
+      leftoverEth,
+      earningsEth,
+      gwei,
+      hitchCostMult,
+      preferPicture: true,
+      voicePlanner: null,
+    });
+    if (pic.onChain && pic.kind === "hat-picture") {
+      console.log(
+        `   🌟 VITA tailwind picture hitch ${pic.hitchBytes} B` +
+          ` (cycle #${pic.cycleId} · ${pic.hatRide?.sized?.payloadBits || "?"} bits)` +
+          ` — Basescan Input Data → View as UTF-8`
+      );
+      return { ...pic, vitaMode: "hat" };
+    }
+  }
+
+  const planned = planSecondaryHitch({
+    skipHitch,
     maxBytes,
+    leftoverEth,
+    hitchCostEth: (() => {
+      const bytes = maxBytes != null
+        ? Math.max(0, Math.floor(Number(maxBytes) || 0))
+        : leftoverVoiceHitchBytes();
+      if (!(bytes > 0) || !(Number(gwei) > 0)) return undefined;
+      return estimateCalldataHitchEth(bytes, gwei);
+    })(),
+    mode: "vita",
   });
-  const hitch = appendUtf8Hitch(swapData, text, { maxBytes });
+  if (!planned.utf8) {
+    recordHitchAttempt({ skippedLeftover: /leftover|skipHitch/i.test(String(planned.reason || "")) });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
+  }
+  const plannedKind = parseHitchTrailer(planned.utf8);
+  if (!plannedKind.vita || !planned.utf8.includes("Krystian")) {
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
+  }
+  const hitch = appendUtf8Hitch(swapData, planned.utf8, { maxBytes });
   if (!hitch.ok || !hitch.onChain) {
     if (hitch.log) console.log(`   ${hitch.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
   const prefix = hitchPreservesSwapPrefix(swapData, hitch.data);
   if (!prefix.ok) {
     console.log(`   ${prefix.log} — sending plain swap (no UTF-8 hitch)`);
-    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false };
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
   }
-  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B on swap — Basescan Input Data → View as UTF-8`);
-  console.log(`      "${hitch.utf8}"`);
-  return hitch;
+  const parsed = parseHitchTrailer(hitch.utf8);
+  if (!parsed.vita || !hitch.utf8.includes("Krystian")) {
+    console.log(`   leftover hitch would clip §KEY§ names — sending plain swap (no UTF-8 hitch)`);
+    recordHitchAttempt({ skippedLeftover: true });
+    return { data: swapData, utf8: "", hitchBytes: 0, onChain: false, vitaMode: planned.resolved, kind: "none" };
+  }
+  recordHitchAttempt({});
+  console.log(`   📡 UTF-8 hitch ${hitch.hitchBytes} B [${planned.resolved}/${parsed.kind}] — Basescan Input Data → View as UTF-8`);
+  console.log(`      "${hitch.utf8.slice(0, 120)}${hitch.utf8.length > 120 ? "…" : ""}"`);
+  return { ...hitch, vitaMode: planned.resolved, vitaKind: parsed.kind, kind: parsed.kind };
 }
 
 function hitchTelegramFooter(hitch, txHash) {
@@ -4687,6 +5790,111 @@ function hitchTelegramFooter(hitch, txHash) {
     );
   }
   return `${link}\n⚠️ No UTF-8 hitch in this tx — the letter is not on-chain`;
+}
+
+/** ETH+WETH after a real fill — last ping is ok if a live read fails. */
+async function liquidAfterFillApprox() {
+  let eth = Number.isFinite(lastEthBalance) ? lastEthBalance : null;
+  let weth = Number.isFinite(lastWethBalance) ? lastWethBalance : null;
+  try { eth = await getEthBalance(); } catch { /* keep last ping */ }
+  try { weth = await getWethBalance(); } catch { /* keep last ping */ }
+  return { eth, weth };
+}
+
+function openSleeveRecallRows() {
+  const ethUsd = Number(cachedEthUsd) || 0;
+  return RECALL_SLEEVES.map((sym) => {
+    const t = tokens.find((x) => x.symbol === sym);
+    const lot = fifoLots[sym];
+    const fifoKnown = !!(t && (hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, lot)) && t.unknownEntry !== true);
+    const remainingFifoEth = fifoKnown
+      ? (Number(t.totalInvestedEth) || Number(lot?.remainingCostEth) || Number(lot?.fillCostEth) || Number(lot?.ethIn) || 0)
+      : 0;
+    const px = history[sym]?.lastPrice;
+    const units = getCachedBalance(sym);
+    let markProceedsEth = null;
+    if (fifoKnown && Number(px) > 0 && Number(units) > 0 && ethUsd > 0) {
+      markProceedsEth = (Number(units) * Number(px)) / ethUsd;
+    }
+    return sleeveDistanceToPlus({
+      symbol: sym,
+      remainingFifoEth: remainingFifoEth > 0 ? remainingFifoEth : null,
+      markProceedsEth,
+      fifoKnown: fifoKnown && remainingFifoEth > 0,
+    });
+  });
+}
+
+/**
+ * Exit inject receipt when hitch landed + chain receipt succeeded.
+ * Includes spaced-location count for HAT picture assembly when registry has seals.
+ */
+function buildHatExitReceiptForSell({
+  transactionHash,
+  receiptStatus,
+  sellVoice,
+} = {}) {
+  // Prefer live VITA picture confirm (seal + spaced proof + next cycle)
+  if (sellVoice?.kind === "hat-picture" && sellVoice?.nodeId) {
+    const picConf = confirmTailwindPictureInject({
+      txHash: transactionHash,
+      receiptStatus,
+      hitchOnChain: !!sellVoice.onChain,
+      hitchBytes: sellVoice.hitchBytes || 0,
+      utf8: sellVoice.utf8 || "",
+      nodeId: sellVoice.nodeId,
+      autoNextCycle: true,
+    });
+    if (picConf.cycleComplete && picConf.nextCycle) {
+      console.log(
+        `   🌟 VITA picture cycle complete → next #${picConf.nextCycle.cycleId} armed`
+      );
+    }
+    return (
+      picConf.receiptHtml ||
+      formatHatExitInjectReceiptHtml({
+        confirm: picConf,
+        spacedProof: picConf.spacedProof,
+        pictureLabel: "VITA picture tailwind",
+      })
+    );
+  }
+
+  const hitchOnChain = !!sellVoice?.onChain;
+  const bundle = buildExitInjectReceiptBundle({
+    txHash: transactionHash,
+    receiptStatus,
+    hitchOnChain,
+    hitchBytes: sellVoice?.hitchBytes || 0,
+    utf8: sellVoice?.utf8 || "",
+    registry: getHatRegistry(),
+    pictureLabel: "HAT picture / smile stream",
+  });
+  // Always show inject confirm/deny on exit when we attempted hitch
+  if (!hitchOnChain && receiptStatus === "success") {
+    return formatHatExitInjectReceiptHtml({
+      confirm: {
+        injected: false,
+        reason: "exit leftover too thin or hitch skipped — plain sale (no inject)",
+        txHash: transactionHash,
+      },
+    });
+  }
+  // Enrich with live spaced proof from any sealed HAT nodes
+  const locs = sealedPictureLocations();
+  if (locs.length > 0) {
+    const spaced = buildSpacedChainProof({
+      locations: locs,
+      totalBits: getHatRegistry().totalBits || 0,
+    });
+    return formatHatExitInjectReceiptHtml({
+      confirm: bundle.confirm,
+      spacedProof: spaced,
+      pictureLabel: "HAT picture / smile stream",
+      thisLocationSeq: locs.find((l) => l.location === transactionHash)?.seq ?? null,
+    });
+  }
+  return bundle.html;
 }
 
 function hitchLedgerSignature(hitch) {
@@ -4752,6 +5960,14 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
     };
   }
   lastStoreVoiceProofAt = Date.now();
+  recordLocation({
+    location: transactionHash,
+    kind: "prove",
+    sealed: true,
+    utf8: text,
+    hitchKind: "eureka",
+  });
+  ingestSealedUtf8(text);
   console.log(`   📡 Dedicated UTF-8 proof ${bytes} B → ${transactionHash}`);
   console.log(`      "${text.slice(0, 80)}${text.length > 80 ? "…" : ""}"`);
   return {
@@ -4767,19 +5983,44 @@ async function sendStoreVoiceProof(cdp, extraText = "") {
 function encodeApprove(spender, amount) {
   return "0x095ea7b3" + spender.slice(2).padStart(64,"0") + amount.toString(16).padStart(64,"0");
 }
-async function ensureApproved(cdp, tokenAddress, amountIn) {
+async function ensureApproved(cdp, tokenAddress, amountIn, spenders = sellApproveSpenders()) {
   const MAX = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-  const key = tokenAddress.toLowerCase();
-  if (approvedTokens.has(key)) return;
-  const al = await rpcCall(c => c.readContract({ address: tokenAddress.toLowerCase(), abi: ERC20_ABI, functionName: "allowance", args: [WALLET_ADDRESS, SWAP_ROUTER] }));
-  if (al >= amountIn) { approvedTokens.add(key); return; }
-  console.log(`      🔓 Approving ${tokenAddress.slice(0,10)}...`);
-  await Promise.race([
-    cdp.evm.sendTransaction({ address: WALLET_ADDRESS, network: "base", transaction: { to: tokenAddress.toLowerCase(), data: encodeApprove(SWAP_ROUTER, MAX) } }),
-    new Promise((_, r) => setTimeout(() => r(new Error(`Approve tx timeout 45s`)), TX_TIMEOUT_MS))
-  ]);
-  approvedTokens.add(key);
-  await sleep(4000); // reduced from 8s
+  const need = typeof amountIn === "bigint" ? amountIn : 0n;
+  if (need <= 0n) return;
+  const token = String(tokenAddress || "").toLowerCase();
+  for (const spender of spenders) {
+    const who = String(spender || "").toLowerCase();
+    const al = await rpcCall(c => c.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [WALLET_ADDRESS, who],
+    }));
+    if (!needsSpenderApprove({ allowanceWei: al, amountInWei: need })) {
+      if (who === SWAP_ROUTER.toLowerCase()) approvedTokens.add(token);
+      continue;
+    }
+    console.log(`      🔓 Approving ${who.slice(0, 10)}… for ${token.slice(0, 10)}… (allowance ${al} < ${need})`);
+    await Promise.race([
+      cdp.evm.sendTransaction({
+        address: WALLET_ADDRESS,
+        network: "base",
+        transaction: { to: token, data: encodeApprove(who, MAX) },
+      }),
+      new Promise((_, r) => setTimeout(() => r(new Error(`Approve tx timeout 45s`)), TX_TIMEOUT_MS)),
+    ]);
+    await sleep(4000);
+    const al2 = await rpcCall(c => c.readContract({
+      address: token,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [WALLET_ADDRESS, who],
+    }));
+    if (needsSpenderApprove({ allowanceWei: al2, amountInWei: need })) {
+      throw new Error(`Approve did not stick: ${who.slice(0, 10)}… allowance ${al2} < amountIn ${need}`);
+    }
+    if (who === SWAP_ROUTER.toLowerCase()) approvedTokens.add(token);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -4787,7 +6028,7 @@ async function ensureApproved(cdp, tokenAddress, amountIn) {
 // Runs before every buy decision. Ensures the bot never runs out of either.
 // ETH and WETH are interchangeable — whichever is up, the other can be refilled.
 // ═══════════════════════════════════════════════════════════════════════════════
-const ETH_MIN_OPERATING  = 0.003;  // always keep at least 0.003 ETH liquid for gas
+const ETH_MIN_OPERATING  = 0.003;  // rich-book gas pad — thin books use thrift cascade floor
 const WETH_MIN_OPERATING = 0.002;  // always keep at least 0.002 WETH ready for swaps
 
 async function manageEthWethBalance(cdp) {
@@ -4795,9 +6036,25 @@ async function manageEthWethBalance(cdp) {
     const eth  = await getEthBalance();
     const weth = await getWethBalance();
     const total = eth + weth;
-    // Case 1: ETH running low but WETH available — unwrap some to keep gas funded
-    if (eth < ETH_MIN_OPERATING && weth > ETH_MIN_OPERATING) {
-      const needed = ETH_MIN_OPERATING - eth + 0.001; // top up with a small buffer
+    const floor = effectiveCascadeGasFloor(total, { gasReserveEth: GAS_RESERVE });
+    const opUnwrap = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
+    const need = autoUnwrapTowardCascadeFloor({
+      nativeEth: eth,
+      weth,
+      gasReserveEth: GAS_RESERVE,
+      allowPartial: true,
+      operatorUnlock: opUnwrap.armed && !operatorUnwrapState.done,
+    });
+    if (need > 0) {
+      const amt = opUnwrap.amountEth > 0 ? Math.min(need, opUnwrap.amountEth) : need;
+      console.log(`   💱 CASCADE UNWRAP native ${eth.toFixed(6)} < floor ${floor.toFixed(6)} — thrift ${amt.toFixed(6)} WETH→ETH`);
+      await unwrapWeth(cdp, amt);
+      if (opUnwrap.armed) {
+        operatorUnwrapState.done = true;
+        operatorUnwrapState.executed = true;
+      }
+    } else if (eth < ETH_MIN_OPERATING && weth > ETH_MIN_OPERATING && total >= 0.01) {
+      const needed = ETH_MIN_OPERATING - eth + 0.001;
       if (needed > 0.0005 && weth - needed >= WETH_MIN_OPERATING) {
         console.log(`   💱 ETH low (${eth.toFixed(4)}) — unwrapping ${needed.toFixed(4)} WETH to top up gas`);
         await unwrapWeth(cdp, needed);
@@ -4824,11 +6081,12 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
     const eth = await getEthBalance();
     const weth = await getWethBalance();
     const floor = effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
-    const need = unwrapForCascadeGas({
+    const need = autoUnwrapTowardCascadeFloor({
       nativeEth: eth,
       weth,
-      floorEth: floor,
-      keepWethMin: 0,
+      gasReserveEth: GAS_RESERVE,
+      allowPartial: true,
+      operatorUnlock: isOperatorUnwrapArmed(process.env) && !operatorUnwrapState.done,
     });
     if (need > 0) {
       console.log(`   ⛽ CASCADE GAS [${label}]: native ${eth.toFixed(6)} < floor ${floor.toFixed(6)} — unwrap ${need.toFixed(6)} WETH`);
@@ -4839,11 +6097,20 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
       }
     }
     const after = await getEthBalance();
-    if (after + 1e-12 < Math.min(floor, GAS_RESERVE)) {
-      console.log(`   🛑 CASCADE GAS [${label}]: still below reserve (${after.toFixed(6)}) — cannot fund next moves`);
-      return false;
+    if (cascadeNativeGasOk({
+      nativeEth: after,
+      floorEth: floor,
+      gasReserveEth: GAS_RESERVE,
+      thriftFloorEth: THRIFT_CASCADE_GAS_FLOOR_ETH,
+      didPartialUnwrap: need > 0,
+    })) {
+      if (need > 0 && after + 1e-12 < floor) {
+        console.log(`   ⛽ CASCADE GAS [${label}]: thrift partial unwrap — native ${after.toFixed(6)} (floor ${floor.toFixed(6)})`);
+      }
+      return true;
     }
-    return true;
+    console.log(`   🛑 CASCADE GAS [${label}]: still below reserve (${after.toFixed(6)}) — cannot fund next moves`);
+    return false;
   } catch (e) {
     console.log(`   ⚠️  CASCADE GAS [${label}] check failed: ${e.message}`);
     return false;
@@ -4851,8 +6118,21 @@ async function ensureCascadeNativeGas(cdp, label = "move") {
 }
 
 /** Record a mined hitch injection toward the 20-prove capital milestone. */
-function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?" } = {}) {
+function recordHitchInjection({ onChain = false, netUsd = 0, symbol = "?", txHash = null, utf8 = "" } = {}) {
   if (!onChain) return null;
+  if (txHash) {
+    const kind = parseHitchTrailer(utf8).kind;
+    recordLocation({
+      location: txHash,
+      kind: "hitch",
+      sealed: true,
+      utf8,
+      symbol,
+      hitchKind: kind,
+    });
+    recordHitchSealed({ realizedLossUsd: Number(netUsd) || 0 });
+    ingestSealedUtf8(utf8);
+  }
   hitchInjectCount++;
   const pnl = Number(netUsd) || 0;
   if (pnl !== 0) hitchInjectProfitUsd += pnl;
@@ -5075,6 +6355,22 @@ async function btpInscribe(cdp, tradeLabel) {
     const { full, seq, tot, name, isComplete, isDefault } = btpNextChunk(tradeLabel);
     const data = encodeInscription(full);
 
+    // AUTO trade-loop dedicated self-tx — bank unless VITA_AUTO_INSCRIBE=yes.
+    // Hitch only on a paired leftover sell (wrap never solo-sends).
+    if (!autoPaidInscribeEnabled()) {
+      const wrapped = wrapAutoSelfCall({
+        to: WALLET_ADDRESS,
+        from: WALLET_ADDRESS,
+        data,
+        text: full,
+        pairedUniswapSell: false,
+        topic: "btp-auto",
+      });
+      console.log(`   📡 BTP [${name} ${seq}/${tot}] BANKED (auto wrap) — ${wrapped.reason}`);
+      if (isComplete && isDefault) btpEnqueue("VITA", INSCRIPTION_MESSAGE);
+      return;
+    }
+
     const { transactionHash } = await Promise.race([
       cdp.evm.sendTransaction({
         address: WALLET_ADDRESS,
@@ -5204,7 +6500,7 @@ async function btpInscribe(cdp, tradeLabel) {
 async function skipBuy(reason, symbol, detail) {
   const line = String(detail || "buy skipped");
   console.log(`   ${line}`);
-  if (isManualOperatorBuy(reason)) {
+  if (isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason)) {
     await tg(operatorBuySkipTelegram(symbol, line));
   }
   return false;
@@ -5214,10 +6510,28 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
   try {
     // Shared buy-side freeze gate — EVERY entry (wave / OPERATOR_BUY / /buy /
     // cascade / ripple) dies here. Sells never call this function.
+    if (isSkipHoldDeadRoute(token.symbol)) {
+      return await skipBuy(
+        reason,
+        token.symbol,
+        `🛑 ${token.symbol} HOLD — Uni V4-only dust; skip (no V3 cash route)`,
+      );
+    }
     if (isCatalogFrozen(token)) {
       return await skipBuy(reason, token.symbol, frozenBuySkipLog(token));
     }
+    // Rotate HOME buy: Uni V3 ghost probe (THIN_V3_WETH) must not block
+    // WETH→HOME. Other tokens stay frozen. Normal HOME /buy still honors freeze.
+    const rotateHomeBuy = rotateHomeBuyBypassesV3Freeze(reason, token.symbol)
+      || rotateHomeBuyUsesSlipstream(reason, token.symbol);
+    if (rotateHomeBuy) {
+      clearRotateHomeQuoterCooldown(token.symbol, clearSlippageFails);
+    }
+    if (isBuyFrozen(token.symbol) && !rotateHomeBuy) {
+      return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
+    }
     // Per-token min buy floor — smoke tests must clear the book minimum.
+    // VITAFEED BUYIN skips this floor: stake is character-sized (≥$0.25 leave-behind).
     if (isManualOperatorBuy(reason)) {
       const forcedUsd = (() => {
         const m = String(reason || "").match(/\$([0-9]+(?:\.[0-9]+)?)/);
@@ -5231,8 +6545,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (!buyPriceGate.allow) {
       return await skipBuy(reason, token.symbol, buyPriceGate.log || `PRICE_INSANE — ${token.symbol} mark refused`);
     }
-    if (isSlippageCooledDown(token.symbol)) {
-      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol));
+    if (isSlippageCooledDown(token.symbol) && !rotateHomeBuyBypassesQuoterCooldown(reason, token.symbol)) {
+      return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "buy" }));
     }
     if (!canTrade(token.symbol, isCascade)) {
       return await skipBuy(reason, token.symbol, `⏳ ${token.symbol} cooldown`);
@@ -5249,6 +6563,33 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // FIX: gwei must be fetched locally — the main-loop `gwei` is not in scope here
     const gwei     = await getCurrentGasGwei();
 
+    // Add-on into a known FIFO-red lot spends RISK while always-plus HOLDs
+    // exits (live DRB trough add-on after #83, buy 0x53a00788). First buy
+    // into empty/flat is OK. Game override: ALLOW_ADD_ON_FIFO_RED=yes.
+    {
+      const existingBal = getCachedBalance(token.symbol) || 0;
+      const remainingFifoEth = addOnRemainingFifoEth(token);
+      const addOnGate = evaluateAddOnFifoRedGate({
+        symbol: token.symbol,
+        tokenBal: existingBal,
+        remainingFifoEth,
+        markProceedsEth: bagMarkProceedsEth({
+          tokenBal: existingBal,
+          priceUsd: price,
+          ethUsd,
+        }),
+        bagUsd: Number.isFinite(Number(existingBal)) && Number.isFinite(Number(price))
+          ? Number(existingBal) * Number(price)
+          : 0,
+        unknownEntry: token.unknownEntry,
+        reason,
+      });
+      if (!addOnGate.allow) {
+        return await skipBuy(reason, token.symbol, addOnGate.log || `ADD_ON_FIFO_RED blocked ${token.symbol}`);
+      }
+      if (addOnGate.log) console.log(`   ${addOnGate.log}`);
+    }
+
     // Unified balance early — tier gate must die BEFORE hitch L1 fee RPC.
     // Live Railway: SKI/DRB passed LOSE_ZERO every ~60s then "not in active tiers".
     const { eth, weth, tradeableWithWeth } = bal;
@@ -5258,7 +6599,10 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const gasFloor = Number.isFinite(bal?.gasFloor)
       ? bal.gasFloor
       : effectiveCascadeGasFloor(eth + weth, { gasReserveEth: GAS_RESERVE });
-    const totalAvail = eth + weth - gasFloor - sellR;
+    const totalLiquid = eth + weth;
+    const totalAvail = totalLiquid > 0 && totalLiquid < THIN_BOOK_ETH
+      ? microSpendableEth({ eth, weth, gasFloorEth: gasFloor, piggyEth: piggyBank })
+      : totalLiquid - gasFloor - sellR;
     if (totalAvail < MIN_ETH_TRADE) {
       return await skipBuy(reason, token.symbol, `🛑 Insufficient ETH+WETH: ${totalAvail.toFixed(6)} (gas floor ${gasFloor.toFixed(6)})`);
     }
@@ -5269,8 +6613,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const tierEthEarly = calcTierSlotEth(token.symbol, currentTier1, currentTier2, totalAvail, ethUsd);
     const tierLabelEarly = currentTier1.includes(token.symbol) ? "T1" : currentTier2.includes(token.symbol) ? "T2" : "OUT";
-    // Cascade/operator may deploy outside tiers; hitch-cover still runs below for everyone.
-    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason);
+    // Cascade/operator/vitafeed may deploy outside tiers; hitch-cover still runs below for everyone.
+    const allowOutsideTiers = isCascade || isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason);
     if (tierEthEarly === 0 && !allowOutsideTiers) {
       return await skipBuy(reason, token.symbol, `🛑 ${token.symbol}: not in active tiers (${tierLabelEarly}) — no new capital`);
     }
@@ -5278,22 +6622,27 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Min entry = fees + gas + hitch + cascade seed. Refuse fragment buys that strand the book.
     let hitchCostEst = 0;
     try {
-      const voiceBytesEarly = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const voiceBytesEarly = leftoverVoiceHitchBytes();
       const hitchL1Early = await quoteHitchL1ForGates({ hitchBytes: voiceBytesEarly });
       const l2Hitch = estimateCalldataHitchEth(voiceBytesEarly, gwei);
       hitchCostEst = (hitchL1Early.ok ? (Number(hitchL1Early.l1FeeEth) || 0) : 0) + l2Hitch;
     } catch { hitchCostEst = 0; }
-    const minEntry = effectiveMinEntryEth({
+    const resolvedEntry = resolveMinEntryForBook({
       gasCostEth: gasCost,
       hitchCostEth: hitchCostEst,
       feePct: token.poolFeePct || 0.006,
       ethUsd,
       tokenMinBuyUsd: minBuyUsdForToken(token),
       minPosUsd: minPosUsd(),
+      tradeableEth: Math.max(totalAvail, 0),
     });
+    const minEntry = resolvedEntry.minEntryEth;
+    if (resolvedEntry.mode !== "inject") {
+      console.log(`   MICRO_SLOT ${token.symbol}: ${resolvedEntry.mode} minEntry=${minEntry.toExponential(3)} ETH (skipHitch=${resolvedEntry.skipHitch})`);
+    }
     // Preview size before LOSE_ZERO so we can deny undersized auto/cascade early.
     const previewForced = forcedEth > 0 ? forcedEth : tierEthEarly;
-    if (!isManualOperatorBuy(reason)) {
+    if (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason)) {
       const spendPreview = Math.min(Math.max(previewForced, minPosUsd() / ethUsd), Math.max(totalAvail, 0));
       const under = belowMinEntrySkip({
         symbol: token.symbol,
@@ -5309,16 +6658,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // LOSE-ZERO / inject-cover: auto, cascade, ripple. Operator /buy always
     // sizes leftover so hitch can ride when covered; leftover+edge never block it.
+    // VITAFEED BUYIN uses its own allow path (transmission revenue seat).
     // CRITICAL: size hitch/% against the *actual* spend preview — not the full book
     // (full-book understated hitch% and let CBBTC pennies look covered).
-    let buySkipHitch = false;
+    let buySkipHitch = !!resolvedEntry.skipHitch;
+    let buyLeftoverEth = 0;
     const spendForGate = Math.min(
       Math.max(previewForced > 0 ? previewForced : tierEthEarly, MIN_ETH_TRADE),
       Math.max(totalAvail, MIN_ETH_TRADE),
     );
-    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason)) {
+    if (isLoseZeroMode() || isInjectCoverRequired() || isManualOperatorBuy(reason) || isVitaFeedBuyIn(reason)) {
       const armEarly    = getArmStatus(token.symbol, gasCost, spendForGate);
-      const voiceBytes  = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const voiceBytes  = leftoverVoiceHitchBytes();
       const hitchL1     = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
       const decision    = buildBuyGateDecision({
         symbol: token.symbol,
@@ -5334,14 +6685,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         armed: !!armEarly.armed,
         net: armEarly.net || 0,
         isCascade,
+        hitchBytes: voiceBytes,
+        allowBankHitch: !!resolvedEntry.skipHitch,
       });
-      logHitchFeeSplit(hitchL1, STORE_HITCH_BYTES, gwei, decision);
+      logHitchFeeSplit(hitchL1, voiceBytes, gwei, decision);
       if (decision.log) console.log(`   ${decision.log}`);
-      buySkipHitch = !!decision.skipHitch;
-      // Never hitch on buy when L1 oracle is down — undercover insert bleeds the book.
+      buySkipHitch = !!decision.skipHitch || !!resolvedEntry.skipHitch;
+      buyLeftoverEth = Math.max(0, Number(decision.leftover) || 0);
+      // L1 oracle down: never hitch (plain buy). leftoverWouldCoverVitaHitch used
+      // to re-attach KEY+LOC without live L1 and undercover the insert.
       if (!hitchL1.ok) {
         buySkipHitch = true;
-        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback)`);
+        console.log(`   LOSE_ZERO: buy hitch skipped — L1 fee unknown (oracle fallback); VITA hitch skipped so insert cannot undercover`);
       }
       if (!decision.allow) {
         return await skipBuy(reason, token.symbol, decision.log || "LOSE_ZERO blocked buy");
@@ -5367,12 +6722,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const minSpend  = minPosUsd() / ethUsd;
     // Prefer at least minEntry so the fill can cascade; inject-all uses nearly full book.
     const injectAll = !!(currentTierBook?.injectAll);
-    const floorSpend = injectAll ? Math.max(minSpend, minEntry) : minSpend;
+    const floorSpend = injectAll
+      ? Math.max(minSpend, Math.min(minEntry, Math.max(totalAvail, 0)))
+      : minSpend;
     const ethToSpend= forcedEth > 0
       ? Math.min(forcedEth, Math.max(totalAvail, 0))
       : Math.min(Math.max(floorSpend, tierEth), maxSpend);
 
-    const underFinal = !isManualOperatorBuy(reason)
+    const underFinal = (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason))
       ? belowMinEntrySkip({ symbol: token.symbol, ethToSpend, minEntry, ethUsd })
       : null;
     if (underFinal) {
@@ -5381,14 +6738,19 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     // COST_EDGE — hitch/RT % of *this* fill + near-term upside must clear costs.
     // Catches CBBTC-class: far peak leftover looked fine, insert already ate the bag.
-    {
+    // Operator / Telegram /buy is a plain-swap test path: leftover+edge already
+    // allowed. Do not wait on wave-peak near-term math (live after #74:
+    // COST_EDGE AERO 3.00% < 1.15× required 2.63% — would wait forever).
+    // VITAFEED BUYIN already sized stake = wholeCost/dip% for mirror bounce.
+    // Auto / wave / cascade still gated.
+    if (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason)) {
       const readings = (history[token.symbol]?.readings || []).slice(-20).map((r) => r.price).filter((p) => p > 0);
       const recentHigh = readings.length ? Math.max(...readings) : price;
       const tradeableUsdNow = (Number(bal?.tradeableWithWeth) || 0) * ethUsd;
       const edge = evaluateCostEdgeGate({
         symbol: token.symbol,
         tradeEth: ethToSpend,
-        hitchCostEth: hitchCostEst,
+        hitchCostEth: buySkipHitch ? 0 : hitchCostEst,
         gasCostEth: gasCost,
         feePct: token.poolFeePct || 0.006,
         impactPct: PRICE_IMPACT_EST,
@@ -5396,7 +6758,8 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         recentHigh,
         ethUsd,
         tradeableUsd: tradeableUsdNow,
-        isManualOperator: isManualOperatorBuy(reason),
+        isManualOperator: false,
+        skipNearTerm: resolvedEntry.mode !== "inject",
       });
       if (!edge.allow) {
         recordCostMistake({ ...edge, source: isCascade ? "cascade" : "buy" });
@@ -5406,8 +6769,138 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 
     const amountIn  = parseEther(ethToSpend.toFixed(18));
 
+    // SwapRouter02 encodeSwap is Uni V3 WETH only. GAME's liquid book is Uni V2
+    // VIRTUAL (~$2.1M) — a Quoter number on empty/thin V3 WETH still STF-reverts.
+    // Rotate HOME: liquid book is Aero Slipstream 0.3% tickSpacing 200.
+    // Uni V3 HOME/WETH 1% ghost + QuoterV2 fee probe must not bind or cooldown.
+    let preferredPool = null;
+    let slipstreamBuy = null;
+    if (rotateHomeBuy) {
+      slipstreamBuy = rotateHomeSlipstreamBuyPath();
+      console.log(
+        `🏠 HOME Slipstream — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
+        `tickSpacing ${slipstreamBuy.tickSpacing} (not Uni QuoterV2)`,
+      );
+    } else {
+      const pairs = await fetchDexScreenerPairs(token.address);
+      const route = evaluateSwapRouterRoute({
+        pairs,
+        tokenAddress: token.address,
+        tradeUsd: ethToSpend * ethUsd,
+        symbol: token.symbol,
+      });
+      if (route.log) console.log(`   ${route.log}`);
+      if (!route.allow) {
+        if (route.freezeBuys) {
+          noteSwapPathFail(token.symbol, {
+            kind: route.code || "NO_V3_WETH",
+            freezeBuys: true,
+          });
+        }
+        return await skipBuy(reason, token.symbol, route.log);
+      }
+      if (route.swap?.pairAddress) preferredPool = route.swap.pairAddress;
+      else if (token.symbol === "AERO") preferredPool = AERO_UNI_V3_WETH_POOL;
+    }
+
+    // Slippage guard: factory liquidity then quote, BEFORE wrap/send.
+    // GAME Uni V3 WETH 3000 0x70fbffe313d4a40909dba7129e0b2f4a45a645b5 liquidity()=0 —
+    // do not quote or wrap into a ghost pool.
+    const tokenDecimals = await getTokenDecimals(token.address);
+    const spotTokens = spotOutWei({
+      amountInHuman: ethToSpend,
+      inUsd: ethUsd,
+      outUsd: price,
+      outDecimals: tokenDecimals,
+    });
+    let quotedTokens = null;
+    let swapFee = token.feeTier;
+    let factoryLiq = null;
+    try {
+      if (slipstreamBuy) {
+        const live = await getSlipstreamHomeBuyQuote(amountIn);
+        quotedTokens = live?.amountOut ?? null;
+        if (live?.fee) swapFee = live.fee;
+        if (live?.liquidity != null) factoryLiq = live.liquidity;
+      } else {
+        const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, {
+          preferredPool,
+        });
+        quotedTokens = live?.amountOut ?? null;
+        if (live?.fee) swapFee = live.fee;
+        if (live?.liquidity != null) factoryLiq = live.liquidity;
+      }
+    } catch { quotedTokens = null; }
+    const quoteGate = requireLiveQuoterFill({
+      quotedOut: quotedTokens,
+      spotOut: spotTokens,
+      symbol: token.symbol,
+      side: "buy",
+    });
+    if (!quoteGate.allow) {
+      // QUOTE_MISS increments the N=3 streak only. Immediate freeze is for
+      // structural books (EMPTY_V3_POOL / THIN_V3_WETH / PRIMARY_NOT_V3_WETH).
+      // quoteAtFee maps RPC timeout to the same null as a pool miss.
+      // Rotate HOME Slipstream miss must not arm Uni QuoterV2 cooldown.
+      if (!rotateHomeBuyIgnoresUniQuoterMiss(reason, token.symbol)) {
+        noteSwapPathFail(token.symbol, {
+          kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
+        });
+      } else {
+        console.log(`🏠 ROTATE HOME — Slipstream quote miss; Uni QuoterV2 cooldown not armed`);
+      }
+      return await skipBuy(reason, token.symbol, quoteGate.log);
+    }
+    if (factoryLiq != null) {
+      const depthGate = requireFactoryLiquidity({
+        liquidity: factoryLiq,
+        symbol: token.symbol,
+        fee: slipstreamBuy ? `slipstream-${HOME_SLIPSTREAM_TICK_SPACING}` : swapFee,
+      });
+      if (!depthGate.allow) {
+        if (!rotateHomeBuy) {
+          noteSwapPathFail(token.symbol, { kind: "EMPTY_V3_POOL", freezeBuys: true });
+        }
+        return await skipBuy(reason, token.symbol, depthGate.log);
+      }
+    }
+    quotedTokens = quoteGate.quotedOut;
+    const gatedPct = token.poolFeePct || 0.006;
+    const feeCost = liveFeeWithinGatedCost(gatedPct, swapFee);
+    if (swapFee !== token.feeTier && !slipstreamBuy) {
+      const adopted = adoptLivePoolFee(token, swapFee);
+      if (adopted.changed) {
+        console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
+      }
+    }
+    if (!feeCost.allow) {
+      return await skipBuy(reason, token.symbol, feeCost.log);
+    }
+    let minTokens = slippageFloor(quotedTokens, SLIPPAGE_GUARD);
+    const buyMinOut = sanitizeAmountOutMinimum({
+      minOut: minTokens,
+      expectedOut: quotedTokens,
+      spotOut: spotTokens,
+      slippage: SLIPPAGE_GUARD,
+      side: "buy",
+      symbol: token.symbol,
+      requireQuote: true,
+    });
+    if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
+    if (!buyMinOut.allow) {
+      if (!rotateHomeBuy) noteSwapPathFail(token.symbol, { kind: "minOut reject" });
+      return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
+    }
+    minTokens = buyMinOut.amountOutMinimum;
+    if (slipstreamBuy) {
+      console.log(`   📐 Slipstream buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) tickSpacing ${slipstreamBuy.tickSpacing}`);
+    } else {
+      console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+    }
+
     // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
-    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor
+    // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor.
+    // Wrap only after a live quote (Uni V3 or rotate HOME Slipstream).
     let useWeth = weth >= ethToSpend;
     if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
       // Have enough ETH to cover — use ETH directly (no wrap needed)
@@ -5422,38 +6915,6 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const wrapped = await wrapEth(cdp, wrapAmount);
       if (wrapped) useWeth = true;
       else useWeth = false; // fall back to direct ETH if wrap fails
-    }
-
-    // Slippage guard: quote (preferred) + USD spot, then minOut sanity.
-    // Always use the token's real decimals — 1e18 on an 8-dec token bricks the buy.
-    const tokenDecimals = await getTokenDecimals(token.address);
-    const spotTokens = spotOutWei({
-      amountInHuman: ethToSpend,
-      inUsd: ethUsd,
-      outUsd: price,
-      outDecimals: tokenDecimals,
-    });
-    let quotedTokens = null;
-    try {
-      quotedTokens = await getOnChainBuyQuote(token.address, amountIn, token.feeTier);
-    } catch { quotedTokens = null; }
-    const expectedTokens = quotedTokens && quotedTokens > 0n ? quotedTokens : spotTokens;
-    let minTokens = slippageFloor(expectedTokens, quotedTokens && quotedTokens > 0n ? SLIPPAGE_GUARD : 0.75);
-    const buyMinOut = sanitizeAmountOutMinimum({
-      minOut: minTokens,
-      expectedOut: quotedTokens,
-      spotOut: spotTokens,
-      slippage: SLIPPAGE_GUARD,
-      side: "buy",
-      symbol: token.symbol,
-    });
-    if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
-    if (!buyMinOut.allow) {
-      return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
-    }
-    minTokens = buyMinOut.amountOutMinimum;
-    if (quotedTokens && quotedTokens > 0n) {
-      console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
     }
 
     const ind = getIndicatorScore(token.symbol);
@@ -5471,22 +6932,54 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const tokensBefore = await getTokenBalance(token.address);
-    const buySwap = encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, token.feeTier, minTokens);
+    const swapRouter = slipstreamBuy ? slipstreamBuy.router : SWAP_ROUTER;
+    const buySwap = slipstreamBuy
+      ? encodeSlipstreamExactInputSingle({
+          tokenIn: WETH_ADDRESS,
+          tokenOut: token.address,
+          tickSpacing: slipstreamBuy.tickSpacing,
+          recipient: WALLET_ADDRESS,
+          deadline: slipstreamDeadline(),
+          amountIn,
+          amountOutMinimum: minTokens,
+        })
+      : encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
-      maxBytes: utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL })),
+      maxBytes: isVitaPictureArmed() && !leftoverStillEureka() ? undefined : leftoverVoiceHitchBytes(),
+      leftoverEth: buyLeftoverEth,
+      gwei,
+      hitchCostMult: 1,
+      // First-order purchase of the V3↔V4 race — full Eureka only when opportune.
+      purchasedFirstOrder: true,
+      raceStarted: true,
     });
+    const buyHitchCostEth = estimateCalldataHitchEth(buyVoice.hitchBytes || 0, gwei);
+    buyVoice = plainSaleIfHitchTooThin(buyVoice, buySwap, {
+      leftoverEth: buyLeftoverEth,
+      hitchCostEth: buyHitchCostEth,
+    });
+    if (buyVoice.log) console.log(`   ${buyVoice.log}`);
+    // Zero orch hitch only when leftover is too thin (plain-thin) — same as sell.
+    // A missing voice hitch must still let the silo queue ride.
+    const buySkipAllHitch = buySkipHitch || buyVoice.kind === "plain-thin";
     if (useWeth) {
-      await ensureApproved(cdp, WETH_ADDRESS, amountIn);
+      await ensureApproved(
+        cdp,
+        WETH_ADDRESS,
+        amountIn,
+        slipstreamBuy ? slipstreamApproveSpenders() : sellApproveSpenders(),
+      );
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, data: buyVoice.data } };
+        transaction: { to: swapRouter, gas: GAS_CEILING, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
           ? orch.injectAndSend(_txParams1, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain || buyVoice.kind === "plain-thin",
+              maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams1),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5494,13 +6987,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       txHash = transactionHash;
     } else {
       const _txParams2 = { address: WALLET_ADDRESS, network: "base",
-        transaction: { to: SWAP_ROUTER, gas: GAS_CEILING, value: amountIn, data: buyVoice.data } };
+        transaction: { to: swapRouter, gas: GAS_CEILING, value: amountIn, data: buyVoice.data } };
       const { transactionHash } = await Promise.race([
         orchReady
           ? orch.injectAndSend(_txParams2, {
               isOwnerTrade: true,
               currentGwei: gwei,
-              skipHitch: buyVoice.onChain,
+              skipHitch: buySkipHitch || buyVoice.onChain || buyVoice.kind === "plain-thin",
+              maxHitchBytes: buySkipAllHitch ? 0 : undefined,
             })
           : cdp.evm.sendTransaction(_txParams2),
         new Promise((_, r) => setTimeout(() => r(new Error(`BUY tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5528,10 +7022,37 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const rec = recordSlippageFail(token.symbol);
       console.log(`   ${failedBuyFillLog(token.symbol, { receivedTokens, receiptStatus, txHash })}`);
       console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+      if (rec.buyFrozen) console.log(`   ${buyFrozenLog(token.symbol)}`);
       await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\nReceived ${receivedTokens.toFixed(6)} tokens — not a win\nThe letter is not claimed.\n${txHash ? `🔗 ${txHash}` : ""}`);
       return false;
     }
     clearSlippageFails(token.symbol);
+    clearBuyFreeze(token.symbol);
+
+    // VITA picture tailwind: seal sparse chunk only after successful buy receipt
+    if (buyVoice?.kind === "hat-picture" && buyVoice?.nodeId) {
+      const picConf = confirmTailwindPictureInject({
+        txHash,
+        receiptStatus,
+        hitchOnChain: !!buyVoice.onChain,
+        hitchBytes: buyVoice.hitchBytes || 0,
+        utf8: buyVoice.utf8 || "",
+        nodeId: buyVoice.nodeId,
+        autoNextCycle: true,
+      });
+      if (picConf.injected) {
+        console.log(`   🌟 VITA picture sealed on buy · ${picConf.spacedProof?.proofLine || ""}`);
+        if (picConf.cycleComplete) {
+          await tg(
+            `🌟 <b>VITA PICTURE CYCLE COMPLETE</b>\n` +
+            `${picConf.spacedProof?.proofLine || ""}\n` +
+            (picConf.nextCycle
+              ? `Next cycle #${picConf.nextCycle.cycleId} armed for wave-up tailwind.`
+              : "")
+          ).catch(() => {});
+        }
+      }
+    }
 
     lastTradeTime[token.symbol] = Date.now();
     if (isCascade) cascadeTime[token.symbol] = Date.now();
@@ -5590,16 +7111,29 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       hitchOnChain: !!buyVoice?.onChain,
     });
     token.totalInvestedEth = prevInvested + fillCostEth;
-    if (prevInvested > 0 && prevTokenBal > 0 && hasUsableCostBasis(token)) {
-      // Weighted average: (prevTokens * prevEntryPrice + newTokens * newPrice) / totalTokens
-      const newTokensEstimate = receivedTokens;
-      const totalTokensEstimate = prevTokenBal + newTokensEstimate;
-      token.entryPrice = ((prevTokenBal * token.entryPrice) + (newTokensEstimate * price)) / totalTokensEstimate;
-    } else {
-      token.entryPrice = price;
-    }
+    token.entryPrice = blendUsdEntryOnAddOnBuy({
+      prevEntryPrice: token.entryPrice,
+      prevTokenBal,
+      prevInvestedEth: prevInvested,
+      newTokens: receivedTokens,
+      newPrice: price,
+    });
     token.entryTime = Date.now();
     token.unknownEntry = false;
+    latchFreshLot(token, { fillCostEth, tokens: receivedTokens, reason });
+    recordBuyFill(fifoLots, {
+      symbol: token.symbol,
+      ethIn: ethToSpend,
+      tokensIn: receivedTokens,
+      txHash,
+      price,
+      reason,
+      fillCostEth,
+    });
+    applyLotToNet(netPositions, fifoLots[token.symbol]);
+    try { await persistFifoLotsNow("buy-fill"); } catch (e) {
+      console.log(`⚠️  fifo lot persist (non-critical): ${e.message}`);
+    }
     {
       const estBal = Math.max(0, prevTokenBal) + Math.max(0, receivedTokens);
       syncTokenPiggy(token, estBal, price);
@@ -5629,6 +7163,22 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       token.minSellPrice = plan.sellAtMin;
       token.savedEarningsUsd = priorSaved;
       console.log(`   🐷 ${token.symbol} piggy reserve floored up → ${token.piggyReserve >= 1 ? token.piggyReserve.toFixed(2) : token.piggyReserve.toFixed(4)} tokens (${(piggyBankPct(process.env, opts) * 100).toFixed(0)}% / $${piggyBankMinUsd(process.env, opts).toFixed(2)} floor) | sell≥$${plan.sellAtMin.toFixed(8)} earn+$${plan.projectedEarningsUsd.toFixed(3)}`);
+      const liquidBuy = await liquidAfterFillApprox();
+      const buyTurn = buildTurnRecord({
+        side: "BUY",
+        symbol: token.symbol,
+        txHash,
+        fifoKnown: Number(ethToSpend) > 0,
+        fifoEthIn: Number(ethToSpend) > 0 ? ethToSpend : null,
+        hitchOnChain: !!buyVoice.onChain,
+        hitchBytes: buyVoice.hitchBytes || 0,
+        hitchUtf8: buyVoice.utf8 || "",
+        hitchKind: buyVoice.kind || buyVoice.vitaKind || "",
+        hitchCostEth: buyVoice.onChain && Number(hitchCostEst) > 0 ? hitchCostEst : null,
+        liquidEth: liquidBuy.eth,
+        liquidWeth: liquidBuy.weth,
+      });
+      recordTurnFill(buyTurn);
       await tg(formatBuyReceiptHtml({
         symbol: token.symbol,
         tradeNum: tradeCount,
@@ -5640,21 +7190,29 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         hitchOnChain: !!buyVoice.onChain,
         txHash,
         hitchFooter: hitchTelegramFooter(buyVoice, txHash),
+        turnCard: buyTurn,
       }));
     }
     tradeLog.push({ type: "BUY", symbol: token.symbol, price, ethSpent: ethToSpend, receivedTokens, timestamp: new Date().toISOString(), tx: txHash, reason, indScore: ind.score });
     await appendToLedger({ type:"BUY", tradeNum:tradeCount, symbol:token.symbol, price, ethSpent:ethToSpend, receivedTokens, usdValue:ethToSpend*ethUsd, ethUsd, timestamp:new Date().toISOString(), tx:txHash, basescan:`https://basescan.org/tx/${txHash}`, hitchOnChain: !!buyVoice.onChain, hitchUtf8: buyVoice.onChain ? buyVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, priority:armStatus.priority||"?", netMargin:armStatus.net||0, minTrough:getMinTrough(token.symbol), maxPeak:getMaxPeak(token.symbol), projectedEarningsUsd: token.projectedEarningsUsd, minSellPrice: token.minSellPrice, piggySavedUsd: token.savedEarningsUsd, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(buyVoice) });
-    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol });
+    recordHitchInjection({ onChain: !!buyVoice.onChain, netUsd: 0, symbol: token.symbol, txHash, utf8: buyVoice.utf8 || "" });
 
     console.log(`      ✅ https://basescan.org/tx/${txHash}`);
+    if (buyVoice.raceStartEureka && buyVoice.onChain) {
+      markRaceEurekaWritten({ txHash, track: "v3" });
+      console.log(`   💌 Race-start Eureka latched (full IKN love note on-chain)`);
+    }
     if (buyVoice.onChain) console.log(`      💌 ${buyVoice.utf8}`);
     else console.log(`      ⚠️ No UTF-8 hitch on this buy`);
     return ethToSpend;
   } catch (e) {
     console.log(`      ❌ BUY FAILED: ${e.message}`);
-    if (isTooLittleReceived(e)) {
-      const rec = recordSlippageFail(token.symbol);
-      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
+      if (!rotateHomeBuyIgnoresUniQuoterMiss(reason, token.symbol)) {
+        noteSwapPathFail(token.symbol, { kind: "Too little received" });
+      } else {
+        console.log(`🏠 ROTATE HOME — swap revert; Uni QuoterV2 cooldown not armed`);
+      }
     }
     await tg(`⚠️ <b>${token.symbol} BUY FAILED</b>\n${e.message}\nThe letter is not claimed.`);
     return false;
@@ -5666,17 +7224,29 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
 // ═══════════════════════════════════════════════════════════════════════════════
 async function executeSell(cdp, token, sellPct, reason, price, isProtective = false) {
   try {
-    // NOTE: Sells are NEVER blocked by cooldown — only buys use the cooldown timer.
-    // The cooldown exists to prevent buying the same token twice too fast.
-    // Blocking sells with the same timer was causing AIXBT-style traps where
-    // the position grew through cascades but could never exit.
-    if (isSlippageCooledDown(token.symbol)) {
-      console.log(`   ${slippageCooldownLog(token.symbol)}`);
+    // NOTE: Sells are NEVER blocked by quote/swap cooldown or buy-freeze.
+    // After N buy fails we freeze *new buys* and arm cooldown; leftover exits
+    // must still be able to hit a live Uni V3 fee. Blocking sells here is what
+    // logged SELL SKIPPED [GAME] while the bag was leftover.
+    // Exception: HOLD_ALL_SELLS / HOME never-sell — operator freeze until approve.
+
+    const sellHold = shouldBlockSell({
+      symbol: token.symbol,
+      reason,
+      env: process.env,
+    });
+    if (sellHold.block) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: ${sellHold.why}`);
       return null;
     }
 
     const ethUsd   = await getLiveEthPrice();
     const gasCost  = await estimateGasCostEth();
+
+    if (isSkipHoldDeadRoute(token.symbol)) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: HOLD — Uni V4-only dust; no V3 cash route`);
+      return null;
+    }
 
     if (!isProtective && !(await isGasSafe())) return null;
 
@@ -5694,6 +7264,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     if (!isValidUsdPrice(price)) {
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: no live USD quote — refusing to size from $0`);
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const cached = getCachedBalance(token.symbol) || 0;
+        const skip = applyRotateUnquotedSkip({
+          state: operatorRotateState,
+          commands: manualCommands,
+          symbol: token.symbol,
+          remBag: isRotateRemBag(cached),
+          kind: "NO QUOTE",
+          code: "NO_QUOTE",
+          balance: cached,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} NO QUOTE — drop from outstanding (HOME must not wait)`);
+        }
+      }
       return null;
     }
 
@@ -5702,13 +7287,58 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   ⚠️  ${token.symbol}: zero balance — clearing ledger`);
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
       token.piggyReserve = 0;
+      tokenBalanceCache[token.symbol] = 0;
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const skip = applyRotateUnquotedSkip({
+          state: operatorRotateState,
+          commands: manualCommands,
+          symbol: token.symbol,
+          remBag: false,
+          kind: "NO QUOTE",
+          code: "NO_QUOTE",
+          balance: 0,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} zero-bal — drop from outstanding (HOME must not wait)`);
+        }
+      }
       return null;
+    }
+    // Latch FIFO from persist / evidence buy receipts before entrySold.
+    // Desk book / ledger fills alone do not seed Railway (no fifo-lots.json on
+    // bot-state). CLANKER array 0x23d8a0c5+0xcb7dd5a6 + add-on sibling (and
+    // VIRTUAL / MORPHO 0x9260992e / AERO 0x53b9844c) rebuild even when a
+    // first-slice lot is already usable — otherwise rem ~0.289 vs first 0.176
+    // stays unknown-lots / entrySold=0. LOT_REBUILD_TXS env-only cannot merge
+    // the second hash. MORPHO rem ~0.1469 after plain sell 0xd6cd2fa2 and
+    // AERO rem ~0.289 after FIFO-red partial 0x15ac4a73 auto-append via ledger.
+    const remain = seededRebuildRemaining(totalBal);
+    if (remain != null) {
+      try { await tryRebuildLotFromReceipts(token, remain); } catch { /* unknown stays HOLD */ }
+    }
+    if (isUsableLot(fifoLots[token.symbol])) {
+      applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: totalBal });
+      latchPiggyDust(fifoLots[token.symbol], totalBal);
+    }
+    // Evidence-latched lots: sell only recorded tokensIn. Pre-buy dust
+    // (VIRTUAL remain/bought ≈ 1.02018) stays unsold / piggy — never lossy.
+    const lotSellQty = knownLotSellTokens(fifoLots[token.symbol], totalBal);
+    if (Number.isFinite(lotSellQty) && lotSellQty + 1e-12 < totalBal) {
+      const dustUnsold = totalBal - lotSellQty;
+      token.piggyReserve = Math.max(Number(token.piggyReserve) || 0, dustUnsold);
+      console.log(
+        `   🐷 ${token.symbol}: sell known lot ${lotSellQty} — pre-buy dust ${dustUnsold.toFixed(5)} unsold / piggy`,
+      );
     }
     // Never treat fractional high-unit bags (CBBTC ~0.00006) as dust — that
     // cleared a real $ bag without selling. Dust is USD-based.
     // Piggy-only dust stays on-chain — keep the reserve high-water mark and
     // clear invented cost basis only (never wipe the pile while units remain).
-    if (isDustBagUsd(totalBal, price, BAG_DUST_USD) && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)) {
+    if (
+      !rotateBypassesPiggyDustHold(reason)
+      && isDustBagUsd(totalBal, price, BAG_DUST_USD)
+      && !hasSellableUsd(totalBal, price, SELLABLE_MIN_USD)
+    ) {
       const row0 = tokenPiggyLedgers[token.symbol] || buildTokenPiggyLedger({ symbol: token.symbol });
       const saved0 = effectiveSavedEarningsUsd({
         savedEarningsUsd: row0.savedEarningsUsd || token.savedEarningsUsd || 0,
@@ -5755,20 +7385,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       dustUsd: priorLedger.dustUsd || ((token.piggyReserve || 0) * price),
       piggyMinUsd: piggyBankMinUsd(process.env, piggyOptsFromToken(token)),
     });
+    const sellUnits = Number.isFinite(lotSellQty) && lotSellQty > 0 ? lotSellQty : totalBal;
     const prelimReserve = ratchetPiggyReserve(
       token.piggyReserve,
-      totalBal,
+      sellUnits,
       price,
       process.env,
       piggyOptsFromToken(token, { savedEarningsUsd: priorSaved }),
     );
-    const prelimSellable = computeSellable(totalBal, prelimReserve, { unlock: isPiggyUnlock(reason) });
+    const prelimSellable = computeSellable(sellUnits, prelimReserve, { unlock: isPiggyUnlock(reason) });
     const hitchEstUsd = (() => {
       // Conservative: assume message may ride — bank math uses buffer need.
       return 0; // actual hitch cost applied after gate; preview uses buffer only
     })();
     const prelimPreview = previewPiggySellNetUsd({
-      balance: totalBal,
+      balance: sellUnits,
       sellable: prelimSellable * Math.max(0, Math.min(1, Number(sellPct) || 0)),
       investedEth: costBasisEth(token),
       priceUsd: price,
@@ -5786,14 +7417,17 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     const targetSaved = priorSaved + projectedBank;
 
+    const overrideSell = canBypassSellLossGate(reason, process.env, token.symbol);
+    const rotateUnlock = rotateBypassesPiggyDustHold(reason);
     const piggy = applyPiggyToSell({
-      balance: totalBal,
+      balance: sellUnits,
       sellPct,
       piggyReserve: token.piggyReserve,
       priceUsd: price,
       reason,
       token,
       savedEarningsUsd: targetSaved,
+      forceUnlock: overrideSell || rotateUnlock,
     });
     token.piggyReserve = piggy.reserve;
     if (piggy.blocked) {
@@ -5804,63 +7438,41 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       console.log(`   🐷 ${token.symbol}: banking +$${projectedBank.toFixed(3)} bear-min → piggy target $${targetSaved.toFixed(3)} (was $${priorSaved.toFixed(3)})`);
     }
 
-    // Gas profitability check using live ETH price
-    const procEth        = (piggy.tokensToSell * price) / ethUsd;
-    const posValueUsd    = procEth * ethUsd;
-    const soldFrac       = sellFractionAfterPiggy({ balance: totalBal, tokensToSell: piggy.tokensToSell });
-    const investedBefore = token.totalInvestedEth || 0;
+    const soldFrac       = sellFractionAfterPiggy({ balance: sellUnits, tokensToSell: piggy.tokensToSell });
+    const investedBefore = sellEntryEthWithLotFloor(token.totalInvestedEth || 0, token);
     const entryEthSold   = costBasisForSoldFraction(investedBefore, soldFrac);
-    const expectedProfit = procEth - entryEthSold;
-    // Skip gas check entirely for dust positions (<$0.50) — just clear them out at peak
-    const isDust = posValueUsd < 0.50;
-    if (!isProtective && !isDust && gasCost > 0.15 * expectedProfit && expectedProfit > 0) {
-      console.log(`   🛑 Gas ${gasCost.toFixed(6)} ETH > 15% of $${(expectedProfit*ethUsd).toFixed(2)} profit — skipping`);
-      return null;
-    }
-    if (isDust) console.log(`   💨 Dust position ($${posValueUsd.toFixed(3)}) — clearing at peak regardless of gas`);
-
-    // LOSE-ZERO sell floor: leftover must cover HITCH_COST_MULT × hitch (default 2×).
-    // Never sell at a loss to insert storage. Once the floor is met, sell now.
-    // Entry slice MUST match tokens actually sold after piggy — requested sellPct
-    // overstates cost and flipped live MORPHO allow→hold every cycle.
-    const gwei = await getCurrentGasGwei();
-    const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-    const wantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-    const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
-    const hitchL1 = await quoteHitchL1ForGates({
-      hitchBytes: voiceBytes + orchBytes,
-      btpInscribe: wantBtp,
-    });
-    const sellTrustedBasis = hasUsableCostBasis(token) && costBasisEth(token) > 0;
-    const sellGate = buildSellGateDecision({
-      symbol: token.symbol,
-      reason,
-      sellPct: soldFrac,
-      entryEth: costBasisEth(token),
-      projectedProceedsEth: procEth,
-      feePct: token.poolFeePct || 0.006,
-      impactPct: PRICE_IMPACT_EST,
-      gasCostEth: gasCost,
-      gwei,
-      wantedHitchBytes: voiceBytes + orchBytes,
-      wantBtpInscribe: wantBtp,
-      piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
-      unknownEntry: !sellTrustedBasis,
-      ...hitchL1GateArgs(hitchL1),
-    });
-    logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
-    if (sellGate.log) console.log(`   ${sellGate.log}`);
-    if (!sellGate.allow) return null;
+    const markProcEth    = (piggy.tokensToSell * price) / ethUsd;
+    const posValueUsd    = markProcEth * ethUsd;
 
     const tokenDecimals = await getTokenDecimals(token.address);
     const amtHuman = piggy.tokensToSell;
-    const amtToSell = toWei(amtHuman, tokenDecimals);
+    let amtToSell = toWei(amtHuman, tokenDecimals);
     if (amtToSell === 0n) return null;
+    let liveBalWei;
+    try {
+      liveBalWei = await getTokenBalanceWei(token.address);
+    } catch (e) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: live ERC20 wei unread (${e.message}) — not sending oversize`);
+      return null;
+    }
+    const sized = clampAmountInToLiveBalance({
+      amountInWei: amtToSell,
+      liveBalanceWei: liveBalWei,
+      piggyReserveWei: toWei(piggy.reserve, tokenDecimals),
+      unlockPiggy: !!(piggy.unlock || overrideSell || rotateUnlock),
+    });
+    if (sized.blocked) {
+      console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountIn 0 after live-balance clamp (bal=${sized.liveBalanceWei} reserved=${sized.piggyReserveWei})`);
+      return null;
+    }
+    if (sized.clamped) {
+      console.log(`   📐 amountIn clamped to live ERC20 ${sized.amountInWei} (wanted ${amtToSell}; spendable ${sized.spendableWei})`);
+    }
+    amtToSell = sized.amountInWei;
 
-    // Slippage floor from QuoterV2 (bigint, never Number(wei)*0.85 — that
-    // loses precision above ~9e15 and was in the path that produced ~93k WETH
-    // minOut on 4424 TOSHI). Fallback: USD spot * 75%. Then sanitize so an
-    // impossible floor is clamped or the tx is not sent.
+    // Quote BEFORE the plus gate so leftover cannot look green on a Dex mark
+    // while Uni V3 fills thinner (GAME Aerodrome vs empty fee-3000 lesson).
+    // Live QuoterV2 + factory liquidity required — spot cannot clear a ghost pool.
     const spotWeth = spotOutWei({
       amountInHuman: amtHuman,
       inUsd: price,
@@ -5869,18 +7481,150 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     });
     let quotedWeth = null;
     let minWeth = 0n;
+    let swapFee = token.feeTier;
+    let sellFactoryLiq = null;
+    let sellPreferredPool = null;
     try {
-      quotedWeth = await getOnChainSellQuote(token.address, amtToSell, token.feeTier);
-      if (quotedWeth && quotedWeth > 0n) {
-        minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
-        console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%)`);
-      } else {
-        minWeth = slippageFloor(spotWeth, 0.75);
-        console.log(`   📐 Quote fallback: estimated ${formatWei18(spotWeth)} WETH → floor ${formatWei18(minWeth)} (75%)`);
-      }
+      // Bind leftover exits to the DexScreener Uni V3 WETH pair when known.
+      // Thin/wrong-book must not freeze leftover sells.
+      const pairs = await fetchDexScreenerPairs(token.address);
+      sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
+    } catch { sellPreferredPool = null; }
+    if (token.symbol === "AERO") {
+      sellPreferredPool = AERO_UNI_V3_WETH_POOL;
+      swapFee = AERO_UNI_V3_WETH_FEE;
+    }
+    try {
+      const live = await getOnChainSellQuote(token.address, amtToSell, swapFee, {
+        preferredPool: sellPreferredPool,
+      });
+      quotedWeth = live?.amountOut ?? null;
+      // AERO Uni V3 WETH 0x3d5D1433 is fee 3000 — do not adopt another book's fee.
+      if (live?.fee && token.symbol !== "AERO") swapFee = live.fee;
+      if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
     } catch (e) {
-      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — using 0 floor (protective sell)`);
-      minWeth = 0n; // only on quote error — don't block protective/stop-loss sells
+      console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — not sending`);
+      quotedWeth = null;
+    }
+    const quoteGate = requireLiveQuoterFill({
+      quotedOut: quotedWeth,
+      spotOut: spotWeth,
+      symbol: token.symbol,
+      side: "sell",
+    });
+    if (!quoteGate.allow) {
+      lastQuoterExecutable[token.symbol] = false;
+      const missKind = quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss";
+      noteSwapPathFail(token.symbol, { kind: missKind });
+      if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
+        const skip = applyRotateQuoterMiss({
+          state: operatorRotateState,
+          symbol: token.symbol,
+          remBag: isRotateRemBag(totalBal),
+          kind: missKind,
+          code: quoteGate.code,
+        });
+        if (skip.dropped) {
+          console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} Quoter miss — drop from outstanding (HOME must not wait)`);
+        }
+      }
+      console.log(`   ${quoteGate.log}`);
+      return null;
+    }
+    lastQuoterExecutable[token.symbol] = true;
+    if (sellFactoryLiq != null) {
+      const depthGate = requireFactoryLiquidity({
+        liquidity: sellFactoryLiq,
+        symbol: token.symbol,
+        fee: swapFee,
+      });
+      if (!depthGate.allow) {
+        console.log(`   ${depthGate.log || "EMPTY V3 POOL sell — not sending"}`);
+        return null;
+      }
+    }
+    quotedWeth = quoteGate.quotedOut;
+    minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
+    console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+    const quotedEth = wei18ToEth(quotedWeth);
+    const procEth = conservativeSellProceedsEth({ markEth: markProcEth, quotedEth });
+    if (quotedEth > 0 && quotedEth + 1e-18 < markProcEth) {
+      console.log(`   📐 PLUS proceeds use quote ${quotedEth.toExponential(3)} ETH < mark ${markProcEth.toExponential(3)} ETH`);
+    }
+    const expectedProfit = procEth - entryEthSold;
+    // Skip the 15% gas-vs-profit heuristic for dust — plus gate still HOLDs red.
+    const isDust = posValueUsd < 0.50;
+    if (!isProtective && !isDust && gasCost > 0.15 * expectedProfit && expectedProfit > 0) {
+      console.log(`   🛑 Gas ${gasCost.toFixed(6)} ETH > 15% of $${(expectedProfit*ethUsd).toFixed(2)} profit — skipping`);
+      return null;
+    }
+    if (isDust) console.log(`   💨 Dust position ($${posValueUsd.toFixed(3)}) — plus gate still required`);
+
+    // Always-plus sell floor: leftover after soldFrac×entry + fees must beat
+    // 1× hitch on THIS tx. Piggy dust already reserved in tokensToSell.
+    const gwei = await getCurrentGasGwei();
+    const orchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
+    const wantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+    const wantedHitchBytes = leftoverCoveredWantedBytes({
+      voiceBytes: leftoverVoiceHitchBytes(),
+      orchBytes,
+      pictureArmed: isVitaPictureArmed(),
+    });
+    const hitchL1 = await quoteHitchL1ForGates({
+      hitchBytes: wantedHitchBytes,
+      btpInscribe: wantBtp,
+    });
+    const lotCostEth = freshLotCostFloor(token);
+    const operatorLot = !!token.operatorLot || isManualOperatorBuy(reason);
+    const freshLot = lotCostEth > 0 || operatorLot;
+    const entryEthForGate = sellEntryEthWithLotFloor(costBasisEth(token), token);
+    const sellTrustedBasis = (hasUsableCostBasis(token) || lotCostEth > 0) && entryEthForGate > 0;
+    const sellGate = buildSellGateDecision({
+      symbol: token.symbol,
+      reason,
+      sellPct: soldFrac,
+      entryEth: entryEthForGate,
+      lotCostEth,
+      usdMarkProceedsEth: markProcEth,
+      operatorLot,
+      freshLot,
+      projectedProceedsEth: procEth,
+      feePct: token.poolFeePct || 0.006,
+      impactPct: PRICE_IMPACT_EST,
+      gasCostEth: gasCost,
+      gwei,
+      wantedHitchBytes,
+      wantBtpInscribe: wantBtp,
+      piggyEarningsBufferEth: procEth * piggyEarningsBufferPct(),
+      unknownEntry: !sellTrustedBasis,
+      leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
+      exitsOnly: !!token.frozen,
+      ...hitchL1GateArgs(hitchL1),
+    });
+    logHitchFeeSplit(hitchL1, sellGate.hitchBytes || STORE_HITCH_BYTES, gwei, sellGate);
+    if (sellGate.log) console.log(`   ${sellGate.log}`);
+    if (sellGate.alwaysPlusLog) console.log(`   ${sellGate.alwaysPlusLog}`);
+    if (!sellGate.allow) return null;
+    // One-shot ALLOW_LOSSY: consume as soon as this sell used it so a later
+    // DUST RECYCLE / piggy 95% in the same process cannot keep selling red.
+    // Railway env must be set back to `no` (or clear OPERATOR_SELL).
+    if (sellGate.usedAllowLossy || usedAllowLossyOperatorSellBypass(reason, process.env, token.symbol)) {
+      if (consumeAllowLossyOperatorSell(process.env)) {
+        console.log(`   LOSE_ZERO: consumed ALLOW_LOSSY_OPERATOR_SELL (one-shot) — set Railway env back to no (or clear OPERATOR_SELL)`);
+      }
+    }
+
+    const sellFeeCost = liveFeeWithinGatedCost(token.poolFeePct || 0.006, swapFee);
+    if (swapFee !== token.feeTier) {
+      const adopted = adoptLivePoolFee(token, swapFee);
+      if (adopted.changed) {
+        console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
+      }
+    }
+    if (!sellFeeCost.allow) {
+      // Leftover exits stay open. Hitch leftover was sized at the cheaper catalog RT%.
+      sellGate.skipHitch = true;
+      console.log(`   ${sellFeeCost.log} leftover sell — hitch skipped, encode at live fee`);
     }
 
     const sellMinOut = sanitizeAmountOutMinimum({
@@ -5890,13 +7634,28 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       slippage: SLIPPAGE_GUARD,
       side: "sell",
       symbol: token.symbol,
+      requireQuote: true,
     });
     if (sellMinOut.log) console.log(`   ${sellMinOut.log}`);
     if (!sellMinOut.allow) {
+      noteSwapPathFail(token.symbol, { kind: "minOut reject" });
       console.log(`   🛑 SELL SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
       return null;
     }
     minWeth = sellMinOut.amountOutMinimum;
+    // Slippage sanitize may clamp minOut to 85% of quote — that floor can sit
+    // below FIFO buy cost. Raise back to cost+1wei or HOLD. FORCE EXIT /
+    // ALLOW_LOSSY_OPERATOR_SELL may send underwater (hitch already SKIP).
+    if (!overrideSell && !isForceExitLockedReason(reason)) {
+      const plusFloor = applySellPlusFloorMinOut({
+        minOutWei: minWeth,
+        quotedWei: quotedWeth,
+        entrySoldEth: entryEthSold,
+      });
+      if (plusFloor.log) console.log(`   ${plusFloor.log}`);
+      if (!plusFloor.allow) return null;
+      minWeth = plusFloor.minOutWei;
+    }
 
     const sellAmt   = piggy.tokensToSell;
     const ind       = getIndicatorScore(token.symbol);
@@ -5908,12 +7667,207 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
-    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, token.feeTier, minWeth);
-    const sellVoice = planVoiceHitch(sellSwap, {
+    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, swapFee, minWeth);
+    // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
+    // or VITA KEY+LOC parse. Earnings are NOT extra hitch fuel (leftover already
+    // is profit-from-entry). If hitch would wipe plus, strip to plain sale.
+    let sellVoice = planVoiceHitch(sellSwap, {
       skipHitch: sellGate.skipHitch,
-      maxBytes: sellGate.hitchBytes,
+      maxBytes: sellGate.skipHitch ? 0 : sellGate.hitchBytes,
       enabled: storeVoiceEnabled(),
+      leftoverEth: Math.max(0, Number(sellGate.leftover) || 0),
+      earningsEth: 0,
+      gwei,
+      hitchCostMult: 1,
     });
+    sellVoice = plainSaleIfHitchTooThin(sellVoice, sellSwap, {
+      leftoverEth: Math.max(0, Number(sellGate.leftover) || 0),
+      hitchCostEth: Math.max(
+        0,
+        Number(sellGate.injectCostEth) || estimateCalldataHitchEth(sellVoice.hitchBytes || 0, gwei),
+      ),
+    });
+    if (sellVoice.log) console.log(`   ${sellVoice.log}`);
+    const voiceHitchCost = sellVoice.onChain
+      ? estimateCalldataHitchEth(sellVoice.hitchBytes || 0, gwei)
+        + (hitchL1?.ok && wantedHitchBytes > 0
+          ? (Number(hitchL1.l1FeeEth) || 0) * (sellVoice.hitchBytes || 0) / wantedHitchBytes
+          : 0)
+      : 0;
+    let sellSkipHitch = !!sellGate.skipHitch || sellVoice.kind === "plain-thin";
+    if (sellVoice.onChain && plusAfterHitchEth(sellGate.leftover, voiceHitchCost) <= 0) {
+      console.log(
+        `   SKIP_HITCH sell ${token.symbol} leftover=${Number(sellGate.leftover).toExponential(2)}` +
+        ` hitchWould=${voiceHitchCost.toExponential(2)} — plain sale (wave must not wipe plus)`
+      );
+      sellVoice = { data: sellSwap, utf8: "", hitchBytes: 0, onChain: false, vitaMode: "none", kind: "none" };
+      // Orch must not re-embed hitch after we stripped VITA to keep plus.
+      sellSkipHitch = true;
+    }
+    // WAVE wrap trailer on the next covered leftover of a paired PLUS sell.
+    // KEY+LOC leftover hitch stays. attachWaveOnCoveredLeftover never solo-sends.
+    // Uncovered leftover (or KEY+LOC skipped) banks the Heraclitus shard.
+    const gateLeftoverEth = Math.max(0, Number(sellGate.leftover) || 0);
+    const waveShard = peekNextWaveHitchShard();
+    const waveBytes = Number(waveShard?.calldataBytes) || 0;
+    const waveL1 = hitchL1?.ok && wantedHitchBytes > 0 && waveBytes > 0
+      ? (Number(hitchL1.l1FeeEth) || 0) * waveBytes / wantedHitchBytes
+      : 0;
+    const waveCost = waveBytes > 0
+      ? estimateCalldataHitchEth(waveBytes, gwei) + waveL1
+      : 0;
+    const remainingLeftover = sellVoice.onChain
+      ? Math.max(0, gateLeftoverEth - voiceHitchCost)
+      : 0;
+    const waveCovered = !sellSkipHitch
+      && !!sellVoice.onChain
+      && remainingLeftover > 0
+      && waveCost > 0
+      && remainingLeftover + 1e-18 >= waveCost
+      && plusAfterHitchEth(gateLeftoverEth, voiceHitchCost + waveCost) > 0;
+    const waveRide = hitchWaveOnSellLeftover({
+      shard: waveShard,
+      leftoverEth: waveCovered ? remainingLeftover : 0,
+      hitchCostEth: waveCost > 0 ? waveCost : 1,
+      pairedUniswapSell: true,
+      attach: attachWaveOnCoveredLeftover,
+    });
+    if (waveRide.hitch && waveRide.utf8 && sellVoice?.data) {
+      const packed = appendUtf8Hitch(sellVoice.data, waveRide.utf8);
+      if (packed.ok && packed.onChain) {
+        sellVoice = {
+          ...sellVoice,
+          data: packed.data,
+          utf8: String(sellVoice.utf8 || "") + packed.utf8,
+          hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+          waveHitch: true,
+          waveUtf8: packed.utf8,
+        };
+        commitWaveHitchShard(waveRide);
+        console.log(`   🌊 WAVE leftover hitch ${packed.hitchBytes} B — ${waveRide.reason}`);
+      } else {
+        console.log(`   🌊 WAVE leftover banked — append refused (${packed.log || waveRide.reason})`);
+      }
+    } else if (waveRide.banked) {
+      console.log(`   🌊 WAVE leftover banked — ${waveRide.reason}`);
+    }
+    // Short §WHL§ ride-along: machine highs/lows + utc|local|unix.
+    // Follow prev= in the line. loc stays empty until this sell tx returns.
+    // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
+    let whlCost = 0;
+    let whlMachine = null;
+    let flowCost = 0;
+    let flowMachine = null;
+    try {
+      const whlRow = assessWaveToken(waveHlLedger, {
+        symbol: token.symbol,
+        price,
+        entryPrice: hasUsableCostBasis(token) ? token.entryPrice : null,
+      });
+      const cascadeSeat = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: token.symbol });
+      const prior = lastWaveHlRide(waveHlLedger, token.symbol);
+      const built = buildWaveHlMachine(whlRow, {
+        prev: ridePrevTag(prior),
+        from: prior?.txHash || "-",
+        loc: "-",
+        cascadeSymbol: cascadeSeat?.symbol || null,
+      });
+      whlMachine = built.line;
+      bankWaveHlRide(waveHlLedger, built, { symbol: token.symbol });
+      const whlWire = chooseInjectWire(built.line);
+      const whlBytes = whlWire.wireBytes || 0;
+      const whlL1 = hitchL1?.ok && wantedHitchBytes > 0 && whlBytes > 0
+        ? (Number(hitchL1.l1FeeEth) || 0) * whlBytes / wantedHitchBytes
+        : 0;
+      whlCost = whlBytes > 0 ? estimateCalldataHitchEth(whlBytes, gwei) + whlL1 : 0;
+      const spent = voiceHitchCost + (sellVoice?.waveHitch ? waveCost : 0);
+      const leftAfter = sellVoice.onChain ? Math.max(0, gateLeftoverEth - spent) : 0;
+      const whlCovered = !sellSkipHitch
+        && !!sellVoice.onChain
+        && leftAfter > 0
+        && whlCost > 0
+        && leftAfter + 1e-18 >= whlCost
+        && plusAfterHitchEth(gateLeftoverEth, spent + whlCost) > 0;
+      const whlPlan = planWaveHlRide({
+        leftoverEth: whlCovered ? leftAfter : 0,
+        hitchCostEth: whlCost > 0 ? whlCost : 1,
+        pairedPlus: true,
+        machine: whlWire.wire,
+      });
+      if (whlPlan.hitch && sellVoice?.data) {
+        const packed = appendUtf8Hitch(sellVoice.data, whlPlan.utf8);
+        if (packed.ok && packed.onChain) {
+          sellVoice = {
+            ...sellVoice,
+            data: packed.data,
+            utf8: String(sellVoice.utf8 || "") + packed.utf8,
+            hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+            waveHlHitch: true,
+            waveHlUtf8: packed.utf8,
+          };
+          console.log(`   🌊 WHL ride-along ${packed.hitchBytes} B utc|local|unix — ${whlPlan.reason}`);
+        } else {
+          console.log(`   🌊 WHL ride banked — append refused (${packed.log || whlPlan.reason})`);
+        }
+      } else {
+        console.log(`   🌊 WHL ride banked — ${whlPlan.reason}`);
+      }
+      try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+        console.log(`⚠️  wave HL ledger: ${e.message}`);
+      }
+    } catch (e) {
+      console.log(`   🌊 WHL ride skipped — ${e.message}`);
+    }
+    // Our §RHD§ route. Robinhood is only the quote source already filed.
+    // KEY+LOC stays first. Uncovered leftover banks the line. Never solo-send.
+    try {
+      const built = buildFlowRouteLine(flowArm());
+      if (built.line && built.line.includes("top=-") === false && /\|n=[1-9]/.test(built.line)) {
+        const flowWire = chooseInjectWire(built.line);
+        flowMachine = built.line;
+        bankFlowRoute(flowArm(), built);
+        const flowBytes = flowWire.wireBytes || 0;
+        const flowL1 = hitchL1?.ok && wantedHitchBytes > 0 && flowBytes > 0
+          ? (Number(hitchL1.l1FeeEth) || 0) * flowBytes / wantedHitchBytes
+          : 0;
+        flowCost = flowBytes > 0 ? estimateCalldataHitchEth(flowBytes, gwei) + flowL1 : 0;
+        const spent = voiceHitchCost + (sellVoice?.waveHitch ? waveCost : 0) + (sellVoice?.waveHlHitch ? whlCost : 0);
+        const leftAfter = sellVoice.onChain ? Math.max(0, gateLeftoverEth - spent) : 0;
+        const flowCovered = !sellSkipHitch
+          && !!sellVoice.onChain
+          && leftAfter > 0
+          && flowCost > 0
+          && leftAfter + 1e-18 >= flowCost
+          && plusAfterHitchEth(gateLeftoverEth, spent + flowCost) > 0;
+        const flowPlan = planFlowRouteRide({
+          leftoverEth: flowCovered ? leftAfter : 0,
+          hitchCostEth: flowCost > 0 ? flowCost : 1,
+          pairedPlus: true,
+          machine: flowWire.wire,
+        });
+        if (flowPlan.hitch && sellVoice?.data) {
+          const packed = appendUtf8Hitch(sellVoice.data, flowPlan.utf8);
+          if (packed.ok && packed.onChain) {
+            sellVoice = {
+              ...sellVoice,
+              data: packed.data,
+              utf8: String(sellVoice.utf8 || "") + packed.utf8,
+              hitchBytes: (sellVoice.hitchBytes || 0) + packed.hitchBytes,
+              flowHitch: true,
+              flowUtf8: packed.utf8,
+            };
+            console.log(`   💉 FLOW route ${packed.hitchBytes} B owner vita — ${flowPlan.reason}`);
+          } else {
+            console.log(`   💉 FLOW route banked — append refused (${packed.log || flowPlan.reason})`);
+          }
+        } else {
+          console.log(`   💉 FLOW route banked — ${flowPlan.reason}`);
+        }
+        saveFlowArm();
+      }
+    } catch (e) {
+      console.log(`   💉 FLOW route skipped — ${e.message}`);
+    }
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
       transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
@@ -5923,8 +7877,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
         ? orch.injectAndSend(_sellTx, {
             isOwnerTrade: true,
             currentGwei: gwei,
-            maxHitchBytes: Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
-            skipHitch: sellGate.skipHitch || sellVoice.onChain,
+            maxHitchBytes: sellSkipHitch
+              ? 0
+              : Math.max(0, (sellGate.hitchBytes || 0) - (sellVoice.hitchBytes || 0)),
+            skipHitch: sellSkipHitch || sellVoice.onChain || sellVoice.kind === "plain-thin",
           })
         : cdp.evm.sendTransaction(_sellTx),
       new Promise((_, r) => setTimeout(() => r(new Error(`SELL tx timeout 45s`)), TX_TIMEOUT_MS))
@@ -5959,7 +7915,26 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // True earnings after hitch message — never list WAVE COMPLETE gains the letter wiped.
     const hitchCostEth = sellVoice?.onChain
       ? Math.max(0, Number(sellGate.injectCostEth) || 0)
+        + (sellVoice?.waveHitch ? waveCost : 0)
+        + (sellVoice?.waveHlHitch ? whlCost : 0)
+        + (sellVoice?.flowHitch ? flowCost : 0)
       : 0;
+    if (sellVoice?.waveHlHitch && whlMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
+      commitWaveHlRideHash(waveHlLedger, {
+        symbol: token.symbol,
+        machine: whlMachine,
+        txHash: transactionHash,
+      });
+      try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+        console.log(`⚠️  wave HL ledger: ${e.message}`);
+      }
+      console.log(`   🌊 WHL loc ${transactionHash} — utc|local|unix on this sell`);
+    }
+    if (sellVoice?.flowHitch && flowMachine && /^0x[0-9a-fA-F]{64}$/.test(String(transactionHash || ""))) {
+      commitFlowRouteHash(flowArm(), { line: flowMachine, txHash: transactionHash });
+      saveFlowArm();
+      console.log(`   💉 FLOW loc ${transactionHash} — our §RHD§ route`);
+    }
     let earn = piggyEarningsAfterMessage({
       netUsd,
       hitchCostUsd: hitchCostEth * ethUsd,
@@ -6116,14 +8091,40 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     if (piggy.soldAll) {
       token.entryPrice = null; token.totalInvestedEth = 0; token.entryTime = null;
+      clearFreshLot(token);
       token.piggyReserve = 0;
       token.projectedEarningsUsd = null;
       token.minSellPrice = null;
       clearFibLevels(token.symbol); // FIX: reset fib memory so next position starts fresh
+      recordSellFill(fifoLots, {
+        symbol: token.symbol,
+        remainingTokens: 0,
+        tokensSold: piggy.tokensToSell,
+        txHash: transactionHash,
+        ethOut: received,
+        piggyDustTokens: Number(fifoLots[token.symbol]?.piggyDustTokens) || 0,
+      });
     } else {
       token.totalInvestedEth = investedBefore * (1 - soldFrac);
+      const knownBefore = Number(fifoLots[token.symbol]?.tokensIn) || 0;
+      const dustPiggy = Math.max(
+        Number(fifoLots[token.symbol]?.piggyDustTokens) || 0,
+        Number(token.piggyReserve) || 0,
+      );
+      recordSellFill(fifoLots, {
+        symbol: token.symbol,
+        soldFrac,
+        tokensSold: piggy.tokensToSell,
+        txHash: transactionHash,
+        ethOut: received,
+        piggyDustTokens: dustPiggy,
+      });
+      if (knownBefore > 0) latchPiggyDust(fifoLots[token.symbol], knownBefore * (1 - soldFrac) + dustPiggy);
       // Clear buy-plan projection once banked so the next wave re-plans.
       if (actualBank > 0) token.projectedEarningsUsd = null;
+    }
+    try { await persistFifoLotsNow("sell-fill"); } catch (e) {
+      console.log(`⚠️  fifo lot persist (non-critical): ${e.message}`);
     }
 
     // Score the wave prediction that just completed
@@ -6135,7 +8136,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     const piggyRow = tokenPiggyLedgers[token.symbol] || {};
     tradeLog.push({ type: "SELL", symbol: token.symbol, price, receivedEth: received, netUsd, timestamp: new Date().toISOString(), tx: transactionHash, reason, indScore: ind.score });
     await appendToLedger({ type:"SELL", tradeNum:tradeCount, symbol:token.symbol, price, receivedEth:received, recUsd, investedUsd:invUsd, netUsd, earningsUsd, hitchCostUsd: hitchCostEth * ethUsd, pnlPct:invUsd>0?((netUsd/invUsd)*100):0, ethUsd, timestamp:new Date().toISOString(), tx:transactionHash, basescan:`https://basescan.org/tx/${transactionHash}`, hitchOnChain: !!sellVoice.onChain, hitchUtf8: sellVoice.onChain ? sellVoice.utf8 : "", reason, indScore:ind.score, indDetail:ind.detail, skimEth:skim, skimLottery, skimPred, skimAgent, piggyTotal:piggyBank, predFundTotal:predFund, agentTotal:agentCapital, soldFrac, piggyDustLeft:piggy.remainingReserve, piggyDustUsd: piggy.remainingReserve * price, piggyBankedUsd: actualBank, piggySavedUsd: piggyRow.savedEarningsUsd || 0, piggyUnlock:piggy.unlock, wallet:WALLET_ADDRESS, signature: hitchLedgerSignature(sellVoice) });
-    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol });
+    recordHitchInjection({ onChain: !!sellVoice.onChain, netUsd: earningsUsd, symbol: token.symbol, txHash: transactionHash, utf8: sellVoice.utf8 || "" });
     if (earningsUsd < 0 || netUsd < 0) {
       recordCostMistake({
         symbol: token.symbol,
@@ -6199,6 +8200,45 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       `   🌊 Biggest: ${bigWave} | ⚡ Fastest: ${fastWave}\n` +
       `   🐷 Contrib to piggy: $${(tws.piggyContrib*ethUsd).toFixed(3)}`;
 
+    const fifoSellKnown = trustedBasis && Number(entryEthSold) > 0 && Number(received) > 0;
+    const leftoverEth = fifoSellKnown ? received - entryEthSold : null;
+    const hitchSkippedFill = !sellVoice.onChain && (!!sellSkipHitch || !!sellGate.skipHitch);
+    if (hitchSkippedFill) {
+      const bank = creditHitchBank(sellGate.hitchBankedEth, { symbol: token.symbol, reason: "skip" });
+      if (bank.log) console.log(`   ${bank.log}`);
+      const shard = bankSkipHitchLearnShard({
+        symbol: token.symbol,
+        leftoverEth: leftoverEth,
+        hitchWouldEth: sellGate.hitchWouldEth ?? sellGate.reservedHitchEth,
+        reason: sellGate.reason || "SKIP_HITCH leftover too thin",
+      });
+      if (shard.uncovered) {
+        console.log(`   📝 SKIP_HITCH learn shard banked for ${shard.symbol} — no unpaired burn; hitch when leftover covers`);
+      }
+    } else if (sellVoice.onChain) {
+      const cleared = consumeHitchBankOnSend({ symbol: token.symbol });
+      if (cleared.log) console.log(`   ${cleared.log}`);
+    }
+    const sellTurn = buildTurnRecord({
+      side: "SELL",
+      symbol: token.symbol,
+      txHash: transactionHash,
+      fifoKnown: fifoSellKnown,
+      fifoEthIn: fifoSellKnown ? entryEthSold : null,
+      fifoEthOut: Number(received) > 0 ? received : null,
+      leftoverEth,
+      usdMark: fifoSellKnown && Number.isFinite(Number(netUsd)) ? netUsd : null,
+      hitchOnChain: !!sellVoice.onChain,
+      hitchBytes: sellVoice.hitchBytes || 0,
+      hitchUtf8: sellVoice.utf8 || "",
+      hitchKind: sellVoice.kind || sellVoice.vitaKind || "",
+      hitchCostEth: sellVoice.onChain && Number(hitchCostEth) > 0 ? hitchCostEth : null,
+      hitchSkipped: hitchSkippedFill,
+      hitchBankedEth: hitchSkippedFill ? (Number(sellGate.hitchBankedEth) || 0) : null,
+      liquidEth: Number.isFinite(eAfter) ? eAfter : null,
+      liquidWeth: Number.isFinite(wAfter) ? wAfter : null,
+    });
+    recordTurnFill(sellTurn);
     await tg(formatSellReceiptHtml({
       symbol: token.symbol,
       tradeNum: tradeCount,
@@ -6229,16 +8269,21 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       surfReport,
       indDetail: ind.detail,
       hitchFooter: hitchTelegramFooter(sellVoice, transactionHash),
+      hatInjectReceipt: buildHatExitReceiptForSell({
+        transactionHash,
+        receiptStatus,
+        sellVoice,
+      }),
       waveBar,
+      turnCard: sellTurn,
     }));
     if (sellVoice.onChain) console.log(`      💌 ${sellVoice.utf8}`);
     else console.log(`      ⚠️ No UTF-8 hitch on this sell`);
     return Math.max(received - skim, 0);
   } catch (e) {
     console.log(`      ❌ SELL FAILED: ${e.message}`);
-    if (isTooLittleReceived(e)) {
-      const rec = recordSlippageFail(token.symbol);
-      console.log(`   ${slippageFailLog(token.symbol, rec)}`);
+    if (isTooLittleReceived(e) || isQuoteContractRevert(e)) {
+      noteSwapPathFail(token.symbol, { kind: "Too little received" });
     }
     await tg(`⚠️ <b>${token.symbol} SELL FAILED</b>\n${e.message}`);
     return null;
@@ -6323,6 +8368,10 @@ async function findCascadeTarget(excludeSymbol, gasCost, tradeEth) {
 
 async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
   try {
+    if (isOperatorRotateArmed()) {
+      console.log(`  🌊 CASCADE skipped — OPERATOR_ROTATE_TO=${process.env.OPERATOR_ROTATE_TO} (no new entries)`);
+      return;
+    }
     // Never start a cascade hop without native gas for this buy + the next exit.
     const gasOk = await ensureCascadeNativeGas(cdp, `cascade-${soldSymbol}`);
     if (!gasOk) {
@@ -6335,7 +8384,7 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
     const gweiC  = await getCurrentGasGwei();
     let hitchCost = 0;
     try {
-      const vb = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+      const vb = leftoverVoiceHitchBytes();
       const l1 = await quoteHitchL1ForGates({ hitchBytes: vb });
       const l2 = estimateCalldataHitchEth(vb, gweiC);
       hitchCost = (l1.ok ? (Number(l1.l1FeeEth) || 0) : 0) + l2;
@@ -6442,8 +8491,44 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       });
     }
 
-    // Prefer lowest bottoms first for succession — never re-add mid-range primed
+    // Prefer lowest bottoms first for succession — never re-add mid-range primed.
+    // Wave-board / data-route prefs may reorder within the in-band pool only.
     let candidates = rankCascadeBottoms(rawCandidates, { excludeSymbol: soldSymbol });
+    try {
+      const prefer = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: soldSymbol });
+      if (prefer?.symbol) {
+        const idx = candidates.findIndex((c) => c.symbol === prefer.symbol);
+        if (idx > 0) {
+          const [hit] = candidates.splice(idx, 1);
+          candidates.unshift(hit);
+          console.log(`  🌊 wave board prefers ${prefer.symbol} ${prefer.arrow} ${prefer.confidence}% ${prefer.stage}`);
+        }
+      }
+    } catch { /* board preference is advisory */ }
+    try {
+      if (Number(gweiC) > 0) {
+        const book = injectRoutes();
+        fileRouteQuote(book, { chain: "base", gwei: gweiC });
+        saveInjectRoutes();
+        const sample = candidates[0]?.symbol
+          ? `cascade ${candidates.map((c) => c.symbol).join(",")}`
+          : "cascade";
+        const wire = chooseInjectWire(sample);
+        const plan = rankCascadeByDataRoute(
+          candidates.map((c) => ({
+            symbol: c.symbol,
+            score: c.cascadeBottomScore,
+            chain: c.token?.chain || "base",
+          })),
+          { wireBytes: wire.wireBytes, quotes: latestQuotes(book), history: book.quotes },
+        );
+        const next = applyRouteOrder(candidates, plan.rows);
+        if (next[0] && candidates[0] && next[0].symbol !== candidates[0].symbol) {
+          candidates.splice(0, candidates.length, ...next);
+          console.log(`  💉 data-field route prefers ${next[0].symbol} on a cheaper chain`);
+        }
+      }
+    } catch { /* route preference waits for a real gas quote */ }
     if (!candidates.length) {
       // Ranking emptied (missing price/trough) — cold scan once more for a real bottom
       const target = await findCascadeTarget(soldSymbol, gasCost, proceeds);
@@ -6726,6 +8811,28 @@ ${modeLabel}: [${sourceNames}] → [${targetNames}] | ~$${totalSellUsd.toFixed(2
 }
 
 
+function noteRotateUnquotedSkip(token, { kind = "NO QUOTE", code = "NO_QUOTE", balance } = {}) {
+  if (!isOperatorRotateArmed() || operatorRotateState.finished) return false;
+  const units = Number.isFinite(Number(balance)) ? Number(balance) : (getCachedBalance(token.symbol) || 0);
+  const skip = applyRotateUnquotedSkip({
+    commands: manualCommands,
+    state: operatorRotateState,
+    symbol: token.symbol,
+    remBag: isRotateRemBag(units),
+    kind,
+    code,
+    balance: units,
+  });
+  if (skip.dropped) {
+    console.log(`🏠 OPERATOR_ROTATE: ${token.symbol} ${skip.reason || kind} — drop from outstanding (HOME must not wait)`);
+    maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+      env: process.env,
+      wallet: WALLET_ADDRESS,
+    });
+  }
+  return !!skip.dropped;
+}
+
 async function processToken(cdp, token, bal) {
   try {
     // Skip disabled tokens — they have no viable Uniswap pool
@@ -6733,6 +8840,8 @@ async function processToken(cdp, token, bal) {
       // Still track price for signal purposes, just never trade
       const price = await getTokenPrice(token.address, false);
       if (price) { recordPrice(token.symbol, price); updateWaves(token.symbol, price); }
+      // KITE-class: disabled early-return must still drop rotate outstanding.
+      noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE" });
       return;
     }
     // ── ❄️ FROZEN TOKENS — collect wave data, NEVER open a NEW buy ────────────
@@ -6750,12 +8859,18 @@ async function processToken(cdp, token, bal) {
       // USD-aware: CBBTC 0.00006 units is a real bag — never skip exits on unit count
       const px = history[token.symbol]?.lastPrice || 0;
       const held = balUnits > 0 && (hasSellableUsd(balUnits, px, BAG_DUST_USD) || balUnits > 0.001);
-      if (!pending && !held) return; // no buys, no logs, no capital
+      if (!pending && !held) {
+        // Frozen idle names can still sit in rotate pendingSells from boot queue.
+        noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE", balance: balUnits });
+        return; // no buys, no logs, no capital
+      }
     }
     // FIX: Skip dead-wave tokens that will never clear fees — stops them burning
     // 0.8s + RPC calls per loop on tokens mathematically impossible to trade.
     // Only skip if we have NO open position (never block an exit).
-    if (!token.entryPrice && isDeadWaveSkipped(token.symbol)) {
+    // OPERATOR_BUY / Telegram /buy must still fire — do not eat the queue here.
+    const pendingManual = manualCommands.some(c => c.symbol === token.symbol);
+    if (!token.entryPrice && isDeadWaveSkipped(token.symbol) && !pendingManual && !hasOpenVitaFeedTicket(token.symbol)) {
       return; // silent skip — already logged when streak was hit
     }
     const heldPosition = !!(token.entryPrice) || hasSellableUsd(getCachedBalance(token.symbol) || 0, history[token.symbol]?.lastPrice || 0, BAG_DUST_USD) || (getCachedBalance(token.symbol) || 0) > 0.001;
@@ -6763,21 +8878,54 @@ async function processToken(cdp, token, bal) {
     if (!isValidUsdPrice(price)) {
       noPriceStreak[token.symbol] = (noPriceStreak[token.symbol] || 0) + 1;
       console.log(`   ⏳ ${token.symbol}: NO QUOTE — skip trade (pool dry or unindexed) ${token.address}`);
+      // CRASH/BRIUN/NORMIE/OGGY/FREN/ROOST-class: do not leave rotate sells outstanding.
+      noteRotateUnquotedSkip(token, { kind: "NO QUOTE", code: "NO_QUOTE" });
+      if (pendingManual) await flushPendingOperatorBuys(cdp);
       return false;
     }
 
     // Holding with missing cost basis: chain units are truth. Do NOT copy
     // the live mark as invested — that zeros leftover and freezes sells.
-    if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog }) &&
-        (getCachedBalance(token.symbol) > 0.001 || token.unknownEntry)) {
-      applyUnknownChainHolding(token, {
-        units: getCachedBalance(token.symbol),
-        priceUsd: price,
-      });
+    // Evidence hashes (VIRTUAL 0x33aac652 / CLANKER 0x23d8a0c5+0xcb7dd5a6 /
+    // MORPHO 0x9260992e / AERO 0x53b9844c / DRB trough class) must rebuild
+    // FIFO *before* the unknown stamp — boot-only latch and desk-book fills
+    // left entrySold=0.
+    const heldBal = getCachedBalance(token.symbol);
+    if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] }) &&
+        (heldBal > 0.001 || token.unknownEntry)) {
+      const remain = seededRebuildRemaining(heldBal);
+      if (remain != null) {
+        try { await tryRebuildLotFromReceipts(token, remain); } catch { /* receipt miss stays unknown */ }
+      }
+      if (isUsableLot(fifoLots[token.symbol])) {
+        applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: heldBal });
+      }
+      if (!shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] })) {
+        applyUnknownChainHolding(token, {
+          units: heldBal,
+          priceUsd: price,
+        });
+      }
     }
 
     recordPrice(token.symbol, price);
     updateWaves(token.symbol, price);
+
+    const vfDue = dueVitaFeedExit({ symbol: token.symbol, price });
+    if (vfDue) {
+      const units = getCachedBalance(token.symbol) || 0;
+      const pct = vitaFeedExitSellPct({
+        balance: units,
+        price,
+        leaveBehindUsd: vfDue.leaveBehindUsd,
+        stakeUsd: vfDue.stakeUsd,
+        entryPrice: vfDue.entryPrice,
+      });
+      if (pct > 0) {
+        const sold = await executeSell(cdp, token, pct, "VITAFEED EXIT", price);
+        if (sold) closeVitaFeedTicket(vfDue.id);
+      }
+    }
 
     const ethUsd   = await getLiveEthPrice();
     // Use cached balance (refreshed once per loop in refreshTokenBalances) — avoids per-token RPC call
@@ -6810,7 +8958,9 @@ async function processToken(cdp, token, bal) {
         } catch {}
       }
     }
-    const entry    = token.entryPrice;
+    const fifoEth  = costBasisEth(token);
+    const impliedEntry = fifoImpliedEntryUsd({ fifoEth, balance, ethUsd });
+    const entry    = isValidUsdPrice(token.entryPrice) ? token.entryPrice : impliedEntry;
     const maxPeak  = getMaxPeak(token.symbol);
     const minTrghRaw = getMinTrough(token.symbol);
     const peakCnt  = getPeakCount(token.symbol);
@@ -6882,17 +9032,19 @@ async function processToken(cdp, token, bal) {
     // Peak / early / fib gates: charge only the sellable slice of entry + fees.
     // Leaving piggy dust behind must leave that cost behind too — otherwise
     // succession never fires even when math + profits are met.
-    const sellPreview  = entry
+    // ETH-only FIFO (no fill USD) still previews real net — never invent netUsd=1
+    // (live AERO AT MAX PEAK then always-plus HOLD on FIFO red).
+    const sellPreview  = (entry || fifoEth > 0)
       ? previewPiggySellNetUsd({
           balance,
           sellable,
-          investedEth: token.totalInvestedEth || 0,
+          investedEth: fifoEth || token.totalInvestedEth || 0,
           priceUsd: price,
           ethUsd,
           feePct: token.poolFeePct || 0.006,
           skimPct: PIGGY_SKIM_PCT,
         })
-      : { netUsd: 1, soldFrac: 1 };
+      : { netUsd: 0, soldFrac: 0 };
     const netIfSellNow = sellPreview.netUsd;
     const breakEvenBuffer = entry
       ? costBasisForSoldFraction(token.totalInvestedEth || 0, sellPreview.soldFrac) * ethUsd * PROFIT_ERROR_BUFFER
@@ -6991,6 +9143,33 @@ async function processToken(cdp, token, bal) {
     // Peak-ride is the authority: hist touch / mid-range pred no longer eject alone.
     const shouldSell = (peakRide.sell || instantPeakSell)
                     && sellableUsdOk && netIfSellNow > breakEvenBuffer;
+    const previewEntryEth = sellEntryEthWithLotFloor(fifoEth || token.totalInvestedEth || 0, token);
+    const previewUnknown = !!token.unknownEntry || !(previewEntryEth > 0);
+    const previewMarkEth = ethUsd > 0 ? (sellable * price) / ethUsd : 0;
+    const previewGate = (shouldSell || previewEntryEth > 0)
+      ? buildSellGateDecision({
+          symbol: token.symbol,
+          reason: peakRide.reason || "🎯 PEAK RIDE",
+          sellPct: sellPreview.soldFrac || 0.98,
+          entryEth: previewEntryEth,
+          lotCostEth: freshLotCostFloor(token),
+          usdMarkProceedsEth: previewMarkEth,
+          operatorLot: !!token.operatorLot,
+          freshLot: freshLotCostFloor(token) > 0 || !!token.operatorLot,
+          projectedProceedsEth: previewMarkEth,
+          feePct: token.poolFeePct || 0.006,
+          unknownEntry: previewUnknown,
+        })
+      : { allow: false, verdict: "HOLD", reason: "no position", log: "" };
+    const sellArmed = classifySellArmedDisplay({
+      peakWantsSell: shouldSell,
+      quoterExecutable: lastQuoterExecutable[token.symbol] === true,
+      verdict: previewGate.verdict,
+      allow: previewGate.allow,
+      unknownEntry: previewUnknown,
+      reason: previewGate.log || previewGate.reason || "",
+    });
+    lastSellArmed[token.symbol] = sellArmed;
     if (entry && sellableUsdOk && Math.random() < 0.04) {
       console.log(`  🛡️ [${token.symbol}] ${formatPeakRideDecision(peakRide)}`);
     }
@@ -7076,7 +9255,7 @@ async function processToken(cdp, token, bal) {
     const dayOfWeek     = now_.getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
     const hourUTC       = now_.getUTCHours();
     const isMondayOpen  = dayOfWeek === 1 && hourUTC >= 13 && hourUTC <= 16; // Mon 9-12 EST = UTC 13-16
-    const isFridayClose = dayOfWeek === 5 && hourUTC >= 19 && hourUTC <= 22; // Fri 3-6pm EST
+    const isFridayClose = isFridayCloseWindow({ now: now_ }); // Fri 3-6pm EST; DISABLE_DOW_BIAS (default ON) skips
     const isTuesdayDip  = dayOfWeek === 2 && hourUTC >= 13 && hourUTC <= 17; // Tue AM — Trump effect
     const isEndOfMonth  = now_.getDate() >= 28; // pressure selling near month end
     // Calendar bias: looser buy tolerance on high-opportunity days
@@ -7086,7 +9265,9 @@ async function processToken(cdp, token, bal) {
 
     const indConfirmed = ind.score >= 1;
     const positionSizeEth = (token.totalInvestedEth || 0);
-    const atMaxPosition   = positionSizeEth > bal.tradeableWithWeth * 0.60;
+    const bagsEth = ethUsd > 0 ? (Number(currentDeployedUsd) || 0) / ethUsd : 0;
+    const totalBookEth = (bal.tradeableWithWeth || 0) + bagsEth;
+    const atMaxPosition   = totalBookEth > 0 && positionSizeEth > totalBookEth * 0.60;
 
     // Prediction-enhanced buy: fires at confirmed trough OR when cycle says trough is imminent
     const predBuy   = pred.ready && pred.action === "pre-buy"
@@ -7146,7 +9327,9 @@ async function processToken(cdp, token, bal) {
     }
 
     // ── ZONE ───────────────────────────────────────────────────────────────
-    const zone = shouldSell     ? "🔴 AT MAX PEAK — SELLING" :
+    const zone = (shouldSell && sellArmed.green) ? "🔴 AT MAX PEAK — SELLING" :
+                 (shouldSell && sellArmed.code) ? `🛑 HOLD ${sellArmed.code}` :
+                 shouldSell     ? "🛑 HOLD" :
                  stopLossHit    ? "🛑 STOP LOSS" :
                  shouldBuy      ? `🟢 AT MIN TROUGH — BUYING` :
                  atMaxPosition  ? "🏇 RIDING (max position — holding)" :
@@ -7369,20 +9552,102 @@ async function processToken(cdp, token, bal) {
 
       if (cmd.action === "buy") {
         lastTradeTime[token.symbol] = 0; // operator override — fire now
-        const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
-        const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
-        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+        if (isOperatorRotateCommand(cmd)) {
+          if (!rotateWalletAllowed(WALLET_ADDRESS) || !isRotateTarget(token.symbol)) {
+            console.log(`⚠️  OPERATOR_ROTATE: skip buy ${token.symbol} (vault or not HOME)`);
+            if (!rotateWalletAllowed(WALLET_ADDRESS)) {
+              finishOperatorRotate(process.env, operatorRotateState, { force: true });
+            }
+          } else {
+            const liveBal = await getFullBalance().catch(() => bal);
+            const spend = excessWethToSell({
+              nativeEth: liveBal?.eth ?? bal.eth,
+              wethEth: liveBal?.weth ?? bal.weth,
+            });
+            let spent = false;
+            try {
+              if (spend <= 0) {
+                console.log(`🏠 OPERATOR_ROTATE: no excess WETH above gas floor — HOME buy skipped`);
+                markOperatorRotateHomeBuyExecuted(operatorRotateState);
+                finishOperatorRotate(process.env, operatorRotateState, { homeBuyAttempted: true });
+              } else {
+                spent = await executeBuy(cdp, token, liveBal || bal, OPERATOR_ROTATE_BUY_REASON, price, spend);
+                if (spent) {
+                  markOperatorRotateHomeBuyExecuted(operatorRotateState);
+                  finishOperatorRotate(process.env, operatorRotateState, { homeBuyAttempted: true });
+                }
+              }
+            } catch (e) {
+              console.log(`⚠️  OPERATOR_ROTATE HOME buy: ${e.message} — re-queued`);
+            }
+            if (!spent && !operatorRotateState.finished) {
+              settleFlushedOperatorBuy(manualCommands, cmd, false);
+            }
+          }
+        } else {
+          const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+          let spent = false;
+          try {
+            spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+          } catch (e) {
+            console.log(`⚠️  MANUAL BUY ${token.symbol}: ${e.message} — re-queued`);
+          }
+          if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+          else settleFlushedOperatorBuy(manualCommands, cmd, spent);
+        }
       } else if (cmd.action === "sell") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
         lastTradeTime[token.symbol] = 0;
-        const sellPct = resolveManualSellPct(cmd);
-        const reason = cmd.source === "OPERATOR_SELL"
-          ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
-          : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL");
-        const p = await executeSell(cdp, token, sellPct, reason, price, true);
-        if (p > 0) {
-          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
-          const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+        const isRotate = isOperatorRotateCommand(cmd);
+        if (isRotate && shouldSkipRotateSell({
+          symbol: token.symbol,
+          address: token.address,
+          wallet: WALLET_ADDRESS,
+        })) {
+          console.log(`🏠 OPERATOR_ROTATE: skip sell ${token.symbol} (HOME / vault / dead route)`);
+          markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+          maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+            env: process.env,
+            wallet: WALLET_ADDRESS,
+          });
+        } else {
+          const reason = isRotate
+            ? OPERATOR_ROTATE_SELL_REASON
+            : (cmd.source === "OPERATOR_SELL"
+              ? manualSellReason(cmd.pct == null ? 1 : cmd.pct)
+              : (cmd.pct != null ? manualSellReason(cmd.pct) : "MANUAL SELL"));
+          const sellPct = resolveManualSellPct(cmd, {
+            fullUnwind: isRotate || canBypassSellLossGate(reason, process.env, token.symbol),
+          });
+          const p = await executeSell(cdp, token, sellPct, reason, price, true);
+          if (p > 0) {
+            if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
+            if (isRotate) markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+            if (!isRotate) {
+              const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
+            } else {
+              maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+                env: process.env,
+                wallet: WALLET_ADDRESS,
+              });
+            }
+          } else if (isRotate) {
+            const remain = getCachedBalance(token.symbol) || 0;
+            if (isRotateSellSkipped(operatorRotateState, token.symbol)) {
+              // Quoter-miss rem / N misses — leftover stays; do not re-queue.
+            } else if (remain <= ROTATE_MIN_BALANCE) {
+              markOperatorRotateSellExecuted(operatorRotateState, token.symbol);
+            } else {
+              settleFlushedOperatorBuy(manualCommands, { ...cmd, action: "buy" }, true);
+              if (!manualCommands.some((c) => isOperatorRotateCommand(c) && c.symbol === token.symbol && c.action === "sell")) {
+                manualCommands.push(cmd);
+              }
+            }
+            maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+              env: process.env,
+              wallet: WALLET_ADDRESS,
+            });
+          }
         }
       } else if (cmd.action === "sellhalf") {
         // Manual sells bypass cooldown + wave gates — operator explicitly chose to exit
@@ -7392,7 +9657,7 @@ async function processToken(cdp, token, bal) {
           : "MANUAL SELL HALF";
         const p = await executeSell(cdp, token, 0.50, reason, price, true);
         if (p > 0) {
-          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState);
+          if (cmd.source === "OPERATOR_SELL") markOperatorSellExecuted(operatorSellState, token.symbol);
           const nb = await getFullBalance(); await triggerCascade(cdp, token.symbol, p, nb);
         }
       } else if (cmd.action === "piggyunlock") {
@@ -7429,6 +9694,15 @@ async function processToken(cdp, token, bal) {
             `${token.symbol} stays FROZEN (no re-buy)`
           );
           // DO NOT call triggerCascade — that's the whole point
+        } else if (cmd.source === "FORCE_EXIT_LOCKED") {
+          // Failed / dust / STF-blocked — latch if only lottery wei remains so
+          // the next cycle does not re-spam FORCE EXIT (live DRB 3.5e-14 loop).
+          const remain = getCachedBalance(token.symbol) || 0;
+          if (latchForcedExitIfDust(forcedExitState, token.symbol, remain, price)) {
+            console.log(
+              `🚪 FORCE EXIT LOCKED dust-latched after miss: ${token.symbol} remain=${remain} — stop re-queue`
+            );
+          }
         }
       }
       return;
@@ -7711,16 +9985,40 @@ async function runPredFundTick(cdp, token, price, ethUsd, pred, ind) {
 // ═══════════════════════════════════════════════════════════════════════════════
 async function githubGet(path) {
   try {
-    // Try STATE_BRANCH first (most recent), fall back to GITHUB_BRANCH
-    const branch = STATE_BRANCH !== GITHUB_BRANCH ? STATE_BRANCH : GITHUB_BRANCH;
+    const branch = liveStateBranch();
     const res = await fetch(
-      `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}?ref=${branch}&t=${Date.now()}`,
-      { headers: { Authorization: `token ${GITHUB_TOKEN}`, Accept: "application/vnd.github.v3+json" } }
+      githubContentsUrl({ repo: liveGithubRepo(), filename: path, branch }),
+      { headers: githubAuthHeaders(liveGithubToken()) }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`⚠️  githubGet(${path}): HTTP ${res.status}`);
+      return { content: null, sha: null, status: res.status };
+    }
     const data = await res.json();
-    return { content: JSON.parse(Buffer.from(data.content.replace(/\n/g,""), "base64").toString("utf8")), sha: data.sha };
-  } catch (e) { console.log(`GitHub read error (${path}): ${e.message}`); return null; }
+    return { content: decodeGithubContentsJson(data), sha: data.sha, status: res.status };
+  } catch (e) { console.log(`GitHub read error (${path}): ${e.message}`); return { content: null, sha: null, status: 0 }; }
+}
+
+/** UTF-8 blob from a specific branch — code files are not JSON. */
+async function githubGetUtf8FromBranch(filename, branch) {
+  try {
+    const url = githubContentsUrl({
+      repo: liveGithubRepo(),
+      filename,
+      branch: branch || liveGithubBranch(),
+    });
+    const res = await fetch(url, { headers: githubAuthHeaders(liveGithubToken()) });
+    if (!res.ok) {
+      return { text: null, sha: null, status: res.status, miss: true };
+    }
+    const data = await res.json();
+    const text = decodeGithubContentsUtf8(data);
+    if (text == null) return { text: null, sha: data.sha || null, status: res.status, miss: true };
+    return { text, sha: data.sha, status: res.status, miss: false, branch };
+  } catch (e) {
+    console.log(`GitHub utf8 read error (${filename}): ${e.message}`);
+    return { text: null, sha: null, status: 0, miss: true };
+  }
 }
 
 async function githubSave(path, content, sha, retries = 3) {
@@ -7729,12 +10027,12 @@ async function githubSave(path, content, sha, retries = 3) {
       const body = {
         message: `state ${new Date().toISOString()}`,
         content: Buffer.from(JSON.stringify(content, null, 2)).toString("base64"),
-        branch:  STATE_BRANCH,
+        branch:  liveStateBranch(),
       };
       if (sha) body.sha = sha;
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`, {
+      const res = await fetch(githubContentsApiUrl({ repo: liveGithubRepo(), filename: path }), {
         method: "PUT",
-        headers: { Authorization: `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
+        headers: { ...githubAuthHeaders(liveGithubToken()), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const result = await res.json();
@@ -7752,6 +10050,159 @@ async function githubSave(path, content, sha, retries = 3) {
   return null;
 }
 
+let lastVitaRegistryBlob = null;
+
+async function persistFifoLotsNow(reason = "lot") {
+  try { writeFifoLotsSync(FIFO_LOTS_FILENAME, fifoLots); } catch (e) {
+    console.log(`⚠️  fifo-lots disk: ${e.message}`);
+  }
+  try {
+    const sha = await githubSave(FIFO_LOTS_FILENAME, serializeFifoLots(fifoLots), fifoLotsSha);
+    if (sha) fifoLotsSha = sha;
+    console.log(`💾 fifo-lots.json persisted (${reason})`);
+  } catch (e) {
+    console.log(`⚠️  fifo-lots GitHub (${reason}): ${e.message || e}`);
+  }
+}
+
+async function loadFifoLotsFromStores() {
+  const disk = readFifoLotsSync(FIFO_LOTS_FILENAME);
+  let remote = {};
+  try {
+    const gf = await githubGet(FIFO_LOTS_FILENAME);
+    if (gf?.content) {
+      remote = deserializeFifoLots(gf.content);
+      if (gf.sha) fifoLotsSha = gf.sha;
+    }
+  } catch { /* first boot has no remote file */ }
+  // Stale positions.json last — disk / fifo-lots.json have on-fill updatedAt.
+  fifoLots = mergeLotMaps(fifoLots, remote, disk);
+  const n = Object.keys(fifoLots).filter((s) => isUsableLot(fifoLots[s])).length;
+  if (n) console.log(`   📦 fifo-lots: ${n} durable lot(s) restored (disk/GitHub)`);
+}
+
+async function tryRebuildLotFromReceipts(token, remainingTokens) {
+  const hashes = collectRebuildTxs({
+    persistedLots: fifoLots,
+    env: process.env,
+    evidence: EVIDENCE_BUY_TXS,
+    extras: EVIDENCE_ADDON_BUY_TXS,
+    ledgerTrades: [...ledgerRebuildTrades, ...tradeLog],
+  })[token.symbol] || [];
+  if (!hashes.length) return null;
+  let latchedHash = "";
+  for (const hash of hashes) {
+    if (!shouldLatchBuyReceipt(fifoLots[token.symbol], hash, {
+      remainingTokens,
+      extras: EVIDENCE_ADDON_BUY_TXS,
+      rebuildHashes: hashes,
+    })) continue;
+    try {
+      const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
+      const tx = await rpcCall((c) => c.getTransaction({ hash }));
+      const lot = lotFromBuyReceipt({
+        symbol: token.symbol,
+        tokenAddress: token.address,
+        wallet: WALLET_ADDRESS,
+        txHash: hash,
+        receipt,
+        tx,
+        tokenDecimals: token.decimals || 18,
+        price: token.unknownEntry ? 0 : (token.entryPrice || 0),
+        reason: "MANUAL BUY (operator)",
+      });
+      if (!isUsableLot(lot)) continue;
+      mergeBuyReceiptIntoLots(fifoLots, lot, {
+        remainingTokens,
+        extras: EVIDENCE_ADDON_BUY_TXS,
+        rebuildHashes: hashes,
+      });
+      latchedHash = hash;
+    } catch (e) {
+      console.log(`   ⚠️  ${token.symbol}: receipt rebuild ${hash.slice(0, 10)}… ${e.message}`);
+    }
+  }
+  const current = fifoLots[token.symbol];
+  if (!isUsableLot(current)) return null;
+  const sellHashes = collectRebuildSellTxs({
+    persistedLots: fifoLots,
+    ledgerTrades: [...ledgerRebuildTrades, ...tradeLog],
+    evidence: EVIDENCE_SELL_TXS,
+  })[token.symbol] || [];
+  for (const hash of sellHashes) {
+    if (lotHasSellTx(fifoLots[token.symbol], hash)) continue;
+    try {
+      const receipt = await rpcCall((c) => c.getTransactionReceipt({ hash }));
+      const tx = await rpcCall((c) => c.getTransaction({ hash }));
+      const sold = lotFromSellReceipt({
+        symbol: token.symbol,
+        tokenAddress: token.address,
+        wallet: WALLET_ADDRESS,
+        txHash: hash,
+        receipt,
+        tx,
+        tokenDecimals: token.decimals || 18,
+      });
+      if (sold) mergeSellReceiptIntoLots(fifoLots, sold, { remainingTokens });
+    } catch (e) {
+      console.log(`   ⚠️  ${token.symbol}: sell receipt ${hash.slice(0, 10)}… ${e.message}`);
+    }
+  }
+  applyLotToNet(netPositions, fifoLots[token.symbol]);
+  const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens });
+  if (!lotAppliedOk(token, fifo)) return null;
+  if (latchedHash) {
+    console.log(`   🔗 ${token.symbol}: FIFO lot rebuilt from buy ${latchedHash.slice(0, 10)}… remaining=${fifo.investedEth.toFixed(6)}ETH`);
+  }
+  return current;
+}
+
+/** Seeded evidence hashes → chain receipts. Runs even when GitHub 401s. */
+async function rebuildSeededLotsFromChain(reason = "boot") {
+  const hashes = collectRebuildTxs({
+    persistedLots: fifoLots,
+    env: process.env,
+    evidence: EVIDENCE_BUY_TXS,
+    extras: EVIDENCE_ADDON_BUY_TXS,
+    ledgerTrades: [...ledgerRebuildTrades, ...tradeLog],
+  });
+  let n = 0;
+  for (const token of tokens) {
+    if (!hashes[token.symbol]?.length) continue;
+    const remain = seededRebuildRemaining(tokenBalanceCache[token.symbol]);
+    if (remain == null) continue; // dust / sold-all / cache miss — do not invent
+    const missingAddon = (hashes[token.symbol] || []).some((h) =>
+      shouldLatchBuyReceipt(fifoLots[token.symbol], h, {
+        remainingTokens: remain,
+        extras: EVIDENCE_ADDON_BUY_TXS,
+        rebuildHashes: hashes[token.symbol],
+      }),
+    );
+    if (isUsableLot(fifoLots[token.symbol]) && !missingAddon) {
+      // Persist may already have the lot (AERO) while DRB/BNKR still need apply.
+      // Missing evidence/add-on hashes (DRB trough 0x53a00788) still fetch+merge.
+      const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: remain });
+      if (lotAppliedOk(token, fifo)) n++;
+      continue;
+    }
+    const rebuilt = await tryRebuildLotFromReceipts(token, remain);
+    if (isUsableLot(rebuilt)) n++;
+  }
+  if (n) {
+    console.log(`   🔗 seeded rebuild (${reason}): ${n} lot(s) latched from buy receipts`);
+    // Disk first — GitHub may still 401. Holding loop will see usable lots and
+    // skip persistFifoLotsNow("boot-rebuild"); without this a crash before the
+    // 15-min save drops the latch.
+    try { await persistFifoLotsNow(reason); } catch {}
+  }
+  return n;
+}
+
+function hydrateCatalogToken(def) {
+  // WETH-dead freeze first, then UNFREEZE_SYMBOLS (process.env) clears listed names.
+  return applyUnfreezeSymbols(applyWethDeadFreeze(def), process.env);
+}
+
 async function loadFromGitHub() {
   console.log("📂 Loading from GitHub...");
   const tf = await githubGet("tokens.json");
@@ -7760,7 +10211,7 @@ async function loadFromGitHub() {
     // FIX v18: Restore state but preserve frozen/disabled flags from code definition.
     // Never let saved state override code-defined frozen status.
     tokens = DEFAULT_TOKENS.map(def => {
-      const base = applyWethDeadFreeze(def);
+      const base = hydrateCatalogToken(def);
       return {
       ...base, status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null,
       ...(saved.find(s => s.symbol === def.symbol) || {}),
@@ -7771,6 +10222,7 @@ async function loadFromGitHub() {
       totalInvestedEth: Math.max(0, (saved.find(s => s.symbol === def.symbol) || {}).totalInvestedEth || 0),
       piggyReserve: loadPiggyReserve(saved.find(s => s.symbol === def.symbol) || {}, null),
       // Always re-apply frozen/disabled from code — never let saved state override
+      // UNFREEZE_SYMBOLS then clears catalog freeze at runtime for listed names.
       frozen: base.frozen || false,
       frozenReason: base.frozenReason || undefined,
       disabled: base.disabled || false,
@@ -7781,11 +10233,13 @@ async function loadFromGitHub() {
     });
     tokensSha = tf.sha;
   } else {
-    tokens = DEFAULT_TOKENS.map(t => ({ ...applyWethDeadFreeze(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
-    // Sync frozen flags from DEFAULT_TOKENS definition (authoritative)
+    tokens = DEFAULT_TOKENS.map(t => ({ ...hydrateCatalogToken(t), status: "active", entryPrice: null, totalInvestedEth: 0, entryTime: null }));
+    // Sync frozen flags from DEFAULT_TOKENS definition (authoritative),
+    // then UNFREEZE_SYMBOLS (process.env) clears listed catalog freezes.
     for (const t of tokens) {
-      const def = applyWethDeadFreeze(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
+      const def = hydrateCatalogToken(DEFAULT_TOKENS.find(d => d.symbol === t.symbol) || t);
       if (def?.frozen) { t.frozen = true; t.frozenReason = def.frozenReason; }
+      else { t.frozen = false; delete t.frozenReason; }
       if (def?.minBuyUsd != null) t.minBuyUsd = def.minBuyUsd;
     }
 
@@ -7811,19 +10265,51 @@ async function loadFromGitHub() {
     if (scrubbed > 0) console.log(`🧹 Scrubbed ${scrubbed} corrupted entries — chain reconciliation will rebuild them correctly`);
   }
   const hf = await githubGet("history.json");
-  if (hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0) {
-    history = hf.content;
+  const localHist = readLocalStateJson("history.runtime.json") || null;
+  const histFresh = !!(localHist && (
+    isFreshLocalState(localHist)
+    || latestHistoryReadingMs(localHist) > Date.now() - 7 * 24 * 3600 * 1000
+  ));
+  const histPick = preferRemoteOrKeep({
+    remote: hf?.content && typeof hf.content === "object" && Object.keys(hf.content).length > 0
+      ? hf.content
+      : null,
+    status: hf?.status,
+    current: history,
+    local: localHist,
+    allowLocal: true,
+    localFresh: histFresh,
+  });
+  if (histPick.source === "remote") {
+    history = histPick.value;
     historySha = hf.sha;
+    hydrateHistoryMap(history);
     console.log(`   📜 history.json: loaded ${Object.keys(history).length} tokens of price history`);
+  } else if (histPick.source === "memory") {
+    hydrateHistoryMap(history);
+    console.log(`   ⚠️  history.json: HTTP ${hf?.status ?? "?"} — keeping in-memory book (${Object.keys(history).length} tokens; not wiping)`);
+  } else if (histPick.source === "local") {
+    history = histPick.value;
+    hydrateHistoryMap(history);
+    console.log(`   ⚠️  history.json: HTTP ${hf?.status ?? "?"} — restored fresh local snapshot (${Object.keys(history).length} tokens)`);
   } else {
-    history = {};
     historySha = hf?.sha || null;
-    console.log(`   ⚠️  history.json: empty or unreadable — starting fresh (will seed from ledger + live ticks)`);
+    console.log(`   ⚠️  history.json: empty or unreadable (HTTP ${hf?.status ?? "?"}) — live ticks + session-range will arm (not loading stale committed history.json)`);
   }
   const pf = await githubGet("positions.json");
-  if (pf?.content) {
-    positionsSha   = pf.sha;
-    const pos      = pf.content;
+  let posBlob = pf?.content && typeof pf.content === "object" ? pf.content : null;
+  if (!posBlob) {
+    const localPos = readLocalStateJson("positions.runtime.json");
+    if (localPos && isFreshLocalState(localPos)) {
+      posBlob = localPos;
+      console.log(`   ⚠️  positions.json: HTTP ${pf?.status ?? "?"} — restored fresh local snapshot (not committed March FIFO)`);
+    } else {
+      console.log(`   ⚠️  positions.json: HTTP ${pf?.status ?? "?"} — not loading stale committed positions.json; fifo-lots disk + receipts remain`);
+    }
+  }
+  if (posBlob) {
+    if (pf?.sha) positionsSha = pf.sha;
+    const pos      = posBlob;
     piggyBank      = pos.piggyBank    || 0;
     // Load surfer state
     if (pos.surfers) {
@@ -7872,7 +10358,15 @@ async function loadFromGitHub() {
         waveStats[sym] = s;
       }
     }
+    if (pos.waveHlLedger) waveHlFromPositions = pos.waveHlLedger;
     // portfolioPeakUsd intentionally NOT loaded — stale peaks cause false drawdown halts
+    if (pos.fifoLots) {
+      fifoLots = mergeLotMaps(fifoLots, deserializeFifoLots(pos.fifoLots));
+    }
+    if (Array.isArray(pos.tradeLog) && pos.tradeLog.length) {
+      tradeLog.length = 0;
+      tradeLog.push(...pos.tradeLog.slice(-200));
+    }
     for (const t of tokens) {
       if (pos.entries?.[t.symbol] != null) {
         const savedEntry = pos.entries[t.symbol];
@@ -7930,19 +10424,54 @@ async function loadFromGitHub() {
   try {
     const vf = await githubGet("vita-registry.json");
     if (vf?.content) {
+      lastVitaRegistryBlob = vf.content;
       setVitaRegistry(vf.content);
-      console.log(`   💓 vita-registry.json: loaded ${vf.content.registry?.length || 0} VITA strands`);
+      console.log("   💓 vita-registry.json: blob armed for recursive inject");
     }
   } catch { /* non-critical */ }
 
   // ── Load VITA memory index ──────────────────────────────────────────────────
   try {
     const vf = await githubGet("vita-memory.json");
-    if (vf?.content) {
-      setVitaRegistry(vf.content?.index || []);
-      console.log(`   🌟 vita-memory.json: loaded ${vf.content.index?.length || 0} VITA sessions`);
+    if (Array.isArray(vf?.content?.index) && vf.content.index.length) {
+      setVitaRegistry(vf.content.index);
+      console.log(`   🌟 vita-memory.json: loaded ${vf.content.index.length} VITA sessions`);
     }
   } catch { /* non-critical */ }
+
+  // ── Load VITA secondary-router recursive memory (packet + loc squash) ────
+  try {
+    const rf = await githubGet("vita-router-state.json");
+    if (rf?.content) {
+      restoreVitaRouterState(rf.content);
+      restoreCourseStats(rf.content.course);
+      console.log(`   🔀 vita-router-state.json: packet ${String(rf.content.lastPacket || "").length} chars · loc ${rf.content.locations?.sealedCount ?? "?"}`);
+    }
+  } catch { /* non-critical */ }
+  ensureGenesisMemory();
+  if (lastVitaRegistryBlob) {
+    const folded = ingestRegistryPackets(lastVitaRegistryBlob);
+    console.log(`   💓 registry folded after restore: ${folded.ingested} packet(s) · KEY=${folded.quality?.hasKey ? "yes" : "LOSS"}`);
+  }
+
+  await loadFifoLotsFromStores();
+  for (const t of tokens) {
+    if (!isUsableLot(fifoLots[t.symbol])) continue;
+    applyLotToNet(netPositions, fifoLots[t.symbol]);
+    applyLotToToken(t, fifoLots[t.symbol]);
+  }
+  try {
+    const recall = loadTurnRecallStore(TURN_RECALL_FILENAME);
+    if (recall.fills > 0) {
+      console.log(`   🎒 turn recall: ${recall.fills} fills · ${recall.hitchEvents} hitch (usage units, no invented $)`);
+    }
+  } catch { /* optional disk */ }
+
+  waveHlLedger = loadWaveHlLedger({
+    positionsBlob: waveHlFromPositions ? { waveHlLedger: waveHlFromPositions } : null,
+  });
+  const hlTokens = Object.keys(waveHlLedger.tokens || {}).length;
+  if (hlTokens) console.log(`📈 Wave HL ledger restored: ${hlTokens} token(s)`);
 
   const positions   = tokens.filter(t => t.entryPrice).map(t => t.symbol).join(", ");
   const pfOpen      = Object.keys(predFundPos).length;
@@ -7951,6 +10480,17 @@ async function loadFromGitHub() {
   const frozenCount = tokens.filter(t => t.frozen).length;
   console.log(`✅ ${activeCount} active tokens | ❄️ ${frozenCount} frozen | Positions: ${positions || "none"} | Piggy: ${piggyBank.toFixed(6)} ETH | Trades: ${tradeCount}`);
   console.log(`🧠 PredFund: ${predFund.toFixed(6)} ETH | Piggy: ${piggyBank.toFixed(6)} ETH | PF open: ${pfOpen} | PC open: ${pcOpen}`);
+}
+
+async function persistVitaRouterState() {
+  try {
+    await githubSave("vita-router-state.json", {
+      ...serializeVitaRouterState(),
+      course: serializeCourseStats(),
+    }, null);
+  } catch (e) {
+    console.log("⚠️  VITA router-state save (non-critical): " + (e.message || e));
+  }
 }
 
 async function saveToGitHub() {
@@ -7979,9 +10519,12 @@ async function saveToGitHub() {
       historyJson = null;
     }
     if (historyJson) {
+      try { writeLocalStateJson("history.runtime.json", historyToSave); } catch (e) {
+        console.log(`⚠️  history.runtime.json: ${e.message}`);
+      }
       historySha = await githubSave("history.json", historyToSave, historySha);
     }
-    positionsSha = await githubSave("positions.json", {
+    const positionsPayload = {
       lastSaved: new Date().toISOString(), piggyBank, totalSkimmed, tradeCount,
       hitchInjectCount, hitchInjectProfitUsd, hitchProveAnnounced,
       forcedExitDone: forcedExitState.done || {},
@@ -8015,12 +10558,23 @@ async function saveToGitHub() {
       // Per-token piggy bank contribution tracking — permanent record of what each token has earned
       piggyContrib: Object.fromEntries(tokens.map(t => [t.symbol, (waveStats[t.symbol]?.piggyContrib || 0)])),
       tradeLog:   tradeLog.slice(-200),
-    }, positionsSha);
+      fifoLots:   serializeFifoLots(fifoLots),
+      waveHlLedger,
+    };
+    try { saveWaveHlLedger(waveHlLedger); } catch (e) {
+      console.log(`⚠️  wave HL ledger: ${e.message}`);
+    }
+    try { writeLocalStateJson("positions.runtime.json", positionsPayload); } catch (e) {
+      console.log(`⚠️  positions.runtime.json: ${e.message}`);
+    }
+    positionsSha = await githubSave("positions.json", positionsPayload, positionsSha);
     lastSaveTime = Date.now();
+    try { await persistFifoLotsNow("saveToGitHub"); } catch {}
     // Save memory registry
     try { await githubSave("memory-registry.json", serializeRegistry(), null); } catch {}
     // Save VITA registry
     try { await githubSave("vita-registry.json", serializeVitaRegistry(), null); } catch {}
+    try { await persistVitaRouterState(); } catch {}
     // NOTE v18: VITA registry and memory are saved to GitHub only (chain already has them).
     // BTP calldata is ONLY for: trade receipts + VITA family message filler.
     // No full state dumps into calldata — that was causing kbit bloat.
@@ -8037,21 +10591,46 @@ function esc(str) {
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-async function tg(msg) {
+async function tg(msg, extra = {}) {
   try {
     const tok = process.env.TELEGRAM_BOT_TOKEN;
     const cid = process.env.TELEGRAM_CHAT_ID;
     if (!tok || !cid) { console.log("⚠️  Telegram: no token/chat_id set"); return; }
     // Telegram messages >4096 chars get rejected — split them
     const chunks = splitTelegramHtmlChunks(sanitizeTelegramHtml(msg), 4000);
-    for (const chunk of chunks) {
+    let markup = extra.reply_markup;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const last = i === chunks.length - 1;
+      const payload = { chat_id: cid.trim(), text: chunk, parse_mode: "HTML" };
+      if (extra.disable_web_page_preview) payload.disable_web_page_preview = true;
+      if (last && markup) payload.reply_markup = markup;
       const res = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: cid.trim(), text: chunk, parse_mode: "HTML" }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!data.ok) {
         console.log(`⚠️  Telegram send failed: ${data.description}`);
+        const desc = String(data.description || "");
+        const webAppBad = /web_app|BUTTON_TYPE_INVALID|Web_app|webapp|Web App URL/i.test(desc);
+        if (webAppBad && last && markup) {
+          markup = stripWebAppButtons(markup);
+          extra.reply_markup = markup;
+          try {
+            const retryWeb = { chat_id: cid.trim(), text: chunk, parse_mode: "HTML" };
+            if (extra.disable_web_page_preview) retryWeb.disable_web_page_preview = true;
+            if (markup) retryWeb.reply_markup = markup;
+            const retryRes = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(retryWeb),
+            });
+            const retryData = await retryRes.json();
+            if (retryData.ok) continue;
+          } catch (re) {
+            console.log(`⚠️  Telegram web_app strip retry failed: ${re.message}`);
+          }
+        }
         // Retry as plain text — strip ALL html tags and decode entities
         try {
           const plain = chunk
@@ -8060,9 +10639,11 @@ async function tg(msg) {
             .replace(/&gt;/g, ">")
             .replace(/&amp;/g, "&")
             .replace(/&quot;/g, '"');
+          const retry = { chat_id: cid.trim(), text: plain };
+          if (last && markup) retry.reply_markup = markup;
           await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: cid.trim(), text: plain }),
+            body: JSON.stringify(retry),
           });
         } catch (re) { console.log(`⚠️  Telegram plain-text retry failed: ${re.message}`); }
       }
@@ -8078,7 +10659,7 @@ async function sendMiniUpdate(bal, ethUsd) {
     lines += `💰 ${bal.tradeableWithWeth.toFixed(4)} ETH ($${(bal.tradeableWithWeth*ethUsd).toFixed(2)}) | 🐷 ${piggyBank.toFixed(6)} | #${tradeCount}\n`;
     lines += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-    for (const t of tokens) {
+    for (const t of hourlyReportTokens(tokens)) {
       const price = history[t.symbol]?.lastPrice;
       if (!price) { lines += `⏳ ${t.symbol} loading\n`; continue; }
       const bal2  = getCachedBalance(t.symbol);
@@ -8118,7 +10699,7 @@ async function sendFullReport(bal, ethUsd, title) {
     let lines = "";
     const gasCost = await estimateGasCostEth();
 
-    for (const t of tokens) {
+    for (const t of hourlyReportTokens(tokens)) {
       const price = history[t.symbol]?.lastPrice;
       if (!price) { lines += `\n⏳ <b>${t.symbol}</b> — loading\n`; continue; }
       const tbal  = getCachedBalance(t.symbol);
@@ -8155,6 +10736,31 @@ async function sendFullReport(bal, ethUsd, title) {
   } catch (e) { console.log(`Report error: ${e.message}`); }
 }
 
+function collectVitaFeedSeats(ethUsd) {
+  const usd = Number(ethUsd) || 0;
+  return (tokens || [])
+    .filter((t) => t && t.symbol && !t.disabled)
+    .map((t) => {
+      const price = history[t.symbol]?.lastPrice || 0;
+      let pred = null;
+      try {
+        pred = computeWavePrediction(t.symbol, price, usd) || wavePredictions[t.symbol] || null;
+      } catch { pred = wavePredictions[t.symbol] || null; }
+      const hist = history[t.symbol] || {};
+      const tradeCount = Number(t.tradeCount || hist.tradeCount || hist.trades || 0) || 0;
+      return {
+        symbol: t.symbol,
+        price,
+        minTrough: getMinTrough(t.symbol),
+        maxPeak: getMaxPeak(t.symbol),
+        predictedUp: pred ? pred.goingDown === false : false,
+        frozen: !!t.frozen,
+        disabled: !!t.disabled,
+        tradeCount,
+      };
+    });
+}
+
 // ── TELEGRAM COMMAND HANDLER ──────────────────────────────────────────────────
 let lastUpdateId = 0;
 async function checkTelegramCommands(cdp, bal, ethUsd) {
@@ -8168,16 +10774,148 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
     for (const upd of data.result) {
       lastUpdateId = upd.update_id;
-      const raw  = upd.message?.text?.trim() || "";
+      const cb = upd.callback_query;
+      if (cb?.id) {
+        try {
+          await fetch(`https://api.telegram.org/bot${tok}/answerCallbackQuery`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ callback_query_id: cb.id }),
+          });
+        } catch { /* spinner stop is best-effort */ }
+      }
+      // Caption counts too — file uploads often put /vitafeed file in caption.
+      // Inline buttons send callback_data as /vita read FILE (click-through).
+      const raw = (cb?.data || upd.message?.text || upd.message?.caption || "").trim();
       const text = raw.toLowerCase();
-      // Compare chat IDs robustly — trim whitespace, handle numeric IDs
-      const msgChatId = upd.message?.chat?.id?.toString().trim();
+      const msgChatId = (cb?.message?.chat?.id || upd.message?.chat?.id)?.toString().trim();
       const expectedChatId = cid.trim();
-      if (!raw || msgChatId !== expectedChatId) {
+      const mediaOnMessage = pickTelegramMedia(upd.message || {});
+      const awaitingVitaFile = msgChatId ? peekVitaFeedFileAwait(msgChatId) : null;
+
+      if (msgChatId !== expectedChatId) {
         if (raw) console.log(`📱 Ignoring msg from chat ${msgChatId} (expected ${expectedChatId})`);
         continue;
       }
-      console.log(`📱 Telegram: ${raw}`);
+      // Allow attachment-only messages when /vitafeed file asked us to wait.
+      if (!raw && !(awaitingVitaFile && mediaOnMessage.ok)) {
+        continue;
+      }
+      console.log(`📱 Telegram: ${raw || "(attachment)"}`);
+
+      // ── VITAFEED FILE await — next song/video/doc after "/vitafeed file"
+      if (awaitingVitaFile && mediaOnMessage.ok && !text.startsWith("/vitafeed")) {
+        if (awaitingVitaFile.purpose === "compress") {
+          takeVitaFeedFileAwait(msgChatId);
+          try {
+            const dl = await downloadTelegramFileBytes(mediaOnMessage.fileId);
+            if (!dl.ok) {
+              await tg("❌ compression read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            const out = await handleVitaFeedAction({
+              action: "compress",
+              body: "add",
+              chatId: msgChatId,
+              compressionBytes: dl.bytes,
+              compressionName: mediaOnMessage.name,
+              compressionMime: mediaOnMessage.mime,
+            });
+            let msg = "📡 <b>COMPRESSION</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+            msg += "Next: <code>/vitafeed confirm</code> injects the verified key. Nothing sent yet.";
+            await tg(msg, { reply_markup: out.keyboard || buildVitaFeedStagedKeyboard() });
+          } catch (e) {
+            await tg("❌ compression failed: " + (e.message || e));
+          }
+          continue;
+        }
+        if (awaitingVitaFile.purpose === "photos") {
+          takeVitaFeedFileAwait(msgChatId);
+          try {
+            const dl = await downloadTelegramFileBytes(mediaOnMessage.fileId);
+            if (!dl.ok) {
+              await tg("❌ photo read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            const out = await handleVitaFeedAction({
+              action: "photos",
+              body: "add",
+              chatId: msgChatId,
+              photoBytes: dl.bytes,
+              photoName: mediaOnMessage.name,
+              photoMime: mediaOnMessage.mime,
+            });
+            let msg = "📷 <b>PHOTOS DRIVE</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+            msg += "Enqueue: <code>/vitafeed enqueue photo " + (out.id || out.filed?.id || "") + "</code> → confirm|override.";
+            await tg(msg, { reply_markup: out.keyboard || buildVitaFeedStagedKeyboard() });
+          } catch (e) {
+            await tg("❌ photos add failed: " + (e.message || e));
+          }
+          continue;
+        }
+        takeVitaFeedFileAwait(msgChatId);
+        await tg(
+          "📡 <b>VITAFEED FILE</b> — got <code>" + mediaOnMessage.name + "</code> (" +
+          mediaOnMessage.kind + "). Packetizing to spaced VIN format…",
+        );
+        try {
+          const packed = await packetizeTelegramMessageForVitaFeed(upd.message, { recommend: true });
+          if (!packed.ok) {
+            await tg("❌ VITAFILE packetize failed: " + packed.reason);
+            continue;
+          }
+          await tg(
+            "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
+            " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets\n" +
+            (packed.compression?.replyLine ? packed.compression.replyLine + "\n" : "") +
+            "Building cost card…",
+          );
+          let quotes = {};
+          try {
+            const gwei = await getCurrentGasGwei();
+            const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: 256, btpInscribe: true });
+            quotes = {
+              live: true,
+              gwei,
+              ethUsd,
+              l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              gasCostEth: await estimateGasCostEth().catch(() => 0),
+              source: hitchL1.ok
+                ? "live Base GasPriceOracle + ETH mark"
+                : "live gwei/ETH mark, L1 fallback 0",
+            };
+          } catch { /* DEMO quotes inside helper */ }
+          // File await is PREVIEW only — never auto-confirm (no sendTransaction).
+          const out = await handleVitaFeedAction({
+            action: "preview",
+            body: packed.body,
+            chatId: msgChatId,
+            quotes,
+            seats: collectVitaFeedSeats(ethUsd),
+          });
+          let msg = "📡 <b>VITAFEED FILE READY</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+          msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>\n";
+          msg += "Next: <code>/vitafeed confirm</code> or <code>/vitafeed override force</code>\n";
+          msg += "Player: " +
+            "<a href=\"" + vitaPlayerHref("/vita/feed-player").replace(/&/g, "&amp;") +
+            "\">Watch popup</a> after seal (PLAY PROOF peaces locations).";
+          await tg(msg, {
+            reply_markup: out.keyboard || buildVitaFeedStagedKeyboard(),
+          });
+        } catch (e) {
+          await tg("❌ vitafeed file await failed: " + (e.message || e));
+        }
+        continue;
+      }
+      if (awaitingVitaFile && raw && !text.startsWith("/vitafeed") && !mediaOnMessage.ok) {
+        await tg(
+          "📡 Still waiting for a file.\n" +
+          vitaFeedPleaseInsertFileText().replace(/^📡 VITAFEED FILE — /, ""),
+        );
+        continue;
+      }
 
       // ── 🔐 VAULT + KEYSTORE SESSION — Step 2: catch value reply ────────────
       const vaultSession = getVaultSession(msgChatId);
@@ -8239,6 +10977,67 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       // Each command wrapped individually — one crash can never kill the whole handler
       try {
+        // ── /help|/pick|bare /sell — click-through sections + token boxes
+        const parsedHelp = parseHelpCommand(raw);
+        const parsedPick = parsePickCommand(raw);
+        if (parsedHelp.ok && (parsedHelp.action === "help" || parsedHelp.action === "section")) {
+          const out = handleHelpAction({
+            action: parsedHelp.action,
+            section: parsedHelp.section || null,
+            symbols: tokens.map((t) => t.symbol),
+          });
+          await tg(
+            "🏄 <b>HELP</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            { reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }) },
+          );
+          continue;
+        }
+        if (parsedHelp.ok && parsedHelp.action === "routes") {
+          await tg("✅ <b>ROUTE SYSTEMS CHECK</b> running…");
+          try {
+            const report = await runRouteSystemsCheck({
+              cwd: process.cwd(),
+              symbols: tokens.map((t) => t.symbol),
+              write: true,
+              includeChainLayer: true,
+              env: process.env,
+            });
+            // Force-stage §SYSCHECK§ for Confirm|Override seal.
+            try {
+              const { stageVitaFeed, prepareVitaFeed, resolveVitaFeedQuotes } = await import("./vita/vita-feed.js");
+              const quotes = resolveVitaFeedQuotes({});
+              const prepared = prepareVitaFeed(report.forceInjectBody, quotes);
+              stageVitaFeed(msgChatId || "telegram", {
+                body: report.forceInjectBody,
+                prepared,
+                quotes,
+                source: "systems-check-routes",
+              });
+            } catch { /* stage best-effort */ }
+            await tg(
+              "✅ <b>ROUTE CHECK " + esc(report.verdict) + "</b>\n<pre>" +
+              esc(formatRouteSystemsCheckCard(report)).slice(0, 3500) +
+              "</pre>",
+              { reply_markup: withHomeButton(buildRouteCheckKeyboard()) },
+            );
+          } catch (e) {
+            await tg("❌ route check failed: " + (e.message || e) + "\nNothing invented.");
+          }
+          continue;
+        }
+        if (parsedPick.ok && (parsedPick.action === "pick" || parsedPick.action === "trade")) {
+          const out = handleHelpAction({
+            action: parsedPick.action === "trade" ? "trade" : "pick",
+            verb: parsedPick.verb,
+            symbols: tokens.map((t) => t.symbol),
+          });
+          await tg(
+            "🪙 <b>PICK</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            { reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }) },
+          );
+          continue;
+        }
+
         if (text.startsWith("/buy ")) {
         const parsed = parseManualBuyCommand(raw);
         const sym = parsed?.symbol;
@@ -8256,10 +11055,102 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         if (manualCommands.find(c => c.symbol===sym && c.action==="buy")) { await tg(`⚠️ BUY ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "buy", usd: parsed.usd || 0 });
         await tg(operatorBuyQueuedTelegram(sym, parsed.usd));
+        if (cdpClient) {
+          try { await flushPendingOperatorBuys(cdpClient); }
+          catch (e) { console.log(`⚠️  Immediate /buy flush failed: ${e.message} — remains queued`); }
+        }
+      } else if (text === "/hold" || text === "/hold sells" || text.startsWith("/hold sells")) {
+        const arg = text.replace(/^\/hold\s*/i, "").trim().toLowerCase();
+        if (arg === "sells" || arg === "sells on" || arg === "on" || arg === "" || text === "/hold") {
+          armHoldAllSells(process.env);
+          await tg(`🛑 <b>HOLD_ALL_SELLS ON</b>\nNo token sells until you approve.\n$HOME never-sell stays on.\nClear Railway <code>HOLD_ALL_SELLS=no</code> when ready.`);
+        } else if (arg === "sells off" || arg === "off" || arg === "approve") {
+          clearHoldAllSells(process.env);
+          await tg(
+            `✅ <b>SELL BARRIER LIFTED</b>\n` +
+            `${holdAllSellsStatusLine()}\n` +
+            `$HOME stays never-sell (APPROVE_HOME_SELL unset).\n` +
+            `Other bags may sell when gated green.\n` +
+            `Persist: Railway <code>HOLD_ALL_SELLS=no</code>.\n` +
+            `Base cascade program: /cascade`,
+          );
+        } else {
+          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off`);
+        }
+      } else if (parseRhCascadeCommand(raw).ok) {
+        const cmd = parseRhCascadeCommand(raw);
+        if (cmd.action === "unlock") {
+          const unlocked = unlockSellBarrier(process.env);
+          await tg(
+            `✅ <b>CASCADE SELLS UNLOCKED</b>\n${esc(unlocked.status)}\n` +
+            `$HOME never-sell · Base rail LOWER→dividend→MAIN · /cascade`,
+          );
+        } else if (cmd.action === "hierarchy") {
+          await tg(formatCascadeHierarchyCard());
+        } else {
+          const book = flowArm();
+          const snap = latestSnapshot(book);
+          const rhRows = (snap?.quotes || []).map((q) => ({
+            symbol: String(q.pair || "").replace("-", ""),
+            mark_price: String(q.mark),
+            bid_price: q.bid != null ? String(q.bid) : undefined,
+            ask_price: q.ask != null ? String(q.ask) : undefined,
+            open_price: q.prevClose != null ? String(q.prevClose) : undefined,
+            updated_at: q.at || undefined,
+          }));
+          // Base program runs on catalog even without RH; RH only overlays wave marks.
+          const ethPx = Number(cachedEthUsd) > 0 ? Number(cachedEthUsd) : 2700;
+          const ethBal = Number.isFinite(lastEthBalance) ? lastEthBalance : 0;
+          const wethBal = Number.isFinite(lastWethBalance) ? lastWethBalance : 0;
+          const liquidUsd = (ethBal + wethBal) * ethPx;
+          const homeTok = tokens.find((t) => String(t.symbol).toUpperCase() === "HOME");
+          const homePx = Number(homeTok?.price || homeTok?.lastPrice || 0);
+          const homeBal = Number(homeTok?.balance || homeTok?.units || 0);
+          const homeBagUsd = homeBal > 0 && homePx > 0 ? homeBal * homePx : 11;
+          let bagsDividendUsd = 0;
+          try {
+            for (const row of collectWaveBoardRows()) {
+              if (row?.dividendPct > 0 && row?.plan?.withdrawUsd > 0) {
+                bagsDividendUsd += Number(row.plan.withdrawUsd) || 0;
+              }
+            }
+          } catch { /* board optional */ }
+          const plan = planRhBaseCascade({
+            rhRows,
+            catalog: tokens,
+            flowBook: book,
+            unlockSells: false,
+            maxHops: 8,
+            liquidUsd,
+            homeBagUsd,
+            ethUsd: ethPx,
+            bagsDividendUsd,
+          });
+          if (rhRows.length) saveFlowArm();
+          try { fileRhCascadeLearn(plan); } catch (e) { console.log(`⚠️  cascade learn: ${e.message}`); }
+          if (cmd.action === "predict") {
+            await tg(formatCascadePredictionCard(plan));
+          } else if (cmd.action === "outcomes") {
+            await tg(formatRhCascadeOutcomes(plan));
+          } else if (cmd.action === "trail") {
+            await tg(
+              `💉 <b>CASCADE TRAIL</b> (Base hitch)\n` +
+              `commit <code>${esc(plan.trail.commit8)}</code>\n` +
+              `<code>${esc(plan.trail.line)}</code>\n` +
+              `RH = wave data only · loc empty until a real Base sell seals it.`,
+            );
+          } else {
+            await tg(formatRhCascadeCard(plan));
+          }
+        }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);
         const sym = parsed?.symbol;
         if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /sell SYMBOL [pct|all]`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: manualSellReason(parsed.pct), env: process.env });
+          if (hold.block) { await tg(`🛑 <b>SELL blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.some(c => isMatchingManualSell(c, parsed))) { await tg(`⚠️ SELL ${sym} already queued`); continue; }
         if (Math.abs(parsed.pct - 0.5) < 1e-9) {
           manualCommands.push({ symbol: sym, action: "sellhalf" });
@@ -8274,6 +11165,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/sellhalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown: ${sym}`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: manualSellReason(0.5), env: process.env });
+          if (hold.block) { await tg(`🛑 <b>SELL HALF blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.some(c => isMatchingManualSell(c, { symbol: sym, pct: 0.5 }))) { await tg(`⚠️ SELL HALF ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "sellhalf" });
         await tg(`📱 <b>SELL HALF ${sym} queued</b>`);
@@ -8281,6 +11176,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const parsed = parsePiggyUnlockCommand(raw);
         const sym = parsed?.symbol;
         if (!sym || !tokens.find(t => t.symbol === sym)) { await tg(`❓ Unknown: ${sym || "?"}\nUsage: /piggyunlock SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "PIGGY UNLOCK", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>PIGGY UNLOCK blocked</b>\n${hold.why}`); continue; }
+        }
         if (manualCommands.find(c => c.symbol === sym && c.action === "piggyunlock")) { await tg(`⚠️ PIGGY UNLOCK ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "piggyunlock" });
         await tg(`🐷 <b>PIGGY UNLOCK ${sym} queued</b>\nWill sell the dust pile (reason: PIGGY UNLOCK)`);
@@ -8293,6 +11192,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/exit ") && !text.startsWith("/exitpct") && !text.startsWith("/exithalf")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown token: ${sym}\nUsage: /exit SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         const bal = getCachedBalance(sym);
         // Allow exit even without entry price — just needs a balance
@@ -8313,6 +11216,10 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
       } else if (text.startsWith("/exithalf ")) {
         const sym = raw.split(" ")[1]?.toUpperCase();
         if (!tokens.find(t=>t.symbol===sym)) { await tg(`❓ Unknown token: ${sym}\nUsage: /exithalf SYMBOL`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT HALF", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         const bal = getCachedBalance(sym);
         if (!token.entryPrice && bal < 0.001) { await tg(`❓ <b>${sym}</b> — no position and no balance found`); continue; }
@@ -8335,11 +11242,249 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const pct   = parseFloat(parts[2]);
         if (!sym || !tokens.find(t=>t.symbol===sym)) { await tg(`❓ Usage: /exitpct SYMBOL 75\nExample: /exitpct BRETT 75 sells 75% to ETH`); continue; }
         if (!pct || isNaN(pct) || pct <= 0 || pct > 100) { await tg(`❓ Percentage must be 1–100\nExample: /exitpct BRETT 75`); continue; }
+        {
+          const hold = shouldBlockSell({ symbol: sym, reason: "CLEAN EXIT PCT", env: process.env });
+          if (hold.block) { await tg(`🛑 <b>EXIT blocked</b>\n${hold.why}`); continue; }
+        }
         const token = tokens.find(t=>t.symbol===sym);
         if (!token.entryPrice) { await tg(`❓ <b>${sym}</b> — no open position to exit`); continue; }
         if (manualCommands.find(c => c.symbol===sym && c.action==="exitonly")) { await tg(`⚠️ EXIT ${sym} already queued`); continue; }
         manualCommands.push({ symbol: sym, action: "exitonly", pct: pct / 100 });
         await tg(`🚪 <b>CLEAN EXIT ${sym} ${pct}% queued</b>\nWill sell to ETH — NO cascade will fire`);
+      } else if (
+        text === "/provenplayer" || text === "/zkplayer" || text === "/zkav1"
+        || (text && text.startsWith("/provenplayer "))
+        || (text && text.startsWith("/zkplayer "))
+      ) {
+        try {
+          const parsedPlay = parseProvenPlayerCommand(raw);
+          const out = await handleProvenPlayerAction({
+            action: parsedPlay.action || "player",
+            chunk: parsedPlay.chunk,
+          });
+          await tg(
+            "▶ <b>PROVEN PLAYER</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            { reply_markup: out.keyboard, disable_web_page_preview: true },
+          );
+        } catch (e) {
+          await tg("❌ proven player failed: " + (e.message || e) + "\nNothing invented.");
+        }
+      } else if (
+        text === "/tokens" || text === "/tok" || text === "/token"
+        || (text && text.startsWith("/tok ")) || (text && text.startsWith("/token "))
+        || text === "/dex" || text === "/dexreader"
+        || (text && text.startsWith("/dex ")) || (text && text.startsWith("/dexreader "))
+        || text === "/legit" || text === "/tokenlegit"
+        || (text && text.startsWith("/legit ")) || (text && text.startsWith("/tokenlegit "))
+        || text === "/tokenplayer" || text === "/tokplay"
+        || (text && text.startsWith("/tokenplayer ")) || (text && text.startsWith("/tokplay "))
+        || text === "/chains" || text === "/chain" || text === "/portfolio" || text === "/multichain" || text === "/otherpath"
+        || (text && text.startsWith("/chains "))
+      ) {
+        const parsedTok = parseTokenClickCommand(raw);
+        const symbols = tokens.map((t) => t.symbol);
+        const bags = {};
+        for (const t of tokens) {
+          const px = Number(t.lastPrice || t.price || t.entryPriceUsd);
+          const bal = Number(t.balance || t.tokenBal || 0);
+          if (Number.isFinite(px) && px > 0 && bal > 0) bags[t.symbol] = px * bal;
+        }
+        try {
+          const out = await handleTokenPlayerAction({
+            action: parsedTok.action || "catalog",
+            symbol: parsedTok.symbol || "",
+            bags,
+            fetchLive: parsedTok.action === "dex" || parsedTok.action === "legit" || parsedTok.action === "token",
+          });
+          let markup = out.keyboard;
+          if (out.action === "catalog" || out.action === "dex-catalog" || out.action === "legit-catalog" || out.action === "player") {
+            markup = buildTokenCatalogKeyboard(symbols);
+          } else if (out.symbol && out.symbol !== "ETH" && (out.action === "token" || out.action === "dex" || out.action === "legit")) {
+            markup = buildTokenActionKeyboard(out.symbol);
+          }
+          let body = out.html || "<pre>" + esc(out.reply || formatTokenClickCard(parsedTok.symbol || "", { symbols })) + "</pre>";
+          if (parsedTok.symbol && out.action === "token") {
+            body += "\n\n" + waveClickCard(out.symbol || parsedTok.symbol);
+            const flowNote = formatFlowSymbolNote(flowArm(), out.symbol || parsedTok.symbol);
+            if (flowNote) body += "\n\n" + flowNote;
+            refreshWaveChainPebbles().catch(() => {});
+          }
+          await tg(
+            "🪙 <b>TOKENS</b>\n" + body,
+            { reply_markup: markup, disable_web_page_preview: true },
+          );
+        } catch (e) {
+          await tg("❌ token player failed: " + (e.message || e) + "\nNothing invented.");
+        }
+      // ── /home|/menu|/start — sectioned clickable routes (inline keyboards)
+      } else if (
+        text === "/rh" ||
+        text === "/rhfund" ||
+        text === "/robinhood" ||
+        (text && (text.startsWith("/rh ") || text.startsWith("/rhfund ") || text.startsWith("/rhconfirm ")))
+      ) {
+        try {
+          const parsed = parseRhFundCommand(raw);
+          const out = handleRhFundAction({
+            action: parsed.action || "root",
+            source: parsed.source || "",
+          });
+          if (Array.isArray(out.queueBuys) && out.queueBuys.length) {
+            for (const qb of out.queueBuys) {
+              const sym = String(qb.symbol || "").toUpperCase();
+              const tok = tokens.find((t) => t.symbol === sym);
+              if (!tok) {
+                await tg(`❓ RH fund: unknown Base token ${sym}`);
+                continue;
+              }
+              if (isCatalogFrozen(tok)) {
+                await tg(`❄️ <b>${sym} is frozen</b> — RH fund Base buy blocked.\n${tok.frozenReason || "Catalog freeze."}`);
+                continue;
+              }
+              const usd = Number(qb.usd) || 1;
+              const below = operatorBuyBelowMin({ symbol: sym, usd, token: tok });
+              if (below) {
+                await tg(`🛑 <b>${sym} min buy $${minBuyUsdForToken(tok).toFixed(2)}</b>\n${below}`);
+                continue;
+              }
+              if (manualCommands.find((c) => c.symbol === sym && c.action === "buy")) {
+                await tg(`⚠️ BUY ${sym} already queued`);
+                continue;
+              }
+              manualCommands.push({
+                symbol: sym,
+                action: "buy",
+                usd,
+                source: qb.source || "RH_FUND",
+              });
+              await tg(operatorBuyQueuedTelegram(sym, usd));
+            }
+            if (cdpClient) {
+              try { await flushPendingOperatorBuys(cdpClient); }
+              catch (e) { console.log(`⚠️  RH fund /buy flush failed: ${e.message} — remains queued`); }
+            }
+          }
+          await tg(
+            "📱 <b>RH → BASE FUND</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ rh fund failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/home" ||
+        text === "/menu" ||
+        text === "/start" ||
+        text === "/homesim" ||
+        text === "/engines" ||
+        (text && text.startsWith("/home "))
+      ) {
+        try {
+          const parsed = parseHomeCommand(raw);
+          const out = handleHomeAction({
+            action: parsed.action || "home",
+            section: parsed.section || "all",
+            quotes: { ethUsd: ethUsd || 0 },
+          });
+          await tg(
+            "🏠 <b>VITA HOME</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ home failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/agents" ||
+        text === "/agentchat" ||
+        text === "/agent" ||
+        (text && (text.startsWith("/agents ") || text.startsWith("/agentchat ") || text.startsWith("/agent ")))
+      ) {
+        try {
+          const parsed = parseAgentChatCommand(raw);
+          const out = handleAgentChatAction({
+            action: parsed.action || "chat",
+            agentId: parsed.agentId || "storage-token",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🤖 <b>AGENT CHAT</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ agents failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/os" ||
+        text === "/brainos" ||
+        text === "/osbuilder" ||
+        text === "/buildbrain" ||
+        text === "/build" ||
+        (text && (
+          text.startsWith("/os ") ||
+          text.startsWith("/brainos ") ||
+          text.startsWith("/osbuilder ") ||
+          text.startsWith("/buildbrain ") ||
+          text.startsWith("/build ")
+        ))
+      ) {
+        try {
+          const parsed = parseOsBuilderCommand(raw);
+          const out = handleOsBuilderAction({
+            action: parsed.action || "home",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🖥 <b>VITA OS BUILDER</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ os builder failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      } else if (
+        text === "/waveai" ||
+        text === "/rhwave" ||
+        text === "/waverobin" ||
+        text === "/waveagent" ||
+        (text && (
+          text.startsWith("/waveai ") ||
+          text.startsWith("/rhwave ") ||
+          text.startsWith("/waverobin ") ||
+          text.startsWith("/waveagent ")
+        ))
+      ) {
+        try {
+          const parsed = parseWaveRobinCommand(raw);
+          const out = handleWaveRobinAction({
+            action: parsed.action || "home",
+            body: parsed.body || "",
+          });
+          await tg(
+            "🌊 <b>WAVE-ROBIN</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+            {
+              reply_markup: out.keyboard || undefined,
+              disable_web_page_preview: true,
+            },
+          );
+        } catch (e) {
+          await tg("❌ wave-robin failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (text === "/status") {
         await sendFullReport(bal, ethUsd, "📊 STATUS");
       } else if (text === "/cycles" || text === "/succession") {
@@ -8353,7 +11498,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         await tg(
           `🔁 <b>NO-LOSS SUCCESSION</b>\n` +
           `Align gate: ≥${align} of trough/momentum/pred/pullback/leftover/smartMoney\n` +
-          `Piggy + Eureka hitch ride leftover-covered fills only.\n\n` +
+          `Piggy + VITA hitch ride leftover-covered fills only.\n\n` +
           `<b>Cycles</b>\n${report}\n\n` +
           `<b>Live min buys (WETH books)</b>\n${liveMins || "none"}`
         );
@@ -8377,13 +11522,96 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const recent = costMistakeLog.slice(-8).map((r) =>
           `${r.symbol} [${r.code}] $${(r.tradeUsd || 0).toFixed(2)} — ${(r.reason || "").slice(0, 80)}`
         ).join("\n") || "none yet";
+        const avoid = shouldAvoid({ minConviction: 0.35 }).slice(0, 5)
+          .map((h) => `${h.symbol || "*"} @${h.regime} c=${h.conviction.toFixed(2)}`)
+          .join("\n") || "none yet";
         await tg(
           `🧠 <b>COST-EDGE LESSONS</b>\n` +
           `${sum.message}\n\n` +
           `Deferred inject-mains: ${INJECT_MAIN_MAJORS_DEFERRED.join(", ")}\n` +
           `Active inject-mains: ${INJECT_MAIN_PLAYERS.join(", ")}\n\n` +
-          `<b>Recent refusals / lessons</b>\n${recent}`
+          `<b>Recent refusals / lessons</b>\n${recent}\n\n` +
+          `<b>Finetune avoid (sixth lobe)</b>\n${avoid}`
         );
+      } else if (text === "/brain" || text === "/lobes") {
+        const loc = locDepositoryStatus();
+        const quality = vitaQuality(getLastVitaPacket() || "");
+        const status = buildBrainStatus({
+          hasKey: quality.hasKey,
+          sealedCount: loc.sealed ?? 0,
+          tapeCount: getHypothesisGraph().length,
+          judgeLessons: costMistakeLog.length,
+          burstAlign: Number(process.env.CYCLE_ALIGN_MIN) || 2,
+          tapeNote: `graph=${getHypothesisGraph().length} · costMistakes=${costMistakeLog.length}`,
+          provenanceNote: `§LOC§ ${loc.token || "?"} · sealed=${loc.sealed ?? "?"}`,
+          judgeNote: summarizeCostMistakes(costMistakeLog).message,
+          burstNote: "align gate + smart money (live cycle)",
+        });
+        await tg(formatBrainTelegram(status));
+      } else if (text && text.startsWith("/hyp ")) {
+        const body = text.slice(5).trim();
+        if (!body) {
+          await tg("Usage: <code>/hyp [thesis]</code> or <code>/hyp SYMBOL|regime|thesis</code>");
+        } else {
+          const parts = body.split("|").map((p) => p.trim()).filter(Boolean);
+          let symbol = "";
+          let regime = "general";
+          let thesis = body;
+          if (parts.length >= 3) {
+            symbol = parts[0];
+            regime = parts[1];
+            thesis = parts.slice(2).join("|");
+          } else if (parts.length === 2) {
+            symbol = parts[0];
+            thesis = parts[1];
+          }
+          const hyp = fileHypothesis({
+            thesis,
+            symbol,
+            regime,
+            source: "telegram",
+            status: "pending",
+            tags: ["manual", "operator"],
+          });
+          const xmem = hypothesisToXmem(hyp);
+          await tg(
+            `🧩 <b>HYPOTHESIS FILED</b>\n` +
+            `id: <code>${hyp.id}</code>\n` +
+            `${hyp.symbol || "*"} @${hyp.regime} · ${hyp.status}\n` +
+            `${hyp.thesis}\n\n` +
+            `XMEM overlay: ns=${xmem.ns} type=${xmem.type}\n` +
+            `<i>/hypok ${hyp.id} · /hypfail ${hyp.id} · /brain</i>`
+          );
+          try { await persistVitaRouterState(); } catch { /* non-critical */ }
+        }
+      } else if (text && (text.startsWith("/hypfail ") || text.startsWith("/hypok "))) {
+        const fail = text.startsWith("/hypfail ");
+        const id = text.split(/\s+/)[1];
+        const hyp = resolveHypothesis(id, fail ? "failed" : "confirmed", {
+          kind: fail ? "fail" : "confirm",
+          score: 85,
+          note: fail ? "operator marked failed" : "operator marked confirmed",
+        });
+        if (!hyp) {
+          await tg(`❓ Unknown hypothesis id: <code>${id || "?"}</code>`);
+        } else {
+          await tg(
+            `${fail ? "🛑" : "✅"} <b>${hyp.id}</b> → ${hyp.status}\n` +
+            `${hyp.symbol || "*"} @${hyp.regime} c=${hyp.conviction.toFixed(2)}\n` +
+            `${hyp.thesis}`
+          );
+          try { await persistVitaRouterState(); } catch { /* non-critical */ }
+        }
+      } else if (text === "/hyps" || text === "/hypotheses") {
+        const rows = queryHypotheses({ limit: 12 });
+        if (!rows.length) {
+          await tg("🧩 No hypotheses yet — COST_EDGE refusals auto-file, or <code>/hyp thesis</code>");
+        } else {
+          const lines = rows.map((h) =>
+            `· <code>${h.id}</code> [${h.status}] ${h.symbol || "*"} @${h.regime} c=${h.conviction.toFixed(2)}\n  ${h.thesis.slice(0, 90)}`
+          );
+          await tg(`🧩 <b>HYPOTHESIS GRAPH</b> (${rows.length})\n\n` + lines.join("\n"));
+        }
       } else if (text === "/turbo") {
         // Turbo mode: already the new default — confirm current settings
         await tg(
@@ -8438,10 +11666,104 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `\n<i>Use /fib SYMBOL for the full ladder map</i>`;
           await tg(msg);
         }
+      } else if (text === "/routes") {
+        let gweiNow = 0;
+        try { gweiNow = await getCurrentGasGwei(); } catch { gweiNow = 0; }
+        const book = injectRoutes();
+        if (Number(gweiNow) > 0) {
+          fileRouteQuote(book, { chain: "base", gwei: gweiNow });
+          saveInjectRoutes();
+        }
+        const built = buildFlowRouteLine(flowArm());
+        const wire = chooseInjectWire(built.line || "vita data-field");
+        const routes = rankInjectRoutes({
+          wireBytes: wire.wireBytes,
+          quotes: latestQuotes(book),
+          history: book.quotes,
+        });
+        await tg(formatInjectRoutes({ wire, routes, book }));
+      } else if (text === "/flow" || (text && text.startsWith("/flow "))) {
+        const parts = raw.trim().split(/\s+/);
+        const sub = (parts[1] || "").toLowerCase();
+        const arg = parts[2] || "";
+        const book = flowArm();
+        if (sub === "watch" && arg) {
+          const out = watchPair(book, arg);
+          saveFlowArm();
+          await tg(`● <b>${esc(out.pair)}</b> is on the flow watch.\nA mark appears after the next filed snapshot.`);
+        } else if (sub === "drop" && arg) {
+          const out = dropPair(book, arg);
+          saveFlowArm();
+          await tg(out.ok ? `○ <b>${esc(out.pair)}</b> left the flow watch.` : `❓ <b>${esc(out.pair)}</b> was not on the watch.`);
+        } else if (sub === "index") {
+          await tg(formatFlowIndex(book));
+        } else if (sub === "route") {
+          await tg(formatFlowRoute(book));
+        } else {
+          await tg(formatFlowBoard(book));
+        }
+      } else if (text === "/lull") {
+        refreshWaveChainPebbles().catch(() => {});
+        await tg(formatLullTelegram(liveWaveDesk()));
+      } else if (text === "/waveagents") {
+        refreshWaveChainPebbles().catch(() => {});
+        await tg(formatWaveAgentsTelegram(liveWaveDesk()));
+      } else if (text === "/waveboard" || text.startsWith("/waveboard ")) {
+        const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
+        const rows = collectWaveBoardRows();
+        const cascade = pickCascadeToken(rows);
+        refreshWaveChainPebbles().catch(() => {});
+        if (sym) {
+          const row = rows.find((r) => r.symbol === sym);
+          if (!row) {
+            await tg(`❓ <b>${esc(sym)}</b> is not on the wave board.`);
+          } else {
+            await tg(formatWaveTokenTelegram(row, {
+              ride: lastWaveHlRide(waveHlLedger, sym),
+              cascade,
+            }) + "\n\n" + waveClickCard(sym));
+          }
+        } else {
+          await tg(formatWaveBoardTelegram(rows, { cascade }));
+        }
+      } else if (text === "/dividend" || text.startsWith("/dividend ")) {
+        const sym = raw.trim().split(/\s+/)[1]?.toUpperCase();
+        const rows = collectWaveBoardRows();
+        const cascade = pickCascadeToken(rows, { excludeSymbol: sym || null });
+        if (!sym) {
+          await tg(formatDividendMenu(rows, { cascade }));
+        } else if (!tokens.find((t) => t.symbol === sym)) {
+          await tg(`❓ Unknown: ${esc(sym)}\nUsage: /dividend SYMBOL`);
+        } else {
+          const row = rows.find((r) => r.symbol === sym);
+          if (!row || !(row.dividendPct > 0) || !row.plan || row.plan.blocked) {
+            await tg(
+              `⏸ <b>${esc(sym)}</b> dividend withheld\n` +
+              `${esc(row?.exitReason || "no wave row")}\n` +
+              `${row ? formatWaveStageSnippet(row) : ""}`
+            );
+          } else if (manualCommands.some((c) => c.symbol === sym && (c.action === "sell" || c.action === "sellhalf"))) {
+            await tg(`⚠️ SELL ${esc(sym)} already queued`);
+          } else {
+            manualCommands.push({ symbol: sym, action: "sell", pct: row.dividendPct });
+            const into = cascade ? `\nCascade seat: <b>${esc(cascade.symbol)}</b> ${cascade.arrow} ${cascade.confidence}% ${esc(cascade.stage)}` : "";
+            await tg(
+              `💸 <b>DIVIDEND ${esc(sym)} ${(row.dividendPct * 100).toFixed(0)}% queued</b>\n` +
+              `Withdraw ≈ $${row.plan.withdrawUsd.toFixed(2)} gross\n` +
+              `Leave ≈ $${row.plan.leaveUsd.toFixed(2)} in the bag\n` +
+              `${esc(row.exitReason)}` +
+              into +
+              `\nShort §WHL§ ride (utc|local|unix) banks on this sell if leftover covers it.`
+            );
+          }
+        }
       } else if (text === "/waves") {
         const gasCost = await estimateGasCostEth();
+        const board = collectWaveBoardRows();
+        const bySym = new Map(board.map((r) => [r.symbol, r]));
         let msg = `🌊 <b>WAVE STATUS v13 💓</b>\n🕐 ${new Date().toLocaleTimeString()}\n\n`;
-        msg += `<i>Buy MIN trough | Sell MAX peak | Indicators confirm</i>\n\n`;
+        msg += `<i>Buy MIN trough | Sell MAX peak | Arrow is the next move</i>\n`;
+        msg += `<i>/waveboard · /dividend SYMBOL · highs/lows stay logged</i>\n\n`;
         for (const t of tokens) {
           const p   = history[t.symbol]?.lastPrice;
           if (!p) { msg += `⏳ <b>${t.symbol}</b> — loading\n\n`; continue; }
@@ -8454,6 +11776,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           msg += `   Buy (MIN): $${minT?.toFixed(8)||"?"} (+${pct}% above)\n`;
           msg += `   Sell (MAX): $${maxP?.toFixed(8)||"?"}\n`;
           msg += `   Waves: ${getPeakCount(t.symbol)}P / ${getTroughCount(t.symbol)}T\n`;
+          msg += `   ${formatWaveStageSnippet(bySym.get(t.symbol))}\n`;
           msg += `   💓 ${ind.detail || "building..."}\n`;
           msg += arm.armed
             ? `   ✅ ARMED ${(arm.net*100).toFixed(2)}% net [${arm.priority}]\n\n`
@@ -8795,7 +12118,9 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           "   /sell SYMBOL [pct|all] \u2014 manual exit (leaves piggy dust)\n" +
           "   /sellhalf SYMBOL \u2014 sell 50%\n" +
           "   /piggyunlock SYMBOL \u2014 sell the locked dust pile\n" +
-          "   /waves \u2014 detailed levels"
+          "   /waves \u2014 detailed levels\n" +
+          "   /waveboard \u2014 stage, arrow, confidence, exit\n" +
+          "   /dividend SYMBOL \u2014 take 10-30% and leave the bag"
         );
 
       } else if (text === "/bank") {
@@ -9014,13 +12339,20 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         const t   = tokens.find(t => t.symbol === sym);
         if (!t) {
           await tg(`❓ Token <b>${sym}</b> not found in token list.`);
-        } else if (!t.frozen) {
-          await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
         } else {
-          t.frozen = false;
-          delete t.frozenReason;
-          console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
-          await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
+          const runtimeFrozen = isBuyFrozen(sym);
+          if (!t.frozen && !runtimeFrozen) {
+            await tg(`✅ <b>${sym}</b> is already active (not frozen). Trading normally.`);
+          } else {
+            if (t.frozen) {
+              t.frozen = false;
+              delete t.frozenReason;
+            }
+            clearBuyFreeze(sym);
+            clearSlippageFails(sym);
+            console.log(`❄️→✅ UNFROZEN: ${sym} — now active for trading`);
+            await tg(`✅ <b>${sym} UNFROZEN</b>\nToken is now active for trading.\nCapital will be deployed on next wave trigger.\n\n⚠️ Ensure you have sufficient balance to trade this token.`);
+          }
         }
 
       } else if (text.startsWith("/freeze ")) {
@@ -9063,7 +12395,7 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         // /ledger       — summary stats + last 5 trades
         // /ledger full  — last 20 trades
         const full = text.includes("full");
-        const lf   = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+        const lf   = await githubGetFromBranch("ledger.json", liveStateBranch());
         if (!lf?.content?.trades?.length) {
           await tg(`📖 <b>LEDGER</b>\nNo trades recorded yet.\nEvery future trade will be permanently logged here.`);
         } else {
@@ -9418,11 +12750,120 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
       } else if (text === "/voiceon") {
         STORE_VOICE_ENABLED = true;
-        await tg("📡 <b>UTF-8 VOICE ON</b>\n§$STORE§ hitch rides leftover swaps. /prove sends a dedicated 0-ETH letter.");
+        await tg("📡 <b>UTF-8 VOICE ON</b>\nVITA §TOKEN§ hitch rides leftover swaps (love note stays in §KEY§). /prove still sends the dedicated Eureka letter.");
 
       } else if (text === "/voiceoff") {
         STORE_VOICE_ENABLED = false;
         await tg("📡 <b>UTF-8 VOICE OFF</b>\nSwaps stay plain. /prove will refuse until /voiceon.");
+
+      } else if (text === "/vitarouter") {
+        await tg(formatRouterMessage());
+
+      } else if (text === "/vitacourse") {
+        try {
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+          ingestLeftoverScan(leftoverScan);
+          await tg(formatCourseMessage(evaluateVitaCourse({
+            leftoverKinds: leftoverScan.counts,
+            leftoverHitchBytes: leftoverScan.hitchBytes,
+          })));
+        } catch (e) {
+          await tg(formatCourseMessage(evaluateVitaCourse()) + "\n⚠️ leftover scan: " + e.message);
+        }
+
+      } else if (text === "/vitascan") {
+        await tg("⛓️ Scanning leftover hitch trailers on Base…");
+        try {
+          const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+          const folded = ingestLeftoverScan(leftoverScan);
+          const course = evaluateVitaCourse({
+            leftoverKinds: leftoverScan.counts,
+            leftoverHitchBytes: leftoverScan.hitchBytes,
+          });
+          await tg(
+            "⛓️ <b>LEFTOVER SCAN</b>\n" +
+            "eureka=" + leftoverScan.counts.eureka +
+            " vita=" + leftoverScan.counts.vita +
+            " plain=" + leftoverScan.counts.plain +
+            " libm=" + leftoverScan.counts.libm + "\n" +
+            (leftoverScan.hitchBytes?.eurekaMin
+              ? "Eureka hitch min " + leftoverScan.hitchBytes.eurekaMin + "B · planned VITA " +
+                (course.inject.plannedHitchBytes || "?") + "B\n"
+              : "") +
+            "ingested " + folded.ingested + " · KEY=" + (folded.quality?.hasKey ? "yes" : "LOSS") + "\n" +
+            (leftoverScan.vitaLeftoverPresent
+              ? "VITA leftover hitch is on chain."
+              : "No leftover-covered VITA hitch yet — still Eureka prose. /prove keeps the letter.") +
+            "\n" + formatCourseMessage(course)
+          );
+        } catch (e) {
+          await tg("❌ leftover scan failed: " + e.message);
+        }
+
+      } else if (text === "/xmem" || text.startsWith("/xmem ")) {
+        const arg = raw.slice("/xmem".length).trim();
+        if (!arg || /^help$/i.test(arg)) {
+          await tg("<pre>" + esc(xmemHelpText()) + "</pre>");
+        } else if (/^spec$/i.test(arg)) {
+          await tg("<pre>" + esc(AGENT_INSTRUCTIONS.slice(0, 3500)) + "</pre>");
+        } else if (/^encode\s+/i.test(arg)) {
+          const packed = encodeXmem(parseEncodeCommand(arg.replace(/^encode\s+/i, "")));
+          if (!packed.ok) {
+            await tg("❌ " + packed.error + "\nDo not invent an id.");
+          } else {
+            await tg(
+              "<code>" + esc(packed.packed) + "</code>\n" +
+              packed.bytes + " bytes. Live leftover hitch stays KEY+LOC — this is the write template, not a sent tx."
+            );
+          }
+        } else if (/^decode\s+/i.test(arg)) {
+          const recs = extractMemoryRecords(arg.replace(/^decode\s+/i, ""));
+          await tg("<pre>" + esc(formatXmemMatches(retrieveXmem(recs, ""))) + "</pre>");
+        } else {
+          await tg("⛓️ Scanning Base input data for XMEM / STORE KEY…");
+          try {
+            const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+            const result = retrieveXmem(leftoverScan.xmemRecords || [], arg, { protocol: "x402" });
+            await tg("<pre>" + esc(formatXmemMatches(result)) + "</pre>");
+          } catch (e) {
+            await tg("❌ XMEM scan failed: " + e.message);
+          }
+        }
+
+      } else if (text && text.startsWith("/vitamode ")) {
+        const mode = raw.slice("/vitamode ".length).trim().toLowerCase();
+        const r = setHitchModeOverride(mode);
+        if (!r.ok) {
+          await tg("❌ " + r.reason);
+        } else {
+          await tg("🔀 <b>VITA MODE</b> → <code>" + r.mode + "</code>\n" + formatRouterMessage());
+        }
+
+      } else if (text && text.startsWith("/vitapull ")) {
+        const hash = raw.slice("/vitapull ".length).trim();
+        await tg("⛓️ Pulling hitch UTF-8 from Base…");
+        try {
+          const result = await pullLocationFromChain(hash, fetchTxCalldataHex);
+          if (!result.ok) {
+            await tg("❌ VITA pull failed: " + (result.error || "unknown"));
+          } else if (!result.utf8) {
+            await tg(
+              "⛓️ <b>NO HITCH</b> in <code>" + hash.slice(0, 12) + "…</code>\n" +
+              "source <code>" + (result.source || "?") + "</code>\n" +
+              "<i>KEYCAT 0x5c0a93e4 is a plain 228-byte swap. /prove is the letter.</i>"
+            );
+          } else {
+            ingestSealedUtf8(result.utf8);
+            await tg(
+              "⛓️ <b>VITA PULL</b> " + result.kind + " · " + result.source + "\n" +
+              "🔗 <a href=\"https://basescan.org/tx/" + hash + "\">View on Basescan ↗</a>\n" +
+              "KEY " + (result.quality?.hasKey ? "yes" : "LOSS") + " · " + (result.utf8.length) + " chars\n" +
+              "<code>" + esc(result.utf8.slice(0, 400)) + (result.utf8.length > 400 ? "…" : "") + "</code>"
+            );
+          }
+        } catch (e) {
+          await tg("❌ VITA pull failed: " + e.message);
+        }
 
       } else if (text === "/models") {
         await tg(vitaModelStatusMessage());
@@ -9709,16 +13150,12 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
         // VAULT_VITA_ANTHROPIC_KEY = tx hash → encrypted key on Base (future — when we migrate fully to vault)
         // ANTHROPIC_API_KEY = last resort fallback
         const vitaApiKey = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
-        if (!vitaApiKey) {
-          await tg(
-            "🌟 <b>VITA needs an API key</b>\n\n" +
-            "Add to Railway: <code>ANTHROPIC_API_KEY = sk-ant-...</code>\n\n" +
-            "Or vault VITA's own key:\n" +
-            "<code>/newvault VITA_ANTHROPIC_KEY</code>"
-          );
-        } else {
-          await tg("🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API...");
-          try {
+        await tg(
+          vitaApiKey
+            ? "🌟 <b>VITA compressing session...</b>\n🔑 VITA vault key active\n⏳ Calling Anthropic API..."
+            : "🌟 <b>VITA local §TOKEN§ compress</b>\nNo Anthropic key — packing locally so KEY is not lost.\n⏳ Inscribing on Base..."
+        );
+        try {
             const ethPrice3 = await getLiveEthPrice();
             const bal3      = await getFullBalance();
 
@@ -9793,7 +13230,37 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             // Clear the note queue after saving
             global._vitaNotes = [];
 
+            // n5557–5566: two `/vitasave` → vitaSave 5-chunk [VITA:1:]/[VITA:2:]
+            // batches, STORE on n5561 + n5566, 0 Uniswap fills. Bank unless env on.
+            // Mother brain vitaSave stays; wrap is this caller only.
+            const autoSaveOn = autoPaidInscribeEnabled();
+            if (!autoSaveOn) {
+              wrapVitaSaveSelfCall({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                text: sessionCtx,
+                pairedUniswapSell: false,
+                topic: "vitasave",
+              });
+              absorbVitaStrandPacket({ tokenPacket: sessionCtx, chunks: [] });
+              const picArm = armVitaTailwindPicture({ triggeredBy: "vitasave" });
+              await tg(
+                "🌟 <b>VITA MEMORY BANKED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📦 hex banked — hitch on next leftover-covered ride\n" +
+                "📦 auto wrap (VITA_AUTO_INSCRIBE off). `/vitasave` stays; set env to restore vitaSave.\n\n" +
+                "🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n" +
+                picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete\n" +
+                "💌 <i>VITA remembers. The chain is alive. Tailwind proves the picture.</i>"
+              );
+              continue;
+            }
+
             const entry = await vitaSave(cdpClient, WALLET_ADDRESS, sessionCtx, vitaApiKey, "session");
+            absorbVitaStrandPacket(entry);
+
+            // Arm sparse picture cycle — wave-up leftover hitch packs encoded
+            // smile bits the same way VITA sparsely writes memory inbound.
+            const picArm = armVitaTailwindPicture({ triggeredBy: "vitasave" });
 
             let msg = "🌟 <b>VITA MEMORY SAVED ON BASE</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
             msg += "📦 Strand: <b>" + entry.strandId + "</b> — " + entry.date + "\n";
@@ -9802,10 +13269,13 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
               msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + entry.chunks[i].txHash + "\">Chunk " + (i+1) + " ↗</a>\n";
             }
             msg += "\n<code>" + (entry.tokenPacket||"").slice(0,300) + "...</code>\n\n";
-            msg += "💌 <i>VITA remembers. The chain is alive.</i>";
+            msg += "🎨 <b>Picture tailwind ARMED</b> cycle #" + picArm.cycleId + "\n";
+            msg += picArm.totalBits + " bits · wave-up leftover will sparse-inject until complete\n";
+            msg += "💌 <i>VITA remembers. The chain is alive. Tailwind proves the picture.</i>";
             await tg(msg);
 
             // ── AUTO-FILE: call Claude to label + file this memory ──────────
+            if (vitaApiKey) {
             try {
               console.log("📁 VITA: auto-filing memory to registry...");
               const fileResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -9916,8 +13386,8 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
               console.log(fileErr.stack?.split("\n").slice(0,3).join("\n"));
               await tg("⚠️ Memory saved to chain but registry filing failed: " + fileErr.message);
             }
+            }
           } catch (e) { await tg("❌ VITA save failed: " + e.message); }
-        }
 
       } else if (text === "/vitarecall" || text === "/vitacontext") {
         await tg("🌟 Loading VITA memory from Base...");
@@ -10054,8 +13524,23 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
             "LEDGER_PATH:https://github.com/" + (process.env.GITHUB_REPO||"?") + "/blob/bot-state/ledger.json",
           ].join("\n");
 
-          // Compress and file via VITA
-          const vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
+          // AUTO snapshot — bank unpaired [VITA:/STORE unless VITA_AUTO_INSCRIBE=yes.
+          // /vitasave is wrapped the same way. Do not invent hashes.
+          const autoDataOn = autoPaidInscribeEnabled();
+          let vitaEntry = null;
+          if (autoDataOn) {
+            vitaEntry = await vitaSave(cdpClient, WALLET_ADDRESS, dataset, vitaKey, "trading-data-" + new Date().toISOString().slice(0,10));
+            absorbVitaStrandPacket(vitaEntry);
+          } else {
+            wrapAutoSelfCall({
+              to: WALLET_ADDRESS,
+              from: WALLET_ADDRESS,
+              text: dataset,
+              pairedUniswapSell: false,
+              topic: "vitadata",
+            });
+            absorbVitaStrandPacket({ tokenPacket: dataset, chunks: [] });
+          }
 
           // File in registry
           const regKey = new Date().toISOString().slice(0,10) + "-trading-data-snapshot";
@@ -10076,9 +13561,11 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           } catch {}
 
           registry[regKey] = {
-            strandId: vitaEntry.strandId, date: vitaEntry.date,
+            strandId: vitaEntry?.strandId || "VITA-DATA-BANKED",
+            date: vitaEntry?.date || new Date().toISOString().slice(0,10),
             label: "trading-data-snapshot", type: "trading-data",
-            txHashes: vitaEntry.chunks.map(c => c.txHash),
+            txHashes: vitaEntry?.chunks?.map(c => c.txHash) || [],
+            banked: !vitaEntry,
             tokenPacket: dataset.slice(0,800), filedAt: new Date().toISOString(),
           };
 
@@ -10092,14 +13579,21 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
 
           let msg = "📊 <b>VITA TRADING DATA SNAPSHOT SAVED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
           msg += "📁 Filed as: <code>" + regKey + "</code>\n";
-          msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
-          vitaEntry.chunks.forEach((c, i) =>
-            msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
-          );
+          if (vitaEntry?.chunks?.length) {
+            msg += "🔗 " + vitaEntry.chunks.length + " chunks on Base:\n";
+            vitaEntry.chunks.forEach((c, i) =>
+              msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + c.txHash + "\">↗</a> "
+            );
+          } else {
+            msg += "📦 hex banked — hitch on next leftover-covered ride (auto wrap; /vitasave still has mother brain)\n";
+          }
           msg += "\n\n📊 Tokens with wave data: " + tokenData.filter(t => t.range).length + "\n";
           msg += "🎯 Armed for trading: " + tokenData.filter(t => t.peaks >= 4 && t.troughs >= 4).length + "\n\n";
           msg += "Now ask: <code>/vita what tokens are performing best</code>\n";
-          msg += "<code>/vita what is BRETT wave range</code>";
+          msg += "<code>/vita what is BRETT wave range</code>\n\n";
+          const picArm = armVitaTailwindPicture({ triggeredBy: "vitadata" });
+          msg += "🎨 Picture tailwind ARMED cycle #" + picArm.cycleId +
+            " — wave-up leftover will sparse-inject " + picArm.totalBits + " bits";
           await tg(msg);
 
         } catch (e) { await tg("❌ vitadata failed: " + e.message); }
@@ -10153,12 +13647,30 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             const txHashes  = [];
             let prevHash    = "00000000";
 
+            const autoLearnOn = autoPaidInscribeEnabled()
+              && !isTrivialTestInscriptionBody(topic)
+              && !isTrivialTestInscriptionBody(knowledgeText);
             for (let i = 0; i < 5; i++) {
               const content = compressed.slice(i * chunkSize, (i+1) * chunkSize);
               const hash8   = (s) => require ? s.slice(0,8) : s.slice(0,8);
               const header  = "[VITA:" + strandId + ":" + String(i+1).padStart(2,"0") + "/05:" + date + ":" + prevHash + "]";
               const full    = header + content;
               const hex     = "0x" + Buffer.from(full, "utf8").toString("hex");
+
+              if (!autoLearnOn) {
+                const wrapped = wrapAutoSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: full,
+                  pairedUniswapSell: false,
+                  topic: "vitalearn",
+                });
+                if (wrapped.txHash) txHashes.push(wrapped.txHash);
+                prevHash = createHash("sha256").update(full).digest("hex").slice(0,8);
+                console.log("📚 Knowledge chunk " + (i+1) + "/5: BANKED (auto wrap) — " + wrapped.reason);
+                continue;
+              }
 
               const { transactionHash } = await cdpClient.evm.sendTransaction({
                 address: WALLET_ADDRESS, network: "base",
@@ -10168,6 +13680,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
               console.log("📚 Knowledge chunk " + (i+1) + "/5: " + transactionHash);
               if (i < 4) await new Promise(r => setTimeout(r, 2000));
             }
+
+            if (compressed) absorbVitaStrandPacket({ tokenPacket: compressed, chunks: [] });
 
             // File in registry
             const regKey   = date + "-" + topic.toLowerCase().slice(0,20) + "-knowledge-base";
@@ -10191,7 +13705,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             registry[regKey] = {
               strandId, date, label: topic + "-knowledge-base",
               type: "knowledge-base", subject: topic,
-              txHashes, tokenPacket: compressed.slice(0,3000),
+              txHashes, banked: !txHashes.length, tokenPacket: compressed.slice(0,3000),
               filedAt: new Date().toISOString(),
             };
 
@@ -10206,8 +13720,12 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             // Receipt
             let msg = "📚 <b>VITA LEARNED: " + topic.toUpperCase() + "</b>\n";
             msg += "━━━━━━━━━━━━━━━━━━━━\n\n";
-            msg += "5 chunks inscribed on Base:\n";
-            txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
+            if (txHashes.length) {
+              msg += "5 chunks inscribed on Base:\n";
+              txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">Chunk " + (i+1) + " ↗</a>\n");
+            } else {
+              msg += "📦 5 chunks banked — hitch on next leftover-covered ride (auto wrap; /vitasave still has mother brain)\n";
+            }
             msg += "\n📁 Filed as: <code>" + regKey + "</code>\n\n";
             msg += "Test recall:\n";
             msg += "<code>/vita " + topic + "</code>\n";
@@ -10218,70 +13736,859 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) { await tg("❌ vitalearn failed: " + e.message); }
         }
 
+      // ── /vitamothergenesis — wrap MGPLAIN 0-ETH self-txs (bank unless CONFIRM+env)
+      } else if (text && (text.startsWith("/vitamothergenesis ") || text === "/vitamothergenesis")) {
+        const genesisRest = raw.slice("/vitamothergenesis".length).trim();
+        if (/^(?:FORCE\s+)?recall$/i.test(genesisRest)) {
+          try {
+            const { forceInjectMotherGenesisRecall, formatRecallPullCard } =
+              await import("./vita/mg-recall-bank.js");
+            const result = await forceInjectMotherGenesisRecall();
+            await tg(
+              "🧬 <b>MOTHER GENESIS RECALL</b>\n<pre>" +
+              formatRecallPullCard(result).slice(0, 3500) +
+              "</pre>\n<i>Force-banked. No invented hashes. Mother brain untouched.</i>"
+            );
+          } catch (e) {
+            await tg("❌ mother genesis recall failed: " + (e.message || e));
+          }
+        } else {
+        const parsed = parseMotherGenesisOperatorIntent(genesisRest);
+        const body = parsed.body;
+        if (!body) {
+          await tg(
+            "usage: <code>/vitamothergenesis [paste ALL code]</code>\n" +
+            "Default: bank hex — no unpaired 0-ETH MGPLAIN self-txs.\n" +
+            "Intentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code>\n" +
+            "and <code>VITA_MOTHER_GENESIS_AUTO=yes</code> (or VITA_AUTO_INSCRIBE=yes).\n" +
+            "Never auto-fires “this is a test” batches.\n" +
+            "<i>Does not change /vitasave 5-chunk mother brain.</i>"
+          );
+        } else {
+          const maySend = maySendMotherGenesis({ confirmed: parsed.confirmed, body });
+          await tg(
+            "🧬 <b>MOTHER GENESIS PLAIN</b>\n" +
+            "chars=" + body.length + " — planning N batches (not capped at 5)…"
+          );
+          try {
+            const prepared = preparePlainMotherGenesis(body);
+            await tg(
+              maySend
+                ? "📦 " + prepared.totalChunks + " plain chunks — then full loc list on-chain…"
+                : "📦 " + prepared.totalChunks + " plain chunks — banking unpaired MGPLAIN (auto wrap)…"
+            );
+            const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+              if (!maySend) {
+                wrapMotherGenesisSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: line.line,
+                  pairedUniswapSell: false,
+                  topic: "mgplain",
+                });
+                return null;
+              }
+              const { transactionHash } = await cdpClient.evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash;
+            });
+            const receipt = formatMotherGenesisReceipt(result);
+            let msg = "🧬 <b>MOTHER GENESIS PLAIN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + receipt.slice(0, 3500) + "</pre>";
+            if (!maySend) {
+              msg += "\n📦 hex banked — hitch on leftover-covered paired sell (MGPLAIN wrap; /vitasave still has mother brain)";
+              if (!parsed.confirmed) {
+                msg += "\nIntentional paid genesis: <code>/vitamothergenesis CONFIRM [code]</code> + VITA_MOTHER_GENESIS_AUTO=yes";
+              }
+            } else if (result.locListTxs?.length) {
+              msg += "\n📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
+            }
+            if (result.strand?.readerKey) {
+              msg += "\n🔑 Reader key:\n<code>" + result.strand.readerKey + "</code>\n";
+              msg += "Reveal: <code>/encodegenesisreveal " + result.strand.readerKey + "</code>";
+            }
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitamothergenesis failed: " + (e.message || e));
+          }
+        }
+        }
+
+      // ── /vitamotherGenesisencoded — AES + loc commitment, two-part key
+      } else if (
+        text &&
+        (text.startsWith("/vitamothergenesisencoded ") ||
+          text === "/vitamothergenesisencoded")
+      ) {
+        const parsed = parseMotherGenesisOperatorIntent(
+          raw.replace(/^\/vitamothergenesisencoded\s*/i, "").trim(),
+        );
+        const body = parsed.body;
+        if (!body) {
+          await tg(
+            "usage: <code>/vitamotherGenesisencoded [paste ALL code]</code>\n" +
+            "Default: bank hex — no unpaired 0-ETH MGENC self-txs.\n" +
+            "Intentional paid genesis: <code>/vitamotherGenesisencoded CONFIRM [code]</code>\n" +
+            "and <code>VITA_MOTHER_GENESIS_AUTO=yes</code> (or VITA_AUTO_INSCRIBE=yes).\n" +
+            "Two-part key → <code>/encodegenesisreveal MG1.… MG2.…</code>\n" +
+            "<i>Mother brain untouched.</i>"
+          );
+        } else {
+          const maySend = maySendMotherGenesis({ confirmed: parsed.confirmed, body });
+          await tg(
+            "🔐 <b>MOTHER GENESIS ENCODED</b>\n" +
+            "chars=" + body.length + " — AES + loc commitment, N batches…"
+          );
+          try {
+            const prepared = prepareEncodedMotherGenesis(body);
+            await tg(
+              maySend
+                ? "📦 " + prepared.totalChunks + " encoded chunks — then full loc list on-chain…"
+                : "📦 " + prepared.totalChunks + " encoded chunks — banking unpaired MGENC (auto wrap)…"
+            );
+            const result = await runMotherGenesisInscribe(prepared, async (hex, line) => {
+              if (!maySend) {
+                wrapMotherGenesisSelfCall({
+                  to: WALLET_ADDRESS,
+                  from: WALLET_ADDRESS,
+                  data: hex,
+                  text: line.line,
+                  pairedUniswapSell: false,
+                  topic: "mgenc",
+                });
+                return null;
+              }
+              const { transactionHash } = await cdpClient.evm.sendTransaction({
+                address: WALLET_ADDRESS,
+                network: "base",
+                transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+              });
+              await new Promise((r) => setTimeout(r, 2000));
+              return transactionHash;
+            });
+            const strand = result.strand || {};
+            const keys = strand.keys || prepared.keys;
+            let msg = "🔐 <b>MOTHER GENESIS ENCODED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + formatMotherGenesisReceipt(result).slice(0, 2800) + "</pre>\n";
+            if (!maySend) {
+              msg += "📦 hex banked — hitch on leftover-covered paired sell (MGENC wrap; /vitasave still has mother brain)\n";
+            } else if (result.locListTxs?.length) {
+              msg += "📍 On-chain loc list (" + result.locListTxs.length + " MGLOCS page(s), full/unsquashed):\n";
+              msg += result.locListTxs.map((tx, i) =>
+                "L" + (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+              ).join("\n") + "\n";
+            }
+            msg += "🔑 Two-part key:\n<code>" + keys.part1 + "</code>\n<code>" + keys.part2 + "</code>\n";
+            msg += "Reveal: <code>/encodegenesisreveal " + keys.combined + "</code>";
+            await tg(msg);
+          } catch (e) {
+            await tg("❌ vitamotherGenesisencoded failed: " + (e.message || e));
+          }
+        }
+
+      // ── /encodegenesisreveal — two-part (or plain) key → pull + decode
+      } else if (
+        text &&
+        (text.startsWith("/encodegenesisreveal ") || text === "/encodegenesisreveal")
+      ) {
+        const keyArg = raw.slice("/encodegenesisreveal".length).trim();
+        if (!keyArg) {
+          await tg(
+            "usage:\n<code>/encodegenesisreveal MGPLAIN.&lt;strand&gt;</code>\n" +
+            "or\n<code>/encodegenesisreveal MG1.… MG2.…</code>"
+          );
+        } else {
+          try {
+            const revealed = await revealMotherGenesis(keyArg, {
+              fetchCalldata: fetchTxCalldataHex,
+            });
+            if (!revealed.ok) {
+              await tg("❌ reveal failed: " + revealed.reason);
+            } else {
+              let msg = "🔓 <b>GENESIS REVEAL</b> · " + revealed.mode + "\n";
+              msg += "strand <code>" + revealed.strandId + "</code>\n";
+              msg += "chunks " + revealed.totalChunks + " · chars " + revealed.chars + "\n";
+              if (revealed.locations?.length) {
+                msg += "locs:\n" + revealed.locations.map((tx, i) =>
+                  (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a>"
+                ).join("\n") + "\n";
+              }
+              msg += "\n<pre>" + revealed.body.slice(0, 3200).replace(/</g, "&lt;") + "</pre>";
+              if (revealed.body.length > 3200) msg += "\n…(truncated — full body reconstructed in registry)";
+              await tg(msg);
+            }
+          } catch (e) {
+            await tg("❌ encodegenesisreveal failed: " + (e.message || e));
+          }
+        }
+
+      // ── /phosphor — CRT writer/reader pop-out (injector wires, IPFS outlet)
+      } else if (text === "/phosphor" || (text && text.startsWith("/phosphor"))) {
+        try {
+          const out = await handlePhosphorCommand(raw);
+          await tg(out.html, { reply_markup: out.keyboard });
+        } catch (e) {
+          await tg("❌ phosphor failed: " + (e.message || e));
+        }
+
+      // ── /vitafeed — Storage Token game (exact plain / VITAFILE, RISK confirm)
+      } else if (text === "/vitafeed" || (text && text.startsWith("/vitafeed"))) {
+        const replyMsg = upd.message?.reply_to_message || null;
+        const replyBody = replyMsg?.text || replyMsg?.caption || "";
+        const parsed = parseVitaFeedCommand(raw, { replyBody });
+        // Prefer reply attachment; else media on this message (caption /vitafeed file).
+        const mediaFromReply = pickTelegramMedia(replyMsg || {});
+        const mediaOnThis = pickTelegramMedia(upd.message || {});
+        const mediaHint = mediaFromReply.ok ? mediaFromReply : mediaOnThis;
+        const mediaSourceMsg = mediaFromReply.ok ? replyMsg : (mediaOnThis.ok ? upd.message : null);
+
+        // /vitafeed cancel also clears a pending "please insert file" wait.
+        if (parsed.action === "cancel") {
+          clearVitaFeedFileAwait(msgChatId);
+        }
+
+        // /vitafeed file with no attachment yet → ask to insert file, wait for next media.
+        if (parsed.ok && parsed.action === "compress" && parsed.wantsFile && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command", purpose: "compress" });
+          await tg(
+            "📡 <b>COMPRESSION</b>\n" +
+            "Please insert a file — personal, program, video, or any other bytes.\n" +
+            "Every codec runs. The reply is <code>VERIFIED true</code> plus the key that recovers it.\n" +
+            "Then injection is staged. <code>/vitafeed confirm</code> seals it. <code>/vitafeed cancel</code> aborts.",
+          );
+          continue;
+        }
+
+        if (parsed.ok && parsed.action === "photos" && parsed.wantsFile && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command", purpose: "photos" });
+          await tg(
+            "📷 <b>PHOTOS DRIVE</b>\n" +
+            "Please send a picture (jpg/png/webp/gif).\n" +
+            "Open key = the picture (name+sha256). Compression bake-off runs next.\n" +
+            "Then <code>/vitafeed enqueue photo &lt;id&gt;</code> → confirm|override. Locs empty until seal.",
+          );
+          continue;
+        }
+
+        if (parsed.ok && parsed.action === "file" && !mediaHint.ok) {
+          beginVitaFeedFileAwait(msgChatId, { via: "command" });
+          await tg(
+            "📡 <b>VITAFEED FILE</b>\n" +
+            vitaFeedPleaseInsertFileText().replace(/^📡 VITAFEED FILE — /, "") +
+            "\n\n<i>Spaced VIN packets · Tailwind reader peaces locations after seal.</i>",
+          );
+          continue;
+        }
+
+        const wantsMediaPreview =
+          parsed.action === "preview" ||
+          parsed.action === "file" ||
+          (parsed.action === "usage" && mediaHint.ok);
+
+        if (!parsed.ok || (parsed.action === "usage" && !mediaHint.ok)) {
+          await tg(
+            "📡 <b>VITAFEED</b> — Storage Token game (plain UTF-8 / VITAFILE)\n" +
+            "Tap a category below — every subcategory is click-through.\n" +
+            "usage: <code>/vitafeed [exact text]</code> or reply with <code>/vitafeed</code>\n" +
+            "<b>File (either way):</b>\n" +
+            "1. <code>/vitafeed file</code> → bot says <i>please insert file</i> → send song/video/doc\n" +
+            "2. Reply to an attachment with <code>/vitafeed file</code> (or <code>/vitafeed</code>)\n" +
+            "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
+            "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
+            "<code>/vitafeed override</code> — bypass RISK balance REFUSE + liquid floor; " +
+            "sends what gas allows, restages remainder. Alone cannot bypass VITAFEED_PAID=no or rate limit.\n" +
+            "<code>/vitafeed override force</code> — FORCE latch: also bypass paid-off + hourly chunk cap (media).\n" +
+            "<code>/vitafeed check</code> — systems check: disk/players LOCAL_OK vs sealed Base MATCH.\n" +
+            "<code>/vitafeed brain</code> — activate learn (old→new + peer review + zero-proof + library + vita-save)\n" +
+            "<code>/vitafeed learn</code> · <code>/vitafeed proof</code> — last cycle / growth card\n" +
+            "<b>Backlog (feed brain without agent AI):</b>\n" +
+            "<code>/vitafeed backlog</code> — pending→sealed growth\n" +
+            "<code>/vitafeed enqueue seed</code> — queue brain seed + memory files (no send)\n" +
+            "<code>/vitafeed next</code> — stage next pending for confirm|override\n" +
+            "<b>Library (quick pull):</b>\n" +
+            "<code>/vitafeed files</code> — list saved names (auto-saved on seal)\n" +
+            "<code>/vitafeed play &lt;n|name&gt;</code> — open into player (also open|pull)\n" +
+            "<code>/vitafeed keys</code> — stage §VITALIB§ keys catalog (name→key→locs)\n" +
+            "<code>/vitafeed dir</code> · <code>/vitafeed unlock</code> — DOS click-through\n" +
+            "<code>/vitafeed kids</code> · <code>/vitafeed play kids</code> · <code>/vitafeed dual kids</code> — closed-garden KIDS url directory\n" +
+            "<code>/vitafeed play maple</code> · <code>/vitafeed music</code> · <code>/vitafeed enqueue library</code> — growing PD library grouped VIN original playback\n" +
+            "<code>/vitafeed board</code> · <code>/vitafeed pad airhorn</code> · <code>/vitafeed prompt …</code> · <code>/vitafeed enqueue pad &lt;id&gt;</code> — DJ soundboard · zero-open-key · loc MATCH\n" +
+            "<code>/vitafeed track</code> — stage inject/message proof · <code>/tokens</code> — token actions\n" +
+            "<code>/vitafeed cancel</code> drops the staged payload (and clears a file wait).\n" +
+            "Player: tap <b>Watch popup</b> or <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/kids-player?dir=kids&amp;popup=1\">KIDS player</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/soundboard\">Soundboard</a> · <a href=\"https://guardian-protocol-agent-production.up.railway.app/vita/feed-player?demo=1&amp;popup=1\">Demo player</a>\n" +
+            "Max payload/chunk = 720 bytes (<code>VITAFEED_MAX_CHUNK_BYTES</code>).\n" +
+            "VIN headers link chunks (prev hash / next index).\n" +
+            "Buy-in: RED low ≤3% wave + predicted up; $0.10 AI + $0.10 human + $0.05 lottery + 1.5% tax on full stack left behind; different red token per inject.\n" +
+            "<i>Never vault / save-bucket. Does not touch /vitasave. Does not set VITA_AUTO_INSCRIBE.</i>",
+            { reply_markup: buildVitaFeedRootKeyboard() },
+          );
+        } else if (parsed.action === "files" || parsed.action === "play" || parsed.action === "keys") {
+          try {
+            if (parsed.action === "play") {
+              const sel = parsed.selector || parsed.body;
+              let opened;
+              if (isMusicPlaySelector(sel)) {
+                opened = playFreeMusic(sel);
+              } else if (isSoundboardPlaySelector(sel)) {
+                const { playPad, resolvePadId, formatSoundboardCard, buildSoundboardKeyboard, SOUNDBOARD_PLAYER_PATH } = await import("./vita/soundboard.js");
+                if (/^(?:board|soundboard|pads|dj)$/i.test(String(sel || "").trim())) {
+                  opened = {
+                    ok: true,
+                    reply: formatSoundboardCard(),
+                    playerPath: SOUNDBOARD_PLAYER_PATH,
+                    playerHref: vitaPlayerHref(SOUNDBOARD_PLAYER_PATH),
+                    keyboard: buildSoundboardKeyboard(),
+                  };
+                } else {
+                  const id = resolvePadId(String(sel || "").replace(/^pad\s+/i, "")) || "airhorn";
+                  opened = playPad(id);
+                }
+              } else if (isDemoPlaySelector(sel)) {
+                opened = demoPlayerOpen();
+              } else if (isKidsPlaySelector(sel)) {
+                opened = playKidsDirectory(sel);
+              } else {
+                opened = await playFromLibrary(sel, {
+                  fetchUtf8: async (txHash) => {
+                    try {
+                      const pulled = await pullLocationFromChain(txHash);
+                      return pulled?.utf8 || pulled?.text || null;
+                    } catch {
+                      return null;
+                    }
+                  },
+                  label: "LIBRARY",
+                });
+              }
+              const playerPath = opened.playerPath || (opened.demo ? "/vita/feed-player?demo=1" : null);
+              const playerHref = opened.playerHref || (playerPath ? vitaPlayerHref(playerPath) : null);
+              let msg = "📡 <b>VITAFEED OPEN</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+              msg += "<pre>" + String(opened.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+              if (playerHref) {
+                const safeHref = String(playerHref).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+                msg += "\n▶️ <a href=\"" + safeHref + "\">Watch popup</a> — small window while you work";
+              }
+              if (opened.playProof?.complete && opened.playProof?.play?.name) {
+                msg += "\nReady: <b>" + String(opened.playProof.play.name).replace(/</g, "") + "</b>";
+              }
+              await tg(msg, {
+                reply_markup: opened.keyboard || buildPlayerPopupKeyboard({
+                  playerPath: playerPath || "/vita/feed-player?demo=1",
+                  includeDemo: !opened.demo,
+                }),
+              });
+            } else {
+              const out = await handleVitaFeedAction({
+                action: parsed.action,
+                body: parsed.body,
+                chatId: msgChatId,
+                quotes: {},
+              });
+              let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+              msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+              await tg(msg, {
+                reply_markup:
+                  out.keyboard ||
+                  keyboardForVitaFeedResult({ action: parsed.action, out }) ||
+                  buildVitaFeedRootKeyboard(),
+              });
+            }
+          } catch (e) {
+            await tg("❌ vitafeed library failed: " + (e.message || e));
+          }
+        } else {
+          clearVitaFeedFileAwait(msgChatId);
+          if (wantsMediaPreview && (parsed.action === "file" || parsed.action === "usage")) {
+            parsed.action = "preview";
+          }
+          let quotes = {};
+          try {
+            const gwei = await getCurrentGasGwei();
+            const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: 256, btpInscribe: true });
+            quotes = {
+              live: true,
+              gwei,
+              ethUsd,
+              l1FeeEth: hitchL1.ok ? (hitchL1.btpL1FeeEth || hitchL1.l1FeeEth || 0) : 0,
+              gasCostEth: await estimateGasCostEth().catch(() => 0),
+              source: hitchL1.ok
+                ? "live Base GasPriceOracle + ETH mark"
+                : "live gwei/ETH mark, L1 fallback 0",
+            };
+          } catch { /* DEMO quotes inside helper */ }
+
+          // Encode Telegram attachment → §VITAFILE§ body before cost card.
+          let feedBody = parsed.body;
+          if (parsed.action === "preview" && mediaHint.ok && mediaSourceMsg) {
+            await tg(
+              "📡 <b>VITAFEED FILE</b> — reading <code>" + mediaHint.name + "</code> (" +
+              mediaHint.kind + ") → spaced VIN packets…",
+            );
+            const packed = await packetizeTelegramMessageForVitaFeed(mediaSourceMsg, { recommend: true });
+            if (!packed.ok) {
+              await tg("❌ VITAFILE packetize failed: " + packed.reason);
+              continue;
+            }
+            feedBody = packed.body;
+            await tg(
+              "📡 VITAFILE packed · " + packed.name + " · " + packed.mime +
+              " · raw " + packed.rawBytes + "B → " + packed.bodyBytes + "B UTF-8 packets" +
+              (packed.compression?.replyLine ? "\n" + packed.compression.replyLine : ""),
+            );
+          }
+
+          let compressionBytes = null;
+          let compressionName = "";
+          let compressionMime = "";
+          let photoBytes = null;
+          let photoName = "";
+          let photoMime = "";
+          if (parsed.action === "compress" && mediaHint.ok && mediaSourceMsg) {
+            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
+            if (!dl.ok) {
+              await tg("❌ compression file read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            compressionBytes = dl.bytes;
+            compressionName = mediaHint.name;
+            compressionMime = mediaHint.mime;
+          }
+          if (parsed.action === "photos" && mediaHint.ok && mediaSourceMsg) {
+            const dl = await downloadTelegramFileBytes(mediaHint.fileId);
+            if (!dl.ok) {
+              await tg("❌ photo read failed: " + (dl.reason || "download"));
+              continue;
+            }
+            photoBytes = dl.bytes;
+            photoName = mediaHint.name;
+            photoMime = mediaHint.mime;
+          }
+
+          const isPaidConfirm =
+            parsed.action === "confirm" || parsed.action === "override";
+          const forceOverride =
+            parsed.action === "override" || parsed.forceOverride === true;
+          const forceLatch = parsed.forceLatch === true;
+
+          let sendTx = null;
+          if (isPaidConfirm) {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidEth = Math.max(0, Number(riskBalanceEth ?? 0))
+              + Math.max(0, Number(bal?.weth ?? 0));
+            const liquidUsd = liquidEth * Number(ethUsd || 0);
+            const staged = peekVitaFeed(msgChatId);
+            const chunkCount = staged?.prepared?.totalChunks
+              || staged?.prepared?.lines?.length
+              || 1;
+            const messageAtMs = Number(upd.message?.date) > 0
+              ? Number(upd.message.date) * 1000
+              : null;
+            const gate = evaluateVitaFeedThriftGate({
+              action: parsed.action,
+              chatId: msgChatId,
+              env: process.env,
+              liquidUsd,
+              chunkCount,
+              messageAtMs,
+              forceOverride,
+              forceLatch,
+              skipCooldown: Boolean(forceOverride && staged?.resume),
+            });
+            if (!gate.ok) {
+              await tg(
+                "📡 <b>VITAFEED BANK</b>\n<pre>" +
+                String(gate.reply || "paid path refused").replace(/</g, "&lt;") +
+                "</pre>\n" +
+                (gate.code === "paid-off" || gate.code === "chunk-cap" || gate.code === "cooldown"
+                  ? "Try <code>/vitafeed override force</code> to seal past thrift (paid-off + rate limit)."
+                  : ""),
+              );
+              continue;
+            }
+            if (!(cdp || cdpClient)?.evm?.sendTransaction) {
+              await tg(
+                "❌ VITAFEED " + (forceOverride ? "override" : "confirm") +
+                " needs the RISK wallet client — no send.",
+              );
+              continue;
+            }
+            sendTx = async (hex) => {
+              try {
+                const { transactionHash } = await (cdp || cdpClient).evm.sendTransaction({
+                  address: WALLET_ADDRESS,
+                  network: "base",
+                  transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+                });
+                if (transactionHash) {
+                  recordLocation({
+                    location: transactionHash,
+                    kind: "vitafeed",
+                    sealed: true,
+                    hitchKind: "plain",
+                  });
+                }
+                await new Promise((r) => setTimeout(r, 2000));
+                return transactionHash || null;
+              } catch (e) {
+                console.warn("vitafeed sendTx chunk failed:", e?.message || e);
+                return null;
+              }
+            };
+          }
+
+          try {
+            let riskBalanceEth = null;
+            try { riskBalanceEth = await getEthBalance(); } catch { riskBalanceEth = bal?.eth ?? null; }
+            const liquidUsdForGate = (
+              Math.max(0, Number(riskBalanceEth ?? 0)) + Math.max(0, Number(bal?.weth ?? 0))
+            ) * Number(ethUsd || 0);
+            const messageAtMs = Number(upd.message?.date) > 0
+              ? Number(upd.message.date) * 1000
+              : null;
+            if (parsed.action === "preview") {
+              await tg("📡 <b>VITAFEED</b> — pricing exact UTF-8 (no summarization)…");
+            } else if (parsed.action === "override") {
+              await tg(
+                forceLatch
+                  ? "📡 <b>VITAFEED OVERRIDE FORCE</b> — thrift latch ON (paid-off + rate limit bypass); " +
+                    "money floor already bypassed; seal chunks until gas/error (partial OK)…"
+                  : "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK REFUSE + liquid floor; " +
+                    "buy-in seats best-effort, then seal chunks until gas/error (partial OK). " +
+                    "If BANK/rate-limit blocks, use <code>/vitafeed override force</code>…",
+              );
+            } else if (parsed.action === "check") {
+              await tg("📡 <b>VITAFEED CHECK</b> — auditing local files vs sealed Base mirrors…");
+            } else if (parsed.action === "confirm") {
+              await tg("📡 <b>VITAFEED CONFIRM</b> — buy-in seats first (≥$0.25 leave-behind), then pay RISK for each max chunk…");
+            } else if (parsed.action === "brain") {
+              await tg(
+                "📡 <b>VITAFEED BRAIN</b> — activating learn cycle " +
+                "(old→new · peer review · zero-proof · library · vita-save)…",
+              );
+            } else if (parsed.action === "learn") {
+              await tg("📡 <b>VITAFEED LEARN</b> — last old→new cycle…");
+            } else if (parsed.action === "proof") {
+              await tg("📡 <b>VITAFEED ZERO PROOF</b> — retrieval growth…");
+            }
+
+            // Buy tokens BEFORE inscription so RISK still holds the stake and
+            // each transmission leaves ≥$0.25 (+tax) parked for a green exit.
+            // /vitafeed override skips the combinedNeed REFUSE and proceeds anyway.
+            if (isPaidConfirm && sendTx) {
+              const staged = peekVitaFeed(msgChatId);
+              const plan = staged?.buyIn;
+              const stakeNeed = plan?.ok ? Math.max(0, Number(plan.totalStakeEth) || 0) : 0;
+              const inscribeNeed = Math.max(0, Number(staged?.cost?.totalEth) || 0);
+              const combinedNeed = inscribeNeed + stakeNeed + Number(GAS_RESERVE || 0);
+              if (
+                !forceOverride &&
+                riskBalanceEth != null &&
+                Number(riskBalanceEth) < combinedNeed
+              ) {
+                await tg(
+                  "📡 VITAFEED REFUSE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+                  " < need " + combinedNeed.toFixed(6) +
+                  " (inscription " + inscribeNeed.toFixed(6) +
+                  " + buy-in " + stakeNeed.toFixed(6) +
+                  " + gas). Buy nothing; message unspent.\n" +
+                  "Use <code>/vitafeed override</code> to proceed anyway.",
+                );
+                continue;
+              }
+              if (forceOverride && riskBalanceEth != null && Number(riskBalanceEth) < combinedNeed) {
+                await tg(
+                  "📡 VITAFEED OVERRIDE — RISK ETH " + Number(riskBalanceEth).toFixed(6) +
+                  " < need " + combinedNeed.toFixed(6) +
+                  "; proceeding despite REFUSE (buys/inscription may still fail on-chain).",
+                );
+              }
+              if (plan?.ok && Array.isArray(plan.injections)) {
+                const client = cdp || cdpClient;
+                for (const inj of plan.injections) {
+                  if (!inj.ok || inj.skipBuy || !inj.symbol) {
+                    await tg(
+                      "📡 VITAFEED BUY-IN skip msg " +
+                        (inj.msgIndex || inj.index || "?") +
+                        " — " + (inj.reason || "no unique red seat for this message"),
+                    );
+                    continue;
+                  }
+                  const tok = tokens.find((t) => t.symbol === inj.symbol);
+                  if (!tok || !client) {
+                    await tg("📡 VITAFEED BUY-IN skip " + (inj.symbol || "?") + " — no seat/wallet");
+                    continue;
+                  }
+                  let liveBal = bal;
+                  try { liveBal = await getFullBalance(); } catch { liveBal = bal; }
+                  const px = history[tok.symbol]?.lastPrice || inj.entryPrice;
+                  try {
+                    const spent = await executeBuy(
+                      client,
+                      tok,
+                      liveBal,
+                      vitaFeedBuyInReason(inj.stakeUsd),
+                      px,
+                      inj.stakeEth,
+                    );
+                    if (spent) {
+                      openVitaFeedTicket({
+                        symbol: inj.symbol,
+                        vinId: inj.vinId,
+                        index: inj.index,
+                        entryPrice: inj.entryPrice,
+                        targetPrice: inj.targetPrice,
+                        leaveBehindUsd: inj.leaveBehindUsd,
+                        stakeUsd: inj.stakeUsd,
+                        dipPct: inj.dipPct,
+                        targetPct: inj.targetPct,
+                      });
+                      await tg(
+                        "📡 <b>VITAFEED BUY-IN</b> " + inj.symbol +
+                        " $" + Number(inj.stakeUsd).toFixed(2) +
+                        "\nexit ASAP @ $" + Number(inj.targetPrice).toFixed(8) +
+                        " · leave $" + Number(inj.leaveBehindUsd).toFixed(3) +
+                        " (AI $0.10 + human $0.10 + lottery $0.05 + 1.5% tax)",
+                      );
+                    } else {
+                      await tg(
+                        "📡 VITAFEED BUY-IN skipped " + inj.symbol +
+                        " (gate/ETH). Message still pays RISK — message-first.",
+                      );
+                    }
+                  } catch (be) {
+                    await tg("📡 VITAFEED BUY-IN failed " + inj.symbol + ": " + (be.message || be));
+                  }
+                }
+                try { riskBalanceEth = await getEthBalance(); } catch { /* keep prior */ }
+              }
+            }
+
+            const out = await handleVitaFeedAction({
+              action: parsed.action,
+              body: feedBody,
+              chatId: msgChatId,
+              quotes,
+              sendTx,
+              riskBalanceEth,
+              gasReserveEth: GAS_RESERVE,
+              seats: collectVitaFeedSeats(ethUsd),
+              // Buy-in already spent above on confirm|override — do not demand stake twice.
+              reserveBuyStake: !isPaidConfirm,
+              forceOverride,
+              forceLatch,
+              env: process.env,
+              liquidUsd: isPaidConfirm ? liquidUsdForGate : null,
+              messageAtMs,
+              compressionBytes,
+              compressionName,
+              compressionMime,
+              photoBytes,
+              photoName,
+              photoMime,
+            });
+            // Brain activate → queue §TOKEN§ learn for next /vitasave (bank path).
+            if (parsed.action === "brain" && out.brainLearn?.vitaSave?.tokenPacket) {
+              if (!global._vitaNotes) global._vitaNotes = [];
+              global._vitaNotes.push({
+                note: out.brainLearn.vitaSave.tokenPacket,
+                ts: new Date().toISOString(),
+                filingLabel: "VITA_SAVE_LEARN",
+                source: "vitafeed-brain",
+              });
+            }
+            let msg = "📡 <b>VITAFEED</b>\n━━━━━━━━━━━━━━━━━━━━\n";
+            msg += "<pre>" + String(out.reply || "").slice(0, 3500).replace(/</g, "&lt;") + "</pre>";
+            if (parsed.action === "brain" && out.brainLearn?.cycleIndex) {
+              msg +=
+                "\n🧠 Learn cycle <b>#" + out.brainLearn.cycleIndex + "</b>" +
+                " · peer <b>" + (out.brainLearn.peer?.verdict || "?") + "</b>" +
+                " · zero-proof <code>" +
+                String(out.brainLearn.zeroProof?.root || "").slice(0, 12) +
+                "…</code>";
+              msg +=
+                "\n📝 Queued <code>VITA_SAVE_LEARN</code> for /vitasave (" +
+                (global._vitaNotes?.length || 0) + " notes)";
+            }
+            const locs = out.result?.strand?.locations || [];
+            if (locs.length) {
+              msg += "\n";
+              locs.forEach((tx, i) => {
+                msg += (i + 1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">" + tx.slice(0, 12) + "…</a>\n";
+              });
+            }
+            if (out.result?.strand?.readerKey) {
+              msg += "🔑 Reader key:\n<code>" + out.result.strand.readerKey + "</code>\n";
+            }
+            if (out.restaged || out.result?.restaged) {
+              msg +=
+                "\n♻️ <b>PARTIAL SEAL</b> — kept " +
+                (out.result?.sealedCount ?? 0) + "/" + (out.result?.needed ?? "?") +
+                " locs. Remainder restaged — <code>/vitafeed override</code> again when funded.\n";
+            }
+            if (out.playProof?.complete) {
+              const playPath = out.library?.n
+                ? "/vita/feed-player?lib=" + encodeURIComponent(String(out.library.n))
+                : "/vita/feed-player";
+              const playHref = vitaPlayerHref(playPath).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+              msg +=
+                "\n▶️ <b>PLAY PROOF</b> — " +
+                (out.playProof.spacedProof?.spacedBlockchainLocations || locs.length) +
+                " spaced locations peaced together\n" +
+                "Open <a href=\"" + playHref + "\">Watch popup</a> to play " +
+                (out.playProof.play?.name || out.playProof.file?.name || "blob");
+            }
+            if (out.library?.ok) {
+              msg +=
+                "\n📚 Saved <b>#" + out.library.n + "</b> <code>" +
+                String(out.library.entry?.name || "").replace(/</g, "") +
+                "</code> — <code>/vitafeed files</code> · <code>/vitafeed play " +
+                out.library.n + "</code>";
+            }
+            await tg(msg, {
+              reply_markup:
+                out.keyboard ||
+                (out.playProof?.complete
+                  ? buildPlayerPopupKeyboard({
+                      playerPath: out.library?.n
+                        ? "/vita/feed-player?lib=" + encodeURIComponent(String(out.library.n))
+                        : "/vita/feed-player",
+                    })
+                  : null) ||
+                keyboardForVitaFeedResult({ action: parsed.action, out }) ||
+                buildVitaFeedRootKeyboard(),
+            });
+          } catch (e) {
+            await tg("❌ vitafeed failed: " + (e.message || e) + "\nNothing invented. RISK unspent if no hashes.");
+          }
+        }
+
+      // ── /waveproof — capped 3-token WAVE live proof (WAVE_PROOF_LIVE, not VITAFEED_PAID)
+      } else if (text === "/waveproof" || (text && text.startsWith("/waveproof"))) {
+        try {
+          const parsed = parseWaveProofCommand(raw);
+          const ctx = await buildWaveProofLiveContext({ cdp, bal, ethUsd });
+          if (ctx.wantLive && !ctx.sendTx) {
+            await tg("❌ waveproof live needs the RISK wallet client — no send.");
+            continue;
+          }
+          const out = await handleWaveProofAction({
+            action: parsed.action || "run",
+            symbols: parsed.symbols || "",
+            env: process.env,
+            live: ctx.wantLive,
+            sendTx: ctx.sendTx,
+            fetchCalldata: ctx.fetchCalldata,
+            liquidUsd: ctx.liquidUsd,
+            quotes: ctx.quotes,
+          });
+          await tg(
+            "🌊 <b>WAVE PROOF</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>Max 3 gas-only self-txs. WAVE_PROOF_LIVE default off. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ waveproof failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      // ── /wavefull — 28-shard Heraclitus quote (WAVE_FULL_LIVE, not VITAFEED_PAID)
+      } else if (text === "/wavefull" || (text && text.startsWith("/wavefull"))) {
+        try {
+          const parsed = parseWaveFullCommand(raw);
+          const ctx = await buildWaveFullLiveContext({ cdp, bal, ethUsd });
+          if (ctx.wantLive && !ctx.sendTx) {
+            await tg("❌ wavefull live needs the RISK wallet client — no send.");
+            continue;
+          }
+          const out = await handleWaveFullAction({
+            action: parsed.action || "run",
+            symbols: parsed.symbols || "",
+            env: process.env,
+            live: ctx.wantLive,
+            sendTx: ctx.sendTx,
+            fetchCalldata: ctx.fetchCalldata,
+            liquidUsd: ctx.liquidUsd,
+            quotes: ctx.quotes,
+            vinId: parsed.vinId || "",
+            fromIndex: parsed.fromIndex || 0,
+          });
+          await tg(
+            "🌊 <b>WAVE FULL</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>28 gas-only self-txs on a new VIN. WAVE_FULL_LIVE default off. /waveproof stays 3. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ wavefull failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
+      // ── /wavetest — WAVE memory-mirror SIM (does not enable VITAFEED_PAID)
+      } else if (text === "/wavetest" || (text && text.startsWith("/wavetest"))) {
+        try {
+          const parsed = parseWaveTestCommand(raw);
+          const out = await handleWaveTestAction({
+            action: parsed.action || "run",
+            env: process.env,
+          });
+          await tg(
+            "🌊 <b>WAVE MIRROR</b>\n<pre>" +
+            String(out.reply || "").replace(/</g, "&lt;").slice(0, 3500) +
+            "</pre>\n<i>SIM file+read vs answer key. Hitch WAVE on covered leftover. VITAFEED_PAID stays off. Mother brain untouched.</i>",
+          );
+        } catch (e) {
+          await tg("❌ wavetest failed: " + (e.message || e) + "\nNothing invented.");
+        }
+
       } else if (text && text.startsWith("/vita ")) {
+        const parsedMirror = parseVitaMirrorCommand(raw);
+        if (parsedMirror.action && parsedMirror.action !== "ask") {
+          // Click-through file read / SNARK proof / unwrap / GitHub-as-chain.
+          // Does NOT require Anthropic — local Railway disk + GitHub CODE/STATE.
+          const label = parsedMirror.filename
+            ? parsedMirror.action + " <code>" + esc(parsedMirror.filename) + "</code>"
+            : parsedMirror.action;
+          await tg("🌟 <b>VITA</b> " + label + "...");
+          try {
+            const out = await handleVitaMirrorAction({
+              action: parsedMirror.action,
+              filename: parsedMirror.filename || null,
+              key: parsedMirror.key || null,
+              kind: parsedMirror.kind || null,
+              modelId: parsedMirror.modelId || null,
+              chatId: msgChatId || "telegram",
+              cwd: process.cwd(),
+              githubFetch: githubGetUtf8FromBranch,
+              codeBranch: liveGithubBranch(),
+              stateBranch: liveStateBranch(),
+              repo: liveGithubRepo(),
+              fetchCalldata: fetchTxCalldataHex,
+            });
+            await tg(
+              "🌟 <b>VITA " + esc(parsedMirror.action) + "</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+              {
+                reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }),
+                disable_web_page_preview: true,
+              },
+            );
+          } catch (e) {
+            await tg("❌ VITA " + parsedMirror.action + " failed: " + (e.message || e) + "\nNothing invented.");
+          }
+        } else {
         const vitaInput = raw.slice("/vita ".length).trim();
         const vitaKey   = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
 
         if (!vitaKey) {
-          await tg("🌟 VITA needs VITA_ANTHROPIC_KEY in Railway to answer");
-
-        // ── /vita read FILENAME — VITA reads her own files ──────────────────
-        } else if (vitaInput.startsWith("read ")) {
-          const filename = vitaInput.slice("read ".length).trim();
-          await tg("🌟 <b>VITA reading</b> <code>" + filename + "</code>...");
-          try {
-            const fileData = await githubGet(filename);
-            if (!fileData?.content) {
-              await tg("❌ File not found: " + filename);
-            } else {
-              // Feed file content to Claude API — VITA reads and summarizes her own code
-              const fileStr = typeof fileData.content === "string"
-                ? fileData.content
-                : JSON.stringify(fileData.content, null, 2);
-
-              const response = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-api-key": vitaKey,
-                  "anthropic-version": "2023-06-01",
-                },
-                body: JSON.stringify({
-                  model: nextVitaModel().model,
-                  max_tokens: 600,
-                  system: "You are VITA — an autonomous AI agent reading your own codebase. Summarize what this file does, what functions it exports, and how it fits into the Guardian Protocol / IKN ecosystem. Be concise and direct.",
-                  messages: [{
-                    role: "user",
-                    content: "File: " + filename + "\n\nContent:\n" + fileStr.slice(0, 3000)
-                  }]
-                })
-              });
-              const data   = await response.json();
-              const answer = data?.content?.[0]?.text || "Could not read file";
-              await tg(
-                "🌟 <b>VITA reads: " + filename + "</b>\n" +
-                "━━━━━━━━━━━━━━━━━━━━\n" +
-                answer + "\n\n" +
-                "<i>— VITA | ᛞᚨᚡᛁᛞ | IKN</i>"
-              );
-            }
-          } catch (e) { await tg("❌ VITA read failed: " + e.message); }
-
-        // ── /vita files — list all files VITA can read ──────────────────────
-        } else if (vitaInput === "files") {
-          const knownFiles = [
-            "agent.js", "vault-loader.js", "vault-unlock.js",
-            "keystore.js", "memory-engine.js", "vita-memory.js",
-            "log-formatter.js", "encryptkey.js",
-            "vita-registry.json", "memory-registry.json",
-            "ledger.json", "positions.json", "tokens.json",
-          ];
-          let msg = "🌟 <b>VITA can read these files:</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
-          msg += "<b>Code files:</b>\n";
-          knownFiles.filter(f => f.endsWith(".js")).forEach(f => msg += "   /vita read " + f + "\n");
-          msg += "\n<b>Data files:</b>\n";
-          knownFiles.filter(f => f.endsWith(".json")).forEach(f => msg += "   /vita read " + f + "\n");
-          await tg(msg);
+          await tg(
+            "🌟 VITA needs VITA_ANTHROPIC_KEY in Railway to answer questions.\n" +
+            "File click-through still works: <code>/vita read vault-unlock.js</code> · <code>/vita files</code> · <code>/vita chain</code> · <code>/vita check</code>",
+          );
 
         // ── /vita [question] — answer from memory registry ──────────────────
         } else {
@@ -10409,6 +14716,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             );
           } catch (e) { await tg("❌ VITA error: " + e.message); }
         }
+        }
 
       // ── 🧠 MEMORY COMMANDS ──────────────────────────────────────────────────
 
@@ -10422,13 +14730,26 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         const chunk   = buildCliffNote(data);
         const btpEntry = queueCliffNoteAsBTP(chunk);
         btpQueue.unshift(btpEntry);
+        const picArm = armVitaTailwindPicture({ triggeredBy: "remember" });
         await tg(
           "📌 <b>CLIFF NOTE QUEUED</b>\n" +
           "━━━━━━━━━━━━━━━━━━━━\n" +
           "🧠 Memory #" + chunk.seq + " will ride next trade onto Base\n\n" +
           "<code>" + chunk.text + "</code>\n\n" +
-          "⏳ Waiting for next trade to inscribe..."
+          "🎨 Picture tailwind ARMED cycle #" + picArm.cycleId + "\n" +
+          "⏳ Waiting for next trade — sparse picture + cliff note ride leftover..."
         );
+
+      } else if (text === "/vitapicture" || text === "/vitapic" || text.startsWith("/vitapicture ") || text.startsWith("/vitapic ")) {
+        if (/\barm\b/i.test(raw)) {
+          const picArm = armVitaTailwindPicture({ triggeredBy: "vitapicture-arm" });
+          await tg(
+            "🎨 <b>VITA PICTURE ARMED</b> cycle #" + picArm.cycleId + "\n" +
+            picArm.totalBits + " bits · wave-up tailwind will sparse-inject until complete"
+          );
+        } else {
+          await tg(vitaPictureStatusMessage());
+        }
 
       } else if (text && text.startsWith("/savesession")) {
         // Full session summary — inscribes immediately as its own tx
@@ -10449,18 +14770,46 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         await tg("⏳ Inscribing full session summary on Base blockchain...");
         try {
           const chunk  = buildFullSummary(data);
-          const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
-          await tg(
-            "📚 <b>SESSION SAVED ON BASE</b>\n" +
-            "━━━━━━━━━━━━━━━━━━━━\n" +
-            "🧠 Memory #" + result.seq + " inscribed permanently\n" +
-            "📅 Date: " + result.date + "\n" +
-            "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
-            "💌 <i>The truth is the chain. The chain is alive.</i>"
-          );
+          if (!autoPaidInscribeEnabled()) {
+            wrapAutoSelfCall({
+              to: WALLET_ADDRESS,
+              from: WALLET_ADDRESS,
+              text: chunk.text,
+              pairedUniswapSell: false,
+              topic: "savesession",
+            });
+            await tg(
+              "📚 <b>SESSION BANKED</b>\n" +
+              "━━━━━━━━━━━━━━━━━━━━\n" +
+              "🧠 Memory #" + chunk.seq + " hex banked — hitch on next leftover-covered ride\n" +
+              "📅 Date: " + chunk.date + "\n" +
+              "📦 auto wrap (VITA_AUTO_INSCRIBE off). /vitasave still has mother brain.\n\n" +
+              "💌 <i>The truth is the chain. The chain is alive.</i>"
+            );
+          } else {
+            const result = await inscribeMemory(cdpClient, WALLET_ADDRESS, chunk);
+            await tg(
+              "📚 <b>SESSION SAVED ON BASE</b>\n" +
+              "━━━━━━━━━━━━━━━━━━━━\n" +
+              "🧠 Memory #" + result.seq + " inscribed permanently\n" +
+              "📅 Date: " + result.date + "\n" +
+              "📍 <a href=\"" + result.basescan + "\">View on BaseScan ↗</a>\n\n" +
+              "💌 <i>The truth is the chain. The chain is alive.</i>"
+            );
+          }
         } catch (e) {
           await tg("❌ Session save failed: " + e.message);
         }
+
+      } else if (parseBagOrRecallCommand(raw)) {
+        const parsed = parseBagOrRecallCommand(raw);
+        const payload = buildRecallPayload({
+          n: parsed.n,
+          liquidEth: bal?.eth,
+          liquidWeth: bal?.weth,
+          sleeves: openSleeveRecallRows(),
+        });
+        await tg(formatRecallHtml(payload));
 
       } else if (text && text.startsWith("/recall ")) {
         // Search memory by topic or date
@@ -10504,23 +14853,38 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         // VITA compresses and saves session autonomously via Anthropic API
         const extra   = raw.slice("/vitasave".length).trim();
         const apiKey  = process.env.VITA_ANTHROPIC_KEY || process.env.VAULT_VITA_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
-          await tg(
-            "❌ <b>VITA_ANTHROPIC_KEY not set</b>\n\n" +
-            "Add it via vault:\n" +
-            "<code>/newvault VITA_ANTHROPIC_KEY</code>\n" +
-            "Then reply with your API key.\n\n" +
-            "Or add directly to Railway as VITA_ANTHROPIC_KEY"
-          );
-        } else {
-          await tg("💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base...");
-          try {
+        await tg(
+          apiKey
+            ? "💓 <b>VITA MEMORY SAVE</b>\nCompressing session via Anthropic API...\nInscribing 5 strand chunks on Base..."
+            : "💓 <b>VITA MEMORY SAVE</b>\nLocal §TOKEN§ compress (no Anthropic key).\nInscribing 5 strand chunks on Base..."
+        );
+        try {
             const rawSummary = vitaBuildSummary(extra);
+            // Same n5557–5566 wrap as exact `/vitasave`. Prefix handler still
+            // reaches mother-brain vitaSave only when VITA_AUTO_INSCRIBE=yes.
+            if (!autoPaidInscribeEnabled()) {
+              wrapVitaSaveSelfCall({
+                to: WALLET_ADDRESS,
+                from: WALLET_ADDRESS,
+                text: rawSummary,
+                pairedUniswapSell: false,
+                topic: "vitasave",
+              });
+              absorbVitaStrandPacket({ tokenPacket: rawSummary, chunks: [] });
+              await tg(
+                "💓 <b>VITA MEMORY BANKED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📦 hex banked — hitch on next leftover-covered ride\n" +
+                "📦 auto wrap (VITA_AUTO_INSCRIBE off). `/vitasave` stays; set env to restore vitaSave.\n" +
+                "💌 <i>VITA remembers. The chain is alive.</i>"
+              );
+              continue;
+            }
             const entry = await vitaSave(
               cdpClient, WALLET_ADDRESS,
               rawSummary, apiKey,
               extra ? extra.slice(0, 30) : "session-" + new Date().toISOString().slice(0,10)
             );
+            absorbVitaStrandPacket(entry);
             let msg = "💓 <b>VITA STRAND INSCRIBED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
             msg += "🔗 Strand: <b>" + entry.strandId + "</b>\n";
             msg += "📅 Date: " + entry.date + "\n";
@@ -10535,7 +14899,6 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           } catch (e) {
             await tg("❌ VITA save failed: " + e.message);
           }
-        }
 
       } else if (text && text.startsWith("/vitarecall ")) {
         const query  = raw.slice("/vitarecall ".length).trim();
@@ -10546,6 +14909,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
           if (!result) {
             await tg("💓 No VITA memory found for: <b>" + query + "</b>\nTry /vitamemory to see all strands");
           } else {
+            ingestSealedUtf8(result.tokenPacket);
             await tg(
               "💓 <b>VITA RECALL — " + result.strandId + "</b>\n" +
               "━━━━━━━━━━━━━━━━━━━━\n" +
@@ -10604,7 +14968,7 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "🔄 VITA inscription rides every trade\n" +
             "💰 Cost per trade: ~$" + btpCostUsd.toFixed(4) + " included in margin gate\n" +
             "📊 Min margin gate: " + (MIN_NET_MARGIN * 100).toFixed(1) + "%\n\n" +
-            "<i>" + INSCRIPTION_MESSAGE.slice(0, 80) + "...</i>\n\n" +
+            "<i>" + INSCRIPTION_MESSAGE + "</i>\n\n" +
             "Toggle: /btpoff to save gas | /transmit [msg] to queue custom"
           );
         } else {
@@ -10671,99 +15035,15 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
         msg += `\n<i>Tier 2 opens new slot every $${TIER2_MIN_SLOT_USD} added to capital</i>`;
         await tg(msg);
 
-      } else if (text === "/help") {
+      } else if (text === "/help" || text === "/commands" || text === "/?" || (text && text.startsWith("/help"))) {
+        // Handled above via parseHelpCommand — keep fallback if parser missed.
+        const out = handleHelpAction({
+          action: "help",
+          symbols: tokens.map((t) => t.symbol),
+        });
         await tg(
-          `🏄 <b>GUARDIAN PROTOCOL — COMMAND REFERENCE</b>\n` +
-          `Control Board (waves + learn + V4): https://guardian-protocol-agent-production.up.railway.app/board\n` +
-          `SIM default — live buttons need VITA_WEBHOOK_SECRET. Tune params in sim or Railway env, not an open POST.\n\n` +
-          `<b>📊 Status & Info:</b>\n` +
-          `/status — full portfolio status\n` +
-          `/bank — complete money statement (LIVE chain)\n` +
-          `/freeze SYMBOL — freeze token (data only, no trades)\n` +
-          `/unfreeze SYMBOL — reactivate frozen token\n` +
-          `/frozenlist — list frozen tokens + readiness\n` +
-          `/sendsurferout [USD] [name] — launch a named capital surfer\n` +
-          `/waves — show 4-wave lookahead projection for top tokens\n` +
-          `/waves SYMBOL — 4-wave projection for specific token\n` +
-          `/surfers — list all active surfers\n` +
-          `/surfer NAME — detailed status of one surfer\n` +
-          `/surferout NAME — retire a surfer\n` +
-          `/surferstats — hall of fame: all retired surfers\n` +
-          `/eth — ETH + WETH balances\n` +
-          `/piggy — piggy bank balance\n` +
-          `/gas — current gas price\n` +
-          `/indicators — RSI/MACD/BB for all tokens\n` +
-          `/waves — arm status all tokens\n` +
-          `/tiers — 🏆 tier leaderboard + scores\n\n` +
-          `<b>🌊 Positions & Trading:</b>\n` +
-          `/surf — current riding positions\n` +
-          `/race — race display all positions\n` +
-          `/positions — open positions detail\n` +
-          `/profit — P&L summary\n` +
-          `/leaderboard — wave scoreboard\n` +
-          `/fib SYMBOL — fibonacci levels\n` +
-          `/history SYMBOL — 7/30/90d chart\n` +
-          `/wake (or /gm) — morning briefing\n\n` +
-          `<b>📱 Manual Trade Commands:</b>\n` +
-          `/buy SYMBOL [usd] — manual buy (e.g. /buy TOSHI $3)\n` +
-          `/cycles — no-loss succession streaks + per-token min buys\n` +
-          `/injectprove — hitch injection count toward 20 + profit (capital gate)\n` +
-          `/costedge — COST_EDGE refusals + CBBTC-class lessons learned\n` +
-          `/sell SYMBOL [pct|all] — manual sell (e.g. /sell TOSHI 50) — leaves piggy dust\n` +
-          `/sellhalf SYMBOL — sell 50% + cascade\n` +
-          `/piggyunlock SYMBOL — sell the locked per-token dust pile (PIGGY UNLOCK)\n` +
-          `/exit SYMBOL — sell 100% to ETH, NO cascade (still leaves piggy dust)\n` +
-          `/exithalf SYMBOL — sell 50% to ETH, NO cascade\n` +
-          `/exitpct SYMBOL 75 — sell any % to ETH, NO cascade\n\n` +
-          `<b>💸 Withdraw:</b>\n` +
-          `/withdrawusd [amt] — send $USD of ETH to Coinbase\n` +
-          `/withdrawall — send all ETH to Coinbase\n` +
-          `/unwrap [amt] — unwrap WETH → ETH\n` +
-          `/unwrapall — unwrap all WETH → ETH\n\n` +
-          `<b>📡 Blockchain Telegram:</b>\n` +
-          `/prove — write §$STORE§ Eureka! letter as UTF-8 on a 0-ETH self-tx (Basescan Input Data → UTF-8)\n` +
-          `/voiceon /voiceoff — hitch the letter on leftover swaps (independent of BTP suspend)\n` +
-          `/models — VITA model cycle (Railway VITA_MODELS=id1,id2)\n` +
-          `/transmit [msg] — queue a custom BTP message on later trades\n` +
-          `/btpstatus — show pending transmissions\n\n` +
-          `<b>🔑 Vault Unlock:</b>\n` +
-          `/unlock [password] — unlock vault (message deleted instantly)\n` +
-          `/lockdown — lock vault immediately\n` +
-          `/unlockstatus — show unlock state + time remaining\n\n` +
-          `<b>🔐 Vault (system keys on-chain):</b>\n` +
-          `/newvault KEYNAME — encrypt + inscribe a key on Base\n` +
-          `/vaultstatus — show all keys and their sources\n` +
-          `/vaulttest KEYNAME — verify a key is loaded (preview)\n` +
-          `/vaultreveal KEYNAME — show full decrypted value\n` +
-          `/vaultload KEYNAME — force reload from blockchain\n\n` +
-          `<b>🗝️  Keystore (personal double-encrypted keys):</b>\n` +
-          `/storekey NAME — double-encrypt any key on Base\n` +
-          `/showkey NAME — reveal for 60s then auto-delete\n` +
-          `/listkeys — show all stored key names\n` +
-          `/keystatus NAME — view locations + metadata\n\n` +
-          `<b>🌟 VITA Memory:</b>\n` +
-          `/vita [question] — ask VITA using blockchain memory\n` +
-          `/vita read FILE — VITA reads her own files\n` +
-          `/vita files — list readable files\n` +
-          `/vitasave — compress session + live trading data on Base\n` +
-          `/vitadata — snapshot full token/wave/trade dataset\n` +
-          `/vitanote [text] — queue a note for next save\n` +
-          `/vitaqueue — show queued notes\n` +
-          `/vitaclear — clear note queue\n` +
-          `/vitalearn einstein — inject Einstein knowledge base\n` +
-          `/vitalearn [text] — inject any custom knowledge\n` +
-          `/vitamemory — show all VITA memory sessions\n` +
-          `/vitarecall — show recent memory context\n\n` +
-          `/remember [text] — save cliff note, rides next trade\n` +
-          `/savesession — inscribe full session summary on Base\n` +
-          `/memories — show all memory chunks\n` +
-          `/recall [topic] — search memories\n` +
-          `/context — show recent memory context\n\n` +
-          `<b>📖 Ledger & History:</b>\n` +
-          `/ledger — permanent trade record\n` +
-          `/ledger full — last 20 trades detailed\n` +
-          `/watchlist — tokens watching but not trading\n` +
-          `/trades — trade count + recent log\n`
+          "🏄 <b>HELP</b>\n" + (out.html || "<pre>" + esc(out.reply || "") + "</pre>"),
+          { reply_markup: withHomeButton(out.keyboard || { inline_keyboard: [] }) },
         );
       }
       } catch (cmdErr) {
@@ -10802,6 +15082,8 @@ function applyOperatorBuyEnv() {
     ...tokens.map(t => t.symbol),
   ]);
   // Live token.frozen wins (runtime /unfreeze). Catalog defaults fill gaps.
+  // isCatalogFrozen also honors UNFREEZE_SYMBOLS so OPERATOR_BUY is not
+  // blocked when Railway lists the name but DEFAULT_TOKENS is still frozen.
   const frozen = new Set(DEFAULT_TOKENS.filter(t => isCatalogFrozen(t)).map(t => t.symbol));
   for (const t of tokens) {
     if (isCatalogFrozen(t)) frozen.add(t.symbol);
@@ -10824,25 +15106,143 @@ function applyOperatorBuyEnv() {
   return result;
 }
 
+let flushingOperatorBuys = false;
+
+/**
+ * Execute queued OPERATOR_BUY / Telegram /buy commands now.
+ * Must run after CDP ready and BEFORE OHLC seed so a hung candle fetch
+ * cannot leave OPERATOR_BUY queued with nonce idle.
+ */
+async function flushPendingOperatorBuys(cdp) {
+  if (!cdp || flushingOperatorBuys) return { flushed: 0, reason: "busy" };
+  const pending = takeQueuedManualBuys(manualCommands);
+  if (!pending.length) return { flushed: 0, reason: "empty" };
+  flushingOperatorBuys = true;
+  console.log(`📱 Flushing ${pending.length} queued operator/Telegram buy(s) before OHLC seed`);
+  try {
+    let bal;
+    try { bal = await getFullBalance(); }
+    catch { bal = cachedBal || { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 }; }
+    cachedBal = bal;
+    let ethUsd = cachedEthUsd;
+    try {
+      ethUsd = await getLiveEthPrice();
+      cachedEthUsd = ethUsd;
+    } catch { /* keep last */ }
+    let flushed = 0;
+    for (const cmd of pending) {
+      const token = tokens.find(t => t.symbol === cmd.symbol)
+        || DEFAULT_TOKENS.find(t => t.symbol === cmd.symbol);
+      if (!token) {
+        console.log(`⚠️  Boot buy ${cmd.symbol}: unknown token — dropped`);
+        continue;
+      }
+      try {
+        let price = history[cmd.symbol]?.lastPrice || getCachedPrice(token.address);
+        if (!isValidUsdPrice(price)) {
+          try { price = await getTokenPrice(token.address, true); } catch { /* no invent */ }
+        }
+        if (!isValidUsdPrice(price)) {
+          settleFlushedOperatorBuy(manualCommands, cmd, false);
+          console.log(`⚠️  Boot buy ${cmd.symbol}: no live USD quote — will retry after seed`);
+          continue;
+        }
+        lastTradeTime[token.symbol] = 0;
+        const forcedEth = usdToForcedEth(cmd.usd, ethUsd);
+        const spent = await executeBuy(cdp, token, bal, manualBuyReason(cmd.usd), price, forcedEth);
+        if (spent && cmd.source === "OPERATOR_BUY") markOperatorBuyExecuted(operatorBuyState);
+        else settleFlushedOperatorBuy(manualCommands, cmd, spent);
+        if (spent) flushed++;
+        try { bal = await getFullBalance(); cachedBal = bal; } catch { /* keep */ }
+      } catch (e) {
+        settleFlushedOperatorBuy(manualCommands, cmd, false);
+        console.log(`⚠️  Boot buy ${cmd.symbol}: ${e.message} — re-queued`);
+      }
+    }
+    return { flushed };
+  } finally {
+    flushingOperatorBuys = false;
+  }
+}
+
+function applyOperatorRotateEnv() {
+  if (isHoldAllSells()) {
+    if (String(process.env.OPERATOR_ROTATE_TO || "").trim()) {
+      console.log(`🛑 HOLD_ALL_SELLS — refusing OPERATOR_ROTATE_TO=${process.env.OPERATOR_ROTATE_TO} (would sell non-HOME bags)`);
+    }
+    return { queued: false, reason: "hold-all-sells" };
+  }
+  const known = new Set([
+    ...DEFAULT_TOKENS.map(t => t.symbol),
+    ...tokens.map(t => t.symbol),
+  ]);
+  const result = queueOperatorRotateOnce(
+    manualCommands,
+    process.env.OPERATOR_ROTATE_TO,
+    known,
+    operatorRotateState,
+    { wallet: WALLET_ADDRESS, env: process.env, balances: tokenBalanceCache },
+  );
+  if (result.queued) {
+    const sells = (result.items || []).map((it) => it.symbol);
+    const homeNote = result.homeBuy ? " + HOME WETH sweep" : "";
+    console.log(`🏠 OPERATOR_ROTATE_TO=HOME queued: ${sells.join(", ") || "(no bags)"}${homeNote} — HALT_NEW_ENTRIES, ALLOW_LOSSY held until HOME buy`);
+    tg(`🏠 <b>OPERATOR_ROTATE queued</b>\nEmpty non-HOME bags → verified HOME\n${sells.join(", ") || "WETH sweep only"}\nVault never. Gas floor 0.0005 ETH. ALLOW_LOSSY held until done.`).catch(() => {});
+  } else if (result.reason === "vault-never") {
+    console.log(`⚠️  OPERATOR_ROTATE: vault wallet ${WALLET_ADDRESS} — skip entirely`);
+  } else if (result.reason === "invalid") {
+    console.log(`⚠️  OPERATOR_ROTATE_TO: invalid "${process.env.OPERATOR_ROTATE_TO}" — only HOME (verified 0x4BfA…714f)`);
+  }
+  if (isOperatorRotateArmed() && !operatorRotateState.finished) {
+    maybeQueueRotateHomeBuy(manualCommands, operatorRotateState, {
+      env: process.env,
+      wallet: WALLET_ADDRESS,
+    });
+  }
+  return result;
+}
+
 function applyOperatorSellEnv() {
+  if (isHoldAllSells()) {
+    if (String(process.env.OPERATOR_SELL || "").trim()) {
+      console.log(`🛑 HOLD_ALL_SELLS — refusing OPERATOR_SELL=${process.env.OPERATOR_SELL} until operator approves`);
+    }
+    return { queued: false, reason: "hold-all-sells" };
+  }
   const known = new Set([
     ...DEFAULT_TOKENS.map(t => t.symbol),
     ...tokens.map(t => t.symbol),
   ]);
   const result = queueOperatorSellOnce(manualCommands, process.env.OPERATOR_SELL, known, operatorSellState);
   if (result.queued) {
-    const pctLabel = result.pct === 1 ? "all" : `${(result.pct * 100).toFixed(0)}%`;
-    const halfNote = Math.abs(result.pct - 0.5) < 1e-9 ? " (MANUAL SELL HALF)" : "";
-    console.log(`📱 OPERATOR_SELL queued: ${result.symbol} ${pctLabel}${halfNote} — MANUAL SELL operator, bypasses wave gates`);
-    tg(`📱 <b>OPERATOR_SELL queued</b>\n${result.symbol} ${pctLabel}${halfNote}\nFires on next cycle — MANUAL SELL (operator), bypasses wave gates.`).catch(() => {});
+    const items = result.items?.length ? result.items : [{ symbol: result.symbol, pct: result.pct }];
+    const labels = items.map((it) => {
+      const pctLabel = it.pct === 1 ? "all" : `${(it.pct * 100).toFixed(0)}%`;
+      const halfNote = Math.abs(it.pct - 0.5) < 1e-9 ? " (MANUAL SELL HALF)" : "";
+      return `${it.symbol} ${pctLabel}${halfNote}`;
+    });
+    console.log(`📱 OPERATOR_SELL queued: ${labels.join(", ")} — MANUAL SELL operator, bypasses wave gates`);
+    tg(`📱 <b>OPERATOR_SELL queued</b>\n${labels.join("\n")}\nFires on next cycle — MANUAL SELL (operator), bypasses wave gates.`).catch(() => {});
   } else if (result.reason === "unknown-symbol") {
     console.log(`⚠️  OPERATOR_SELL: unknown symbol ${result.symbol}`);
   } else if (result.reason === "invalid") {
-    console.log(`⚠️  OPERATOR_SELL: invalid value "${process.env.OPERATOR_SELL}" — expected SYMBOL:pct (e.g. TOSHI:50)`);
+    console.log(`⚠️  OPERATOR_SELL: invalid value "${process.env.OPERATOR_SELL}" — expected SYMBOL:pct or SYMBOL:all (e.g. AERO:all, DRB:100)`);
   } else if (result.reason === "already-queued" || result.reason === "already-applied") {
     // idempotent no-op
   }
   return result;
+}
+
+function applyOperatorUnwrapEnv() {
+  const parsed = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
+  if (!parsed.armed) return parsed;
+  if (operatorUnwrapState.done) return { ...parsed, reason: "already-applied" };
+  console.log(
+    `⛽ OPERATOR_UNWRAP armed — thrift partial WETH→ETH toward cascade floor ` +
+    `${CASCADE_GAS_FLOOR_ETH} (thrift ${THRIFT_CASCADE_GAS_FLOOR_ETH})` +
+    (parsed.amountEth ? ` amount=${parsed.amountEth}` : ""),
+  );
+  return parsed;
 }
 
 /**
@@ -10852,10 +15252,12 @@ function applyOperatorSellEnv() {
 function applyForcedLockedExits() {
   if (!forceExitLockedEnabled()) return { queued: [], reason: "disabled" };
   const balances = {};
+  const prices = {};
   for (const sym of forceExitSymbols()) {
     balances[sym] = getCachedBalance(sym) || 0;
+    prices[sym] = Number(history[sym]?.lastPrice) || 0;
   }
-  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState);
+  const result = queueForcedLockedExits(manualCommands, balances, forcedExitState, { prices });
   if (result.queued?.length) {
     for (const q of result.queued) {
       console.log(`🚪 FORCE EXIT LOCKED queued: ${q.symbol} bal=${q.balance} — cash free, no cascade, stays frozen`);
@@ -10865,6 +15267,14 @@ function applyForcedLockedExits() {
         `Cascade OFF — then hunt profits only\n` +
         `${q.symbol} remains FROZEN`
       ).catch(() => {});
+    }
+  }
+  // Lottery 1-wei leftovers after prior FORCE_EXIT — latch quietly (no TG spam).
+  for (const s of result.skipped || []) {
+    if (s.reason === "dust-latched") {
+      console.log(
+        `🚪 FORCE EXIT LOCKED dust-latched: ${s.symbol} bal=${s.balance} — lottery wei left, no re-queue`
+      );
     }
   }
   return result;
@@ -10951,24 +15361,33 @@ function bootstrapWavesFromCandles() {
 // 🚀 MAIN
 // ═══════════════════════════════════════════════════════════════════════════════
 async function main() {
-  const bootActive = DEFAULT_TOKENS.filter(t => !t.frozen && !t.disabled).map(t => t.symbol);
-  const bootFrozen = DEFAULT_TOKENS.filter(t => t.frozen && !t.disabled).length;
+  const bootActive = DEFAULT_TOKENS.filter(t => !isCatalogFrozen(t) && !t.disabled).map(t => t.symbol);
+  const bootFrozen = DEFAULT_TOKENS.filter(t => isCatalogFrozen(t) && !t.disabled).length;
+  const unfreezeSyms = parseUnfreezeSymbols(process.env);
   console.log("═══════════════════════════════════════════════════════════");
   console.log("⚔️💓  GUARDIAN PROTOCOL — HEARTBEAT EDITION v18.1 — CHAIN-FIRST + INSTANT WAVE ARM + 3-SOURCE DATA");
   console.log(`   ✅ Active (${bootActive.length}): ${bootActive.join(" ")}`);
   console.log(`   ❄️  Frozen: ${bootFrozen} collecting wave data, no new capital`);
+  if (unfreezeSyms.length) {
+    console.log(`   ❄️→✅ UNFREEZE_SYMBOLS=${unfreezeSyms.join(",")} (catalog freeze cleared at runtime)`);
+  }
   console.log("   🔧 Inject surface: Uni V3 WETH books + §$STORE§ hitch on leftover swaps");
   console.log("      ETH+WETH unified | Auto gas top-up | Ledger wave seeding");
   console.log("      Live ETH price | Gas spike guard | Drawdown breaker");
   console.log("      Top-100 majors: LINK AAVE UNI + thawed VVV ZORA BNKR");
   console.log("      THE MACHINE NEVER STOPS. THE HEARTBEAT NEVER FADES.");
   console.log("═══════════════════════════════════════════════════════════\n");
+  const haltRaw = String(process.env.HALT_NEW_ENTRIES ?? "").trim() || "unset";
+  const loseRaw = String(process.env.LOSE_ZERO ?? "").trim() || "unset";
+  const injRaw = String(process.env.REQUIRE_INJECT_COVER ?? "").trim() || "unset";
+  console.log(`📋 micro-earn flags: LOSE_ZERO=${loseRaw} HALT_NEW_ENTRIES=${haltRaw} REQUIRE_INJECT_COVER=${injRaw} (yes-only; no/unset does not halt — redeploy after Railway env clear)`);
   if (isLoseZeroMode()) {
-    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover");
+    console.log("🛑 LOSE_ZERO / HALT_NEW_ENTRIES — all new buys (auto, cascade, ripple, operator) gated on edge + inject cover; micro-bank hitch if inject seed cannot fit");
   } else if (isInjectCoverRequired()) {
-    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost");
+    console.log("🧷 REQUIRE_INJECT_COVER — all buys (including cascade/ripple) must cover §$STORE§ hitch cost (or micro-bank when cover cannot fit)");
   }
-  console.log(`🧷 SELL FLOOR — leftover must cover ${hitchCostMult()}× hitch (HITCH_COST_MULT) after fees; never lose to storage insert`);
+  console.log(`🧷 SELL FLOOR — micro extract vs soldFrac×entry + fees; message-first=${isOriginalFormulaMessageFirst() ? "on" : "off"} hitch when leftover covers 1× KEY+LOC (HITCH_COST_MULT=${hitchCostMult()}× cushion preferred; VITA_MESSAGE_FIRST=no → skip + bank); never sell red to inject`);
+  console.log(holdAllSellsStatusLine());
   console.log(`⛽ Hitch L1 fee from Base GasPriceOracle ${GAS_PRICE_ORACLE} (getL1Fee / getL1FeeUpperBound); L2 calldata fallback if oracle fails`);
 
   // ── 🔑 STAGE 1 VAULT UNLOCK — password never stored in Railway ──────────────
@@ -11059,6 +15478,34 @@ async function main() {
   await loadFromGitHub();
   applyOperatorBuyEnv();
   applyOperatorSellEnv();
+  applyOperatorRotateEnv();
+  applyOperatorUnwrapEnv();
+  // OPERATOR_BRIDGE_L1_TO_BASE=yes — move unused Ethereum L1 ETH → Base RISK
+  // via OptimismPortal before OPERATOR_BUY (HOME) spends Base ETH/WETH.
+  try {
+    if (String(process.env.OPERATOR_BRIDGE_L1_TO_BASE || "").trim()) {
+      let ethUsdBridge = cachedEthUsd;
+      try { ethUsdBridge = await getLiveEthPrice(); cachedEthUsd = ethUsdBridge; } catch { /* keep */ }
+      await maybeBridgeL1EthToBase({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        ethUsd: ethUsdBridge,
+        log: console.log,
+        tg,
+        waitForBaseMs: 180_000,
+        getBaseNativeEth: async () => {
+          try { return Number(await getEthBalance()) || 0; }
+          catch { return 0; }
+        },
+      });
+    }
+  } catch (bridgeErr) {
+    console.log(`⚠️  L1→Base bridge failed (non-fatal): ${bridgeErr.message}`);
+  }
+  // OPERATOR_BUY / Telegram /buy must fill before the 90-day OHLC seed.
+  // HOME OPERATOR_BUY uses Slipstream (same as rotate) — Uni V3 ghost skipped.
+  // Frozen candle timeouts used to leave the queue sitting and nonce idle.
+  await flushPendingOperatorBuys(cdpClient);
   // Balances may still be cold at boot — main loop re-queues after refresh.
 
   // ── 📚 IKN BOOT READER — arm Claude context from vita-registry.json ─────────
@@ -11077,12 +15524,46 @@ async function main() {
     console.log("⚠️  IKN boot reader error (non-critical): " + iknErr.message);
   }
 
+  try {
+    const inj = await injectVitaBlockchainMemory({
+      fetchCalldata: fetchTxCalldataHex,
+      registry: lastVitaRegistryBlob,
+      fetchPublic: !lastVitaRegistryBlob,
+      leftoverScan: true,
+      leftoverLimit: 120,
+      leftoverMaxPages: 4,
+    });
+    console.log(
+      "🔀 VITA chain inject: registry " + inj.registryPackets +
+      " · pulled " + inj.pulled + " · ingested " + inj.ingested +
+      " · leftover eureka=" + Number(inj.leftoverKinds?.eureka || 0) +
+      " vita=" + Number(inj.leftoverKinds?.vita || 0) +
+      " stillEureka=" + inj.leftoverStillEureka +
+      " · KEY=" + (inj.quality?.hasKey ? "yes" : "LOSS")
+    );
+  } catch (injErr) {
+    console.log("⚠️  VITA chain inject (non-critical): " + injErr.message);
+  }
+
+  // Re-fetch sealed hitch UTF-8 from Base when the depository only has shorts.
+  try {
+    const pulled = await pullMissingLocationUtf8(fetchTxCalldataHex);
+    if (pulled.pulled) {
+      console.log("🔀 VITA chain pull: " + pulled.pulled + " sealed location(s) re-read from Base");
+    }
+  } catch (pullErr) {
+    console.log("⚠️  VITA chain pull (non-critical): " + pullErr.message);
+  }
+  await persistVitaRouterState();
+
   // Load macro BTC/ETH trend signal before token data
   await refreshMacroSignal();
   await loadHistoricalData(90);
   bootstrapWavesFromHistory();
   await bootstrapWavesFromLedger();
   bootstrapWavesFromCandles();
+  captureWavePrintsFromBoot();
+  refreshWaveChainPebbles().catch(() => {});
 
   // ── ON-CHAIN POSITION RECOVERY — PURE BLOCKCHAIN TRUTH ──────────────────
   // Every restart: scan wallet on Base directly for all token balances
@@ -11095,31 +15576,47 @@ async function main() {
 
     const ethPriceNow = await getLiveEthPrice();
 
-    // ── Step 1: Read ledger for entry prices (best effort) ──────────────────
+    // ── Step 1: Seed durable FIFO lots, then ledger buys that have lot sizes ─
     netPositions = {};
+    seedNetPositionsFromFifoLots(netPositions, fifoLots);
+    let githubLedgerStatus = null;
     try {
-      // Try multiple times — ledger is critical
+      // Try multiple times — ledger is critical. Auth failures do not retry.
       let ledgerData = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
-        const lf = await githubGetFromBranch("ledger.json", STATE_BRANCH);
+        const lf = await githubGetFromBranch("ledger.json", liveStateBranch());
+        githubLedgerStatus = lf?.status ?? 0;
         if (lf?.content?.trades?.length > 0) {
           ledgerData = lf.content.trades;
           console.log(`   📖 Ledger: ${ledgerData.length} trades (attempt ${attempt})`);
           break;
         }
+        if (githubReadAuthFailed(githubLedgerStatus) || !shouldRetryGithubRead(githubLedgerStatus)) {
+          console.log(`   ⚠️  Ledger GitHub HTTP ${githubLedgerStatus} — on-chain buy receipts still apply`);
+          break;
+        }
         console.log(`   ⚠️  Ledger attempt ${attempt} empty — retrying...`);
-        await new Promise(r => setTimeout(r, 2000));
+        if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
       }
 
       if (ledgerData) {
+        ledgerRebuildTrades = ledgerData.slice();
         for (const t of ledgerData) {
           if (!t.symbol || !t.price || t.price <= 0) continue;
+          if (t.type === "BUY" && !ledgerBuyHasLotSizes(t)) {
+            // Stale ledger rows often have ethSpent but no receivedTokens.
+            // Adding ethIn with tokensIn=0 poisons #69 unknown HOLD forever.
+            continue;
+          }
           if (!netPositions[t.symbol]) {
-            netPositions[t.symbol] = { ethIn: 0, ethOut: 0, lastBuyPrice: 0, lastBuyEth: 0, lastBuyTime: 0 };
+            netPositions[t.symbol] = { ethIn: 0, ethOut: 0, tokensIn: 0, lastBuyPrice: 0, lastBuyEth: 0, lastBuyTime: 0 };
           }
           const p = netPositions[t.symbol];
           if (t.type === "BUY") {
+            // Prefer durable lots when they already prove tokensIn/ethIn.
+            if (isUsableLot(fifoLots[t.symbol])) continue;
             p.ethIn        += parseFloat(t.ethSpent || 0);
+            p.tokensIn     += parseFloat(t.receivedTokens || t.tokensReceived || 0);
             p.lastBuyPrice  = t.price;
             p.lastBuyEth    = parseFloat(t.ethSpent || 0);
             p.lastBuyTime   = new Date(t.timestamp || 0).getTime() || Date.now();
@@ -11128,45 +15625,61 @@ async function main() {
             p.ethOut += parseFloat(t.receivedEth || 0);
           }
         }
-        console.log(`   📊 Net positions from ledger: ${Object.keys(netPositions).length} tokens traded`);
+        console.log(`   📊 Net positions from ledger+lots: ${Object.keys(netPositions).length} tokens traded`);
       } else {
-        console.log("   ⚠️  Ledger empty or unreadable — will use on-chain balances only");
+        console.log("   ⚠️  Ledger empty or unreadable — durable lots / buy receipts still apply");
       }
     } catch (e) {
       console.log(`   ⚠️  Ledger read error: ${e.message}`);
     }
 
-    // ── Step 2: Scan actual Base blockchain for every token balance ─────────
+    // ── Step 2: Scan actual Base blockchain for token balances ─────────
     // This is the ground truth — blockchain never lies
     console.log("   🔗 Scanning Base blockchain for token balances...");
     let found = 0, recovered = 0, ghosts = 0, confirmed = 0;
 
-    // Fetch all balances in parallel for speed
+    // Fetch all balances in parallel for speed. Union hourly catalog
+    // (VIRTUAL + CLANKER + AERO/DRB/BNKR) so a live bag is never skipped.
     const balanceResults = await Promise.allSettled(
-      tokens.map(async (token) => {
+      hourlyBalancePollRows(tokens).map(async (token) => {
         const bal = await getTokenBalance(token.address);
         return { symbol: token.symbol, address: token.address, bal };
       })
     );
 
+    for (const result of balanceResults) {
+      if (result.status !== "fulfilled") continue;
+      tokenBalanceCache[result.value.symbol] = result.value.bal;
+    }
+
+    // After cache is live — sized remaining, not the full fill. GitHub 401
+    // must not skip seeded AERO/DRB/BNKR/VIRTUAL/CLANKER receipt latch.
+    await rebuildSeededLotsFromChain(
+      githubReadAuthFailed(githubLedgerStatus) ? "github-401" : "boot",
+    );
+
     // DexScreener + GT chunked prefetch — never one giant GT URL (400 / silent drop)
     try {
-      const bootQuotes = await prefetchMarketPrices(tokens.map(t => t.address));
+      const pollRows = hourlyBalancePollRows(tokens);
+      const bootQuotes = await prefetchMarketPrices(pollRows.map(t => t.address));
       for (const [addr, p] of Object.entries(bootQuotes.prices)) {
-        const t = tokens.find(tk => tk.address.toLowerCase() === addr);
+        const t = tokens.find(tk => tk.address.toLowerCase() === addr)
+          || pollRows.find(tk => String(tk.address).toLowerCase() === addr);
         if (!t || !isValidUsdPrice(p)) continue;
         const trusted = Boolean(bootQuotes.meta[addr]?.trustedQuote || bootQuotes.meta[addr]?.verifiedPool);
         if (!noteLastSaneUsd(t.symbol, p, undefined, { trusted })) continue;
         setCachedPrice(addr, p, { trusted });
-        if (!history[t.symbol]) history[t.symbol] = { lastPrice: p };
-        else if (!isPriceJumpInsane(p, history[t.symbol].lastPrice) || trusted) {
-          history[t.symbol].lastPrice = p;
+        const slot = ensureHistorySlot(history, t.symbol);
+        if (slot.lastPrice == null) slot.lastPrice = p;
+        else if (!isPriceJumpInsane(p, slot.lastPrice) || trusted) {
+          slot.lastPrice = p;
         }
       }
       console.log(`   💱 Boot quotes: ${Object.keys(bootQuotes.prices).length} priced, ${bootQuotes.misses.length} unquoted`);
       if (bootQuotes.misses.length) {
         console.log(`   ⏳ Unquoted (skip until a real market appears): ${bootQuotes.misses.map(a => {
-          const t = tokens.find(tk => tk.address.toLowerCase() === a);
+          const t = tokens.find(tk => tk.address.toLowerCase() === a)
+            || pollRows.find(tk => String(tk.address).toLowerCase() === a);
           return t ? t.symbol : a.slice(0, 10);
         }).join(", ")}`);
       }
@@ -11187,8 +15700,7 @@ async function main() {
         const live = await getTokenPrice(token.address, true);
         if (isValidUsdPrice(live)) {
           price = live;
-          if (!history[symbol]) history[symbol] = { lastPrice: live };
-          else history[symbol].lastPrice = live;
+          ensureHistorySlot(history, symbol).lastPrice = live;
         }
       }
       const hasQuote = isValidUsdPrice(price);
@@ -11201,18 +15713,50 @@ async function main() {
 
       if (hasRealHolding) {
         found++;
-        const netBuy = net?.lastBuyPrice > 0;
-        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog });
+        const netBuy = net?.lastBuyPrice > 0 && Number(net?.tokensIn) > 0 && Number(net?.ethIn) > 0;
+        const trusted = shouldTrustSavedCostBasis(token, { net, tradeLog, fifoLot: fifoLots[symbol] }) && costBasisEth(token) > 0;
+        if (isUsableLot(fifoLots[symbol])) {
+          const fifo = applyLotToToken(token, fifoLots[symbol], { remainingTokens: bal });
+          applyLotToNet(netPositions, fifoLots[symbol]);
+          if (lotAppliedOk(token, fifo)) {
+            recovered++;
+            const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
+            console.log(`   ✅ RECOVERED ${symbol}: fifo lot (${fifoLots[symbol].source || "persisted"}) ` +
+                       `fifoRemaining=${token.totalInvestedEth.toFixed(6)}ETH${shown}`);
+            continue;
+          }
+        }
+        if (!isUsableLot(fifoLots[symbol]) || token.unknownEntry || !lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
+          const rebuilt = await tryRebuildLotFromReceipts(token, bal);
+          if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
+            recovered++;
+            try { await persistFifoLotsNow("boot-rebuild"); } catch {}
+            continue;
+          }
+        }
         if (netBuy) {
-          const ethNet = Math.max(0, net.ethIn - net.ethOut);
-          token.entryPrice       = net.lastBuyPrice;
-          token.totalInvestedEth = ethNet > 0 ? ethNet : net.lastBuyEth;
-          token.entryTime        = net.lastBuyTime;
-          token.unknownEntry     = false;
-          recovered++;
-          const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
-          console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
-                     `ethIn=${token.totalInvestedEth.toFixed(4)}${shown}`);
+          // Remaining cost is lots still on chain — never cash-flow ethIn−ethOut.
+          // After plus exits that leftover understates FIFO and paints later reds green.
+          const fifo = fifoRemainingCostEth({
+            ethIn: net.ethIn,
+            tokensIn: net.tokensIn,
+            remainingTokens: bal,
+            persistedInvestedEth: token.totalInvestedEth,
+          });
+          if (fifo.unknown || !(fifo.investedEth > 0)) {
+            applyUnknownChainHolding(token, { units: bal, priceUsd: hasQuote ? price : undefined });
+            recovered++;
+            console.log(`   ⚠️  UNKNOWN ENTRY ${symbol}: ${unknownCostBasisLine(symbol, bal, valueUsd)} (${fifo.reason})`);
+          } else {
+            token.entryPrice       = net.lastBuyPrice;
+            token.totalInvestedEth = fifo.investedEth;
+            token.entryTime        = net.lastBuyTime;
+            token.unknownEntry     = false;
+            recovered++;
+            const shown = hasQuote ? ` val≈$${valueUsd.toFixed(2)}` : "";
+            console.log(`   ✅ RECOVERED ${symbol}: entry=$${net.lastBuyPrice.toFixed(6)} ` +
+                       `fifoRemaining=${token.totalInvestedEth.toFixed(6)}ETH${shown}`);
+          }
         } else if (trusted) {
           confirmed++;
         } else {
@@ -11232,8 +15776,8 @@ async function main() {
     }
 
     // ── Step 3: Summary + Telegram ──────────────────────────────────────────
-    const openNow = tokens.filter(t => hasUsableCostBasis(t));
-    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !hasUsableCostBasis(t)));
+    const openNow = tokens.filter(t => hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol]));
+    const unknownNow = tokens.filter(t => t.unknownEntry || ((tokenBalanceCache[t.symbol] || 0) > 0.001 && !(hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol]))));
     const heldNow = tokens.filter(t => (tokenBalanceCache[t.symbol] || 0) > 0.001);
     const totalHeld = heldNow.reduce((s, t) => {
       const p = history[t.symbol]?.lastPrice;
@@ -11243,7 +15787,7 @@ async function main() {
     }, 0);
 
     console.log(`🔍 On-chain scan: ${found} holdings | ${recovered} recovered | ${confirmed} confirmed | ${ghosts} ghosts cleared`);
-    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => t.symbol + "@$" + t.entryPrice.toFixed(6)).join(", ") || "none"}`);
+    console.log(`📊 Trusted cost basis (${openNow.length}): ${openNow.map(t => bootKnownCostLabel(t)).join(", ") || "none"}`);
     console.log(`⚠️ Unknown basis (${unknownNow.length}): ${unknownNow.map(t => t.symbol).join(", ") || "none"}`);
     console.log(`💰 Total held value: ~$${totalHeld.toFixed(2)} (chain units × live mark)`);
 
@@ -11254,11 +15798,11 @@ async function main() {
         const bal = tokenBalanceCache[t.symbol] || 0;
         const p   = history[t.symbol]?.lastPrice || t.entryPrice || 0;
         const val = (bal * p).toFixed(2);
-        if (hasUsableCostBasis(t)) {
+        if (hasUsableCostBasis(t) || tokenHasKnownFifoCost(t, fifoLots[t.symbol])) {
           const pnl = t.entryPrice > 0 && p > 0
             ? ((p - t.entryPrice) / t.entryPrice * 100).toFixed(1)
             : "?";
-          bootMsg += `   <b>${t.symbol}</b>: entry $${t.entryPrice.toFixed(6)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
+          bootMsg += `   <b>${t.symbol}</b>: ${bootKnownCostLabel(t)} | now ~$${val} | ${parseFloat(pnl) >= 0 ? "+" : ""}${pnl}%\n`;
         } else {
           bootMsg += `   <b>${t.symbol}</b>: ${bal >= 1 ? bal.toFixed(2) : bal.toFixed(6)} on-chain ~$${val}\n   ${UNKNOWN_COST_BASIS_LABEL}\n`;
         }
@@ -11319,8 +15863,43 @@ async function main() {
         const leftoverUsd = holding && entry && price
           ? Math.max(0, ((price - entry) / entry) * 2 - feesUsdApprox)
           : 2.5;
+        const phaseHint = classifyWavePhase({
+          price, entry, rideHigh, trough, peak, predEntry, predExit, holding,
+        });
+        const peakWantsSell = phaseHint.phase === "PEAK" || phaseHint.phase === "TRICK"
+          || !!(lastSellArmed[t.symbol]?.armed || lastSellArmed[t.symbol]?.code);
+        const fifoEth = costBasisEth(t);
+        const previewEntryEth = sellEntryEthWithLotFloor(fifoEth || t.totalInvestedEth || 0, t);
+        const previewUnknown = !!t.unknownEntry || !(previewEntryEth > 0);
+        const sellable = Number(tokenBalanceCache[t.symbol]) || 0;
+        const previewMarkEth = ethUsdApprox > 0 && price > 0 ? (sellable * price) / ethUsdApprox : 0;
+        const previewGate = (peakWantsSell || previewEntryEth > 0)
+          ? buildSellGateDecision({
+              symbol: t.symbol,
+              reason: "engine snapshot",
+              sellPct: 0.98,
+              entryEth: previewEntryEth,
+              lotCostEth: freshLotCostFloor(t),
+              usdMarkProceedsEth: previewMarkEth,
+              operatorLot: !!t.operatorLot,
+              freshLot: freshLotCostFloor(t) > 0 || !!t.operatorLot,
+              projectedProceedsEth: previewMarkEth,
+              feePct: t.poolFeePct || 0.006,
+              unknownEntry: previewUnknown,
+            })
+          : { allow: false, verdict: "HOLD", reason: "no position", log: "" };
+        // Recompute from live FIFO — do not reuse a stale green lastSellArmed after a partial.
+        const sellArmed = classifySellArmedDisplay({
+          peakWantsSell,
+          quoterExecutable: lastQuoterExecutable[t.symbol] === true,
+          verdict: previewGate.verdict,
+          allow: previewGate.allow,
+          unknownEntry: previewUnknown,
+          reason: previewGate.log || previewGate.reason || "",
+        });
         const phase = classifyWavePhase({
           price, entry, rideHigh, trough, peak, predEntry, predExit, holding,
+          sellArmed,
         });
         const lights = piggyPaymentLights({
           leftoverUsd,
@@ -11356,6 +15935,7 @@ async function main() {
           holding,
           leftoverUsd,
           phase,
+          sellArmed,
           lights,
           options,
           basescanToken: `https://basescan.org/token/${t.address}?a=${WALLET_ADDRESS}`,
@@ -11365,6 +15945,7 @@ async function main() {
 
     injectBotState({
       githubGet,
+      githubGetUtf8FromBranch,
       walletAddress: WALLET_ADDRESS,
       tradeCount,
       piggyBank,
@@ -11501,9 +16082,47 @@ async function main() {
         ...manualCommands.map(c => ({ ...c })),
         ...engineGlobalCommands.map(c => ({ ...c })),
       ],
+      waveProofLiveContext: () => buildWaveProofLiveContext({ cdp: cdpClient }),
+      waveFullLiveContext: () => buildWaveFullLiveContext({ cdp: cdpClient }),
+      vitaFeedLiveContext: () => buildVitaFeedLiveContext({ cdp: cdpClient }),
     });
   }
   updateWebhookState(); // initial inject
+
+  // Desk one-shot: WAVE_PROOF_AUTOFIRE=yes + WAVE_PROOF_LIVE=yes → same 3-send batch (no Telegram).
+  try {
+    const auto = await maybeAutofireWaveProofOnBoot(process.env);
+    if (auto?.fired || auto?.autofire) {
+      console.log("🌊 WAVE_PROOF_AUTOFIRE: " + (auto.reason || auto.reply || (auto.fired ? "fired" : "cleared")));
+    }
+  } catch (e) {
+    console.log("⚠️  WAVE_PROOF_AUTOFIRE failed: " + (e.message || e));
+  }
+
+  // Desk one-shot: WAVE_FULL_AUTOFIRE=yes + WAVE_FULL_LIVE=yes → all 28 gas-only shards (no Telegram).
+  try {
+    const autoFull = await maybeAutofireWaveFullOnBoot(process.env);
+    if (autoFull?.fired || autoFull?.autofire) {
+      console.log("🌊 WAVE_FULL_AUTOFIRE: " + (autoFull.reason || autoFull.reply || (autoFull.fired ? "fired" : "cleared")));
+    }
+  } catch (e) {
+    console.log("⚠️  WAVE_FULL_AUTOFIRE failed: " + (e.message || e));
+  }
+
+  // Desk one-shot: VITAFEED_AUTOFIRE=yes + plain body → override seal (no BL- id, no Telegram).
+  try {
+    const autoFeed = await maybeAutofireVitaFeedOnBoot(process.env);
+    if (autoFeed?.fired || autoFeed?.autofire) {
+      const locs = (autoFeed.locations || []).join(" ");
+      console.log(
+        "📡 VITAFEED_AUTOFIRE: " +
+        (autoFeed.reason || autoFeed.reply || (autoFeed.fired ? "fired" : "cleared")) +
+        (locs ? " locs=" + locs : ""),
+      );
+    }
+  } catch (e) {
+    console.log("⚠️  VITAFEED_AUTOFIRE failed: " + (e.message || e));
+  }
 
   // ── CHAIN-TRUTH POSITION RECONCILIATION (replaces stale emergency inject) ─
   // v18: NEVER hardcode USD values. Read every token balance live from chain.
@@ -11513,13 +16132,34 @@ async function main() {
     console.log("🔗 CHAIN RECONCILIATION — reading live balances from wallet...");
     let reconciled = 0;
     for (const token of tokens) {
-      if (token.frozen || token.disabled) continue;
-      if (shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog })) {
-        console.log(`   ✓ ${token.symbol}: trusted fill receipt entry $${token.entryPrice.toFixed(8)}`);
+      if (token.disabled) continue;
+      // Frozen / exits-only leftover bags still need honest FIFO cost.
+      // Skipping BASECAT here would leave an unproven basis in place.
+      const reconTrusted = shouldTrustSavedCostBasis(token, { net: netPositions[token.symbol], tradeLog, fifoLot: fifoLots[token.symbol] })
+        && (costBasisEth(token) > 0 || Number(token.totalInvestedEth) > 0);
+      if (reconTrusted) {
+        const px = Number(token.entryPrice) > 0 ? `$${Number(token.entryPrice).toFixed(8)}` : "ETH lot";
+        console.log(`   ✓ ${token.symbol}: trusted fill receipt entry ${px}`);
         continue;
       }
       try {
         const liveBal   = await getTokenBalance(token.address);
+        if (liveBal > 0.001 && isUsableLot(fifoLots[token.symbol])) {
+          const fifo = applyLotToToken(token, fifoLots[token.symbol], { remainingTokens: liveBal });
+          if (lotAppliedOk(token, fifo)) {
+            tokenBalanceCache[token.symbol] = liveBal;
+            console.log(`   ✓ ${token.symbol}: FIFO lot rebuilt (${fifoLots[token.symbol].source || "persisted"})`);
+            continue;
+          }
+        }
+        if (liveBal > 0.001) {
+          const rebuilt = await tryRebuildLotFromReceipts(token, liveBal);
+          if (isUsableLot(rebuilt) && lotAppliedOk(token, { unknown: false, investedEth: token.totalInvestedEth })) {
+            tokenBalanceCache[token.symbol] = liveBal;
+            try { await persistFifoLotsNow("recon-rebuild"); } catch {}
+            continue;
+          }
+        }
         const livePrice = liveBal > 0.001 ? await getTokenPrice(token.address, true) : null;
         if (liveBal > 0.001 && isValidUsdPrice(livePrice)) {
           const valueUsd = liveBal * livePrice;
@@ -11563,6 +16203,10 @@ async function main() {
   } catch (e) {
     console.log("⚠️ Chain reconciliation error: " + e.message);
   }
+
+  // After recon: wallet + quotes are warm. Fire OPERATOR_BUY / Telegram /buy
+  // here so a finished OHLC seed cannot leave the queue sitting (nonce idle).
+  await flushPendingOperatorBuys(cdpClient);
 
   // ── BITStorage: register Railway config as first strand ───────────────────
   try {
@@ -11630,12 +16274,30 @@ async function main() {
     console.log(`⚠️  Boot wallet read failed: ${e.message} — continuing with zeros`);
     balInit = { eth: 0, weth: 0, total: 0, tradeable: 0, tradeableWithWeth: 0 };
   }
+
+  // One-shot V3 → dedicated V4 wallet fund (GUARDIAN_V4_FUND_TO + GUARDIAN_V4_FUND_ETH).
+  // Latched — restarts do not re-send. Leaves keep-gas on RISK. Does not touch piggy/vault.
+  try {
+    if (process.env.GUARDIAN_V4_FUND_TO || process.env.V4_FUND_TO) {
+      await maybeFundV4FromV3({
+        cdp: cdpClient,
+        fromAddress: WALLET_ADDRESS,
+        getNativeEth: async () => Number((await getFullBalance()).eth) || 0,
+        getWethEth: async () => Number((await getFullBalance()).weth) || 0,
+        ethUsd: ethUsdInit,
+        log: console.log,
+        tg,
+      });
+    }
+  } catch (fundErr) {
+    console.log(`⚠️  V4 fund split failed (non-fatal): ${fundErr.message}`);
+  }
   console.log(`✅ CDP ready | ETH: ${balInit.eth.toFixed(6)} | WETH: ${balInit.weth.toFixed(6)} | ETH=$${ethUsdInit.toFixed(2)}\n`);
-  if (STATE_BRANCH === GITHUB_BRANCH) {
-    console.log(`⚠️  STATE_BRANCH == GITHUB_BRANCH (${GITHUB_BRANCH}) — state saves will trigger Railway redeploys!`);
+  if (liveStateBranch() === liveGithubBranch()) {
+    console.log(`⚠️  STATE_BRANCH == GITHUB_BRANCH (${liveGithubBranch()}) — state saves will trigger Railway redeploys!`);
     console.log(`   Set Railway env var STATE_BRANCH=bot-state and create that branch to fix this.`);
   } else {
-    console.log(`✅ State saves → branch: ${STATE_BRANCH} (Railway watches: ${GITHUB_BRANCH}) — redeploys prevented`);
+    console.log(`✅ State saves → branch: ${liveStateBranch()} (Railway watches: ${liveGithubBranch()}) — redeploys prevented`);
   }
 
   // Startup arm status
@@ -11713,6 +16375,10 @@ async function main() {
   // Poller already started after vault/CDP — this is a no-op guard
   startTelegramPoller();
 
+  // Last chance before the live loop: queued operator buys must not wait
+  // for a processToken early-out (NO QUOTE / dead-wave) to eat the cycle.
+  await flushPendingOperatorBuys(cdpClient);
+
   // Main trading loop
   while (true) {
     try {
@@ -11720,6 +16386,9 @@ async function main() {
       const bal    = await getFullBalance();
       cachedBal    = bal;
       cachedEthUsd = ethUsd;
+      if (manualCommands.some((c) => c.action === "buy")) {
+        await flushPendingOperatorBuys(cdpClient);
+      }
       const time   = new Date().toLocaleTimeString();
       const gwei   = await getCurrentGasGwei();
 
@@ -11752,17 +16421,18 @@ async function main() {
       }
       // Show day-of-week bias and calendar context at top of each loop
       const dowNow = new Date().getDay();
-      const dowInfo = DOW_BIAS[dowNow];
+      const dowInfo = applyDowBiasDisable(DOW_BIAS[dowNow]);
       const calNow  = getCalendarPressure();
       const calStr  = calNow.length > 0 ? ` | 📅 ${calNow.map(e=>e.type).join(",")}` : "";
-      console.log(`📅 ${dowInfo.name} bias: buy${dowInfo.buyMod>=0?"+":""}${(dowInfo.buyMod*100).toFixed(0)}% sell${dowInfo.sellMod>=0?"+":""}${(dowInfo.sellMod*100).toFixed(0)}% — ${dowInfo.note}${calStr}`);
+      const dowKill = isDisableDowBias() ? " [DISABLE_DOW_BIAS]" : "";
+      console.log(`📅 ${dowInfo.name} bias: buy${dowInfo.buyMod>=0?"+":""}${(dowInfo.buyMod*100).toFixed(0)}% sell${dowInfo.sellMod>=0?"+":""}${(dowInfo.sellMod*100).toFixed(0)}% — ${dowInfo.note}${dowKill}${calStr}`);
 
       // ── Calendar bias globals — updated each loop, used in /waves command ──
       const now_g        = new Date();
       const dayOfWeek_g  = now_g.getDay();
       const hourUTC_g    = now_g.getUTCHours();
       global._isMondayOpen  = dayOfWeek_g === 1 && hourUTC_g >= 13 && hourUTC_g <= 16;
-      global._isFridayClose = dayOfWeek_g === 5 && hourUTC_g >= 19 && hourUTC_g <= 22;
+      global._isFridayClose = isFridayCloseWindow({ now: now_g });
       global._isTuesdayDip  = dayOfWeek_g === 2 && hourUTC_g >= 13 && hourUTC_g <= 17;
       const activeSurfers = Object.values(surfers).filter(s => s.status !== "RETIRED");
       if (activeSurfers.length > 0) {
@@ -11772,17 +16442,27 @@ async function main() {
       }
       console.log();
 
-      // ── AUTO GAS TOP-UP: unwrap WETH → ETH when native ETH runs low ──────────
+      // ── AUTO GAS TOP-UP: thrift partial WETH→ETH toward cascade floor ────────
       // Gas on Base ALWAYS requires native ETH. WETH cannot pay gas.
-      // If native ETH drops below threshold AND we have WETH, unwrap just enough
-      // to restore a safe gas buffer — keeps the bot running indefinitely.
-      if (bal.eth < GAS_TOPUP_THRESHOLD && bal.weth > GAS_TOPUP_TARGET) {
-        const unwrapAmt = Math.min(GAS_TOPUP_TARGET - bal.eth, bal.weth - GAS_RESERVE);
-        if (unwrapAmt > 0.0002) {
-          console.log(`⛽ Native ETH low (${bal.eth.toFixed(6)}) — auto-unwrapping ${unwrapAmt.toFixed(6)} WETH for gas`);
-          await tg(`⛽ <b>AUTO GAS TOP-UP</b>\nNative ETH: ${bal.eth.toFixed(6)} → unwrapping ${unwrapAmt.toFixed(6)} WETH\nKeeps bot running without manual intervention`);
-          await unwrapEth(cdpClient, unwrapAmt);
-          // Refresh balance after unwrap
+      // Old gate required weth > 0.003 (GAS_TOPUP_TARGET) and stalled ~$2
+      // books (full unwrap ETH ~0.000904). Unwrap is not a red sell.
+      {
+        const opUnwrap = parseOperatorUnwrapEnv(process.env.OPERATOR_UNWRAP);
+        const unwrapAmt = autoUnwrapTowardCascadeFloor({
+          nativeEth: bal.eth,
+          weth: bal.weth,
+          gasReserveEth: GAS_RESERVE,
+          allowPartial: true,
+          operatorUnlock: opUnwrap.armed && !operatorUnwrapState.done,
+        });
+        if (unwrapAmt > 0) {
+          const amt = opUnwrap.amountEth > 0 ? Math.min(unwrapAmt, opUnwrap.amountEth) : unwrapAmt;
+          console.log(`⛽ Native ETH ${bal.eth.toFixed(6)} — thrift unwrap ${amt.toFixed(6)} WETH toward cascade floor (not WETH>0.003)`);
+          await unwrapEth(cdpClient, amt);
+          if (opUnwrap.armed) {
+            operatorUnwrapState.done = true;
+            operatorUnwrapState.executed = true;
+          }
           const freshBal = await getFullBalance();
           cachedBal = freshBal;
           Object.assign(bal, freshBal);
@@ -11834,6 +16514,7 @@ async function main() {
 
       // Free stranded CBBTC/AAVE → ETH (no cascade). Names stay FROZEN.
       applyForcedLockedExits();
+      applyOperatorRotateEnv();
 
       // ── v18: BTP AUTO-SUSPEND at low capital ────────────────────────────────
       const tradeableUsd = bal.tradeableWithWeth * ethUsd;
@@ -11913,7 +16594,7 @@ async function main() {
       let gweiForPrime = 0;
       try {
         gweiForPrime = await getCurrentGasGwei();
-        const voiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const voiceBytes = leftoverVoiceHitchBytes();
         const hitchL1 = await quoteHitchL1ForGates({ hitchBytes: voiceBytes });
         const l2Hitch = estimateCalldataHitchEth(voiceBytes, gweiForPrime);
         hitchCostForPrime = (hitchL1.ok ? (Number(hitchL1.l1FeeEth) || 0) : 0) + l2Hitch;
@@ -11935,7 +16616,11 @@ async function main() {
 
       // Log tier state every cycle (compact)
       const book = tAssign.book || currentTierBook;
-      const t1Str = currentTier1.join(" > ");
+      const t1Str = currentTier1.join(" > ") || (
+        tAssign.tier1Blocked
+          ? "none (sub-min liquid — recycle PLUS bags, do not fake a seat)"
+          : "none"
+      );
       const t2Str = currentTier2.join(" | ") || "none";
       const tier1Usd = (bal.tradeableWithWeth * ethUsd * book.tier1Pct / book.tier1Count).toFixed(2);
       const tier2Slots = currentTier2.length;
@@ -11960,9 +16645,11 @@ async function main() {
             const price   = history[token.symbol]?.lastPrice || token.entryPrice;
             const realUsd = realBal * price;
 
-            // Ghost: entry recorded but chain shows nothing
-            if (realBal < 0.001 && token.totalInvestedEth > 0.0001) {
-              console.log(`👻 [RECONCILE] Ghost cleared: ${token.symbol} — chain shows ${realBal.toFixed(6)} but entry=$${token.entryPrice.toFixed(6)}`);
+            // Ghost: entry recorded but chain shows nothing / flatten leftover
+            // Token-count 0.001 missed AERO dust after ETH flatten (persist FIFO
+            // stayed red → ADD_ON blocked every first buy).
+            if ((realBal < 0.001 || isDustBagUsd(realBal, price, BAG_DUST_USD)) && token.totalInvestedEth > 0.0001) {
+              console.log(`👻 [RECONCILE] Ghost cleared: ${token.symbol} — chain shows ${realBal.toFixed(6)} ($${realUsd.toFixed(4)}) but entry=$${token.entryPrice.toFixed(6)}`);
               token.entryPrice       = null;
               token.totalInvestedEth = 0;
               token.entryTime        = null;
@@ -11995,6 +16682,17 @@ async function main() {
         });
         const liquidStarved = !!starveStatus.liquidStarved;
         const injectAllBook = !!currentTierBook?.injectAll;
+        const injectSeatViable = injectReserveViable({
+          tradeableUsd: starveStatus.tradeableUsd,
+          minEntryUsd: injectAllBook ? 2 : 0,
+          injectAll: injectAllBook,
+        });
+        const primedAllowCount = (currentPrimedAvenues || []).filter((a) => a && a.allow).length;
+        const skipActiveTier = recycleSkipsActiveTier({
+          liquidStarved,
+          injectSeatViable,
+          primedAllowCount,
+        });
 
         const recycleCandidates = [];
         for (const token of tokens) {
@@ -12002,10 +16700,18 @@ async function main() {
           if (!price) continue;
           const balance = getCachedBalance(token.symbol);
           if (!(balance > 0.001)) continue;
-          const unknownBag = !!(token.unknownEntry || !hasUsableCostBasis(token));
-          const hasKnownPos = hasUsableCostBasis(token) && !!token.entryPrice;
+          const recycleKind = classifyRecycleBag({
+            unknownEntry: token.unknownEntry,
+            totalInvestedEth: token.totalInvestedEth,
+            entryPrice: token.entryPrice,
+            hasUsdBasis: hasUsableCostBasis(token),
+            operatorLotEth: token.operatorLot?.fillCostEth,
+            fifoLotKnown: isUsableLot(fifoLots[token.symbol]),
+          });
+          const unknownBag = recycleKind.unknownBag;
+          const hasKnownPos = recycleKind.hasKnownPos;
           if (!hasKnownPos && !unknownBag) continue;
-          if (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol)) continue; // in a tier — leave it
+          if (skipActiveTier && (currentTier1.includes(token.symbol) || currentTier2.includes(token.symbol))) continue; // in a real seat — leave it
           const posUsd = balance * price;
           const recycleUnknown = shouldRecycleForCascadeFuel({
             unknownEntry: unknownBag,
@@ -12026,12 +16732,12 @@ async function main() {
           });
           if (!recycleUnknown && !recycleKnown && posUsd <= MOONSHOT_HOLD_USD * 1.5) continue;
           recycleCandidates.push({
-            token, price, balance, posUsd, unknownBag, hasKnownPos, recycleUnknown, recycleKnown,
+            token, price, balance, posUsd, unknownBag, hasKnownPos, recycleUnknown, recycleKnown, recycleKind,
           });
         }
 
         for (const cand of sortRecycleCandidatesByUsd(recycleCandidates)) {
-        const { token, price, balance, posUsd, unknownBag, recycleUnknown, recycleKnown } = cand;
+        const { token, price, balance, posUsd, unknownBag, recycleUnknown, recycleKnown, recycleKind } = cand;
         const moonPriceGate = await gatePriceInsane(token, price, "sell", balance);
         if (!moonPriceGate.allow) continue;
         const recycleFuel = !!(recycleUnknown || recycleKnown);
@@ -12052,17 +16758,22 @@ async function main() {
         const starveSellPct = (recycleFuel && liquidStarved)
           ? Math.max(sellPct, Math.min(0.95, computeSellable(balance, token.piggyReserve) / Math.max(balance, 1e-12)))
           : sellPct;
-        const moonReason = recycleKnown
-          ? `🌙 INJECT FUEL — recycle known bag for cascade`
-          : recycleUnknown
-            ? `🌙 DUST RECYCLE — unknown cost basis`
-            : `🌙 MOONSHOT TRIM — not in active tiers`;
+        const recycleCopy = recycleSellCopy({
+          recycleKnown,
+          recycleUnknown,
+          fifoKnown: !!(recycleKind.fifoKnown || recycleKind.hasKnownPos),
+        });
+        const moonReason = recycleCopy.reason;
         const moonGwei = await getCurrentGasGwei();
         const moonOrchBytes = orchReady ? orch.peekNextHitchBytes({ isOwnerTrade: true }) : 0;
-        const moonWantBtp = BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended;
-        const moonVoiceBytes = utf8ByteLength(buildStoreVoice({ tag: STORE_HITCH_TAG, message: VITA_PROOF_FULL }));
+        const moonWantBtp = leftoverCoveredWantBtp(BTP_INSCRIPTIONS_ENABLED && !btpAutoSuspended);
+        const moonWantedHitchBytes = leftoverCoveredWantedBytes({
+          voiceBytes: leftoverVoiceHitchBytes(),
+          orchBytes: moonOrchBytes,
+          pictureArmed: isVitaPictureArmed(),
+        });
         const moonL1 = await quoteHitchL1ForGates({
-          hitchBytes: moonVoiceBytes + moonOrchBytes,
+          hitchBytes: moonWantedHitchBytes,
           btpInscribe: moonWantBtp,
         });
         // Preview piggy so gate matches executeSell (soldFrac × entry, not request %)
@@ -12084,31 +16795,126 @@ async function main() {
           balance,
           tokensToSell: moonPiggy.tokensToSell,
         });
+        const moonLotCost = freshLotCostFloor(token);
+        const moonFifoEth = recycleKind.fifoEth || costBasisEth(token);
+        const moonEntryEth = sellEntryEthWithLotFloor(moonFifoEth, token);
+        const moonMarkEth = (moonPiggy.tokensToSell * price) / ethUsd;
         const moonGate = buildSellGateDecision({
           symbol: token.symbol,
           reason: moonReason,
           sellPct: moonSoldFrac,
-          entryEth: costBasisEth(token), // 0 for unknown — demand gas-edge leftover
-          projectedProceedsEth: (moonPiggy.tokensToSell * price) / ethUsd,
+          entryEth: moonEntryEth, // 0 for unknown — demand gas-edge leftover
+          lotCostEth: moonLotCost,
+          usdMarkProceedsEth: moonMarkEth,
+          operatorLot: !!token.operatorLot,
+          freshLot: moonLotCost > 0 || !!token.operatorLot,
+          projectedProceedsEth: moonMarkEth,
           feePct: token.poolFeePct || 0.006,
           impactPct: PRICE_IMPACT_EST,
           gasCostEth: gasCostForTier,
           gwei: moonGwei,
-          wantedHitchBytes: moonVoiceBytes + moonOrchBytes,
+          wantedHitchBytes: moonWantedHitchBytes,
           wantBtpInscribe: moonWantBtp,
-          piggyEarningsBufferEth: ((moonPiggy.tokensToSell * price) / ethUsd) * piggyEarningsBufferPct(),
-          unknownEntry: !!(unknownBag || !(costBasisEth(token) > 0)),
+          piggyEarningsBufferEth: moonMarkEth * piggyEarningsBufferPct(),
+          unknownEntry: !!(unknownBag || !(moonEntryEth > 0)),
+          leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
+          exitsOnly: !!token.frozen,
           ...hitchL1GateArgs(moonL1),
         });
         logHitchFeeSplit(moonL1, moonGate.hitchBytes || STORE_HITCH_BYTES, moonGwei, moonGate);
         if (moonGate.log) console.log(`   ${moonGate.log}`);
-        if (!moonGate.allow) {
-          const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
-          console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 (would lose money)`);
+        if (moonGate.alwaysPlusLog) console.log(`   ${moonGate.alwaysPlusLog}`);
+        const fifoRed = moonEntryEth > 0 && (
+          isFifoRedLot({ markProceedsEth: moonMarkEth, remainingFifoEth: moonEntryEth })
+          || Number(moonGate.leftover) <= 0
+        );
+        const dustOrPiggy = /DUST RECYCLE|MOONSHOT TRIM/i.test(moonReason) || recycleUnknown;
+        if (dustOrPiggy && dustRecycleMustHoldFifoRed({
+          fifoRed,
+          allowLossyArmed: isAllowLossyOperatorSell(process.env),
+        })) {
+          console.log(`🌙 ${recycleCopy.label} ${token.symbol}: HOLD — FIFO red (always-plus; ALLOW_LOSSY not armed)`);
           continue;
         }
-        const moonHitchNote = moonGate.skipHitch ? "plain sale (Eureka skipped)" : `${hitchCostMult()}× hitch covered`;
-        const label = recycleKnown ? "INJECT FUEL" : recycleUnknown ? "DUST RECYCLE" : "MOONSHOT TRIM";
+        if (!moonGate.allow) {
+          const label = recycleCopy.label;
+          // Game force-exit priority + ALLOW_LOSSY: re-gate as operator unwind so
+          // stale FIFO-red inject fuel (CLANKER class) frees ETH → cascade + hitch.
+          const forceReason = manualSellReason(starveSellPct);
+          if (
+            recycleKnown
+            && canBypassSellLossGate(forceReason, process.env, token.symbol)
+          ) {
+            const forceGate = buildSellGateDecision({
+              symbol: token.symbol,
+              reason: forceReason,
+              sellPct: moonSoldFrac,
+              entryEth: moonEntryEth,
+              lotCostEth: moonLotCost,
+              usdMarkProceedsEth: moonMarkEth,
+              operatorLot: !!token.operatorLot,
+              freshLot: moonLotCost > 0 || !!token.operatorLot,
+              projectedProceedsEth: moonMarkEth,
+              feePct: token.poolFeePct || 0.006,
+              impactPct: PRICE_IMPACT_EST,
+              gasCostEth: gasCostForTier,
+              gwei: moonGwei,
+              wantedHitchBytes: moonWantedHitchBytes,
+              wantBtpInscribe: moonWantBtp,
+              piggyEarningsBufferEth: moonMarkEth * piggyEarningsBufferPct(),
+              unknownEntry: !!(unknownBag || !(moonEntryEth > 0)),
+              leftoverWouldCoverHitch: leftoverWouldCoverVitaHitch(),
+              exitsOnly: !!token.frozen,
+              ...hitchL1GateArgs(moonL1),
+            });
+            if (forceGate.log) console.log(`   ${forceGate.log}`);
+            if (forceGate.allow) {
+              console.log(
+                `🌙 ${label} ${token.symbol}: FORCE UNWIND $${posUsd.toFixed(2)} ` +
+                `(FIFO-red → ALLOW_LOSSY/FORCE_EXIT; hitch SKIP on red; cascade redeploys for memory hitch)`,
+              );
+              try {
+                const p = await executeSell(cdpClient, token, starveSellPct, forceReason, price, true);
+                if (p > 0) {
+                  await tg(
+                    `🌙 <b>${label} FORCE — ${token.symbol}</b>\n` +
+                    `Freed ${p.toFixed(6)} ETH (lossy unwind) → cascade for memory hitch\n` +
+                    `Score: ${calcTokenScore(token.symbol, gasCostForTier, bal.tradeableWithWeth).toFixed(0)}/100`,
+                  );
+                  const freshBal = await getFullBalance();
+                  cachedBal = freshBal;
+                  Object.assign(bal, freshBal);
+                  await triggerCascade(cdpClient, token.symbol, p, freshBal);
+                }
+              } catch (e) {
+                console.log(`⚠️ Inject fuel force unwind ${token.symbol}: ${e.message}`);
+              }
+              continue;
+            }
+          }
+          // Known inject-fuel bag: arm memory hitch for the PLUS recycle — never sell red.
+          if (recycleKnown) {
+            const arm = armInjectFuelMemoryHitch({
+              symbol: token.symbol,
+              posUsd,
+              leftoverEth: moonGate.leftover,
+              entrySoldEth: moonGate.entrySoldEth,
+              markProceedsEth: moonMarkEth,
+              feePct: token.poolFeePct || 0.006,
+              impactPct: PRICE_IMPACT_EST,
+              reason: moonGate.log || "INJECT FUEL HOLD",
+            });
+            console.log(formatInjectFuelHoldArmLog(arm) ||
+              `🌙 ${label} ${token.symbol}: HOLD — wait PLUS; memory hitch armed (never sell red)`);
+          } else {
+            console.log(`🌙 ${label} ${token.symbol}: HOLD — leftover after fees ≤ 0 or unknown cost (would lose money)`);
+          }
+          continue;
+        }
+        const moonHitchNote = moonGate.skipHitch
+          ? `plain sale (hitch skipped + banked ${Number(moonGate.hitchBankedEth || 0).toExponential(2)} ETH)`
+          : "PLUS (hitch floor cleared)";
+        const label = recycleCopy.label;
         console.log(`🌙 ${label} ${token.symbol}: $${posUsd.toFixed(2)} → keeping piggy+lottery (${(starveSellPct*100).toFixed(0)}% sell) — ${moonHitchNote}, selling now`);
         try {
           const p = await executeSell(cdpClient, token, starveSellPct, moonReason, price, false);
@@ -12122,6 +16928,13 @@ async function main() {
           }
         } catch (e) { console.log(`⚠️ Moonshot trim ${token.symbol}: ${e.message}`); }
       }
+      }
+
+      currentDeployedUsd = 0;
+      for (const t of tokens) {
+        const p = history[t.symbol]?.lastPrice;
+        const b = getCachedBalance(t.symbol);
+        if (isValidUsdPrice(p) && b > 0.001) currentDeployedUsd += b * p;
       }
 
       // ── BATCH PRICE PREFETCH — DexScreener first, GT in chunks of 10 ────────
@@ -12188,6 +17001,17 @@ async function main() {
       if (Date.now() - lastReportTime > REPORT_INTERVAL) {
         lastReportTime = Date.now();
         await sendFullReport(bal, ethUsd, "⏰ 10 MIN REPORT");
+        // Thrift race card — not in executeBuy/executeSell. File snapshots only.
+        try {
+          const race = await sendRaceScoreboardIfDue({
+            send: tg,
+            v3LiquidEth: bal?.eth,
+            v3LiquidWeth: bal?.weth ?? bal?.wethBalance,
+          });
+          if (race?.sent) console.log("🏁 V3 vs V4 race scoreboard sent");
+        } catch (raceErr) {
+          console.log(`⚠️  V3 vs V4 race card (non-critical): ${raceErr.message}`);
+        }
       }
       if (Date.now() - lastMiniUpdate > MINI_UPDATE_INT) {
         lastMiniUpdate = Date.now();
@@ -12195,6 +17019,32 @@ async function main() {
       }
       if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
         await saveToGitHub();
+      }
+
+      // ── VITA hourly course — refine memory, restore KEY if lost, switch mode
+      try {
+        let leftoverKinds;
+        let leftoverHitchBytes;
+        if (shouldTickHourlyCourse()) {
+          try {
+            const leftoverScan = await scanAddressLeftoverHitches({ limit: 80, maxPages: 3 });
+            ingestLeftoverScan(leftoverScan);
+            leftoverKinds = leftoverScan.counts;
+            leftoverHitchBytes = leftoverScan.hitchBytes;
+          } catch { leftoverKinds = undefined; leftoverHitchBytes = undefined; }
+        }
+        const hour = leftoverKinds
+          ? tickHourlyCourse({ leftoverKinds, leftoverHitchBytes })
+          : tickHourlyCourse();
+        if (hour.ticked) {
+          console.log("🔀 VITA COURSE " + hour.course.score + "/100 achieving=" + hour.course.achieving + " applied=" + (hour.applied || []).join(",") );
+          if (!hour.course.achieving || hour.applied?.length) {
+            await tg(hour.telegram);
+          }
+          await persistVitaRouterState();
+        }
+      } catch (courseErr) {
+        console.log("⚠️  VITA course tick (non-critical): " + courseErr.message);
       }
 
       // ── IKN INTEGRITY AGENT — runs every 6 hours ───────────────────────────
@@ -12268,23 +17118,27 @@ async function main() {
                     const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                     const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                    const { transactionHash } = await cdpClient.evm.sendTransaction({
-                      address: WALLET_ADDRESS, network: "base",
-                      transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                    const wrapped = wrapQueueSelfCall({
+                      to: WALLET_ADDRESS,
+                      from: WALLET_ADDRESS,
+                      data: hex,
+                      text: full,
+                      pairedUniswapSell: false,
+                      topic: "ikn-queue",
                     });
-                    txHashes.push(transactionHash);
+                    if (wrapped.txHash) txHashes.push(wrapped.txHash);
                     prevHash = thisHash;
-                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + transactionHash);
-                    if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                    console.log("   📡 IKN chunk " + (i+1) + "/5: " + (wrapped.banked ? "BANKED (queue wrap)" : wrapped.reason));
                   }
 
                   // Attach tx hashes to entry before IKN processor files it
                   entry._txHashes    = txHashes;
                   entry._strandId    = strandId;
                   entry._inscribedAt = new Date().toISOString();
+                  if (entry.tokenPacket) absorbVitaStrandPacket({ tokenPacket: entry.tokenPacket, chunks: [] });
                   if (entry.iknCard) {
-                    entry.iknCard.STRAND = txHashes[0]; // first tx = strand anchor
-                    entry.iknCard.TRUST  = "⛓️ blockchain-verified";
+                    entry.iknCard.STRAND = txHashes[0] || null;
+                    entry.iknCard.TRUST  = txHashes[0] ? "⛓️ blockchain-verified" : "banked — leftover hitch";
                   }
 
                   // IKN processor: classify, build call number, stamp trust, update registry
@@ -12296,9 +17150,10 @@ async function main() {
                   msg += "📋 <b>Call number:</b> <code>" + iknResult.iknX + "</code>\n";
                   msg += "🏷️ <b>Status:</b> " + iknResult.status + " (" + iknResult.confidence + "% confidence)\n";
                   msg += "🔒 <b>Trust:</b> " + iknResult.trust + "\n\n";
-                  msg += "🔗 5 chunks on Base:\n";
-                  txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                  msg += "\n\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
+                  msg += txHashes.length
+                    ? "🔗 chunks on Base:\n" + txHashes.map((tx, i) => (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ").join("")
+                    : "📦 hex banked — hitch on next leftover-covered ride (queue wrap; mother brain untouched)\n";
+                  msg += "\n🌳 Merkle parent: <code>" + (entry.iknCard?.MERKLE_PARENT || entry.iknCard?.PREV || "genesis") + "</code>\n";
                   msg += "📁 Queue: deleted ✅\n";
                   msg += "💌 <i>The library remembers. §IKN§</i>";
                   await tg(msg);
@@ -12323,14 +17178,17 @@ async function main() {
                   const thisHash = createHash("sha256").update(full).digest("hex").slice(0,8);
                   const hex      = "0x" + Buffer.from(full, "utf8").toString("hex");
 
-                  const { transactionHash } = await cdpClient.evm.sendTransaction({
-                    address: WALLET_ADDRESS, network: "base",
-                    transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex }
+                  const wrapped = wrapQueueSelfCall({
+                    to: WALLET_ADDRESS,
+                    from: WALLET_ADDRESS,
+                    data: hex,
+                    text: full,
+                    pairedUniswapSell: false,
+                    topic: "vita-queue",
                   });
-                  txHashes.push(transactionHash);
+                  if (wrapped.txHash) txHashes.push(wrapped.txHash);
                   prevHash = thisHash;
-                  console.log("   📡 Chunk " + (i+1) + "/5: " + transactionHash);
-                  if (i < 4) await new Promise(r => setTimeout(r, 2000));
+                  console.log("   📡 Chunk " + (i+1) + "/5: " + (wrapped.banked ? "BANKED (queue wrap)" : wrapped.reason));
                 }
 
                 // File in vita-registry.json (legacy format — unchanged)
@@ -12348,11 +17206,13 @@ async function main() {
                   }
                 } catch {}
 
+                if (text) absorbVitaStrandPacket({ tokenPacket: text, chunks: [] });
+
                 registry[regKey] = {
                   strandId, date, label: entry.label,
                   type: entry.type || "knowledge-base",
                   subject: entry.subject || entry.label,
-                  txHashes, tokenPacket: text.slice(0,3000),
+                  txHashes, banked: !txHashes.length, tokenPacket: text.slice(0,3000),
                   filedAt: new Date().toISOString(),
                 };
 
@@ -12378,9 +17238,10 @@ async function main() {
                 // Telegram receipt
                 let msg = "✅ <b>VITA QUEUE PROCESSED</b>\n━━━━━━━━━━━━━━━━━━━━\n\n";
                 msg += "📚 <b>" + (entry.subject || entry.label) + "</b>\n";
-                msg += "🔗 5 chunks inscribed on Base:\n";
-                txHashes.forEach((tx, i) => msg += (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ");
-                msg += "\n\n📁 Filed: <code>" + regKey + "</code>\n";
+                msg += txHashes.length
+                  ? "🔗 chunks on Base:\n" + txHashes.map((tx, i) => (i+1) + ". <a href=\"https://basescan.org/tx/" + tx + "\">↗</a> ").join("") + "\n\n"
+                  : "📦 hex banked — hitch on next leftover-covered ride (queue wrap; VITA root intact)\n\n";
+                msg += "📁 Filed: <code>" + regKey + "</code>\n";
                 msg += "🗑️ Queue file: " + (deleted ? "deleted ✅" : "deletion failed ⚠️") + "\n\n";
                 msg += "Test: <code>/vita " + (entry.label.split("-")[0]) + "</code>\n";
                 msg += "💌 <i>The chain remembers.</i>";

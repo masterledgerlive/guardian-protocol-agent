@@ -1,0 +1,18 @@
+{
+  "strandId": "token-dex-player",
+  "sparse": true,
+  "source": "vita-token-player",
+  "filingLabel": "TOKEN_PLAYER",
+  "header": "§VITATOKPLAY§v1|dex+legit+seed0.05|chains=32|ethL1=other-path§",
+  "learn": "Catalog pulldown → our DexScreener reader → Gecko dual → 3rd-party refs → legit PASS/QUESTIONABLE/FAIL (meme-only fails new buys) → player popup with market-trigger SIM values. $0.05 nickel never removed. Ethereum L1 $3 is other-path fuel, not Base RISK. Empty 30 chains listed as seats. Infect HTML; do not erase. Message-first. Never invent hashes.",
+  "commands": [
+    "/tokens",
+    "/dex",
+    "/legit",
+    "/tokenplayer",
+    "/chains"
+  ],
+  "player": "/vita/token-player?popup=1",
+  "formula": "original-message-first",
+  "neverInventHashes": true
+}

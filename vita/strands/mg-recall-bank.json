@@ -1,0 +1,26 @@
+{
+  "strandId": "mg-recall-bank",
+  "sparse": true,
+  "source": "mg-recall-bank",
+  "filingLabel": "MG_RECALL",
+  "learn": "Force-banked mother-genesis recall stack. Pull reader MGPLAIN after seal. Last layer is REFINED_QUERIES. Locations below are hardcoded anchors only — strand txs are not invented.",
+  "formula": "original-message-first",
+  "readerKeyNote": "see vita/memory/mg-recall-bank.json readerKey — chain locs empty until CONFIRM seal",
+  "locations": [
+    {
+      "id": "keycat-plain",
+      "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+      "kind": "none"
+    },
+    {
+      "id": "eureka-prove",
+      "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+      "kind": "eureka"
+    },
+    {
+      "id": "vita-strand",
+      "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+      "kind": "vita"
+    }
+  ]
+}

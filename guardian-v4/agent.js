@@ -5,10 +5,15 @@
  * Run:  npm run start:v4
  * Env:  GUARDIAN_V4_DRY_RUN=yes (default) | no
  *       GUARDIAN_V4_RPC_URL=...
+ *       GUARDIAN_V4_TELEGRAM_BOT_TOKEN / GUARDIAN_V4_TELEGRAM_CHAT_ID
+ *         (or GUARDIAN_V4_SHARE_ROOT_ENV=yes → VAULT_TELEGRAM_BOT_TOKEN / TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)
  *       GUARDIAN_V4_PRIVATE_KEY=...   (live only; do NOT reuse V3 hot wallet casually)
  *
+ * Dry-run still Telegrams [V4] turn cards (calldata planned / hitch banked / skips).
+ * It does not broadcast swaps.
+ *
  * Goal: inject capital on Base Uni V4 avenues (DOT, Polkadot-base, majors, popular
- * V4 names) and hitch the Eureka love note on leftover-covered swaps — never as
+ * V4 names) and hitch VITA §TOKEN§ on leftover-covered swaps — never as
  * a data-only scribble when a real trade can carry it.
  */
 
@@ -22,7 +27,9 @@ import {
   NATIVE_ETH,
   STATE_DIR,
   TOKENS_STATE,
+  RACE_STATE,
   env,
+  telegramBotToken,
 } from "./config.js";
 import { acquireLock, ensureStateDir } from "./lock.js";
 import { injectAllBookParams, injectProveStatus, rankAvenues } from "./inject-v4.js";
@@ -39,6 +46,33 @@ import {
   hitchSwapIfCovered,
   utf8ByteLength,
 } from "./swap-v4.js";
+import { planSecondaryHitch, ingestSealedUtf8 } from "../vita-router.js";
+import {
+  applyHitchBank,
+  formatV4DryRunCard,
+  formatV4SkipCard,
+  hitchBudgetBalanceEth,
+  planHitchMessaging,
+  sendV4Telegram,
+} from "./telegram.js";
+import {
+  persistV4RaceSnapshot,
+  sendRaceScoreboardIfDue,
+} from "../race-scoreboard.js";
+import {
+  planRaceStartEureka,
+  markRaceEurekaWritten,
+  readRaceEurekaLatch,
+  raceEurekaBytes,
+} from "../race-eureka.js";
+import { resolveV4TradeableUsd } from "./fund-split.js";
+import {
+  broadcastV4Swap,
+  loadV4Account,
+  makePublicClient,
+  readNativeEth,
+} from "./wallet.js";
+import { loadVaultKeys } from "../vault-loader.js";
 
 ensureStateDir();
 const releaseLock = acquireLock();
@@ -46,6 +80,8 @@ const releaseLock = acquireLock();
 let hitchInjectCount = 0;
 let hitchInjectProfitUsd = 0;
 let cycle = 0;
+let v4Account = null;
+let publicClient = null;
 
 function log(...args) {
   console.log(`[guardian-v4 ${new Date().toISOString()}]`, ...args);
@@ -69,7 +105,7 @@ function estimateHitchCostEth(bytes, gwei = 0.05) {
   return (gas * gwei * 1e-9) * HITCH_COST_MULT;
 }
 
-function buildDemoInject(token, { tradeEth = 0.002 } = {}) {
+function buildDemoInject(token, { tradeEth = 0.002, purchasedFirstOrder = false } = {}) {
   const amountIn = BigInt(Math.floor(tradeEth * 1e18));
   const tokenIn = token.quoteAddress || NATIVE_ETH;
   const tokenOut = token.address;
@@ -82,17 +118,53 @@ function buildDemoInject(token, { tradeEth = 0.002 } = {}) {
     amountIn,
     amountOutMinimum: 0n,
   });
-  const voice = buildStoreVoice({ message: VITA_PROOF_FULL });
-  const hitchCost = estimateHitchCostEth(utf8ByteLength(voice));
-  // Simulate leftover covering hitch (thin-book inject sizing goal).
+  const planned = planSecondaryHitch({ maxBytes: 400 });
+  const hitchCost = estimateHitchCostEth(planned.hitchBytes || utf8ByteLength(planned.utf8));
   const leftoverEth = hitchCost * 1.25;
-  const hitched = hitchSwapIfCovered({
-    swapData: encoded.data,
-    leftoverEth,
-    hitchCostEth: hitchCost,
-    message: VITA_PROOF_FULL,
+
+  // Race-start first order: full Eureka when opportune; otherwise leave KEY+LOC alone.
+  const eurekaBytes = raceEurekaBytes();
+  const eurekaCost = estimateHitchCostEth(eurekaBytes);
+  const racePlan = planRaceStartEureka({
+    raceStarted: true,
+    purchasedFirstOrder,
+    leftoverEth: Math.max(leftoverEth, eurekaCost * 1.25),
+    hitchCostEth: eurekaCost,
   });
-  return { encoded, hitched, hitchCost, leftoverEth, voice, tradeEth };
+  let hitched;
+  if (racePlan.attempt && racePlan.utf8) {
+    hitched = hitchSwapIfCovered({
+      swapData: encoded.data,
+      leftoverEth: Math.max(leftoverEth, eurekaCost * 1.25),
+      hitchCostEth: eurekaCost,
+      utf8: racePlan.utf8,
+    });
+    if (hitched.onChain) {
+      hitched = { ...hitched, raceStartEureka: true };
+    } else {
+      hitched = hitchSwapIfCovered({
+        swapData: encoded.data,
+        leftoverEth,
+        hitchCostEth: hitchCost,
+        utf8: planned.utf8,
+      });
+    }
+  } else {
+    hitched = hitchSwapIfCovered({
+      swapData: encoded.data,
+      leftoverEth,
+      hitchCostEth: hitchCost,
+      utf8: planned.utf8,
+    });
+  }
+  return {
+    encoded,
+    hitched,
+    hitchCost: hitched.raceStartEureka ? eurekaCost : hitchCost,
+    leftoverEth: hitched.raceStartEureka ? Math.max(leftoverEth, eurekaCost * 1.25) : leftoverEth,
+    voice: hitched.utf8 || planned.utf8,
+    tradeEth,
+  };
 }
 
 function printAvenueBoard() {
@@ -111,8 +183,26 @@ function printAvenueBoard() {
   }
 }
 
-async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
+async function resolveTradeableUsd() {
+  const paper = Number(env("PAPER_USD", "8")) || 8;
+  if (!v4Account || !publicClient) {
+    return resolveV4TradeableUsd({ paperUsd: paper });
+  }
+  try {
+    const { eth } = await readNativeEth(publicClient, v4Account.address);
+    return resolveV4TradeableUsd({ paperUsd: paper, walletEth: eth });
+  } catch (err) {
+    log(`wallet balance read failed: ${err?.message || err} — paper $${paper}`);
+    return resolveV4TradeableUsd({ paperUsd: paper });
+  }
+}
+
+async function cycleOnce(tradeableUsdOpt = null) {
   cycle += 1;
+  const sized = tradeableUsdOpt != null
+    ? { tradeableUsd: tradeableUsdOpt, source: "arg", tradeableEth: null }
+    : await resolveTradeableUsd();
+  const tradeableUsd = sized.tradeableUsd;
   const book = injectAllBookParams(tradeableUsd);
   const ranked = rankAvenues(injectableAvenues(), { tradeableUsd });
   const prove = injectProveStatus({
@@ -120,7 +210,11 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
     netProfitUsd: hitchInjectProfitUsd,
   });
 
-  log(`── cycle ${cycle} tradeable~$${tradeableUsd.toFixed(2)} injectAll=${book.injectAll} ──`);
+  log(
+    `── cycle ${cycle} tradeable~$${tradeableUsd.toFixed(2)} (${sized.source}` +
+      `${sized.tradeableEth != null ? ` eth=${sized.tradeableEth.toFixed(6)}` : ""})` +
+      ` injectAll=${book.injectAll} dryRun=${DRY_RUN} ──`,
+  );
   log(prove.message);
   log(
     `primed: ${ranked.primed.map((t) => t.symbol).join(", ") || "none"} | watch-queue: ${ranked.watch
@@ -130,27 +224,92 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
   );
 
   for (const token of ranked.primed) {
+    const ethUsd = Number(env("ETH_USD", "2500")) || 2500;
+    const raceLatch = readRaceEurekaLatch();
     const demo = buildDemoInject(token, {
-      tradeEth: book.injectAll ? Math.max(0.0015, tradeableUsd / 2500) : 0.0015,
+      tradeEth: book.injectAll
+        ? Math.max(0.0008, Math.min(0.002, tradeableUsd / ethUsd))
+        : 0.0015,
+      // First-order purchase of the race — full Eureka only when opportune + not already written.
+      purchasedFirstOrder: !raceLatch.written,
     });
     if (demo.hitched.onChain) {
       hitchInjectCount += 1;
-      // Paper PnL placeholder — live fills replace this.
-      hitchInjectProfitUsd += MIN_NET_MARGIN * (demo.tradeEth * 2500) * 0.05;
+      hitchInjectProfitUsd += MIN_NET_MARGIN * (demo.tradeEth * ethUsd) * 0.05;
+      if (demo.hitched.utf8) ingestSealedUtf8(demo.hitched.utf8);
     }
+    const hitchPreview = demo.hitched.onChain
+      ? (demo.hitched.raceStartEureka
+        ? `"${demo.hitched.utf8}"`
+        : `"${demo.hitched.utf8.slice(0, 48)}…"`)
+      : demo.hitched.reason;
     log(
       `  inject ${token.symbol}: to=${demo.encoded.to.slice(0, 10)}… value=${demo.encoded.value} ` +
         `hitch=${demo.hitched.onChain ? `${demo.hitched.hitchBytes}B` : "SKIP"} ` +
-        `${demo.hitched.onChain ? `"${demo.hitched.utf8.slice(0, 48)}…"` : demo.hitched.reason}`,
+        hitchPreview,
     );
+
+    let txHash = null;
     if (DRY_RUN) {
       log(`  DRY_RUN — calldata ${demo.hitched.data.length} hex chars (not broadcast)`);
     } else {
-      log(
-        "  LIVE mode stub — wire CDP/viem wallet + Permit2 approvals before broadcasting. " +
-          "Keep a separate key from root V3.",
-      );
+      const sent = await broadcastV4Swap({
+        to: demo.encoded.to,
+        data: demo.hitched.data,
+        value: demo.encoded.value,
+        account: v4Account,
+        publicClient,
+      });
+      if (sent.sent) {
+        txHash = sent.hash;
+        log(`  LIVE broadcast ${txHash}`);
+      } else {
+        log(`  LIVE skip — ${sent.reason}`);
+      }
     }
+
+    if (demo.hitched.raceStartEureka && demo.hitched.onChain) {
+      // Latch after first opportune race Eureka (dry-run or live) so later cycles leave alone.
+      markRaceEurekaWritten({
+        txHash: txHash || (DRY_RUN ? "dry-run-race-eureka" : null),
+        track: DRY_RUN ? "v4-dry" : "v4",
+      });
+      log("  💌 Race-start Eureka latched (full IKN love note)");
+    }
+
+    // Dry-run still Telegrams Game — planned calldata / hitch skip-bank / skip reasons.
+    // Never invent P&L or a fake tx hash.
+    const hitchPlan = planHitchMessaging({
+      leftoverEth: demo.leftoverEth,
+      hitchCostEth: demo.hitchCost,
+      hitchOnChain: demo.hitched.onChain,
+      hitchBytes: demo.hitched.hitchBytes,
+      hitchUtf8: demo.hitched.utf8,
+      skipReason: demo.hitched.reason,
+      side: "BUY",
+    });
+    if (hitchPlan.hitchSkipped) {
+      const bank = applyHitchBank(hitchPlan, token.symbol);
+      if (bank.log) log(bank.log);
+    }
+    await sendV4Telegram(formatV4DryRunCard({
+      symbol: token.symbol,
+      side: "BUY",
+      dryRun: DRY_RUN,
+      cycle,
+      tradeEth: demo.tradeEth,
+      hitchPlan,
+      calldataChars: demo.hitched.data?.length || 0,
+      txHash,
+    }));
+  }
+
+  if (ranked.primed.length === 0) {
+    await sendV4Telegram(formatV4SkipCard({
+      reason: "no primed V4 avenue this cycle — nothing broadcast",
+      dryRun: DRY_RUN,
+      cycle,
+    }));
   }
 
   // Always keep a data-only prove path available (operator), but prefer hitch-on-swap.
@@ -158,12 +317,49 @@ async function cycleOnce(tradeableUsd = Number(env("PAPER_USD", "8")) || 8) {
   log(`  /prove-ready data-only bytes=${(proveData.length - 2) / 2} (use only when no leftover swap)`);
 
   persistCatalog();
+  persistV4RaceSnapshot({
+    dryRun: DRY_RUN,
+    cycles: cycle,
+    hitchPlanned: hitchInjectCount,
+    hitchBankedEth: hitchBudgetBalanceEth(),
+  }, { racePath: RACE_STATE });
+  await sendRaceScoreboardIfDue({
+    send: (html) => sendV4Telegram(html, { prefix: false }),
+    cycles: cycle,
+    v3LiquidEth: null,
+    v3LiquidWeth: null,
+  });
+}
+
+async function maybeLoadSharedVaultTelegram() {
+  if (process.env.GUARDIAN_V4_SHARE_ROOT_ENV !== "yes") return;
+  if (telegramBotToken()) return;
+  if (!process.env.DECRYPT_PASSWORD) {
+    log("Telegram: SHARE_ROOT_ENV set but DECRYPT_PASSWORD missing — cannot resolve VAULT_TELEGRAM_*");
+    return;
+  }
+  // VAULT_TELEGRAM_BOT_TOKEN is a Base tx hash; loadVaultKeys decrypts into TELEGRAM_BOT_TOKEN.
+  try {
+    await loadVaultKeys();
+  } catch (err) {
+    log(`vault load failed: ${err?.message || err}`);
+  }
 }
 
 async function main() {
   log("Guardian V4 offshoot starting — isolated from root Uniswap V3 agent.js");
   log(`RPCs: ${DEFAULT_RPCS.join(" | ")}`);
   log(`state: ${STATE_DIR}`);
+  await maybeLoadSharedVaultTelegram();
+  v4Account = loadV4Account();
+  publicClient = makePublicClient();
+  if (v4Account) {
+    log(`V4 wallet ${v4Account.address} dryRun=${DRY_RUN}`);
+  } else if (!DRY_RUN) {
+    log("LIVE requested but GUARDIAN_V4_PRIVATE_KEY missing — refusing broadcasts");
+  } else {
+    log("no GUARDIAN_V4_PRIVATE_KEY — paper/dry-run only");
+  }
   printAvenueBoard();
   persistCatalog();
 
@@ -186,4 +382,4 @@ main().catch((err) => {
   process.exit(1);
 });
 
-export { buildDemoInject, avenueSummary };
+export { buildDemoInject, avenueSummary, cycleOnce };

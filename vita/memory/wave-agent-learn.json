@@ -1,0 +1,8 @@
+{
+  "label": "WAVE_AGENT_BANK",
+  "at": "2026-09-24T01:40:00.000Z",
+  "note": "Token click reads the saved high/low ledger immediately. The next prediction needs 2 highs and 2 lows. Quality is accrued token units per sector plus sealed rides versus wipeouts. A ride is a SELL with a real 0x+64 hash and netUsd above zero. A wipeout is netUsd below zero. A missing hash or a zero net is skipped. Chain retrieval reads wallet trails and the three formula anchors and keeps only §WHL§v1 lines. Other calldata stays out of the swing book. Robinhood pairs verified by read-only search on 2026-09-24 are a quote mirror: ETH-USD, BTC-USD for CBBTC as the same asset class, LINK-USD, UNI-USD, AAVE-USD, AERO-USD, BRETT-USD, VIRTUAL-USD, MORPHO-USD, ZORA-USD, TOSHI-USD, AIXBT-USD, KEYCAT-USD, CLANKER-USD, VVV-USD, DOGINME-USD, USDC-USD. Base injection banks stay on Base. Lull shelter is USDC when those units are on the book, otherwise up to two rising seats, otherwise a major still on the book. Wave rider, lull vault, and sector bank publish a board. They do not send transactions. Never invent a tx hash. Never sell red to place a line.",
+  "telegram": ["/tok SYMBOL", "/waveboard SYMBOL", "/lull", "/waveagents"],
+  "robinhood": "quote-only",
+  "neverInventHashes": true
+}

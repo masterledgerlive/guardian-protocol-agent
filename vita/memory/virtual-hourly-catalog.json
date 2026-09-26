@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-17T19:10:00.000Z",
+  "topic": "virtual-hourly-balance-catalog",
+  "text": "HARD STOP: mother brain untouched. VITAFEED_PAID and WAVE_MIRROR_PAID stay default OFF. VIRTUAL stays tradeable. MIN_SWAP_POOL_LIQ unchanged. #119 WAVE sell-hitch stays. Risk desk bought VIRTUAL on Base 0x33aac6524333e37244e12f21454c2aa485a227450272b4c9bdb7aa792cf85879 (~1.642 VIRTUAL / 0.000407 ETH on the receipt — do not invent P&L). Hourly bag inventory was AERO/DRB/BNKR only; DEFAULT_TOKENS already had VIRTUAL at 0x0b3e328455c4059eeb9e3f84b5543f74e24e7e1b. Add HOURLY_BALANCE_CATALOG + poll union + EVIDENCE_BUY_TXS.VIRTUAL hash.",
+  "locations": [],
+  "hypothesis": {
+    "id": "hourly-catalog-separate-from-default-tokens",
+    "status": "operating-rule",
+    "discarded": [
+      "rewrite vitaSave / inscribeChunk / mother-genesis / mainframe",
+      "freeze VIRTUAL",
+      "lower MIN_SWAP_POOL_LIQ",
+      "invent VIRTUAL P&L instead of receipt rebuild"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

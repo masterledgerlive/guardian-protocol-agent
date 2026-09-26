@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-18T05:50:00.000Z",
+  "topic": "skip-hitch-uncovered",
+  "text": "HARD STOP: mother brain untouched. When leftover cannot cover KEY+LOC, SKIP_HITCH banks hitch ETH + this learn shard. Do not unpaired burn. Hitch when leftover covers is unchanged (original message-first). Storage Token can charge the transmission delta later.",
+  "locations": [],
+  "hypothesis": {
+    "id": "skip-hitch-bank-not-burn",
+    "status": "operating-rule",
+    "discarded": [
+      "unpaired vitaSave / inscribeChunk burn",
+      "mute hitch when leftover covers",
+      "VITAFEED_PAID"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

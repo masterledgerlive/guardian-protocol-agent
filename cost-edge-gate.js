@@ -16,7 +16,10 @@
  *   5. High unit-price demotion — CBBTC/AAVE-class need larger floors.
  *
  * Mistakes are recorded so the agent can learn and tighten caps over time.
+ * Each refuse also files into finetune-memory (sixth lobe / hypothesis graph).
  */
+
+import { ingestCostMistake } from "./finetune-memory.js";
 
 export const MAX_HITCH_COST_PCT = 0.08;       // hitch alone ≤ 8% of trade
 export const MAX_ROUND_TRIP_COST_PCT = 0.22;  // full RT ≤ 22% of stake (was 95%!)
@@ -164,6 +167,11 @@ export function evaluateCostEdgeGate({
   isManualOperator = false,
   /** When false, use nearTermEdgeMult as-is (A/B baseline). Default adapts thin+cheap. */
   adaptiveNearTerm = true,
+  /**
+   * Thin-book micro-bank / micro-hitch: 2×gas already dominates a ~$4 stake
+   * so near-term 1.15× would wait forever (live PRIMED none). Hitch%/RT% stay.
+   */
+  skipNearTerm = false,
 } = {}) {
   const sym = String(symbol || "?").toUpperCase();
   const fr = costFractions({ tradeEth, hitchCostEth, gasCostEth, feePct, impactPct });
@@ -190,8 +198,10 @@ export function evaluateCostEdgeGate({
   let reason = "ok";
   let code = "ok";
 
-  // Operator /buy stays a test path for leftover+edge — but still refuse
-  // catastrophic hitch% / high-unit smoke into CBBTC on pennies.
+  // Operator /buy is a plain-swap test path: leftover+edge never block, and
+  // near-term peak math must not wait forever on a far wave (live AERO $2:
+  // 3.00% < 1.15× required 2.63%). Still refuse no_size / hitch% / RT%.
+  // High-unit floors already skip operator.
   if (!(fr.tradeEth > 0)) {
     allow = false;
     code = "no_size";
@@ -204,7 +214,11 @@ export function evaluateCostEdgeGate({
     allow = false;
     code = "rt_pct";
     reason = `round-trip ${(fr.roundTripPct * 100).toFixed(1)}% of stake > max ${(maxRoundTripPct * 100).toFixed(0)}%`;
-  } else if (!(nearUpside + 1e-12 >= needMove * edgeMult)) {
+  } else if (
+    !isManualOperator &&
+    !skipNearTerm &&
+    !(nearUpside + 1e-12 >= needMove * edgeMult)
+  ) {
     allow = false;
     code = "near_term";
     reason = `near-term upside ${(nearUpside * 100).toFixed(2)}% < ${(edgeMult).toFixed(2)}× required ${(needMove * 100).toFixed(2)}% — would wait forever on a far peak`;
@@ -266,6 +280,8 @@ export function hasSellableUsd(balance, priceUsd, minUsd = SELLABLE_MIN_USD) {
 
 /**
  * Record a refused or realized bad entry for forward learning.
+ * Also files into the FINETUNE hypothesis graph (sixth lobe) so the next
+ * cycle does not restart from zero — see finetune-memory.js / antpalkin loop.
  */
 export function recordCostMistake(entry = {}) {
   const row = {
@@ -281,6 +297,9 @@ export function recordCostMistake(entry = {}) {
   };
   costMistakeLog.push(row);
   while (costMistakeLog.length > MISTAKE_RING_MAX) costMistakeLog.shift();
+  try {
+    ingestCostMistake(row);
+  } catch { /* finetune optional — never block the gate */ }
   return row;
 }
 
