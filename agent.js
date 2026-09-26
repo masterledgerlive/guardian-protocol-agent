@@ -8423,13 +8423,15 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
         primedReady: readyNow,
         nearEntry,
       });
-      if (!eligible && !readyNow) continue;
+      // Only in-band bottoms (or true near-entry). Do not keep mid-range armed
+      // primed seats — that blocked the cold scan and spent fee fuel off-bottom.
+      if (!eligible) continue;
       rawCandidates.push({
         symbol: a.symbol,
         minEntryEth: minE,
         readyNow,
         nearEntry,
-        nearBottom: eligible,
+        nearBottom: true,
         allow: true,
         outcomeScore: Number(a.outcomeScore) || 0,
         netMargin: Number(a.netMargin) || MIN_NET_MARGIN,
@@ -8448,7 +8450,7 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       });
     }
 
-    // Cold-scan bottoms if primed list is empty / none eligible
+    // Cold-scan real bottoms when no primed seat is in band
     if (!rawCandidates.length) {
       const target = await findCascadeTarget(soldSymbol, gasCost, proceeds);
       if (!target) {
@@ -8489,8 +8491,9 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       });
     }
 
-    // Prefer lowest bottoms first for succession
-    const candidates = rankCascadeBottoms(rawCandidates, { excludeSymbol: soldSymbol });
+    // Prefer lowest bottoms first for succession — never re-add mid-range primed.
+    // Wave-board / data-route prefs may reorder within the in-band pool only.
+    let candidates = rankCascadeBottoms(rawCandidates, { excludeSymbol: soldSymbol });
     try {
       const prefer = pickCascadeToken(collectWaveBoardRows(), { excludeSymbol: soldSymbol });
       if (prefer?.symbol) {
@@ -8527,12 +8530,44 @@ async function triggerCascade(cdp, soldSymbol, proceeds, bal) {
       }
     } catch { /* route preference waits for a real gas quote */ }
     if (!candidates.length) {
-      // Fall back to raw primed READY even if band math missed (nearEntry already true)
-      candidates.push(...rawCandidates.filter((c) => c.readyNow || c.nearBottom));
-    }
-    if (!candidates.length) {
-      console.log(`  🌊 No cascade target — proceeds held as fee fuel only`);
-      return;
+      // Ranking emptied (missing price/trough) — cold scan once more for a real bottom
+      const target = await findCascadeTarget(soldSymbol, gasCost, proceeds);
+      if (!target) {
+        console.log(`  🌊 No cascade target — proceeds held as fee fuel only`);
+        return;
+      }
+      const price = history[target.symbol]?.lastPrice;
+      const minT = getMinTrough(target.symbol);
+      const arm = getArmStatus(target.symbol, gasCost, proceeds);
+      const minE = effectiveMinEntryEth({
+        gasCostEth: gasCost,
+        hitchCostEth: hitchCost,
+        feePct: target.poolFeePct || 0.006,
+        ethUsd,
+        tokenMinBuyUsd: minBuyUsdForToken(target),
+        minPosUsd: minPosUsd(),
+      });
+      candidates = [{
+        symbol: target.symbol,
+        minEntryEth: minE,
+        readyNow: true,
+        nearBottom: true,
+        allow: true,
+        outcomeScore: arm.net || 0,
+        netMargin: arm.net || MIN_NET_MARGIN,
+        price,
+        minTrough: minT,
+        pctAboveTrough: pctAboveTrough(price, minT),
+        cascadeBottomScore: scoreCascadeBottom({
+          price,
+          minTrough: minT,
+          netMargin: arm.net || 0,
+          outcomeScore: arm.net || 0,
+          primedReady: true,
+          nearEntry: true,
+        }),
+        token: target,
+      }];
     }
 
     const plan = planSuccessionInjections({
