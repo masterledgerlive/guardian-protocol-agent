@@ -152,6 +152,7 @@ import {
   formatFlowIndex,
   formatFlowRoute,
   formatFlowSymbolNote,
+  latestSnapshot,
   loadFlowBook,
   planFlowRouteRide,
   saveFlowBook,
@@ -264,7 +265,16 @@ import {
   shouldBlockSell,
   holdAllSellsStatusLine,
   armHoldAllSells,
+  clearHoldAllSells,
 } from "./operator-sell-hold.js";
+import {
+  parseRhCascadeCommand,
+  planRhBaseCascade,
+  formatRhCascadeCard,
+  formatRhCascadeOutcomes,
+  fileRhCascadeLearn,
+  unlockSellBarrier,
+} from "./vita/rh-cascade-rail.js";
 import {
   FIFO_LOTS_FILENAME,
   EVIDENCE_BUY_TXS,
@@ -11013,9 +11023,68 @@ async function checkTelegramCommands(cdp, bal, ethUsd) {
           armHoldAllSells(process.env);
           await tg(`🛑 <b>HOLD_ALL_SELLS ON</b>\nNo token sells until you approve.\n$HOME never-sell stays on.\nClear Railway <code>HOLD_ALL_SELLS=no</code> when ready.`);
         } else if (arg === "sells off" || arg === "off" || arg === "approve") {
-          await tg(`⚠️ To lift sells, set Railway <code>HOLD_ALL_SELLS=no</code> (and <code>APPROVE_HOME_SELL=yes</code> only if you want $HOME dumpable).\nStatus: ${holdAllSellsStatusLine()}`);
+          clearHoldAllSells(process.env);
+          await tg(
+            `✅ <b>SELL BARRIER LIFTED</b>\n` +
+            `${holdAllSellsStatusLine()}\n` +
+            `$HOME stays never-sell (APPROVE_HOME_SELL unset).\n` +
+            `Other bags may sell when gated green.\n` +
+            `Persist: Railway <code>HOLD_ALL_SELLS=no</code>.\n` +
+            `RH→Base cascade: /cascade`,
+          );
         } else {
-          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off (status only — clear env to lift)`);
+          await tg(`${holdAllSellsStatusLine()}\nUsage: /hold sells · /hold sells off`);
+        }
+      } else if (parseRhCascadeCommand(raw).ok) {
+        const cmd = parseRhCascadeCommand(raw);
+        if (cmd.action === "unlock") {
+          const unlocked = unlockSellBarrier(process.env);
+          await tg(
+            `✅ <b>CASCADE SELLS UNLOCKED</b>\n${esc(unlocked.status)}\n` +
+            `$HOME never-sell on. AERO main in/out. /cascade`,
+          );
+        } else {
+          const book = flowArm();
+          const snap = latestSnapshot(book);
+          const rhRows = (snap?.quotes || []).map((q) => ({
+            symbol: String(q.pair || "").replace("-", ""),
+            mark_price: String(q.mark),
+            bid_price: q.bid != null ? String(q.bid) : undefined,
+            ask_price: q.ask != null ? String(q.ask) : undefined,
+            open_price: q.prevClose != null ? String(q.prevClose) : undefined,
+            updated_at: q.at || undefined,
+          }));
+          if (!rhRows.length) {
+            await tg(
+              `⚡ <b>RH → BASE CASCADE</b>\n` +
+              `No Robinhood snapshot filed yet.\n` +
+              `File marks via /flow (or agent RH ingest), then /cascade.\n` +
+              `Hubs: 🏠 HOME piggy · ✈ AERO main in/out\n` +
+              `${holdAllSellsStatusLine()}`,
+            );
+          } else {
+            const plan = planRhBaseCascade({
+              rhRows,
+              catalog: tokens,
+              flowBook: book,
+              unlockSells: false,
+              maxHops: 8,
+            });
+            saveFlowArm();
+            try { fileRhCascadeLearn(plan); } catch (e) { console.log(`⚠️  cascade learn: ${e.message}`); }
+            if (cmd.action === "outcomes") {
+              await tg(formatRhCascadeOutcomes(plan));
+            } else if (cmd.action === "trail") {
+              await tg(
+                `💉 <b>CASCADE TRAIL</b>\n` +
+                `commit <code>${esc(plan.trail.commit8)}</code>\n` +
+                `<code>${esc(plan.trail.line)}</code>\n` +
+                `loc empty until a real Base sell seals it.`,
+              );
+            } else {
+              await tg(formatRhCascadeCard(plan));
+            }
+          }
         }
       } else if (text.startsWith("/sell ") && !text.startsWith("/sellhalf")) {
         const parsed = parseManualSellCommand(raw);

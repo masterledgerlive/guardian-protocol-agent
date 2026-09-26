@@ -45,7 +45,7 @@ export function armHoldAllSells(env = process.env) {
   return env;
 }
 
-/** Lift only after explicit operator approve. */
+/** Lift only after explicit operator approve (Telegram /hold sells off · Railway HOLD_ALL_SELLS=no). */
 export function clearHoldAllSells(env = process.env) {
   if (!env || typeof env !== "object") return env;
   env[HOLD_ALL_SELLS_ENV] = "no";
