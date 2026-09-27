@@ -14,7 +14,7 @@ Test the storage product **before** public StorageToken. Telegram-only paid path
    Nothing held after seal.
 3. Bot replies with a **cost card** (before): chars / UTF-8 bytes / bits, max payload per chunk, injection count, ETH/$ per injection × N, VIN/tailwind pointers, IN bytes vs OUT (pending).
 4. `/vitafeed confirm` pays **RISK only** for each max chunk until the whole string is on-chain **only when `VITAFEED_PAID=yes` (or `VITAFEED_ENABLED=yes|true|1`)**. Default OFF → bank/refuse, cost card still works.
-5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain. **Override alone cannot bypass `VITAFEED_PAID=no` or the rate limit** unless `VITAFEED_FORCE=yes` **or** `/vitafeed override force` (command latch). Liquid floor is already bypassed by override. When FORCE is on, override is the thrift “block id off” path — plain body seal, no BL- backlog wrap. Song/video dumps almost always need FORCE because of the 24 chunks/hour cap.
+5. `/vitafeed override` is the same paid path but **bypasses the RISK balance REFUSE** (proceed despite underfunded inscription + buy-in + gas). Buys/inscription may still fail on-chain. **Override and `/vitafeed override force` cannot bypass `VITAFEED_PAID=no`** (matches RISK broadcast kill gate — force used to lie then flood Telegram on `RISK_KILL_GATE`). Liquid floor is already bypassed by override. When `VITAFEED_PAID=yes`, FORCE still skips the rate-limit / 24 chunks/hour cap (media dumps).
 5b. `/vitafeed check` — honest systems check: free-music / soundboard / spatial / backlog / spaced-inject as **LOCAL_OK** (disk) vs **MATCH** (sealed Input Data). Media players that play from local OGG/WAV are expected until every VIN group seals — never invent Basescan hashes.
 6. When every location seals → **PLAY PROOF**: Tailwind reader peaces spaced
    locations together and plays the blob (`/vita/feed-player`).
@@ -98,8 +98,8 @@ upload or load demo song → Packetize → Demo override → Play proof.
 | `VITAFEED_CONFIRM_CHARS` | 1000 | Large-body warning on the cost card |
 | `VITAFEED_TX_GAS_UNITS` | 50_000 | Documented self-tx gas class (`BTP_INSCRIBE_GAS_UNITS`) |
 | Payer | RISK `0x50e1…7915` | Vault / save bucket never spend |
-| `VITAFEED_PAID` / `VITAFEED_ENABLED` | default **OFF** | Must be `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Override cannot bypass unless `VITAFEED_FORCE`. |
-| `VITAFEED_FORCE` | default **OFF** | When `yes`, `/vitafeed override` (and autofire) bypasses paid-off + rate limit. Liquid floor already bypassed by override. Plain body; no BL- id. |
+| `VITAFEED_PAID` / `VITAFEED_ENABLED` | default **OFF** | Must be `yes`/`true`/`1` to allow confirm/override `sendTransaction`. Override/force cannot bypass. |
+| `VITAFEED_FORCE` | default **OFF** | When `yes` **and** paid is on, `/vitafeed override` skips rate limit / chunk cap. Does **not** fake paid-off. |
 | `VITAFEED_AUTOFIRE` | default **OFF** | One-shot boot/desk seal of `VITAFEED_AUTOFIRE_BODY`; self-clears to `no`. Needs PAID or FORCE. |
 | `VITAFEED_AUTOFIRE_BODY` | empty | Exact plain UTF-8 (no §VITABACKLOG§ / BL- wrap). |
 | `VITAFEED_MIN_LIQUID_USD` | default **5** | Refuse confirm/override when RISK liquid USD is below floor. Set `0` to disable. |

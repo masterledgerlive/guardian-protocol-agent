@@ -10,10 +10,12 @@
  * prev-hash → next-index like a VIN. Cost card first, then `/vitafeed confirm`.
  *
  * Emergency thrift (n5624→6007 +383 self-call class): paid confirm/override
- * default OFF. /vitafeed override cannot bypass VITAFEED_PAID=no unless
- * VITAFEED_FORCE=yes **or** `/vitafeed override force` (command latch — then
- * also skips rate limit; liquid floor already bypassed). Override alone DOES
- * bypass liquid floor + RISK balance REFUSE (money stall) but not thrift.
+ * default OFF. /vitafeed override and /vitafeed override force **cannot**
+ * bypass VITAFEED_PAID=no (matches RISK broadcast kill gate — force used to
+ * lie, attempt every chunk, then Telegram-flood on RISK_KILL_GATE). Override
+ * alone DOES bypass liquid floor + RISK balance REFUSE (money stall). Once
+ * VITAFEED_PAID=yes, `/vitafeed override force` / VITAFEED_FORCE=yes still
+ * skips the hourly rate-limit cap (media dumps).
  * Media/players on disk are availability (LOCAL_OK) until confirm|override
  * seals real Base Input Data — never invent hashes. `/vitafeed check` audits.
  * Inscribe sends what it can before an error, then restages the remainder.
@@ -110,9 +112,10 @@ export const VITAFEED_BASESCAN_TX = "https://basescan.org/tx/";
 export const VITAFEED_TX_GAS_UNITS = BTP_INSCRIBE_GAS_UNITS;
 export const VITAFEED_CALLDATA_GAS_PER_BYTE = CALLDATA_GAS_PER_NONZERO_BYTE;
 
-/** Paid sendTransaction kill-switch — default OFF. Override cannot bypass unless VITAFEED_FORCE. */
+/** Paid sendTransaction kill-switch — default OFF. Force cannot bypass paid-off. */
 export const VITAFEED_PAID_ENV = "VITAFEED_PAID";
 export const VITAFEED_ENABLED_ENV = "VITAFEED_ENABLED";
+/** When paid is on, override force skips rate-limit / chunk cap only. */
 export const VITAFEED_FORCE_ENV = "VITAFEED_FORCE";
 export const VITAFEED_AUTOFIRE_ENV = "VITAFEED_AUTOFIRE";
 export const VITAFEED_AUTOFIRE_BODY_ENV = "VITAFEED_AUTOFIRE_BODY";
@@ -597,8 +600,9 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     return { ok: true, action: "confirm", body: "", source: "confirm" };
   }
   // Operator force-through of the RISK balance REFUSE (typo "overide" accepted).
-  // `/vitafeed override force` (also `/vitafeed force`) is the thrift latch:
-  // bypasses paid-off + rate limit for this seal only — same as VITAFEED_FORCE=yes.
+  // `/vitafeed override force` (also `/vitafeed force`) is the rate-limit latch:
+  // skips hourly chunk cap for this seal only when VITAFEED_PAID=yes — same as
+  // VITAFEED_FORCE=yes. Does NOT fake paid-off (CDP kill gate refuses unpaid).
   if (/^(?:override|overide)(?:\s+force)?$/i.test(trimmed) || /^(?:force|forceoverride|overrideforce)$/i.test(trimmed)) {
     const commandForce =
       /\bforce\b/i.test(trimmed) || /^(?:force|forceoverride|overrideforce)$/i.test(trimmed);
@@ -823,17 +827,16 @@ export function vitaFeedUsageText() {
     "leave $0.10 AI + $0.10 human + 1.5% tax; sell same % up + cost overlay.",
     "Then /vitafeed confirm — pays RISK only (never vault / save bucket).",
     "PAID PATH DEFAULT OFF: set VITAFEED_PAID=yes (or VITAFEED_ENABLED=yes|true|1)",
-    "  or confirm/override BANKS (no sendTransaction). Override cannot bypass paid-off",
-    "  unless VITAFEED_FORCE=yes or /vitafeed override force (then also skips rate limit).",
+    "  or confirm/override BANKS (no sendTransaction). Override/force cannot bypass paid-off.",
     "Liquid floor: VITAFEED_MIN_LIQUID_USD default $5 (confirm blocked; override bypasses).",
     "Rate limit: one confirm / chat / 60s and max 24 chunks/hour",
     "  (VITAFEED_RATE_LIMIT=no disables). Override does not bypass rate limit unless FORCE.",
-    "FORCE: VITAFEED_FORCE=yes + /vitafeed override — OR /vitafeed override force",
-    "  (command latch, no env) — thrift block id off; plain body seal.",
-    "AUTOFIRE: VITAFEED_AUTOFIRE=yes + VITAFEED_AUTOFIRE_BODY=… one-shot (no BL- id).",
+    "FORCE (only when VITAFEED_PAID=yes): VITAFEED_FORCE=yes + /vitafeed override — OR",
+    "  /vitafeed override force (command latch) — skips hourly chunk cap for media dumps.",
+    "AUTOFIRE: VITAFEED_AUTOFIRE=yes + VITAFEED_AUTOFIRE_BODY=… + VITAFEED_PAID=yes one-shot.",
     "/vitafeed override — force-through money stalls:",
-    "  bypasses RISK balance REFUSE + liquid floor; still needs VITAFEED_PAID=yes (or FORCE).",
-    "  /vitafeed override force — ALSO bypasses paid-off + hourly chunk cap (media dumps).",
+    "  bypasses RISK balance REFUSE + liquid floor; still needs VITAFEED_PAID=yes.",
+    "  /vitafeed override force — skips hourly chunk cap when paid is on (not paid-off).",
     "  Sends each VIN chunk until on-chain/gas error — keeps sealed locs,",
     "  restages remainder so you can override again when funded.",
     "  When complete: PLAY PROOF — Tailwind reader peaces locations + plays blob.",
@@ -1023,9 +1026,9 @@ export function vitaFeedPaidEnabled(env = process.env) {
 }
 
 /**
- * Operator force latch — when yes, /vitafeed override bypasses paid-off + rate
+ * Operator force latch — when yes, /vitafeed override bypasses rate
  * limit (and already bypasses liquid floor / RISK REFUSE). Default OFF.
- * Does not re-enable confirm under paid-off; only override + autofire.
+ * Does **not** bypass VITAFEED_PAID=no (hard kill-switch + CDP gate).
  */
 export function vitaFeedForceEnabled(env = process.env) {
   return envFlagOnExplicit(env?.[VITAFEED_FORCE_ENV] ?? "");
@@ -1129,7 +1132,7 @@ export function auditVitaFeedChainMirror({ memoryDir = MEMORY_DIR } = {}) {
       status: injectSealed > 0 ? "PARTIAL_OR_MATCH" : "LOCAL_ONLY",
     },
     next:
-      "Stage: /vitafeed next (or enqueue maple|board) → /vitafeed override force to seal past paid-off + hourly cap",
+      "Stage: /vitafeed next (or enqueue maple|board) → set VITAFEED_PAID=yes → /vitafeed override (force only for chunk cap)",
   };
 }
 
@@ -1166,10 +1169,11 @@ export function formatVitaFeedMirrorCheckCard(audit = auditVitaFeedChainMirror()
     lines.push("VERDICT: some body locs sealed — pull Basescan Input Data → UTF-8 to verify MATCH.");
   }
   lines.push("");
-  lines.push("UNSTICK: " + (a.next || "/vitafeed override force"));
+  lines.push("UNSTICK: set VITAFEED_PAID=yes then " + (a.next || "/vitafeed override"));
   lines.push(
     "Thrift: plain /vitafeed override bypasses money floor only;",
-    "  paid-off + rate-limit need FORCE env or /vitafeed override force.",
+    "  paid-off needs Railway VITAFEED_PAID=yes (force cannot fake it);",
+    "  rate-limit needs FORCE env or /vitafeed override force once paid is on.",
   );
   return lines.join("\n");
 }
@@ -1243,11 +1247,12 @@ export function formatVitaFeedPaidOffReply({ action = "confirm" } = {}) {
   return [
     "VITAFEED BANK — paid confirm is OFF",
     "VITAFEED_PAID / VITAFEED_ENABLED must be yes|true|1 to call sendTransaction.",
-    "/vitafeed override alone cannot bypass this kill-switch (action=" + action + ").",
-    "FORCE through thrift: /vitafeed override force  (or set VITAFEED_FORCE=yes).",
-    "That also skips the hourly chunk / rate-limit cap (needed for song/video dumps).",
+    "/vitafeed override and /vitafeed override force cannot bypass this kill-switch (action=" + action + ").",
+    "RISK broadcast kill gate also refuses unpaid self-calls — force/autofire cannot fake paid.",
+    "To seal: set Railway VITAFEED_PAID=yes, then /vitafeed confirm or /vitafeed override.",
+    "Once paid is on, /vitafeed override force still skips the hourly chunk cap (media dumps).",
     "Cost card / preview still works. Staged payload kept. /vitafeed cancel to drop.",
-    "Stops runaway RISK self-calls (n5624→6007 +383 class).",
+    "Stops runaway RISK self-calls (n5624→6007 +383 class) and Telegram error floods.",
   ].join("\n");
 }
 
@@ -1283,10 +1288,11 @@ export function formatVitaFeedRateLimitReply({ reason, cooldownSec, cap, used, n
 
 /**
  * Kill-switch + liquid floor + rate limit for confirm/override.
- * /vitafeed override cannot bypass paid-off or rate limit unless VITAFEED_FORCE=yes
- * OR command forceLatch (/vitafeed override force).
+ * VITAFEED_PAID=yes is required to send — /vitafeed override force and
+ * VITAFEED_FORCE cannot bypass paid-off (matches RISK broadcast kill gate;
+ * force was lying and then chunk-fail spamming Telegram).
  * Override DOES bypass liquid floor (money stall) when forceOverride/action=override.
- * FORCE + override also bypasses paid-off + rate limit (block id / thrift off).
+ * FORCE + override (when paid is on) still bypasses rate limit (block id / thrift off).
  */
 export function evaluateVitaFeedThriftGate({
   action,
@@ -1299,7 +1305,7 @@ export function evaluateVitaFeedThriftGate({
   forceOverride = false,
   /** Partial-seal resume: skip per-chat cooldown so remainder can continue. */
   skipCooldown = false,
-  /** /vitafeed override force — one-shot thrift latch (same as VITAFEED_FORCE=yes). */
+  /** /vitafeed override force — rate-limit latch only (same as VITAFEED_FORCE=yes). */
   forceLatch: commandForceLatch = false,
 } = {}) {
   const paidAction = action === "confirm" || action === "override";
@@ -1309,7 +1315,8 @@ export function evaluateVitaFeedThriftGate({
     return { ok: true, send: false, code: "not-paid-action" };
   }
 
-  if (!vitaFeedPaidEnabled(env) && !forceLatch) {
+  // Paid is hard — force/autofire never fake it (CDP kill gate refuses anyway).
+  if (!vitaFeedPaidEnabled(env)) {
     return {
       ok: false,
       send: false,
@@ -1581,9 +1588,9 @@ export async function runVitaFeedInscribe(prepared, sendTx) {
 
 /**
  * Thin Telegram/HTML action router. Paid send only when confirm + sendTx
- * AND VITAFEED_PAID=yes. Override alone cannot bypass the paid kill-switch;
- * `/vitafeed override force` (or VITAFEED_FORCE=yes) can. Override bypasses
- * liquid floor + RISK balance REFUSE; partial seal restages.
+ * AND VITAFEED_PAID=yes. Override / override force cannot bypass the paid
+ * kill-switch. Override bypasses liquid floor + RISK balance REFUSE; force
+ * (when paid) skips rate limit; partial seal restages.
  */
 export async function handleVitaFeedAction({
   action,
@@ -1598,7 +1605,7 @@ export async function handleVitaFeedAction({
   reserveBuyStake = true,
   /** /vitafeed override — bypass RISK balance REFUSE + liquid floor. */
   forceOverride = false,
-  /** /vitafeed override force — one-shot thrift latch (paid-off + rate limit). */
+  /** /vitafeed override force — rate-limit latch only (when paid is on). */
   forceLatch = false,
   /** Env snapshot (tests pass {}). Default process.env. */
   env = process.env,
@@ -3571,8 +3578,8 @@ export async function handleVitaFeedAction({
 /**
  * One-shot boot/desk fire. Stages exact plain VITAFEED_AUTOFIRE_BODY (no BL-
  * backlog block id) then /vitafeed override. Requires VITAFEED_AUTOFIRE=yes and
- * (VITAFEED_PAID=yes or VITAFEED_FORCE=yes). Clears autofire before send so a
- * retry cannot burn twice. Default OFF.
+ * VITAFEED_PAID=yes (FORCE alone cannot fake paid). Clears autofire before send
+ * so a retry cannot burn twice. Default OFF.
  */
 export async function maybeAutofireVitaFeed({
   env = process.env,
@@ -3604,12 +3611,12 @@ export async function maybeAutofireVitaFeed({
       reason: "VITAFEED_AUTOFIRE_BODY empty — cleared autofire, no send",
     };
   }
-  if (!vitaFeedPaidEnabled(env) && !vitaFeedForceEnabled(env)) {
+  if (!vitaFeedPaidEnabled(env)) {
     return {
       ok: true,
       fired: false,
       autofire: false,
-      reason: "VITAFEED_AUTOFIRE needs VITAFEED_PAID=yes or VITAFEED_FORCE=yes — cleared autofire, no send",
+      reason: "VITAFEED_AUTOFIRE needs VITAFEED_PAID=yes — cleared autofire, no send",
     };
   }
 

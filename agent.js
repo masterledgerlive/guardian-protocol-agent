@@ -804,13 +804,19 @@ async function buildWaveGasOnlyLiveContext({ liveEnabled = false, cdp = cdpClien
   let sendTx = null;
   if (client?.evm?.sendTransaction) {
     sendTx = async (hex) => {
-      const { transactionHash } = await client.evm.sendTransaction({
-        address: WALLET_ADDRESS,
-        network: "base",
-        transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
-      });
-      await new Promise((r) => setTimeout(r, 2000));
-      return transactionHash || null;
+      try {
+        const { transactionHash } = await client.evm.sendTransaction({
+          address: WALLET_ADDRESS,
+          network: "base",
+          transaction: { to: WALLET_ADDRESS, value: BigInt(0), data: hex },
+        });
+        await new Promise((r) => setTimeout(r, 2000));
+        return transactionHash || null;
+      } catch (e) {
+        const msg = String(e?.message || e || "");
+        if (e?.code === "RISK_KILL_GATE" || /RISK_KILL_GATE/i.test(msg)) throw e;
+        throw e;
+      }
     };
   }
   return { wantLive: true, sendTx, liquidUsd, quotes, fetchCalldata: fetchTxCalldataHex };
@@ -867,7 +873,9 @@ async function buildVitaFeedLiveContext(opts = {}) {
         await new Promise((r) => setTimeout(r, 2000));
         return transactionHash || null;
       } catch (e) {
-        console.warn("vitafeed live sendTx failed:", e?.message || e);
+        const msg = String(e?.message || e || "");
+        console.warn("vitafeed live sendTx failed:", msg);
+        if (e?.code === "RISK_KILL_GATE" || /RISK_KILL_GATE/i.test(msg)) throw e;
         return null;
       }
     };
@@ -10556,11 +10564,20 @@ function esc(str) {
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Epoch ms until which tg() must stay quiet (Telegram 429 flood control). */
+let tgRateLimitedUntil = 0;
+
 async function tg(msg, extra = {}) {
   try {
     const tok = process.env.TELEGRAM_BOT_TOKEN;
     const cid = process.env.TELEGRAM_CHAT_ID;
     if (!tok || !cid) { console.log("⚠️  Telegram: no token/chat_id set"); return; }
+    // Global 429 cooldown — never hammer Telegram (phone flood).
+    const now = Date.now();
+    if (tgRateLimitedUntil > now) {
+      console.log(`⚠️  Telegram send deferred (rate limit ${Math.ceil((tgRateLimitedUntil - now) / 1000)}s)`);
+      return;
+    }
     // Telegram messages >4096 chars get rejected — split them
     const chunks = splitTelegramHtmlChunks(sanitizeTelegramHtml(msg), 4000);
     let markup = extra.reply_markup;
@@ -10578,6 +10595,16 @@ async function tg(msg, extra = {}) {
       if (!data.ok) {
         console.log(`⚠️  Telegram send failed: ${data.description}`);
         const desc = String(data.description || "");
+        // Honor Telegram flood control — do NOT plain-text retry (that doubles the flood).
+        const retryAfter = Number(data.parameters?.retry_after);
+        if (/too many requests/i.test(desc) || (Number.isFinite(retryAfter) && retryAfter > 0)) {
+          const waitSec = Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter
+            : (Number(desc.match(/retry after (\d+)/i)?.[1]) || 10);
+          tgRateLimitedUntil = Date.now() + (waitSec + 1) * 1000;
+          console.log(`⚠️  Telegram rate-limited — cooling ${waitSec + 1}s (no retry)`);
+          return;
+        }
         const webAppBad = /web_app|BUTTON_TYPE_INVALID|Web_app|webapp|Web App URL/i.test(desc);
         if (webAppBad && last && markup) {
           markup = stripWebAppButtons(markup);
@@ -10592,11 +10619,17 @@ async function tg(msg, extra = {}) {
             });
             const retryData = await retryRes.json();
             if (retryData.ok) continue;
+            if (/too many requests/i.test(String(retryData.description || ""))) {
+              const ra = Number(retryData.parameters?.retry_after) || 10;
+              tgRateLimitedUntil = Date.now() + (ra + 1) * 1000;
+              return;
+            }
           } catch (re) {
             console.log(`⚠️  Telegram web_app strip retry failed: ${re.message}`);
           }
         }
         // Retry as plain text — strip ALL html tags and decode entities
+        // (parse errors only — never on rate limit)
         try {
           const plain = chunk
             .replace(/<[^>]*>/g, "")          // remove tags
@@ -10606,10 +10639,16 @@ async function tg(msg, extra = {}) {
             .replace(/&quot;/g, '"');
           const retry = { chat_id: cid.trim(), text: plain };
           if (last && markup) retry.reply_markup = markup;
-          await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
+          const plainRes = await fetch(`https://api.telegram.org/bot${tok.trim()}/sendMessage`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(retry),
           });
+          const plainData = await plainRes.json().catch(() => ({}));
+          if (plainData && plainData.ok === false && /too many requests/i.test(String(plainData.description || ""))) {
+            const ra = Number(plainData.parameters?.retry_after) || 10;
+            tgRateLimitedUntil = Date.now() + (ra + 1) * 1000;
+            return;
+          }
         } catch (re) { console.log(`⚠️  Telegram plain-text retry failed: ${re.message}`); }
       }
     }
@@ -13969,8 +14008,8 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             "Cost card first, then <code>/vitafeed confirm</code> to pay from RISK.\n" +
             "<b>Paid path default OFF</b> — set <code>VITAFEED_PAID=yes</code> (or VITAFEED_ENABLED=yes|true|1) or confirm/override banks.\n" +
             "<code>/vitafeed override</code> — bypass RISK balance REFUSE + liquid floor; " +
-            "sends what gas allows, restages remainder. Alone cannot bypass VITAFEED_PAID=no or rate limit.\n" +
-            "<code>/vitafeed override force</code> — FORCE latch: also bypass paid-off + hourly chunk cap (media).\n" +
+            "sends what gas allows, restages remainder. Needs <code>VITAFEED_PAID=yes</code>.\n" +
+            "<code>/vitafeed override force</code> — when paid is on, skips hourly chunk cap (media). Force cannot fake paid (RISK kill gate).\n" +
             "<code>/vitafeed check</code> — systems check: disk/players LOCAL_OK vs sealed Base MATCH.\n" +
             "<code>/vitafeed brain</code> — activate learn (old→new + peer review + zero-proof + library + vita-save)\n" +
             "<code>/vitafeed learn</code> · <code>/vitafeed proof</code> — last cycle / growth card\n" +
@@ -14173,8 +14212,10 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 "📡 <b>VITAFEED BANK</b>\n<pre>" +
                 String(gate.reply || "paid path refused").replace(/</g, "&lt;") +
                 "</pre>\n" +
-                (gate.code === "paid-off" || gate.code === "chunk-cap" || gate.code === "cooldown"
-                  ? "Try <code>/vitafeed override force</code> to seal past thrift (paid-off + rate limit)."
+                (gate.code === "paid-off"
+                  ? "Set Railway <code>VITAFEED_PAID=yes</code> then /vitafeed confirm|override. Force cannot fake paid (RISK kill gate)."
+                  : gate.code === "chunk-cap" || gate.code === "cooldown"
+                  ? "Once paid is on, <code>/vitafeed override force</code> skips the hourly chunk cap."
                   : ""),
               );
               continue;
@@ -14204,7 +14245,13 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
                 await new Promise((r) => setTimeout(r, 2000));
                 return transactionHash || null;
               } catch (e) {
-                console.warn("vitafeed sendTx chunk failed:", e?.message || e);
+                const msg = String(e?.message || e || "");
+                console.warn("vitafeed sendTx chunk failed:", msg);
+                // Fail closed immediately — do not null-return and keep burning
+                // chunks into RISK_KILL_GATE / Telegram error spam.
+                if (e?.code === "RISK_KILL_GATE" || /RISK_KILL_GATE/i.test(msg)) {
+                  throw e;
+                }
                 return null;
               }
             };
@@ -14224,11 +14271,11 @@ VERIFY: c=299792458, Nobel=1921, born=1879-03-14, died=1955-04-18, LIGO detectio
             } else if (parsed.action === "override") {
               await tg(
                 forceLatch
-                  ? "📡 <b>VITAFEED OVERRIDE FORCE</b> — thrift latch ON (paid-off + rate limit bypass); " +
+                  ? "📡 <b>VITAFEED OVERRIDE FORCE</b> — rate-limit latch ON (hourly chunk cap bypass; still needs VITAFEED_PAID=yes); " +
                     "money floor already bypassed; seal chunks until gas/error (partial OK)…"
                   : "📡 <b>VITAFEED OVERRIDE</b> — bypassing RISK REFUSE + liquid floor; " +
                     "buy-in seats best-effort, then seal chunks until gas/error (partial OK). " +
-                    "If BANK/rate-limit blocks, use <code>/vitafeed override force</code>…",
+                    "Needs <code>VITAFEED_PAID=yes</code>. For media dumps past the hourly cap use <code>/vitafeed override force</code>…",
               );
             } else if (parsed.action === "check") {
               await tg("📡 <b>VITAFEED CHECK</b> — auditing local files vs sealed Base mirrors…");
