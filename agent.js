@@ -538,6 +538,8 @@ import {
 } from "./swap-minout.js";
 import {
   rotateHomeSlipstreamBuyPath,
+  homeSlipstreamSellPath,
+  homeSellUsesSlipstream,
   encodeSlipstreamExactInputSingle,
   slipstreamDeadline,
   slipstreamApproveSpenders,
@@ -2726,6 +2728,36 @@ async function getSlipstreamHomeBuyQuote(amountIn) {
   );
   if (!amountOut) {
     console.log(`   ⚠️  Slipstream quote miss tickSpacing ${path.tickSpacing} — not sending (no Uni QuoterV2 fallback)`);
+    return null;
+  }
+  return {
+    amountOut,
+    fee: path.fee,
+    tickSpacing: path.tickSpacing,
+    liquidity: depth.liquidity,
+    pool: path.pool,
+    router: path.router,
+    quoter: path.quoter,
+    venue: path.venue,
+  };
+}
+
+/** HOME→WETH operator sell: Slipstream quoter, never Uni QuoterV2 ghost. */
+async function getSlipstreamHomeSellQuote(amountIn) {
+  const path = homeSlipstreamSellPath();
+  const depth = await readSlipstreamPoolLiquidity(path.pool);
+  if (depth.empty) {
+    console.log(`   🛑 EMPTY SLIPSTREAM POOL ${path.pool} — liquidity=0, not sending`);
+    return null;
+  }
+  const amountOut = await quoteSlipstreamExactInputSingle(
+    path.tokenIn,
+    path.tokenOut,
+    amountIn,
+    path.tickSpacing,
+  );
+  if (!amountOut) {
+    console.log(`   ⚠️  Slipstream HOME sell quote miss — not sending (no Uni QuoterV2 fallback)`);
     return null;
   }
   return {
@@ -7672,24 +7704,40 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     let swapFee = token.feeTier;
     let sellFactoryLiq = null;
     let sellPreferredPool = null;
-    try {
-      // Bind leftover exits to the DexScreener Uni V3 WETH pair when known.
-      // Thin/wrong-book must not freeze leftover sells.
-      const pairs = await fetchDexScreenerPairs(token.address);
-      sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
-    } catch { sellPreferredPool = null; }
-    if (token.symbol === "AERO") {
-      sellPreferredPool = AERO_UNI_V3_WETH_POOL;
-      swapFee = AERO_UNI_V3_WETH_FEE;
+    let slipstreamSell = null;
+    if (homeSellUsesSlipstream(reason, token.symbol)) {
+      slipstreamSell = homeSlipstreamSellPath();
+      console.log(
+        `🏠 HOME Slipstream sell — ${slipstreamSell.venue} pool ${slipstreamSell.pool} ` +
+        `tickSpacing ${slipstreamSell.tickSpacing} (not Uni QuoterV2)`,
+      );
+    } else {
+      try {
+        // Bind leftover exits to the DexScreener Uni V3 WETH pair when known.
+        // Thin/wrong-book must not freeze leftover sells.
+        const pairs = await fetchDexScreenerPairs(token.address);
+        sellPreferredPool = selectUniV3WethUsdcPair(pairs, token.address)?.pairAddress || null;
+      } catch { sellPreferredPool = null; }
+      if (token.symbol === "AERO") {
+        sellPreferredPool = AERO_UNI_V3_WETH_POOL;
+        swapFee = AERO_UNI_V3_WETH_FEE;
+      }
     }
     try {
-      const live = await getOnChainSellQuote(token.address, amtToSell, swapFee, {
-        preferredPool: sellPreferredPool,
-      });
-      quotedWeth = live?.amountOut ?? null;
-      // AERO Uni V3 WETH 0x3d5D1433 is fee 3000 — do not adopt another book's fee.
-      if (live?.fee && token.symbol !== "AERO") swapFee = live.fee;
-      if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
+      if (slipstreamSell) {
+        const live = await getSlipstreamHomeSellQuote(amtToSell);
+        quotedWeth = live?.amountOut ?? null;
+        if (live?.fee) swapFee = live.fee;
+        if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
+      } else {
+        const live = await getOnChainSellQuote(token.address, amtToSell, swapFee, {
+          preferredPool: sellPreferredPool,
+        });
+        quotedWeth = live?.amountOut ?? null;
+        // AERO Uni V3 WETH 0x3d5D1433 is fee 3000 — do not adopt another book's fee.
+        if (live?.fee && token.symbol !== "AERO") swapFee = live.fee;
+        if (live?.liquidity != null) sellFactoryLiq = live.liquidity;
+      }
     } catch (e) {
       console.log(`   ⚠️  Quote error: ${e.message?.slice(0,50)} — not sending`);
       quotedWeth = null;
@@ -7703,7 +7751,9 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     if (!quoteGate.allow) {
       lastQuoterExecutable[token.symbol] = false;
       const missKind = quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss";
-      noteSwapPathFail(token.symbol, { kind: missKind });
+      if (!slipstreamSell) {
+        noteSwapPathFail(token.symbol, { kind: missKind });
+      }
       if (isOperatorRotateArmed() && isOperatorRotateReason(reason)) {
         const skip = applyRotateQuoterMiss({
           state: operatorRotateState,
@@ -7724,7 +7774,7 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
       const depthGate = requireFactoryLiquidity({
         liquidity: sellFactoryLiq,
         symbol: token.symbol,
-        fee: swapFee,
+        fee: slipstreamSell ? `slipstream-${HOME_SLIPSTREAM_TICK_SPACING}` : swapFee,
       });
       if (!depthGate.allow) {
         console.log(`   ${depthGate.log || "EMPTY V3 POOL sell — not sending"}`);
@@ -7733,7 +7783,11 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     }
     quotedWeth = quoteGate.quotedOut;
     minWeth = slippageFloor(quotedWeth, SLIPPAGE_GUARD);
-    console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+    if (slipstreamSell) {
+      console.log(`   📐 Slipstream sell: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) tickSpacing ${slipstreamSell.tickSpacing}`);
+    } else {
+      console.log(`   📐 QuoterV2: expect ${formatWei18(quotedWeth)} WETH → floor ${formatWei18(minWeth)} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
+    }
     const quotedEth = wei18ToEth(quotedWeth);
     const procEth = conservativeSellProceedsEth({ markEth: markProcEth, quotedEth });
     if (quotedEth > 0 && quotedEth + 1e-18 < markProcEth) {
@@ -7851,11 +7905,26 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     console.log(`      ${sellAmt>=1?Math.floor(sellAmt):sellAmt.toFixed(4)} tokens @ $${price.toFixed(8)} | ETH=$${ethUsd.toFixed(0)} | 🐷 keeping ${piggy.reserve >= 1 ? piggy.reserve.toFixed(2) : piggy.reserve.toFixed(4)}${piggy.unlock ? " (UNLOCK)" : ""}`);
     console.log(`      💓 Indicators: ${ind.detail}`);
 
-    await ensureApproved(cdp, token.address, amtToSell);
+    await ensureApproved(
+      cdp,
+      token.address,
+      amtToSell,
+      slipstreamSell ? slipstreamApproveSpenders() : sellApproveSpenders(),
+    );
     const wBefore = await getWethBalance();
     const eBefore = await getEthBalance();
 
-    const sellSwap = encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, swapFee, minWeth);
+    const sellSwap = slipstreamSell
+      ? encodeSlipstreamExactInputSingle({
+          tokenIn: token.address,
+          tokenOut: WETH_ADDRESS,
+          tickSpacing: slipstreamSell.tickSpacing,
+          recipient: WALLET_ADDRESS,
+          deadline: slipstreamDeadline(),
+          amountIn: amtToSell,
+          amountOutMinimum: minWeth,
+        })
+      : encodeSwap(token.address, WETH_ADDRESS, amtToSell, WALLET_ADDRESS, swapFee, minWeth);
     // Wave-up tailwind: leftover after fees pays sparse VITA picture (when armed)
     // or VITA KEY+LOC parse. Earnings are NOT extra hitch fuel (leftover already
     // is profit-from-entry). If hitch would wipe plus, strip to plain sale.
@@ -8056,9 +8125,10 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     } catch (e) {
       console.log(`   💉 FLOW route skipped — ${e.message}`);
     }
+    const sellRouter = slipstreamSell ? slipstreamSell.router : SWAP_ROUTER;
     const _sellTx = {
       address: WALLET_ADDRESS, network: "base",
-      transaction: { to: SWAP_ROUTER, gas: BigInt(600_000), data: sellVoice.data },
+      transaction: { to: sellRouter, gas: BigInt(600_000), data: sellVoice.data },
     };
     const { transactionHash } = await Promise.race([
       orchReady
