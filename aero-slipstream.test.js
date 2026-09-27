@@ -12,6 +12,8 @@ import {
   decodeSlipstreamExactInputSingle,
   rotateHomeSlipstreamBuyPath,
   isSlipstreamHomeBuyPath,
+  homeSellUsesSlipstream,
+  homeSlipstreamSellPath,
   slipstreamApproveSpenders,
   slipstreamDeadline,
 } from "./aero-slipstream.js";
@@ -60,6 +62,16 @@ describe("Aerodrome Slipstream HOME buy path", () => {
     assert.equal(rotateHomeBuyUsesSlipstream("MANUAL BUY (operator) $2.56", "AERO"), false);
     assert.equal(rotateHomeBuyUsesSlipstream("WAVE BUY", "HOME"), false);
     assert.deepEqual(slipstreamApproveSpenders(), [SLIPSTREAM_SWAP_ROUTER]);
+  });
+
+  it("operator HOME sell uses Slipstream HOME→WETH", () => {
+    assert.equal(homeSellUsesSlipstream("MANUAL SELL (operator) 45%", "HOME"), true);
+    assert.equal(homeSellUsesSlipstream("WAVE SELL", "HOME"), false);
+    assert.equal(homeSellUsesSlipstream("MANUAL SELL (operator)", "AERO"), false);
+    const path = homeSlipstreamSellPath();
+    assert.equal(path.tokenIn, VERIFIED_HOME_ADDRESS);
+    assert.equal(path.tokenOut.toLowerCase(), BASE_WETH.toLowerCase());
+    assert.equal(path.tickSpacing, 200);
   });
 
   it("encodes exactInputSingle with tickSpacing 200, not Uni fee 3000", () => {

@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-27T21:50:00.000Z",
+  "topic": "olas-home-fund-gas-thrift",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Can you buy OLAS/WETH use 4 dollars from $home make sure OLAS is another main chain to cascade into with others selected",
+  "locations": [],
+  "hypothesis": {
+    "id": "olas-home-45-fund-balancer-4",
+    "status": "armed",
+    "asks": [
+      "OLAS seated MAIN beside LINK UNI VVV ZORA BNKR MORPHO (Balancer V2 WETH)",
+      "OPERATOR_SELL=HOME:45 via Slipstream funds OPERATOR_BUY=OLAS:4",
+      "Gas thrift: native 0.000499 under GAS_RESERVE 0.0005 must not block MANUAL SELL (operator) when tx gas is covered — sell→WETH funds next"
+    ],
+    "blocked": [
+      "SELL BLOCKED [HOME]: native ETH 0.000499 < gas reserve 0.0005 — no gas → OPERATOR_SELL thrift",
+      "LOSE_ZERO hold HOME unknown cost — APPROVE_HOME_SELL + ALLOW_LOSSY must bypass for MANUAL SELL (operator)"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

@@ -24,6 +24,7 @@ import {
   unwrapForCascadeGas,
   autoUnwrapTowardCascadeFloor,
   cascadeNativeGasOk,
+  operatorSellNativeGasOk,
   maxCascadeDeployWithoutDepletion,
   injectProveStatus,
   INJECT_ALL_USD,
@@ -31,6 +32,7 @@ import {
   FULL_SELL_RESERVE_ETH,
   CASCADE_GAS_FLOOR_ETH,
   THRIFT_CASCADE_GAS_FLOOR_ETH,
+  OPERATOR_SELL_GAS_THRIFT_ETH,
   INJECT_PROVE_TARGET,
   CASCADE_TARGET_HOPS,
   CASCADE_WINDOW_MS,
@@ -288,6 +290,36 @@ describe("cascade-rollover: gas floor + unwrap", () => {
     );
   });
 
+  it("OPERATOR_SELL thrift allows 0.000499 when reserve is 0.0005", () => {
+    // Live Railway: SELL BLOCKED [HOME] native 0.000499 < 0.0005 — no WETH to unwrap.
+    assert.equal(
+      operatorSellNativeGasOk({
+        nativeEth: 0.000499,
+        gasCostEth: 0.00002,
+        gasReserveEth: 0.0005,
+        thriftFloorEth: OPERATOR_SELL_GAS_THRIFT_ETH,
+      }),
+      true,
+    );
+    assert.equal(
+      operatorSellNativeGasOk({
+        nativeEth: 0.0001,
+        gasCostEth: 0.00002,
+        gasReserveEth: 0.0005,
+      }),
+      false,
+      "far under thrift still blocked",
+    );
+    assert.equal(
+      operatorSellNativeGasOk({
+        nativeEth: 0.0005,
+        gasCostEth: 0.00002,
+        gasReserveEth: 0.0005,
+      }),
+      true,
+    );
+  });
+
   it("OPERATOR_UNWRAP latch parses desk one-shot", () => {
     assert.equal(parseOperatorUnwrapEnv("").armed, false);
     assert.equal(parseOperatorUnwrapEnv("yes").armed, true);
@@ -423,6 +455,8 @@ describe("cascade-rollover: wired into agent.js", () => {
     assert.ok(agentSrc.includes("effectiveCascadeGasFloor"));
     assert.ok(agentSrc.includes("autoUnwrapTowardCascadeFloor"));
     assert.ok(agentSrc.includes("cascadeNativeGasOk"));
+    assert.ok(agentSrc.includes("operatorSellNativeGasOk"));
+    assert.ok(agentSrc.includes("OPERATOR SELL thrift gas"));
     assert.ok(agentSrc.includes("OPERATOR_UNWRAP"));
     assert.ok(agentSrc.includes("allowPartial: true"));
     assert.ok(!/bal\.weth > GAS_TOPUP_TARGET/.test(agentSrc), "auto gate must not require WETH>0.003");

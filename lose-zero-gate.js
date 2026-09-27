@@ -6,6 +6,7 @@ import {
   rotateAllowsLossySell,
   shouldHoldAllowLossyForRotate,
 } from "./operator-rotate.js";
+import { isHomeSellApproved, isHomeSymbol } from "./operator-sell-hold.js";
 
 /**
  * LOSE-ZERO / inject-cover gate for speculative buys AND lose-zero sells.
@@ -1181,6 +1182,10 @@ export function usedAllowLossyOperatorSellBypass(reason = "", env = process.env,
   if (rotateAllowsLossySell(symbol, env) && (isManualOperatorSell(reason) || isOperatorRotateReason(reason))) {
     return true;
   }
+  // APPROVE_HOME_SELL + ALLOW_LOSSY + MANUAL SELL (operator) — fund OLAS / cascade from HOME bag.
+  if (isHomeSymbol(symbol) && isManualOperatorSell(reason) && isHomeSellApproved(env)) {
+    return true;
+  }
   return isGameForceExitPriority(symbol);
 }
 
@@ -1191,6 +1196,16 @@ export function isForceExitLockedReason(reason = "") {
 export function canBypassSellLossGate(reason = "", env = process.env, symbol = "") {
   if (isForceExitLockedReason(reason)) return true;
   if (rotateAllowsLossySell(symbol, env) && (isManualOperatorSell(reason) || isOperatorRotateReason(reason))) {
+    return true;
+  }
+  // HOME never-sell lifts only via APPROVE_HOME_SELL; unknown-cost bag still
+  // needs ALLOW_LOSSY so OPERATOR_SELL can fund cascade (OLAS $4 from HOME).
+  if (
+    isHomeSymbol(symbol)
+    && isManualOperatorSell(reason)
+    && isHomeSellApproved(env)
+    && isAllowLossyOperatorSell(env)
+  ) {
     return true;
   }
   if (!isGameForceExitPriority(symbol)) return false;
