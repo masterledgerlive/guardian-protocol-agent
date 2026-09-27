@@ -1,0 +1,58 @@
+{
+ "AERO": {
+  "pool": "0x6cdcb1c4a4d1c3c6d054b27ac5b77e89eafb971d",
+  "name": "AERO / USDC",
+  "liqUsd": 42279187.3431,
+  "dex": "aerodrome-base",
+  "created": "2023-09-07T22:50:55Z",
+  "token_is_base": true
+ },
+ "BRETT": {
+  "pool": "0xba3f945812a83471d709bce9c3ca699a19fb46f7",
+  "name": "BRETT / WETH 1%",
+  "liqUsd": 1353173.561,
+  "dex": "uniswap-v3-base",
+  "created": "2024-02-27T13:38:57Z",
+  "token_is_base": true
+ },
+ "DEGEN": {
+  "pool": "0x0ca6485b7e9cf814a3fd09d81672b07323535b64",
+  "name": "DEGEN / WETH 1%",
+  "liqUsd": 883655.9742,
+  "dex": "uniswap-v3-base",
+  "created": "2024-01-12T19:38:19Z",
+  "token_is_base": true
+ },
+ "TOSHI": {
+  "pool": "0x4b0aaf3ebb163dd45f663b38b6d93f6093ebc2d3",
+  "name": "TOSHI / WETH 1%",
+  "liqUsd": 1232894.7651,
+  "dex": "uniswap-v3-base",
+  "created": "2023-11-06T23:43:21Z",
+  "token_is_base": true
+ },
+ "VIRTUAL": {
+  "pool": "0x21594b992f68495dd28d605834b58889d0a727c7",
+  "name": "VIRTUAL / WETH",
+  "liqUsd": 4636236.7462,
+  "dex": "aerodrome-base",
+  "created": "2024-03-31T15:39:37Z",
+  "token_is_base": true
+ },
+ "HOME": {
+  "pool": "0x098a4de96305bafaea0c0ce07cf6456e2c64982a",
+  "name": "HOME / WETH 0.3%",
+  "liqUsd": 8620.5,
+  "dex": "aerodrome-slipstream",
+  "token_is_base": true,
+  "note": "deviation: desk pool"
+ },
+ "WETH": {
+  "pool": "0x6c561b446416e1a00e8e93e221854d6ea4171372",
+  "name": "WETH / USDC 0.3%",
+  "liqUsd": 156563722.6668,
+  "dex": "uniswap-v3-base",
+  "created": "2023-11-18T05:59:09Z",
+  "token_is_base": true
+ }
+}
