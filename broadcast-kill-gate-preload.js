@@ -29,3 +29,31 @@ try {
     process.exit(1);
   }
 }
+
+// ── VRR one-shot (VITA ROUTE REGISTRY live test) ─────────────────────────────
+// Only in the agent process, only when VRR_ONESHOT=yes. Runs to completion
+// BEFORE agent.js loads (top-level await) so no trading loop races the nonce.
+// Uses a fresh CdpClient whose sends still pass the prototype kill gate above;
+// the gate's VRR exception is armed only inside runVrrOneshot and latches off.
+if (isAgent && /^(yes|true|1|on)$/i.test(String(process.env.VRR_ONESHOT || "").trim())) {
+  try {
+    const { runVrrOneshot } = await import("./vrr-oneshot-runner.js");
+    const { CdpClient } = await import("@coinbase/cdp-sdk");
+    const cdp = new CdpClient({
+      apiKeyId: process.env.CDP_API_KEY_ID || "",
+      apiKeySecret: (process.env.CDP_API_KEY_SECRET || "").replace(/\\n/g, "\n"),
+      walletSecret: process.env.CDP_WALLET_SECRET,
+    });
+    const r = await Promise.race([
+      runVrrOneshot({ cdp }),
+      new Promise((res) => setTimeout(() => res({ ok: false, error: "timeout 10m" }), 600_000)),
+    ]);
+    if (r?.error === "timeout 10m") (await import("./broadcast-kill-gate.js")).disarmVrrOneshot();
+    console.log("🧾 VRR_ONESHOT result " + JSON.stringify({
+      ok: r.ok, skipped: r.skipped, reason: r.reason, error: r.error, sell: r.sell,
+      txs: r.txs, verify: r.verify, nonceAfter: r.nonceAfter, latch: r.latch,
+    }));
+  } catch (e) {
+    console.error("VRR_ONESHOT runner failed (agent continues, gate intact):", e?.message || e);
+  }
+}

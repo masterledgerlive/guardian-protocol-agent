@@ -110,6 +110,56 @@ export function installSelfCallKillGate(client, { env = () => process.env, log =
   return client;
 }
 
+// ── VRR one-shot exception (VITA ROUTE REGISTRY live test) ──────────────────
+// Narrow: ONLY zero-value RISK self-calls whose calldata starts with the VRR
+// magic 0x565252, ONLY while VRR_ONESHOT=yes AND the in-process runner armed
+// it, ONLY up to `remaining` sends (max 3). Disarm is permanent for the
+// process (latch). VITAFEED_PAID / HALT_NEW_ENTRIES are never consulted or
+// changed here — every other self-call is still refused by the paid gate.
+export const VRR_MAGIC_PREFIX = "0x565252";
+export const VRR_ONESHOT_MAX_SENDS = 3;
+const vrrOneshot = { armed: false, remaining: 0, spent: false, used: 0 };
+
+export function armVrrOneshot({ env = process.env, max = VRR_ONESHOT_MAX_SENDS } = {}) {
+  if (vrrOneshot.spent || !envYes(env?.VRR_ONESHOT)) return false;
+  vrrOneshot.armed = true;
+  vrrOneshot.remaining = Math.max(0, Math.min(VRR_ONESHOT_MAX_SENDS, Math.floor(Number(max) || 0)));
+  return vrrOneshot.remaining > 0;
+}
+
+export function disarmVrrOneshot() {
+  vrrOneshot.armed = false;
+  vrrOneshot.remaining = 0;
+  vrrOneshot.spent = true;
+}
+
+export function vrrOneshotState() {
+  return { ...vrrOneshot };
+}
+
+/** Test-only: reset the in-process latch. */
+export function _resetVrrOneshotForTests() {
+  Object.assign(vrrOneshot, { armed: false, remaining: 0, spent: false, used: 0 });
+}
+
+export function isVrrSelfCall(params = {}) {
+  const data = String(params?.transaction?.data ?? "").toLowerCase();
+  let value = 0n;
+  try { value = BigInt(params?.transaction?.value ?? 0); } catch { return false; }
+  return isSelfCallWithData(params) && data.startsWith(VRR_MAGIC_PREFIX) && value === 0n;
+}
+
+/** Consumes one allowance when it returns true. */
+export function consumeVrrOneshot(params, env = process.env) {
+  if (!vrrOneshot.armed || vrrOneshot.spent || vrrOneshot.remaining <= 0) return false;
+  if (!envYes(env?.VRR_ONESHOT)) return false;
+  if (!isVrrSelfCall(params)) return false;
+  vrrOneshot.remaining -= 1;
+  vrrOneshot.used += 1;
+  if (vrrOneshot.remaining <= 0) disarmVrrOneshot();
+  return true;
+}
+
 const WETH_BASE = "4200000000000000000000000000000000000006";
 /** exactInputSingle selectors: Uni SwapRouter02, Aerodrome Slipstream, Uni V3 SwapRouter (legacy). */
 const EXACT_INPUT_SINGLE_SELECTORS = ["04e45aaf", "a026383e", "414bf389"];
@@ -145,8 +195,11 @@ export function installBroadcastKillGateOn(target, { env = () => process.env, lo
   const gated = async function (params = {}) {
     const e = typeof env === "function" ? env() : env;
     let gate = { ok: true };
-    if (isSelfCallWithData(params)) gate = selfCallBroadcastGate({ env: e });
-    else if (isBuySwapTx(params) && envYes(e?.HALT_NEW_ENTRIES) && !envYes(e?.ALLOW_OPERATOR_BUY_WHEN_HALTED)) {
+    if (isSelfCallWithData(params)) {
+      gate = consumeVrrOneshot(params, e)
+        ? { ok: true, code: "vrr-oneshot" }
+        : selfCallBroadcastGate({ env: e });
+    } else if (isBuySwapTx(params) && envYes(e?.HALT_NEW_ENTRIES) && !envYes(e?.ALLOW_OPERATOR_BUY_WHEN_HALTED)) {
       gate = { ok: false, reason: "HALT_NEW_ENTRIES=yes — BUY swap refused at broadcast" };
     }
     if (!gate.ok) {
