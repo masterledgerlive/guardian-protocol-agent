@@ -1,0 +1,10 @@
+{
+  "id": "killgate-force-spam-fix",
+  "learn": "VITAFEED_PAID is hard at thrift + CDP. Force only skips rate limit when paid is on. Telegram 429 must cool, never plain-retry flood.",
+  "refs": [
+    "vita/memory/killgate-force-spam-fix-2026-09-27.json",
+    "broadcast-kill-gate.js",
+    "vita/vita-feed.js"
+  ],
+  "formula": "original-message-first"
+}

@@ -1,0 +1,8 @@
+{
+  "ts": "2026-09-27T06:50:00.000Z",
+  "kind": "operator-incident-fix",
+  "topic": "override-force-lied-RISK_KILL_GATE-Telegram-429-flood",
+  "formula": "original-message-first",
+  "text": "Live Railway: /vitafeed override force passed soft thrift while VITAFEED_PAID was off; CDP RISK_KILL_GATE refused every self-call chunk; tg() plain-retried on Too Many Requests and blew up the phone. Fix: thrift paid is hard (force/autofire cannot fake it); tg honors retry_after and cools without retry; sendTx rethrows RISK_KILL_GATE. To seal: set VITAFEED_PAID=yes then confirm|override. Hitch on leftover sells still message-first (untouched).",
+  "neverInventHashes": true
+}

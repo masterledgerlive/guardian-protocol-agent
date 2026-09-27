@@ -409,7 +409,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(r.ok, false);
     assert.equal(r.thrift, "paid-off");
     assert.equal(sent, 0);
-    assert.match(r.reply, /override alone cannot bypass|override cannot bypass|FORCE through thrift|override force/i);
+    assert.match(r.reply, /cannot bypass|VITAFEED_PAID|kill.?switch|kill gate/i);
     const gate = evaluateVitaFeedThriftGate({
       action: "override",
       env: {},
@@ -419,7 +419,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(gate.code, "paid-off");
   });
 
-  it("/vitafeed override force command latch bypasses paid-off + rate limit", async () => {
+  it("/vitafeed override force cannot fake paid-off (rate-limit latch only when paid)", async () => {
     assert.equal(parseVitaFeedCommand("/vitafeed override force").forceLatch, true);
     assert.equal(parseVitaFeedCommand("/vitafeed force").forceLatch, true);
     assert.equal(parseVitaFeedCommand("/vitafeed override").forceLatch || false, false);
@@ -447,19 +447,28 @@ describe("vitafeed emergency thrift gates", () => {
         return hash;
       },
     });
-    assert.equal(r.ok, true);
-    assert.equal(sent, 1);
-    const locs = r.result?.strand?.locations || [];
-    assert.ok(locs.includes(hash));
-    const gate = evaluateVitaFeedThriftGate({
+    assert.equal(r.ok, false);
+    assert.equal(r.thrift, "paid-off");
+    assert.equal(sent, 0);
+    const gateOff = evaluateVitaFeedThriftGate({
       action: "override",
       env: { VITAFEED_PAID: "no" },
       forceOverride: true,
       forceLatch: true,
       chunkCount: 100,
     });
-    assert.equal(gate.ok, true);
-    assert.equal(gate.code, "force-ok");
+    assert.equal(gateOff.ok, false);
+    assert.equal(gateOff.code, "paid-off");
+    const gatePaid = evaluateVitaFeedThriftGate({
+      action: "override",
+      env: { VITAFEED_PAID: "yes", VITAFEED_RATE_LIMIT: "yes" },
+      forceOverride: true,
+      forceLatch: true,
+      chunkCount: 100,
+      liquidUsd: 0,
+    });
+    assert.equal(gatePaid.ok, true);
+    assert.equal(gatePaid.code, "force-ok");
   });
 
   it("/vitafeed check reports media LOCAL_OK when seals empty", async () => {
@@ -472,7 +481,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.ok(r.audit?.music?.songs >= 1);
   });
 
-  it("VITAFEED_FORCE=yes lets override bypass paid-off + rate limit (block id off)", async () => {
+  it("VITAFEED_FORCE=yes cannot fake paid-off; with paid=yes skips rate limit", async () => {
     assert.equal(vitaFeedForceEnabled({}), false);
     assert.equal(vitaFeedForceEnabled({ VITAFEED_FORCE: "yes" }), true);
     resetVitaFeedPending();
@@ -484,10 +493,35 @@ describe("vitafeed emergency thrift gates", () => {
     });
     let sent = 0;
     const hash = "0x" + "a".repeat(64);
-    const r = await handleVitaFeedAction({
+    const refused = await handleVitaFeedAction({
       action: "override",
       chatId: "force-ok",
       env: { VITAFEED_PAID: "no", VITAFEED_FORCE: "yes", VITAFEED_RATE_LIMIT: "yes" },
+      forceOverride: true,
+      riskBalanceEth: 0,
+      liquidUsd: 0,
+      reserveBuyStake: false,
+      gasReserveEth: 0,
+      sendTx: async () => {
+        sent += 1;
+        return hash;
+      },
+    });
+    assert.equal(refused.ok, false);
+    assert.equal(refused.thrift, "paid-off");
+    assert.equal(sent, 0);
+
+    resetVitaFeedPending();
+    resetVitaFeedPaidLog();
+    await handleVitaFeedAction({
+      action: "preview",
+      body: "@Dharma plain force body",
+      chatId: "force-paid",
+    });
+    const r = await handleVitaFeedAction({
+      action: "override",
+      chatId: "force-paid",
+      env: { VITAFEED_PAID: "yes", VITAFEED_FORCE: "yes", VITAFEED_RATE_LIMIT: "yes" },
       forceOverride: true,
       riskBalanceEth: 0,
       liquidUsd: 0,
@@ -503,7 +537,7 @@ describe("vitafeed emergency thrift gates", () => {
     assert.equal(r.forcedOverride, true);
     const locs = r.result?.strand?.locations || [];
     assert.ok(locs.includes(hash));
-    assert.equal(peekVitaFeed("force-ok")?.backlogId ?? null, null);
+    assert.equal(peekVitaFeed("force-paid")?.backlogId ?? null, null);
   });
 
   it("VITAFEED_AUTOFIRE seals plain body once without BL- backlog id", async () => {
@@ -516,6 +550,7 @@ describe("vitafeed emergency thrift gates", () => {
     const hash = "0x" + "b".repeat(64);
     const env = {
       VITAFEED_AUTOFIRE: "yes",
+      VITAFEED_PAID: "yes",
       VITAFEED_FORCE: "yes",
       VITAFEED_AUTOFIRE_BODY: body,
     };
