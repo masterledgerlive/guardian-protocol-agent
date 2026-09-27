@@ -25,6 +25,7 @@ import {
   autoUnwrapTowardCascadeFloor,
   cascadeNativeGasOk,
   operatorSellNativeGasOk,
+  clampBuySpendAvoidingWrapBreach,
   maxCascadeDeployWithoutDepletion,
   injectProveStatus,
   INJECT_ALL_USD,
@@ -318,6 +319,22 @@ describe("cascade-rollover: gas floor + unwrap", () => {
       }),
       true,
     );
+  });
+
+  it("BUY clamp to WETH when wrap would breach gas floor (HOME fund → OLAS)", () => {
+    // Live: Tradeable 0.001542, $4 seat, wrap would breach 0.0005 floor.
+    const plan = clampBuySpendAvoidingWrapBreach({
+      ethToSpend: 0.00149,
+      weth: 0.001142,
+      eth: 0.0009,
+      gasFloorEth: 0.0005,
+      ethUsd: 2684,
+      minSeatUsd: 1.5,
+    });
+    assert.equal(plan.clamped, true);
+    assert.equal(plan.useWeth, true);
+    assert.ok(Math.abs(plan.spend - 0.001142) < 1e-12);
+    assert.equal(plan.wrapBreach, false);
   });
 
   it("OPERATOR_UNWRAP latch parses desk one-shot", () => {
