@@ -2445,6 +2445,39 @@ describe("DISABLE_DOW_BIAS + operator/fresh-lot FIFO HOLD", () => {
       canBypassSellLossGate("MANUAL SELL (operator)", { ALLOW_LOSSY_OPERATOR_SELL: "yes" }, "TOSHI"),
       false,
     );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", {
+        ALLOW_LOSSY_OPERATOR_SELL: "yes",
+        APPROVE_HOME_SELL: "yes",
+      }, "HOME"),
+      true,
+      "APPROVE_HOME_SELL + ALLOW_LOSSY lifts unknown-cost HOME OPERATOR_SELL",
+    );
+    assert.equal(
+      canBypassSellLossGate("MANUAL SELL (operator)", {
+        ALLOW_LOSSY_OPERATOR_SELL: "yes",
+      }, "HOME"),
+      false,
+      "HOME still never-sell without APPROVE_HOME_SELL",
+    );
+    const homeUnknown = evaluateSellGate({
+      symbol: "HOME",
+      reason: "MANUAL SELL (operator) 45%",
+      sellPct: 0.45,
+      entryEth: 0,
+      unknownEntry: true,
+      projectedProceedsEth: 0.00142,
+      feePct: 0.006,
+      gasCostEth: 0.00002,
+      gwei: 0.05,
+      env: {
+        ALLOW_LOSSY_OPERATOR_SELL: "yes",
+        APPROVE_HOME_SELL: "yes",
+        FORCE_EXIT_LOCKED_MAJORS: "no",
+      },
+    });
+    assert.equal(homeUnknown.allow, true, "HOME unknown-cost OPERATOR_SELL may fund cascade");
+    assert.match(homeUnknown.log, /ALLOW_LOSSY_OPERATOR_SELL/);
   });
 
   it("USD-mark below breakeven HOLDs even if a quote leftover looks plus", () => {
