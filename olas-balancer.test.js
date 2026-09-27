@@ -119,7 +119,9 @@ describe("OLAS Balancer V2 buy path", () => {
   });
 
   it("parses queryBatchSwap deltas and pool depth", () => {
-    assert.equal(amountOutFromBatchDeltas([-10n, 88n], 1), 88n);
+    // Live Vault: positive = into Vault (user pays), negative = out (user receives).
+    assert.equal(amountOutFromBatchDeltas([1480n, -87370n], 1), 87370n);
+    assert.equal(amountOutFromBatchDeltas([-10n, 88n], 1), 88n); // tolerate flipped sign
     assert.equal(amountOutFromBatchDeltas([-10n, 0n], 1), null);
     const depth = balancerPoolDepthFromTokens(
       [BASE_WETH, OLAS_TOKEN],
