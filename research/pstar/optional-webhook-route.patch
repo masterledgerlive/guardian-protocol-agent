@@ -1,0 +1,25 @@
+diff --git a/vita-webhook.js b/vita-webhook.js
+index 1dd9db81..ec7e8103 100644
+--- a/vita-webhook.js
++++ b/vita-webhook.js
+@@ -100,6 +100,7 @@
+ // Live queue / vita/* still require the secret. No unauthenticated mutate of env.
+ // ═══════════════════════════════════════════════════════════════════════════════
+ 
++import { pstarSnapshot, pstarBoardField } from "./pstar-log.js"; // P*_MKT paper logger (read-only)
+ import { createServer } from "http";
+ import { readFile } from "fs/promises";
+ import { dirname, join } from "path";
+@@ -781,6 +782,12 @@ async function handleVitaRequest(req, res) {
+   const path = url.pathname;
+ 
+   try {
++    if ((path === "/pstar" || path === "/pstar/") && req.method === "GET") {
++      return json(res, pstarSnapshot({ limit: Number(url.searchParams.get("limit")) || 120 }));
++    }
++    if ((path === "/pstar/board" || path === "/pstar/board/") && req.method === "GET") {
++      return json(res, pstarBoardField());
++    }
+     if (path === "/phosphor" || path.startsWith("/phosphor/")) {
+       if (await handlePhosphorHttp(req, res, url)) return;
+     }

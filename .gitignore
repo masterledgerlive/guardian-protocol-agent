@@ -14,3 +14,4 @@ modules/phosphor/state/
 vita/compression/store/
 vita/compression/inbox/*
 !vita/compression/inbox/.gitkeep
+pstar-log.json

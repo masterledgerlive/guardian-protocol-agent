@@ -11,6 +11,9 @@
  * Never invent prices or P&L — only guarantee containers exist.
  */
 
+// P*_MKT paper logger (PSTAR_LOG, default on): observe-only, zero broadcast.
+import { pstarTick } from "./pstar-log.js";
+
 export function ensureArray(obj, key) {
   if (!obj || typeof obj !== "object") return [];
   if (!Array.isArray(obj[key])) obj[key] = [];
@@ -50,6 +53,7 @@ export function recordPriceInto(history, symbol, price, now = Date.now()) {
   slot.readings.push({ price, time: now });
   if (slot.readings.length > 2000) slot.readings.shift();
   slot.lastPrice = price;
+  try { pstarTick(symbol, price, now); } catch { /* paper logger never affects trading */ }
   return slot;
 }
 
