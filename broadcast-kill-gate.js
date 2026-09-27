@@ -161,12 +161,16 @@ export function consumeVrrOneshot(params, env = process.env) {
 }
 
 const WETH_BASE = "4200000000000000000000000000000000000006";
+const ETH_ZERO = "0000000000000000000000000000000000000000";
 /** exactInputSingle selectors: Uni SwapRouter02, Aerodrome Slipstream, Uni V3 SwapRouter (legacy). */
 const EXACT_INPUT_SINGLE_SELECTORS = ["04e45aaf", "a026383e", "414bf389"];
+/** Balancer V2 Vault.swap — OLAS/WETH liquid book (assetIn is the 3rd static field after kind). */
+const BALANCER_VAULT_SWAP_SELECTOR = "52bbbe29";
 
 /**
  * True when a swap tx spends ETH/WETH into a token (a BUY): any
- * exactInputSingle (also nested in multicall) whose tokenIn == WETH.
+ * exactInputSingle (also nested in multicall) whose tokenIn == WETH,
+ * or Balancer Vault.swap with assetIn WETH/ETH.
  * Sells (tokenIn = token) are never matched.
  */
 export function isBuySwapTx({ transaction } = {}) {
@@ -178,6 +182,31 @@ export function isBuySwapTx({ transaction } = {}) {
       const word = data.slice(i + 8, i + 8 + 64);
       if (word.length === 64 && word.endsWith(WETH_BASE) && /^0{24}/.test(word)) return true;
       i = data.indexOf(sel, i + 8);
+    }
+  }
+  // Balancer swap ABI: offset(singleSwap) … then at singleSwap: poolId, kind, assetIn, …
+  // Search for selector then the WETH/zero assetIn word in the payload.
+  if (data.startsWith(BALANCER_VAULT_SWAP_SELECTOR) || data.includes(BALANCER_VAULT_SWAP_SELECTOR)) {
+    const wethWord = "0".repeat(24) + WETH_BASE;
+    const ethWord = "0".repeat(24) + ETH_ZERO;
+    if (data.includes(wethWord) || data.includes(ethWord)) {
+      // Exclude OLAS→WETH sells: assetOut is WETH while assetIn is OLAS.
+      // Heuristic: if WETH appears as assetIn (word immediately after kind=0), it's a buy.
+      // Layout after selector: several head words; singleSwap tuple packs
+      // poolId(32) kind(32) assetIn(32) assetOut(32) … — find kind=0 then next word WETH/ETH.
+      let i = data.indexOf(BALANCER_VAULT_SWAP_SELECTOR);
+      while (i !== -1) {
+        const body = data.slice(i + 8);
+        // scan 32-byte words for kind=0 followed by WETH/ETH assetIn
+        for (let w = 0; w + 2 < Math.floor(body.length / 64); w++) {
+          const kind = body.slice(w * 64, w * 64 + 64);
+          const assetIn = body.slice((w + 1) * 64, (w + 1) * 64 + 64);
+          if (kind === "0".repeat(64) && (assetIn === wethWord || assetIn === ethWord)) {
+            return true;
+          }
+        }
+        i = data.indexOf(BALANCER_VAULT_SWAP_SELECTOR, i + 8);
+      }
     }
   }
   return false;

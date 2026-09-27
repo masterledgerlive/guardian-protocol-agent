@@ -272,7 +272,9 @@ revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
 **Base cascade program (original path):** `/cascade` · `/cascade predict` ·
 `/cascade hierarchy` · `/cascade outcomes` · `/cascade trail` ·
 `/cascade unlock` · `/cascade pulse` · `/cascade arm` · `/mother pulse` —
-LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy locked (~$11).
+LOWER snowball → dividend 10–30% → MAIN goal (LINK UNI VVV ZORA BNKR MORPHO
+OLAS); OLAS fills Balancer V2 WETH (`olas-balancer.js`), not Uni ghost;
+HOME piggy locked (~$11).
 **Mother-brain pulse (continuous, no Cursor agent):** `vita/mother-brain-pulse.js`
 — unlocks HOLD_ALL_SELLS (HOME never-sell stays), ticks Base cascade in the
 trading loop, stages next hop when `MOTHER_BRAIN_PULSE_LIVE=yes`, feeds brain

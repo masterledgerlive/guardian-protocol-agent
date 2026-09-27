@@ -72,6 +72,31 @@ test("isBuySwapTx: WETH-in exactInputSingle is a buy; token-in is a sell", () =>
   assert.equal(isBuySwapTx({ transaction: { data: "0x5b564954" } }), false);
 });
 
+test("isBuySwapTx: Balancer Vault WETH→OLAS is a buy; OLAS→WETH is not", async () => {
+  const { encodeBalancerVaultSwap, OLAS_TOKEN, balancerDeadline } = await import("./olas-balancer.js");
+  const { BASE_WETH } = await import("./price-oracle.js");
+  const buy = encodeBalancerVaultSwap({
+    assetIn: BASE_WETH,
+    assetOut: OLAS_TOKEN,
+    amountIn: 1n,
+    amountOutMinimum: 1n,
+    sender: RISK,
+    recipient: RISK,
+    deadline: balancerDeadline(1_700_000_000_000),
+  });
+  assert.equal(isBuySwapTx({ transaction: { data: buy } }), true);
+  const sell = encodeBalancerVaultSwap({
+    assetIn: OLAS_TOKEN,
+    assetOut: BASE_WETH,
+    amountIn: 1n,
+    amountOutMinimum: 1n,
+    sender: RISK,
+    recipient: RISK,
+    deadline: balancerDeadline(1_700_000_000_000),
+  });
+  assert.equal(isBuySwapTx({ transaction: { data: sell } }), false);
+});
+
 test("prototype gate blocks halted buys + unpaid self-calls, passes sells", async () => {
   const sent = [];
   class FakeEvm { async sendTransaction(p) { sent.push(p); return { transactionHash: "0x1" }; } }

@@ -109,6 +109,7 @@ findable.
 | `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up; HOME piggy + AERO main in/out |
 | `vita/mother-brain-pulse.js` | `MOTHER_BRAIN_PULSE` | Continuous unlock + Base cascade tick + brain self-read inject + OS agent refine — no Cursor agent required |
 | `vita/base-cascade-program.js` | `BASE_CASCADE_PROGRAM` | Original Base path: LOWER snowball → dividend 10–30% → MAIN goal; viable USD + prediction; HOME piggy locked |
+| `olas-balancer.js` | `OLAS_BALANCER` | Autonolas MAIN cascade seat — Balancer V2 OLAS/WETH Vault swap (Uni V3 ghost); OPERATOR_BUY /buy OLAS |
 | `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | RH wave-data overlay only → feeds Base program; §CASCTRAIL§ hitch (loc after seal); never RH-executes |
 | `vita/memory/rh-cascade-rail-learn.json` | `RH_CASCADE_RAIL` | Append-only learn: RH→Base cascade + unlock |
 | `vita/memory/rh-cascade-rail-ledger.json` | `RH_CASCADE_RAIL` | Append-only ledger of trail commits |

@@ -44,7 +44,7 @@ export { CASCADE_MAIN_INOUT_HUBS };
 
 /** Other inject / hitch surfaces (below HOME+AERO in/out). */
 export const CASCADE_MAIN_SYMBOLS = Object.freeze([
-  "LINK", "UNI", "VVV", "ZORA", "BNKR", "MORPHO",
+  "LINK", "UNI", "VVV", "ZORA", "BNKR", "MORPHO", "OLAS",
 ]);
 
 /** Lower / velocity — snowball starters on thin Base books. */

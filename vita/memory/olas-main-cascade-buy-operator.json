@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-27T21:30:00.000Z",
+  "topic": "olas-main-cascade-buy-4",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Can you buy OLAS/WETH use 4 dollars from $home make sure OLAS is another main chain to cascade into with others selected",
+  "locations": [],
+  "hypothesis": {
+    "id": "olas-balancer-main-cascade-4usd",
+    "status": "armed",
+    "asks": [
+      "Add OLAS to CASCADE_MAIN + INJECT_MAIN with LINK UNI VVV ZORA BNKR MORPHO AERO",
+      "Liquid book is Balancer V2 OLAS/WETH 0x2da6e67C… — not Uni V3 ghost factory pools",
+      "OPERATOR_BUY=OLAS:4 from RISK ETH/WETH (HOME piggy never-sell stays)",
+      "Do not sell $HOME — fuel is RISK liquid, HOME remains cascade hub"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}

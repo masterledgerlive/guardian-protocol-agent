@@ -16,6 +16,9 @@ export const EXACT_INPUT_SINGLE_BYTES = 228; // 4 + 7*32
 /** Aerodrome Slipstream SwapRouter exactInputSingle (int24 tickSpacing). */
 export const SLIPSTREAM_EXACT_INPUT_SINGLE_SELECTOR = "a026383e";
 export const SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES = 260; // 4 + 8*32
+/** Balancer V2 Vault.swap — OLAS/WETH liquid book (empty userData). */
+export const BALANCER_VAULT_SWAP_SELECTOR = "52bbbe29";
+export const BALANCER_VAULT_SWAP_BYTES = 452;
 export const SLIPPAGE_GUARD_DEFAULT = 0.85;
 export const FALLBACK_SLIPPAGE = 0.75;
 
@@ -220,12 +223,17 @@ export function hitchPreservesSwapPrefix(originalData, injectedData) {
   const sel = orig.slice(2, 10);
   const isUni02 = sel === EXACT_INPUT_SINGLE_SELECTOR;
   const isSlipstream = sel === SLIPSTREAM_EXACT_INPUT_SINGLE_SELECTOR;
-  const minBytes = isSlipstream ? SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES : EXACT_INPUT_SINGLE_BYTES;
+  const isBalancer = sel === BALANCER_VAULT_SWAP_SELECTOR;
+  const minBytes = isSlipstream
+    ? SLIPSTREAM_EXACT_INPUT_SINGLE_BYTES
+    : isBalancer
+      ? BALANCER_VAULT_SWAP_BYTES
+      : EXACT_INPUT_SINGLE_BYTES;
   if (orig.length < 2 + minBytes * 2) {
     return { ok: false, log: "MINOUT: hitch check — original swap calldata too short" };
   }
-  if (!isUni02 && !isSlipstream) {
-    return { ok: false, log: "MINOUT: hitch check — original is not exactInputSingle" };
+  if (!isUni02 && !isSlipstream && !isBalancer) {
+    return { ok: false, log: "MINOUT: hitch check — original is not exactInputSingle/Balancer swap" };
   }
   if (!inj.startsWith(orig)) {
     const decO = isUni02 ? decodeExactInputSingle(orig) : null;

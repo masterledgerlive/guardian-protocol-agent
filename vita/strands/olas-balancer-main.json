@@ -1,0 +1,14 @@
+{
+  "id": "olas-balancer-main-v1",
+  "at": "2026-09-27T21:30:00.000Z",
+  "kind": "cascade-main",
+  "symbol": "OLAS",
+  "text": "Autonolas OLAS 0x54330d28ca3357F294334BDC454a032e7f353416 is a Base cascade MAIN (with LINK UNI VVV ZORA BNKR MORPHO). Liquid book Balancer V2 OLAS/WETH pool 0x2da6e67C45aF2aaA539294D9FA27ea50CE4e2C5f poolId …0001a3 (~$60k). Uni V3 factory fee 3000/10000 pools exist but DexScreener-empty (ghost) — SwapRouter02 cannot fill. OPERATOR_BUY / Telegram /buy OLAS uses Balancer Vault 0xBA122222… queryBatchSwap + swap. HOME piggy never-sell; $4 seat from RISK ETH/WETH. Never invent hashes. Mother brain untouched.",
+  "anchors": {
+    "token": "0x54330d28ca3357F294334BDC454a032e7f353416",
+    "balancerPool": "0x2da6e67C45aF2aaA539294D9FA27ea50CE4e2C5f",
+    "poolId": "0x2da6e67c45af2aaa539294d9fa27ea50ce4e2c5f0002000000000000000001a3",
+    "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+  },
+  "locations": []
+}
