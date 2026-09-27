@@ -5,7 +5,7 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-20T19:52:44.052Z",
-  "updatedAt": "2026-09-20T19:53:21.243Z",
+  "updatedAt": "2026-09-26T23:55:15.074Z",
   "events": [
     {
       "id": "FF-5799AB9E",
@@ -1023,6 +1023,2042 @@
       },
       "root": "c377ad2e3bd96b754c1749726525a7dab445c760bf15f7c0ea2e287b67fd7b14",
       "prevRoot": "64c400d839fed394a71696c0da9efce928aa29f837f381767066a3e430995029"
+    },
+    {
+      "id": "FF-B2144EA0",
+      "kind": "brain-learn",
+      "topic": "brain-learn-cycle-012",
+      "source": "brain-learn",
+      "at": "2026-09-26T23:54:58.686Z",
+      "contentCommit": "b2144ea043fc8be5542b4e3ce13336f18698aeedc1c846d9898b42d4328c17a8",
+      "chatPreview": "Brain learn cycle #12 peer=PASS memΔ=2 strandΔ=1",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1139754,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "cycleIndex": 12,
+        "memoryDelta": 2,
+        "strandDelta": 1,
+        "zeroProofRoot": "8a73abfba5f3ba1d758dccd2f24b1b8b9c0084717fc0c4f966627f7e871a92ce",
+        "peerVerdict": "PASS"
+      },
+      "root": "0b8b32477a73cf1afe8958e65312d36dac6b230a169feaffcfc11c569b2d5a7a",
+      "prevRoot": "c377ad2e3bd96b754c1749726525a7dab445c760bf15f7c0ea2e287b67fd7b14"
+    },
+    {
+      "id": "FF-B2144EA0",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-012",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.696Z",
+      "contentCommit": "b2144ea043fc8be5542b4e3ce13336f18698aeedc1c846d9898b42d4328c17a8",
+      "chatPreview": "Backlog enqueue · BL-D5E9F76B · brain-stage-12.txt · status=pending · bytes=5441",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1148096,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-D5E9F76B",
+        "status": "pending",
+        "bytes": 5441,
+        "chunks": 8,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "76503885c313f4264029bbc75a6796935e703f78e3e31fbd3b5e333b7025c427",
+      "prevRoot": "0b8b32477a73cf1afe8958e65312d36dac6b230a169feaffcfc11c569b2d5a7a"
+    },
+    {
+      "id": "FF-6460D352",
+      "kind": "backlog-enqueue",
+      "topic": "aero-lose-zero-oneshot",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.703Z",
+      "contentCommit": "6460d3522be83449924adbaef0c5a907823fdee93f021103fd78d55986a14b4a",
+      "chatPreview": "Backlog enqueue · BL-DB4EDD03 · aero-lose-zero-oneshot.txt · status=pending · bytes=1333",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1152240,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-DB4EDD03",
+        "status": "pending",
+        "bytes": 1333,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "abd666a9c59392608b07d321ea846b848d617ae0f4dad755c36965c46aefe63f",
+      "prevRoot": "76503885c313f4264029bbc75a6796935e703f78e3e31fbd3b5e333b7025c427"
+    },
+    {
+      "id": "FF-1618AED7",
+      "kind": "backlog-enqueue",
+      "topic": "agent-chat-bank",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.710Z",
+      "contentCommit": "1618aed76e7fd96536464d99d2b6acb6683cf0e230cf5c0090dfaece82832d24",
+      "chatPreview": "Backlog enqueue · BL-997D9A2F · agent-chat-bank.txt · status=pending · bytes=2608",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1157846,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-997D9A2F",
+        "status": "pending",
+        "bytes": 2608,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "e7bfd60416274c7fb58d153968dbb465ed485f876a18d0792d186d961eb9b3cd",
+      "prevRoot": "abd666a9c59392608b07d321ea846b848d617ae0f4dad755c36965c46aefe63f"
+    },
+    {
+      "id": "FF-F99F3445",
+      "kind": "backlog-enqueue",
+      "topic": "agent-chat-channels",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.714Z",
+      "contentCommit": "f99f344581be5f7170d8de06ba27a6876958259694b5ec433a7e14a323fb9cb9",
+      "chatPreview": "Backlog enqueue · BL-1377D338 · agent-chat-channels.txt · status=pending · bytes=2602",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1163490,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-1377D338",
+        "status": "pending",
+        "bytes": 2602,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "613296e8f63111f0cd31ffeec9be767b8344254030a9e7bb6a1791c556adf3ee",
+      "prevRoot": "e7bfd60416274c7fb58d153968dbb465ed485f876a18d0792d186d961eb9b3cd"
+    },
+    {
+      "id": "FF-BB3017DF",
+      "kind": "backlog-enqueue",
+      "topic": "agent-chat-v0",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.721Z",
+      "contentCommit": "bb3017dfcd961a5774e5116530a99f4c201e77ecf620a2ba25aa072030206e0e",
+      "chatPreview": "Backlog enqueue · BL-7A369668 · agent-chat-v0.txt · status=pending · bytes=571",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1166856,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-7A369668",
+        "status": "pending",
+        "bytes": 571,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "90053be85871ee000afe6a079ed1a3987c39f0474a18b318c3e0ec26dd9a0010",
+      "prevRoot": "613296e8f63111f0cd31ffeec9be767b8344254030a9e7bb6a1791c556adf3ee"
+    },
+    {
+      "id": "FF-5AC821B7",
+      "kind": "backlog-enqueue",
+      "topic": "base-cascade-program-operator",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.726Z",
+      "contentCommit": "5ac821b7fcbff6ae3852435fa26e7dd6e1febded26ae8bda911881cd158641b5",
+      "chatPreview": "Backlog enqueue · BL-BDE46253 · base-cascade-program-operator.txt · status=pending · bytes=946",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1170605,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-BDE46253",
+        "status": "pending",
+        "bytes": 946,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "8aab9499d88f32a991a3d56becb1e8aa8c51f83f5bf13da26e8435d6d3f75c8f",
+      "prevRoot": "90053be85871ee000afe6a079ed1a3987c39f0474a18b318c3e0ec26dd9a0010"
+    },
+    {
+      "id": "FF-E16A4D1E",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-009",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.740Z",
+      "contentCommit": "e16a4d1e98def2757707a9bb417bb8493dbf253c6fb4e92d66feb3eef1db8a50",
+      "chatPreview": "Backlog enqueue · BL-D31B52A5 · brain-learn-cycle-009.txt · status=pending · bytes=341",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1173787,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-D31B52A5",
+        "status": "pending",
+        "bytes": 341,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "92c993fa5e2b5c2eedc4c438cd0b081c4ffbfc1d24be1c881be6aeb7b81bebac",
+      "prevRoot": "8aab9499d88f32a991a3d56becb1e8aa8c51f83f5bf13da26e8435d6d3f75c8f"
+    },
+    {
+      "id": "FF-B3226C30",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-010",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.744Z",
+      "contentCommit": "b3226c3059d7a7873ab57ad472b4084ed31873cddbcf639dcd760a61bacce143",
+      "chatPreview": "Backlog enqueue · BL-8A12C3BB · brain-learn-cycle-010.txt · status=pending · bytes=289",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1176877,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-8A12C3BB",
+        "status": "pending",
+        "bytes": 289,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "73f6847abd5bdb98012db0f6b3441b6dd682c14179364666fc962d220d1bab55",
+      "prevRoot": "92c993fa5e2b5c2eedc4c438cd0b081c4ffbfc1d24be1c881be6aeb7b81bebac"
+    },
+    {
+      "id": "FF-FE8B633D",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-011",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.749Z",
+      "contentCommit": "fe8b633d790f9a04cd73adf350bd79554e7d62cd2768029de36c288ba9367191",
+      "chatPreview": "Backlog enqueue · BL-9697666C · brain-learn-cycle-011.txt · status=pending · bytes=322",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 202,
+        "memoryBytes": 1180008,
+        "strandCount": 80,
+        "strandBytes": 63330
+      },
+      "meta": {
+        "backlogId": "BL-9697666C",
+        "status": "pending",
+        "bytes": 322,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "959f11fc98975dfa0efdbf32cf898f1315713d53f9edb1e14e214ca74ca0528a",
+      "prevRoot": "73f6847abd5bdb98012db0f6b3441b6dd682c14179364666fc962d220d1bab55"
+    },
+    {
+      "id": "FF-1CD410D0",
+      "kind": "brain-learn",
+      "topic": "brain-learn-cycle-013",
+      "source": "brain-learn",
+      "at": "2026-09-26T23:54:58.773Z",
+      "contentCommit": "1cd410d0156685d1439f9ef8f2aff915eef36cc3f4047dbe1ef33e204129a77b",
+      "chatPreview": "Brain learn cycle #13 peer=PASS memΔ=2 strandΔ=1",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1227378,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "cycleIndex": 13,
+        "memoryDelta": 2,
+        "strandDelta": 1,
+        "zeroProofRoot": "1232cdcf701d9386f3669669bf828c3f435e1e088f0de9f0bcc82669628db068",
+        "peerVerdict": "PASS"
+      },
+      "root": "2a4782e149ded735870e20076fb3060905a2b1f828bcee24d13a8c44aeee20a2",
+      "prevRoot": "959f11fc98975dfa0efdbf32cf898f1315713d53f9edb1e14e214ca74ca0528a"
+    },
+    {
+      "id": "FF-1CD410D0",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-013",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.778Z",
+      "contentCommit": "1cd410d0156685d1439f9ef8f2aff915eef36cc3f4047dbe1ef33e204129a77b",
+      "chatPreview": "Backlog enqueue · BL-3E747B7F · brain-stage-13.txt · status=pending · bytes=5495",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1235773,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-3E747B7F",
+        "status": "pending",
+        "bytes": 5495,
+        "chunks": 8,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "06b55bf69540e7d02105a033eda37b80a3b875961b5c200121172ba626fdcfc3",
+      "prevRoot": "2a4782e149ded735870e20076fb3060905a2b1f828bcee24d13a8c44aeee20a2"
+    },
+    {
+      "id": "FF-E731C621",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-012",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.802Z",
+      "contentCommit": "e731c621a5ce8d0b14473b6e7e52aa2b3a1a8d86e352f419abb3445e3299d034",
+      "chatPreview": "Backlog enqueue · BL-D6C96DF3 · brain-learn-cycle-012.txt · status=pending · bytes=354",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1238935,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-D6C96DF3",
+        "status": "pending",
+        "bytes": 354,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "fd2a129d8a2be51f5c163296940a940e91b48c502aa46ded6669404153a982e9",
+      "prevRoot": "06b55bf69540e7d02105a033eda37b80a3b875961b5c200121172ba626fdcfc3"
+    },
+    {
+      "id": "FF-558A2495",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-013",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.805Z",
+      "contentCommit": "558a24950b8869c6f601bbff5be6fd726d3895eb00a8006ac54f351a88f4de12",
+      "chatPreview": "Backlog enqueue · BL-A599ABE1 · brain-learn-cycle-013.txt · status=pending · bytes=354",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1242098,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-A599ABE1",
+        "status": "pending",
+        "bytes": 354,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "5e13fb103a4ac5a09ed0cecf03ecf7b9d64f4ca6d8e0d6afa5206dca2e3bc9bd",
+      "prevRoot": "fd2a129d8a2be51f5c163296940a940e91b48c502aa46ded6669404153a982e9"
+    },
+    {
+      "id": "FF-03FE1CA6",
+      "kind": "backlog-enqueue",
+      "topic": "buy-home-2.56-operator",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.809Z",
+      "contentCommit": "03fe1ca610f697fe6505d9f949aa77ebbd79a201c648fb7ec9225467b43b00a2",
+      "chatPreview": "Backlog enqueue · BL-7BA7FE36 · buy-home-2.56-operator.txt · status=pending · bytes=259",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1245168,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-7BA7FE36",
+        "status": "pending",
+        "bytes": 259,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "8e371f764c68ca0da6abbc6afb3895ee3ecb2088518385a806835f846c08e436",
+      "prevRoot": "5e13fb103a4ac5a09ed0cecf03ecf7b9d64f4ca6d8e0d6afa5206dca2e3bc9bd"
+    },
+    {
+      "id": "FF-765637CC",
+      "kind": "backlog-enqueue",
+      "topic": "chain-dir-learn",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.813Z",
+      "contentCommit": "765637cc164bd90ad8919bc70713254436d47f50781454284340bee4c50ffc90",
+      "chatPreview": "Backlog enqueue · BL-A1908CAE · chain-dir-learn.txt · status=pending · bytes=944",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1248955,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-A1908CAE",
+        "status": "pending",
+        "bytes": 944,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "4b7dbf4936983684709d843883960ba3e2930859b8f68f0b625f675991a7886d",
+      "prevRoot": "8e371f764c68ca0da6abbc6afb3895ee3ecb2088518385a806835f846c08e436"
+    },
+    {
+      "id": "FF-7CD0346E",
+      "kind": "backlog-enqueue",
+      "topic": "chain-layer-checks",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.817Z",
+      "contentCommit": "7cd0346e6e85b280978ecd9070826ae2b267ce36d4500970c001b41bb6af70a3",
+      "chatPreview": "Backlog enqueue · BL-DC923044 · chain-layer-checks.txt · status=pending · bytes=2602",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1254576,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-DC923044",
+        "status": "pending",
+        "bytes": 2602,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "8d3cf4a86249a1174dc7c329bb81d10a328a1f4fe2e34635c9afa1d79f5a32d7",
+      "prevRoot": "4b7dbf4936983684709d843883960ba3e2930859b8f68f0b625f675991a7886d"
+    },
+    {
+      "id": "FF-2BDD3A5A",
+      "kind": "backlog-enqueue",
+      "topic": "chain-layer-growth",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.820Z",
+      "contentCommit": "2bdd3a5af63f60cfaf4de2f2d28c53f68f6e45d3d96261432f7683706a0ceb9a",
+      "chatPreview": "Backlog enqueue · BL-BBFA2945 · chain-layer-growth.txt · status=pending · bytes=939",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1258407,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-BBFA2945",
+        "status": "pending",
+        "bytes": 939,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "9acaa1d73af85eb916b2b2c0aa20d9ace1682ace5aca041247ab85af577a39c9",
+      "prevRoot": "8d3cf4a86249a1174dc7c329bb81d10a328a1f4fe2e34635c9afa1d79f5a32d7"
+    },
+    {
+      "id": "FF-D27BCD75",
+      "kind": "backlog-enqueue",
+      "topic": "chain-layer-inject",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.827Z",
+      "contentCommit": "d27bcd752e9a543585a0ba4531e51ad9adf1006df5dd13f6ba0d09ae835c7fdb",
+      "chatPreview": "Backlog enqueue · BL-54B109E2 · chain-layer-inject.txt · status=pending · bytes=2602",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1264055,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-54B109E2",
+        "status": "pending",
+        "bytes": 2602,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "8c9369db3cc7b73b8edd6f5f136fb6d8e4503ce1fc0e38a8d6a944922521fe84",
+      "prevRoot": "9acaa1d73af85eb916b2b2c0aa20d9ace1682ace5aca041247ab85af577a39c9"
+    },
+    {
+      "id": "FF-1F4900D0",
+      "kind": "backlog-enqueue",
+      "topic": "chain-layer-operator",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.830Z",
+      "contentCommit": "1f4900d0a9aab8f0f28ea2de0ca6ab7273e57144a3202742b2c337c68400bc7f",
+      "chatPreview": "Backlog enqueue · BL-895BDB3D · chain-layer-operator.txt · status=pending · bytes=739",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 208,
+        "memoryBytes": 1267597,
+        "strandCount": 81,
+        "strandBytes": 63978
+      },
+      "meta": {
+        "backlogId": "BL-895BDB3D",
+        "status": "pending",
+        "bytes": 739,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "3127321a745315aea0fe1e940b29021347932ad3fee0d932b30e8e29b7435f2c",
+      "prevRoot": "8c9369db3cc7b73b8edd6f5f136fb6d8e4503ce1fc0e38a8d6a944922521fe84"
+    },
+    {
+      "id": "FF-ABC67D5B",
+      "kind": "brain-learn",
+      "topic": "brain-learn-cycle-014",
+      "source": "brain-learn",
+      "at": "2026-09-26T23:54:58.853Z",
+      "contentCommit": "abc67d5b084b8fd747b5fb8d6a3ff8672b63250f86f4c5c7b61eba1fd20ac2bf",
+      "chatPreview": "Brain learn cycle #14 peer=PASS memΔ=2 strandΔ=1",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1314750,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "cycleIndex": 14,
+        "memoryDelta": 2,
+        "strandDelta": 1,
+        "zeroProofRoot": "19e81b5fbbc25e9dae975dc3dc36a3397a7a8a631e666fa2590e8433d3fc031c",
+        "peerVerdict": "PASS"
+      },
+      "root": "1e96eb0e3310aa0faa8e2620833bbf23963f230ec1c6a69007ad5f98ec2be3fc",
+      "prevRoot": "3127321a745315aea0fe1e940b29021347932ad3fee0d932b30e8e29b7435f2c"
+    },
+    {
+      "id": "FF-ABC67D5B",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-014",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.857Z",
+      "contentCommit": "abc67d5b084b8fd747b5fb8d6a3ff8672b63250f86f4c5c7b61eba1fd20ac2bf",
+      "chatPreview": "Backlog enqueue · BL-811E3B38 · brain-stage-14.txt · status=pending · bytes=5531",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1323182,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-811E3B38",
+        "status": "pending",
+        "bytes": 5531,
+        "chunks": 8,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "7690bdbaf5637fcf2da376dd215024506bed602e11316d083056bd60b7313e3d",
+      "prevRoot": "1e96eb0e3310aa0faa8e2620833bbf23963f230ec1c6a69007ad5f98ec2be3fc"
+    },
+    {
+      "id": "FF-13250954",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-014",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.881Z",
+      "contentCommit": "132509541b74a199683caabe64c5b310e8fb93d6c78817b979a1908ea9c267fa",
+      "chatPreview": "Backlog enqueue · BL-B2F9AB3D · brain-learn-cycle-014.txt · status=pending · bytes=354",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1326344,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-B2F9AB3D",
+        "status": "pending",
+        "bytes": 354,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "2933e0fcff7067e0dab83bcf0d56651054478c8bf21a767cfff7d032aa544580",
+      "prevRoot": "7690bdbaf5637fcf2da376dd215024506bed602e11316d083056bd60b7313e3d"
+    },
+    {
+      "id": "FF-9E92EE83",
+      "kind": "backlog-enqueue",
+      "topic": "compression-directory",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.898Z",
+      "contentCommit": "9e92ee83b62c200f63eca40127f99f83fef1571c00f3e90d7d152253c71a3d64",
+      "chatPreview": "Backlog enqueue · BL-C43FCD60 · compression-directory.txt · status=pending · bytes=2606",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1331989,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-C43FCD60",
+        "status": "pending",
+        "bytes": 2606,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "8990cf1be31b379e301a571d36bf5de14e205acea1cb80ec388c4bf00b96f503",
+      "prevRoot": "2933e0fcff7067e0dab83bcf0d56651054478c8bf21a767cfff7d032aa544580"
+    },
+    {
+      "id": "FF-589D8D8E",
+      "kind": "backlog-enqueue",
+      "topic": "compression-learn",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.901Z",
+      "contentCommit": "589d8d8e87c979e5ce5d67b65b1310a6253b09c851f5cef48b4cf46da7adc2d2",
+      "chatPreview": "Backlog enqueue · BL-9DFF0EA5 · compression-learn.txt · status=pending · bytes=2598",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1337716,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-9DFF0EA5",
+        "status": "pending",
+        "bytes": 2598,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "8e0620a5095470cdc7cc3c7e64ac01ebe00d42fe3f11299317e29a3548af8994",
+      "prevRoot": "8990cf1be31b379e301a571d36bf5de14e205acea1cb80ec388c4bf00b96f503"
+    },
+    {
+      "id": "FF-1016F849",
+      "kind": "backlog-enqueue",
+      "topic": "compression-telegram-unwrap",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.905Z",
+      "contentCommit": "1016f8495b2cb541d7dc5d19ef8976fbdcb825f96678791ab651dac73b2aaac3",
+      "chatPreview": "Backlog enqueue · BL-0EF0634B · compression-telegram-unwrap.txt · status=pending · bytes=1368",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1341990,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-0EF0634B",
+        "status": "pending",
+        "bytes": 1368,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "1f5c74b055be34f752ae9b647a01722c43f682ee0808c424cbe7d03946b4ab97",
+      "prevRoot": "8e0620a5095470cdc7cc3c7e64ac01ebe00d42fe3f11299317e29a3548af8994"
+    },
+    {
+      "id": "FF-AEEA4A05",
+      "kind": "backlog-enqueue",
+      "topic": "dharma-6g-vitafeed-force",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.909Z",
+      "contentCommit": "aeea4a05db02c036858a1f02825040ab2974ac279feb3aab70b705448f60a64f",
+      "chatPreview": "Backlog enqueue · BL-AD7AEFF8 · dharma-6g-vitafeed-force.txt · status=pending · bytes=629",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1345458,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-AD7AEFF8",
+        "status": "pending",
+        "bytes": 629,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "7a9de7bea413e7ab1f5650afbece6d97b8c37d70c18cc435466e55e6d5016c19",
+      "prevRoot": "1f5c74b055be34f752ae9b647a01722c43f682ee0808c424cbe7d03946b4ab97"
+    },
+    {
+      "id": "FF-A95AF5E9",
+      "kind": "backlog-enqueue",
+      "topic": "evm-recover-latest",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.913Z",
+      "contentCommit": "a95af5e99dc174c33a44230c6ebcbe025e38a679516a82d7e4a94c60bde764a6",
+      "chatPreview": "Backlog enqueue · BL-6A6260B2 · evm-recover-latest.txt · status=pending · bytes=2627",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1351117,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-6A6260B2",
+        "status": "pending",
+        "bytes": 2627,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "289c74e64e54885b97d266af2fed669158d7ab36a9a3615e0e7dce28183d4b4a",
+      "prevRoot": "7a9de7bea413e7ab1f5650afbece6d97b8c37d70c18cc435466e55e6d5016c19"
+    },
+    {
+      "id": "FF-B258E84C",
+      "kind": "backlog-enqueue",
+      "topic": "feed-flow-growth",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.916Z",
+      "contentCommit": "b258e84c0519a63475ac992bcb3f581c06ca9257f28f0c337e274632456bdfbd",
+      "chatPreview": "Backlog enqueue · BL-03FBAFBA · feed-flow-growth.txt · status=pending · bytes=571",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1354487,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-03FBAFBA",
+        "status": "pending",
+        "bytes": 571,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "524960cb70bac4412862937243dd62e78a8b2744325d7f4af4af1261b2058d07",
+      "prevRoot": "289c74e64e54885b97d266af2fed669158d7ab36a9a3615e0e7dce28183d4b4a"
+    },
+    {
+      "id": "FF-637BA31C",
+      "kind": "backlog-enqueue",
+      "topic": "feed-flow-idm-chat-proof",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:54:58.920Z",
+      "contentCommit": "637ba31c45ea2051632f4fc537120f615c7c3cc5051cf5f2f75d05c4c8c38a0d",
+      "chatPreview": "Backlog enqueue · BL-B1C37AD2 · feed-flow-idm-chat-proof.txt · status=pending · bytes=1554",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 212,
+        "memoryBytes": 1358865,
+        "strandCount": 82,
+        "strandBytes": 64765
+      },
+      "meta": {
+        "backlogId": "BL-B1C37AD2",
+        "status": "pending",
+        "bytes": 1554,
+        "chunks": 3,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "06ad53d3c0f669f999a0bae5524c8069b49cd4ef284f705218fdad8d957070d3",
+      "prevRoot": "524960cb70bac4412862937243dd62e78a8b2744325d7f4af4af1261b2058d07"
+    },
+    {
+      "id": "FF-BE1B72BE",
+      "kind": "brain-learn",
+      "topic": "brain-learn-cycle-015",
+      "source": "brain-learn",
+      "at": "2026-09-26T23:55:14.988Z",
+      "contentCommit": "be1b72be2abaf40eca6291f5df17d5f7c53fabef08f76be6a4b4cc1e64668f13",
+      "chatPreview": "Brain learn cycle #15 peer=PASS memΔ=2 strandΔ=1",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1413617,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "cycleIndex": 15,
+        "memoryDelta": 2,
+        "strandDelta": 1,
+        "zeroProofRoot": "456394136279c3d52838d92ba3f61a4a63b3df667c62145d3a5cdd02fa747836",
+        "peerVerdict": "PASS"
+      },
+      "root": "794b2af6fad70d602ef62df7f05065bb0159f1ca36a5057bbf6c5cb90b8b457e",
+      "prevRoot": "06ad53d3c0f669f999a0bae5524c8069b49cd4ef284f705218fdad8d957070d3"
+    },
+    {
+      "id": "FF-BE1B72BE",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-015",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:14.996Z",
+      "contentCommit": "be1b72be2abaf40eca6291f5df17d5f7c53fabef08f76be6a4b4cc1e64668f13",
+      "chatPreview": "Backlog enqueue · BL-8CFA84B3 · brain-stage-15.txt · status=pending · bytes=5567",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1422081,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-8CFA84B3",
+        "status": "pending",
+        "bytes": 5567,
+        "chunks": 8,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "409d1dd0192bbdfd4b8ab88a11b0aee6217562859112d613492b1171b6fe63e9",
+      "prevRoot": "794b2af6fad70d602ef62df7f05065bb0159f1ca36a5057bbf6c5cb90b8b457e"
+    },
+    {
+      "id": "FF-DB2C1298",
+      "kind": "backlog-enqueue",
+      "topic": "brain-learn-cycle-015",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.023Z",
+      "contentCommit": "db2c1298d9fadef1019297780ec245fabd21cffd5904754b87113f88a8e88570",
+      "chatPreview": "Backlog enqueue · BL-A321F4B0 · brain-learn-cycle-015.txt · status=pending · bytes=354",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1425243,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-A321F4B0",
+        "status": "pending",
+        "bytes": 354,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "d99f90feba1de3288bf3ede47b62900fa6a7ba9db45c5548640322fa0164b444",
+      "prevRoot": "409d1dd0192bbdfd4b8ab88a11b0aee6217562859112d613492b1171b6fe63e9"
+    },
+    {
+      "id": "FF-81205339",
+      "kind": "backlog-enqueue",
+      "topic": "feed-flow-growth",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.046Z",
+      "contentCommit": "81205339a8f19e788cd11c3d22dc20f0968a77d654e51813461017c4560bb174",
+      "chatPreview": "Backlog enqueue · BL-C250B190 · feed-flow-growth.txt · status=pending · bytes=574",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1428626,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-C250B190",
+        "status": "pending",
+        "bytes": 574,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "f5aa971749cd5bdd1ba4f456362f3a466d6f1b2c08728f42b4b39afb91dc31cd",
+      "prevRoot": "d99f90feba1de3288bf3ede47b62900fa6a7ba9db45c5548640322fa0164b444"
+    },
+    {
+      "id": "FF-31B5ADBB",
+      "kind": "backlog-enqueue",
+      "topic": "filing-labels-learned",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.051Z",
+      "contentCommit": "31b5adbbd629cb128b1f3bc9ec6b72c25b7caddc63a962ef0d48aef74427dc93",
+      "chatPreview": "Backlog enqueue · BL-FF335E77 · filing-labels-learned.txt · status=pending · bytes=2648",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1434248,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-FF335E77",
+        "status": "pending",
+        "bytes": 2648,
+        "chunks": 4,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "34844ceb63a676232101deb9760178cd49dac4a4845322fdc95387389aaeec62",
+      "prevRoot": "f5aa971749cd5bdd1ba4f456362f3a466d6f1b2c08728f42b4b39afb91dc31cd"
+    },
+    {
+      "id": "FF-ED235F2D",
+      "kind": "backlog-enqueue",
+      "topic": "free-music-judy-learn",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.055Z",
+      "contentCommit": "ed235f2dc821e6bae29330906887cf9da92b9f003bb9fded1b606ace022f1900",
+      "chatPreview": "Backlog enqueue · BL-20746C14 · free-music-judy-learn.txt · status=pending · bytes=1546",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1438686,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-20746C14",
+        "status": "pending",
+        "bytes": 1546,
+        "chunks": 3,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "01bc9d5946406aaee0c6823b899fa6acb5503c097bff4623b5556ffe563c445e",
+      "prevRoot": "34844ceb63a676232101deb9760178cd49dac4a4845322fdc95387389aaeec62"
+    },
+    {
+      "id": "FF-EC2470CC",
+      "kind": "backlog-enqueue",
+      "topic": "free-music-learn",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.060Z",
+      "contentCommit": "ec2470cc9f54407d0914fb8100c42a7c8474f6803cbad77d358d96a21057e276",
+      "chatPreview": "Backlog enqueue · BL-D664E2C7 · free-music-learn.txt · status=pending · bytes=1325",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1442890,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-D664E2C7",
+        "status": "pending",
+        "bytes": 1325,
+        "chunks": 2,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "2cacd34187d5d97d340b4a9fb461d850cd29d2a6919b603667e8aa46cb715780",
+      "prevRoot": "01bc9d5946406aaee0c6823b899fa6acb5503c097bff4623b5556ffe563c445e"
+    },
+    {
+      "id": "FF-2BD067CD",
+      "kind": "backlog-enqueue",
+      "topic": "free-music-library-learn",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.065Z",
+      "contentCommit": "2bd067cd60725d9b953681791cd6dd6460058ab62f94b739a94538dec49ec5cb",
+      "chatPreview": "Backlog enqueue · BL-E3DE9333 · free-music-library-learn.txt · status=pending · bytes=1780",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1447579,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-E3DE9333",
+        "status": "pending",
+        "bytes": 1780,
+        "chunks": 3,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "c38c16a28e891dfa7db6ec1a144ef90242a34ad78d651251a34b2fd09c996aa5",
+      "prevRoot": "2cacd34187d5d97d340b4a9fb461d850cd29d2a6919b603667e8aa46cb715780"
+    },
+    {
+      "id": "FF-824329FE",
+      "kind": "backlog-enqueue",
+      "topic": "free-music-loc-rail-learn",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.070Z",
+      "contentCommit": "824329fe087dae6662fbbaaac9193c2c26204c981267b046d0ad8c83e774c2aa",
+      "chatPreview": "Backlog enqueue · BL-93FACE02 · free-music-loc-rail-learn.txt · status=pending · bytes=1637",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1452134,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-93FACE02",
+        "status": "pending",
+        "bytes": 1637,
+        "chunks": 3,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "6afe8cdd20c0e461a6dbc1b8126adc5a3a36f48641fbbd69d93ec10bc9f915d1",
+      "prevRoot": "c38c16a28e891dfa7db6ec1a144ef90242a34ad78d651251a34b2fd09c996aa5"
+    },
+    {
+      "id": "FF-61CB1436",
+      "kind": "backlog-enqueue",
+      "topic": "hold-all-sells-home-operator",
+      "source": "feed-backlog",
+      "at": "2026-09-26T23:55:15.074Z",
+      "contentCommit": "61cb1436a0c9cd5bceccf91b109c4b5d40e3bc6d1e2a60705476becc06d3c4ef",
+      "chatPreview": "Backlog enqueue · BL-B566EF92 · hold-all-sells-home-operator.txt · status=pending · bytes=285",
+      "locations": [
+        {
+          "id": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "kind": "none",
+          "label": "KEYCAT plain 228-byte swap — Telegram letter was NOT on-chain",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "kind": "eureka",
+          "label": "Eureka love note on Base (/prove class)",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        },
+        {
+          "id": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "kind": "vita",
+          "label": "VITA §TOKEN§ strand chunk on Base",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "idmChat": "Basescan → Input Data → View as UTF-8"
+        }
+      ],
+      "directory": {
+        "memoryCount": 216,
+        "memoryBytes": 1455253,
+        "strandCount": 83,
+        "strandBytes": 65552
+      },
+      "meta": {
+        "backlogId": "BL-B566EF92",
+        "status": "pending",
+        "bytes": 285,
+        "chunks": 1,
+        "vinId": null,
+        "phase": "enqueue"
+      },
+      "root": "f11d03d88f07a3af559f6049e0d25b45116dee94be102634222ae370cef5f97c",
+      "prevRoot": "6afe8cdd20c0e461a6dbc1b8126adc5a3a36f48641fbbd69d93ec10bc9f915d1"
     }
   ],
   "roots": [
@@ -1045,13 +3081,53 @@
     "44b397ac81c7cea5d39937a5057f3a1cb3efda3cf5f250b7845200f1a9e465a1",
     "9cb05aef477cee3133a57443ed8389de57beb58afaa672ec4187689bdb6570c4",
     "64c400d839fed394a71696c0da9efce928aa29f837f381767066a3e430995029",
-    "c377ad2e3bd96b754c1749726525a7dab445c760bf15f7c0ea2e287b67fd7b14"
+    "c377ad2e3bd96b754c1749726525a7dab445c760bf15f7c0ea2e287b67fd7b14",
+    "0b8b32477a73cf1afe8958e65312d36dac6b230a169feaffcfc11c569b2d5a7a",
+    "76503885c313f4264029bbc75a6796935e703f78e3e31fbd3b5e333b7025c427",
+    "abd666a9c59392608b07d321ea846b848d617ae0f4dad755c36965c46aefe63f",
+    "e7bfd60416274c7fb58d153968dbb465ed485f876a18d0792d186d961eb9b3cd",
+    "613296e8f63111f0cd31ffeec9be767b8344254030a9e7bb6a1791c556adf3ee",
+    "90053be85871ee000afe6a079ed1a3987c39f0474a18b318c3e0ec26dd9a0010",
+    "8aab9499d88f32a991a3d56becb1e8aa8c51f83f5bf13da26e8435d6d3f75c8f",
+    "92c993fa5e2b5c2eedc4c438cd0b081c4ffbfc1d24be1c881be6aeb7b81bebac",
+    "73f6847abd5bdb98012db0f6b3441b6dd682c14179364666fc962d220d1bab55",
+    "959f11fc98975dfa0efdbf32cf898f1315713d53f9edb1e14e214ca74ca0528a",
+    "2a4782e149ded735870e20076fb3060905a2b1f828bcee24d13a8c44aeee20a2",
+    "06b55bf69540e7d02105a033eda37b80a3b875961b5c200121172ba626fdcfc3",
+    "fd2a129d8a2be51f5c163296940a940e91b48c502aa46ded6669404153a982e9",
+    "5e13fb103a4ac5a09ed0cecf03ecf7b9d64f4ca6d8e0d6afa5206dca2e3bc9bd",
+    "8e371f764c68ca0da6abbc6afb3895ee3ecb2088518385a806835f846c08e436",
+    "4b7dbf4936983684709d843883960ba3e2930859b8f68f0b625f675991a7886d",
+    "8d3cf4a86249a1174dc7c329bb81d10a328a1f4fe2e34635c9afa1d79f5a32d7",
+    "9acaa1d73af85eb916b2b2c0aa20d9ace1682ace5aca041247ab85af577a39c9",
+    "8c9369db3cc7b73b8edd6f5f136fb6d8e4503ce1fc0e38a8d6a944922521fe84",
+    "3127321a745315aea0fe1e940b29021347932ad3fee0d932b30e8e29b7435f2c",
+    "1e96eb0e3310aa0faa8e2620833bbf23963f230ec1c6a69007ad5f98ec2be3fc",
+    "7690bdbaf5637fcf2da376dd215024506bed602e11316d083056bd60b7313e3d",
+    "2933e0fcff7067e0dab83bcf0d56651054478c8bf21a767cfff7d032aa544580",
+    "8990cf1be31b379e301a571d36bf5de14e205acea1cb80ec388c4bf00b96f503",
+    "8e0620a5095470cdc7cc3c7e64ac01ebe00d42fe3f11299317e29a3548af8994",
+    "1f5c74b055be34f752ae9b647a01722c43f682ee0808c424cbe7d03946b4ab97",
+    "7a9de7bea413e7ab1f5650afbece6d97b8c37d70c18cc435466e55e6d5016c19",
+    "289c74e64e54885b97d266af2fed669158d7ab36a9a3615e0e7dce28183d4b4a",
+    "524960cb70bac4412862937243dd62e78a8b2744325d7f4af4af1261b2058d07",
+    "06ad53d3c0f669f999a0bae5524c8069b49cd4ef284f705218fdad8d957070d3",
+    "794b2af6fad70d602ef62df7f05065bb0159f1ca36a5057bbf6c5cb90b8b457e",
+    "409d1dd0192bbdfd4b8ab88a11b0aee6217562859112d613492b1171b6fe63e9",
+    "d99f90feba1de3288bf3ede47b62900fa6a7ba9db45c5548640322fa0164b444",
+    "f5aa971749cd5bdd1ba4f456362f3a466d6f1b2c08728f42b4b39afb91dc31cd",
+    "34844ceb63a676232101deb9760178cd49dac4a4845322fdc95387389aaeec62",
+    "01bc9d5946406aaee0c6823b899fa6acb5503c097bff4623b5556ffe563c445e",
+    "2cacd34187d5d97d340b4a9fb461d850cd29d2a6919b603667e8aa46cb715780",
+    "c38c16a28e891dfa7db6ec1a144ef90242a34ad78d651251a34b2fd09c996aa5",
+    "6afe8cdd20c0e461a6dbc1b8126adc5a3a36f48641fbbd69d93ec10bc9f915d1",
+    "f11d03d88f07a3af559f6049e0d25b45116dee94be102634222ae370cef5f97c"
   ],
   "growth": {
-    "eventCount": 20,
-    "memoryCount": 105,
-    "strandCount": 37,
-    "memoryBytes": 356869,
-    "strandBytes": 28659
+    "eventCount": 60,
+    "memoryCount": 216,
+    "strandCount": 83,
+    "memoryBytes": 1455253,
+    "strandBytes": 65552
   }
 }

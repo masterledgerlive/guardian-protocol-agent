@@ -1,0 +1,1504 @@
+{
+  "id": "mother-brain-pulse-v1",
+  "filingLabel": "MOTHER_BRAIN_PULSE",
+  "magic": "§MOTHERPULSE§",
+  "formula": "original-message-first",
+  "neverInventHashes": true,
+  "neverForget": true,
+  "createdAt": "2026-09-26T23:54:58.754Z",
+  "updatedAt": "2026-09-26T23:55:14.955Z",
+  "ticks": [
+    {
+      "at": "2026-09-26T23:54:58.655Z",
+      "tickCount": 1,
+      "commit8": "367da979",
+      "unlock": {
+        "unlocked": true,
+        "holdAllSells": false,
+        "homeNeverSell": true,
+        "status": "🏠 HOME never-sell on (APPROVE_HOME_SELL unset) — other bags may sell when gated green"
+      },
+      "plan": {
+        "prediction": {
+          "phase": "SNOWBALL_SMALL",
+          "next": {
+            "symbol": "DEGEN",
+            "tier": "LOWER",
+            "action": "cascade-lower-in",
+            "usd": 0.8,
+            "needUsd": 0.75,
+            "viable": true,
+            "rangePos": 0.3333333333333333,
+            "waveDataSource": "base-catalog",
+            "reason": "thin book — inject-all into lower/velocity snowball seat"
+          },
+          "goal": {
+            "symbol": "HOME",
+            "tier": "MAIN_INOUT"
+          }
+        },
+        "capital": {
+          "deployableUsd": 0.7999999999999998,
+          "homeBagUsd": 11,
+          "thinBook": true
+        },
+        "seatCount": 3
+      },
+      "stage": {
+        "ok": true,
+        "staged": false,
+        "sim": true,
+        "reason": null,
+        "next": {
+          "symbol": "DEGEN",
+          "usd": 0.8,
+          "action": "cascade-lower-in",
+          "viable": true
+        },
+        "command": {
+          "symbol": "DEGEN",
+          "action": "buy",
+          "usd": 0.8,
+          "source": "MOTHER_BRAIN_PULSE",
+          "cascade": true,
+          "pulse": true,
+          "hopAction": "cascade-lower-in",
+          "phase": "SNOWBALL_SMALL",
+          "reason": "💓 MOTHER PULSE cascade-lower-in → DEGEN",
+          "sim": true
+        },
+        "cadence": {
+          "hops": 0,
+          "target": 8,
+          "windowMs": 900000,
+          "onPace": false,
+          "shortfall": 8,
+          "needFaster": true,
+          "nextDueMs": 0,
+          "ratePerWindow": 0
+        }
+      },
+      "brain": {
+        "ok": true,
+        "avenue": "brain-self-read-inject",
+        "magic": "§VITABRAIN§",
+        "learn": {
+          "ok": true,
+          "cycleIndex": 12,
+          "peer": "PASS",
+          "card": "VITA BRAIN ACTIVATE · learn cycle #12\nfiling labels: BRAIN_SEED · BRAIN_LEARN · PEER_REVIEW · ZERO_PROOF · VITA_SAVE_LEARN\n\n— OLD → NEW —\nmem 198→200  strands 79→80  lib 0→0  locs 10→10\nnew topics: brain-learn-cycle-012, peer-review-cycle-012\n\n— PEER REVIEW (filing=PEER_REVIEW) —\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zer",
+          "error": null
+        },
+        "seed": {
+          "ok": true,
+          "added": 8,
+          "skipped": 10,
+          "skipSamples": [
+            {
+              "topic": "brain-seed",
+              "reason": "deduped"
+            },
+            {
+              "topic": "auto-wrap-remaining",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-001",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-002",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-003",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-004",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-005",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-006",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-007",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-008",
+              "reason": "deduped"
+            }
+          ],
+          "items": [
+            {
+              "id": "BL-DB4EDD03",
+              "topic": "aero-lose-zero-oneshot",
+              "name": "aero-lose-zero-oneshot.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1333,
+              "chunks": 2,
+              "contentCommit": "6460d3522be83449924adbaef0c5a907823fdee93f021103fd78d55986a14b4a",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.699Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-997D9A2F",
+              "topic": "agent-chat-bank",
+              "name": "agent-chat-bank.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2608,
+              "chunks": 4,
+              "contentCommit": "1618aed76e7fd96536464d99d2b6acb6683cf0e230cf5c0090dfaece82832d24",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.705Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-1377D338",
+              "topic": "agent-chat-channels",
+              "name": "agent-chat-channels.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2602,
+              "chunks": 4,
+              "contentCommit": "f99f344581be5f7170d8de06ba27a6876958259694b5ec433a7e14a323fb9cb9",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.712Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-7A369668",
+              "topic": "agent-chat-v0",
+              "name": "agent-chat-v0.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 571,
+              "chunks": 1,
+              "contentCommit": "bb3017dfcd961a5774e5116530a99f4c201e77ecf620a2ba25aa072030206e0e",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.717Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-BDE46253",
+              "topic": "base-cascade-program-operator",
+              "name": "base-cascade-program-operator.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 946,
+              "chunks": 2,
+              "contentCommit": "5ac821b7fcbff6ae3852435fa26e7dd6e1febded26ae8bda911881cd158641b5",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.724Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-D31B52A5",
+              "topic": "brain-learn-cycle-009",
+              "name": "brain-learn-cycle-009.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 341,
+              "chunks": 1,
+              "contentCommit": "e16a4d1e98def2757707a9bb417bb8493dbf253c6fb4e92d66feb3eef1db8a50",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.734Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-8A12C3BB",
+              "topic": "brain-learn-cycle-010",
+              "name": "brain-learn-cycle-010.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 289,
+              "chunks": 1,
+              "contentCommit": "b3226c3059d7a7873ab57ad472b4084ed31873cddbcf639dcd760a61bacce143",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.741Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-9697666C",
+              "topic": "brain-learn-cycle-011",
+              "name": "brain-learn-cycle-011.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 322,
+              "chunks": 1,
+              "contentCommit": "fe8b633d790f9a04cd73adf350bd79554e7d62cd2768029de36c288ba9367191",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.746Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            }
+          ],
+          "growth": {
+            "enqueued": 44,
+            "sealed": 0,
+            "partial": 0,
+            "skipped": 0,
+            "pending": 44,
+            "sealedLocCount": 0,
+            "roots": [
+              "83b54a12612d707d6a8e10f51ba50d531312f7fb8f82ac72a7b993b61382b477",
+              "d28afa4a6a92df284fa1cb08af5486b66b75f0c07058c9215a26a3c5b4f90777",
+              "8f497da549a084a764b08b1c250ed34433f7db96f80d0f598cce0365afe1999b",
+              "49b1deafdb6ffec59ddeebf03be486fd3202c422aea31f864f6b8ee9cd923d1d",
+              "8ec6de1085683c8adef08d9e0e709b193fc2cfb4fadc690e807df59e5250b75b",
+              "e6245e9293157779b5cf612944a9f90377d72a0f63d71d25148c5d3a4a198bfd",
+              "88fc7ea5971c78d39317f4b48c67911a95ff85d096b36686971b9158cdb7e61f",
+              "879dfb9a06de9d5847f980070ac4c4567b165486c45ad15adcb0d3e2229d442a",
+              "196291eec7fb032a99f75c231981ad7f7754dabf8d7be37ae764778f31dd245d",
+              "cd455e54a263907810ca5e38063f3ba92fe7932ee2ac1f9ca0176831a771f805",
+              "5c13d581390cede2050aac6842a0becd0774cca7e681a1817c7b03f0786edfde",
+              "101bd3e177e09633953758c36b79bdef3022e94e43f308f4805bc84ae13181a9",
+              "40eba7a56aeb035f35ca7126fc22983ebab15202fbf43a533756df6a433aacbc",
+              "31f591d6552d2ac840b289c84ea33c8623363edd59274aa8ab735d956edb2aef",
+              "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c",
+              "bf844484532cabdbe523a9b9c1d9764e661b2ee74d40dbbedff39a86782ebe33",
+              "49190e892affd1b5b63bad10740bb5f68ffbc34cc99855c48b34e024ef25e555",
+              "3677acd7096bba180282916a348c44639c974957523484f1e3a157433189380e",
+              "8d67ff0a52a3527d923e10ac5808d8b53ce9701fc62309871ce44c1a8ff39d39",
+              "b9480eee6149fd1ee4dd2acf7907981c8e923009138741ddb983f12302de751c",
+              "6a890d49b62ce50a641c9aa6dca0d2df604dec1a6d965b45ffba5e4124539d00",
+              "263f4047c113e150920d36b33202d259eb0c283f8c01b888d654e389c157913b",
+              "2d958016507fccf0f0c1c116947d43bec31bc0abfce0db40d5971aabc6030f1e",
+              "05a6727925a257028610734730ad1b3bc68b4c0ea6a5c2aa8ebfe7d204b568c4",
+              "ddadb05622039c6fb5bc9e8fedf6f0f7fb0aeeee370faab9fe734da83697111f",
+              "7d30e5b10cb49f89c6f23f8d4996b7f8c4fe0e7c1ec6fac974a1b85e877e4d0b",
+              "6f02f3a4ccfdb37628a22a1a91dcfb431b1b702939b278430cacca487da11117",
+              "7599f4af1a1ed212d32cc2d23b17aea29db6c29cb64fea995416969de9149363",
+              "b69df7964ce693cfe06f92a0145a0a874db70b328619a6d246464a12e8e48dc4",
+              "de9980a6e925b79c0399089f486de74e7d2a8e50239d3dc8ad4d23655d69eb23",
+              "f1a7a93fee51f48ef3913539298afd09a432027ea8fed91ab5d38c31d11b1815",
+              "eb9ae902f2195afe0ea2bfbe3f996d093cef160250c1748a40e2fd349730e565"
+            ]
+          },
+          "card": "VITAFEED BACKLOG · filing=FEED_BACKLOG\npending=44  sealed=0  partial=0  locs=0  enqueued=44\nagent AI: not required — drain with /vitafeed next → confirm|override\nprefer ≤4 chunks/item · hard max 24\nnever invent hashes · VITAFEED_PAID still gates send\nNEXT pending:\n  1. BL-9DDA7EDC · brain-learn-cycle-003.txt · 1ch/321B · pending\n  2. BL-F8C17FD8 · brain-learn-cycle-004.txt · 1ch/321B · pending\n  3. BL-CD5356D8 · brain-learn-cycle-005.txt · 1ch/288B · pending\n  4. BL-97C605B0 · brain-learn-cycle-006.txt · 1ch/321B · pending\n  5. BL-9B9FBD03 · brain-learn-cycle-007.txt · 1ch/321B · pending\n  6. BL-72575391 · brain-learn-cycle-008.txt · 1ch/292B · pending\n  7. BL-EB334A25 · brain-learn-filing-research.txt · 2ch/780B · pending\n  8. BL-0C3929B5 · clanker-desk-book-railway.txt · 2ch/1039B · pending\nCommands: /vitafeed backlog · enqueue seed · next · proof"
+        },
+        "nextBacklog": {
+          "id": "BL-7CCA36DE",
+          "topic": "brain-seed",
+          "status": "pending"
+        },
+        "mindPreview": "§VITABRAIN§v1|kind=recursive-ai-mind|formula=original-message-first§\nVITA BLOCKCHAIN BRAIN SEED\nformula=original-message-first\nmessageFirst=true\nneverInvent=tru",
+        "note": "Backlog drains via /vitafeed next|confirm without agent AI; pulse keeps it fed"
+      },
+      "agents": {
+        "ok": true,
+        "avenue": "agent-refine",
+        "agentCount": 2,
+        "results": [
+          {
+            "id": "watcher-eureka",
+            "ok": true,
+            "pass": true,
+            "followHead": 3,
+            "note": "sandbox"
+          },
+          {
+            "id": "wave-robin",
+            "ok": true,
+            "pass": true,
+            "followHead": 6,
+            "note": "sandbox"
+          }
+        ],
+        "note": "Agents refine offline against anchors; seal still confirm|override"
+      },
+      "live": false,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2023-11-14T22:13:20.000Z",
+      "tickCount": 1,
+      "commit8": "32ac9057",
+      "unlock": {
+        "unlocked": true,
+        "holdAllSells": false,
+        "homeNeverSell": true,
+        "status": "🏠 HOME never-sell on (APPROVE_HOME_SELL unset) — other bags may sell when gated green"
+      },
+      "plan": {
+        "prediction": {
+          "phase": "SNOWBALL_SMALL",
+          "next": {
+            "symbol": "DEGEN",
+            "tier": "LOWER",
+            "action": "cascade-lower-in",
+            "usd": 1.3,
+            "needUsd": 0.75,
+            "viable": true,
+            "rangePos": 0.16666666666666666,
+            "waveDataSource": "base-catalog",
+            "reason": "thin book — inject-all into lower/velocity snowball seat"
+          },
+          "goal": {
+            "symbol": "HOME",
+            "tier": "MAIN_INOUT"
+          }
+        },
+        "capital": {
+          "deployableUsd": 1.2999999999999998,
+          "homeBagUsd": 11,
+          "thinBook": true
+        },
+        "seatCount": 3
+      },
+      "stage": {
+        "ok": true,
+        "staged": false,
+        "sim": true,
+        "reason": null,
+        "next": {
+          "symbol": "DEGEN",
+          "usd": 1.3,
+          "action": "cascade-lower-in",
+          "viable": true
+        },
+        "command": {
+          "symbol": "DEGEN",
+          "action": "buy",
+          "usd": 1.3,
+          "source": "MOTHER_BRAIN_PULSE",
+          "cascade": true,
+          "pulse": true,
+          "hopAction": "cascade-lower-in",
+          "phase": "SNOWBALL_SMALL",
+          "reason": "💓 MOTHER PULSE cascade-lower-in → DEGEN",
+          "sim": true
+        },
+        "cadence": {
+          "hops": 0,
+          "target": 8,
+          "windowMs": 900000,
+          "onPace": false,
+          "shortfall": 8,
+          "needFaster": true,
+          "nextDueMs": 0,
+          "ratePerWindow": 0
+        }
+      },
+      "brain": {
+        "ok": true,
+        "avenue": "brain-self-read-inject",
+        "magic": "§VITABRAIN§",
+        "learn": {
+          "ok": true,
+          "cycleIndex": 13,
+          "peer": "PASS",
+          "card": "VITA BRAIN ACTIVATE · learn cycle #13\nfiling labels: BRAIN_SEED · BRAIN_LEARN · PEER_REVIEW · ZERO_PROOF · VITA_SAVE_LEARN\n\n— OLD → NEW —\nmem 204→206  strands 80→81  lib 0→0  locs 10→10\nnew topics: brain-learn-cycle-013, peer-review-cycle-013\n\n— PEER REVIEW (filing=PEER_REVIEW) —\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zer",
+          "error": null
+        },
+        "seed": {
+          "ok": true,
+          "added": 8,
+          "skipped": 19,
+          "skipSamples": [
+            {
+              "topic": "brain-seed",
+              "reason": "deduped"
+            },
+            {
+              "topic": "aero-lose-zero-oneshot",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-bank",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-channels",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-v0",
+              "reason": "deduped"
+            },
+            {
+              "topic": "auto-wrap-remaining",
+              "reason": "deduped"
+            },
+            {
+              "topic": "base-cascade-program-operator",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-001",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-002",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-003",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-004",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-005",
+              "reason": "deduped"
+            }
+          ],
+          "items": [
+            {
+              "id": "BL-D6C96DF3",
+              "topic": "brain-learn-cycle-012",
+              "name": "brain-learn-cycle-012.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 354,
+              "chunks": 1,
+              "contentCommit": "e731c621a5ce8d0b14473b6e7e52aa2b3a1a8d86e352f419abb3445e3299d034",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.797Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-A599ABE1",
+              "topic": "brain-learn-cycle-013",
+              "name": "brain-learn-cycle-013.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 354,
+              "chunks": 1,
+              "contentCommit": "558a24950b8869c6f601bbff5be6fd726d3895eb00a8006ac54f351a88f4de12",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.803Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-7BA7FE36",
+              "topic": "buy-home-2.56-operator",
+              "name": "buy-home-2.56-operator.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 259,
+              "chunks": 1,
+              "contentCommit": "03fe1ca610f697fe6505d9f949aa77ebbd79a201c648fb7ec9225467b43b00a2",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.807Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-A1908CAE",
+              "topic": "chain-dir-learn",
+              "name": "chain-dir-learn.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 944,
+              "chunks": 2,
+              "contentCommit": "765637cc164bd90ad8919bc70713254436d47f50781454284340bee4c50ffc90",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.811Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-DC923044",
+              "topic": "chain-layer-checks",
+              "name": "chain-layer-checks.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2602,
+              "chunks": 4,
+              "contentCommit": "7cd0346e6e85b280978ecd9070826ae2b267ce36d4500970c001b41bb6af70a3",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.814Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-BBFA2945",
+              "topic": "chain-layer-growth",
+              "name": "chain-layer-growth.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 939,
+              "chunks": 2,
+              "contentCommit": "2bdd3a5af63f60cfaf4de2f2d28c53f68f6e45d3d96261432f7683706a0ceb9a",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.818Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-54B109E2",
+              "topic": "chain-layer-inject",
+              "name": "chain-layer-inject.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2602,
+              "chunks": 4,
+              "contentCommit": "d27bcd752e9a543585a0ba4531e51ad9adf1006df5dd13f6ba0d09ae835c7fdb",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.824Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-895BDB3D",
+              "topic": "chain-layer-operator",
+              "name": "chain-layer-operator.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 739,
+              "chunks": 2,
+              "contentCommit": "1f4900d0a9aab8f0f28ea2de0ca6ab7273e57144a3202742b2c337c68400bc7f",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.828Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            }
+          ],
+          "growth": {
+            "enqueued": 53,
+            "sealed": 0,
+            "partial": 0,
+            "skipped": 0,
+            "pending": 53,
+            "sealedLocCount": 0,
+            "roots": [
+              "cd455e54a263907810ca5e38063f3ba92fe7932ee2ac1f9ca0176831a771f805",
+              "5c13d581390cede2050aac6842a0becd0774cca7e681a1817c7b03f0786edfde",
+              "101bd3e177e09633953758c36b79bdef3022e94e43f308f4805bc84ae13181a9",
+              "40eba7a56aeb035f35ca7126fc22983ebab15202fbf43a533756df6a433aacbc",
+              "31f591d6552d2ac840b289c84ea33c8623363edd59274aa8ab735d956edb2aef",
+              "f01a9f92e946efa7f6d1e25db9b59b71f10bc62f9a68dc58155d3f45e845f96c",
+              "bf844484532cabdbe523a9b9c1d9764e661b2ee74d40dbbedff39a86782ebe33",
+              "49190e892affd1b5b63bad10740bb5f68ffbc34cc99855c48b34e024ef25e555",
+              "3677acd7096bba180282916a348c44639c974957523484f1e3a157433189380e",
+              "8d67ff0a52a3527d923e10ac5808d8b53ce9701fc62309871ce44c1a8ff39d39",
+              "b9480eee6149fd1ee4dd2acf7907981c8e923009138741ddb983f12302de751c",
+              "6a890d49b62ce50a641c9aa6dca0d2df604dec1a6d965b45ffba5e4124539d00",
+              "263f4047c113e150920d36b33202d259eb0c283f8c01b888d654e389c157913b",
+              "2d958016507fccf0f0c1c116947d43bec31bc0abfce0db40d5971aabc6030f1e",
+              "05a6727925a257028610734730ad1b3bc68b4c0ea6a5c2aa8ebfe7d204b568c4",
+              "ddadb05622039c6fb5bc9e8fedf6f0f7fb0aeeee370faab9fe734da83697111f",
+              "7d30e5b10cb49f89c6f23f8d4996b7f8c4fe0e7c1ec6fac974a1b85e877e4d0b",
+              "6f02f3a4ccfdb37628a22a1a91dcfb431b1b702939b278430cacca487da11117",
+              "7599f4af1a1ed212d32cc2d23b17aea29db6c29cb64fea995416969de9149363",
+              "b69df7964ce693cfe06f92a0145a0a874db70b328619a6d246464a12e8e48dc4",
+              "de9980a6e925b79c0399089f486de74e7d2a8e50239d3dc8ad4d23655d69eb23",
+              "f1a7a93fee51f48ef3913539298afd09a432027ea8fed91ab5d38c31d11b1815",
+              "eb9ae902f2195afe0ea2bfbe3f996d093cef160250c1748a40e2fd349730e565",
+              "38513c01259ec056e4de2ed25ef7abf5b7124dacb27d464456f66ae93b2490b7",
+              "759a28369591d3456a40be7d07acc70cc5a024e3193a6f1ed7b4d1c1223dee97",
+              "ed601a1ad95a7db68774592319eb9d3a589c43393bcd1288190aea0443aa8df2",
+              "814fb64d5214ec08f60b081bb4bd94406e4fdfcfd1c13b22fdb849a9e791fe36",
+              "3a32408e970ffba38a320cf39fb96e704852c3b4811f8f969f36b9b5f6184d06",
+              "d04e98c6923a0bd775b9898026660217b10007eee63fa4725b3c8b7f9707301e",
+              "e4304f8ab9099ca1875a663ba7e5364bb0ccdaaedeaea2a9e3034e210fcb02bf",
+              "f215126698ad3a34ff12525c721848df6672fab0e64aa839cb3912e27755e47c",
+              "ac6c65bc6ddaaf36f3708d6c1fdea8b0655814def5cc0038e89d85ce83bf7fd5"
+            ]
+          },
+          "card": "VITAFEED BACKLOG · filing=FEED_BACKLOG\npending=53  sealed=0  partial=0  locs=0  enqueued=53\nagent AI: not required — drain with /vitafeed next → confirm|override\nprefer ≤4 chunks/item · hard max 24\nnever invent hashes · VITAFEED_PAID still gates send\nNEXT pending:\n  1. BL-CF9195C2 · clanker-force-unwind-inject-fuel.txt · 2ch/797B · pending\n  2. BL-64AC1FA7 · clanker-inject-fuel-memory-arm.txt · 2ch/888B · pending\n  3. BL-8EA391DD · clanker-lot-rebuild-env-failed.txt · 2ch/864B · pending\n  4. BL-72AFF575 · clanker-parent-addon-latch.txt · 2ch/809B · pending\n  5. BL-4C8743A7 · filing-labels-learned.txt · 2ch/1294B · pending\n  6. BL-C79D3D9D · genesis-protect.txt · 1ch/428B · pending\n  7. BL-58EB6663 · mgplain-wrap.txt · 1ch/666B · pending\n  8. BL-7AA4EC24 · mother-genesis-n-batches.txt · 1ch/617B · pending\nCommands: /vitafeed backlog · enqueue seed · next · proof"
+        },
+        "nextBacklog": {
+          "id": "BL-7CCA36DE",
+          "topic": "brain-seed",
+          "status": "pending"
+        },
+        "mindPreview": "§VITABRAIN§v1|kind=recursive-ai-mind|formula=original-message-first§\nVITA BLOCKCHAIN BRAIN SEED\nformula=original-message-first\nmessageFirst=true\nneverInvent=tru",
+        "note": "Backlog drains via /vitafeed next|confirm without agent AI; pulse keeps it fed"
+      },
+      "agents": {
+        "ok": true,
+        "avenue": "agent-refine",
+        "agentCount": 2,
+        "results": [
+          {
+            "id": "watcher-eureka",
+            "ok": true,
+            "pass": true,
+            "followHead": 3,
+            "note": "sandbox"
+          },
+          {
+            "id": "wave-robin",
+            "ok": true,
+            "pass": true,
+            "followHead": 6,
+            "note": "sandbox"
+          }
+        ],
+        "note": "Agents refine offline against anchors; seal still confirm|override"
+      },
+      "live": false,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-26T23:56:37.835Z",
+      "tickCount": 1,
+      "commit8": "07927fce",
+      "unlock": {
+        "unlocked": true,
+        "holdAllSells": false,
+        "homeNeverSell": true,
+        "status": "🏠 HOME never-sell on (APPROVE_HOME_SELL unset) — other bags may sell when gated green"
+      },
+      "plan": {
+        "prediction": {
+          "phase": "SNOWBALL_SMALL",
+          "next": {
+            "symbol": "DEGEN",
+            "tier": "LOWER",
+            "action": "cascade-lower-in",
+            "usd": 2.3,
+            "needUsd": 0.75,
+            "viable": true,
+            "rangePos": 0.047619047619047665,
+            "waveDataSource": "base-catalog",
+            "reason": "thin book — inject-all into lower/velocity snowball seat"
+          },
+          "goal": {
+            "symbol": "HOME",
+            "tier": "MAIN_INOUT"
+          }
+        },
+        "capital": {
+          "deployableUsd": 2.3,
+          "homeBagUsd": 11,
+          "thinBook": true
+        },
+        "seatCount": 4
+      },
+      "stage": {
+        "ok": true,
+        "staged": true,
+        "sim": false,
+        "reason": null,
+        "next": {
+          "symbol": "DEGEN",
+          "usd": 2.3,
+          "action": "cascade-lower-in",
+          "viable": true
+        },
+        "command": {
+          "symbol": "DEGEN",
+          "action": "buy",
+          "usd": 2.3,
+          "source": "MOTHER_BRAIN_PULSE",
+          "cascade": true,
+          "pulse": true,
+          "hopAction": "cascade-lower-in",
+          "phase": "SNOWBALL_SMALL",
+          "reason": "💓 MOTHER PULSE cascade-lower-in → DEGEN",
+          "sim": false
+        },
+        "cadence": {
+          "hops": 0,
+          "target": 8,
+          "windowMs": 900000,
+          "onPace": false,
+          "shortfall": 8,
+          "needFaster": true,
+          "nextDueMs": 0,
+          "ratePerWindow": 0
+        }
+      },
+      "brain": {
+        "ok": true,
+        "avenue": "brain-self-read-inject",
+        "magic": "§VITABRAIN§",
+        "learn": {
+          "ok": true,
+          "cycleIndex": 14,
+          "peer": "PASS",
+          "card": "VITA BRAIN ACTIVATE · learn cycle #14\nfiling labels: BRAIN_SEED · BRAIN_LEARN · PEER_REVIEW · ZERO_PROOF · VITA_SAVE_LEARN\n\n— OLD → NEW —\nmem 208→210  strands 81→82  lib 0→0  locs 10→10\nnew topics: brain-learn-cycle-014, peer-review-cycle-014\n\n— PEER REVIEW (filing=PEER_REVIEW) —\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zer",
+          "error": null
+        },
+        "seed": {
+          "ok": true,
+          "added": 8,
+          "skipped": 33,
+          "skipSamples": [
+            {
+              "topic": "brain-seed",
+              "reason": "deduped"
+            },
+            {
+              "topic": "aero-lose-zero-oneshot",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-bank",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-channels",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-v0",
+              "reason": "deduped"
+            },
+            {
+              "topic": "auto-wrap-remaining",
+              "reason": "deduped"
+            },
+            {
+              "topic": "base-cascade-program-operator",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-001",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-002",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-003",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-004",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-005",
+              "reason": "deduped"
+            }
+          ],
+          "items": [
+            {
+              "id": "BL-B2F9AB3D",
+              "topic": "brain-learn-cycle-014",
+              "name": "brain-learn-cycle-014.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 354,
+              "chunks": 1,
+              "contentCommit": "132509541b74a199683caabe64c5b310e8fb93d6c78817b979a1908ea9c267fa",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.879Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-C43FCD60",
+              "topic": "compression-directory",
+              "name": "compression-directory.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2606,
+              "chunks": 4,
+              "contentCommit": "9e92ee83b62c200f63eca40127f99f83fef1571c00f3e90d7d152253c71a3d64",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.896Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-9DFF0EA5",
+              "topic": "compression-learn",
+              "name": "compression-learn.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2598,
+              "chunks": 4,
+              "contentCommit": "589d8d8e87c979e5ce5d67b65b1310a6253b09c851f5cef48b4cf46da7adc2d2",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.899Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-0EF0634B",
+              "topic": "compression-telegram-unwrap",
+              "name": "compression-telegram-unwrap.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1368,
+              "chunks": 2,
+              "contentCommit": "1016f8495b2cb541d7dc5d19ef8976fbdcb825f96678791ab651dac73b2aaac3",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.902Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-AD7AEFF8",
+              "topic": "dharma-6g-vitafeed-force",
+              "name": "dharma-6g-vitafeed-force.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 629,
+              "chunks": 1,
+              "contentCommit": "aeea4a05db02c036858a1f02825040ab2974ac279feb3aab70b705448f60a64f",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.907Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-6A6260B2",
+              "topic": "evm-recover-latest",
+              "name": "evm-recover-latest.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2627,
+              "chunks": 4,
+              "contentCommit": "a95af5e99dc174c33a44230c6ebcbe025e38a679516a82d7e4a94c60bde764a6",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.911Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-03FBAFBA",
+              "topic": "feed-flow-growth",
+              "name": "feed-flow-growth.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 571,
+              "chunks": 1,
+              "contentCommit": "b258e84c0519a63475ac992bcb3f581c06ca9257f28f0c337e274632456bdfbd",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.914Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-B1C37AD2",
+              "topic": "feed-flow-idm-chat-proof",
+              "name": "feed-flow-idm-chat-proof.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1554,
+              "chunks": 3,
+              "contentCommit": "637ba31c45ea2051632f4fc537120f615c7c3cc5051cf5f2f75d05c4c8c38a0d",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:54:58.917Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            }
+          ],
+          "growth": {
+            "enqueued": 62,
+            "sealed": 0,
+            "partial": 0,
+            "skipped": 0,
+            "pending": 62,
+            "sealedLocCount": 0,
+            "roots": [
+              "8d67ff0a52a3527d923e10ac5808d8b53ce9701fc62309871ce44c1a8ff39d39",
+              "b9480eee6149fd1ee4dd2acf7907981c8e923009138741ddb983f12302de751c",
+              "6a890d49b62ce50a641c9aa6dca0d2df604dec1a6d965b45ffba5e4124539d00",
+              "263f4047c113e150920d36b33202d259eb0c283f8c01b888d654e389c157913b",
+              "2d958016507fccf0f0c1c116947d43bec31bc0abfce0db40d5971aabc6030f1e",
+              "05a6727925a257028610734730ad1b3bc68b4c0ea6a5c2aa8ebfe7d204b568c4",
+              "ddadb05622039c6fb5bc9e8fedf6f0f7fb0aeeee370faab9fe734da83697111f",
+              "7d30e5b10cb49f89c6f23f8d4996b7f8c4fe0e7c1ec6fac974a1b85e877e4d0b",
+              "6f02f3a4ccfdb37628a22a1a91dcfb431b1b702939b278430cacca487da11117",
+              "7599f4af1a1ed212d32cc2d23b17aea29db6c29cb64fea995416969de9149363",
+              "b69df7964ce693cfe06f92a0145a0a874db70b328619a6d246464a12e8e48dc4",
+              "de9980a6e925b79c0399089f486de74e7d2a8e50239d3dc8ad4d23655d69eb23",
+              "f1a7a93fee51f48ef3913539298afd09a432027ea8fed91ab5d38c31d11b1815",
+              "eb9ae902f2195afe0ea2bfbe3f996d093cef160250c1748a40e2fd349730e565",
+              "38513c01259ec056e4de2ed25ef7abf5b7124dacb27d464456f66ae93b2490b7",
+              "759a28369591d3456a40be7d07acc70cc5a024e3193a6f1ed7b4d1c1223dee97",
+              "ed601a1ad95a7db68774592319eb9d3a589c43393bcd1288190aea0443aa8df2",
+              "814fb64d5214ec08f60b081bb4bd94406e4fdfcfd1c13b22fdb849a9e791fe36",
+              "3a32408e970ffba38a320cf39fb96e704852c3b4811f8f969f36b9b5f6184d06",
+              "d04e98c6923a0bd775b9898026660217b10007eee63fa4725b3c8b7f9707301e",
+              "e4304f8ab9099ca1875a663ba7e5364bb0ccdaaedeaea2a9e3034e210fcb02bf",
+              "f215126698ad3a34ff12525c721848df6672fab0e64aa839cb3912e27755e47c",
+              "ac6c65bc6ddaaf36f3708d6c1fdea8b0655814def5cc0038e89d85ce83bf7fd5",
+              "90e71a8bd115b8afac762b0cfe48fca1ffb474f617f6d4a819522bf797c9a199",
+              "c688ba9165427752cb302cc1a72ce1286fa68ae72231b1168b2cef4e2d7821e1",
+              "febdb390a514f8d2cd2f9360d8530b46169ac3bb522d849c63fa9f51600bf9fe",
+              "f3a94b6e437c661aa3638d07e7538392b93d8223f2621eb713551af01a8b5afc",
+              "5b6b2115df2a7dd33309e1b258a5cf5f2e4586bd0fa844506f3245d5e6dfea7d",
+              "33df0682f3f6c210c887dcda4f90432d268832a55ac8178e8e94bbd4eaeb0ae8",
+              "2d24479d4f346b1b9cc47c9f1069f6487ff81635dc49af338f349e22d8f08afa",
+              "d01ebd5fd30364855f2f91a197a444fc351706b3363098a70371393c35b55117",
+              "abd4bc6f23dc7b8568569797e5f386d988bd5d9d521f1fd733e6f9485b6a691f"
+            ]
+          },
+          "card": "VITAFEED BACKLOG · filing=FEED_BACKLOG\npending=62  sealed=0  partial=0  locs=0  enqueued=62\nagent AI: not required — drain with /vitafeed next → confirm|override\nprefer ≤4 chunks/item · hard max 24\nnever invent hashes · VITAFEED_PAID still gates send\nNEXT pending:\n  1. BL-2B8F7DA6 · peer-review-cycle-001.txt · 2ch/886B · pending\n  2. BL-E68AA013 · peer-review-cycle-002.txt · 1ch/686B · pending\n  3. BL-53BA73EF · peer-review-cycle-003.txt · 1ch/671B · pending\n  4. BL-E07A8488 · brain-stage-10.txt · 6ch/4301B · pending\n  5. BL-5CE141AB · brain-stage-11.txt · 7ch/4403B · pending\n  6. BL-DC34C517 · feed-flow-memory-proof.txt · 1ch/603B · pending\n  7. BL-F009B2BF · brain-stage-11.txt · 7ch/4529B · pending\n  8. BL-FAE7E30C · earthrise-apollo8.jpg.g01 · 24ch/17176B · pending\nCommands: /vitafeed backlog · enqueue seed · next · proof"
+        },
+        "nextBacklog": {
+          "id": "BL-7CCA36DE",
+          "topic": "brain-seed",
+          "status": "pending"
+        },
+        "mindPreview": "§VITABRAIN§v1|kind=recursive-ai-mind|formula=original-message-first§\nVITA BLOCKCHAIN BRAIN SEED\nformula=original-message-first\nmessageFirst=true\nneverInvent=tru",
+        "note": "Backlog drains via /vitafeed next|confirm without agent AI; pulse keeps it fed"
+      },
+      "agents": {
+        "ok": true,
+        "avenue": "agent-refine",
+        "agentCount": 2,
+        "results": [
+          {
+            "id": "watcher-eureka",
+            "ok": true,
+            "pass": true,
+            "followHead": 3,
+            "note": "sandbox"
+          },
+          {
+            "id": "wave-robin",
+            "ok": true,
+            "pass": true,
+            "followHead": 6,
+            "note": "sandbox"
+          }
+        ],
+        "note": "Agents refine offline against anchors; seal still confirm|override"
+      },
+      "live": true,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "neverInventHashes": true
+    },
+    {
+      "at": "2026-09-26T23:55:14.955Z",
+      "tickCount": 1,
+      "commit8": "5a257c60",
+      "unlock": {
+        "unlocked": true,
+        "holdAllSells": false,
+        "homeNeverSell": true,
+        "status": "🏠 HOME never-sell on (APPROVE_HOME_SELL unset) — other bags may sell when gated green"
+      },
+      "plan": {
+        "prediction": {
+          "phase": "SNOWBALL_SMALL",
+          "next": {
+            "symbol": "DEGEN",
+            "tier": "LOWER",
+            "action": "cascade-lower-in",
+            "usd": 1.5,
+            "needUsd": 0.75,
+            "viable": true,
+            "rangePos": 0.11764705882352941,
+            "waveDataSource": "base-catalog",
+            "reason": "thin book — inject-all into lower/velocity snowball seat"
+          },
+          "goal": {
+            "symbol": "HOME",
+            "tier": "MAIN_INOUT"
+          }
+        },
+        "capital": {
+          "deployableUsd": 1.5,
+          "homeBagUsd": 11,
+          "thinBook": true
+        },
+        "seatCount": 5
+      },
+      "stage": {
+        "ok": true,
+        "staged": true,
+        "sim": false,
+        "reason": null,
+        "next": {
+          "symbol": "DEGEN",
+          "usd": 1.5,
+          "action": "cascade-lower-in",
+          "viable": true
+        },
+        "command": {
+          "symbol": "DEGEN",
+          "action": "buy",
+          "usd": 1.5,
+          "source": "MOTHER_BRAIN_PULSE",
+          "cascade": true,
+          "pulse": true,
+          "hopAction": "cascade-lower-in",
+          "phase": "SNOWBALL_SMALL",
+          "reason": "💓 MOTHER PULSE cascade-lower-in → DEGEN",
+          "sim": false
+        },
+        "cadence": {
+          "hops": 0,
+          "target": 8,
+          "windowMs": 900000,
+          "onPace": false,
+          "shortfall": 8,
+          "needFaster": true,
+          "nextDueMs": 0,
+          "ratePerWindow": 0
+        }
+      },
+      "brain": {
+        "ok": true,
+        "avenue": "brain-self-read-inject",
+        "magic": "§VITABRAIN§",
+        "learn": {
+          "ok": true,
+          "cycleIndex": 15,
+          "peer": "PASS",
+          "card": "VITA BRAIN ACTIVATE · learn cycle #15\nfiling labels: BRAIN_SEED · BRAIN_LEARN · PEER_REVIEW · ZERO_PROOF · VITA_SAVE_LEARN\n\n— OLD → NEW —\nmem 212→214  strands 82→83  lib 0→0  locs 10→10\nnew topics: brain-learn-cycle-015, peer-review-cycle-015\n\n— PEER REVIEW (filing=PEER_REVIEW) —\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zer",
+          "error": null
+        },
+        "seed": {
+          "ok": true,
+          "added": 8,
+          "skipped": 41,
+          "skipSamples": [
+            {
+              "topic": "brain-seed",
+              "reason": "deduped"
+            },
+            {
+              "topic": "aero-lose-zero-oneshot",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-bank",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-channels",
+              "reason": "deduped"
+            },
+            {
+              "topic": "agent-chat-v0",
+              "reason": "deduped"
+            },
+            {
+              "topic": "auto-wrap-remaining",
+              "reason": "deduped"
+            },
+            {
+              "topic": "base-cascade-program-operator",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-001",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-002",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-003",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-004",
+              "reason": "deduped"
+            },
+            {
+              "topic": "brain-learn-cycle-005",
+              "reason": "deduped"
+            }
+          ],
+          "items": [
+            {
+              "id": "BL-A321F4B0",
+              "topic": "brain-learn-cycle-015",
+              "name": "brain-learn-cycle-015.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 354,
+              "chunks": 1,
+              "contentCommit": "db2c1298d9fadef1019297780ec245fabd21cffd5904754b87113f88a8e88570",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.020Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-C250B190",
+              "topic": "feed-flow-growth",
+              "name": "feed-flow-growth.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 574,
+              "chunks": 1,
+              "contentCommit": "81205339a8f19e788cd11c3d22dc20f0968a77d654e51813461017c4560bb174",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.043Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-FF335E77",
+              "topic": "filing-labels-learned",
+              "name": "filing-labels-learned.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 2648,
+              "chunks": 4,
+              "contentCommit": "31b5adbbd629cb128b1f3bc9ec6b72c25b7caddc63a962ef0d48aef74427dc93",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.048Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-20746C14",
+              "topic": "free-music-judy-learn",
+              "name": "free-music-judy-learn.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1546,
+              "chunks": 3,
+              "contentCommit": "ed235f2dc821e6bae29330906887cf9da92b9f003bb9fded1b606ace022f1900",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.053Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-D664E2C7",
+              "topic": "free-music-learn",
+              "name": "free-music-learn.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1325,
+              "chunks": 2,
+              "contentCommit": "ec2470cc9f54407d0914fb8100c42a7c8474f6803cbad77d358d96a21057e276",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.057Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-E3DE9333",
+              "topic": "free-music-library-learn",
+              "name": "free-music-library-learn.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1780,
+              "chunks": 3,
+              "contentCommit": "2bd067cd60725d9b953681791cd6dd6460058ab62f94b739a94538dec49ec5cb",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.062Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-93FACE02",
+              "topic": "free-music-loc-rail-learn",
+              "name": "free-music-loc-rail-learn.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 1637,
+              "chunks": 3,
+              "contentCommit": "824329fe087dae6662fbbaaac9193c2c26204c981267b046d0ad8c83e774c2aa",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.067Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            },
+            {
+              "id": "BL-B566EF92",
+              "topic": "hold-all-sells-home-operator",
+              "name": "hold-all-sells-home-operator.txt",
+              "mime": "text/plain",
+              "kind": "plain",
+              "source": "seed-memory",
+              "status": "pending",
+              "bytes": 285,
+              "chunks": 1,
+              "contentCommit": "61cb1436a0c9cd5bceccf91b109c4b5d40e3bc6d1e2a60705476becc06d3c4ef",
+              "locations": [],
+              "locationCount": 0,
+              "vinId": null,
+              "readerKey": null,
+              "at": "2026-09-26T23:55:15.072Z",
+              "sealedAt": null,
+              "meta": null,
+              "note": null
+            }
+          ],
+          "growth": {
+            "enqueued": 71,
+            "sealed": 0,
+            "partial": 0,
+            "skipped": 0,
+            "pending": 71,
+            "sealedLocCount": 0,
+            "roots": [
+              "7599f4af1a1ed212d32cc2d23b17aea29db6c29cb64fea995416969de9149363",
+              "b69df7964ce693cfe06f92a0145a0a874db70b328619a6d246464a12e8e48dc4",
+              "de9980a6e925b79c0399089f486de74e7d2a8e50239d3dc8ad4d23655d69eb23",
+              "f1a7a93fee51f48ef3913539298afd09a432027ea8fed91ab5d38c31d11b1815",
+              "eb9ae902f2195afe0ea2bfbe3f996d093cef160250c1748a40e2fd349730e565",
+              "38513c01259ec056e4de2ed25ef7abf5b7124dacb27d464456f66ae93b2490b7",
+              "759a28369591d3456a40be7d07acc70cc5a024e3193a6f1ed7b4d1c1223dee97",
+              "ed601a1ad95a7db68774592319eb9d3a589c43393bcd1288190aea0443aa8df2",
+              "814fb64d5214ec08f60b081bb4bd94406e4fdfcfd1c13b22fdb849a9e791fe36",
+              "3a32408e970ffba38a320cf39fb96e704852c3b4811f8f969f36b9b5f6184d06",
+              "d04e98c6923a0bd775b9898026660217b10007eee63fa4725b3c8b7f9707301e",
+              "e4304f8ab9099ca1875a663ba7e5364bb0ccdaaedeaea2a9e3034e210fcb02bf",
+              "f215126698ad3a34ff12525c721848df6672fab0e64aa839cb3912e27755e47c",
+              "ac6c65bc6ddaaf36f3708d6c1fdea8b0655814def5cc0038e89d85ce83bf7fd5",
+              "90e71a8bd115b8afac762b0cfe48fca1ffb474f617f6d4a819522bf797c9a199",
+              "c688ba9165427752cb302cc1a72ce1286fa68ae72231b1168b2cef4e2d7821e1",
+              "febdb390a514f8d2cd2f9360d8530b46169ac3bb522d849c63fa9f51600bf9fe",
+              "f3a94b6e437c661aa3638d07e7538392b93d8223f2621eb713551af01a8b5afc",
+              "5b6b2115df2a7dd33309e1b258a5cf5f2e4586bd0fa844506f3245d5e6dfea7d",
+              "33df0682f3f6c210c887dcda4f90432d268832a55ac8178e8e94bbd4eaeb0ae8",
+              "2d24479d4f346b1b9cc47c9f1069f6487ff81635dc49af338f349e22d8f08afa",
+              "d01ebd5fd30364855f2f91a197a444fc351706b3363098a70371393c35b55117",
+              "abd4bc6f23dc7b8568569797e5f386d988bd5d9d521f1fd733e6f9485b6a691f",
+              "4d9d3211d6a18db047c341b6467e7b70622c8b6cd790d887b182bba4abf3ad7d",
+              "13b8942b049433e4c912810c4a6a3e07b12b60f4e44b2133f275d510db6953f3",
+              "a0e945acb1a54146422235a09b6c22ecb5a661e075d3507be1ff051dfcfcf37e",
+              "c462282cdbf7222a5ed6441749ad476469aeee2060fca5c5d71f583c90b7f385",
+              "6572ce8d181fd3524860afb5f97786b1a52f9f1360b1ed696f65a29f1cbefa1b",
+              "0d5705d7e9312fce7b473983e5a3f1c0160970342ef3975f9e2925ae193941a7",
+              "1de0db71f45ee6ccaf27c2cbcf09c1e3c1d97cc89639d9c4db6e2001d74494b4",
+              "8e0be483fad65d70485d8ce0fe7aaf0ef0a522f9ada27c54ed1553211b6de13e",
+              "3a5c94df76898c42d8b227141871f31692fa764aa851c7c476c2668662cf2aa3"
+            ]
+          },
+          "card": "VITAFEED BACKLOG · filing=FEED_BACKLOG\npending=71  sealed=0  partial=0  locs=0  enqueued=71\nagent AI: not required — drain with /vitafeed next → confirm|override\nprefer ≤4 chunks/item · hard max 24\nnever invent hashes · VITAFEED_PAID still gates send\nNEXT pending:\n  1. BL-3EEBA546 · earthrise-apollo8.jpg.g03 · 24ch/17176B · pending\n  2. BL-F8B473E4 · earthrise-apollo8.jpg.g04 · 24ch/17176B · pending\n  3. BL-F62052F8 · earthrise-apollo8.jpg.g05 · 24ch/17176B · pending\n  4. BL-A6E04959 · earthrise-apollo8.jpg.g06 · 7ch/4435B · pending\n  5. BL-D5E9F76B · brain-stage-12.txt · 8ch/5441B · pending\n  6. BL-DB4EDD03 · aero-lose-zero-oneshot.txt · 2ch/1333B · pending\n  7. BL-997D9A2F · agent-chat-bank.txt · 4ch/2608B · pending\n  8. BL-1377D338 · agent-chat-channels.txt · 4ch/2602B · pending\nCommands: /vitafeed backlog · enqueue seed · next · proof"
+        },
+        "nextBacklog": {
+          "id": "BL-7CCA36DE",
+          "topic": "brain-seed",
+          "status": "pending"
+        },
+        "mindPreview": "§VITABRAIN§v1|kind=recursive-ai-mind|formula=original-message-first§\nVITA BLOCKCHAIN BRAIN SEED\nformula=original-message-first\nmessageFirst=true\nneverInvent=tru",
+        "note": "Backlog drains via /vitafeed next|confirm without agent AI; pulse keeps it fed"
+      },
+      "agents": {
+        "ok": true,
+        "avenue": "agent-refine",
+        "agentCount": 2,
+        "results": [
+          {
+            "id": "watcher-eureka",
+            "ok": true,
+            "pass": true,
+            "followHead": 3,
+            "note": "sandbox"
+          },
+          {
+            "id": "wave-robin",
+            "ok": true,
+            "pass": true,
+            "followHead": 6,
+            "note": "sandbox"
+          }
+        ],
+        "note": "Agents refine offline against anchors; seal still confirm|override"
+      },
+      "live": true,
+      "wallet": "0x50e1C4608c48b0c52E1EA5FBabc1c9126eA17915",
+      "neverInventHashes": true
+    }
+  ]
+}

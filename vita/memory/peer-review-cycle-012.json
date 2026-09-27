@@ -1,0 +1,14 @@
+{
+  "at": "2026-09-26T23:54:58.672Z",
+  "topic": "peer-review-cycle-012",
+  "filingLabel": "PEER_REVIEW",
+  "text": "§PEERREVIEW§v1|verdict=PASS|formula=original-message-first§\nPEER REVIEW · one pass · filing=PEER_REVIEW\nverdict=PASS\npass=never-invent-locs,message-first-formula,append-only-topics,genesis-anchors-present,system-growing,zero-proof-chained\nfail=none\nanchors=keycat-plain,eureka-prove,vita-strand\nsealedLocs=10\nlibrary=0\nmemory=198\naddedTopics=agent-chat-bank,agent-chat-channels,agent-chat-v0,base-cascade-program-operator,buy-home-2.56-operator,chain-dir-learn,chain-dir-ledger,chain-layer-checks,chain-layer-growth,chain-layer-inject,chain-layer-operator,compression-directory\nresearch=append-only content-addressed ledger + proof-carrying retrieval",
+  "hypothesis": {
+    "id": "peer-review-12",
+    "status": "passed",
+    "note": "One peer review per activate — separate from BRAIN_LEARN."
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "contentCommit": "a57acd9eba97fe8965f32f16bc6820a0e17a9ad1443781f3dcfd13fcb08d6e2e"
+}

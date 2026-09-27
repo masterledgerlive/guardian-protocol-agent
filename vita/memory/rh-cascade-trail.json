@@ -875,7 +875,109 @@
       },
       "availability": "local",
       "proven": false
+    },
+    {
+      "at": "2026-09-26T04:15:00.000Z",
+      "line": "§CASCTRAIL§v1|utc=2026-09-26T04:15:00.000Z|local=2026-09-26T04:15:00.000+00:00|unix=1790396100|label=RH_CASCADE_RAIL|src=robinhood|rail=base|hubs=HOME,AERO|n=4|in=-|out=-|loc=-|next=END",
+      "commit8": "943b78cf",
+      "bytes": 187,
+      "txHash": "0xabababababababababababababababababababababababababababababababab",
+      "seats": [
+        {
+          "symbol": "AERO",
+          "price": 0.8965,
+          "rhPair": "AERO-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.5194717136876859
+        },
+        {
+          "symbol": "BRETT",
+          "price": 0.00571,
+          "rhPair": "BRETT-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3792128723635553
+        },
+        {
+          "symbol": "VIRTUAL",
+          "price": 0.7789,
+          "rhPair": "VIRTUAL-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.3564910628348621
+        },
+        {
+          "symbol": "CLANKER",
+          "price": 13.55,
+          "rhPair": "CLANKER-USD",
+          "rhLeg": "rise",
+          "rangePos": 0.4173922390626701
+        }
+      ],
+      "outcomes": {
+        "enter": [],
+        "exit": [],
+        "hold": [
+          {
+            "symbol": "AERO",
+            "price": 0.8965,
+            "rangePos": 0.5194717136876859,
+            "rhLeg": "rise",
+            "rhAmp": 0.01494396014943959,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": true,
+            "home": false,
+            "action": "watch",
+            "tier": "MAIN_INOUT"
+          },
+          {
+            "symbol": "BRETT",
+            "price": 0.00571,
+            "rangePos": 0.3792128723635553,
+            "rhLeg": "rise",
+            "rhAmp": 0.005281690140845008,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch",
+            "tier": "LOWER"
+          },
+          {
+            "symbol": "VIRTUAL",
+            "price": 0.7789,
+            "rangePos": 0.3564910628348621,
+            "rhLeg": "rise",
+            "rhAmp": 0.004125306175067799,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch",
+            "tier": "LOWER"
+          },
+          {
+            "symbol": "CLANKER",
+            "price": 13.55,
+            "rangePos": 0.4173922390626701,
+            "rhLeg": "rise",
+            "rhAmp": 0.007434944237918322,
+            "waitingUp": false,
+            "sellArmed": false,
+            "exitAt": null,
+            "aeroMain": false,
+            "home": false,
+            "action": "watch",
+            "tier": "LOWER"
+          }
+        ],
+        "readyCount": 0
+      },
+      "availability": "proven",
+      "proven": true
     }
   ],
-  "updatedAt": "2026-09-26T04:19:49.029Z"
+  "updatedAt": "2026-09-26T23:55:02.103Z"
 }

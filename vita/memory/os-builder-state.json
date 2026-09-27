@@ -5,17 +5,17 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-23T22:33:21.296Z",
-  "updatedAt": "2026-09-23T23:10:55.706Z",
+  "updatedAt": "2026-09-26T23:55:15.079Z",
   "session": {
     "agentId": "wave-robin",
-    "step": "seal",
+    "step": "language",
     "startedAt": "2026-09-23T23:10:55.694Z"
   },
   "agents": {
     "watcher-eureka": {
       "agentId": "watcher-eureka",
       "magic": "§VITAAGENT§",
-      "step": "seal",
+      "step": "language",
       "lobes": [
         "formula",
         "anchors",
@@ -48,7 +48,7 @@
         }
       ],
       "sandbox": {
-        "lastRunId": "os-run-eaab0fcbc9",
+        "lastRunId": "os-run-6e9b1b3eda",
         "passed": 5,
         "failed": 0
       },
@@ -59,14 +59,14 @@
       "contentCommit": "cbc2a47f9cf68a7b0a445fa1bae7e71138d1e1dfd40848140eca4c1c30fb49ca",
       "status": "staged",
       "createdAt": "2026-09-23T22:33:21.297Z",
-      "updatedAt": "2026-09-23T22:33:21.302Z",
+      "updatedAt": "2026-09-26T23:55:15.078Z",
       "formula": "original-message-first",
       "neverInventHashes": true
     },
     "wave-robin": {
       "agentId": "wave-robin",
       "magic": "§VITAAGENT§",
-      "step": "seal",
+      "step": "language",
       "lobes": [
         "formula",
         "anchors",
@@ -115,8 +115,8 @@
         }
       ],
       "sandbox": {
-        "lastRunId": null,
-        "passed": 0,
+        "lastRunId": "os-run-682a20b1f3",
+        "passed": 5,
         "failed": 0
       },
       "lexiconRefined": 0,
@@ -126,7 +126,7 @@
       "contentCommit": "d4bf0b848b898f7e37afc08ada615428b7d98f4a35868775723223e76fd3de7f",
       "status": "staged",
       "createdAt": "2026-09-23T23:10:55.694Z",
-      "updatedAt": "2026-09-23T23:10:55.705Z",
+      "updatedAt": "2026-09-26T23:55:15.079Z",
       "formula": "original-message-first",
       "neverInventHashes": true
     }
@@ -226,6 +226,550 @@
       "failed": 0,
       "followValid": true,
       "followHead": 3,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-dc3c342419",
+      "agentId": "watcher-eureka",
+      "at": "2026-09-26T23:54:58.752Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 3,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-82e9c3248d",
+      "agentId": "wave-robin",
+      "at": "2026-09-26T23:54:58.753Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 6,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-d544d4e2f9",
+      "agentId": "watcher-eureka",
+      "at": "2026-09-26T23:54:58.832Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 3,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-88fbb3fe42",
+      "agentId": "wave-robin",
+      "at": "2026-09-26T23:54:58.833Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 6,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-409ecb9d26",
+      "agentId": "watcher-eureka",
+      "at": "2026-09-26T23:54:58.923Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 3,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-0e62d16e5d",
+      "agentId": "wave-robin",
+      "at": "2026-09-26T23:54:58.924Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 6,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-6e9b1b3eda",
+      "agentId": "watcher-eureka",
+      "at": "2026-09-26T23:55:15.078Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 3,
+      "hitchClassBytes": 69,
+      "results": [
+        {
+          "recipeId": "eureka-learn",
+          "pass": true,
+          "fired": true,
+          "action": "append_learn",
+          "against": "eureka-prove",
+          "location": "0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "basescan": "https://basescan.org/tx/0xd9827a9c70c78be7e165934b101b8774c10fdfe8d9720bafd293fff4e5203d73",
+          "human": "IF sealed kind is eureka THEN append Eureka love into memory",
+          "machine": "IF kind=eureka THEN append_learn topic=eureka-love"
+        },
+        {
+          "recipeId": "vita-sparse",
+          "pass": true,
+          "fired": true,
+          "action": "sparse_plan",
+          "against": "vita-strand",
+          "location": "0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "basescan": "https://basescan.org/tx/0x931d84115692190a393b3a040debc5145bf8f05c8ad359ba61b861f6dbfb19db",
+          "human": "IF sealed kind is vita THEN grow sparse strand plan from loc",
+          "machine": "IF kind=vita THEN sparse_plan chunk=3"
+        },
+        {
+          "recipeId": "plain-refuse-claim",
+          "pass": true,
+          "fired": true,
+          "action": "refuse_utf8_claim",
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "IF plain 228B swap (no hitch) THEN refuse claiming Telegram as on-chain",
+          "machine": "IF kind=none THEN refuse_utf8_claim"
+        },
+        {
+          "recipeId": "keyloc-hitch",
+          "pass": true,
+          "fired": true,
+          "action": "hitch_message_first",
+          "against": "synthetic-facts",
+          "location": null,
+          "basescan": null,
+          "human": "IF leftover covers KEY+LOC THEN hitch (message-first — never mute)",
+          "machine": "IF keyLocCovered=true THEN hitch_message_first"
+        },
+        {
+          "recipeId": "neg-eureka-on-plain",
+          "pass": true,
+          "fired": false,
+          "action": null,
+          "against": "keycat-plain",
+          "location": "0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "basescan": "https://basescan.org/tx/0x5c0a93e4707a4dcf49afd4c785cb2829bce11ed026e08ba08435272d19122adf",
+          "human": "NEGATIVE: eureka trigger must not fire on plain swap",
+          "machine": "ASSERT eureka-learn fired=false on kind=none"
+        }
+      ],
+      "neverInventHashes": true
+    },
+    {
+      "runId": "os-run-682a20b1f3",
+      "agentId": "wave-robin",
+      "at": "2026-09-26T23:55:15.079Z",
+      "passed": 5,
+      "failed": 0,
+      "followValid": true,
+      "followHead": 6,
       "hitchClassBytes": 69,
       "results": [
         {

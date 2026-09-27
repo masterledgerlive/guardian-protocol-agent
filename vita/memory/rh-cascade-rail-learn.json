@@ -13,6 +13,30 @@
       "topic": "rh-cascade-rail",
       "text": "RH→Base cascade: 16 seats · enter AAVE,VVV · exit - · trail 2c6bb8c1 loc empty until seal. AERO main in/out. HOME never-sell. HOLD unlock=true.",
       "locations": []
+    },
+    {
+      "at": "2026-09-26T23:54:58.755Z",
+      "topic": "rh-wave-base-program",
+      "text": "RH wave overlay → Base program phase=SNOWBALL_SMALL · deployable $0.80 · next DEGEN $0.8 · trail undefined loc empty. HOME never-sell. RH never executes.",
+      "locations": []
+    },
+    {
+      "at": "2026-09-26T23:54:58.834Z",
+      "topic": "rh-wave-base-program",
+      "text": "RH wave overlay → Base program phase=SNOWBALL_SMALL · deployable $1.30 · next DEGEN $1.3 · trail undefined loc empty. HOME never-sell. RH never executes.",
+      "locations": []
+    },
+    {
+      "at": "2026-09-26T23:54:58.925Z",
+      "topic": "rh-wave-base-program",
+      "text": "RH wave overlay → Base program phase=SNOWBALL_SMALL · deployable $2.30 · next DEGEN $2.3 · trail undefined loc empty. HOME never-sell. RH never executes.",
+      "locations": []
+    },
+    {
+      "at": "2026-09-26T23:55:15.081Z",
+      "topic": "rh-wave-base-program",
+      "text": "RH wave overlay → Base program phase=SNOWBALL_SMALL · deployable $1.50 · next DEGEN $1.5 · trail undefined loc empty. HOME never-sell. RH never executes.",
+      "locations": []
     }
   ]
 }

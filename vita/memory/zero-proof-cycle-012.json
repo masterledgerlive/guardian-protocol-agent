@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-26T23:54:58.672Z",
+  "topic": "zero-proof-cycle-012",
+  "filingLabel": "ZERO_PROOF",
+  "text": "§ZEROPROOF§v1|cycle=12|root=8a73abfba5f3§\nZERO PROOF · filing=ZERO_PROOF · zero invented hashes\ncycle=12\nprev=7ebfc4f291aa\nroot=8a73abfba5f3ba1d758dccd2f24b1b8b9c0084717fc0c4f966627f7e871a92ce\nsquash=aa76c116fa9b39dc702ee1812d184319e3bcc0632b55fb2b17812bcc1942d5b7\nKEY8_topics=0218cd6c,024411af,0297b68a,02b91dc9,02df35b3,051a1a74,05200067,05bc3106,068279f9,075cfdd7,090b5e1c,0cbe7c00,0fd03122,106dd693,10f70907,12470f3f,13823c6f,14f70408,15d21ac2,15eb6614,16ebc09a,1a700f8f,1d44d915,1fd4cff3,213c30a1,247464dd,2500849d,25487ef8,26d61f94,292ded6c,295d4255,2a1127b2,2c446cb5,2c834fed,2d77353b,2e012a80,2e2779aa,2e58b60c,30ee5ff4,316c6bea,32af0983,34aacadd,355ce347,361ef177,38109f95,391c3546,399e25d3,3bbdf48a,3f5ccfd2,40a252a5,4104d579,4187e499,4223e32a,429ecd38,449799d2,44c877d7,45339f42,4aa01602,4bccc84e,4f379b04,501f84a1,51e6d2be,520dbf52,52f9e2b9,54c5e37f,553c3aa7,56428599,56a17c5f,56a58ca7,584374b1,5891568c,589b2ce3,5a38699f,60867ccb,6112f75f,633888ae,635cdc16,65119d0a,65d36fbf,67330829,68745967,68c4c9ad,6a85f769,6b145135,6c89a8e1,6cb2e07f,6cd8489d,6eae878f,72fd8d43,759e9024,7a33e2f0,7aed6d98,7b32b4b5,7b7c8b73,7cc2cf56,7de83d14,7f017fc1,7f08f18b,813a0e10,825dfc05,82eb5473,83f914d9,850ea3ff,861bac1e,8b64b2c8,8c00ffb3,8f05d6ad,90ad565a,92ecdf73,9535e40f,95c3ecc1,974bae2e,9847e00e,9d7c721c,9d97605a,9dc1817f,9e0176a7,9eb9d02f,a27be75e,a5b0f6d0,a695e5e3,a8f7fe7d,aa3784b8,aaad031a,ab387ba6,ace278d8,ad1db544,ad576bb3,ae0b7155,ae654d03,b09cb34e,b10213e0,b2a7c1b9,b55f4699,b5b7a734,b659f453,b93302a0,ba94d17b,bad2cd17,bb50a8c0,bb584714,bb5ae9cf,bb9eab8d,bd41adca,bdff92db,bed66d5d,c0e45195,c4d0f3eb,c655488c,c86d1768,c894ee07,c93045cc,ca973ba3,cbcaef5b,ccb3d337,ce4eeae7,ce639955,cfe96717,d0e42cf0,d27ed312,d66e6985,d7b6f623,d9578fa2,db6e3bc0,dbae9ac1,dc88cbb9,dde52b62,de4711cb,e0fb4222,e34a80b7,e358edf9,e51ccb27,e5515a37,e5c7bfbc,e7154fda,e822aed9,e90e22f9,edae6648,edc8e9a7,ede38011,ee7a53ed,eeebceab,eff12d2a,f224dbd0,f2e2aba9,f593acda,f6cda0c9,f739cd46,f771cdd2,fa315de7,fa75fb35,fbdc315b,fc015573,fcec4837,fd0f1243,fd7159aa,fdbc0cc0,ff3214ce,ff3a2685,ff88a070\nLOC8_sealed=26abb9d4,5055c850,573ab090,5c0a93e4,640ed7b8,931d8411,b8b76dd2,d408be7f,d9827a9c,fee4d502\ncounts mem=200 strands=80 lib=0 locs=10\nretrieval=sparse KEY+LOC hitch · VIN feed · library keys · /inject anchors",
+  "root": "8a73abfba5f3ba1d758dccd2f24b1b8b9c0084717fc0c4f966627f7e871a92ce",
+  "prevRoot": "7ebfc4f291aa80b8c3db46bb2b2163ea121909f5f721a6e23608cbc2e18ab526",
+  "growth": {
+    "memoryCount": 200,
+    "strandCount": 80,
+    "libraryCount": 0,
+    "sealedLocCount": 10
+  },
+  "formula": "original-message-first",
+  "neverForget": true,
+  "neverInventHashes": true
+}

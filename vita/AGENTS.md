@@ -271,8 +271,13 @@ revenue + waiting-up; pre-arm sell on move-up; $0.05 dust; ≥8 tokens /
 15 min. HOME + AERO = dual main in/out hubs (HOME rotate never sells).
 **Base cascade program (original path):** `/cascade` · `/cascade predict` ·
 `/cascade hierarchy` · `/cascade outcomes` · `/cascade trail` ·
-`/cascade unlock` — LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy
-locked (~$11). Robinhood is **wave data only** (`vita/rh-cascade-rail.js`);
+`/cascade unlock` · `/cascade pulse` · `/cascade arm` · `/mother pulse` —
+LOWER snowball → dividend 10–30% → MAIN goal; HOME piggy locked (~$11).
+**Mother-brain pulse (continuous, no Cursor agent):** `vita/mother-brain-pulse.js`
+— unlocks HOLD_ALL_SELLS (HOME never-sell stays), ticks Base cascade in the
+trading loop, stages next hop when `MOTHER_BRAIN_PULSE_LIVE=yes`, feeds brain
+self-read backlog + OS agent refine. Default `MOTHER_BRAIN_PULSE=yes`.
+Robinhood is **wave data only** (`vita/rh-cascade-rail.js`);
 execution stays Base RISK (`vita/base-cascade-program.js`). §CASCTRAIL§ loc
 empty until seal. `/hold sells off` lifts HOLD_ALL_SELLS (HOME never-sell).
 File operator message then agentic knowledge under `vita/memory/` + `vita/strands/`.

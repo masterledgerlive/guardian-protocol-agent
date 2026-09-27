@@ -2,14 +2,15 @@
   "id": "rh-cascade-rail-v1",
   "filingLabel": "RH_CASCADE_RAIL",
   "magic": "§CASCTRAIL§v1",
-  "at": "2026-09-26T04:19:49.029Z",
+  "at": "2026-09-26T23:55:15.081Z",
   "sparse": true,
-  "dataSource": "robinhood",
+  "dataSource": "robinhood-wave-only",
   "rail": "base",
+  "execution": "base-risk-original-path",
   "hubs": [
     "HOME",
     "AERO"
   ],
-  "lastCommit8": "2c6bb8c1",
-  "learn": "Robinhood quotes auto-populate wave envelopes. Base rail cascades in/out. AERO is main in/out; HOME is piggy never-sell. §CASCTRAIL§ loc empty until real Base hash. Never invent hashes. Never sell red to place code."
+  "lastCommit8": null,
+  "learn": "Robinhood is wave data only. Base original path runs LOWER snowball → dividend 10–30% → HOME+AERO main in/out. HOME+AERO are dual hubs; HOME rotate-never-sells unless approved. §CASCTRAIL§ loc empty until real Base hash. Never invent hashes. Never sell red to place code."
 }

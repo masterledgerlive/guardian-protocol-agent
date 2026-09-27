@@ -107,6 +107,7 @@ findable.
 | `vita/memory/telegram-home-sim-ledger.json` | `TELEGRAM_HOME` | Append-only sim ledger (routes + search + snark root + IDM) |
 | `vita/strands/telegram-home.json` | `TELEGRAM_HOME` | Sparse strand: HOME buttons → callbacks → dual-engine mirror |
 | `vita/message-cascade.js` | `MESSAGE_CASCADE` | Eureka love → each token hop; instant wave HL from token data; ≥8/15m; $0.05 dust; rank revenue + waiting-up; HOME piggy + AERO main in/out |
+| `vita/mother-brain-pulse.js` | `MOTHER_BRAIN_PULSE` | Continuous unlock + Base cascade tick + brain self-read inject + OS agent refine — no Cursor agent required |
 | `vita/base-cascade-program.js` | `BASE_CASCADE_PROGRAM` | Original Base path: LOWER snowball → dividend 10–30% → MAIN goal; viable USD + prediction; HOME piggy locked |
 | `vita/rh-cascade-rail.js` | `RH_CASCADE_RAIL` | RH wave-data overlay only → feeds Base program; §CASCTRAIL§ hitch (loc after seal); never RH-executes |
 | `vita/memory/rh-cascade-rail-learn.json` | `RH_CASCADE_RAIL` | Append-only learn: RH→Base cascade + unlock |
@@ -132,6 +133,10 @@ findable.
 | `vita/strands/token-dex-player.json` | `TOKEN_PLAYER` | Sparse strand: catalog → DEX dual → legit → player popup → 32-chain other-path |
 | `vita/memory/message-cascade-operator.json` | `MESSAGE_CASCADE` | Operator love/eureka cascade brief (message half of alternation) |
 | `vita/strands/message-cascade.json` | `MESSAGE_CASCADE` | Agentic cascade knowledge (knowledge half — useful for time to come) |
+| `vita/memory/mother-brain-pulse-operator.json` | `MOTHER_BRAIN_PULSE` | Operator brief: unlock mother brain + continuous cascade without agent nudge |
+| `vita/memory/mother-brain-pulse-ledger.json` | `MOTHER_BRAIN_PULSE` | Append-only pulse ticks (phase · next hop · brain · agents) |
+| `vita/memory/mother-brain-pulse-learn.json` | `MOTHER_BRAIN_PULSE` | Append-only learn notes from pulse |
+| `vita/strands/mother-brain-pulse.json` | `MOTHER_BRAIN_PULSE` | Sparse strand: unlock → pulse → cascade stage → brain self-read → agent refine |
 | `vita/vita-feed.js` | `VITAFEED` | Exact plain / VITAFILE paid inject game (RISK confirm\|override; override bypasses liquid floor; partial seal) |
 | `vita/vita-feed-dual.js` | `VITADUAL` | Human plain ↔ machine ZK-short dual lane; side-by-side cost/size; Basescan Input Data UTF-8 read receipt; restart exit ≥$0.50 |
 | `vita/vita-feed-loader.js` | `FEED_LOADER` | Curated knowledge packs → backlog preload + dual cost mirror; Telegram know/recall; cipher hierarchy; animated `/vita/feed-loader` |
@@ -235,6 +240,7 @@ findable.
 | `VITAHELP` | Help click-through (`§VITAHELP§`) — `/help` sections + `/pick` token boxes |
 | `SYSTEMS_CHECK_ROUTES` | Route domino check (`§SYSCHECK§` routes) — folder merkle + avenue PASS/FLAG + forced seal stage; logs `systems-check-routes-*.json` |
 | `MESSAGE_CASCADE` | Eureka love message cascade into each token (`§MSGCASC§`) — instant wave HL; cadence ≥8/15m |
+| `MOTHER_BRAIN_PULSE` | Continuous mother-brain unlock + cascade pulse (`§MOTHERPULSE§`) — HOLD_ALL_SELLS lift; HOME hub; tick without Cursor agent; brain self-read backlog; OS agent refine; LIVE stage via `MOTHER_BRAIN_PULSE_LIVE` |
 | `TOKEN_PLAYER` | Token pulldown player (`§VITATOKPLAY§`) — DEX reader + trigger SIM + $0.05 seed; Telegram popup |
 | `PROVEN_PLAYER` | Proven Player (`§VITAPROVENPLAY§`) — own AV2 route; SHA-256 chunk receipt; Groth16 slot unwired; availability until a real loc |
 | `TOKEN_LEGIT` | Legitimacy dual-check (`§VITALEGIT§`) — not meme-only; DexScreener ↔ Gecko + 3rd-party refs |

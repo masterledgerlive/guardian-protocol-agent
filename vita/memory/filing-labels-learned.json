@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-20T19:52:53.284Z",
+  "at": "2026-09-26T23:55:14.976Z",
   "id": "filing-labels-learned-v1",
   "formula": "original-message-first",
   "labels": {
@@ -17,6 +17,10 @@
     "FEED_FLOW": "Append-only feed ledger + Basescan IDM chat of locs being fed",
     "MG_RECALL": "Force-banked mother-genesis recall stack — last layer is refined queries",
     "VITADIR": "DOS-style master directory — open-source unlock by file name",
+    "MIRROR_CHAIN": "GitHub-as-chain file read + SNARK unwrap + Basescan IDM",
+    "CHAIN_LAYER": "Always-on blockchain systems check — SNARK libs + EVM recover + model ring",
+    "SYSTEMS_CHECK": "Checklist proof each pass — grows memory/strands files",
+    "LLM_ONCHAIN": "LLM spin manifest — content commitment + Base locs; change at will",
     "REF_LIB": "Reference library search — trueName + ask|self; calculator first domain",
     "PROVEN_TEST": "Proven test series — recursive memory answers from packaged locs only",
     "TRANSLATOR_CODEX": "Free multilingual alias map — read once, never forget",
@@ -25,10 +29,6 @@
     "MEMORY": "Append-only learned notes",
     "STRAND": "Sparse inject chunk plans",
     "MESSAGE_CASCADE": "Eureka love → each token hop; instant wave HL; ≥8/15m; $0.05 dust",
-    "MIRROR_CHAIN": "GitHub-as-chain file read + SNARK unwrap + Basescan IDM",
-    "CHAIN_LAYER": "Always-on blockchain systems check — SNARK libs + EVM recover + model ring",
-    "SYSTEMS_CHECK": "Checklist proof each pass — grows memory/strands files",
-    "LLM_ONCHAIN": "LLM spin manifest — content commitment + Base locs; change at will",
     "TELEGRAM_HOME": "Sectioned Telegram HOME buttons + MAIN↔NEW engine mirror sims + IDM proof",
     "PLAYERS": "Named Garden + Proven player hub — filer SOURCE|REFERENCE",
     "GARDEN_PLAYER": "Named VIN/kids Garden Player holder",
@@ -37,18 +37,6 @@
     "REFERENCE": "Refined front·mid·back block; data field of touched paths",
     "SOURCE": "Original file location kept after reroute"
   },
-  "lastAdded": [
-    "PLAYERS",
-    "GARDEN_PLAYER",
-    "PROVEN_PLAYER",
-    "FILER",
-    "REFERENCE",
-    "SOURCE",
-    "CHAIN_LAYER",
-    "SYSTEMS_CHECK",
-    "LLM_ONCHAIN",
-    "TELEGRAM_HOME",
-    "MIRROR_CHAIN"
-  ],
-  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY. Systems-check layer proves recover speed without inventing hashes. TELEGRAM_HOME dual-mirrors MAIN exact UTF-8 vs NEW snark-short while learning cheaper/faster."
+  "lastAdded": [],
+  "research": "Content-addressed append-only memory (Merkle-DAG / hash-chained thoughts); distinct labels keep peer review & zero-proof apart from raw MEMORY."
 }
