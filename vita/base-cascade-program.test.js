@@ -44,9 +44,11 @@ describe("base-cascade-program hierarchy", () => {
     assert.equal(cascadeTierOf("HOME"), "MAIN_INOUT");
     assert.equal(cascadeTierOf("AERO"), "MAIN_INOUT");
     assert.equal(cascadeTierOf("LINK"), "MAIN");
+    assert.equal(cascadeTierOf("OLAS"), "MAIN");
     assert.equal(cascadeTierOf("BRETT"), "LOWER");
     assert.equal(cascadeTierOf("AAVE"), "DEFERRED");
     assert.equal(CASCADE_MAIN_SYMBOLS.includes("AERO"), false);
+    assert.ok(CASCADE_MAIN_SYMBOLS.includes("OLAS"));
     assert.ok(CASCADE_LOWER_SYMBOLS.includes("BRETT"));
     assert.ok(CASCADE_DEFERRED_MAJORS.includes("CBBTC"));
   });

@@ -202,7 +202,7 @@ describe("outlet scoreboard — GAME ghost is CUT", () => {
   it("scores catalog rows KEEP / CUT / CAUTION", () => {
     const rows = parseDefaultTokensFromAgentSource(agentSrc);
     const board = buildOutletScoreboard(rows, {
-      injectMains: ["LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO"],
+      injectMains: ["LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO", "OLAS"],
     });
     const by = Object.fromEntries(board.rows.map((r) => [r.symbol, r]));
     assert.equal(by.GAME.recommend, CUT_CLASS);

@@ -546,6 +546,26 @@ import {
   HOME_SLIPSTREAM_TICK_SPACING,
 } from "./aero-slipstream.js";
 import {
+  OLAS_TOKEN,
+  OLAS_SYMBOL,
+  OLAS_POOL_FEE_TIER,
+  OLAS_POOL_FEE_PCT,
+  BALANCER_V2_VAULT,
+  BALANCER_VAULT_ABI,
+  OLAS_BALANCER_WETH_POOL,
+  OLAS_BALANCER_WETH_POOL_ID,
+  olasBuyUsesBalancer,
+  olasBuyBypassesV3Freeze,
+  olasBuyBypassesQuoterCooldown,
+  olasBuyIgnoresUniQuoterMiss,
+  olasBalancerBuyPath,
+  encodeBalancerVaultSwap,
+  balancerDeadline,
+  balancerApproveSpenders,
+  amountOutFromBatchDeltas,
+  balancerPoolDepthFromTokens,
+} from "./olas-balancer.js";
+import {
   feeTierCandidates,
   requireLiveQuoterFill,
   plainSaleIfHitchTooThin,
@@ -1031,8 +1051,9 @@ const MOONSHOT_HOLD_USD  = 0.50;    // keep this much in non-tier tokens as lott
 // Injector main players — always compete for Tier 1 so hitch lands on real Uni books.
 // LINK first (Game favorite + oracle infra). VVV/ZORA/BNKR join as top-100 Uni V3
 // injection surfaces. UNI stays core (we route on Uniswap). AERO/MORPHO keep Base depth.
+// OLAS joins MAIN via Balancer V2 OLAS/WETH (Uni V3 factory pools are ghost).
 // CBBTC / AAVE deferred: high unit-price on thin RISK books stranded capital.
-const INJECT_MAIN_PLAYERS = ["LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO"];
+const INJECT_MAIN_PLAYERS = ["LINK", "UNI", "VVV", "ZORA", "BNKR", "AERO", "MORPHO", "OLAS"];
 const INJECT_MAIN_FAVORITE = "LINK";
 const INJECT_MAIN_MAJORS_DEFERRED = ["CBBTC", "AAVE"];
 
@@ -2161,6 +2182,11 @@ const DEFAULT_TOKENS = [
     score: { liquidity:7, waveQuality:7, fundamentals:10, coinbaseFit:10, community:7, total:41 },
     notes: "PROMOTED FROM WATCHLIST. Coinbase chose Morpho for their $1B+ lending product on Base. Real yield, real revenue, Coinbase-native. This is infrastructure." },
 
+  { symbol: "OLAS",    address: OLAS_TOKEN, feeTier: OLAS_POOL_FEE_TIER, poolFeePct: OLAS_POOL_FEE_PCT, minNetMargin: MIN_NET_MARGIN,
+    injectMain: true,
+    score: { liquidity:7, waveQuality:7, fundamentals:9, coinbaseFit:8, community:8, total:39 },
+    notes: "Autonolas — inject / cascade MAIN. Liquid book Balancer V2 OLAS/WETH 0x2da6e67C… (~$60k). Uni V3 factory pools exist but DexScreener-empty (ghost). OPERATOR_BUY /buy OLAS uses Balancer Vault, not SwapRouter02." },
+
   { symbol: "CBBTC",   address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", feeTier: 3000,  poolFeePct: 0.006, minNetMargin: MIN_NET_MARGIN,
     frozen: true,
     injectMain: false,
@@ -2709,6 +2735,76 @@ async function getSlipstreamHomeBuyQuote(amountIn) {
     pool: path.pool,
     router: path.router,
     quoter: path.quoter,
+    venue: path.venue,
+  };
+}
+
+/** OLAS WETH→OLAS: Balancer Vault getPoolTokens + queryBatchSwap, never Uni QuoterV2. */
+async function readBalancerOlasPoolDepth() {
+  try {
+    const result = await raceWithTimeout(getClient().readContract({
+      address: BALANCER_V2_VAULT,
+      abi: BALANCER_VAULT_ABI,
+      functionName: "getPoolTokens",
+      args: [OLAS_BALANCER_WETH_POOL_ID],
+    }));
+    const tokens = result?.[0] || result?.tokens;
+    const balances = result?.[1] || result?.balances;
+    return balancerPoolDepthFromTokens(tokens, balances);
+  } catch {
+    return { wethBal: 0n, olasBal: 0n, empty: false, liquidity: null };
+  }
+}
+
+async function quoteBalancerOlasBuy(amountIn) {
+  const path = olasBalancerBuyPath();
+  const depth = await readBalancerOlasPoolDepth();
+  if (depth.empty) {
+    console.log(`   🛑 EMPTY BALANCER POOL ${path.pool} — WETH/OLAS bal=0, not sending`);
+    return null;
+  }
+  const simulate = (client) => client.simulateContract({
+    address: BALANCER_V2_VAULT,
+    abi: BALANCER_VAULT_ABI,
+    functionName: "queryBatchSwap",
+    args: [
+      0, // GIVEN_IN
+      [{
+        poolId: OLAS_BALANCER_WETH_POOL_ID,
+        assetInIndex: 0n,
+        assetOutIndex: 1n,
+        amount: amountIn,
+        userData: "0x",
+      }],
+      [WETH_ADDRESS, OLAS_TOKEN],
+      {
+        sender: WALLET_ADDRESS,
+        fromInternalBalance: false,
+        recipient: WALLET_ADDRESS,
+        toInternalBalance: false,
+      },
+    ],
+    account: WALLET_ADDRESS,
+  });
+  let deltas = null;
+  try {
+    const sim = await raceWithTimeout(simulate(getClient()));
+    deltas = sim?.result;
+  } catch {
+    deltas = null;
+  }
+  const amountOut = amountOutFromBatchDeltas(deltas, 1);
+  if (!amountOut) {
+    console.log(`   ⚠️  Balancer queryBatchSwap miss OLAS — not sending (no Uni QuoterV2 fallback)`);
+    return null;
+  }
+  return {
+    amountOut,
+    fee: path.fee,
+    liquidity: depth.liquidity,
+    pool: path.pool,
+    poolId: path.poolId,
+    router: path.router,
     venue: path.venue,
   };
 }
@@ -6539,12 +6635,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     }
     // Rotate HOME buy: Uni V3 ghost probe (THIN_V3_WETH) must not block
     // WETH→HOME. Other tokens stay frozen. Normal HOME /buy still honors freeze.
+    // OLAS: Balancer V2 WETH book — Uni V3 factory pools are DexScreener-empty ghosts.
     const rotateHomeBuy = rotateHomeBuyBypassesV3Freeze(reason, token.symbol)
       || rotateHomeBuyUsesSlipstream(reason, token.symbol);
+    const olasBalancerBuy = olasBuyUsesBalancer(reason, token.symbol)
+      || olasBuyBypassesV3Freeze(reason, token.symbol);
     if (rotateHomeBuy) {
       clearRotateHomeQuoterCooldown(token.symbol, clearSlippageFails);
     }
-    if (isBuyFrozen(token.symbol) && !rotateHomeBuy) {
+    if (olasBalancerBuy) {
+      clearSlippageFails(token.symbol);
+    }
+    if (isBuyFrozen(token.symbol) && !rotateHomeBuy && !olasBalancerBuy) {
       return await skipBuy(reason, token.symbol, buyFrozenLog(token.symbol));
     }
     // Per-token min buy floor — smoke tests must clear the book minimum.
@@ -6562,7 +6664,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     if (!buyPriceGate.allow) {
       return await skipBuy(reason, token.symbol, buyPriceGate.log || `PRICE_INSANE — ${token.symbol} mark refused`);
     }
-    if (isSlippageCooledDown(token.symbol) && !rotateHomeBuyBypassesQuoterCooldown(reason, token.symbol)) {
+    if (
+      isSlippageCooledDown(token.symbol)
+      && !rotateHomeBuyBypassesQuoterCooldown(reason, token.symbol)
+      && !olasBuyBypassesQuoterCooldown(reason, token.symbol)
+    ) {
       return await skipBuy(reason, token.symbol, slippageCooldownLog(token.symbol, Date.now(), undefined, { side: "buy" }));
     }
     if (!canTrade(token.symbol, isCascade)) {
@@ -6792,11 +6898,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Uni V3 HOME/WETH 1% ghost + QuoterV2 fee probe must not bind or cooldown.
     let preferredPool = null;
     let slipstreamBuy = null;
+    let balancerBuy = null;
     if (rotateHomeBuy) {
       slipstreamBuy = rotateHomeSlipstreamBuyPath();
       console.log(
         `🏠 HOME Slipstream — ${slipstreamBuy.venue} pool ${slipstreamBuy.pool} ` +
         `tickSpacing ${slipstreamBuy.tickSpacing} (not Uni QuoterV2)`,
+      );
+    } else if (olasBalancerBuy) {
+      balancerBuy = olasBalancerBuyPath();
+      console.log(
+        `🟣 OLAS Balancer — ${balancerBuy.venue} pool ${balancerBuy.pool} ` +
+        `id ${String(balancerBuy.poolId).slice(0, 18)}… (not Uni QuoterV2)`,
       );
     } else {
       const pairs = await fetchDexScreenerPairs(token.address);
@@ -6839,6 +6952,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         quotedTokens = live?.amountOut ?? null;
         if (live?.fee) swapFee = live.fee;
         if (live?.liquidity != null) factoryLiq = live.liquidity;
+      } else if (balancerBuy) {
+        const live = await quoteBalancerOlasBuy(amountIn);
+        quotedTokens = live?.amountOut ?? null;
+        if (live?.fee) swapFee = live.fee;
+        if (live?.liquidity != null) factoryLiq = live.liquidity;
       } else {
         const live = await getOnChainBuyQuote(token.address, amountIn, token.feeTier, {
           preferredPool,
@@ -6858,11 +6976,16 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       // QUOTE_MISS increments the N=3 streak only. Immediate freeze is for
       // structural books (EMPTY_V3_POOL / THIN_V3_WETH / PRIMARY_NOT_V3_WETH).
       // quoteAtFee maps RPC timeout to the same null as a pool miss.
-      // Rotate HOME Slipstream miss must not arm Uni QuoterV2 cooldown.
-      if (!rotateHomeBuyIgnoresUniQuoterMiss(reason, token.symbol)) {
+      // Rotate HOME Slipstream / OLAS Balancer miss must not arm Uni QuoterV2 cooldown.
+      if (
+        !rotateHomeBuyIgnoresUniQuoterMiss(reason, token.symbol)
+        && !olasBuyIgnoresUniQuoterMiss(reason, token.symbol)
+      ) {
         noteSwapPathFail(token.symbol, {
           kind: quoteGate.code === "PRICE_INSANE" ? "PRICE_INSANE quote" : "QuoterV2 miss",
         });
+      } else if (olasBalancerBuy) {
+        console.log(`🟣 OLAS — Balancer quote miss; Uni QuoterV2 cooldown not armed`);
       } else {
         console.log(`🏠 ROTATE HOME — Slipstream quote miss; Uni QuoterV2 cooldown not armed`);
       }
@@ -6872,10 +6995,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
       const depthGate = requireFactoryLiquidity({
         liquidity: factoryLiq,
         symbol: token.symbol,
-        fee: slipstreamBuy ? `slipstream-${HOME_SLIPSTREAM_TICK_SPACING}` : swapFee,
+        fee: slipstreamBuy
+          ? `slipstream-${HOME_SLIPSTREAM_TICK_SPACING}`
+          : balancerBuy
+            ? "balancer-v2"
+            : swapFee,
       });
       if (!depthGate.allow) {
-        if (!rotateHomeBuy) {
+        if (!rotateHomeBuy && !olasBalancerBuy) {
           noteSwapPathFail(token.symbol, { kind: "EMPTY_V3_POOL", freezeBuys: true });
         }
         return await skipBuy(reason, token.symbol, depthGate.log);
@@ -6884,13 +7011,13 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     quotedTokens = quoteGate.quotedOut;
     const gatedPct = token.poolFeePct || 0.006;
     const feeCost = liveFeeWithinGatedCost(gatedPct, swapFee);
-    if (swapFee !== token.feeTier && !slipstreamBuy) {
+    if (swapFee !== token.feeTier && !slipstreamBuy && !balancerBuy) {
       const adopted = adoptLivePoolFee(token, swapFee);
       if (adopted.changed) {
         console.log(`   📐 ${token.symbol} Uni V3 fee ${adopted.prev} → ${adopted.fee} (live Quoter fill)`);
       }
     }
-    if (!feeCost.allow) {
+    if (!feeCost.allow && !balancerBuy) {
       return await skipBuy(reason, token.symbol, feeCost.log);
     }
     let minTokens = slippageFloor(quotedTokens, SLIPPAGE_GUARD);
@@ -6905,12 +7032,14 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     });
     if (buyMinOut.log) console.log(`   ${buyMinOut.log}`);
     if (!buyMinOut.allow) {
-      if (!rotateHomeBuy) noteSwapPathFail(token.symbol, { kind: "minOut reject" });
+      if (!rotateHomeBuy && !olasBalancerBuy) noteSwapPathFail(token.symbol, { kind: "minOut reject" });
       return await skipBuy(reason, token.symbol, `🛑 BUY SKIPPED [${token.symbol}]: amountOutMinimum sanity rejected — not sending`);
     }
     minTokens = buyMinOut.amountOutMinimum;
     if (slipstreamBuy) {
       console.log(`   📐 Slipstream buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) tickSpacing ${slipstreamBuy.tickSpacing}`);
+    } else if (balancerBuy) {
+      console.log(`   📐 Balancer buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) pool ${OLAS_BALANCER_WETH_POOL.slice(0, 10)}…`);
     } else {
       console.log(`   📐 QuoterV2 buy: expect ${quotedTokens} raw → floor ${minTokens} (${(SLIPPAGE_GUARD*100).toFixed(0)}%) fee ${swapFee}`);
     }
@@ -6949,7 +7078,12 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Actual gas used by these swaps is typically 130k-180k, so 300k is safe headroom.
     const GAS_CEILING = BigInt(800_000); // raised — BTP calldata requires 435k+ minimum
     const tokensBefore = await getTokenBalance(token.address);
-    const swapRouter = slipstreamBuy ? slipstreamBuy.router : SWAP_ROUTER;
+    const swapRouter = slipstreamBuy
+      ? slipstreamBuy.router
+      : balancerBuy
+        ? balancerBuy.router
+        : SWAP_ROUTER;
+    const ETH_ASSET = "0x0000000000000000000000000000000000000000";
     const buySwap = slipstreamBuy
       ? encodeSlipstreamExactInputSingle({
           tokenIn: WETH_ADDRESS,
@@ -6960,7 +7094,18 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
           amountIn,
           amountOutMinimum: minTokens,
         })
-      : encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
+      : balancerBuy
+        ? encodeBalancerVaultSwap({
+            poolId: balancerBuy.poolId,
+            assetIn: useWeth ? WETH_ADDRESS : ETH_ASSET,
+            assetOut: token.address,
+            amountIn,
+            amountOutMinimum: minTokens,
+            sender: WALLET_ADDRESS,
+            recipient: WALLET_ADDRESS,
+            deadline: balancerDeadline(),
+          })
+        : encodeSwap(WETH_ADDRESS, token.address, amountIn, WALLET_ADDRESS, swapFee, minTokens);
     buyVoice = planVoiceHitch(buySwap, {
       skipHitch: buySkipHitch,
       enabled: storeVoiceEnabled(),
@@ -6986,7 +7131,11 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
         cdp,
         WETH_ADDRESS,
         amountIn,
-        slipstreamBuy ? slipstreamApproveSpenders() : sellApproveSpenders(),
+        slipstreamBuy
+          ? slipstreamApproveSpenders()
+          : balancerBuy
+            ? balancerApproveSpenders()
+            : sellApproveSpenders(),
       );
       const _txParams1 = { address: WALLET_ADDRESS, network: "base",
         transaction: { to: swapRouter, gas: GAS_CEILING, data: buyVoice.data } };
