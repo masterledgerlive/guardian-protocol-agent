@@ -547,7 +547,6 @@ import {
 } from "./aero-slipstream.js";
 import {
   OLAS_TOKEN,
-  OLAS_SYMBOL,
   OLAS_POOL_FEE_TIER,
   OLAS_POOL_FEE_PCT,
   BALANCER_V2_VAULT,
@@ -560,6 +559,8 @@ import {
   olasBuyIgnoresUniQuoterMiss,
   olasBalancerBuyPath,
   encodeBalancerVaultSwap,
+  encodeQueryBatchSwapGivenIn,
+  decodeQueryBatchSwapResult,
   balancerDeadline,
   balancerApproveSpenders,
   amountOutFromBatchDeltas,
@@ -2763,35 +2764,56 @@ async function quoteBalancerOlasBuy(amountIn) {
     console.log(`   🛑 EMPTY BALANCER POOL ${path.pool} — WETH/OLAS bal=0, not sending`);
     return null;
   }
-  const simulate = (client) => client.simulateContract({
-    address: BALANCER_V2_VAULT,
-    abi: BALANCER_VAULT_ABI,
-    functionName: "queryBatchSwap",
-    args: [
-      0, // GIVEN_IN
-      [{
-        poolId: OLAS_BALANCER_WETH_POOL_ID,
-        assetInIndex: 0n,
-        assetOutIndex: 1n,
-        amount: amountIn,
-        userData: "0x",
-      }],
-      [WETH_ADDRESS, OLAS_TOKEN],
-      {
-        sender: WALLET_ADDRESS,
-        fromInternalBalance: false,
-        recipient: WALLET_ADDRESS,
-        toInternalBalance: false,
-      },
-    ],
-    account: WALLET_ADDRESS,
-  });
+  // Prefer eth_call (queryBatchSwap is a static view via call). simulateContract
+  // flakes on some public RPCs and was returning miss for live OLAS $4.
   let deltas = null;
   try {
-    const sim = await raceWithTimeout(simulate(getClient()));
-    deltas = sim?.result;
+    const data = encodeQueryBatchSwapGivenIn({
+      poolId: OLAS_BALANCER_WETH_POOL_ID,
+      assetIn: WETH_ADDRESS,
+      assetOut: OLAS_TOKEN,
+      amountIn,
+      sender: WALLET_ADDRESS,
+      recipient: WALLET_ADDRESS,
+    });
+    const raw = await raceWithTimeout(getClient().call({
+      to: BALANCER_V2_VAULT,
+      data,
+      account: WALLET_ADDRESS,
+    }));
+    const hex = typeof raw === "string" ? raw : raw?.data;
+    deltas = decodeQueryBatchSwapResult(hex);
   } catch {
     deltas = null;
+  }
+  if (!deltas) {
+    try {
+      deltas = await raceWithTimeout(getClient().readContract({
+        address: BALANCER_V2_VAULT,
+        abi: BALANCER_VAULT_ABI,
+        functionName: "queryBatchSwap",
+        args: [
+          0,
+          [{
+            poolId: OLAS_BALANCER_WETH_POOL_ID,
+            assetInIndex: 0n,
+            assetOutIndex: 1n,
+            amount: amountIn,
+            userData: "0x",
+          }],
+          [WETH_ADDRESS, OLAS_TOKEN],
+          {
+            sender: WALLET_ADDRESS,
+            fromInternalBalance: false,
+            recipient: WALLET_ADDRESS,
+            toInternalBalance: false,
+          },
+        ],
+        account: WALLET_ADDRESS,
+      }));
+    } catch {
+      deltas = null;
+    }
   }
   const amountOut = amountOutFromBatchDeltas(deltas, 1);
   if (!amountOut) {
