@@ -139,13 +139,18 @@ export async function runVrrOneshot({
     if (!(impactPct <= 3) || out <= 0n) throw new Error(`impact ${impactPct.toFixed(3)}% > 3% or no liquidity — abort`);
 
     armVrrOneshot({ env, max: 3 });
+    // Explicit nonce from chain: CDP's managed nonce returned "Nonce too low" on
+    // deploy 920fccdc (its tracker lagged the chain). Pin each send to the next
+    // chain nonce; a mismatch fails the send instead of replacing anything.
+    let nextNonce = nonce0;
     let nonSwapGasWei = 0n;
     const gasCapWei = BigInt(Math.floor((maxGasUsd / px) * 1e18));
     const send = async (transaction, label, isSwap = false) => {
       assertAllowed(transaction);
       const { transactionHash } = await cdp.evm.sendTransaction({
-        address: VRR_RISK, network: "base", transaction: { ...transaction, value: 0n },
+        address: VRR_RISK, network: "base", transaction: { ...transaction, value: 0n, nonce: nextNonce },
       });
+      nextNonce += 1;
       const r = await pub.waitForTransactionReceipt({ hash: transactionHash, timeout: 120_000 });
       const cost = r.gasUsed * r.effectiveGasPrice + BigInt(r.l1Fee ?? 0n);
       if (!isSwap) nonSwapGasWei += cost;
