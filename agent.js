@@ -201,6 +201,7 @@ import {
   isMatchingManualSell,
   resolveManualSellPct,
   manualSellReason,
+  isManualOperatorSell,
   SEED_TOKEN_TIMEOUT_MS,
   raceTimeout,
   takeQueuedManualBuys,
@@ -374,6 +375,7 @@ import {
   effectiveCascadeGasFloor,
   autoUnwrapTowardCascadeFloor,
   cascadeNativeGasOk,
+  operatorSellNativeGasOk,
   injectProveStatus,
   INJECT_PROVE_TARGET,
   DEFAULT_IMPACT_PCT,
@@ -381,6 +383,7 @@ import {
   isOperatorUnwrapArmed,
   CASCADE_GAS_FLOOR_ETH,
   THRIFT_CASCADE_GAS_FLOOR_ETH,
+  OPERATOR_SELL_GAS_THRIFT_ETH,
 } from "./cascade-rollover.js";
 import {
   evaluateCostEdgeGate,
@@ -7473,13 +7476,28 @@ async function executeSell(cdp, token, sellPct, reason, price, isProtective = fa
     // ── FIX v18: Hard live ETH gate — never attempt a tx we can't pay gas for ──
     // Even a sell costs gas. If native ETH < GAS_RESERVE we cannot send ANY tx.
     // Cascade path: unwrap WETH first so sell→cascade never dies mid-chain.
+    // OPERATOR_SELL thrift: live desk sat at 0.000499 vs reserve 0.0005 with
+    // $0 WETH — allow MANUAL SELL (operator) when native still covers this tx;
+    // HOME→WETH (or bag→WETH) proceeds fund the follow-on unwrap / OLAS buy.
     let liveNativeEth = await getEthBalance();
     if (liveNativeEth < GAS_RESERVE) {
       const topped = await ensureCascadeNativeGas(cdp, `sell-${token.symbol}`);
       liveNativeEth = await getEthBalance();
-      if (!topped || liveNativeEth < GAS_RESERVE) {
+      const opThrift = isManualOperatorSell(reason) && operatorSellNativeGasOk({
+        nativeEth: liveNativeEth,
+        gasCostEth: gasCost,
+        gasReserveEth: GAS_RESERVE,
+        thriftFloorEth: OPERATOR_SELL_GAS_THRIFT_ETH,
+      });
+      if ((!topped || liveNativeEth < GAS_RESERVE) && !opThrift) {
         console.log(`   🛑 SELL BLOCKED [${token.symbol}]: native ETH ${liveNativeEth.toFixed(6)} < gas reserve ${GAS_RESERVE} — no gas`);
         return null;
+      }
+      if (opThrift && liveNativeEth < GAS_RESERVE) {
+        console.log(
+          `   ⛽ OPERATOR SELL thrift gas [${token.symbol}]: native ${liveNativeEth.toFixed(6)} ` +
+          `< reserve ${GAS_RESERVE} — proceeding (sell→WETH funds next)`,
+        );
       }
     }
     if (!isValidUsdPrice(price)) {

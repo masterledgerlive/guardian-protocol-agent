@@ -38,6 +38,12 @@ export const THIN_BOOK_ETH = 0.01;
 export const CASCADE_GAS_FLOOR_ETH = 0.001;
 /** Thrift floor for ~$2 liquid books — one Base tx of gas, vault never. */
 export const THRIFT_CASCADE_GAS_FLOOR_ETH = 0.0005;
+/**
+ * OPERATOR_SELL thrift: allow a MANUAL SELL when native sits a hair under
+ * GAS_RESERVE (live desk: 0.000499 < 0.0005) and can still pay this tx.
+ * Sell→WETH proceeds fund the next unwrap; vault never.
+ */
+export const OPERATOR_SELL_GAS_THRIFT_ETH = 0.0004;
 /** How many future Base txs we always keep fuel for (buy + sell + next cascade). */
 export const CASCADE_MOVES_RESERVE = 3;
 /** Per-move native cushion when live gas quote is missing (conservative Base). */
@@ -349,6 +355,28 @@ export function cascadeNativeGasOk({
   if (native + 1e-12 >= floor) return true;
   if (didPartialUnwrap && native + 1e-12 >= Math.min(thrift, reserve)) return true;
   return false;
+}
+
+/**
+ * OPERATOR_SELL / MANUAL SELL (operator) may proceed when native is a dust
+ * under GAS_RESERVE but still covers this sell's gas. HOME→WETH (or any
+ * bag→WETH) then unwraps for the follow-on buy — no vault top-up.
+ */
+export function operatorSellNativeGasOk({
+  nativeEth = 0,
+  gasCostEth = 0,
+  gasReserveEth = 0.0005,
+  thriftFloorEth = OPERATOR_SELL_GAS_THRIFT_ETH,
+} = {}) {
+  const native = Math.max(0, Number(nativeEth) || 0);
+  const reserve = Math.max(0, Number(gasReserveEth) || 0);
+  const thrift = Math.max(0, Number(thriftFloorEth) || 0);
+  const gasCost = Math.max(0, Number(gasCostEth) || 0);
+  if (native + 1e-12 >= reserve) return true;
+  // Near-reserve only — far-under thrift stays blocked (no vault top-up).
+  if (!(native + 1e-12 >= thrift)) return false;
+  if (gasCost > 0) return native + 1e-12 >= gasCost * 2;
+  return true;
 }
 
 /**
