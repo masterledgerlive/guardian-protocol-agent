@@ -44,6 +44,8 @@ export const THRIFT_CASCADE_GAS_FLOOR_ETH = 0.0005;
  * Sell→WETH proceeds fund the next unwrap; vault never.
  */
 export const OPERATOR_SELL_GAS_THRIFT_ETH = 0.0004;
+/** Extra ETH buffer requested when wrapping to top up WETH for a buy. */
+export const BUY_WRAP_TOPUP_ETH = 0.0001;
 /** How many future Base txs we always keep fuel for (buy + sell + next cascade). */
 export const CASCADE_MOVES_RESERVE = 3;
 /** Per-move native cushion when live gas quote is missing (conservative Base). */
@@ -377,6 +379,46 @@ export function operatorSellNativeGasOk({
   if (!(native + 1e-12 >= thrift)) return false;
   if (gasCost > 0) return native + 1e-12 >= gasCost * 2;
   return true;
+}
+
+/**
+ * When a buy wants more than WETH and wrapping would breach the native gas
+ * floor (HOME→WETH fund leaves ETH parked at reserve), clamp spend to WETH
+ * so OPERATOR_BUY / Balancer can still fill without stripping gas.
+ */
+export function clampBuySpendAvoidingWrapBreach({
+  ethToSpend = 0,
+  weth = 0,
+  eth = 0,
+  gasFloorEth = 0.0005,
+  ethUsd = 0,
+  minSeatUsd = 1.5,
+  wrapTopupEth = BUY_WRAP_TOPUP_ETH,
+} = {}) {
+  const spend = Math.max(0, Number(ethToSpend) || 0);
+  const w = Math.max(0, Number(weth) || 0);
+  const e = Math.max(0, Number(eth) || 0);
+  const floor = Math.max(0, Number(gasFloorEth) || 0);
+  const topup = Math.max(0, Number(wrapTopupEth) || 0);
+  if (!(spend > 0)) {
+    return { spend: 0, useWeth: false, clamped: false, wrapBreach: false, needWrapEth: 0 };
+  }
+  if (w + 1e-12 >= spend) {
+    return { spend, useWeth: true, clamped: false, wrapBreach: false, needWrapEth: 0 };
+  }
+  if (e - floor + 1e-12 >= spend) {
+    return { spend, useWeth: false, clamped: false, wrapBreach: false, needWrapEth: 0 };
+  }
+  const needWrap = spend - w + topup;
+  const maxWrap = Math.max(0, e - floor);
+  if (needWrap <= maxWrap + 1e-12 && e + w - floor + 1e-12 >= spend) {
+    return { spend, useWeth: false, clamped: false, wrapBreach: false, needWrapEth: needWrap };
+  }
+  const wethUsd = w * Math.max(0, Number(ethUsd) || 0);
+  if (w > 0 && wethUsd + 1e-12 >= Math.max(0, Number(minSeatUsd) || 0)) {
+    return { spend: w, useWeth: true, clamped: true, wrapBreach: false, needWrapEth: 0 };
+  }
+  return { spend, useWeth: false, clamped: false, wrapBreach: true, needWrapEth: needWrap };
 }
 
 /**

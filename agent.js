@@ -376,6 +376,7 @@ import {
   autoUnwrapTowardCascadeFloor,
   cascadeNativeGasOk,
   operatorSellNativeGasOk,
+  clampBuySpendAvoidingWrapBreach,
   injectProveStatus,
   INJECT_PROVE_TARGET,
   DEFAULT_IMPACT_PCT,
@@ -6905,9 +6906,40 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     const floorSpend = injectAll
       ? Math.max(minSpend, Math.min(minEntry, Math.max(totalAvail, 0)))
       : minSpend;
-    const ethToSpend= forcedEth > 0
+    const ethToSpendRaw = forcedEth > 0
       ? Math.min(forcedEth, Math.max(totalAvail, 0))
       : Math.min(Math.max(floorSpend, tierEth), maxSpend);
+    // Live WETH after HOME→WETH fund — bal snapshot can lag one hop.
+    let payEth = eth;
+    let payWeth = weth;
+    if (isManualOperatorBuy(reason) || olasBuyUsesBalancer(reason, token.symbol)) {
+      try { payEth = await getEthBalance(); } catch { /* keep */ }
+      try { payWeth = await getWethBalance(); } catch { /* keep */ }
+    }
+    // HOME→WETH fund leaves native at gas reserve; wrapping to top up a $4
+    // seat breaches the floor. Clamp OPERATOR/auto buys to spendable WETH.
+    const payPlan = clampBuySpendAvoidingWrapBreach({
+      ethToSpend: ethToSpendRaw,
+      weth: payWeth,
+      eth: payEth,
+      gasFloorEth: gasFloor,
+      ethUsd,
+      minSeatUsd: Math.min(1.5, (forcedEth > 0 ? forcedEth : ethToSpendRaw) * ethUsd * 0.5),
+    });
+    if (payPlan.wrapBreach) {
+      return await skipBuy(
+        reason,
+        token.symbol,
+        `🛑 Wrap would breach cascade gas floor ${gasFloor.toFixed(6)}`,
+      );
+    }
+    let ethToSpend = payPlan.spend;
+    if (payPlan.clamped) {
+      console.log(
+        `   ⛽ BUY clamp to WETH ${ethToSpend.toFixed(6)} (was ${ethToSpendRaw.toFixed(6)}) ` +
+        `— avoid wrap under gas floor ${gasFloor.toFixed(6)}`,
+      );
+    }
 
     const underFinal = (!isManualOperatorBuy(reason) && !isVitaFeedBuyIn(reason))
       ? belowMinEntrySkip({ symbol: token.symbol, ethToSpend, minEntry, ethUsd })
@@ -7104,14 +7136,24 @@ async function executeBuy(cdp, token, bal, reason, price, forcedEth = 0, isCasca
     // Smart payment selection: prefer WETH (saves wrap gas), fall back to ETH,
     // wrap ETH → WETH if we need more WETH than available — never wrap below gas floor.
     // Wrap only after a live quote (Uni V3 or rotate HOME Slipstream).
-    let useWeth = weth >= ethToSpend;
-    if (!useWeth && weth > 0 && eth - gasFloor >= ethToSpend) {
+    // payPlan already clamped spend to WETH when wrap would breach (HOME fund path).
+    let useWeth = payPlan.useWeth || payWeth >= ethToSpend;
+    if (!useWeth && payWeth > 0 && payEth - gasFloor >= ethToSpend) {
       // Have enough ETH to cover — use ETH directly (no wrap needed)
       useWeth = false;
-    } else if (!useWeth && weth > 0 && eth + weth - gasFloor >= ethToSpend) {
+    } else if (!useWeth && payPlan.needWrapEth > 0) {
+      const wrapAmount = payPlan.needWrapEth;
+      const maxWrap = Math.max(0, payEth - gasFloor);
+      if (wrapAmount > maxWrap + 1e-12) {
+        return await skipBuy(reason, token.symbol, `🛑 Wrap would breach cascade gas floor ${gasFloor.toFixed(6)}`);
+      }
+      const wrapped = await wrapEth(cdp, wrapAmount);
+      if (wrapped) useWeth = true;
+      else useWeth = false; // fall back to direct ETH if wrap fails
+    } else if (!useWeth && payWeth > 0 && payEth + payWeth - gasFloor >= ethToSpend) {
       // Need to wrap some ETH to top up WETH — leave cascade gas floor native
-      const wrapAmount = ethToSpend - weth + 0.0001;
-      const maxWrap = Math.max(0, eth - gasFloor);
+      const wrapAmount = ethToSpend - payWeth + 0.0001;
+      const maxWrap = Math.max(0, payEth - gasFloor);
       if (wrapAmount > maxWrap + 1e-12) {
         return await skipBuy(reason, token.symbol, `🛑 Wrap would breach cascade gas floor ${gasFloor.toFixed(6)}`);
       }

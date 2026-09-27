@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-27T22:04:37.000Z",
+  "topic": "olas-home-fund-filled",
+  "role": "operator",
+  "alternation": "message",
+  "text": "Can you buy OLAS/WETH use 4 dollars from $home make sure OLAS is another main chain to cascade into with others selected",
+  "locations": [
+    {
+      "kind": "home-slipstream-sell",
+      "tx": "0x97d87ab32659a58902190acc24aba986dfa19a45399ff07a5fa99e1cd8cd7e9a",
+      "basescan": "https://basescan.org/tx/0x97d87ab32659a58902190acc24aba986dfa19a45399ff07a5fa99e1cd8cd7e9a"
+    },
+    {
+      "kind": "olas-balancer-buy",
+      "tx": "0x5d327f7d1198539ad832acc80213d9f78a9a4a1e65ef7ae7296cf44069371d02",
+      "basescan": "https://basescan.org/tx/0x5d327f7d1198539ad832acc80213d9f78a9a4a1e65ef7ae7296cf44069371d02"
+    }
+  ],
+  "hypothesis": {
+    "id": "olas-home-45-fund-balancer-4",
+    "status": "filled",
+    "asks": [
+      "OLAS MAIN beside LINK UNI VVV ZORA BNKR MORPHO",
+      "HOME:45 Slipstream → WETH funded OLAS Balancer buy (~WETH clamp 0.001392)"
+    ]
+  },
+  "formula": "original-message-first",
+  "neverForget": true
+}
