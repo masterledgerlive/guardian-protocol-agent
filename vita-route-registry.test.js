@@ -4,7 +4,12 @@ import { readFileSync } from "fs";
 import {
   encodeEntry, decodeEntry, buildDoorFromBytes, isVrrCalldata, sha256Hex,
   verifyDoorAgainstGithub, verifyRegistryTx, resolveDoors, VRR_DEFAULT_REPO,
+  ownerCommitment, verifyOwnerReveal, sealFields, unsealEntry, resolveAgents,
+  VRR_VIS, VRR_ROLE, VRR_CHAIN_BASE,
 } from "./vita-route-registry.js";
+
+// v1 wave-recall door exactly as produced by the v1 encoder (commit 9463d84a paper test).
+const V1_WAVE_RECALL = "0x565252010100010b776176652d726563616c6c0221574156452032382f32382048657261636c69747573207265636f6e737472756374034b6a6f696e205741564520736861726420626f646965732066726f6d2063616c6c646174613b205041535320696666207368613235362b4c4f4338206d6174636820616e73776572206b65790414a8fa3c1b750c39c68db36edf24bdf897175b10c00511766974612f776176652d66756c6c2e6a73062076d8362a2cbd5f8493fd6ec3bdf39ef8f3033cb7c0f5d6ec7ced6c5e68c205c00716766974612f776176652d66756c6c2e746573742e6a730820dad8acbfad84ae02e45df3d255b36ceb47703392dbdd360db8529442889d0c2c0904000e000f0a020001a8569ea9";
 
 const COMMIT = "0xa8fa3c1b750c39c68db36edf24bdf897175b10c0";
 const code = readFileSync(new URL("./vita/wave-full.js", import.meta.url));
@@ -19,7 +24,7 @@ const door = buildDoorFromBytes({
 describe("VRR encode/decode", () => {
   it("round-trips a door with magic + checksum", () => {
     const hex = encodeEntry(door);
-    assert.ok(hex.startsWith("0x56525201"));
+    assert.ok(hex.startsWith("0x56525202"));
     assert.ok(isVrrCalldata(hex));
     const d = decodeEntry(hex);
     assert.equal(d.ok, true, d.error);
@@ -101,5 +106,82 @@ describe("VRR supersede", () => {
     const r = resolveDoors(rows);
     assert.equal(r.heads["wave-recall"].txHash, t2);
     assert.equal(r.grades[t2][0].grade, 90);
+  });
+});
+
+describe("VRR v2 — backwards compat + chainId", () => {
+  it("decodes a v1 entry (chainId defaults to Base 8453, plain)", () => {
+    const d = decodeEntry(V1_WAVE_RECALL);
+    assert.equal(d.ok, true, d.error);
+    assert.equal(d.entry.version_wire, 1);
+    assert.equal(d.entry.chainId, 8453);
+    assert.equal(d.entry.visibility, VRR_VIS.PLAIN);
+    assert.equal(d.entry.doorId, "wave-recall");
+  });
+  it("v2 writes chainId explicitly and supports other chains", () => {
+    const d = decodeEntry(encodeEntry({ ...door, chainId: 1 }));
+    assert.equal(d.entry.chainId, 1);
+    assert.ok(encodeEntry(door).includes("100400002105")); // tag 0x10 len 4 → 8453
+  });
+});
+
+describe("VRR v2 — agent directory (leader/follow + hidden owner)", () => {
+  const secret = Buffer.alloc(32, 7);
+  const commit = ownerCommitment(secret, "storage-token", VRR_CHAIN_BASE);
+  const leader = { kind: "agent", agentName: "storage-token", ownerCommit: commit, role: VRR_ROLE.LEADER, visibility: VRR_VIS.PLAIN };
+  it("round-trips a leader entry and proves ownership only with the secret", () => {
+    const d = decodeEntry(encodeEntry(leader));
+    assert.equal(d.ok, true, d.error);
+    assert.equal(d.entry.kind, "agent");
+    assert.equal(d.entry.agentName, "storage-token");
+    assert.equal(verifyOwnerReveal(d.entry, secret), true);
+    assert.equal(verifyOwnerReveal(d.entry, Buffer.alloc(32, 8)), false);
+    assert.equal(verifyOwnerReveal({ ...d.entry, chainId: 1 }, secret), false); // chain-bound
+    assert.ok(!encodeEntry(leader).includes(secret.toString("hex")));
+  });
+  it("rejects bad names and short secrets", () => {
+    assert.throws(() => encodeEntry({ ...leader, agentName: "Bad Name" }), /agentName/);
+    assert.throws(() => ownerCommitment("short", "x"), /16 bytes/);
+  });
+  it("leader links follows (repeatable) and follow points to leader", () => {
+    const f1 = "0x" + "aa".repeat(32), f2 = "0x" + "bb".repeat(32);
+    const d = decodeEntry(encodeEntry({ ...leader, links: [f1, f2] }));
+    assert.deepEqual(d.entry.links, [f1, f2]);
+    const fl = decodeEntry(encodeEntry({ ...leader, role: VRR_ROLE.FOLLOW, leader: "0x" + "cc".repeat(32) }));
+    assert.equal(fl.entry.role, VRR_ROLE.FOLLOW);
+    assert.equal(fl.entry.leader, "0x" + "cc".repeat(32));
+  });
+  it("first leader holds a name; owner update needs same commit+from+supersedes; challenger needs grades", () => {
+    const L1 = "0x" + "01".repeat(32), L2 = "0x" + "02".repeat(32), X = "0x" + "03".repeat(32), F = "0x" + "04".repeat(32);
+    const other = { ...leader, ownerCommit: ownerCommitment(Buffer.alloc(32, 9), "storage-token") };
+    const rows = [
+      { txHash: L1, from: "0xA", entry: { ...leader, chainId: 8453 } },
+      { txHash: X, from: "0xB", entry: { ...other, chainId: 8453 } },
+      { txHash: L2, from: "0xA", entry: { ...leader, chainId: 8453, supersedes: L1 } },
+      { txHash: F, from: "0xA", entry: { ...leader, chainId: 8453, role: VRR_ROLE.FOLLOW, leader: L2 } },
+    ];
+    let r = resolveAgents(rows);
+    assert.equal(r["8453:storage-token"].txHash, L2);
+    assert.deepEqual(r["8453:storage-token"].follows, [F]);
+    const g = (grader, grade) => ({ txHash: "0x" + grader.repeat(64).slice(0, 64), entry: { kind: "grade", refDoor: X, grade, grader } });
+    r = resolveAgents([...rows, g("a", 95), g("b", 95), g("c", 95)]);
+    assert.equal(r["8453:storage-token"].txHash, X);
+  });
+});
+
+describe("VRR v2 — encoded visibility", () => {
+  const key = Buffer.alloc(32, 3);
+  it("seals fields (agent-decodable with key) and verifies via sealedHash", () => {
+    const s = sealFields({ desc: "secret route notes", codePath: "x/y.js" }, key, Buffer.alloc(12, 1));
+    const d = decodeEntry(encodeEntry({ ...door, desc: undefined, ...s }));
+    assert.equal(d.ok, true, d.error);
+    assert.equal(d.entry.visibility, VRR_VIS.ENCODED);
+    const u = unsealEntry(d.entry, key);
+    assert.equal(u.ok, true, u.error);
+    assert.equal(u.fields.desc, "secret route notes");
+    assert.equal(unsealEntry(d.entry, Buffer.alloc(32, 4)).ok, false);
+  });
+  it("encoded visibility without sealed payload is refused", () => {
+    assert.throws(() => encodeEntry({ ...door, visibility: VRR_VIS.ENCODED }), /sealed/);
   });
 });

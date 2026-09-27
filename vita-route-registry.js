@@ -4,10 +4,10 @@
  * On-chain = hex payload ONLY (binary calldata of a 0-ETH self-tx on Base).
  * JSON schema lives in docs/VITA_ROUTE_REGISTRY.md — never on chain.
  *
- * Wire format (v1):
+ * Wire format (v2; decoder also reads v1):
  *   magic   3B  "VRR" (0x565252)
- *   version 1B  0x01
- *   kind    1B  0x01 DOOR | 0x02 GRADE
+ *   version 1B  0x02 (0x01 accepted on read)
+ *   kind    1B  0x01 DOOR | 0x02 GRADE | 0x03 AGENT (directory leader/follow)
  *   flags   1B  reserved (0)
  *   fields  TLV*  tag(1B) len(1B, ≤255) value
  *   check   4B  sha256(magic..last field)[0:4]
@@ -17,15 +17,22 @@
  * Never invents hashes: verify() recomputes from chain + GitHub bytes.
  */
 
-import { createHash } from "crypto";
+import { createHash, createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 export const VRR_MAGIC_HEX = "565252"; // "VRR"
-export const VRR_VERSION = 1;
-export const VRR_KIND = Object.freeze({ DOOR: 1, GRADE: 2 });
+export const VRR_VERSION = 2;            // encoder writes v2
+export const VRR_SUPPORTED_VERSIONS = Object.freeze([1, 2]); // decoder reads v1 + v2
+export const VRR_KIND = Object.freeze({ DOOR: 1, GRADE: 2, AGENT: 3 });
+export const VRR_CHAIN_BASE = 8453;
+export const VRR_VIS = Object.freeze({ PLAIN: 0, ENCODED: 1 });
+export const VRR_ROLE = Object.freeze({ LEADER: 0, FOLLOW: 1 });
+export const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$/;
+/** Tags that may repeat (decoded into arrays). */
+export const VRR_REPEATABLE = Object.freeze(new Set([0x18]));
 export const VRR_DEFAULT_REPO = "masterledgerlive/guardian-protocol-agent";
 export const VRR_CHECK_BYTES = 4;
 
-/** tag → [name, type]. Types: utf8 | b20 | b32 | u8 | u16 | result */
+/** tag → [name, type]. Types: utf8 | b20 | b32 | u8 | u16 | u32 | result | bytes */
 export const VRR_TAGS = Object.freeze({
   0x01: ["doorId", "utf8"],
   0x02: ["name", "utf8"],
@@ -42,16 +49,26 @@ export const VRR_TAGS = Object.freeze({
   0x0d: ["refDoor", "b32"],    // GRADE: tx hash of graded door entry
   0x0e: ["grade", "u8"],       // GRADE: 0..100
   0x0f: ["grader", "utf8"],    // GRADE: agent id
+  // ── v2 ──
+  0x10: ["chainId", "u32"],     // EVM chain id (Base 8453); v1 entries ⇒ 8453
+  0x11: ["visibility", "u8"],   // 0 plain | 1 encoded (see sealed/sealedHash)
+  0x12: ["agentName", "utf8"],  // AGENT: unique public name (wild-west directory)
+  0x13: ["ownerCommit", "b32"], // AGENT: sha256(secret ‖ name ‖ chainId u32be)
+  0x14: ["role", "u8"],         // AGENT: 0 leader | 1 follow
+  0x15: ["leader", "b32"],      // AGENT follow: tx hash of leader entry
+  0x16: ["sealed", "bytes"],    // encoded fields: AES-256-GCM iv12‖tag16‖ct
+  0x17: ["sealedHash", "b32"],  // sha256(inner TLV plaintext) — verify after unseal
+  0x18: ["links", "b32"],       // repeatable: tx hashes (leader → follows / doors)
 });
-const NAME_TO_TAG = Object.fromEntries(
-  Object.entries(VRR_TAGS).map(([t, [n]]) => [n, Number(t)])
-);
 const TAG_ORDER = Object.keys(VRR_TAGS).map(Number);
 
 export const REQUIRED = Object.freeze({
   [VRR_KIND.DOOR]: ["doorId", "name", "commit", "codePath", "codeHash", "version"],
   [VRR_KIND.GRADE]: ["refDoor", "grade", "grader"],
+  [VRR_KIND.AGENT]: ["agentName", "ownerCommit", "role"],
 });
+const KIND_NAME = { 1: "door", 2: "grade", 3: "agent" };
+const NAME_KIND = { door: 1, grade: 2, agent: 3 };
 
 export function sha256Hex(buf) {
   return createHash("sha256").update(buf).digest("hex");
@@ -62,6 +79,12 @@ function hexBytes(v, n, name) {
   if (!new RegExp(`^[0-9a-f]{${n * 2}}$`).test(h)) {
     throw new Error(`VRR: ${name} must be ${n} bytes hex`);
   }
+  return Buffer.from(h, "hex");
+}
+
+function hexBytesAny(v, name) {
+  const h = String(v || "").replace(/^0x/i, "").toLowerCase();
+  if (!/^([0-9a-f]{2})+$/.test(h)) throw new Error(`VRR: ${name} must be hex bytes`);
   return Buffer.from(h, "hex");
 }
 
@@ -84,6 +107,12 @@ function encodeValue(name, type, v) {
       if (!Number.isInteger(n) || n < 0 || n > 65535) throw new Error(`VRR: ${name} u16`);
       const b = Buffer.alloc(2); b.writeUInt16BE(n); return b;
     }
+    case "u32": {
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 0 || n > 0xffffffff) throw new Error(`VRR: ${name} u32`);
+      const b = Buffer.alloc(4); b.writeUInt32BE(n); return b;
+    }
+    case "bytes": return Buffer.isBuffer(v) ? v : hexBytesAny(v, name);
     case "result": {
       const pass = Number(v?.pass), total = Number(v?.total);
       if (![pass, total].every((x) => Number.isInteger(x) && x >= 0 && x <= 65535) || pass > total) {
@@ -101,28 +130,70 @@ function decodeValue(type, b) {
     case "b20": case "b32": return "0x" + b.toString("hex");
     case "u8": return b[0];
     case "u16": return b.readUInt16BE(0);
+    case "u32": return b.readUInt32BE(0);
+    case "bytes": return "0x" + b.toString("hex");
     case "result": return { pass: b.readUInt16BE(0), total: b.readUInt16BE(2) };
     default: return "0x" + b.toString("hex");
   }
 }
 
-/** Encode an entry object → 0x calldata hex. */
-export function encodeEntry(entry = {}) {
-  const kind = entry.kind === "grade" || entry.kind === VRR_KIND.GRADE ? VRR_KIND.GRADE : VRR_KIND.DOOR;
-  for (const k of REQUIRED[kind]) {
-    if (entry[k] == null || entry[k] === "") throw new Error(`VRR: missing ${k}`);
-  }
-  const parts = [Buffer.from(VRR_MAGIC_HEX, "hex"), Buffer.from([VRR_VERSION, kind, 0])];
+function kindOf(k) {
+  if (typeof k === "number" && KIND_NAME[k]) return k;
+  return NAME_KIND[String(k || "door")] || VRR_KIND.DOOR;
+}
+
+/** TLV-encode fields (ascending tag order; repeatable tags emit one TLV per item). */
+export function encodeFields(entry = {}) {
+  const parts = [];
   for (const tag of TAG_ORDER) {
     const [name, type] = VRR_TAGS[tag];
-    let v = entry[name];
+    const v = entry[name];
     if (v == null) continue;
     if (name === "repo" && v === VRR_DEFAULT_REPO) continue; // default ⇒ omit
-    const val = encodeValue(name, type, v);
-    if (val.length > 255) throw new Error(`VRR: ${name} > 255 bytes`);
-    parts.push(Buffer.from([tag, val.length]), val);
+    const items = VRR_REPEATABLE.has(tag) ? (Array.isArray(v) ? v : [v]) : [v];
+    for (const it of items) {
+      const val = encodeValue(name, type, it);
+      if (val.length > 255) throw new Error(`VRR: ${name} > 255 bytes`);
+      parts.push(Buffer.from([tag, val.length]), val);
+    }
   }
-  const body = Buffer.concat(parts);
+  return Buffer.concat(parts);
+}
+
+/** Parse TLV bytes into { fields, unknownTags } or { error }. */
+export function decodeFields(buf) {
+  const fields = {}, unknownTags = [];
+  let i = 0;
+  while (i < buf.length) {
+    if (i + 2 > buf.length) return { error: "truncated TLV" };
+    const tag = buf[i], len = buf[i + 1];
+    const val = buf.subarray(i + 2, i + 2 + len);
+    if (val.length !== len) return { error: "truncated value" };
+    const spec = VRR_TAGS[tag];
+    if (!spec) unknownTags.push({ tag, hex: "0x" + val.toString("hex") }); // forward-compat
+    else if (VRR_REPEATABLE.has(tag)) (fields[spec[0]] ||= []).push(decodeValue(spec[1], val));
+    else fields[spec[0]] = decodeValue(spec[1], val);
+    i += 2 + len;
+  }
+  return { fields, unknownTags };
+}
+
+/** Encode an entry object → 0x calldata hex (v2). */
+export function encodeEntry(entry = {}) {
+  const kind = kindOf(entry.kind);
+  const e = { chainId: VRR_CHAIN_BASE, ...entry };
+  if (kind === VRR_KIND.AGENT && !AGENT_NAME_RE.test(String(e.agentName || ""))) {
+    throw new Error("VRR: agentName must be [a-z0-9-], 1-64 chars, no edge dash");
+  }
+  if (e.visibility === VRR_VIS.ENCODED && (!e.sealed || !e.sealedHash)) {
+    throw new Error("VRR: encoded visibility needs sealed + sealedHash (use sealFields)");
+  }
+  for (const k of REQUIRED[kind]) {
+    if (e[k] == null || e[k] === "") throw new Error(`VRR: missing ${k}`);
+  }
+  const body = Buffer.concat([
+    Buffer.from(VRR_MAGIC_HEX, "hex"), Buffer.from([VRR_VERSION, kind, 0]), encodeFields(e),
+  ]);
   const check = Buffer.from(sha256Hex(body).slice(0, VRR_CHECK_BYTES * 2), "hex");
   return "0x" + Buffer.concat([body, check]).toString("hex");
 }
@@ -138,26 +209,73 @@ export function decodeEntry(hex) {
   const buf = Buffer.from(h, "hex");
   if (buf.length < 6 + VRR_CHECK_BYTES) return { ok: false, error: "too short" };
   if (buf.subarray(0, 3).toString("hex") !== VRR_MAGIC_HEX) return { ok: false, error: "bad magic" };
-  if (buf[3] !== VRR_VERSION) return { ok: false, error: `unsupported version ${buf[3]}` };
+  const version = buf[3];
+  if (!VRR_SUPPORTED_VERSIONS.includes(version)) return { ok: false, error: `unsupported version ${version}` };
   const body = buf.subarray(0, buf.length - VRR_CHECK_BYTES);
   const check = buf.subarray(buf.length - VRR_CHECK_BYTES).toString("hex");
   if (sha256Hex(body).slice(0, VRR_CHECK_BYTES * 2) !== check) return { ok: false, error: "checksum mismatch" };
   const kind = buf[4];
-  if (!REQUIRED[kind]) return { ok: false, error: `unknown kind ${kind}` };
-  const entry = { kind: kind === VRR_KIND.GRADE ? "grade" : "door", repo: VRR_DEFAULT_REPO, unknownTags: [] };
-  let i = 6;
-  while (i < body.length) {
-    if (i + 2 > body.length) return { ok: false, error: "truncated TLV" };
-    const tag = body[i], len = body[i + 1];
-    const val = body.subarray(i + 2, i + 2 + len);
-    if (val.length !== len) return { ok: false, error: "truncated value" };
-    const spec = VRR_TAGS[tag];
-    if (spec) entry[spec[0]] = decodeValue(spec[1], val);
-    else entry.unknownTags.push({ tag, hex: "0x" + val.toString("hex") }); // forward-compat
-    i += 2 + len;
-  }
+  if (!REQUIRED[kind] || (version === 1 && kind > 2)) return { ok: false, error: `unknown kind ${kind}` };
+  const parsed = decodeFields(body.subarray(6));
+  if (parsed.error) return { ok: false, error: parsed.error };
+  const entry = {
+    kind: KIND_NAME[kind], version_wire: version, repo: VRR_DEFAULT_REPO,
+    chainId: VRR_CHAIN_BASE, visibility: VRR_VIS.PLAIN, ...parsed.fields, unknownTags: parsed.unknownTags,
+  };
   for (const k of REQUIRED[kind]) if (entry[k] == null) return { ok: false, error: `missing ${k}` };
   return { ok: true, entry, bytes: buf.length, checksum: check };
+}
+
+// ── Hidden owner tag (leader/follow directory) ──────────────────────────────
+
+/** ownerCommit = sha256(secret ‖ utf8(name) ‖ chainId u32be). Secret stays off-chain. */
+export function ownerCommitment(secret, name, chainId = VRR_CHAIN_BASE) {
+  const s = Buffer.isBuffer(secret) ? secret : Buffer.from(String(secret), "utf8");
+  if (s.length < 16) throw new Error("VRR: owner secret must be ≥16 bytes");
+  const c = Buffer.alloc(4); c.writeUInt32BE(Number(chainId));
+  return "0x" + sha256Hex(Buffer.concat([s, Buffer.from(String(name), "utf8"), c]));
+}
+
+/** Owner proof: reveal secret → recompute; true iff it matches the entry's commit. */
+export function verifyOwnerReveal(entry, secret) {
+  try {
+    return ownerCommitment(secret, entry.agentName, entry.chainId ?? VRR_CHAIN_BASE) === entry.ownerCommit;
+  } catch { return false; }
+}
+
+// ── Encoded visibility (agent-decodable, owner-held key) ────────────────────
+
+/**
+ * Seal selected fields with AES-256-GCM (32B key held by owner / shared with
+ * agents). Returns { visibility, sealed, sealedHash } to spread into an entry.
+ * sealedHash = sha256(inner TLV) so anyone holding the key can verify, and
+ * anyone at all can verify integrity of the ciphertext via the entry checksum.
+ */
+export function sealFields(fields, key, iv = randomBytes(12)) {
+  const k = Buffer.isBuffer(key) ? key : Buffer.from(String(key).replace(/^0x/, ""), "hex");
+  if (k.length !== 32) throw new Error("VRR: seal key must be 32 bytes");
+  const inner = encodeFields(fields);
+  const c = createCipheriv("aes-256-gcm", k, iv);
+  const ct = Buffer.concat([c.update(inner), c.final()]);
+  const sealed = Buffer.concat([iv, c.getAuthTag(), ct]);
+  if (sealed.length > 255) throw new Error("VRR: sealed payload > 255 bytes");
+  return { visibility: VRR_VIS.ENCODED, sealed: "0x" + sealed.toString("hex"), sealedHash: "0x" + sha256Hex(inner) };
+}
+
+/** Unseal an encoded entry → { ok, fields } (verifies GCM tag + sealedHash). */
+export function unsealEntry(entry, key) {
+  try {
+    const k = Buffer.isBuffer(key) ? key : Buffer.from(String(key).replace(/^0x/, ""), "hex");
+    const b = Buffer.from(String(entry.sealed).replace(/^0x/, ""), "hex");
+    const d = createDecipheriv("aes-256-gcm", k, b.subarray(0, 12));
+    d.setAuthTag(b.subarray(12, 28));
+    const inner = Buffer.concat([d.update(b.subarray(28)), d.final()]);
+    if ("0x" + sha256Hex(inner) !== entry.sealedHash) return { ok: false, error: "sealedHash mismatch" };
+    const p = decodeFields(inner);
+    return p.error ? { ok: false, error: p.error } : { ok: true, fields: p.fields };
+  } catch (e) {
+    return { ok: false, error: "unseal failed: " + (e?.message || e) };
+  }
 }
 
 /** Build a DOOR entry from local file bytes (paper test / pre-broadcast). */
@@ -227,7 +345,7 @@ export async function verifyRegistryTx(txHash, {
     status: rcpt?.status ?? null, blockNumber: rcpt?.blockNumber ? parseInt(rcpt.blockNumber, 16) : null,
   };
   if (!dec.ok) return { ...base, ok: false, error: dec.error };
-  const gh = dec.entry.kind === "door" ? await verifyDoorAgainstGithub(dec.entry, fetchImpl) : { ok: true };
+  const gh = dec.entry.kind === "door" ? await verifyDoorAgainstGithub(dec.entry, fetchImpl) : { ok: true, skipped: dec.entry.kind };
   return {
     ...base, entry: dec.entry, bytes: dec.bytes, github: gh,
     ok: rcpt?.status === "0x1" && selfCall && fromOk && base.value === "0" && gh.ok,
@@ -257,4 +375,50 @@ export function resolveDoors(rows = []) {
     (grades[r.entry.refDoor] ||= []).push({ grader: r.entry.grader, grade: r.entry.grade, txHash: r.txHash });
   }
   return { heads: Object.fromEntries(heads), grades };
+}
+
+/**
+ * Wild-west agent directory resolution (chain order):
+ *  - First valid LEADER for a name holds it.
+ *  - The holder updates by a newer LEADER with the same name + ownerCommit that
+ *    `supersedes` the current head AND is sent from the same address.
+ *  - A challenger (different ownerCommit) takes the name only when its average
+ *    grade beats the holder's by ≥ minGradeLead with ≥ minGraders distinct graders.
+ *  - FOLLOW entries attach to the leader they name (and are listed if the head
+ *    leader links them).
+ */
+export function resolveAgents(rows = [], { minGradeLead = 10, minGraders = 3 } = {}) {
+  const gradesBy = {};
+  for (const r of rows) {
+    if (r.entry?.kind !== "grade") continue;
+    const g = (gradesBy[r.entry.refDoor] ||= new Map());
+    g.set(r.entry.grader, r.entry.grade); // latest grade per grader
+  }
+  const avg = (tx) => {
+    const g = gradesBy[tx];
+    if (!g || !g.size) return { avg: 0, n: 0 };
+    return { avg: [...g.values()].reduce((a, b) => a + b, 0) / g.size, n: g.size };
+  };
+  const heads = new Map();
+  const follows = {};
+  for (const r of rows) {
+    const e = r.entry;
+    if (e?.kind !== "agent") continue;
+    if (e.role === VRR_ROLE.FOLLOW) { (follows[e.leader] ||= []).push(r.txHash); continue; }
+    const key = `${e.chainId}:${e.agentName}`;
+    const cur = heads.get(key);
+    if (!cur) { heads.set(key, r); continue; }
+    const sameOwner = e.ownerCommit === cur.entry.ownerCommit;
+    const sameFrom = r.from && cur.from && r.from.toLowerCase() === cur.from.toLowerCase();
+    if (sameOwner && sameFrom && e.supersedes === cur.txHash) { heads.set(key, r); continue; }
+    if (!sameOwner) {
+      const a = avg(r.txHash), b = avg(cur.txHash);
+      if (a.n >= minGraders && a.avg >= b.avg + minGradeLead) heads.set(key, r);
+    }
+  }
+  const out = {};
+  for (const [key, r] of heads) {
+    out[key] = { txHash: r.txHash, entry: r.entry, follows: follows[r.txHash] || [], grade: avg(r.txHash) };
+  }
+  return out;
 }
