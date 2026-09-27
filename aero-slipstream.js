@@ -184,6 +184,34 @@ export function isSlipstreamHomeBuyPath(path) {
     && String(path.router || "").toLowerCase() !== UNISWAP_SWAP_ROUTER02_BASE.toLowerCase();
 }
 
+/**
+ * HOME→WETH operator sell fills Slipstream (same pool as buy).
+ * MANUAL SELL (operator) / OPERATOR_SELL only — auto cascade never sells HOME
+ * unless APPROVE_HOME_SELL is also set (gated elsewhere).
+ */
+export function homeSellUsesSlipstream(reason, symbol) {
+  if (String(symbol || "").trim().toUpperCase() !== VERIFIED_HOME_SYMBOL) return false;
+  return String(reason || "").startsWith("MANUAL SELL (operator)");
+}
+
+/** HOME→WETH sell path descriptor (never Uni QuoterV2 ghost). */
+export function homeSlipstreamSellPath() {
+  return {
+    venue: "aerodrome-slipstream",
+    symbol: VERIFIED_HOME_SYMBOL,
+    tokenIn: VERIFIED_HOME_ADDRESS,
+    tokenOut: BASE_WETH,
+    pool: HOME_AERO_SLIPSTREAM_POOL,
+    router: SLIPSTREAM_SWAP_ROUTER,
+    quoter: SLIPSTREAM_QUOTER_V2,
+    factory: SLIPSTREAM_FACTORY,
+    tickSpacing: HOME_SLIPSTREAM_TICK_SPACING,
+    fee: HOME_FEE_TIER,
+    uniQuoterV2: null,
+    uniSwapRouter02: null,
+  };
+}
+
 export function slipstreamApproveSpenders() {
   return [SLIPSTREAM_SWAP_ROUTER];
 }
