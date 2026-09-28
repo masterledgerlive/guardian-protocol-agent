@@ -269,7 +269,11 @@ download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
 `/vitafeed dir REVEAL` — anyone with the reader key and sealed Base locs
 opens `/vita/reveal?key=…&locs=0x…,0x…`, follows VIN `prev→next` leader
 headers, stitches `§VITAFILE§`, and downloads the original (PDF/code/file)
-like a normal pull button. Machine denseline `§VITAREVEAL§` or
+like a normal pull button. **SAVE hyperlink** `/vita/reveal/save?key=…&locs=…`
+runs the stitch in the link and opens the browser save dialog. **WATCH**
+`/vita/reveal?…&watch=1` or `/vita/feed-player?lib=N` for reader/writer.
+After Telegram confirm|override, receipt includes the complete SAVE+WATCH
+formula + inline buttons. Machine denseline `§VITAREVEAL§` or
 `KEY=…|LOCS=…|FOLLOW=leader`. Availability via `VITACOMP…` open key until
 confirm|override seals real locs — never invent hashes. See
 `vita/vita-reveal.js`.

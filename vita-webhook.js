@@ -93,6 +93,7 @@
 //   GET  /vita/reveal       — KEY+LOC follow-leader revealer · download original
 //   POST /vita/reveal/pull  — stitch VIN prev→next from Base Input Data UTF-8
 //   GET  /vita/reveal/download — original file bytes (key and/or sealed locs)
+//   GET  /vita/reveal/save     — same as download · easy hyperlink opens save dialog
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -1355,6 +1356,8 @@ async function handleVitaRequest(req, res) {
           handoff: revealed.handoff || null,
           sharePath: revealed.sharePath || REVEAL_PLAYER,
           downloadPath: revealed.downloadPath || null,
+          savePath: revealed.savePath || null,
+          autoLinks: revealed.autoLinks || null,
           file: revealed.file
             ? {
                 name: revealed.file.name,
@@ -1370,7 +1373,11 @@ async function handleVitaRequest(req, res) {
         revealed.ok ? 200 : 400,
       );
     }
-    if ((path === "/vita/reveal/download" || path === "/vita/reveal/download/") && req.method === "GET") {
+    if (
+      (path === "/vita/reveal/download" || path === "/vita/reveal/download/" ||
+        path === "/vita/reveal/save" || path === "/vita/reveal/save/") &&
+      req.method === "GET"
+    ) {
       const key = normalizeReaderKey(url.searchParams.get("key") || "");
       const locs = parseLocList(url.searchParams.get("locs") || "");
       const name = String(url.searchParams.get("name") || "").trim() || null;
@@ -1379,9 +1386,21 @@ async function handleVitaRequest(req, res) {
         locs,
         name,
         fetchCalldata: fetchTxCalldataHex,
-        label: "DOWNLOAD",
+        label: path.includes("/save") ? "SAVE" : "DOWNLOAD",
       });
       if (!revealed.ok || !revealed.file?.data) {
+        // HTML bounce for browsers that hit save without a ready key
+        const accept = String(req.headers.accept || "");
+        if (accept.includes("text/html") && !accept.includes("application/json")) {
+          const bounce =
+            "/vita/reveal?save=1&auto=1" +
+            (key ? "&key=" + encodeURIComponent(key) : "") +
+            (locs.length ? "&locs=" + encodeURIComponent(locs.join(",")) : "") +
+            (name ? "&name=" + encodeURIComponent(name) : "");
+          res.writeHead(302, { location: bounce, "cache-control": "no-store" });
+          res.end();
+          return true;
+        }
         return json(res, { ok: false, reason: revealed.reason || "reveal refused" }, 404);
       }
       const fname = revealed.file.name || "original.bin";
@@ -1396,6 +1415,8 @@ async function handleVitaRequest(req, res) {
         "cache-control": "no-store",
         "x-vita-reveal-key": String(revealed.readerKey || key || ""),
         "x-vita-reveal-sha256": String(revealed.file.sha256 || ""),
+        "x-vita-reveal-mode": String(revealed.mode || ""),
+        "x-vita-reveal-chain": String(revealed.chainStatus || "availability"),
       });
       res.end(buf);
       return true;

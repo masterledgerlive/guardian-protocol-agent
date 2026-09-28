@@ -9,7 +9,11 @@
     "verified": true,
     "recover": "/vita/reveal/download?key=VITACOMP.brotli-4-v1.02bf7544",
     "proofLog": "/vita/proof-log",
-    "localPath": "vita/memory/files/helius-handoff.pdf"
+    "localPath": "vita/memory/files/helius-handoff.pdf",
+    "save": "/vita/reveal/save?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf",
+    "saveHref": "https://guardian-protocol-agent-production.up.railway.app/vita/reveal/save?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf",
+    "watch": "/vita/reveal?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf&watch=1",
+    "watchHref": "https://guardian-protocol-agent-production.up.railway.app/vita/reveal?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf&watch=1&popup=1"
   },
   "injectPlan": {
     "mode": "vitafile",
@@ -34,5 +38,6 @@
   "shareAvailability": "/vita/reveal?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf&auto=1",
   "shareAfterSeal": "/vita/reveal?key=VITAFEED.VIN-C70687ADB9&locs=<sealed,ordered,hashes>",
   "followLeader": "VIN header [VITAFEED:VIN-…:ii/nn:prev=<8hex>:next=<ii|END>] — revealer walks prev→next then downloads PDF",
-  "at": "2026-09-28T05:10:52.245Z"
+  "at": "2026-09-28T05:10:52.245Z",
+  "completeFormula": "REVEAL COMPLETE FORMULA · AVAILABILITY\nFILE helius-handoff.pdf\nKEY  VITACOMP.brotli-4-v1.02bf7544\nDENSE KEY=VITACOMP.brotli-4-v1.02bf7544|LOCS=|NAME=helius-handoff.pdf|FOLLOW=leader\n\nSAVE (tap → file save · stitch runs in link):\n  https://guardian-protocol-agent-production.up.railway.app/vita/reveal/save?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf\nWATCH (reader / writer):\n  https://guardian-protocol-agent-production.up.railway.app/vita/reveal?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf&watch=1&popup=1\nLOCS empty until confirm|override — availability save still works"
 }

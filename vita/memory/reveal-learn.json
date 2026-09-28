@@ -9,6 +9,14 @@
       "readerKeyPending": "VITAFEED.VIN-C70687ADB9",
       "chunks": 205,
       "note": "PDF filed availability · revealer page /vita/reveal · seal via compress inject or vitafeed file"
+    },
+    {
+      "at": "2026-09-28T05:36:28.730Z",
+      "kind": "file",
+      "key": "VITACOMP.brotli-4-v1.02bf7544",
+      "name": "helius-handoff.pdf",
+      "locs": 0,
+      "chainStatus": "availability"
     }
   ]
 }

@@ -15,16 +15,16 @@
       "locations": [],
       "chainStatus": "availability",
       "compressKey": "VITACOMP.brotli-4-v1.02bf7544",
-      "contentCommit": "bfa54f038bc73ad1fbff5bd238e9a9e83d5919331482f1481d6c562df80196f8",
+      "contentCommit": null,
       "rawBytes": 110461,
       "handoff": "§VITAREVEAL§v1|key=VITACOMP.brotli-4-v1.02bf7544|name=helius-handoff.pdf|mime=application%2Fpdf|sha256=02bf75440a1a176d4e624e459bde5abf4e3245913c04e3e9894b79cf0fc5571e|chunks=205|locs=§",
       "denseline": "KEY=VITACOMP.brotli-4-v1.02bf7544|LOCS=|NAME=helius-handoff.pdf|FOLLOW=leader",
       "sharePath": "/vita/reveal?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf",
+      "savePath": "/vita/reveal/save?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf",
       "source": "helius-handoff",
-      "note": "Helius Network technical handoff PDF · availability via compress open key · stage §VITAFILE§ VIN for Base seal",
-      "at": "2026-09-28T05:10:52.245Z",
-      "localPath": "vita/memory/files/helius-handoff.pdf"
+      "note": "auto SAVE+WATCH formula",
+      "at": "2026-09-28T05:36:28.730Z"
     }
   },
-  "updatedAt": "2026-09-28T05:10:52.245Z"
+  "updatedAt": "2026-09-28T05:36:28.730Z"
 }
