@@ -12,10 +12,14 @@ import { demoSealFeedLines } from "./vita-feed-player.js";
 import {
   REVEAL_MAGIC,
   REVEAL_PLAYER,
+  REVEAL_SAVE,
+  buildRevealAutoLinks,
+  buildRevealSaveWatchKeyboard,
   buildRevealSharePath,
   encodeRevealHandoff,
   fileRevealCatalog,
   followLeaderOrder,
+  formatRevealCompleteFormula,
   formatRevealHelp,
   listRevealCatalog,
   normalizeReaderKey,
@@ -199,6 +203,27 @@ describe("vita-reveal catalog + commands", () => {
     assert.equal(pull.key, "VITAFEED.VIN-AA");
     assert.equal(pull.locations.length, 1);
     assert.match(formatRevealHelp(), /follow-leader/i);
+  });
+
+  it("builds SAVE + WATCH auto links (complete formula)", () => {
+    const links = buildRevealAutoLinks({
+      key: "VITAFEED.VIN-ABC",
+      locs: ["0x" + "a".repeat(64)],
+      name: "helius-handoff.pdf",
+      mime: "application/pdf",
+      chunks: 1,
+      libN: 3,
+    });
+    assert.equal(links.ok, true);
+    assert.match(links.savePath, new RegExp("^" + REVEAL_SAVE));
+    assert.match(links.savePath, /key=VITAFEED/);
+    assert.match(links.watchPath, /feed-player\?lib=3/);
+    const formula = formatRevealCompleteFormula(links);
+    assert.match(formula, /SAVE/);
+    assert.match(formula, /WATCH/);
+    const kb = buildRevealSaveWatchKeyboard(links);
+    assert.ok(kb.inline_keyboard.length >= 1);
+    assert.match(formatRevealHelp(), /SAVE hyperlink/);
   });
 });
 

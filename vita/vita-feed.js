@@ -3257,28 +3257,73 @@ export async function handleVitaFeedAction({
       fetchUtf8: typeof fetchUtf8 === "function" ? fetchUtf8 : null,
       label: "TELEGRAM",
     });
-    return {
-      ok: revealed.ok === true,
-      phase: "reveal",
-      readerKey: revealed.readerKey || key,
-      locations: revealed.locations || [],
-      chainStatus: revealed.chainStatus || "availability",
-      handoff: revealed.handoff || null,
-      sharePath: revealed.sharePath || REVEAL_PLAYER,
-      downloadPath: revealed.downloadPath || null,
-      file: revealed.file
-        ? {
-            name: revealed.file.name,
-            mime: revealed.file.mime,
-            rawBytes: revealed.file.rawBytes,
-            sha256: revealed.file.sha256,
-            playKind: revealed.file.playKind,
-          }
-        : null,
-      neverInventHashes: true,
-      reply: formatRevealReply(revealed) + (revealed.ok ? "" : "\n\n" + formatRevealHelp()),
-      player: revealed.sharePath || REVEAL_PLAYER,
-    };
+    let links = revealed.autoLinks || null;
+    try {
+      const { buildRevealAutoLinks, formatRevealCompleteFormula, buildRevealSaveWatchKeyboard } =
+        await import("./vita-reveal.js");
+      links = buildRevealAutoLinks({
+        key: revealed.readerKey || key,
+        locs: (revealed.locations || []).map((l) => l.location || l).filter(Boolean),
+        name: revealed.file?.name || name || "",
+        mime: revealed.file?.mime || mime || "",
+        sha256: revealed.file?.sha256 || sha256 || "",
+        chunks: revealed.follow?.total || locs.length,
+        vinId: revealed.vinId || null,
+      });
+      const formula = formatRevealCompleteFormula(links);
+      return {
+        ok: revealed.ok === true,
+        phase: "reveal",
+        readerKey: revealed.readerKey || key,
+        locations: revealed.locations || [],
+        chainStatus: revealed.chainStatus || "availability",
+        handoff: revealed.handoff || null,
+        sharePath: revealed.sharePath || REVEAL_PLAYER,
+        downloadPath: revealed.downloadPath || null,
+        savePath: revealed.savePath || links.savePath,
+        autoLinks: links,
+        file: revealed.file
+          ? {
+              name: revealed.file.name,
+              mime: revealed.file.mime,
+              rawBytes: revealed.file.rawBytes,
+              sha256: revealed.file.sha256,
+              playKind: revealed.file.playKind,
+            }
+          : null,
+        neverInventHashes: true,
+        keyboard: buildRevealSaveWatchKeyboard(links),
+        reply:
+          formatRevealReply({ ...revealed, autoLinks: links, savePath: links.savePath }) +
+          "\n\n" + formula +
+          (revealed.ok ? "" : "\n\n" + formatRevealHelp()),
+        player: links.savePage || revealed.sharePath || REVEAL_PLAYER,
+      };
+    } catch {
+      return {
+        ok: revealed.ok === true,
+        phase: "reveal",
+        readerKey: revealed.readerKey || key,
+        locations: revealed.locations || [],
+        chainStatus: revealed.chainStatus || "availability",
+        handoff: revealed.handoff || null,
+        sharePath: revealed.sharePath || REVEAL_PLAYER,
+        downloadPath: revealed.downloadPath || null,
+        savePath: revealed.savePath || null,
+        file: revealed.file
+          ? {
+              name: revealed.file.name,
+              mime: revealed.file.mime,
+              rawBytes: revealed.file.rawBytes,
+              sha256: revealed.file.sha256,
+              playKind: revealed.file.playKind,
+            }
+          : null,
+        neverInventHashes: true,
+        reply: formatRevealReply(revealed) + (revealed.ok ? "" : "\n\n" + formatRevealHelp()),
+        player: revealed.sharePath || REVEAL_PLAYER,
+      };
+    }
   }
   if (action === "log" || action === "trail") {
     const { handleProofLogRequest } = await import("./proof-log.js");
@@ -3492,6 +3537,7 @@ export async function handleVitaFeedAction({
     }
     // Auto-save name + reader key + locations into the keys library.
     let librarySave = null;
+    let revealLinks = null;
     try {
       const { saveLibraryFromSeal } = await import("./vita-feed-library.js");
       if (result?.strand && (result.sealedCount > 0 || playProof?.complete)) {
@@ -3519,6 +3565,56 @@ export async function handleVitaFeedAction({
         }
       }
     } catch { /* library is best-effort — never block seal receipt */ }
+    // Automatic REVEAL complete formula — SAVE hyperlink + WATCH reader.
+    try {
+      const {
+        fileRevealCatalog,
+        buildRevealAutoLinks,
+        formatRevealCompleteFormula,
+        buildRevealSaveWatchKeyboard,
+      } = await import("./vita-reveal.js");
+      const locs = (result?.strand?.locations || result?.priorLocations || [])
+        .map(String)
+        .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
+      const readerKey =
+        result?.strand?.readerKey ||
+        row.prepared?.readerKey ||
+        null;
+      const fileMeta =
+        result?.strand?.file ||
+        playProof?.file ||
+        playProof?.play ||
+        row.prepared?.file ||
+        {};
+      if (readerKey || locs.length) {
+        fileRevealCatalog({
+          key: readerKey,
+          name: fileMeta.name || librarySave?.entry?.name || "file.bin",
+          mime: fileMeta.mime || librarySave?.entry?.mime || "application/octet-stream",
+          sha256: fileMeta.sha256 || null,
+          rawBytes: fileMeta.rawBytes ?? null,
+          chunks: result?.strand?.totalChunks || locs.length,
+          vinId: result?.strand?.vinId || row.prepared?.vinId || null,
+          locations: locs,
+          contentCommit: result?.strand?.contentCommit || row.prepared?.contentCommit || null,
+          source: "vitafeed-seal",
+          note: "auto complete formula after confirm|override",
+        });
+        revealLinks = buildRevealAutoLinks({
+          key: readerKey,
+          locs,
+          name: fileMeta.name || librarySave?.entry?.name || "",
+          mime: fileMeta.mime || "",
+          sha256: fileMeta.sha256 || "",
+          chunks: result?.strand?.totalChunks || locs.length,
+          vinId: result?.strand?.vinId || null,
+          libN: librarySave?.n ?? null,
+        });
+        if (result && typeof result === "object") {
+          result.reveal = revealLinks;
+        }
+      }
+    } catch { /* reveal formula best-effort */ }
     // Backlog growth proof — record real sealed locs when this stage came from queue/brain.
     let backlogSeal = null;
     try {
@@ -3632,6 +3728,16 @@ export async function handleVitaFeedAction({
         "\n/vitafeed files  ·  /vitafeed play " + librarySave.n +
         "  ·  /vita/feed-player?lib=" + librarySave.n
       : "";
+    let revealExtra = "";
+    let revealKeyboard = null;
+    if (revealLinks?.ok) {
+      try {
+        const { formatRevealCompleteFormula, buildRevealSaveWatchKeyboard } =
+          await import("./vita-reveal.js");
+        revealExtra = "\n\n" + formatRevealCompleteFormula(revealLinks);
+        revealKeyboard = buildRevealSaveWatchKeyboard(revealLinks);
+      } catch { /* ignore */ }
+    }
     const backlogExtra = backlogSeal?.card
       ? "\n\n" + backlogSeal.card +
         (restaged ? "" : "\nDrain more: /vitafeed next")
@@ -3661,15 +3767,17 @@ export async function handleVitaFeedAction({
       dual: Boolean(row.dual),
       playProof,
       library: librarySave,
+      reveal: revealLinks,
       backlog: backlogSeal,
       soundSeal,
       chainDir: chainDirSeal,
       forcedOverride: override,
       restaged,
+      keyboard: revealKeyboard || undefined,
       reply:
         (overrideNote ? overrideNote + "\n\n" : "") +
         card + "\n\n" + buyCard + "\n\n" + receipt + dualExtra + playExtra +
-        libExtra + backlogExtra + soundExtra + chainDirExtra + resumeExtra,
+        libExtra + revealExtra + backlogExtra + soundExtra + chainDirExtra + resumeExtra,
     };
   }
   return { ok: false, phase: "unknown", reply: vitaFeedUsageText() };

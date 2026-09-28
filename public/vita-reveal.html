@@ -171,9 +171,15 @@
 
     <div class="row">
       <button type="button" class="primary" id="btnPull">Pull &amp; stitch</button>
-      <a class="btn" id="btnDownload" href="#" hidden>Download original</a>
+      <a class="btn primary" id="btnDownload" href="#" hidden>Download original</a>
+      <a class="btn" id="btnWatch" href="#" hidden>Watch in reader</a>
       <button type="button" id="btnCopy">Copy denseline</button>
       <button type="button" id="btnShare">Copy share link</button>
+    </div>
+
+    <div class="card" id="watchCard" hidden>
+      <h2>Reader / writer</h2>
+      <div id="watchShell"></div>
     </div>
 
     <div class="card" id="statusCard">
@@ -205,6 +211,8 @@
     const q = new URLSearchParams(location.search);
     const el = (id) => document.getElementById(id);
     let lastResult = null;
+    const wantSave = q.get("save") === "1" || q.get("auto") === "1";
+    const wantWatch = q.get("watch") === "1";
 
     function fillFromQuery() {
       if (q.get("key")) el("key").value = q.get("key");
@@ -214,8 +222,8 @@
         el("handoff").placeholder =
           "KEY=…|LOCS=…|NAME=" + q.get("name") + "|FOLLOW=leader";
       }
-      if (q.get("auto") === "1" || (q.get("key") && q.get("locs"))) {
-        setTimeout(() => pull(), 200);
+      if (wantSave || wantWatch || (q.get("key") && (q.get("locs") || q.get("auto") === "1"))) {
+        setTimeout(() => pull({ autoSave: wantSave, autoWatch: wantWatch }), 120);
       }
     }
 
@@ -262,35 +270,114 @@
         "MACHINE §VITAREVEAL§:",
         result.handoff.machine || "—",
         "",
-        "Share: " + (location.origin + (result.sharePath || "/vita/reveal")),
+        "SAVE: " + (location.origin + (result.savePath || result.downloadPath || "/vita/reveal/save")),
+        "WATCH: " + (location.origin + (result.autoLinks?.watchPath || result.sharePath || "/vita/reveal")),
       ].join("\n");
     }
 
     function enableDownload(result) {
       const btn = el("btnDownload");
-      if (result.ok && result.downloadPath) {
+      const watch = el("btnWatch");
+      const saveHref = result.savePath || result.downloadPath;
+      if (result.ok && saveHref) {
         btn.hidden = false;
-        btn.href = result.downloadPath;
-        btn.download = result.file?.name || "original.bin";
+        btn.href = saveHref;
+        btn.setAttribute("download", result.file?.name || "original.bin");
         btn.textContent = "Download " + (result.file?.name || "original");
       } else if (result.ok && result.file?.dataUrl) {
         btn.hidden = false;
         btn.href = result.file.dataUrl;
-        btn.download = result.file.name || "original.bin";
+        btn.setAttribute("download", result.file.name || "original.bin");
         btn.textContent = "Download " + (result.file.name || "original");
       } else {
         btn.hidden = true;
       }
+      if (result.ok && (result.autoLinks?.watchPath || result.sharePath)) {
+        watch.hidden = false;
+        watch.href = result.autoLinks?.watchPath || (result.sharePath + (result.sharePath.includes("?") ? "&" : "?") + "watch=1");
+        watch.textContent = "Watch in reader";
+      } else {
+        watch.hidden = true;
+      }
     }
 
-    async function pull() {
-      setStatus("Pulling Basescan Input Data → UTF-8 and walking follow-leader…", "pulling");
+    function paintWatch(result) {
+      const card = el("watchCard");
+      const shell = el("watchShell");
+      if (!wantWatch || !result.ok || !result.file) {
+        card.hidden = true;
+        shell.innerHTML = "";
+        return;
+      }
+      card.hidden = false;
+      shell.innerHTML = "";
+      const mime = result.file.mime || "";
+      if (mime === "application/pdf" || /\.pdf$/i.test(result.file.name || "")) {
+        const frame = document.createElement("iframe");
+        frame.title = result.file.name || "pdf";
+        frame.src = result.file.dataUrl;
+        frame.style.cssText = "width:100%;min-height:70vh;border:1px solid #2a3d30;background:#fff";
+        shell.appendChild(frame);
+      } else if (mime.startsWith("text/") || result.file.text) {
+        const pre = document.createElement("pre");
+        pre.textContent = result.file.text || "";
+        shell.appendChild(pre);
+      } else if (mime.startsWith("image/") && result.file.dataUrl) {
+        const img = document.createElement("img");
+        img.alt = result.file.name || "image";
+        img.src = result.file.dataUrl;
+        img.style.maxWidth = "100%";
+        shell.appendChild(img);
+      } else {
+        const p = document.createElement("p");
+        p.className = "note";
+        p.textContent = "Binary ready — use Download to save, or open feed-player for playback kinds.";
+        shell.appendChild(p);
+      }
+    }
+
+    function triggerAutoSave(result) {
+      const href = result.savePath || result.downloadPath || result.file?.dataUrl;
+      if (!href) return;
+      setStatus(
+        (result.card || "READY") + "\n\nAuto-saving " + (result.file?.name || "file") + "…",
+        "saving",
+      );
+      // Prefer navigating to /save so Content-Disposition opens the save dialog.
+      if (result.savePath || result.downloadPath) {
+        const a = document.createElement("a");
+        a.href = result.savePath || result.downloadPath;
+        a.setAttribute("download", result.file?.name || "original.bin");
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else if (result.file?.dataUrl) {
+        const a = document.createElement("a");
+        a.href = result.file.dataUrl;
+        a.download = result.file.name || "original.bin";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    }
+
+    async function pull(opts = {}) {
+      const autoSave = opts.autoSave === true;
+      const autoWatch = opts.autoWatch === true;
+      setStatus(
+        autoSave
+          ? "Background stitch running in this link — then auto-save…"
+          : "Pulling Basescan Input Data → UTF-8 and walking follow-leader…",
+        autoSave ? "saving" : "pulling",
+      );
       el("btnPull").disabled = true;
       try {
         const body = {
           handoff: el("handoff").value.trim() || undefined,
           key: el("key").value.trim() || undefined,
           locs: el("locs").value.trim() || undefined,
+          name: q.get("name") || undefined,
         };
         const res = await fetch("/vita/reveal/pull", {
           method: "POST",
@@ -321,6 +408,8 @@
         paintFollow(data);
         paintMachine(data);
         enableDownload(data);
+        if (autoWatch) paintWatch(data);
+        if (autoSave) triggerAutoSave(data);
       } catch (e) {
         setStatus(String(e.message || e), "error");
       } finally {
@@ -328,7 +417,7 @@
       }
     }
 
-    el("btnPull").addEventListener("click", pull);
+    el("btnPull").addEventListener("click", () => pull({}));
     el("btnCopy").addEventListener("click", async () => {
       const text =
         lastResult?.handoff?.denseline ||
@@ -339,12 +428,13 @@
     });
     el("btnShare").addEventListener("click", async () => {
       const path =
+        lastResult?.savePath ||
         lastResult?.sharePath ||
-        ("/vita/reveal?key=" + encodeURIComponent(el("key").value) +
+        ("/vita/reveal/save?key=" + encodeURIComponent(el("key").value) +
           "&locs=" + encodeURIComponent(el("locs").value.replace(/\s+/g, ",")));
-      const url = location.origin + path;
+      const url = /^https?:\/\//i.test(path) ? path : location.origin + path;
       await navigator.clipboard.writeText(url);
-      setStatus("Copied share link.\n" + url, "copied");
+      setStatus("Copied SAVE hyperlink (opens file save · stitch in link).\n" + url, "copied");
     });
 
     fillFromQuery();

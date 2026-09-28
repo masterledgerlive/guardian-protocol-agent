@@ -46,6 +46,8 @@ export const REVEAL_DIR = "REVEAL";
 export const REVEAL_PLAYER = "/vita/reveal";
 export const REVEAL_API = "/vita/reveal/pull";
 export const REVEAL_DOWNLOAD = "/vita/reveal/download";
+/** Easy hyperlink — click opens save dialog; server stitches in the background. */
+export const REVEAL_SAVE = "/vita/reveal/save";
 
 function sha256Hex(buf) {
   return createHash("sha256").update(buf).digest("hex");
@@ -229,13 +231,170 @@ export function parseRevealHandoff(text) {
   return { ok: false, reason: "not a reveal handoff — paste §VITAREVEAL§ or KEY=…|LOCS=…" };
 }
 
-export function buildRevealSharePath({ key, locs = [], name = "" } = {}) {
+export function buildRevealSharePath({ key, locs = [], name = "", save = false, watch = false } = {}) {
   const q = new URLSearchParams();
   if (key) q.set("key", String(key));
   if (locs.length) q.set("locs", locs.filter(isTxHash).join(","));
   if (name) q.set("name", String(name));
+  if (save) {
+    q.set("save", "1");
+    q.set("auto", "1");
+  }
+  if (watch) q.set("watch", "1");
   const qs = q.toString();
   return REVEAL_PLAYER + (qs ? "?" + qs : "");
+}
+
+/**
+ * Complete formula links — SAVE (auto file) + WATCH (reader) + denseline.
+ * SAVE hits /vita/reveal/save so the browser opens the save dialog; stitch
+ * runs in the background on the server (pull locs → follow-leader → bytes).
+ */
+export function buildRevealAutoLinks({
+  key = "",
+  locs = [],
+  name = "",
+  mime = "",
+  sha256 = "",
+  chunks = 0,
+  vinId = "",
+  libN = null,
+  env = process.env,
+} = {}) {
+  const readerKey = normalizeReaderKey(key) || "";
+  const cleanLocs = (locs || []).map(String).filter(isTxHash);
+  const handoff = encodeRevealHandoff({
+    key: readerKey,
+    locs: cleanLocs,
+    name,
+    mime,
+    sha256,
+    chunks: chunks || cleanLocs.length,
+    vinId,
+  });
+  const q = new URLSearchParams();
+  if (readerKey) q.set("key", readerKey);
+  if (cleanLocs.length) q.set("locs", cleanLocs.join(","));
+  if (name) q.set("name", String(name));
+  const qs = q.toString();
+  const savePath = REVEAL_SAVE + (qs ? "?" + qs : "");
+  const downloadPath = REVEAL_DOWNLOAD + (qs ? "?" + qs : "");
+  const watchPage = buildRevealSharePath({
+    key: readerKey,
+    locs: cleanLocs,
+    name,
+    watch: true,
+  });
+  const savePage = buildRevealSharePath({
+    key: readerKey,
+    locs: cleanLocs,
+    name,
+    save: true,
+  });
+  const readerPath =
+    libN != null
+      ? "/vita/feed-player?lib=" + encodeURIComponent(String(libN))
+      : watchPage;
+
+  let saveHref = savePath;
+  let watchHref = readerPath;
+  let savePageHref = savePage;
+  try {
+    const { vitaPlayerHref } = requireUrlDir();
+    saveHref = vitaPlayerHref(savePath, { popup: false, env });
+    watchHref = vitaPlayerHref(readerPath, { popup: true, env });
+    savePageHref = vitaPlayerHref(savePage, { popup: false, env });
+  } catch {
+    /* relative paths still work on same origin */
+  }
+
+  return {
+    ok: true,
+    key: readerKey,
+    locations: cleanLocs,
+    name: name || null,
+    denseline: handoff.denseline,
+    machine: handoff.machine,
+    /** Click → Content-Disposition attachment (background stitch). */
+    savePath,
+    saveHref,
+    downloadPath,
+    /** Page that pulls then auto-clicks download. */
+    savePage,
+    savePageHref,
+    /** Reader / writer watch surface. */
+    watchPath: readerPath,
+    watchHref,
+    watchPage,
+    libN: libN != null ? Number(libN) : null,
+    chainStatus: cleanLocs.length ? "proven" : "availability",
+  };
+}
+
+function requireUrlDir() {
+  // Lazy sync import pattern for node (circular-safe).
+  return {
+    vitaPlayerHref: (...args) => {
+      // dynamic import not sync — inline absolute builder
+      const origin = String(
+        process.env.VITA_PUBLIC_URL ||
+          process.env.VITA_PUBLIC_ORIGIN ||
+          (process.env.RAILWAY_PUBLIC_DOMAIN
+            ? "https://" + String(process.env.RAILWAY_PUBLIC_DOMAIN).replace(/\/+$/, "")
+            : "https://guardian-protocol-agent-production.up.railway.app"),
+      ).replace(/\/+$/, "");
+      const path = args[0] || REVEAL_SAVE;
+      const opts = args[1] || {};
+      let rel = String(path);
+      if (/^https?:\/\//i.test(rel)) return rel;
+      if (!rel.startsWith("/")) rel = "/" + rel;
+      const u = new URL(origin + rel);
+      if (opts.popup) u.searchParams.set("popup", "1");
+      return u.toString();
+    },
+  };
+}
+
+/** Telegram / receipt block — automatic complete formula after create|seal. */
+export function formatRevealCompleteFormula(links = {}) {
+  const lines = [];
+  lines.push("REVEAL COMPLETE FORMULA · " + (links.chainStatus || "availability").toUpperCase());
+  if (links.name) lines.push("FILE " + links.name);
+  if (links.key) lines.push("KEY  " + links.key);
+  lines.push("DENSE " + (links.denseline || "—"));
+  lines.push("");
+  lines.push("SAVE (tap → file save · stitch runs in link):");
+  lines.push("  " + (links.saveHref || links.savePath || REVEAL_SAVE));
+  lines.push("WATCH (reader / writer):");
+  lines.push("  " + (links.watchHref || links.watchPath || REVEAL_PLAYER));
+  if (links.locations?.length) {
+    lines.push("LOCS " + links.locations.length + " sealed · follow-leader prev→next");
+  } else {
+    lines.push("LOCS empty until confirm|override — availability save still works");
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Telegram inline keyboard: SAVE hyperlink + WATCH reader.
+ */
+export function buildRevealSaveWatchKeyboard(links = {}) {
+  const saveUrl = String(links.saveHref || links.savePath || "").trim();
+  const watchUrl = String(links.watchHref || links.watchPath || "").trim();
+  const rows = [];
+  const top = [];
+  if (saveUrl && /^https?:\/\//i.test(saveUrl)) {
+    top.push({ text: "⬇ SAVE file", url: saveUrl });
+  }
+  if (watchUrl && /^https?:\/\//i.test(watchUrl)) {
+    top.push({ text: "▶ WATCH reader", url: watchUrl });
+  }
+  if (top.length) rows.push(top);
+  rows.push([
+    { text: "📡 Reveal", callback_data: "/vitafeed reveal" },
+    { text: "📂 REVEAL dir", callback_data: "/vitafeed dir REVEAL" },
+  ]);
+  return { inline_keyboard: rows };
 }
 
 /**
@@ -387,6 +546,8 @@ export async function revealFromKeyAndLocs({
             },
             handoff,
             downloadPath: REVEAL_DOWNLOAD + "?key=" + encodeURIComponent(readerKey),
+            savePath: REVEAL_SAVE + "?key=" + encodeURIComponent(readerKey) +
+              (name || checked.name ? "&name=" + encodeURIComponent(name || checked.name) : ""),
             sharePath: handoff.sharePath,
             card: formatRevealCard({
               complete: true,
@@ -428,6 +589,10 @@ export async function revealFromKeyAndLocs({
         handoff,
         downloadPath:
           REVEAL_DOWNLOAD +
+          "?key=" + encodeURIComponent(handoff.key) +
+          (local.name ? "&name=" + encodeURIComponent(local.name) : ""),
+        savePath:
+          REVEAL_SAVE +
           "?key=" + encodeURIComponent(handoff.key) +
           (local.name ? "&name=" + encodeURIComponent(local.name) : ""),
         sharePath: handoff.sharePath,
@@ -585,8 +750,23 @@ export async function revealFromKeyAndLocs({
     downloadPath:
       REVEAL_DOWNLOAD +
       "?key=" + encodeURIComponent(handoff.key) +
-      (cleanLocs.length ? "&locs=" + cleanLocs.join(",") : ""),
+      (cleanLocs.length ? "&locs=" + cleanLocs.join(",") : "") +
+      (file.name ? "&name=" + encodeURIComponent(file.name) : ""),
+    savePath:
+      REVEAL_SAVE +
+      "?key=" + encodeURIComponent(handoff.key) +
+      (cleanLocs.length ? "&locs=" + cleanLocs.join(",") : "") +
+      (file.name ? "&name=" + encodeURIComponent(file.name) : ""),
     sharePath: handoff.sharePath,
+    autoLinks: buildRevealAutoLinks({
+      key: handoff.key,
+      locs: cleanLocs,
+      name: file.name,
+      mime: file.mime,
+      sha256: file.sha256,
+      chunks: follow.total || orderedLines.length,
+      vinId: follow.vinId,
+    }),
     card: formatRevealCard({
       complete,
       mode: "vitafeed-vin",
@@ -720,7 +900,12 @@ export function formatRevealReply(result) {
   lines.push(clip(result.handoff?.machine || "—", 280));
   lines.push("");
   lines.push("Share link: " + (result.sharePath || REVEAL_PLAYER));
-  if (result.downloadPath) lines.push("Download: " + result.downloadPath);
+  if (result.savePath || result.downloadPath) {
+    lines.push("SAVE (auto file): " + (result.savePath || result.downloadPath));
+  }
+  if (result.autoLinks?.watchPath) {
+    lines.push("WATCH reader: " + result.autoLinks.watchPath);
+  }
   if (result.locations?.length) {
     lines.push("Basescan Input Data → UTF-8:");
     for (const loc of result.locations.slice(0, 8)) {
@@ -775,7 +960,11 @@ export function fileRevealCatalog(entry = {}, opts = {}) {
     handoff: handoff.machine,
     denseline: handoff.denseline,
     sharePath: handoff.sharePath,
+    savePath: REVEAL_SAVE + "?key=" + encodeURIComponent(key) +
+      (locs.length ? "&locs=" + locs.join(",") : "") +
+      (entry.name ? "&name=" + encodeURIComponent(entry.name) : ""),
     source: entry.source || "file",
+    localPath: entry.localPath || null,
     note: entry.note || null,
     at: new Date().toISOString(),
   };
@@ -886,6 +1075,8 @@ export function formatRevealHelp() {
     "  /vitafeed reveal §VITAREVEAL§…    — paste machine handoff",
     "",
     "Share link (anyone): /vita/reveal?key=VITAFEED.VIN-…&locs=0x…,0x…",
+    "SAVE hyperlink (auto file): /vita/reveal/save?key=…&locs=0x…  — stitch runs in the link",
+    "WATCH reader: /vita/reveal?key=…&locs=…&watch=1  or  /vita/feed-player?lib=N",
     "Download button stitches VIN prev→next then saves the original file.",
     "Basescan each loc → Input Data → View as UTF-8 to read the machine line.",
     "Never invent tx hashes — locs empty until /vitafeed confirm|override seals.",

@@ -8,12 +8,8 @@
     "Follow VIN prev→next leader headers on Base Input Data",
     "Stitch §VITAFILE§ → download original like a file pull"
   ],
-  "helius": {
-    "name": "helius-handoff.pdf",
-    "compressKey": "VITACOMP.brotli-4-v1.02bf7544",
-    "readerKeyPending": "VITAFEED.VIN-C70687ADB9",
-    "chunks": 205,
-    "sha256": "02bf75440a1a176d4e624e459bde5abf4e3245913c04e3e9894b79cf0fc5571e"
-  },
-  "updatedAt": "2026-09-28T05:10:52.245Z"
+  "lastKey": "VITACOMP.brotli-4-v1.02bf7544",
+  "lastName": "helius-handoff.pdf",
+  "files": 1,
+  "updatedAt": "2026-09-28T05:36:28.730Z"
 }
