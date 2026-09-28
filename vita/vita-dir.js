@@ -35,6 +35,7 @@ import { playerDirEntriesFor } from "./players/index.js";
 import { compressionDirEntries, verifyCompressionKey, plainTextFromBytes, machineLineFromEntry } from "./compression/index.js";
 import { photosEntriesFor } from "./photos.js";
 import { proofLogDirEntries, getProofLogEntry } from "./proof-log.js";
+import { listRevealCatalog } from "./vita-reveal.js";
 import { osBuilderDirEntries } from "./os-builder.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -70,6 +71,7 @@ export const VITADIR_SUBDIRS = Object.freeze([
   { name: "AGENTS", role: "agent chat channels", filing: "AGENT_CHAT" },
   { name: "OS", role: "DOS brain builder · IFTTT · follow-leader · sandbox", filing: "OS_BUILDER" },
   { name: "COMPRESS", role: "codec bake-off · verified key directory · then inject", filing: "COMPRESS" },
+  { name: "REVEAL", role: "KEY+LOC follow-leader stitch · download original file", filing: "REVEAL" },
   { name: "PHOTOS", role: "Google Drive / folder / URL pictures · open-picture key · slow-copy → inject", filing: "PHOTOS" },
   { name: "PROOFLOG", role: "creation-order proof-of-logs trail · key+root · race 1–3", filing: "PROOFLOG" },
   { name: "PHOS", role: "PHOSPHOR CRT · wire store · PLAY/PICTURE library", filing: "PHOSPHOR" },
@@ -209,6 +211,29 @@ function listJsonFiles(dir) {
         } catch { /* ignore */ }
         return { name: f, bytes, path };
       });
+  } catch {
+    return [];
+  }
+}
+
+function revealDirEntries() {
+  try {
+    return listRevealCatalog().map((r, i) => ({
+      n: i + 1,
+      name: r.name || r.key || ("reveal-" + (i + 1)),
+      kind: "reveal",
+      bytes: r.rawBytes || 0,
+      unlockName: r.name || r.key,
+      mime: r.mime || "application/octet-stream",
+      english:
+        "KEY+LOC reveal · " + (r.name || "?") +
+        " · " + (r.chainStatus || "availability") +
+        " · /vita/reveal?key=" + (r.key || ""),
+      machine: r.denseline || ("KEY=" + (r.key || "") + "|LOCS=" + (r.locations || []).join(",") + "|FOLLOW=leader"),
+      locations: r.locations || [],
+      readerKey: r.key || null,
+      trueName: r.name || r.key,
+    }));
   } catch {
     return [];
   }
@@ -394,6 +419,8 @@ function dirEntriesFor(subdir) {
     listX404DirEntries().forEach((e) => out.push(e));
   } else if (name === "COMPRESS" || name === "COMPRESSION" || name === "CODEC") {
     compressionDirEntries().forEach((e) => out.push(e));
+  } else if (name === "REVEAL" || name === "REVEALER" || name === "HANDOFF") {
+    revealDirEntries().forEach((e) => out.push(e));
   } else if (name === "PHOTOS" || name === "PHOTO" || name === "PICTURES" || name === "GDRIVE") {
     photosEntriesFor().forEach((e) => out.push(e));
   } else if (name === "PROOFLOG" || name === "PROOF" || name === "TRAIL") {
@@ -639,6 +666,14 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
           "PROOFLOG n=" + proofEntry.n + " key=" + proofEntry.key + " root=" + proofEntry.rootPath;
       }
     }
+    if (d === "REVEAL") {
+      english =
+        "Reveal handoff " + (hit.name || "?") +
+        " · KEY+LOCS stitch · /vita/reveal?key=" + (hit.readerKey || "");
+      machine =
+        hit.machine ||
+        ("KEY=" + (hit.readerKey || "—") + "|LOCS=" + (hit.locations || []).join(",") + "|FOLLOW=leader");
+    }
 
     const packed = packMachineShort({
       english,
@@ -671,7 +706,9 @@ export function unlockDirectoryEntry(selector, { subdir = null } = {}) {
           ? "compress unwrap → plain text + machine wire · /vitafeed compress inject · /vita/compression"
           : d === "PROOFLOG"
             ? "proof-log tabs → /vitafeed log " + (proofEntry?.n || hit.n) + " · Plain|Machine|Original|Unwrap"
-            : playGoalHint(hit.mime, hit.kind),
+            : d === "REVEAL"
+              ? "reveal KEY+LOCS → /vita/reveal?key=" + (hit.readerKey || "") + " · download original"
+              : playGoalHint(hit.mime, hit.kind),
       compress: compressChecked || null,
       proofLog: proofEntry || null,
     };

@@ -1,0 +1,14 @@
+{
+  "id": "vita-reveal-learn-v1",
+  "label": "REVEAL",
+  "events": [
+    {
+      "at": "2026-09-28T05:10:52.245Z",
+      "kind": "helius-handoff-filed",
+      "compressKey": "VITACOMP.brotli-4-v1.02bf7544",
+      "readerKeyPending": "VITAFEED.VIN-C70687ADB9",
+      "chunks": 205,
+      "note": "PDF filed availability · revealer page /vita/reveal · seal via compress inject or vitafeed file"
+    }
+  ]
+}

@@ -231,7 +231,17 @@
       "verified": true,
       "messageOut": false,
       "raceSlot": null
+    },
+    {
+      "at": "2026-09-28T05:06:42.590Z",
+      "n": 5,
+      "phase": "filed",
+      "key": "VITACOMP.brotli-4-v1.02bf7544",
+      "rootPath": "helius-handoff.pdf",
+      "verified": true,
+      "messageOut": false,
+      "raceSlot": null
     }
   ],
-  "updatedAt": "2026-09-24T03:33:20.094Z"
+  "updatedAt": "2026-09-28T05:06:42.590Z"
 }

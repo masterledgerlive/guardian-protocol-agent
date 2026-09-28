@@ -178,7 +178,31 @@
       "chainStatus": "availability",
       "source": "add",
       "at": "2026-09-24T03:33:20.384Z"
+    },
+    "VITACOMP.brotli-4-v1.02bf7544": {
+      "key": "VITACOMP.brotli-4-v1.02bf7544",
+      "codec": "brotli-4-v1",
+      "project": "brotli",
+      "name": "helius-handoff.pdf",
+      "mime": "application/pdf",
+      "kind": "file",
+      "verified": true,
+      "recovered": true,
+      "answer": true,
+      "call": "verified",
+      "rawBytes": 110461,
+      "payloadBytes": 82162,
+      "ratio": 0.7438,
+      "savedBytes": 28299,
+      "rawHash": "02bf75440a1a176d4e624e459bde5abf4e3245913c04e3e9894b79cf0fc5571e",
+      "payloadHash": "bfb5d13c80aa846ecb1b798d1005a5805e21f830c5a1c6a8fc49ed08865cbb6f",
+      "compressMs": 6.041,
+      "calldataPreview": "0x5b7caf311261db8bb31ff200220afa7044623e00ea485df8",
+      "locations": [],
+      "chainStatus": "availability",
+      "source": "helius-handoff",
+      "at": "2026-09-28T05:06:42.585Z"
     }
   },
-  "updatedAt": "2026-09-24T03:33:20.384Z"
+  "updatedAt": "2026-09-28T05:06:42.585Z"
 }

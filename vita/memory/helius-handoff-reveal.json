@@ -1,0 +1,38 @@
+{
+  "id": "helius-handoff-reveal-v1",
+  "filingLabel": "REVEAL",
+  "title": "Helius Network technical handoff (28 Sep 2026)",
+  "neverInventHashes": true,
+  "chainStatus": "availability",
+  "availability": {
+    "compressKey": "VITACOMP.brotli-4-v1.02bf7544",
+    "verified": true,
+    "recover": "/vita/reveal/download?key=VITACOMP.brotli-4-v1.02bf7544",
+    "proofLog": "/vita/proof-log",
+    "localPath": "vita/memory/files/helius-handoff.pdf"
+  },
+  "injectPlan": {
+    "mode": "vitafile",
+    "vinId": "VIN-C70687ADB9",
+    "readerKey": "VITAFEED.VIN-C70687ADB9",
+    "totalChunks": 205,
+    "totalBytes": 147439,
+    "contentCommit": "bfa54f038bc73ad1fbff5bd238e9a9e83d5919331482f1481d6c562df80196f8",
+    "file": {
+      "id": "vita-file-v1",
+      "name": "helius-handoff.pdf",
+      "mime": "application/pdf",
+      "playKind": "file",
+      "rawBytes": 110461,
+      "sha256": "02bf75440a1a176d4e624e459bde5abf4e3245913c04e3e9894b79cf0fc5571e",
+      "softWarn": false
+    },
+    "note": "205 VIN packets @720B — set VITAFEED_PAID=yes then /vitafeed compress inject VITACOMP.brotli-4-v1.02bf7544 OR /vitafeed file → override force"
+  },
+  "machineHandoffAvailability": "KEY=VITACOMP.brotli-4-v1.02bf7544|LOCS=|NAME=helius-handoff.pdf|FOLLOW=leader",
+  "machineHandoffPendingSeal": "KEY=VITAFEED.VIN-C70687ADB9|LOCS=|NAME=helius-handoff.pdf|FOLLOW=leader",
+  "shareAvailability": "/vita/reveal?key=VITACOMP.brotli-4-v1.02bf7544&name=helius-handoff.pdf&auto=1",
+  "shareAfterSeal": "/vita/reveal?key=VITAFEED.VIN-C70687ADB9&locs=<sealed,ordered,hashes>",
+  "followLeader": "VIN header [VITAFEED:VIN-…:ii/nn:prev=<8hex>:next=<ii|END>] — revealer walks prev→next then downloads PDF",
+  "at": "2026-09-28T05:10:52.245Z"
+}

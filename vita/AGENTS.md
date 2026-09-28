@@ -264,6 +264,15 @@ message-out proof. Race slots 1–3 (+extras) justify who proofed or injected
 first. Multi-chain seats reserve memory credit until a real seal (never
 invent locs). Telegram tabs: Plain text · Machine handoff · Original
 download · Unwrap. Page `/vita/proof-log`. See `vita/proof-log.js`.
+**KEY+LOC revealer (shareable download):** `/vitafeed reveal` ·
+`/vitafeed reveal list` · `/vitafeed reveal KEY=…|LOCS=0x…` ·
+`/vitafeed dir REVEAL` — anyone with the reader key and sealed Base locs
+opens `/vita/reveal?key=…&locs=0x…,0x…`, follows VIN `prev→next` leader
+headers, stitches `§VITAFILE§`, and downloads the original (PDF/code/file)
+like a normal pull button. Machine denseline `§VITAREVEAL§` or
+`KEY=…|LOCS=…|FOLLOW=leader`. Availability via `VITACOMP…` open key until
+confirm|override seals real locs — never invent hashes. See
+`vita/vita-reveal.js`.
 
 **Message cascade (anti-stagnant):** `vita/message-cascade.js` — every hop
 carries Eureka love into a token; instant wave HL from token data; rank
