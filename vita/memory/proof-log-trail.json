@@ -5,19 +5,19 @@
   "neverInventHashes": true,
   "neverForget": true,
   "createdAt": "2026-09-23T21:08:48.006Z",
-  "updatedAt": "2026-09-24T03:33:20.387Z",
-  "seq": 4,
+  "updatedAt": "2026-09-28T05:06:42.590Z",
+  "seq": 5,
   "header": {
     "version": "v1",
-    "rootCommit": "95461dd4bbf1dd242b5357728eb3e6b1572e9dccac0eabae48ae98b2e384c37e",
-    "lastSeq": 4,
+    "rootCommit": "340ee43907c0284a73a1143f9ecd3acee88e9d9d1d9ba6a6a996693e831c80cb",
+    "lastSeq": 5,
     "raceSlots": 3,
-    "entryCount": 4,
-    "verifiedCount": 4,
+    "entryCount": 5,
+    "verifiedCount": 5,
     "messageOutCount": 0,
     "sealedCount": 0,
     "note": "Main proof-of-logs header. Child labels refine the tree. Keys attach every row to root path.",
-    "updatedAt": "2026-09-24T03:33:20.387Z"
+    "updatedAt": "2026-09-28T05:06:42.590Z"
   },
   "entries": [
     {
@@ -360,6 +360,62 @@
         }
       ],
       "updatedAt": "2026-09-24T03:33:20.387Z"
+    },
+    {
+      "n": 5,
+      "at": "2026-09-28T05:06:42.590Z",
+      "phase": "filed",
+      "key": "VITACOMP.brotli-4-v1.02bf7544",
+      "name": "helius-handoff.pdf",
+      "kind": "file",
+      "mime": "application/pdf",
+      "codec": "brotli-4-v1",
+      "rootPath": "helius-handoff.pdf",
+      "storePath": "vita/compression/store/VITACOMP.brotli-4-v1.02bf7544.json",
+      "rawHash": "02bf75440a1a176d4e624e459bde5abf4e3245913c04e3e9894b79cf0fc5571e",
+      "payloadHash": "bfb5d13c80aa846ecb1b798d1005a5805e21f830c5a1c6a8fc49ed08865cbb6f",
+      "rawBytes": 110461,
+      "payloadBytes": 82162,
+      "verified": true,
+      "messageOut": false,
+      "timing": {
+        "filedMs": 6.041,
+        "at": "2026-09-28T05:06:42.585Z"
+      },
+      "machine": "COMPRESS key=VITACOMP.brotli-4-v1.02bf7544 codec=brotli-4-v1 ratio=0.7438",
+      "plainPreview": "",
+      "locations": [],
+      "chainCredits": [
+        {
+          "chain": "base",
+          "chainId": 8453,
+          "name": "Base",
+          "role": "hitch-trade",
+          "status": "requested",
+          "location": null,
+          "basescan": null,
+          "memoryCredit": true,
+          "note": "Credit seat reserved — loc empty until a real seal on this chain"
+        }
+      ],
+      "race": {
+        "slot": null,
+        "injectSlot": null,
+        "who": "operator",
+        "proofedFirst": false,
+        "injectedFirst": false
+      },
+      "parentLogN": null,
+      "label": "",
+      "source": "helius-handoff",
+      "history": [
+        {
+          "at": "2026-09-28T05:06:42.590Z",
+          "phase": "filed",
+          "verified": true,
+          "messageOut": false
+        }
+      ]
     }
   ],
   "tree": [
@@ -392,6 +448,14 @@
       "label": "#4",
       "phase": "filed",
       "key": "VITACOMP.brotli-11-v1.9c2d723a",
+      "depth": 0,
+      "children": []
+    },
+    {
+      "n": 5,
+      "label": "#5",
+      "phase": "filed",
+      "key": "VITACOMP.brotli-4-v1.02bf7544",
       "depth": 0,
       "children": []
     }

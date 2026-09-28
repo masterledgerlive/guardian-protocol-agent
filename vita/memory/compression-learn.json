@@ -272,7 +272,24 @@
       "source": "add",
       "tried": 9,
       "verifiedCount": 9
+    },
+    {
+      "at": "2026-09-28T05:06:42.585Z",
+      "name": "helius-handoff.pdf",
+      "kind": "file",
+      "codec": "brotli-4-v1",
+      "project": "brotli",
+      "key": "VITACOMP.brotli-4-v1.02bf7544",
+      "ratio": 0.7438,
+      "rawBytes": 110461,
+      "payloadBytes": 82162,
+      "verified": true,
+      "recovered": true,
+      "answer": true,
+      "source": "helius-handoff",
+      "tried": 9,
+      "verifiedCount": 7
     }
   ],
-  "updatedAt": "2026-09-24T03:33:20.384Z"
+  "updatedAt": "2026-09-28T05:06:42.585Z"
 }

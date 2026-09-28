@@ -90,6 +90,9 @@
 //   POST /vita/compression/add — any file bytes → bench → verified key
 //   GET  /vita/compression/verify — recover with the compression key
 //   POST /vita/compression/run — bench built-in personal/program/video paths
+//   GET  /vita/reveal       — KEY+LOC follow-leader revealer · download original
+//   POST /vita/reveal/pull  — stitch VIN prev→next from Base Input Data UTF-8
+//   GET  /vita/reveal/download — original file bytes (key and/or sealed locs)
 //   GET  /vita/chain-dir    — completion directory (routing vs sealed Input Data proofs)
 //   GET  /vita/check        — blockchain systems check (SNARK + EVM recover + models + LLM spin)
 //   GET  /vita/status         — bot status, portfolio, positions
@@ -197,6 +200,15 @@ import {
   getProofLogEntry,
   formatProofLogEntryCard,
 } from "./vita/proof-log.js";
+import {
+  parseRevealHandoff,
+  parseLocList,
+  normalizeReaderKey,
+  revealFromKeyAndLocs,
+  listRevealCatalog,
+  getRevealCatalogEntry,
+  REVEAL_PLAYER,
+} from "./vita/vita-reveal.js";
 import {
   publicFreeMusicState,
   publicFreeMusicPlay,
@@ -314,6 +326,7 @@ const VITA_PHOTOS_HTML = join(ROOT, "public", "vita-photos.html");
 const VITA_PHOTOS_VIEWER_HTML = join(ROOT, "public", "vita-photos-viewer.html");
 const VITA_COMPRESSION_HTML = join(ROOT, "public", "vita-compression.html");
 const VITA_PROOF_LOG_HTML = join(ROOT, "public", "vita-proof-log.html");
+const VITA_REVEAL_HTML = join(ROOT, "public", "vita-reveal.html");
 const VITA_OS_BUILDER_HTML = join(ROOT, "public", "vita-os-builder.html");
 const VITA_GARDEN_PLAYER_HTML = join(ROOT, "public", "players", "garden.html");
 const VITA_PLAYERS_PROVEN_HTML = join(ROOT, "public", "players", "proven.html");
@@ -1272,6 +1285,121 @@ async function handleVitaRequest(req, res) {
       res.end(checked.bytes);
       return true;
     }
+    if ((path === "/vita/reveal" || path === "/vita/reveal/") && req.method === "GET") {
+      const accept = String(req.headers.accept || "");
+      if (url.searchParams.get("json") === "1" || accept.includes("application/json")) {
+        return json(res, {
+          ok: true,
+          id: "vita-reveal-v1",
+          player: REVEAL_PLAYER,
+          files: listRevealCatalog(),
+          neverInventHashes: true,
+          note: "KEY + LOCS → follow VIN prev→next → download original. Locs empty until real seal.",
+        });
+      }
+      return servePublicHtml(res, VITA_REVEAL_HTML, "vita reveal");
+    }
+    if ((path === "/vita/reveal/pull" || path === "/vita/reveal/pull/") && (req.method === "POST" || req.method === "GET")) {
+      const body = req.method === "POST" ? ((await readBody(req)) || {}) : {};
+      const handoffRaw = String(
+        body.handoff || url.searchParams.get("handoff") || "",
+      ).trim();
+      let key = normalizeReaderKey(body.key || url.searchParams.get("key") || "");
+      let locs = parseLocList(body.locs || body.locations || url.searchParams.get("locs") || "");
+      let name = String(body.name || url.searchParams.get("name") || "").trim() || null;
+      let mime = String(body.mime || url.searchParams.get("mime") || "").trim() || null;
+      let sha256 = String(body.sha256 || url.searchParams.get("sha256") || "").trim() || null;
+      if (handoffRaw) {
+        const parsed = parseRevealHandoff(handoffRaw);
+        if (parsed.ok) {
+          key = key || parsed.key;
+          if (!locs.length) locs = parsed.locations || [];
+          name = name || parsed.name;
+          mime = mime || parsed.mime;
+          sha256 = sha256 || parsed.sha256;
+        }
+      }
+      if (!key && !locs.length) {
+        const sel = String(body.selector || url.searchParams.get("n") || url.searchParams.get("name") || "").trim();
+        if (sel) {
+          const hit = getRevealCatalogEntry(sel);
+          if (hit.ok) {
+            key = hit.entry.key;
+            locs = hit.entry.locations || [];
+            name = name || hit.entry.name;
+            mime = mime || hit.entry.mime;
+            sha256 = sha256 || hit.entry.sha256;
+          }
+        }
+      }
+      const revealed = await revealFromKeyAndLocs({
+        key,
+        locs,
+        name,
+        mime,
+        sha256,
+        fetchCalldata: fetchTxCalldataHex,
+        label: "HTTP",
+      });
+      return json(
+        res,
+        {
+          ok: revealed.ok === true,
+          reason: revealed.reason || null,
+          readerKey: revealed.readerKey || key,
+          key: revealed.readerKey || key,
+          chainStatus: revealed.chainStatus || "availability",
+          card: revealed.card || null,
+          follow: revealed.follow || null,
+          locations: revealed.locations || [],
+          handoff: revealed.handoff || null,
+          sharePath: revealed.sharePath || REVEAL_PLAYER,
+          downloadPath: revealed.downloadPath || null,
+          file: revealed.file
+            ? {
+                name: revealed.file.name,
+                mime: revealed.file.mime,
+                rawBytes: revealed.file.rawBytes,
+                sha256: revealed.file.sha256,
+                playKind: revealed.file.playKind,
+                dataUrl: revealed.file.dataUrl || null,
+              }
+            : null,
+          neverInventHashes: true,
+        },
+        revealed.ok ? 200 : 400,
+      );
+    }
+    if ((path === "/vita/reveal/download" || path === "/vita/reveal/download/") && req.method === "GET") {
+      const key = normalizeReaderKey(url.searchParams.get("key") || "");
+      const locs = parseLocList(url.searchParams.get("locs") || "");
+      const name = String(url.searchParams.get("name") || "").trim() || null;
+      const revealed = await revealFromKeyAndLocs({
+        key,
+        locs,
+        name,
+        fetchCalldata: fetchTxCalldataHex,
+        label: "DOWNLOAD",
+      });
+      if (!revealed.ok || !revealed.file?.data) {
+        return json(res, { ok: false, reason: revealed.reason || "reveal refused" }, 404);
+      }
+      const fname = revealed.file.name || "original.bin";
+      const fmime = revealed.file.mime || "application/octet-stream";
+      const buf = Buffer.isBuffer(revealed.file.data)
+        ? revealed.file.data
+        : Buffer.from(revealed.file.data);
+      res.writeHead(200, {
+        "content-type": fmime,
+        "content-disposition": 'attachment; filename="' + String(fname).replace(/"/g, "") + '"',
+        "content-length": buf.length,
+        "cache-control": "no-store",
+        "x-vita-reveal-key": String(revealed.readerKey || key || ""),
+        "x-vita-reveal-sha256": String(revealed.file.sha256 || ""),
+      });
+      res.end(buf);
+      return true;
+    }
     if ((path === "/vita/compression/verify" || path === "/vita/compression/verify/") && req.method === "GET") {
       const key = String(url.searchParams.get("key") || "").trim();
       if (!key) return json(res, { ok: false, call: "refused", verified: false, reason: "key required" }, 400);
@@ -2035,6 +2163,7 @@ export function startVitaWebhook() {
     console.log("   /vita/photos/viewer — blockchain inject stream · READ PROOF receipts (not blackout)");
     console.log("   /vita/photos/loc · /receipt — exact VIN UTF-8 + Basescan Input Data click-through");
     console.log("   /vita/compression — codec bake-off page + verified key directory");
+    console.log("   /vita/reveal — KEY+LOC follow-leader stitch → download original");
     console.log("   /vita/leftover — public leftover hitch scan (hashes + class)");
     console.log("   /vita/xmem/spec — XMEM v1 agent spec (public)");
     console.log("   /vita/xmem     — x402 wallet memory search (auth)");

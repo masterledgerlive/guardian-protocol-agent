@@ -174,6 +174,12 @@ findable.
 | `vita/memory/compression-learn.json` | `COMPRESS` | Append-only learn: which codec won for which kind |
 | `vita/memory/compression-telegram-unwrap.json` | `COMPRESS` | Learn: Telegram unwrap + full button path matched to VITA:\\COMPRESS\\ |
 | `vita/strands/compression.json` | `COMPRESS` | Sparse strand: file → bake-off → verified key → unwrap plain → inject |
+| `vita/vita-reveal.js` | `REVEAL` | KEY+LOC follow-leader revealer — stitch VIN prev→next → download original (PDF/code/file) |
+| `public/vita-reveal.html` | `REVEAL` | Shareable reveal page · denseline paste · Pull & stitch · Download original |
+| `vita/memory/reveal-catalog.json` | `REVEAL` | Filed handoffs (key · locs · denseline); locs empty until seal |
+| `vita/memory/helius-handoff-reveal.json` | `REVEAL` | Helius Network handoff PDF — availability compress key + pending VIN inject plan |
+| `vita/memory/files/helius-handoff.pdf` | `REVEAL` | Local availability copy of Helius handoff PDF |
+| `vita/strands/reveal.json` | `REVEAL` | Sparse strand: KEY+LOCS → follow-leader → download |
 | `vita/proof-log.js` | `PROOFLOG` | Creation-order proof-of-logs trail · key+root on every row · race 1–3 · multi-chain credit seats · Telegram Plain/Machine/Original tabs |
 | `public/vita-proof-log.html` | `PROOFLOG` | Trail UI + download original via open key |
 | `vita/memory/proof-log-trail.json` | `PROOFLOG` | Append-only rolling verification trail (message-out proofs) |
@@ -262,6 +268,7 @@ findable.
 | `COMPRESS` | Compression bake-off (`§VITACOMP§` / `§VITACOMPDIR§`) — every codec; verified open key recovers the file; unwrap shows HUMAN plain from MACHINE wire; Telegram buttons on HOME/Feed/dir COMPRESS; key directory stages into `/vitafeed` injection; availability until a real seal |
 | `PHOTOS` | Photos Drive (`§VITAPHOTO§` / `§VITAPHOTODIR§`) — Google Drive/folder/URL as new picture drive; open key = the picture (VITAOPEN name+sha); compress bake-off; slow-copy queue; Earthrise PD hope test; `/vitafeed photos` · `dir PHOTOS`; locs empty until confirm\|override |
 | `PROOFLOG` | Proof-of-logs trail (`§VITAPROOFLOG§`) — creation-order rolling verification; key+root on every row; race 1–3; multi-chain memory-credit seats; Plain/Machine/Original Telegram tabs; locs empty until real seal |
+| `REVEAL` | KEY+LOC revealer (`§VITAREVEAL§`) — anyone with reader key + sealed Base locs follows VIN prev→next, stitches §VITAFILE§, downloads original; share `/vita/reveal?key=…&locs=0x…`; availability via VITACOMP open key until seal |
 | `OS_BUILDER` | DOS brain builder (`§VITAOS§` / `§VITAAGENT§` / `§VITATRIGGER§` / `§VITAFOLLOW§`) — guided human↔machine wizard; IFTTT on Base kinds; follow-the-leader cells; sandbox cites hardcoded anchors only; seal stages /vitafeed; availability until real seal |
 | `WAVE_ROBIN` | First agentic AI (`§WAVEROBIN§`) — pure wave math `phase=sin(π·rangePos)` + IFTTT cascade on Robinhood quotes/historicals; growing-wave hops; accumulation proof ledger; SIM default; `RH_WAVE_LIVE` + confirm for real orders; never auto-spend |
 | `PHOSPHOR` | Chain writer/reader (`§PHOSPHOR§` / `§PHOSSNARK§`) — injector wires are the CAS; IPFS outlet standby without a daemon; open PHOSOPEN or AES-256-GCM lock; stark fold of file snarks; Groth16 and Winterfell unwired; location null until a real seal |

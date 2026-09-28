@@ -676,8 +676,8 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
     const rest = trimmed.replace(/^(?:dir|directory|tree|ls|cd)\s*/i, "").trim();
     return { ok: true, action: "dir", body: rest, source: "dir" };
   }
-  if (/^(?:unlock|openfile|reveal)\b/i.test(trimmed)) {
-    const rest = trimmed.replace(/^(?:unlock|openfile|reveal)\s*/i, "").trim();
+  if (/^(?:unlock|openfile)\b/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:unlock|openfile)\s*/i, "").trim();
     return { ok: true, action: "unlock", body: rest, source: "unlock" };
   }
   // KIDS closed-garden YouTube URL directory.
@@ -794,6 +794,11 @@ export function parseVitaFeedCommand(raw, { replyBody = "" } = {}) {
       source: "compress",
       wantsFile,
     };
+  }
+  // KEY+LOC revealer — follow-leader stitch → download original.
+  if (/^(?:reveal|revealer|handoff|pullfile|download)(?:\s|$)/i.test(trimmed)) {
+    const rest = trimmed.replace(/^(?:reveal|revealer|handoff|pullfile|download)\s*/i, "").trim();
+    return { ok: true, action: "reveal", body: rest, source: "reveal" };
   }
   // Proof-of-logs trail — creation-order verification log + Telegram tabs.
   if (/^(?:log|trail|prooflog|proof-log|proofs)(?:\s|$)/i.test(trimmed)) {
@@ -937,6 +942,14 @@ export function vitaFeedUsageText() {
     "  Inbox: vita/compression/inbox/   ·   page: /vita/compression",
     "  Buttons: HOME→Compress · Feed→Comp add · dir COMPRESS — every step is a tap",
     "  Call returns verified + the open key that compressed the file.",
+    "REVEAL (KEY + LOCS → follow-leader stitch → download original):",
+    "  /vitafeed reveal              — help · denseline paste · catalog list",
+    "  /vitafeed reveal list         — filed handoffs (VITA:\\REVEAL\\)",
+    "  /vitafeed reveal KEY=…|LOCS=0x… — anyone with key+locs pulls the file",
+    "  /vitafeed reveal §VITAREVEAL§… — machine handoff denseline",
+    "  Share: /vita/reveal?key=VITAFEED.VIN-…&locs=0x…,0x…",
+    "  Download button stitches VIN prev→next. Basescan Input Data → UTF-8.",
+    "  Never invent hashes — locs empty until confirm|override seals.",
     "PROOF-OF-LOGS (creation-order trail · key+root on every row):",
     "  /vitafeed trail            — rolling log of filed/verified/message-out",
     "  /vitafeed log <n>          — open trail file · tabs Plain|Machine|Original",
@@ -1624,6 +1637,9 @@ export async function handleVitaFeedAction({
   photoBytes = null,
   photoName = "",
   photoMime = "",
+  /** Pull Base Input Data → UTF-8 for /vitafeed reveal (never invent hashes). */
+  fetchCalldata = null,
+  fetchUtf8 = null,
 } = {}) {
   if (action === "check") {
     const audit = auditVitaFeedChainMirror();
@@ -3178,6 +3194,90 @@ export async function handleVitaFeedAction({
       proofLog: out.proofLog || null,
       reply,
       keyboard: out.keyboard,
+    };
+  }
+  if (action === "reveal") {
+    const {
+      parseRevealCommand,
+      formatRevealHelp,
+      formatRevealListCard,
+      formatRevealReply,
+      getRevealCatalogEntry,
+      revealFromKeyAndLocs,
+      REVEAL_PLAYER,
+    } = await import("./vita-reveal.js");
+    const cmd = parseRevealCommand(body);
+    if (cmd.action === "help") {
+      return {
+        ok: true,
+        phase: "reveal",
+        neverInventHashes: true,
+        reply: formatRevealHelp(),
+        player: REVEAL_PLAYER,
+      };
+    }
+    if (cmd.action === "list") {
+      return {
+        ok: true,
+        phase: "reveal",
+        neverInventHashes: true,
+        reply: formatRevealListCard(),
+        player: REVEAL_PLAYER,
+      };
+    }
+    let key = cmd.key || null;
+    let locs = cmd.locations || [];
+    let name = cmd.name || null;
+    let mime = cmd.mime || null;
+    let sha256 = cmd.sha256 || null;
+    if (cmd.selector && !key) {
+      const hit = getRevealCatalogEntry(cmd.selector);
+      if (hit.ok) {
+        key = hit.entry.key;
+        locs = hit.entry.locations || [];
+        name = hit.entry.name;
+        mime = hit.entry.mime;
+        sha256 = hit.entry.sha256;
+      } else {
+        return {
+          ok: false,
+          phase: "reveal",
+          neverInventHashes: true,
+          reply: hit.reason + "\n\n" + formatRevealHelp(),
+        };
+      }
+    }
+    const revealed = await revealFromKeyAndLocs({
+      key,
+      locs,
+      name,
+      mime,
+      sha256,
+      fetchCalldata: typeof fetchCalldata === "function" ? fetchCalldata : null,
+      fetchUtf8: typeof fetchUtf8 === "function" ? fetchUtf8 : null,
+      label: "TELEGRAM",
+    });
+    return {
+      ok: revealed.ok === true,
+      phase: "reveal",
+      readerKey: revealed.readerKey || key,
+      locations: revealed.locations || [],
+      chainStatus: revealed.chainStatus || "availability",
+      handoff: revealed.handoff || null,
+      sharePath: revealed.sharePath || REVEAL_PLAYER,
+      downloadPath: revealed.downloadPath || null,
+      file: revealed.file
+        ? {
+            name: revealed.file.name,
+            mime: revealed.file.mime,
+            rawBytes: revealed.file.rawBytes,
+            sha256: revealed.file.sha256,
+            playKind: revealed.file.playKind,
+          }
+        : null,
+      neverInventHashes: true,
+      reply: formatRevealReply(revealed) + (revealed.ok ? "" : "\n\n" + formatRevealHelp()),
+      player: revealed.sharePath || REVEAL_PLAYER,
     };
   }
   if (action === "log" || action === "trail") {
